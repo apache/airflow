@@ -417,6 +417,28 @@ def _update_file_scoped_parse_failure_warnings(
         session.merge(warning)
 
 
+def clear_orphaned_file_scoped_parse_failure_warnings(
+    bundle_name: str,
+    observed_filelocs: set[str],
+    session: Session,
+) -> None:
+    """Remove parse-failure warnings for files that no longer exist in the bundle."""
+    try:
+        warnings = session.scalars(
+            select(DagWarning)
+            .where(
+                DagWarning.bundle_name == bundle_name,
+                DagWarning.warning_type == PARSE_FAILURE_WARNING_TYPE,
+            )
+            .options(load_only(DagWarning.filename))
+        )
+        for warning in warnings:
+            if warning.filename not in observed_filelocs:
+                session.delete(warning)
+    except Exception:
+        log.exception("Error removing old parse-failure DAG warnings")
+
+
 def _update_import_errors(
     files_parsed: set[tuple[str, str]],
     import_errors: dict[tuple[str, str], str],

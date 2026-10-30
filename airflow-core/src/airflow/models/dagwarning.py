@@ -99,9 +99,13 @@ class DagWarning(Base):
         """
         if get_dialect_name(session) == "sqlite":
             dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_stale == true())
-            query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
+            query = delete(cls).where(
+                cls.dag_id.in_(dag_ids_stmt.scalar_subquery()), cls.bundle_name.is_(None)
+            )
         else:
-            query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_stale == true())
+            query = delete(cls).where(
+                cls.dag_id == DagModel.dag_id, DagModel.is_stale == true(), cls.bundle_name.is_(None)
+            )
 
         session.execute(query.execution_options(synchronize_session=False))
         session.commit()
