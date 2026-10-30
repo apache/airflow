@@ -62,11 +62,181 @@ describe("LogChannel", () => {
   let fx: Fixture;
 
   beforeEach(async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", undefined);
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "");
     fx = await makeServer();
   });
 
   afterEach(async () => {
     fx.server.close();
+    vi.unstubAllEnvs();
+  });
+
+  it.each([
+    [undefined, ["info", "warning", "error"]],
+    ["", ["info", "warning", "error"]],
+    // Invalid values fall back to INFO and report themselves as the first record.
+    ["VERBOSE", ["error", "info", "warning", "error"]],
+    ["INFO", ["info", "warning", "error"]],
+    [" debug ", ["debug", "info", "warning", "error"]],
+    ["WARNING", ["warning", "error"]],
+    ["WARN", ["warning", "error"]],
+    ["ERROR", ["error"]],
+    ["EXCEPTION", ["error"]],
+    ["CRITICAL", []],
+    ["FATAL", []],
+    ["NOTSET", ["debug", "info", "warning", "error"]],
+  ] as const)("filters socket records with logging_level=%s", async (level, expected) => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", level);
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.debug("debug");
+    root.info("info");
+    root.warning("warning");
+    root.error("error");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received).map((record) => record["level"])).toEqual(expected);
+  });
+
+  it("uses the nearest dotted namespace override and the last duplicate entry", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "ERROR");
+    vi.stubEnv(
+      "AIRFLOW__LOGGING__NAMESPACE_LEVELS",
+      " ts-sdk=WARNING, ts-sdk.comm=ERROR ts-sdk.comm=INFO,ts-sdk.comm.deep=DEBUG ",
+    );
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.info("filtered at root");
+    root.warning("root warning");
+    root.child("comm").debug("filtered at comm");
+    root.child("comm").info("comm info");
+    root.child("comm").child("deep").child("child").debug("deep debug");
+    root.child("commander").info("partial namespace must not match");
+    root.child("commander").warning("inherited root warning");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received).map((record) => record["event"])).toEqual([
+      "[ts-sdk] root warning",
+      "[ts-sdk.comm] comm info",
+      "[ts-sdk.comm.deep.child] deep debug",
+      "[ts-sdk.commander] inherited root warning",
+    ]);
+  });
+
+  it("keeps valid namespace overrides and reports invalid entries once", async () => {
+    vi.stubEnv(
+      "AIRFLOW__LOGGING__NAMESPACE_LEVELS",
+      "broken,=DEBUG,ts-sdk.comm=VERBOSE,ts-sdk.client=debug",
+    );
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.child("comm").debug("invalid override falls back to INFO");
+    root.child("client").debug("valid override");
+    root.child("client").debug("second record");
+    await root.close();
+    await fx.sockClosed;
+    const records = readRecords(fx.received);
+    expect(records.filter((record) => record["level"] === "error").map((r) => r["entry"])).toEqual([
+      "broken",
+      "=DEBUG",
+      "ts-sdk.comm=VERBOSE",
+    ]);
+    expect(records.filter((record) => record["level"] === "debug").map((r) => r["event"])).toEqual([
+      "[ts-sdk.client] valid override",
+      "[ts-sdk.client] second record",
+    ]);
+  });
+
+  it("filters before buffering and shares the initial configuration with later children", async () => {
+    const root = LogChannel.createBuffered();
+    root.debug("filtered before connect");
+    root.info("buffered info");
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG");
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "ts-sdk.comm=DEBUG");
+    root.child("comm").debug("filtered despite later environment change");
+    await root.connect(`127.0.0.1:${fx.port}`);
+    root.child("comm").info("connected info");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received).map((record) => record["event"])).toEqual([
+      "[ts-sdk] buffered info",
+      "[ts-sdk.comm] connected info",
+    ]);
+  });
+
+  it("filters records on stderr fallback as well as the socket", async () => {
+    const write = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    const root = LogChannel.createBuffered();
+    try {
+      root.debug("filtered before connect");
+      root.info("buffered info");
+      await root.close();
+      expect(write.mock.calls).toHaveLength(1);
+      expect(JSON.parse(String(write.mock.calls[0]?.[0]))).toMatchObject({
+        event: "[ts-sdk] buffered info",
+        level: "info",
+      });
+    } finally {
+      write.mockRestore();
+    }
+  });
+
+  it("reports an invalid logging_level once", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "TRACE");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.debug("filtered at INFO");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      {
+        level: "error",
+        event: "[ts-sdk] Ignoring invalid logging_level; using INFO",
+        logging_level: "TRACE",
+      },
+    ]);
+  });
+
+  it("keeps the method's level when args carry a level field", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "WARNING");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.info("numeric level", { level: 3 });
+    root.debug("level escalation", { level: "error" });
+    root.error("level demotion", { level: "debug" });
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      { event: "[ts-sdk] level demotion", level: "error" },
+    ]);
+  });
+
+  it("treats a level outside LogLevel as INFO instead of bypassing the filter", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "WARNING");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.send({ event: "unknown", level: "trace" as never });
+    root.send({ event: "non-string", level: 7 as never });
+    root.warning("kept");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received).map((record) => record["event"])).toEqual(["[ts-sdk] kept"]);
+  });
+
+  it("filters by the channel name even when the record overrides logger", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "ts-sdk.client=DEBUG");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.child("comm").debug("override does not unlock DEBUG", { logger: "ts-sdk.client" });
+    root.child("comm").info("non-string logger", { logger: 123 });
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toMatchObject([
+      { event: "[ts-sdk.comm] non-string logger", logger: 123 },
+    ]);
+  });
+
+  it("applies namespace overrides to the invalid-entry report itself", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__NAMESPACE_LEVELS", "broken ts-sdk=CRITICAL");
+    const root = await connectChannel(`127.0.0.1:${fx.port}`);
+    root.error("filtered at CRITICAL");
+    await root.close();
+    await fx.sockClosed;
+    expect(readRecords(fx.received)).toEqual([]);
   });
 
   it("defaults logger name to 'ts-sdk' and auto-stamps timestamp", async () => {
@@ -104,6 +274,7 @@ describe("LogChannel", () => {
   });
 
   it("child() creates a hierarchical sibling sharing the socket", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG");
     const root = await connectChannel(`127.0.0.1:${fx.port}`);
     const comm = root.child("comm");
     const client = root.child("client");
@@ -156,6 +327,7 @@ describe("LogChannel", () => {
   });
 
   it("buffers records emitted before connect and flushes them in order on connect", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG");
     const root = LogChannel.createBuffered();
     const child = root.child("runtime");
     child.debug("connecting", { attempt: 1 });
@@ -284,6 +456,7 @@ describe("LogChannel", () => {
   });
 
   it("warns once and falls back to stderr after an unexpected disconnect", async () => {
+    vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", "DEBUG");
     const serverSocks: net.Socket[] = [];
     const received: Buffer[] = [];
     const server = net.createServer((sock) => {
