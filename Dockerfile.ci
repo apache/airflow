@@ -29,7 +29,7 @@
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
 #   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:9ed60ac490ee5038920b1e69ea9adb256f9f95ca285b65800d2ddab73b6e3a1e"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:a5ef3495cfc3ff8175b90ec1b84b7cfb3528ef3e153b54f9924a8508cd0fd9de"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -2208,7 +2208,7 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
 ARG AIRFLOW_PIP_VERSION=26.2.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.6
+ARG AIRFLOW_UV_VERSION=0.13.5
 ARG AIRFLOW_PREK_VERSION="0.5.7"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
