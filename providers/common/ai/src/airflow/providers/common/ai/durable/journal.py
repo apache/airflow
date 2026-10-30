@@ -182,8 +182,9 @@ class DurableRun:
     One agent run's steps in the journal.
 
     Positions are handed out in the order steps are claimed. A step must be claimed
-    before its first ``await``, so concurrent steps (parallel tool calls) take their
-    positions in the order they were started rather than the order they finish.
+    before its first ``await``, so concurrent steps take their positions in the order they
+    were started rather than the order they finish. An adapter whose concurrent steps can
+    be delayed before their claim must claim them itself in a deterministic order.
 
     Besides its steps, a run keeps one entry about itself: where the last attempt that
     failed stopped being trustworthy, and the furthest position any attempt reached, so
