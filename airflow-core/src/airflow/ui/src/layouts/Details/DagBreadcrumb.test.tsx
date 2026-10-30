@@ -20,11 +20,12 @@ import type { PropsWithChildren } from "react";
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation, useMatches } from "react-router-dom";
+import { MemoryRouter, Route, Routes, matchRoutes, useLocation, useMatches } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DagRunService, DagService, TaskInstanceService } from "openapi/requests/services.gen";
 
+import { routerConfig } from "src/router";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -56,6 +57,8 @@ vi.mock("src/queries/useLoopFilterOptions", async (importOriginal) => {
 
 // The msw dag-details handler is pinned to this dag id.
 const DAG_ID = "tutorial_taskflow_api";
+
+const leadsToErrorPage = (href: string) => matchRoutes(routerConfig, href)?.at(-1)?.route.path === "*";
 
 const LocationProbe = () => <div data-testid="location-pathname">{useLocation().pathname}</div>;
 
@@ -266,6 +269,22 @@ describe("DagBreadcrumb", () => {
     // and the trip would drop the region the url carries.
     expect(screen.queryByRole("link", { name: /mapIndex/u })).not.toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("never links a looped group page's levels to a missing page", async () => {
+    mockLoopOptions = LOOP_PASSES;
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/group/batch`,
+        "/dags/:dagId/runs/:runId/tasks/group/:groupId",
+      ),
+    });
+
+    await screen.findByTestId("switch-iteration");
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(leadsToErrorPage(link.getAttribute("href") ?? "")).toBe(false);
+    }
   });
 
   it("resolves the task instance by the region coordinates in the URL", async () => {

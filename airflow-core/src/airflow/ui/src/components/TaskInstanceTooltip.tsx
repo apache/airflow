@@ -150,6 +150,13 @@ const TaskInstanceTooltip = ({
                   </Text>
                 </>
               ) : undefined}
+              {"retry_at" in taskInstance &&
+              taskInstance.state === "up_for_retry" &&
+              Boolean(taskInstance.retry_at) ? (
+                <Text>
+                  {translate("taskInstance.retryAt")}: <Time datetime={taskInstance.retry_at} />
+                </Text>
+              ) : undefined}
               {"min_start_date" in taskInstance && taskInstance.min_start_date !== null ? (
                 <>
                   <Text>

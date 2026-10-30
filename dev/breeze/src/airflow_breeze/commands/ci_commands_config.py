@@ -26,6 +26,9 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "get-workflow-info",
         "upgrade",
         "set-milestone",
+        "fork-ci-reconcile",
+        "audit",
+        "approve-workflow-runs",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -47,6 +50,8 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--default-branch",
                 "--default-constraints-branch",
                 "--platform",
+                "--selective-tests-on-push",
+                "--push-base-commit",
             ],
         },
         {
@@ -76,6 +81,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--push-to-target-branch",
                 "--draft",
                 "--switch-to-base",
                 "--airflow-site",
@@ -91,6 +97,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--update-chart-dependencies",
                 "--upgrade-important-versions",
                 "--upgrade-dependency-floors",
+                "--mirror-base-images",
                 "--update-uv-lock",
                 "--k8s-schema-sync",
             ],
@@ -105,6 +112,43 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--pr-labels",
                 "--base-branch",
                 "--merged-by",
+            ],
+        },
+        {
+            "name": "GitHub parameters",
+            "options": [
+                "--github-token",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze ci fork-ci-reconcile": [
+        {
+            "name": "Fork CI reconcile flags",
+            "options": [
+                "--config",
+                "--output-file",
+                "--reported-file",
+                "--draft-changes-file",
+                "--run-url",
+                "--github-repository",
+            ],
+        },
+    ],
+    "breeze ci audit": [
+        {
+            "name": "Audit flags",
+            "options": [
+                "--fix",
+            ],
+        },
+    ],
+    "breeze ci approve-workflow-runs": [
+        {
+            "name": "Approval flags",
+            "options": [
+                "--max-run-age-hours",
+                "--report-only",
             ],
         },
         {

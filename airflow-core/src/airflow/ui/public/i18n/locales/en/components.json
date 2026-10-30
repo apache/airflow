@@ -61,6 +61,13 @@
   "dagWarnings": {
     "error_one": "1 Error",
     "errorAndWarning": "1 Error and {{warningText}}",
+    "types": {
+      "asset conflict": "Asset conflict",
+      "duplicate dag id": "Duplicate Dag ID",
+      "non-existent pool": "Non-existent pool",
+      "runtime varying value": "Runtime-varying value",
+      "task group cycle": "Task group cycle"
+    },
     "warning_one": "1 Warning",
     "warning_other": "{{count, number}} Warnings"
   },
@@ -148,6 +155,7 @@
     "empty": "No completed task instances in this range",
     "title": "Slowest task instances"
   },
+  "sort": "sort",
   "sortMultiColumnHint": "Shift-click to sort by multiple columns",
   "sortedAscending": "sorted ascending",
   "sortedDescending": "sorted descending",
@@ -165,6 +173,12 @@
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dagStartEndDate": {
+      "both": "Dag start date: {{startDate}}, end date: {{endDate}}",
+      "end": "Dag end date: {{endDate}}",
+      "noTaskWillRun": "No task will run.",
+      "start": "Dag start date: {{startDate}}"
+    },
     "dataInterval": "Data Interval",
     "dataIntervalAuto": "Inferred from Logical Date and Timetable",
     "dataIntervalManual": "Specify Manually",

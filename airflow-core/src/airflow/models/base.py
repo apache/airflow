@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import Integer, MetaData, String, event, text
 from sqlalchemy.orm import Mapped, Mapper, mapped_column, registry
@@ -55,13 +55,10 @@ _sentinel = object()
 # Mapper class (2.1 adds one per registry), so it fires on whichever registry configures first.
 event.listen(Mapper, "before_configured", import_all_models, once=True)
 
-if TYPE_CHECKING:
-    Base = Any
-else:
-    Base = mapper_registry.generate_base()
-    # TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
-    # unblock the development of SQLA2 support.
-    Base.__allow_unmapped__ = True
+Base: Any = mapper_registry.generate_base()
+# TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
+# unblock the development of SQLA2 support.
+Base.__allow_unmapped__ = True
 
 ID_LEN = 250
 

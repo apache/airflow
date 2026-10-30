@@ -26,6 +26,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from airflow.api_fastapi.app import get_cookie_path
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.auth import CliLoginMetadataResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
     AuthManagerDep,
@@ -58,6 +59,19 @@ def login(request: Request, auth_manager: AuthManagerDep, next: None | str = Non
         login_url += f"?{urlencode({'next': next})}"
 
     return RedirectResponse(login_url)
+
+
+@auth_router.get("/cli/metadata")
+def get_cli_login_metadata(auth_manager: AuthManagerDep) -> CliLoginMetadataResponse:
+    """Return the login methods the AuthManager configured offers to command-line clients."""
+    methods = auth_manager.get_cli_login_methods()
+    return CliLoginMetadataResponse(
+        grant_types_supported=methods.grant_types_supported,
+        code_challenge_methods_supported=methods.code_challenge_methods_supported,
+        authorization_endpoint=methods.authorization_endpoint,
+        device_authorization_endpoint=methods.device_authorization_endpoint,
+        token_endpoint=methods.token_endpoint,
+    )
 
 
 @auth_router.get(

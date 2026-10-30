@@ -233,8 +233,8 @@ class Timetable(Protocol):
     """Whether queued asset events are consumed together in one Dag run."""
 
     def group_asset_events(
-        self, events: list[AssetEvent], triggered_date: DateTime
-    ) -> Iterable[tuple[DateTime, list[AssetEvent]]]:
+        self, events: Sequence[AssetEvent], triggered_date: DateTime
+    ) -> Iterable[tuple[DateTime, Sequence[AssetEvent]]]:
         """Yield a run time and its consumed events for each asset-triggered run."""
         if not events:
             return

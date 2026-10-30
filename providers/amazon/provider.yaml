@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1791984681
+source-date-epoch: 1792489528
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 9.39.0
   - 9.38.0
   - 9.37.0
   - 9.36.0
@@ -1510,6 +1511,15 @@ config:
         type: integer
         example: "3"
         default: "3"
+      run_task_concurrency:
+        description: |
+          The maximum number of ECS RunTask calls the ECS Executor makes in parallel. With 1, tasks are
+          launched one at a time and the scheduler loop waits for each call. With more, the calls run in
+          background threads and the scheduler loop does not wait for them.
+        version_added: "9.40.0"
+        type: integer
+        example: "16"
+        default: "1"
       run_task_kwargs:
         description: |
           A JSON string containing arguments to provide the ECS `run_task` API (see url above).

@@ -36,6 +36,8 @@ Environment variables (optional):
   MAX_RUNS           - Maximum number of workflow runs to analyze (default: 10)
   WORKFLOW_NAME      - Workflow file name to query (default: ci-amd.yml)
   BRANCH             - Branch to filter runs (default: main)
+  EVENT              - Trigger event to restrict runs to; the scheduled canaries are the main
+                       runs with E2E results. Empty string = all events (default: schedule)
   OUTPUT_FILE        - Path for the Slack message output (default: slack-message.json)
   GITHUB_OUTPUT      - Path to GitHub Actions output file
   GITHUB_STEP_SUMMARY - Path to GitHub Actions step summary file
@@ -81,14 +83,12 @@ def gh_api(endpoint: str, **kwargs: str) -> str | None:
     return result.stdout.strip()
 
 
-def get_recent_run_ids(repo: str, workflow: str, branch: str, max_runs: int) -> list[dict]:
-    """Get recent workflow run IDs and metadata."""
-    output = gh_api(
-        f"repos/{repo}/actions/workflows/{workflow}/runs",
-        branch=branch,
-        per_page=str(max_runs),
-        status="completed",
-    )
+def get_recent_run_ids(repo: str, workflow: str, branch: str, max_runs: int, event: str) -> list[dict]:
+    """Get recent workflow run IDs and metadata, restricted to ``event`` unless it is empty."""
+    params = {"branch": branch, "per_page": str(max_runs), "status": "completed"}
+    if event:
+        params["event"] = event
+    output = gh_api(f"repos/{repo}/actions/workflows/{workflow}/runs", **params)
     if not output:
         return []
     try:
@@ -527,13 +527,14 @@ def main() -> None:
     max_runs = int(os.environ.get("MAX_RUNS", "10"))
     workflow = os.environ.get("WORKFLOW_NAME", "ci-amd.yml")
     branch = os.environ.get("BRANCH", "main")
+    event = os.environ.get("EVENT", "schedule")
     output_file = Path(os.environ.get("OUTPUT_FILE", "slack-message.json"))
 
     print(f"Analyzing E2E test results for {repo} ({workflow} on {branch})")
     print(f"Looking at up to {max_runs} recent runs...")
 
     # Get recent runs
-    runs = get_recent_run_ids(repo, workflow, branch, max_runs)
+    runs = get_recent_run_ids(repo, workflow, branch, max_runs, event)
     if not runs:
         print("No workflow runs found.")
         sys.exit(0)

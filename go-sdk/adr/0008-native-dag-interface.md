@@ -35,7 +35,7 @@ Proposed.
 5. **`airflow.Inputs(refs...)` declares the data and the edge in one call** for defining graph with TaskFlow syntax.
    `airflow.Literal(value)` passes a JSON-serializable value in the same call without adding an edge, e.g. `airflow.Inputs(extracted, airflow.Literal("uk"))`.
 6. **`Before` and `After` are order-only edges on `airflow.Node`**, which both `*airflow.TaskRef` and `*airflow.TaskGroupRef` satisfy. They are the Go pair for `>>` and `<<`, and both return their argument set as one `Node`, so `a.Before(b, c).Before(d)` is Python's `a >> [b, c] >> d`.
-7. **An edge label wraps the endpoint**: `loaded.Before(airflow.Label(notify, "when empty"))` is Python's `loaded >> Label("when empty") >> notify`. Labelling the endpoint rather than the call lets one fan-out give each edge its own label.
+7. **An edge label wraps the endpoint, and its text comes first**: `loaded.Before(airflow.Label("when empty").On(notify))` is Python's `loaded >> Label("when empty") >> notify`. Labelling the endpoint rather than the call lets one fan-out give each edge its own label. Because the text comes before the endpoint, it sits between the two tasks in the code, the same place the label sits in the rendered graph. The Java SDK uses the same order: `Label.of("when empty").on(notify)`.
 8. **Trigger rules belong to the task**, as `airflow.TaskSpec{TriggerRule: ...}`, never to an edge.
 9. **A user-facing enum carries its type in the constant name** — e.g. `airflow.TriggerRuleAllDone`.
 10. **Everything an author writes comes from one `airflow` package.**
@@ -100,7 +100,7 @@ staging.Before(loaded)            // staging >> load
 loaded.Before(notified, cleaned)  // loaded >> [notify, cleanup]
 cleaned.After(extracted)          // cleanup << extracted
 
-loaded.Before(airflow.Label(emptyNotice, "when empty"))  // loaded >> Label("when empty") >> notify_empty
+loaded.Before(airflow.Label("when empty").On(emptyNotice))  // loaded >> Label("when empty") >> notify_empty
 ```
 
 ## Signature
@@ -153,8 +153,12 @@ type Node interface {
     node()
 }
 
-// Label carries an edge label into Before or After. The Node it returns stands for node itself.
-func Label(node Node, text string) Node
+type LabelRef struct{ /* unexported */ }
+
+// Label makes an edge label, and On carries the label into Before or After. The Node that On
+// returns stands for node and each node in more.
+func Label(text string) *LabelRef
+func (l *LabelRef) On(node Node, more ...Node) Node
 
 // A user-facing enum is a named string type with its type in each constant name.
 type TriggerRule string
@@ -185,7 +189,7 @@ const (
   `airflow.DagRunState` is a type alias of `genmodels.DagRunState`, not a new type. `airflow.DagRun` is an alias of `sdk.DagRun`, and package `sdk` cannot import `airflow`. So a state field that `sdk.DagRun` gains later has a type declared outside `airflow`. `actx.DagRun().State == airflow.DagRunStateFailed` compiles only if both sides have the same type.
   The cost is that `%T` and package reflect report `airflow.DagRunState` as `genmodels.DagRunState`, and package `airflow` cannot declare a method on that type.
 - **A value outside an enum is rejected when the task is added.** Go converts a string literal to an enum type without a cast, so the enum type alone does not stop `TaskSpec{TriggerRule: "all_sucess"}`. `dag.Task` panics with a message that names the field and lists the valid values. Python rejects an unknown trigger rule when the operator is constructed. It rejects an unknown weight rule only when the Dag is serialized.
-- **A data edge is labelled by redeclaring it.** Declaring an edge that already exists is idempotent, so `extracted.Before(airflow.Label(transformed, "rows"))` labels the edge `Inputs` created.
+- **A data edge is labelled by redeclaring it.** Declaring an edge that already exists is idempotent, so `extracted.Before(airflow.Label("rows").On(transformed))` labels the edge `Inputs` created.
 - **Renaming a Go function renames the task.** The id is derived, and history, clears, and the UI all key on task_id, so renaming a function whose task carries no `TaskSpec` id is a Dag change.
   `airflow.TaskSpec{TaskID: ...}` pins an id that has to outlive the function's name, and it is also how a Dag gets snake_case ids, since nothing transforms a Go name.
   Renaming a task group renames every task whose task_id the group_id prefixes, for the same reason.
@@ -196,8 +200,9 @@ const (
 - **A group with no task is stepped over.** An edge to it continues along each edge from it, and an edge from it back along each edge to it, whenever those were declared, as the TypeScript SDK does. So `extracted.Before(empty).Before(loaded)` runs `load` after `extract`, as Python's `extract >> empty >> load` does.
   What Python does with an empty group depends on how and when its edges are declared: `load << empty << extract` adds no edge, and an empty group with no task before it falls back to the last tasks of the enclosing group or of the whole Dag, which can make a task depend on itself.
 - **An edge cannot connect a group to what it holds.** Python's `group >> node_in_group` orders the last tasks of the group before the first tasks of a node inside it, which fails as a cycle whenever that node holds a task. The edge verb rejects the edge when it is declared.
-- **A label stays on the edge it is declared on.** A label on a group edge labels none of the task edges that the group edge stands for, and a labelled edge keeps its ends.
-  Python's behavior depends on which end is the receiver and which groups hold the ends. When no group holds `extract`, `extract >> Label("rows") >> group` labels each of those task edges as well. When `a` and `b` are in different groups, `a >> Label("x") >> b` replaces `a` with its group, so every last task of `a`'s group runs before `b`. The Go SDK does neither.
+- **A label stays on the edge it is declared on, with one exception.** A label on a group edge labels that group edge. A group edge from a task in no group to a group with tasks also puts its label on the task edges from that task to the first tasks of the group. Python's `extract >> Label("rows") >> group` does the same. If one of those task edges was also declared on its own, or an earlier group edge added it, that task edge keeps the label it has. If it has no label, it stays unlabelled. Python labels those task edges when `>>` runs, so in Python the label written last wins.
+  A label does not change the ends of its edge. When `a` and `b` are in different groups, Python's `a >> Label("x") >> b` replaces `a` with its group, so all the last tasks of `a`'s group run before `b`. The Go SDK keeps the edge between `a` and `b`.
+- **A label on a task or task group is rejected when it would get no edge.** `Before` and `After` panic when their receiver carries a label. Python's `Label("x") >> b` drops that label without an error. `Before` and `After` also panic when they are given a label but their receiver stands for no task or task group. A chain such as `loaded.Before(shards...).Before(airflow.Label("x").On(merged))` panics when `shards` is empty. The same chain without the label declares nothing and does not panic. When `On` is given only empty sets, the label is on no task or task group, so `Before` and `After` drop it without an error.
 - **`TaskGroup` takes `spec ...TaskGroupSpec`, as `Dag` takes `spec ...DagSpec`.** A group has one kind of option, so it needs no sealed option interface. A mapped task group would come through a method of its own, not through this variadic.
 
 ## Alternatives
@@ -208,5 +213,6 @@ const (
   callable per run, so an edge existing only in execution order cannot be parsed without running the
   program to completion. `Inputs` keeps the typed outputs that style is reached for.
 - **Labelling the call**, `loaded.Before(notify).Label("when empty")`. Rejected: one call fans out, so a single label on the call cannot give `a.Before(b, c)` a different label per edge.
+- **The endpoint first**, `airflow.Label(notify, "when empty")`. The SDK had this form before it followed the Java SDK, and no release included this form. Rejected: the text comes after the second task in the code, while the rendered graph shows the label between the two tasks.
 - **A positional task_id**, `dag.Task(taskID, fn, opts...)`. Rejected: It's more straightforward and native for Go user to define a Task without defining the task_id explicitly. They could still set the task_id other than the function name in the TaskSpec.
 - **Separate `Dag` and `MixedLangDag` types.** Rejected: Python has one Dag class, and the Mixed Lang case is not a Dag at all ([ADR 7](0007-mixed-lang-task-handler-interface.md)).

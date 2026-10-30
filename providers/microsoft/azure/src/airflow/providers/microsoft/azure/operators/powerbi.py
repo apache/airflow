@@ -69,10 +69,11 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
     """
     Refreshes a Power BI dataset.
 
-    The refresh is started from the worker, and its id is kept in the task state store before the task
-    defers to wait for it. A retry, for instance after a worker crash, reconnects to that refresh while it
-    is still in progress, and does not start a new one once it has completed. This needs Airflow 3.3 or
-    later; on older versions every try starts a new refresh.
+    When durable, the refresh is started from the worker, and its id is kept in the task state store
+    before the task defers to wait for it. A retry, for instance after a worker crash, reconnects to that
+    refresh while it is still in progress, and does not start a new one once it has completed. This needs
+    Airflow 3.3 or later. Otherwise the trigger starts the refresh, as in earlier versions of this
+    provider: only the triggerer talks to Power BI, and every try starts a new refresh.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -88,8 +89,11 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
     :param wait_for_completion: If True, wait for the dataset refresh to complete. If False, trigger the refresh and return immediately without waiting.
     :param deferrable: This parameter is deprecated and no longer has any effect. The operator now always
         uses deferrable execution.
-    :param durable: Reconnect to the refresh started by an earlier try instead of starting a new one
-        (default is True). Needs Airflow 3.3 or later.
+    :param durable: Start the refresh from the worker and reconnect to it on a retry instead of starting
+        a new one (default is True). A durable refresh is not cancelled when polling it fails, so that
+        the retry can reconnect to it. Set it to False to keep the behaviour of earlier versions: the
+        trigger starts the refresh, every try starts a new one, and it is cancelled when polling fails.
+        Needs Airflow 3.3 or later; below it the operator behaves as with ``durable=False``.
     """
 
     external_id_key = "powerbi_dataset_refresh_id"
@@ -139,6 +143,23 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
 
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
+        if not self.durable:
+            # As in earlier versions of this provider: the trigger starts the refresh, so only the
+            # triggerer talks to Power BI, and every try starts a new refresh.
+            self.defer(
+                trigger=PowerBITrigger(
+                    conn_id=self.conn_id,
+                    group_id=self.group_id,
+                    dataset_id=self.dataset_id,
+                    timeout=self.timeout,
+                    proxies=self.proxies,
+                    api_version=self.api_version,
+                    check_interval=self.check_interval,
+                    wait_for_termination=False,
+                    request_body=self.request_body,
+                ),
+                method_name=self.handle_refresh.__name__,
+            )
         return self.execute_resumable(context)
 
     def submit_job(self, context: Context) -> str:
@@ -158,26 +179,38 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         refresh_histories = self.hook.run_sync(
             self.hook.get_refresh_history(dataset_id=self.dataset_id, group_id=self.group_id)
         )
-        for refresh_details in refresh_histories:
-            if refresh_details[PowerBIDatasetRefreshFields.REQUEST_ID.value] == external_id:
-                return refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
-        # Power BI keeps a limited refresh history; a refresh that dropped out of it is not resumable.
-        return _REFRESH_NOT_IN_HISTORY
+        if not any(
+            details[PowerBIDatasetRefreshFields.REQUEST_ID.value] == external_id
+            for details in refresh_histories
+        ):
+            # Power BI keeps a limited refresh history; a refresh that dropped out of it is not resumable.
+            return _REFRESH_NOT_IN_HISTORY
+        refresh_details = self.hook.run_sync(
+            self.hook.get_refresh_details_by_refresh_id(
+                dataset_id=self.dataset_id, group_id=self.group_id, refresh_id=str(external_id)
+            )
+        )
+        return refresh_details[PowerBIDatasetRefreshFields.STATUS.value]
 
     def is_job_active(self, status: str) -> bool:
-        return status == PowerBIDatasetRefreshStatus.IN_PROGRESS
+        # Without wait_for_completion a retry does not wait for a refresh in progress either:
+        # is_job_succeeded counts it as done.
+        return self.wait_for_completion and status == PowerBIDatasetRefreshStatus.IN_PROGRESS
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == PowerBIDatasetRefreshStatus.COMPLETED
+        if status == PowerBIDatasetRefreshStatus.COMPLETED:
+            return True
+        # Without wait_for_completion, is_job_succeeded counts an in-progress refresh as done.
+        return not self.wait_for_completion and status == PowerBIDatasetRefreshStatus.IN_PROGRESS
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         dataset_refresh_id = str(external_id)
-        self._push_refresh_xcom(context, dataset_refresh_id)
-
         if not self.wait_for_completion:
+            # get_job_result pushes the refresh id.
             self.log.info("Triggered dataset refresh %s (fire-and-forget)", dataset_refresh_id)
             return
 
+        self._push_refresh_xcom(context, dataset_refresh_id)
         self.defer(
             trigger=PowerBITrigger(
                 conn_id=self.conn_id,
@@ -195,7 +228,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         )
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
-        # With wait_for_completion the mixin only gets here for a refresh an earlier try saw complete.
+        # With wait_for_completion the mixin only gets here for a refresh an earlier try saw complete,
+        # otherwise poll_until_complete defers and execute_complete pushes the id and the status.
         self._push_refresh_xcom(
             context,
             str(external_id),
@@ -215,8 +249,8 @@ class PowerBIDatasetRefreshOperator(ResumableJobMixin, BaseOperator):
         """
         Handle refresh-trigger event and optionally defer again to wait for refresh completion.
 
-        Only tasks deferred by an earlier version of this provider, whose trigger started the refresh,
-        still resume here.
+        The trigger started the refresh: the task is not durable, or was deferred by an earlier version
+        of this provider.
 
         :param context: Airflow context dictionary
         :param event: Event dict from trigger with status and dataset_refresh_id

@@ -60,6 +60,13 @@
   "dagWarnings": {
     "error_one": "שגיאה",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
+    "types": {
+      "asset conflict": "התנגשות בנכס",
+      "duplicate dag id": "Dag ID כפול",
+      "non-existent pool": "מאגר משאבים לא קיים",
+      "runtime varying value": "ערך משתנה בזמן ריצה",
+      "task group cycle": "מעגל בקבוצת המשימות"
+    },
     "warning_one": "אזהרה אחת",
     "warning_other": "{{count, number}} אזהרות",
     "warning_two": "{{count, number}} אזהרות"

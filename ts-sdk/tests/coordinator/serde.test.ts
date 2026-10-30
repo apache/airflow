@@ -27,7 +27,7 @@ import {
 } from "../../src/coordinator/serde.js";
 import {
   Dag,
-  label,
+  Label,
   type DagSpec,
   type TaskGroupRef,
   type TaskRef,
@@ -36,6 +36,12 @@ import {
 
 type Json = Record<string, unknown>;
 type WiredArgs = Record<string, TaskRef>;
+
+interface StagingRefs {
+  readonly extracted: TaskRef;
+  readonly staging: TaskGroupRef;
+  readonly reported: TaskRef;
+}
 
 /** Declare a task and place it, optionally behind some upstreams. */
 function place(
@@ -493,14 +499,218 @@ describe("serializeDag", () => {
       const staging = dag.taskGroup("staging");
       place(staging, "stage");
       const loaded = place(dag, "load");
-      extracted.before(label(transformed, "rows"));
-      transformed.before(label(staging, "staged"));
-      staging.before(label(loaded, "ready"));
+      extracted.before(Label.of("rows").on(transformed));
+      transformed.before(Label.of("staged").on(staging));
+      staging.before(Label.of("ready").on(loaded));
 
       expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
         extract: { transform: { label: "rows" } },
-        transform: { "staging.upstream_join_id": { label: "staged" } },
+        transform: {
+          "staging.upstream_join_id": { label: "staged" },
+          "staging.stage": { label: "staged" },
+        },
         "staging.downstream_join_id": { load: { label: "ready" } },
+      });
+    });
+
+    it.each([
+      [
+        "a task's before() labels the edges to the group's roots",
+        (refs: StagingRefs) => refs.extracted.before(Label.of("L").on(refs.staging)),
+        {
+          extract: {
+            "staging.upstream_join_id": { label: "L" },
+            "staging.stage": { label: "L" },
+            "staging.audit": { label: "L" },
+          },
+        },
+      ],
+      [
+        "a task's after() labels the edges from the group's leaves",
+        (refs: StagingRefs) => refs.reported.after(Label.of("L").on(refs.staging)),
+        {
+          "staging.downstream_join_id": { report: { label: "L" } },
+          "staging.check": { report: { label: "L" } },
+          "staging.audit": { report: { label: "L" } },
+        },
+      ],
+      [
+        "a group's after() labels only the edge to its join node",
+        (refs: StagingRefs) => refs.staging.after(Label.of("L").on(refs.extracted)),
+        { extract: { "staging.upstream_join_id": { label: "L" } } },
+      ],
+      [
+        "a group's before() labels only the edge from its join node",
+        (refs: StagingRefs) => refs.staging.before(Label.of("L").on(refs.reported)),
+        { "staging.downstream_join_id": { report: { label: "L" } } },
+      ],
+    ])("%s", (_name, draw, expected) => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const staging = dag.taskGroup("staging");
+      const staged = place(staging, "stage");
+      place(staging, "check", [staged]);
+      place(staging, "audit");
+      const reported = place(dag, "report");
+      draw({ extracted, staging, reported });
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual(expected);
+    });
+
+    it("keeps the root labels of before() when the group's after() relabels the edge", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const staging = dag.taskGroup("staging");
+      place(staging, "stage");
+      extracted.before(Label.of("first").on(staging));
+      staging.after(Label.of("second").on(extracted));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "staging.stage": { label: "first" },
+          "staging.upstream_join_id": { label: "second" },
+        },
+      });
+    });
+
+    it("labels no task edge of a group edge from a task in a group, or past an empty group", () => {
+      const dag = new Dag("d");
+      const transform = dag.taskGroup("transform");
+      const cleaned = place(transform, "clean");
+      const nulls = place(transform.taskGroup("checks"), "nulls");
+      const publish = dag.taskGroup("publish");
+      place(publish, "push");
+      const extracted = place(dag, "extract");
+      const empty = dag.taskGroup("empty");
+      const loaded = place(dag, "load");
+      const reported = place(dag, "report");
+      cleaned.before(Label.of("rows").on(publish));
+      nulls.before(Label.of("checked").on(publish));
+      nulls.after(Label.of("pushed").on(publish));
+      extracted.before(Label.of("to empty").on(empty));
+      empty.before(loaded);
+      reported.after(Label.of("from empty").on(empty));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        "transform.clean": { "publish.upstream_join_id": { label: "rows" } },
+        "transform.checks.nulls": { "publish.upstream_join_id": { label: "checked" } },
+        "publish.downstream_join_id": { "transform.checks.nulls": { label: "pushed" } },
+        extract: { "empty.upstream_join_id": { label: "to empty" } },
+        "empty.downstream_join_id": { report: { label: "from empty" } },
+      });
+    });
+
+    it("keeps labelling a root that a later edge inside the group puts behind another task", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const g = dag.taskGroup("g");
+      const first = g.taskGroup("first");
+      place(first, "x");
+      const second = g.taskGroup("second");
+      place(second, "y");
+      extracted.before(Label.of("rows").on(g));
+      first.before(second);
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "g.upstream_join_id": { label: "rows" },
+          "g.first.x": { label: "rows" },
+          "g.second.y": { label: "rows" },
+        },
+      });
+    });
+
+    it("keeps labelling a leaf that a later edge inside the group puts before another task", () => {
+      const dag = new Dag("d");
+      const g = dag.taskGroup("g");
+      const first = g.taskGroup("first");
+      place(first, "x");
+      const second = g.taskGroup("second");
+      place(second, "y");
+      const reported = place(dag, "report");
+      reported.after(Label.of("rows").on(g));
+      first.before(second);
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        "g.downstream_join_id": { report: { label: "rows" } },
+        "g.first.x": { report: { label: "rows" } },
+        "g.second.y": { report: { label: "rows" } },
+      });
+    });
+
+    it("labels no task that an earlier edge inside the group put behind another task", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const outer = dag.taskGroup("outer");
+      const t = place(outer, "t");
+      const inner = outer.taskGroup("inner");
+      place(inner, "i");
+      inner.before(t);
+      extracted.before(Label.of("rows").on(outer));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "outer.upstream_join_id": { label: "rows" },
+          "outer.inner.i": { label: "rows" },
+        },
+      });
+    });
+
+    it("gives a task edge the label set last, by the edge itself or by its group edge", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const transform = dag.taskGroup("transform");
+      const cleaned = place(transform, "clean");
+      const validated = place(transform, "validate");
+      extracted.before(Label.of("rows").on(cleaned), validated);
+      extracted.before(Label.of("to transform").on(transform));
+      // Drawing this edge again without a label does not set a new label.
+      extracted.before(cleaned);
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "transform.clean": { label: "to transform" },
+          "transform.validate": { label: "to transform" },
+          "transform.upstream_join_id": { label: "to transform" },
+        },
+      });
+
+      extracted.before(Label.of("rows").on(cleaned));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "transform.clean": { label: "rows" },
+          "transform.validate": { label: "to transform" },
+          "transform.upstream_join_id": { label: "to transform" },
+        },
+      });
+    });
+
+    it("lets a later group edge relabel a task edge that an earlier one labelled", () => {
+      const dag = new Dag("d");
+      const extracted = place(dag, "extract");
+      const outer = dag.taskGroup("outer");
+      const inner = outer.taskGroup("inner");
+      place(inner, "i");
+      extracted.before(Label.of("a").on(outer));
+      extracted.before(Label.of("b").on(inner));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "outer.inner.i": { label: "b" },
+          "outer.upstream_join_id": { label: "a" },
+          "outer.inner.upstream_join_id": { label: "b" },
+        },
+      });
+
+      extracted.before(Label.of("c").on(outer));
+
+      expect((serializeDag(dag, "", ".") as Json)["edge_info"]).toEqual({
+        extract: {
+          "outer.inner.i": { label: "c" },
+          "outer.upstream_join_id": { label: "c" },
+          "outer.inner.upstream_join_id": { label: "b" },
+        },
       });
     });
 

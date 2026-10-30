@@ -42,11 +42,9 @@ class NotInRetryPeriodDep(BaseTIDep):
             yield self._passing_status(reason="The task instance was not marked for retrying.")
             return
 
-        # Calculate the date first so that it is always smaller than the timestamp used by
-        # ready_for_retry
         cur_date = timezone.utcnow()
-        next_task_retry_date = ti.next_retry_datetime()
-        if ti.is_premature:
+        next_task_retry_date = ti.next_retry_datetime(session=session)
+        if next_task_retry_date >= cur_date:
             yield self._failing_status(
                 reason=(
                     f"Task is not ready for retry yet but will be retried automatically. "

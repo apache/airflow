@@ -466,6 +466,8 @@ function check_force_lowest_dependencies() {
         local provider_id
         # shellcheck disable=SC2001
         provider_id=$(echo "${TEST_TYPE}" | sed 's/Providers\[\(.*\)\]/\1/')
+        # A split provider's test type names one part of its tests: Providers[<id>:<part>]
+        provider_id=${provider_id%%:*}
         echo
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for provider: ${provider_id}${COLOR_RESET}"
         echo
