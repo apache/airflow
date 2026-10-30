@@ -536,6 +536,47 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    @pytest.mark.parametrize(
+        ("group", "command", "required_flags"),
+        [
+            pytest.param(
+                "connections", "create", {"--connection-id", "--conn-type"}, id="connections-create"
+            ),
+            pytest.param("pools", "create", {"--name", "--slots"}, id="pools-create"),
+        ],
+    )
+    def test_required_datamodel_fields_become_required_flags(self, group, command, required_flags):
+        """Required fields of a body model are generated as required ``--flags``."""
+        command_factory = CommandFactory()
+        group_command = next(g for g in command_factory.group_commands if g.name == group)
+        sub_command = next(c for c in group_command.subcommands if c.name == command)
+
+        required = {arg.flags[0] for arg in sub_command.args if arg.kwargs.get("required") is True}
+        assert required == required_flags
+
+        for arg in sub_command.args:
+            action = arg.kwargs.get("action")
+            if action is BooleanOptionalAction:
+                assert not arg.kwargs.get("required"), "bool flags always have a default"
+
+    def test_optional_datamodel_fields_default_to_none(self):
+        """Optional non-bool fields stay ``None`` so Pydantic sees them as not provided."""
+        command_factory = CommandFactory()
+        group_command = next(g for g in command_factory.group_commands if g.name == "connections")
+        sub_command = next(c for c in group_command.subcommands if c.name == "create")
+
+        parser = argparse.ArgumentParser()
+        for arg in sub_command.args:
+            arg.add_to_parser(parser)
+
+        namespace = parser.parse_args(["--connection-id", "c1", "--conn-type", "http"])
+
+        assert namespace.connection_id == "c1"
+        assert namespace.conn_type == "http"
+        assert namespace.host is None
+        assert namespace.login is None
+        assert namespace.description is None
+
     def test_every_generated_command_accepts_the_output_flag(self):
         """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
         command_factory = CommandFactory()
@@ -548,6 +589,15 @@ class TestCommandFactory:
         ]
 
         assert missing == []
+
+    def test_required_but_nullable_datamodel_field_stays_optional(self):
+        """A field with no default that accepts None (e.g. ``logical_date``) must not become a required flag."""
+        command_factory = CommandFactory()
+        dags_group = next(g for g in command_factory.group_commands if g.name == "dags")
+        trigger = next(c for c in dags_group.subcommands if c.name == "trigger")
+
+        logical_date_arg = next(arg for arg in trigger.args if arg.flags == ("--logical-date",))
+        assert not logical_date_arg.kwargs.get("required")
 
 
 class TestCliConfigMethods:
