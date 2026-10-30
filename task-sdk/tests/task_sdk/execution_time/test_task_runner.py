@@ -7640,22 +7640,20 @@ def test_dag_tags_in_logs_bound_before_dag_file_parsed_log(
     finally:
         clear_contextvars()
 
-    assert snapshot.get("env") == "prod"
+    assert snapshot.get("dag_tags") == {"env": "prod"}
 
 
 def test_dag_tags_in_logs_disabled_by_default(mocked_parse, mock_supervisor_comms, make_ti_context):
-    """With the flag off (the default), Dag tags must not leak into the log context."""
     context, _ = _startup_with_dag_tags(
         mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation"]
     )
-    assert "env" not in context
-    assert "validation" not in context
+    assert "dag_tags" not in context
 
 
 @conf_vars({("logging", "dag_tags_in_logs"): "True"})
 def test_dag_tags_in_logs_without_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context):
-    context, ti = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, [])
-    assert context["dag_id"] == ti.dag_id
+    context, _ = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, [])
+    assert "dag_tags" not in context
 
 
 @conf_vars({("logging", "dag_tags_in_logs"): "True"})
@@ -7663,27 +7661,16 @@ def test_dag_tags_in_logs_with_standalone_and_key_value_tags(
     mocked_parse, mock_supervisor_comms, make_ti_context
 ):
     context, _ = _startup_with_dag_tags(
-        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation"]
+        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation", "owner:Data Eng"]
     )
-    assert context["env"] == "prod"
-    assert context["validation"] == ""
+    assert context["dag_tags"] == {"env": "prod", "validation": "", "owner": "Data Eng"}
 
 
-@pytest.mark.parametrize("reserved_key", ["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"])
 @conf_vars({("logging", "dag_tags_in_logs"): "True"})
-def test_dag_tags_in_logs_reserved_keys_not_overridden(
-    mocked_parse, mock_supervisor_comms, make_ti_context, reserved_key
-):
-    """A Dag tag matching any built-in TI identifier name must not override the real identifier."""
+def test_dag_tags_in_logs_cannot_override_log_fields(mocked_parse, mock_supervisor_comms, make_ti_context):
     context, ti = _startup_with_dag_tags(
-        mocked_parse, mock_supervisor_comms, make_ti_context, [f"{reserved_key}:evil"]
+        mocked_parse, mock_supervisor_comms, make_ti_context, ["dag_id:evil", "level:debug"]
     )
-    expected = {
-        "ti_id": str(ti.id),
-        "dag_id": ti.dag_id,
-        "task_id": ti.task_id,
-        "run_id": ti.run_id,
-        "try_number": ti.try_number,
-        "map_index": ti.map_index,
-    }
-    assert context[reserved_key] == expected[reserved_key]
+    assert context["dag_id"] == ti.dag_id
+    assert "level" not in context
+    assert context["dag_tags"] == {"dag_id": "evil", "level": "debug"}

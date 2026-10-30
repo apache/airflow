@@ -1010,11 +1010,11 @@ logging:
       example: ~
     dag_tags_in_logs:
       description: |
-        Set to ``True`` to include Dag tags as structured log fields on task logs emitted once the
-        Dag has been parsed (log lines emitted earlier, during parsing itself, cannot carry them).
-        Tags that contain a colon (e.g. ``env:prod``) are split into a key/value field. Plain tags
-        (e.g. ``production``) are emitted with an empty value. Disabled by default to avoid unexpected
-        field-name collisions, since Dag tags are free-form, user-defined strings.
+        Set to ``True`` to include Dag tags in a ``dag_tags`` structured field on task logs emitted
+        once the Dag has been parsed (log lines emitted during parsing itself cannot carry them).
+        Tags that contain a colon (e.g. ``env:prod``) are split into a key/value pair. Plain tags
+        (e.g. ``production``) map to an empty value. For example, tags ``env:prod`` and ``production``
+        are logged as ``dag_tags={"env": "prod", "production": ""}``.
       version_added: 3.4.0
       type: boolean
       example: ~
