@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import copy
+import importlib
+import pkgutil
 
 import pytest
 
@@ -27,8 +29,7 @@ if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("The AI Model panel is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 from airflow import plugins_manager
-from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
-from airflow.providers.common.ai.decorators.llm import _LLMDecoratedOperator
+from airflow.providers.common.ai import decorators, operators
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.plugins.model_panel import ModelPanelPlugin
@@ -36,6 +37,23 @@ from airflow.providers.common.ai.plugins.model_panel import ModelPanelPlugin
 requires_3_4 = pytest.mark.skipif(
     not AIRFLOW_V_3_4_PLUS, reason="react_apps' applies_to scoping needs Airflow >= 3.4.0"
 )
+
+
+def get_in_tree_model_operator_names() -> set[str]:
+    """Return the operator name a task instance records for each in-tree class that publishes the model name."""
+    for package in (operators, decorators):
+        for module in pkgutil.iter_modules(package.__path__):
+            importlib.import_module(f"{package.__name__}.{module.name}")
+
+    names = set()
+    pending: list[type] = [LLMOperator, AgentOperator]
+    while pending:
+        cls = pending.pop()
+        pending.extend(cls.__subclasses__())
+        # Subclasses defined by other test modules are not shipped, so only the provider's own count.
+        if cls.__module__.startswith("airflow.providers.common.ai."):
+            names.add(getattr(cls, "custom_operator_name", None) or cls.__name__)
+    return names
 
 
 class TestModelPanelPlugin:
@@ -64,16 +82,10 @@ class TestModelPanelPlugin:
 
     @requires_3_4
     def test_applies_to_scopes_to_operators_that_publish_model_name(self):
-        """Tied to the actual operator/decorator names a task instance would record,
-        so a rename of either doesn't silently desync the tab's scoping from reality."""
+        """Built from the in-tree subclasses, so a new LLMOperator subclass or a rename can't silently
+        desync the tab's scoping from the operators that publish the model name."""
         app = ModelPanelPlugin.react_apps[0]
-        operator_names = app["applies_to"]["operator_name"]
-        assert set(operator_names) == {
-            LLMOperator.__name__,
-            AgentOperator.__name__,
-            _LLMDecoratedOperator.custom_operator_name,
-            _AgentDecoratedOperator.custom_operator_name,
-        }
+        assert set(app["applies_to"]["operator_name"]) == get_in_tree_model_operator_names()
 
     @requires_3_4
     def test_react_app_survives_core_applies_to_validation(self):

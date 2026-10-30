@@ -282,7 +282,10 @@ example the per-chunk objects of a multipart upload that hook lineage reports on
 
 - Patterns are always matched with ``re.fullmatch``, independent of ``match_mode``, against
   ``<namespace>/<name>`` of the OpenLineage dataset: ``s3://my-bucket/staging/part_1`` for a
-  dataset with namespace ``s3://my-bucket`` and name ``staging/part_1``. Airflow assets are
+  dataset with namespace ``s3://my-bucket`` and name ``staging/part_1``. Names that already start
+  with ``/``, such as file paths, get no extra ``/``: ``file://host1/staging/part_1`` for
+  namespace ``file://host1`` and name ``/staging/part_1``, and ``file/tmp/part_1`` for a local
+  file with namespace ``file``. Airflow assets are
   matched after translation to OpenLineage, so assets that cannot be translated are never
   reported, whatever the patterns.
 - They apply to every source of task lineage: extractor results, hook-collected assets,
@@ -294,7 +297,10 @@ example the per-chunk objects of a multipart upload that hook lineage reports on
   that case, since the event exists only to carry the datasets.
 - Excluding datasets never changes which source is used. If an extractor returns datasets that
   are all excluded, hook lineage is not consulted as a fallback; if hook lineage collected assets
-  that are all excluded, manually declared ``inlets`` / ``outlets`` are not used either.
+  that are all excluded, manually declared ``inlets`` / ``outlets`` are not used either. To
+  report your own assets instead of the ones a hook collects, for example one asset for an upload
+  prefix instead of one per uploaded part, set ``hook_lineage: false`` for the task and declare the
+  asset in ``outlets``.
 - A rule whose ``scope`` has a ``hook`` key only applies to datasets reported by that hook, and
   only to hook lineage and SQL hook lineage (the other sources have no reporting hook). Such a
   rule may only carry ``exclude_datasets`` or ``hook_lineage``; with a ``hook`` scope,
@@ -343,7 +349,8 @@ In the example above:
     OpenLineage reads the hook lineage collector, after
     :ref:`[lineage] max_assets_per_collector<config:lineage__max_assets_per_collector>` has
     limited what the collector kept. Excluding assets reduces what gets reported, but it does not
-    make room for assets the cap already discarded.
+    make room for assets the cap already discarded. The same applies to SQL hook lineage queries
+    and :ref:`[lineage] max_extras_per_collector<config:lineage__max_extras_per_collector>`.
 
 .. note::
 

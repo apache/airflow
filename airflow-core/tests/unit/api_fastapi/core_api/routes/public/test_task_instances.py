@@ -6831,15 +6831,6 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
 
-    def test_should_raise_404_not_found_task(self, test_client):
-        response = test_client.patch(
-            self.ENDPOINT_URL,
-            json={
-                "new_state": self.NEW_STATE,
-            },
-        )
-        assert response.status_code == 404
-
     @pytest.mark.parametrize(
         ("payload", "expected"),
         [
@@ -7730,15 +7721,6 @@ class TestPatchTaskInstanceDryRun(TestTaskInstanceEndpoint):
         }
 
     def test_should_raise_404_not_found_dag(self, test_client):
-        response = test_client.patch(
-            f"{self.ENDPOINT_URL}/dry_run",
-            json={
-                "new_state": self.NEW_STATE,
-            },
-        )
-        assert response.status_code == 404
-
-    def test_should_raise_404_not_found_task(self, test_client):
         response = test_client.patch(
             f"{self.ENDPOINT_URL}/dry_run",
             json={

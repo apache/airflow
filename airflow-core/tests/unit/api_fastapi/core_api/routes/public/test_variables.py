@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from unittest import mock
 from unittest.mock import ANY
 
@@ -69,11 +68,6 @@ TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
 TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
 TEST_VARIABLE_SEARCH_VALUE = "random search value"
 TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
-
-
-# Helper function to simulate file upload
-def create_file_upload(content: dict) -> BytesIO:
-    return BytesIO(json.dumps(content).encode("utf-8"))
 
 
 @provide_session

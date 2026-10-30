@@ -80,6 +80,8 @@ from airflow_e2e_tests.constants import (
     TS_SDK_EXAMPLE_PATH,
     TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
+    YAML_DAG_COMPOSE_PATH,
+    YAML_DAGS_PATH,
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
@@ -98,6 +100,11 @@ def _is_image_present_locally(image: str) -> bool:
         subprocess.run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode
         == 0
     )
+
+
+# Every mode that composes localstack.yml points the AWS SDK at it this way; the
+# connection each mode's Dags use is set next to the rest of that mode's config.
+LOCALSTACK_AWS_ENV = "AWS_DEFAULT_REGION=us-east-1\nAWS_ENDPOINT_URL_S3=http://localstack:4566\n"
 
 
 def _copy_localstack_files(tmp_dir):
@@ -124,8 +131,7 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
-        "AWS_DEFAULT_REGION=us-east-1\n"
-        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        f"{LOCALSTACK_AWS_ENV}"
         "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
         "AIRFLOW_CONN_AWS_S3_LOGS=aws://test:test@\n"
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
@@ -268,8 +274,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
         # for authentication rather than parsing credentials from the connection URI
         "AWS_ACCESS_KEY_ID=test\n"
         "AWS_SECRET_ACCESS_KEY=test\n"
-        "AWS_DEFAULT_REGION=us-east-1\n"
-        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        f"{LOCALSTACK_AWS_ENV}"
         "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
         "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
         f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
@@ -783,6 +788,64 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     _write_state_store_retention_config(tmp_dir)
 
 
+def _setup_yaml_dag_integration(dot_env_file, tmp_dir):
+    """Set up the yaml_dag E2E test mode.
+
+    The Dag under test is written in YAML, so there is nothing to build for the
+    Dag itself: the file is copied into the stack's Dags folder and the opt-in
+    ``YamlDagImporter`` is registered so the Dag processor reads it.
+
+    Its ``uses:`` tasks drive S3 through LocalStack, and its one ``run:`` task
+    carries no code, so it is routed by its ``golang`` queue to the Go
+    coordinator, which finds the handler in the packed Go example bundle (the
+    same bundle the go_sdk mode uses -- see ``_setup_go_sdk_integration``).
+    """
+    _pack_go_sdk_bundle(GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+
+    _copy_localstack_files(tmp_dir)
+    copyfile(YAML_DAG_COMPOSE_PATH, tmp_dir / "yaml-dag.yml")
+
+    # Where the compose bind-mount (./go-bundles) exposes the bundle to the worker. The
+    # bundle scanner requires the file to be executable, so preserve the exec bit.
+    go_bundles_dir = tmp_dir / "go-bundles"
+    go_bundles_dir.mkdir()
+    packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
+    os.chmod(packed_bundle, 0o755)
+    # This bundle only registers task handlers, so the Dag processor must not parse it if the
+    # directory is ever mounted there. Tasks do not read .airflowignore.
+    (go_bundles_dir / ".airflowignore").write_text("*\n")
+
+    copytree(YAML_DAGS_PATH, tmp_dir / "dags" / "yaml")
+
+    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
+    # The YAML importer is opt-in, and is what makes the .yaml file a Dag file rather than a
+    # file the Dag processor ignores.
+    dag_importer_configs = json.dumps([{"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}])
+    coordinator_config = json.dumps(
+        {
+            "go-sdk": {
+                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_IMPORTER_CONFIGS='{dag_importer_configs}'\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # The connection the Dag's S3 tasks name.
+        "AIRFLOW_CONN_AWS_LOCALSTACK=aws://test:test@\n"
+        f"{LOCALSTACK_AWS_ENV}"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+
 def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
     """Set up the openlineage E2E test mode.
 
@@ -960,6 +1023,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "ts_sdk":
         compose_file_names.append("ts.yml")
         _setup_ts_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "yaml_dag":
+        compose_file_names.extend(["localstack.yml", "yaml-dag.yml"])
+        _setup_yaml_dag_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -982,9 +1048,8 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        _E2ETestState.compose_instance.exec_in_container(
-            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-        )
+        # No forced `dags reserialize`: it races the live dag-processor on the same dag_id INSERT
+        # (dag_pkey crash). The processor serializes Dags itself and tests poll via wait_for_dag.
 
         if E2E_TEST_MODE == "event_driven":
             console.print("[yellow]Creating Kafka topics...")

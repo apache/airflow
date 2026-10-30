@@ -146,9 +146,7 @@ export const DagsList = () => {
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  // Derived through the pill's own mapping so the query can never filter on more than the pill
-  // shows. A legacy ``scheduling_state=active`` has no choice to represent it, and would
-  // otherwise narrow the list with nothing on screen saying why.
+  // Derived through the pill's own mapping so the query can never filter on more than the pill shows.
   const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
   const showFavorites = searchParams.get(FAVORITE);
 

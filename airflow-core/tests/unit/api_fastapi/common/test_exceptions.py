@@ -96,17 +96,6 @@ def generate_test_cases_parametrize(
     return generated_test_cases
 
 
-def get_unique_constraint_error_prefix():
-    """Get unique constraint error prefix based on current database dialect."""
-    if CURRENT_DATABASE_DIALECT.startswith(_DatabaseDialect.SQLITE.value):
-        return _UniqueConstraintErrorHandler.unique_constraint_error_prefix_dict[_DatabaseDialect.SQLITE]
-    if CURRENT_DATABASE_DIALECT.startswith(_DatabaseDialect.MYSQL.value):
-        return _UniqueConstraintErrorHandler.unique_constraint_error_prefix_dict[_DatabaseDialect.MYSQL]
-    if CURRENT_DATABASE_DIALECT.startswith(_DatabaseDialect.POSTGRES.value):
-        return _UniqueConstraintErrorHandler.unique_constraint_error_prefix_dict[_DatabaseDialect.POSTGRES]
-    return ""
-
-
 class TestUniqueConstraintErrorHandler:
     unique_constraint_error_handler = _UniqueConstraintErrorHandler()
 

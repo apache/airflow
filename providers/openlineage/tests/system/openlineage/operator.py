@@ -25,6 +25,7 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Collection
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import urlparse
 
@@ -43,13 +44,19 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# Marks every log line describing why event validation failed. The OpenLineage e2e tests (task_logs.py) print
-# only these lines of a failed check, keep the tag in sync with them.
+# Marks every log line describing why event validation failed, so whatever reads the logs of a failed check can
+# report just these lines. Every problem of a failed check is logged with it, keep the tag stable.
 VALIDATION_ERROR_TAG = "[OL_VALIDATION_ERROR]"
+
+# The key of the events being checked, which prefixes the validation errors logged meanwhile
+_validated_key: ContextVar[str | None] = ContextVar("_validated_key", default=None)
 
 
 def log_validation_error(msg: str, *args: Any) -> None:
-    log.error("%s %s", VALIDATION_ERROR_TAG, msg % args if args else msg)
+    text = msg % args if args else msg
+    if (key := _validated_key.get()) is not None:
+        text = f"[{key}] {text}"
+    log.error("%s %s", VALIDATION_ERROR_TAG, text)
 
 
 def any(result: Any) -> Any:
@@ -527,31 +534,42 @@ class OpenLineageTestOperator(BaseOperator):
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
-            with open(self.file_path) as f:
-                events = json.load(f)
-            for event in events:
-                key = event["job"]["name"] + ".event." + event["eventType"].lower()
-                if isinstance(event.get("$absent"), str):
-                    self.event_templates[key] = {"$absent": event["$absent"]}
-                else:
-                    existing = self.event_templates.get(key)
-                    if existing is None:
-                        self.event_templates[key] = event
-                    elif isinstance(existing, list):
-                        existing.append(event)
+            try:
+                with open(self.file_path) as f:
+                    events = json.load(f)
+                for event in events:
+                    key = event["job"]["name"] + ".event." + event["eventType"].lower()
+                    if isinstance(event.get("$absent"), str):
+                        self.event_templates[key] = {"$absent": event["$absent"]}
                     else:
-                        self.event_templates[key] = [existing, event]
+                        existing = self.event_templates.get(key)
+                        if existing is None:
+                            self.event_templates[key] = event
+                        elif isinstance(existing, list):
+                            existing.append(event)
+                        else:
+                            self.event_templates[key] = [existing, event]
+            except Exception as e:
+                log_validation_error(
+                    "Can't read the expected events from `%s`: %s: %s", self.file_path, type(e).__name__, e
+                )
+                raise
         errors: dict[str, str] = {}
         events_by_key: dict[str, list[dict]] = {}
         try:
             for key, template in self.event_templates.items():  # type: ignore[union-attr]
                 log.info("Checking key: `%s`", key)
+                token = _validated_key.set(key)
                 try:
                     events_by_key[key] = self._check_key(key, template)
-                except ValueError as e:
+                except Exception as e:
+                    # Not only a mismatch (ValueError): a malformed event or template must not hide the other keys
+                    log_validation_error("%s", e if type(e) is ValueError else f"{type(e).__name__}: {e}")
                     if self.fail_fast:
                         raise
-                    errors[key] = str(e)
+                    errors[key] = str(e) if type(e) is ValueError else f"{type(e).__name__}: {e}"
+                finally:
+                    _validated_key.reset(token)
             if self.check_run_ids and errors:
                 # A key that failed its template is missing from events_by_key, so its runIds would look incomplete
                 log.info("Skipping the runId integrity check until the event templates match")
@@ -560,6 +578,8 @@ class OpenLineageTestOperator(BaseOperator):
                     events_by_key,
                     repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
                 ):
+                    for problem in problems:
+                        log_validation_error("%s", problem)
                     message = "\n".join(f"    {problem}" for problem in problems)
                     if self.fail_fast:
                         raise ValueError(f"runId integrity check failed:\n{message}")

@@ -29,6 +29,7 @@ import (
 	"github.com/apache/airflow/go-sdk/example/bundle/taskflowbinding"
 	"github.com/apache/airflow/go-sdk/example/bundle/taskstate"
 	"github.com/apache/airflow/go-sdk/example/bundle/variablewrite"
+	"github.com/apache/airflow/go-sdk/example/bundle/yamldag"
 )
 
 func main() {
@@ -86,6 +87,10 @@ func main() {
 		),
 
 		airflow.TaskHandler("task_state_dag", "roundtrip_task_state", taskstate.RoundtripTaskState),
+
+		// The Dag this one belongs to is written in YAML, not in Python; a handler
+		// is registered for it the same way.
+		airflow.TaskHandler("yaml_s3_roundtrip", "summarize", yamldag.Summarize),
 	)
 
 	if err := bundle.Serve(); err != nil {

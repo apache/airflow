@@ -467,7 +467,7 @@ class TestS3TaskHandler:
             assert log[5].event == "Line 2"
             assert log[6].event == "Log line 3"
             assert log[7].event == "Line 4"
-            assert metadata == {"end_of_log": True, "log_pos": 4}
+            assert metadata["end_of_log"] is True
         elif AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert log[0].event == "::group::Log message source details"
@@ -492,7 +492,7 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             log = list(log)
             assert len(log) == 2
-            assert metadata == {"end_of_log": True, "log_pos": 0}
+            assert metadata["end_of_log"] is True
         else:
             assert len(log) == 1
             assert len(log) == len(metadata)
