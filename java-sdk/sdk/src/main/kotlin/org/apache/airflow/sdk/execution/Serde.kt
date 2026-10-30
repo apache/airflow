@@ -456,13 +456,19 @@ private fun serializeTimetable(
  * zero offset, otherwise the offset in seconds.
  *
  * Python takes it from `start_date`, so a cron schedule runs in the zone the
- * Dag's start date was written in. Otherwise the supervisor's default applies.
+ * Dag's start date was written in. An Instant uses UTC; only a Dag without
+ * a start date uses the supervisor's default.
  */
 private fun dagTimezone(
   config: Map<String, Any>,
   options: SerializationOptions,
 ): Any {
-  val timezone = (config["start_date"] as? OffsetDateTime)?.offset?.totalSeconds ?: options.defaultTimezone
+  val timezone =
+    when (val startDate = config["start_date"]) {
+      is OffsetDateTime -> startDate.offset.totalSeconds
+      is Instant -> "UTC"
+      else -> options.defaultTimezone
+    }
   return if (timezone is Number && timezone.toDouble() == 0.0) "UTC" else timezone
 }
 

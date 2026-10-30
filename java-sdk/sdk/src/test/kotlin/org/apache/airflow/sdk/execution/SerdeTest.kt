@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import java.time.Instant
 import java.time.OffsetDateTime
 
 private class SerdeNoopTask : Task {
@@ -133,6 +134,30 @@ internal class SerdeTest {
             if (!intervals) expectedFields.putAll(mapOf("interval" to 0.0, "run_immediately" to false))
             assertEquals(expectedFields, timetable["__var"])
           }
+      }
+    }
+  }
+
+  @Test
+  fun shouldUseUtcForInstantStartDate() {
+    listOf(false, true).forEach { intervals ->
+      listOf("Europe/Amsterdam", 19800).forEach { defaultTimezone ->
+        val dag =
+          DagDef("d")
+            .config("schedule", "@daily")
+            .config("start_date", Instant.parse("2026-01-01T00:00:00Z"))
+        val result =
+          parseDags(
+            Bundle(listOf(dag)),
+            parseRequest(mapOf("create_cron_data_intervals" to intervals, "default_timezone" to defaultTimezone)),
+          )
+        val data = ((result["serialized_dags"] as List<*>).single() as Map<*, *>)["data"] as Map<*, *>
+        val serialized = data["dag"] as Map<*, *>
+        assertEquals("UTC", serialized["timezone"])
+        val timetable = serialized["timetable"] as Map<*, *>
+        val expectedFields = mutableMapOf<String, Any?>("expression" to "0 0 * * *", "timezone" to "UTC")
+        if (!intervals) expectedFields.putAll(mapOf("interval" to 0.0, "run_immediately" to false))
+        assertEquals(expectedFields, timetable["__var"])
       }
     }
   }
