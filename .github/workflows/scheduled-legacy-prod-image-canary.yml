@@ -36,7 +36,7 @@ concurrency:
 jobs:
   build-info:
     name: "Build info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     if: github.repository == 'apache/airflow' || github.event_name == 'workflow_dispatch'
     timeout-minutes: 15
     outputs:
@@ -71,9 +71,6 @@ jobs:
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -81,6 +78,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
       - name: "Save github context to file"
         # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
         # the single-quoted heredoc disables every shell expansion of the JSON anyway.
