@@ -169,6 +169,7 @@ class BaseStoreBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``. The execution API calls
         ``json.loads`` on the returned string from here, so it must be a valid JSON document.
+        It is never the JSON ``null``, since ``set`` never receives one.
         """
 
     @abstractmethod
@@ -186,7 +187,8 @@ class BaseStoreBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``. ``value`` is always a
         JSON encoded string (the execution API calls ``json.dumps`` before passing it
-        here); store it verbatim so ``get`` can return it unchanged.
+        here); store it verbatim so ``get`` can return it unchanged. It is never the
+        JSON ``null``; callers reject a null value before it reaches the backend.
 
         ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
         Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,

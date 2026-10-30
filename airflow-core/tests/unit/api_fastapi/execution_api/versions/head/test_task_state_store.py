@@ -79,6 +79,28 @@ def test_task_uuid_isolates_state_in_different_regions(client, create_task_insta
 
 
 class TestGetTaskState:
+    def test_get_stored_null_returns_404(self, client: TestClient, create_task_instance: CreateTaskInstance):
+        ti = create_task_instance()
+        with create_session() as session:
+            session.add(
+                TaskStateStoreModel(
+                    dag_run_id=ti.dag_run.id,
+                    dag_id=ti.dag_id,
+                    run_id=ti.run_id,
+                    task_id=ti.task_id,
+                    region_id=ti.region_id,
+                    region_index=ti.region_index,
+                    key="job_id",
+                    value="null",
+                    updated_at=timezone.utcnow(),
+                )
+            )
+
+        response = client.get(_api_url(ti.id, "job_id"))
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
     def test_get_returns_value(self, client: TestClient, create_task_instance: CreateTaskInstance):
         ti = create_task_instance()
         client.put(_api_url(ti.id, "job_id"), json={"value": "spark_001"})

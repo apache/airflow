@@ -73,7 +73,7 @@ def get_task_state_store(
     """Get value for a task state store key."""
     scope = _get_task_scope_for_ti(task_instance_id, session)
     value = get_state_backend().get(scope, key, session=session)
-    if value is None:
+    if value is None or (decoded := json.loads(value)) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -81,7 +81,7 @@ def get_task_state_store(
                 "message": f"Task state store key {key!r} not found",
             },
         )
-    return TaskStateStoreResponse(value=json.loads(value))
+    return TaskStateStoreResponse(value=decoded)
 
 
 @router.put("/{task_instance_id}/{key:path}", status_code=status.HTTP_204_NO_CONTENT)
