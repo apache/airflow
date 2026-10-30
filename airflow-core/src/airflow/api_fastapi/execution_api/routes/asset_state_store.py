@@ -129,13 +129,12 @@ def get_asset_state_store_by_name(
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset name."""
     asset_id = _resolve_asset_id_by_name(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
-    if value is None or (decoded := json.loads(value)) is None:
+    if (value := get_state_backend().get_value(AssetScope(asset_id=asset_id), key, session=session)) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Asset state store key {key!r} not found"},
         )
-    return AssetStateStoreResponse(value=decoded)
+    return AssetStateStoreResponse(value=value)
 
 
 def _put_asset_state_store(
@@ -221,13 +220,12 @@ def get_asset_state_store_by_uri(
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset URI."""
     asset_id = _resolve_asset_id_by_uri(uri, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
-    if value is None or (decoded := json.loads(value)) is None:
+    if (value := get_state_backend().get_value(AssetScope(asset_id=asset_id), key, session=session)) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Asset state store key {key!r} not found"},
         )
-    return AssetStateStoreResponse(value=decoded)
+    return AssetStateStoreResponse(value=value)
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
