@@ -26,7 +26,7 @@ import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
-import type { GridCell, GridSelection } from "src/context/gridSelection";
+import type { GridCell } from "src/context/gridSelection";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
@@ -38,7 +38,8 @@ type Props = {
   readonly nodes: Array<GridTask>;
   readonly onCellClick?: (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => void;
   readonly run: GridRunsResponse;
-  readonly selection?: GridSelection;
+  // Keys of the selected cells and of the cells inside the selected groups.
+  readonly selectedCellKeys?: ReadonlySet<string>;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
@@ -59,7 +60,7 @@ export const TaskInstancesColumn = ({
   nodes,
   onCellClick,
   run,
-  selection,
+  selectedCellKeys,
   showVersionIndicatorMode,
   tiSummaries,
   virtualItems,
@@ -157,9 +158,9 @@ export const TaskInstancesColumn = ({
               isGroup={node.isGroup}
               isMapped={node.is_mapped}
               isMultiSelected={
-                selection === undefined || selection.size === 0
+                selectedCellKeys === undefined || selectedCellKeys.size === 0
                   ? undefined
-                  : selection.has(getCellKey(run.run_id, node.id))
+                  : selectedCellKeys.has(getCellKey(run.run_id, node.id))
               }
               label={node.label}
               loopMaxIterations={node.loop_max_iterations}
