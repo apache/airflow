@@ -1572,7 +1572,9 @@ def test_release_callback_drops_it_from_queues_and_running():
     """The reaper frees the slot of a callback that will get no executor event."""
     executor = BaseExecutor()
     queued, sent, other = CallbackKey(id="queued"), CallbackKey(id="sent"), CallbackKey(id="other")
-    executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][queued] = mock.Mock()
+    executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][queued] = mock.Mock(
+        spec=workloads.ExecuteCallback
+    )
     executor.running.update({sent, other})
 
     executor.release_callback(queued)

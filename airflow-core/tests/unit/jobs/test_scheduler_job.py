@@ -17372,7 +17372,7 @@ class TestRouteDagProcessorCallbacks:
         request = self._dag_request(dag_run, bundle_version="v1", version_data={"files": {"a.py": "1"}})
         callback_id = _add_waiting_callback(session, request)
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         session.expunge_all()
@@ -17433,7 +17433,7 @@ class TestRouteDagProcessorCallbacks:
             session, self._task_request(dag_run, session, task_started=task_started)
         )
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         session.expunge_all()
@@ -17460,7 +17460,7 @@ class TestRouteDagProcessorCallbacks:
         (request,) = [call.args[0] for call in executors["other_exec"].callback_sink.send.call_args_list]
         assert request.task_started is False
         callback_id = _add_waiting_callback(session, request)
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         session.expunge_all()
@@ -17531,7 +17531,7 @@ class TestRouteDagProcessorCallbacks:
                         runner.scheduler_dag_bag, "get_dag_for_run", autospec=True, return_value=None
                     )
                 )
-            runner._route_dag_processor_callbacks(session)
+            runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         self._assert_handed_back(session, callback_id, request)
@@ -17544,7 +17544,7 @@ class TestRouteDagProcessorCallbacks:
         request = self._task_request(dag_run, session, task_callback_type=TaskInstanceState.SUCCESS)
         callback_id = _add_waiting_callback(session, request)
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         self._assert_handed_back(session, callback_id, request)
@@ -17566,7 +17566,7 @@ class TestRouteDagProcessorCallbacks:
 
         # Callbacks are routed oldest first, so the broken one fails.
         with mock.patch.object(runner, "_try_to_load_executor", side_effect=fail_first):
-            runner._route_dag_processor_callbacks(session)
+            runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         self._assert_handed_back(session, broken_id, broken_request)
@@ -17583,7 +17583,7 @@ class TestRouteDagProcessorCallbacks:
         with mock.patch.object(
             executor, "queue_workload", autospec=True, side_effect=RuntimeError("executor refused")
         ):
-            runner._route_dag_processor_callbacks(session)
+            runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         self._assert_handed_back(session, callback_id, request)
@@ -17597,7 +17597,7 @@ class TestRouteDagProcessorCallbacks:
 
         with create_session(scoped=False) as other_scheduler:
             other_scheduler.scalar(select(Callback.id).where(Callback.id == locked_id).with_for_update())
-            runner._route_dag_processor_callbacks(session)
+            runner._route_dag_processor_callbacks(session=session)
             session.commit()
 
         assert [w.callback.id for w in self._queued_callbacks(executor)] == [str(routed_id)]
@@ -17612,7 +17612,7 @@ class TestRouteDagProcessorCallbacks:
         request = self._dag_request(dag_run)
         callback_id = _add_waiting_callback(session, request)
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         self._assert_handed_back(session, callback_id, request)
@@ -17639,7 +17639,7 @@ class TestRouteDagProcessorCallbacks:
         executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = mock.MagicMock()
         callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(3)]
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         states = self._get_states(session, callback_ids)
@@ -17681,7 +17681,7 @@ class TestRouteDagProcessorCallbacks:
         for _ in range(5):
             _add_waiting_callback(session, self._dag_request(busy_run))
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
         queued_tasks = runner._critical_section_enqueue_task_instances(session)
 
@@ -17705,7 +17705,7 @@ class TestRouteDagProcessorCallbacks:
         callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(2)]
         callback_ids.append(_add_waiting_callback(session, self._task_request(dag_run, session)))
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         assert self._get_states(session, callback_ids) == [
@@ -17727,7 +17727,7 @@ class TestRouteDagProcessorCallbacks:
             _add_waiting_callback(session, self._dag_request(dag_run)),
         ]
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         assert self._get_states(session, callback_ids) == [
@@ -17750,7 +17750,7 @@ class TestRouteDagProcessorCallbacks:
         ]
 
         for _ in range(2):
-            runner._route_dag_processor_callbacks(session)
+            runner._route_dag_processor_callbacks(session=session)
             session.commit()
 
         assert self._get_states(session, callback_ids) == [
@@ -17771,7 +17771,7 @@ class TestRouteDagProcessorCallbacks:
         session.add(deadline_callback)
         session.commit()
 
-        runner._route_dag_processor_callbacks(session)
+        runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
         session.expunge_all()

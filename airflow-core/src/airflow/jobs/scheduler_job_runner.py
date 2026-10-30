@@ -1521,7 +1521,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     callback.state = CallbackState.QUEUED
                 session.add(callback)
 
-    def _route_dag_processor_callbacks(self, session: Session) -> None:
+    def _route_dag_processor_callbacks(self, *, session: Session) -> None:
         """
         Queue Dag processor callbacks on executors, or hand them back to the Dag processor.
 
@@ -2545,7 +2545,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 with create_session() as session:
                     # Ahead of the tasks that would take the free executor slots. Also runs with routing
                     # turned off, to hand back callbacks stored while it was on.
-                    self._route_dag_processor_callbacks(session)
+                    self._route_dag_processor_callbacks(session=session)
 
                 with create_session() as session:
                     # This will schedule for as many executors as possible.
