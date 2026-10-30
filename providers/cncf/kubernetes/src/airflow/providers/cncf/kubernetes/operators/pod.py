@@ -283,8 +283,8 @@ class KubernetesPodOperator(BaseOperator):
         The function should return a formatted string. If None, the default formatting will be used.
     """
 
-    # !!! Changes in KubernetesPodOperator's arguments should be also reflected in !!!
-    #  - airflow-core/src/airflow/decorators/__init__.pyi  (by a separate PR)
+    # When changing constructor arguments, also update both Kubernetes decorator signatures in
+    # task-sdk/src/airflow/sdk/definitions/decorators/__init__.pyi in the same PR.
 
     # This operator supports durable execution directly, without ResumableJobMixin --
     # it reconnects via task_state_store on retry instead of resubmitting.
