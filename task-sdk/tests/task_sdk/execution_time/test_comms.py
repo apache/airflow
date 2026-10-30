@@ -26,6 +26,7 @@ import pytest
 import structlog
 
 from airflow.sdk import timezone
+from airflow.sdk.exceptions import AirflowSupervisorCommsOutOfSync
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
@@ -230,7 +231,9 @@ class TestCommsDecoder:
 
         # Without the id check this returned None, and callers failed later with
         # "'NoneType' object has no attribute ..."
-        with pytest.raises(RuntimeError, match="response for request 7 while waiting for .* request 0"):
+        with pytest.raises(
+            AirflowSupervisorCommsOutOfSync, match="response for request 7 while waiting for .* request 0"
+        ):
             decoder.send(GetVariable(key="a"))
 
     @pytest.mark.asyncio
@@ -239,7 +242,9 @@ class TestCommsDecoder:
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         self._queue_stray_ack(w, frame_id=7)
 
-        with pytest.raises(RuntimeError, match="response for request 7 while waiting for .* request 0"):
+        with pytest.raises(
+            AirflowSupervisorCommsOutOfSync, match="response for request 7 while waiting for .* request 0"
+        ):
             await asyncio.wait_for(decoder.asend(GetVariable(key="a")), timeout=5)
 
     @pytest.mark.asyncio

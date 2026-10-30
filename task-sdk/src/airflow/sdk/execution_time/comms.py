@@ -400,12 +400,12 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         return resp
 
     def _from_frame(self, frame, request_id: int | None = None) -> ReceiveMsgType | None:
-        from airflow.sdk.exceptions import AirflowRuntimeError
+        from airflow.sdk.exceptions import AirflowRuntimeError, AirflowSupervisorCommsOutOfSync
 
         # A frame for a different request means the stream is out of step, and returning it would hand
         # the caller another request's data.
         if request_id is not None and frame.id != request_id:
-            raise RuntimeError(
+            raise AirflowSupervisorCommsOutOfSync(
                 f"Received a response for request {frame.id} while waiting for the response to request "
                 f"{request_id}. The connection to the supervisor is out of sync, which can happen when "
                 "another process, such as a forked child, has used it."
