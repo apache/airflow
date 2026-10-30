@@ -20,7 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
-import { dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
+import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -250,5 +250,28 @@ describe("Links written before draining moved into the pill", () => {
     fireEvent.click(screen.getByTestId("paused-pill-remove"));
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("draining_dag")).toBeInTheDocument();
+  });
+});
+
+const withBrokenDag = () => server.use(dagsListHandler([...defaultDags, brokenDag]));
+
+describe("Import errors filter", () => {
+  it.each([
+    { expected: "broken_dag", param: "true", unexpected: "tutorial_taskflow_api_success" },
+    { expected: "tutorial_taskflow_api_success", param: "false", unexpected: "broken_dag" },
+  ])("filters dags by has_import_errors=$param", async ({ expected, param, unexpected }) => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={[`/dags?has_import_errors=${param}`]} />);
+
+    await waitFor(() => expect(screen.getByText(expected)).toBeInTheDocument());
+    expect(screen.queryByText(unexpected)).not.toBeInTheDocument();
+  });
+
+  it("shows both when the filter is unset", async () => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("broken_dag")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });
 });
