@@ -28,22 +28,26 @@ const sourceFiles: Record<string, string> = import.meta.glob("../**/*.tsx", {
   query: "?raw",
 });
 
-// Only a fully quoted value, with or without braces: aria-label="Next page" or
-// aria-label={"Next page"}. A template literal that interpolates a value needs a key with
-// its own interpolation, so those are left for a follow-up rather than exempted here.
-const LITERAL_ARIA_LABEL = /aria-label=\{?"(?<label>[^"]*)"/gu;
+// A fully quoted value, with or without braces: aria-label="Next page" or aria-label={"Next page"}.
+const LITERAL_ARIA_LABEL = /aria-label=\{?"[^"]*"/gu;
+// A value that is itself a template literal, such as aria-label={`Remove ${name} filter`}. Even
+// when every interpolated part is already translated, building the sentence here pins English word
+// order, so it belongs in the locale as one key with its own interpolation. A template literal
+// nested inside a larger expression is not matched: `translate(`docs.${key}`)` composes a key, not
+// a sentence.
+const TEMPLATE_ARIA_LABEL = /aria-label=\{`[^`]*`\}/gu;
 const SOURCE_PREFIX = /^\.\.\//u;
 
-const findLiteralAriaLabels = (file: string, source: string): Array<string> =>
-  [...source.matchAll(LITERAL_ARIA_LABEL)].map(
-    (match) => `${file.replace(SOURCE_PREFIX, "")}: aria-label="${match.groups?.label ?? ""}"`,
+const findHardcodedAriaLabels = (file: string, source: string): Array<string> =>
+  [LITERAL_ARIA_LABEL, TEMPLATE_ARIA_LABEL].flatMap((pattern) =>
+    [...source.matchAll(pattern)].map((match) => `${file.replace(SOURCE_PREFIX, "")}: ${match[0]}`),
   );
 
 describe("aria-label values", () => {
   it("never hardcodes a string an icon-only control is named by", () => {
     const hardcoded = Object.entries(sourceFiles)
       .filter(([file]) => !file.includes(".test."))
-      .flatMap(([file, source]) => findLiteralAriaLabels(file, source));
+      .flatMap(([file, source]) => findHardcodedAriaLabels(file, source));
 
     expect(hardcoded).toEqual([]);
   });

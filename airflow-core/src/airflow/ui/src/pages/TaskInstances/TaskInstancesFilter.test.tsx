@@ -32,7 +32,7 @@ describe("Task Instances date filters", () => {
     const pill = await screen.findByTestId("logical_date_range-pill");
 
     expect(pill).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Remove .* filter/u })).toBeInTheDocument();
+    expect(screen.getByTestId("logical_date_range-pill-remove")).toBeInTheDocument();
   });
 
   it("offers both run after and logical date in the add-filter menu", async () => {

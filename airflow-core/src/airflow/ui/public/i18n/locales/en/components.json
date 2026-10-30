@@ -217,6 +217,7 @@
     "bundleName": "Bundle Name",
     "bundleVersion": "Bundle Version",
     "createdAt": "Created At",
+    "dagVersionIndicator": "Version {{version}} indicator",
     "versionId": "Version ID"
   },
   "versionSelect": {
