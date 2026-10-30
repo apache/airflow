@@ -1,0 +1,88 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# A Dag defined entirely in YAML, driven by the yaml_dag e2e test mode.
+#
+# It writes an object to S3 (LocalStack), waits for it, lists it back, hands the
+# listing to a Go task handler over the "golang" queue, and joins on an
+# EmptyOperator. Between them the four task bodies the importer supports are all
+# exercised: a provider operator (uses), a sensor, a code task (run), and a task
+# with no body at all.
+---
+$schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+dag_id: yaml_s3_roundtrip
+schedule: "@daily"
+start_date: "2026-01-01"
+catchup: false
+tags: [yaml, aws]
+params:
+  bucket: airflow-yaml-dag
+templates:
+  # Proves `extends` reaches task-level arguments: every task that extends this
+  # is serialized with retries 2.
+  retryable:
+    retries: 2
+    retry_delay: "5s"
+  # ... and operator arguments, which merge into `with` one key at a time.
+  s3:
+    with:
+      aws_conn_id: aws_localstack
+tasks:
+  - id: create_bucket
+    extends: [retryable, s3]
+    uses: airflow.providers.amazon.aws.operators.s3.S3CreateBucketOperator
+    with:
+      bucket_name: {$t: "{{ params.bucket }}"}
+
+  - id: write_object
+    extends: [retryable, s3]
+    needs: [create_bucket]
+    uses: airflow.providers.amazon.aws.operators.s3.S3CreateObjectOperator
+    with:
+      s3_bucket: {$t: "{{ params.bucket }}"}
+      s3_key: {$t: "runs/{{ ds }}/{{ ts_nodash }}/payload.json"}
+      data: {$t: '{"run_id": "{{ run_id }}"}'}
+      replace: true
+
+  - id: wait_for_object
+    extends: [s3]
+    needs: [write_object]
+    uses: airflow.providers.amazon.aws.sensors.s3.S3KeySensor
+    with:
+      bucket_name: {$t: "{{ params.bucket }}"}
+      bucket_key: {$t: "runs/{{ ds }}/{{ ts_nodash }}/payload.json"}
+      poke_interval: 5
+      timeout: 60
+
+  - id: list_objects
+    extends: [s3]
+    needs: [wait_for_object]
+    uses: airflow.providers.amazon.aws.operators.s3.S3ListOperator
+    with:
+      bucket: {$t: "{{ params.bucket }}"}
+      prefix: {$t: "runs/{{ ds }}/{{ ts_nodash }}/"}
+
+  # A code task: its queue routes it to the Go TaskHandler.
+  - id: summarize
+    queue: golang
+    run:
+      keys: {$x: list_objects}
+      label: yaml
+
+  # No body at all, so the importer makes this an EmptyOperator join.
+  - id: done
+    needs: [summarize]
