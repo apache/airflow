@@ -45,6 +45,17 @@ def import_(args, api_client=NEW_API_CLIENT) -> None:
             connections_json = json.loads(file.read())
         except Exception as e:
             raise SystemExit(f"Error reading connections file {args.file}: {e}")
+    if not isinstance(connections_json, dict):
+        raise SystemExit(
+            f"Invalid connections file {args.file}: expected a JSON object mapping connection ids "
+            f"to connection details, got {type(connections_json).__name__}"
+        )
+    for connection_id, connection_details in connections_json.items():
+        if not isinstance(connection_details, dict):
+            raise SystemExit(
+                f"Invalid connection {connection_id!r} in {args.file}: expected a JSON object "
+                f"of connection details, got {type(connection_details).__name__}"
+            )
     try:
         connections_data = {
             k: ConnectionBody(
