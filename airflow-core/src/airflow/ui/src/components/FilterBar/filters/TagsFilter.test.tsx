@@ -122,7 +122,7 @@ describe("TagsFilter advanced search", () => {
 
     const pill = screen.getByTestId("tags-pill");
 
-    expect(within(pill).getByLabelText("match anywhere")).toBeInTheDocument();
+    expect(within(pill).getByLabelText("search.advanced.title")).toBeInTheDocument();
   });
 
   it("does not render the toggle without supportsAdvancedSearch", async () => {
