@@ -4828,8 +4828,9 @@ def generate_issue_content(
 @release_management_group.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
 @click.option(
     "--source-dir-path",
-    help="Path to the directory with the generated documentation.",
-    required=True,
+    help="Path to the directory with the generated documentation. Required unless "
+    "--packages-metadata-only is used.",
+    default="",
 )
 @click.option(
     "--exclude-docs",
@@ -4865,6 +4866,17 @@ def generate_issue_content(
     is_flag=True,
     help="Skip writing stable versions folder.",
 )
+@click.option(
+    "--skip-packages-metadata",
+    is_flag=True,
+    help="Skip regenerating manifest/packages-metadata.json after the sync. "
+    "Run the command again with --packages-metadata-only to regenerate it.",
+)
+@click.option(
+    "--packages-metadata-only",
+    is_flag=True,
+    help="Only regenerate manifest/packages-metadata.json from the docs already in the bucket.",
+)
 @option_parallelism
 def publish_docs_to_s3(
     source_dir_path: str,
@@ -4876,11 +4888,22 @@ def publish_docs_to_s3(
     publish_all_docs: bool,
     stable_versions: bool,
     skip_write_to_stable_folder: bool,
+    skip_packages_metadata: bool,
+    packages_metadata_only: bool,
 ):
     from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
 
     if publish_all_docs and stable_versions:
         console_print("[error]You cannot use --publish-all and --stable-versions together[/]")
+        sys.exit(1)
+    if packages_metadata_only and (publish_all_docs or stable_versions or skip_packages_metadata):
+        console_print(
+            "[error]You cannot use --packages-metadata-only with --publish-all-docs, "
+            "--stable-versions or --skip-packages-metadata[/]"
+        )
+        sys.exit(1)
+    if not packages_metadata_only and not source_dir_path:
+        console_print("[error]--source-dir-path is required unless --packages-metadata-only is used[/]")
         sys.exit(1)
 
     destination_location = destination_location.rstrip("/")
@@ -4899,7 +4922,10 @@ def publish_docs_to_s3(
         destination_location=destination_location,
         parallelism=parallelism,
         skip_write_to_stable_folder=skip_write_to_stable_folder,
+        skip_packages_metadata=skip_packages_metadata,
     )
+    if packages_metadata_only:
+        docs_to_s3.generate_packages_metadata()
     if publish_all_docs:
         docs_to_s3.publish_all_docs()
     if stable_versions:

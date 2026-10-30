@@ -202,6 +202,11 @@ jobs:
     timeout-minutes: 20
     name: "Publish and tag constraints"
     needs: [build-info, generate-constraints]
+    # Shared with the publish jobs of update-constraints-on-push.yml and
+    # update-constraints-on-push-stable.yml, so they never push to the same constraints branch at once.
+    concurrency:
+      group: constraints-publish-${{ needs.build-info.outputs.target-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read

@@ -1055,6 +1055,17 @@ To check what documents will be published to S3, you can use the ``--dry-run`` f
      breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
      --destination-location s3://airflow-docs/docs --dry-run
 
+After the sync the command rebuilds ``manifest/packages-metadata.json`` from a scan of every package in
+the bucket. When several publishes to one bucket can run at once, sync with ``--skip-packages-metadata``
+and rebuild the file in a separate, serialised step with ``--packages-metadata-only``, which needs no
+``--source-dir-path``. The ``Publish Docs to S3`` workflow does this so that provider and Airflow docs
+publishes can sync side by side.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3 --destination-location s3://airflow-docs/docs \
+     --packages-metadata-only
+
 These are all available flags of ``release-management publish-docs-to-s3`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
