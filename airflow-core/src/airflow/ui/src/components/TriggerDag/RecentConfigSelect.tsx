@@ -18,7 +18,14 @@
  */
 import { useMemo, useState } from "react";
 
-import { createListCollection, Flex, type SelectValueChangeDetails, Text } from "@chakra-ui/react";
+import {
+  createListCollection,
+  Field,
+  Flex,
+  type SelectValueChangeDetails,
+  Stack,
+  Text,
+} from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
@@ -42,11 +49,9 @@ type RecentConfigSelectProps = {
 const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectProps) => {
   const { t: translate } = useTranslation("components");
   const [selectedValue, setSelectedValue] = useState<Array<string>>([]);
-  const { data, isLoading } = useDagRunServiceGetDagRuns(
-    { dagId, limit: 25, orderBy: ["-run_after"] },
-    undefined,
-    { enabled: open },
-  );
+  const { data } = useDagRunServiceGetDagRuns({ dagId, limit: 25, orderBy: ["-run_after"] }, undefined, {
+    enabled: open,
+  });
 
   const options = useMemo(() => {
     const seenConfs = new Set<string>();
@@ -79,34 +84,48 @@ const RecentConfigSelect = ({ dagId, onSelectConf, open }: RecentConfigSelectPro
     }
   };
 
-  if (!isLoading && options.length === 0) {
+  // The options come from the runs alone, so there is nothing to show both before they arrive
+  // and when none of them carried a config. Asking the query how far along it is would be worse
+  // than useless here: the runs stay fresh for five minutes, so reopening the modal serves them
+  // from cache without fetching, and a readiness flag would read that as "not ready yet" and
+  // hide configs that are already in hand.
+  if (options.length === 0) {
     return undefined;
   }
 
+  // Laid out as a form row like Logical Date and the run parameters below it, rather than a
+  // label stacked over a full-width control.
   return (
-    <Select.Root
-      collection={recentConfigOptions}
-      data-testid="recent-config-select"
-      disabled={isLoading || options.length === 0}
-      onValueChange={handleValueChange}
-      size="sm"
-      value={selectedValue}
-    >
-      <Select.Label fontSize="xs">{translate("triggerDag.recentConfig")}</Select.Label>
-      <Select.Trigger>
-        <Select.ValueText placeholder={translate("triggerDag.recentConfigPlaceholder")} />
-      </Select.Trigger>
-      <Select.Content maxH="200px" overflowY="auto">
-        {recentConfigOptions.items.map((option) => (
-          <Select.Item item={option} key={option.run.dag_run_id}>
-            <Flex justifyContent="space-between" width="100%">
-              <Text>{option.run.dag_run_id}</Text>
-              <Time datetime={option.run.run_after} />
-            </Flex>
-          </Select.Item>
-        ))}
-      </Select.Content>
-    </Select.Root>
+    <Field.Root orientation="horizontal">
+      <Stack>
+        <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+          {translate("triggerDag.recentConfig")}
+        </Field.Label>
+      </Stack>
+      <Stack css={{ flexBasis: "70%" }}>
+        <Select.Root
+          collection={recentConfigOptions}
+          data-testid="recent-config-select"
+          onValueChange={handleValueChange}
+          size="sm"
+          value={selectedValue}
+        >
+          <Select.Trigger>
+            <Select.ValueText placeholder={translate("triggerDag.recentConfigPlaceholder")} />
+          </Select.Trigger>
+          <Select.Content maxH="200px" overflowY="auto">
+            {recentConfigOptions.items.map((option) => (
+              <Select.Item item={option} key={option.run.dag_run_id}>
+                <Flex justifyContent="space-between" width="100%">
+                  <Text>{option.run.dag_run_id}</Text>
+                  <Time datetime={option.run.run_after} />
+                </Flex>
+              </Select.Item>
+            ))}
+          </Select.Content>
+        </Select.Root>
+      </Stack>
+    </Field.Root>
   );
 };
 

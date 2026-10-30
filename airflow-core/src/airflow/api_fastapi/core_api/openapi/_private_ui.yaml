@@ -1456,7 +1456,8 @@ paths:
       tags:
       - Deadlines
       summary: Get Dag Deadline Alerts
-      description: Get all deadline alerts defined on a Dag.
+      description: Get deadline alerts defined on a Dag, optionally filtered by name
+        pattern.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -1484,6 +1485,20 @@ paths:
           minimum: 0
           default: 50
           title: Limit
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
+          title: Name Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: offset
         in: query
         required: false
