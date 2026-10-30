@@ -69,6 +69,7 @@
     "columns": {
       "dag": "Dag",
       "key": "키",
+      "timestamp": "타임스탬프",
       "value": "값"
     },
     "delete": {

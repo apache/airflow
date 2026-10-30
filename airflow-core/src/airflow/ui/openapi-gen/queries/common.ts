@@ -1163,13 +1163,14 @@ export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadline
 export type DeadlinesServiceGetDagDeadlineAlertsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagDeadlineAlerts>>;
 export type DeadlinesServiceGetDagDeadlineAlertsQueryResult<TData = DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDagDeadlineAlertsKey = "DeadlinesServiceGetDagDeadlineAlerts";
-export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, offset, orderBy, versionNumber }: {
+export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, namePattern, offset, orderBy, versionNumber }])];
 export type DeadlinesServiceGetCallbackLogsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getCallbackLogs>>;
 export type DeadlinesServiceGetCallbackLogsQueryResult<TData = DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetCallbackLogsKey = "DeadlinesServiceGetCallbackLogs";
