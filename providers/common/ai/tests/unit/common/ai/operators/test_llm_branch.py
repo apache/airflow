@@ -72,7 +72,7 @@ class TestLLMBranchOperator:
     def test_execute_builds_agent_with_model_settings_and_output_retries_only(
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
@@ -97,7 +97,7 @@ class TestLLMBranchOperator:
     def test_execute_single_branch(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """LLM returns a single enum member → do_branch receives a string."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
@@ -115,8 +115,34 @@ class TestLLMBranchOperator:
         assert result == "task_a"
         mock_do_branch.assert_called_once_with(ctx, "task_a")
         mock_agent.run_sync.assert_called_once_with(
-            "Pick a branch", usage_limits=None, cancellation_token=ANY
+            "Pick a branch", usage=ANY, usage_limits=None, run_id=ANY, cancellation_token=ANY
         )
+
+    @pytest.mark.parametrize("model_name", ["gpt-5", None])
+    @patch("airflow.providers.common.ai.operators.llm.stamp_identity_on_agent_spans", autospec=True)
+    @patch.object(LLMBranchOperator, "do_branch")
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_run_usage_run_id_and_model_name_pushed_to_xcom(
+        self, mock_hook_cls, mock_do_branch, mock_stamp, make_reporting_agent, model_name
+    ):
+        mock_agent, expected_pushes = make_reporting_agent("task_a", model_name=model_name)
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = LLMBranchOperator(task_id="test", prompt="Pick a branch", llm_conn_id="my_llm")
+        op.downstream_task_ids = {"task_a", "task_b"}
+        context = _make_context(ti_id="ti-1")
+
+        op.execute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"]
+            for c in context["task_instance"].xcom_push.call_args_list
+            if c.kwargs["key"] != "decision"
+        }
+        assert pushes == expected_pushes
+        mock_stamp.assert_called_once()
+        agent_arg, attrs = mock_stamp.call_args.args
+        assert agent_arg is mock_agent
+        assert attrs["airflow.task_instance.id"] == "ti-1"
 
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -125,7 +151,7 @@ class TestLLMBranchOperator:
     ):
         """A dict ``usage_limits`` is coerced into a real ``UsageLimits`` before ``run_sync``."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = "task_a"
@@ -148,7 +174,7 @@ class TestLLMBranchOperator:
     def test_execute_multi_branch(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """allow_multiple_branches=True → LLM returns list of enums → do_branch receives list."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(["task_a", "task_c"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_do_branch.return_value = ["task_a", "task_c"]
@@ -173,7 +199,7 @@ class TestLLMBranchOperator:
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
         """LLM returning an empty list fails instead of skipping every downstream task."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result([])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -194,7 +220,7 @@ class TestLLMBranchOperator:
     def test_system_prompt_forwarded(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """system_prompt is passed to create_agent(instructions=...)."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -216,7 +242,7 @@ class TestLLMBranchOperator:
     def test_downstream_task_ids_used_for_enum(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """The dynamic enum is built from self.downstream_task_ids."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("billing")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -245,7 +271,7 @@ class TestLLMBranchOperator:
         unlucky set order; without ``sorted()`` the enum comes out reversed and this fails.
         """
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -268,7 +294,7 @@ class TestLLMBranchOperator:
         a per-option description from: ``anyOf`` of ``{const, description}``, not a bare ``enum``.
         pydantic-ai's ``Choices`` builds it; a bare string and a ``BranchOption`` describe alike.
         """
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("handle_auth")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -399,7 +425,7 @@ class TestLLMBranchOperator:
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
         """Without descriptions the schema is the bare enum it always was."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         op = LLMBranchOperator(task_id="route", prompt="Pick", llm_conn_id="my_llm")
@@ -441,7 +467,7 @@ class TestLLMBranchOperator:
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
         """On pydantic-ai without ``Choices`` the Enum fallback carries the same anyOf and the pick unwraps."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = LLMBranchOperator(
             task_id="route",
@@ -578,7 +604,7 @@ class TestLLMBranchOperatorUsageBudget:
         usage_budget_context,
     ):
         seed_usage_budget(task_state_store_accessor, requests=1)
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         key_present_in_do_branch = []
@@ -677,7 +703,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_confident_pick_branches_and_records_the_decision(
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(
             make_mock_run_result,
             "rerun",
@@ -718,7 +744,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_pick_below_the_bar_goes_to_review_before_branching(
         self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(
             make_mock_run_result,
             "page_oncall",
@@ -763,7 +789,7 @@ class TestLLMBranchOperatorConfidenceGate:
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
         """0.52 is under page_oncall's 0.9 bar but rerun's bar is 0.6, so a rerun at 0.65 branches."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", confidence=0.65)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(
@@ -791,7 +817,7 @@ class TestLLMBranchOperatorConfidenceGate:
         self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """A branch the overrides do not name is still gated, by min_confidence."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "ignore", confidence=0.3)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(
@@ -820,7 +846,7 @@ class TestLLMBranchOperatorConfidenceGate:
         self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
         """A model that reports no confidence must not silently bypass a configured bar."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", model="claude-sonnet-5")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(decision_policy=DecisionPolicy(min_confidence=0.7))
@@ -840,7 +866,7 @@ class TestLLMBranchOperatorConfidenceGate:
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_low_confidence_can_fail_the_task(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
         """on_uncertain="fail": the record is written first so the failure is explained."""
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", confidence=0.4)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(decision_policy=DecisionPolicy(min_confidence=0.7, on_uncertain="fail"))
@@ -859,7 +885,7 @@ class TestLLMBranchOperatorConfidenceGate:
     @patch.object(LLMBranchOperator, "do_branch")
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
     def test_text_model_with_a_bar_can_fail(self, mock_hook_cls, mock_do_branch, make_mock_run_result):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", model="claude-sonnet-5")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(decision_policy=DecisionPolicy(min_confidence=0.7, on_uncertain="fail"))
@@ -874,7 +900,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_no_bar_and_no_confidence_is_todays_behaviour(
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", model="claude-sonnet-5")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op()
@@ -905,7 +931,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_do_xcom_push_false_suppresses_the_record(
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", confidence=0.9)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(decision_policy=DecisionPolicy(min_confidence=0.7), do_xcom_push=False)
@@ -923,7 +949,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_multiple_branches_use_the_strictest_picked_bar(
         self, mock_hook_cls, mock_do_branch, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(
             make_mock_run_result, ["rerun", "page_oncall"], confidence=0.95
         )
@@ -953,7 +979,7 @@ class TestLLMBranchOperatorConfidenceGate:
     def test_require_approval_still_asks_at_high_confidence(
         self, mock_hook_cls, mock_do_branch, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _jev_result(make_mock_run_result, "rerun", confidence=0.99)
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
         op = self._op(require_approval=True, decision_policy=DecisionPolicy(min_confidence=0.5))
@@ -1089,7 +1115,7 @@ class TestLLMBranchOperatorApproval:
     ):
         """When require_approval=True, execute() pauses after the LLM choice, before do_branch."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1118,7 +1144,7 @@ class TestLLMBranchOperatorApproval:
     ):
         """With allow_multiple_branches=True the choice is deferred as a JSON list."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(["task_a", "task_c"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1146,7 +1172,7 @@ class TestLLMBranchOperatorApproval:
     ):
         """The review body lists the valid branches and the editable param is an enum dropdown."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1178,7 +1204,7 @@ class TestLLMBranchOperatorApproval:
     ):
         """With allow_multiple_branches the editable param is an array enum (multi-select)."""
 
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result(["task_a"])
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -1215,7 +1241,7 @@ class TestLLMBranchOperatorApproval:
     def test_execute_with_approval_reviews_a_sequence_prompt(
         self, mock_hook_cls, mock_upsert, mock_trigger_cls, make_mock_run_result
     ):
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("task_a")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 

@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, func, inspect, select, update
+from sqlalchemy import delete, event as sa_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -7302,32 +7302,46 @@ class TestSchedulerJob:
         assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
 
     @pytest.mark.need_serialized_dag
-    def test_create_dag_runs_asset_triggered_deletes_only_selected_adrq_rows(
-        self, session: Session, dag_maker
+    @pytest.mark.parametrize(
+        ("locked_index", "expected_consumed_indexes", "expected_queued_indexes"),
+        [
+            # The skipped row has a higher event ID than any locked row, so it is
+            # outside the bound and left queued for the next scheduling loop.
+            pytest.param(0, {0}, {1}, id="skipped-row-newer"),
+            # The skipped row has a lower event ID than the locked row, so it is
+            # within the bound and its event is consumed, but the row is left for
+            # whoever holds it, since the cleanup only deletes rows it can lock.
+            pytest.param(1, {0, 1}, {0}, id="skipped-row-older"),
+        ],
+    )
+    def test_create_dag_runs_asset_triggered_deletes_only_locked_adrq_rows(
+        self,
+        session: Session,
+        dag_maker,
+        locked_index: int,
+        expected_consumed_indexes: set[int],
+        expected_queued_indexes: set[int],
     ):
-        asset_1 = Asset("ready-to-trigger-a-Dag-run")
-        asset_2 = Asset("should-still-exist-after-a-Dag-run-created")
-        with dag_maker(dag_id="asset-consumer-delete-selected", schedule=asset_1 | asset_2, session=session):
+        assets = [Asset("asset-delete-selected-1"), Asset("asset-delete-selected-2")]
+        with dag_maker(
+            dag_id="asset-consumer-delete-selected", schedule=assets[0] | assets[1], session=session
+        ):
             pass
         dag_model = dag_maker.dag_model
-        asset_1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_1.name))
-        asset_2_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_2.name))
-        event_1 = AssetEvent(asset_id=asset_1_id, timestamp=timezone.utcnow())
-        event_2 = AssetEvent(asset_id=asset_2_id, timestamp=timezone.utcnow())
-        session.add_all([event_1, event_2])
-        session.flush()
+        asset_ids = [
+            session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.name)) for asset in assets
+        ]
+        now = timezone.utcnow()
+        events = []
+        for i, asset_id in enumerate(asset_ids):
+            # Flush one by one so event IDs follow list order.
+            event = AssetEvent(asset_id=asset_id, timestamp=now + timedelta(seconds=i))
+            session.add(event)
+            session.flush()
+            events.append(event)
         session.add_all(
-            [
-                # The ADRQ that should trigger the Dag run creation
-                AssetDagRunQueue(
-                    asset_id=asset_1_id, target_dag_id=dag_model.dag_id, asset_event_id=event_1.id
-                ),
-                # The ADRQ that arrives after the Dag run creation but before ADRQ clean up.
-                # This situation is simulated by _lock_only_selected_asset below.
-                AssetDagRunQueue(
-                    asset_id=asset_2_id, target_dag_id=dag_model.dag_id, asset_event_id=event_2.id
-                ),
-            ]
+            AssetDagRunQueue(asset_id=e.asset_id, target_dag_id=dag_model.dag_id, asset_event_id=e.id)
+            for e in events
         )
         session.flush()
 
@@ -7335,8 +7349,8 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
 
         def _lock_only_selected_asset(query, **_):
-            # Simulate SKIP LOCKED behavior where this scheduler can only consume one ADRQ row.
-            return query.where(AssetDagRunQueue.asset_id == asset_1_id)
+            # Simulate SKIP LOCKED skipping the other row, e.g. held by another transaction.
+            return query.where(AssetDagRunQueue.asset_id == asset_ids[locked_index])
 
         with patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=_lock_only_selected_asset):
             self.job_runner._create_dag_runs_asset_triggered(
@@ -7344,23 +7358,75 @@ class TestSchedulerJob:
                 session=session,
             )
 
-        dr = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none()
-        assert dr is not None
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+        assert {e.id for run in runs for e in run.consumed_asset_events} == {
+            events[i].id for i in expected_consumed_indexes
+        }
+        queued_asset_ids = session.scalars(
+            select(AssetDagRunQueue.asset_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        ).all()
+        assert set(queued_asset_ids) == {asset_ids[i] for i in expected_queued_indexes}
 
-        adrq_1 = session.scalars(
-            select(AssetDagRunQueue).where(
-                AssetDagRunQueue.target_dag_id == dag_model.dag_id,
-                AssetDagRunQueue.asset_id == asset_1_id,
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("disable_load_example")
+    @pytest.mark.parametrize("gated", [False, True], ids=["triggered", "gated"])
+    def test_create_dag_runs_asset_does_not_wait_on_rows_locked_elsewhere(
+        self, session: Session, dag_maker, gated
+    ):
+        assets = [Asset("asset-locked-elsewhere-1"), Asset("asset-locked-elsewhere-2")]
+        logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+        condition = assets[0] | assets[1]
+        schedule = (
+            AssetAndTimeSchedule(
+                timetable=CronTriggerTimetable("* * * * *", timezone="UTC"), assets=condition
             )
-        ).one_or_none()
-        assert adrq_1 is None
-        adrq_2 = session.scalars(
-            select(AssetDagRunQueue).where(
-                AssetDagRunQueue.target_dag_id == dag_model.dag_id,
-                AssetDagRunQueue.asset_id == asset_2_id,
+            if gated
+            else condition
+        )
+        with dag_maker(dag_id="asset-consumer-locked-elsewhere", schedule=schedule, session=session):
+            EmptyOperator(task_id="dummy_task")
+        dag_model = dag_maker.dag_model
+        dag_id = dag_model.dag_id
+        events = []
+        for asset in assets:
+            asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.name))
+            event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
+            session.add(event)
+            session.flush()
+            session.add(AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_id, asset_event_id=event.id))
+            events.append(event)
+        if gated:
+            dag_model.next_dagrun = logical_date
+            dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+            dag_model.next_dagrun_create_after = logical_date
+        session.commit()
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+
+        def create_dag_runs():
+            with create_session(scoped=False) as other:
+                runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", other), other)
+
+        with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as locker:
+            # Hold the older row, as a queued event DELETE endpoint would.
+            locker.execute(
+                delete(AssetDagRunQueue).where(
+                    AssetDagRunQueue.target_dag_id == dag_id,
+                    AssetDagRunQueue.asset_event_id == events[0].id,
+                )
             )
-        ).one_or_none()
-        assert adrq_2 is not None
+            future = pool.submit(create_dag_runs)
+            try:
+                future.result(timeout=10)
+            finally:
+                locker.rollback()
+
+        assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+        # The cleanup removed only the row it could lock.
+        queued_event_ids = session.scalars(
+            select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_id)
+        ).all()
+        assert queued_event_ids == [events[0].id]
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.backend("postgres", "mysql")
@@ -7654,52 +7720,46 @@ class TestSchedulerJob:
         assert all(adrq.target_dag_id == "consumer" for adrq in adrqs)
 
     @pytest.mark.need_serialized_dag
-    def test_no_create_dag_runs_when_asset_event_already_consumed(self, session: Session, dag_maker, caplog):
-        asset = Asset(name="test_asset")
-        with dag_maker(dag_id="consumer", schedule=asset, session=session):
+    @pytest.mark.parametrize("and_condition", [False, True], ids=["single-asset", "and-condition"])
+    def test_no_create_dag_runs_when_asset_event_already_consumed(
+        self, session: Session, dag_maker, and_condition
+    ):
+        assets = [Asset(name="asset_a"), Asset(name="asset_b")] if and_condition else [Asset(name="asset_a")]
+        with dag_maker(dag_id="consumer", schedule=assets, session=session):
             pass
         dag_model = dag_maker.dag_model
-        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-
-        # An event that has already been consumed by an earlier DagRun of this dag.
-        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
-        session.add(event)
+        events = [
+            AssetEvent(
+                asset_id=session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri)),
+                timestamp=timezone.utcnow(),
+            )
+            for asset in assets
+        ]
+        session.add_all(events)
         session.flush()
         prior_run = dag_maker.create_dagrun(
             run_id="prior-consuming-run",
             logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
-        prior_run.consumed_asset_events.append(event)
-        session.flush()
-
-        # A stale ADRQ that still references the already-consumed event. It should be cleaned up
-        # even when no new DagRun is created, to prevent stale ADRQ rows from accumulating and
-        # causing infinite scheduler loops.
-        session.add(
-            AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        # The first event was already consumed by an earlier run, but is still queued.
+        prior_run.consumed_asset_events.append(events[0])
+        session.add_all(
+            AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+            for event in events
         )
         session.flush()
 
-        with caplog.at_level("INFO"):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, executors=[MockExecutor(do_update=False)])
-            self.job_runner._create_dag_runs_asset_triggered(
-                dag_models=[dag_model],
-                session=session,
-            )
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        self.job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
 
-        assert "No DagRun created" in caplog.text
-        # No *new* DagRun is created; only the pre-existing consuming run remains.
         runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
         assert [r.run_id for r in runs] == ["prior-consuming-run"]
-        _adrq = session.scalars(
-            select(AssetDagRunQueue).where(
-                AssetDagRunQueue.asset_id == asset_id, AssetDagRunQueue.target_dag_id == dag_model.dag_id
-            )
-        ).one_or_none()
-        # ADRQ is deleted even when no DagRun is created, to prevent stale rows accumulating.
-        assert _adrq is None
+        # The stale row is dequeued even though no run is created; a fresh one stays.
+        queued = session.scalars(
+            select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+        ).all()
+        assert queued == [event.id for event in events[1:]]
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow._shared.observability.metrics.stats._get_backend")
@@ -13034,6 +13094,212 @@ def test_create_dagruns_asset_and_time_late_arrival_uses_oldest_pending_logical_
     )
 
 
+@contextlib.contextmanager
+def _capture_max_bind_params(session: Session):
+    """Track the largest number of bind parameters sent in a single SQL statement."""
+    counts: list[int] = [0]
+
+    def _listener(conn, cursor, statement, parameters, context, executemany):
+        if not executemany and parameters:
+            counts.append(len(parameters))
+
+    engine = session.get_bind()
+    sa_event.listen(engine, "before_cursor_execute", _listener)
+    try:
+        yield counts
+    finally:
+        sa_event.remove(engine, "before_cursor_execute", _listener)
+
+
+# Large enough that a literal IN list of queued events dwarfs any fixed-size query.
+_MANY_QUEUED_EVENTS = 300
+
+
+def _queue_many_asset_events(
+    *,
+    dag_id: str,
+    asset_ids: list[int],
+    timestamp: datetime.datetime,
+    session: Session,
+) -> None:
+    events = [
+        AssetEvent(asset_id=asset_id, timestamp=timestamp)
+        for asset_id in asset_ids
+        for _ in range(_MANY_QUEUED_EVENTS)
+    ]
+    session.add_all(events)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=e.asset_id, target_dag_id=dag_id, asset_event_id=e.id) for e in events
+    )
+    session.flush()
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("batch_asset_events", [False, True])
+def test_create_dagruns_asset_triggered_many_queued_events_no_literal_in(
+    session: Session, dag_maker, monkeypatch, batch_asset_events: bool
+):
+    """Queued events must not be sent to the database as a literal list."""
+    asset_1 = Asset(uri="test://many-events-1", name="many-events-1")
+    asset_2 = Asset(uri="test://many-events-2", name="many-events-2")
+    max_active_runs = 4  # Below the default per-loop run budget, so it is the effective limit.
+    with dag_maker(
+        dag_id="many-events-triggered",
+        schedule=AssetTriggeredTimetable(assets=asset_1 & asset_2, batch_asset_events=batch_asset_events),
+        max_active_runs=max_active_runs,
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    asset_ids = list(
+        session.scalars(select(AssetModel.id).where(AssetModel.uri.in_([asset_1.uri, asset_2.uri])))
+    )
+    _queue_many_asset_events(
+        dag_id=dag_model.dag_id,
+        asset_ids=asset_ids,
+        timestamp=timezone.utcnow(),
+        session=session,
+    )
+
+    # Smaller than the number of queued events, so the cleanup spans several chunks.
+    monkeypatch.setattr("airflow.jobs.scheduler_job_runner._ADRQ_DELETE_CHUNK_SIZE", 50)
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    with _capture_max_bind_params(session) as param_counts:
+        runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+    session.flush()
+
+    assert max(param_counts) < _MANY_QUEUED_EVENTS
+    total = _MANY_QUEUED_EVENTS * len(asset_ids)
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+    consumed = {e.id for run in runs for e in run.consumed_asset_events}
+    remaining = session.scalars(
+        select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+    ).all()
+    if batch_asset_events:
+        assert len(runs) == 1
+        assert len(consumed) == total
+    else:
+        assert len(runs) == max_active_runs
+        assert len(consumed) == max_active_runs
+    assert consumed.isdisjoint(remaining)
+    assert len(remaining) == total - len(consumed)
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+def test_create_dagruns_asset_gated_many_queued_events_no_literal_in(
+    session: Session, dag_maker, monkeypatch
+):
+    """Queued events must not be sent to the database as a literal list."""
+    asset_1 = Asset(uri="test://many-events-gated-1", name="many-events-gated-1")
+    asset_2 = Asset(uri="test://many-events-gated-2", name="many-events-gated-2")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="many-events-gated",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset_1, asset_2],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    asset_ids = list(
+        session.scalars(select(AssetModel.id).where(AssetModel.uri.in_([asset_1.uri, asset_2.uri])))
+    )
+    _queue_many_asset_events(
+        dag_id=dag_model.dag_id,
+        asset_ids=asset_ids,
+        timestamp=logical_date,
+        session=session,
+    )
+
+    # Smaller than the number of queued events, so the cleanup spans several chunks.
+    monkeypatch.setattr("airflow.jobs.scheduler_job_runner._ADRQ_DELETE_CHUNK_SIZE", 50)
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    with _capture_max_bind_params(session) as param_counts:
+        runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    assert max(param_counts) < _MANY_QUEUED_EVENTS
+    dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    assert len(dag_run.consumed_asset_events) == _MANY_QUEUED_EVENTS * len(asset_ids)
+    assert (
+        session.scalar(select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id))
+        is None
+    )
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("and_condition", [False, True], ids=["single-asset", "and-condition"])
+def test_create_dagruns_asset_gated_dequeues_already_consumed_events(
+    session: Session, dag_maker, and_condition
+):
+    assets = [
+        Asset(uri=f"test://asset-gated-consumed-{suffix}", name=f"asset-gated-consumed-{suffix}")
+        for suffix in (("a", "b") if and_condition else ("a",))
+    ]
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-gated-consumed",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=assets,
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    events = [
+        AssetEvent(
+            asset_id=session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri)),
+            timestamp=logical_date,
+        )
+        for asset in assets
+    ]
+    session.add_all(events)
+    session.flush()
+    prior_run = dag_maker.create_dagrun(
+        run_id="prior-consuming-run",
+        logical_date=logical_date - timedelta(hours=1),
+        data_interval=(logical_date - timedelta(hours=1), logical_date - timedelta(hours=1)),
+    )
+    # The first event was already consumed by an earlier run, but is still queued.
+    prior_run.consumed_asset_events.append(events[0])
+    session.add_all(
+        AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        for event in events
+    )
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    # No run is created and the schedule slot is kept. The stale row does not
+    # make the Dag ready, so it stays queued...
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).all()
+    assert [run.run_id for run in runs] == ["prior-consuming-run"]
+    session.refresh(dag_model)
+    assert dag_model.next_dagrun == logical_date
+    query = select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+    assert set(session.scalars(query)) == {event.id for event in events}
+
+    # ... until the Dag is processed. A fresh row stays.
+    serdag = runner._get_current_dag(dag_id=dag_model.dag_id, session=session)
+    assert serdag is not None
+    assert runner._collect_gated_asset_events(dag=serdag, session=session) is None
+    assert set(session.scalars(query)) == {event.id for event in events[1:]}
+
+
 @time_machine.travel("2026-03-29 19:00:00+00:00")
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
@@ -14155,9 +14421,72 @@ def test_unbatched_asset_runs_drain_backlog_within_limits(
         )
         session.flush()
         runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+        # Every queued row points at an event not consumed yet.
+        consumed_ids = {event.id for run in runs for event in run.consumed_asset_events}
+        assert consumed_ids.isdisjoint(session.scalars(select(AssetDagRunQueue.asset_event_id)))
 
     assert [run.consumed_asset_events for run in runs] == [[event] for event in events]
     assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 0
+
+
+@pytest.mark.need_serialized_dag
+def test_unbatched_catchup_backlog_drains_with_multi_asset_condition(dag_maker, session, monkeypatch):
+    monkeypatch.setattr(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
+    # Asset A is scheduled on through an alias, so its backlog can only be matched via the alias.
+    asset_a_model = AssetModel(name="backlog-a", uri="test://backlog-a", group="asset")
+    alias_model = AssetAliasModel(name="backlog-a-alias", group="asset")
+    alias_model.assets.append(asset_a_model)
+    session.add_all([asset_a_model, alias_model])
+    session.flush()
+    asset_b = Asset(name="backlog-b")
+    dag_id = "backlog-and-consumer"
+    with dag_maker(
+        dag_id=dag_id,
+        schedule=AssetTriggeredTimetable(
+            assets=AssetAlias(name=alias_model.name, group=alias_model.group) & asset_b,
+            batch_asset_events=False,
+        ),
+        catchup=True,
+        session=session,
+    ):
+        EmptyOperator(task_id="consume")
+    session.commit()
+    a_id = asset_a_model.id
+    b_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_b.uri))
+    assert set(
+        session.scalars(
+            select(DagScheduleAssetReference.asset_id).where(DagScheduleAssetReference.dag_id == dag_id)
+        )
+    ) == {b_id}
+    timestamp = timezone.parse("2026-10-01T00:00:00Z")
+    a1, b1, a2, b2 = events = [
+        AssetEvent(asset_id=asset_id, timestamp=timestamp + timedelta(minutes=i))
+        for i, asset_id in enumerate([a_id, b_id, a_id, b_id])
+    ]
+    for event in (a1, a2):
+        event.source_aliases.append(alias_model)
+    session.add_all(events)
+    session.flush()
+    # Only the first event of each asset is queued; the rest is backlog.
+    session.add_all(
+        AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_id, asset_event_id=event.id)
+        for event in (a1, b1)
+    )
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    for _ in range(4):
+        query, triggered_dates = DagModel.dags_needing_dagruns(session=session)
+        runner._create_dag_runs_asset_triggered(
+            dag_models=[model for model in query.all() if model.dag_id in triggered_dates], session=session
+        )
+        session.flush()
+
+    # The backlog drains one event per run while the condition holds. The last
+    # event of B waits for a new event of A, as it would without catchup.
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+    assert [run.consumed_asset_events for run in runs] == [[a1], [b1], [a2]]
+    assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == [b2.id]
 
 
 @pytest.mark.need_serialized_dag

@@ -80,7 +80,7 @@ permissions:
   contents: read
 jobs:
   update-constraints:
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:

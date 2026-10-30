@@ -58,7 +58,7 @@ class TestLLMFileAnalysisDecoratedOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("This is a summary.")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -76,7 +76,7 @@ class TestLLMFileAnalysisDecoratedOperator:
         assert result == "This is a summary."
         assert op.prompt == "Summarize this text"
         mock_agent.run_sync.assert_called_once_with(
-            "prepared prompt", usage_limits=None, cancellation_token=ANY
+            "prepared prompt", usage=ANY, usage_limits=None, cancellation_token=ANY
         )
 
     @pytest.mark.parametrize(
@@ -104,7 +104,7 @@ class TestLLMFileAnalysisDecoratedOperator:
             resolved_paths=["/tmp/app.log"],
             total_size_bytes=10,
         )
-        mock_agent = MagicMock(spec=["run_sync"])
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = _make_mock_run_result("done")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
 
@@ -122,5 +122,5 @@ class TestLLMFileAnalysisDecoratedOperator:
 
         assert op.prompt == "Summarize system logs"
         mock_agent.run_sync.assert_called_once_with(
-            "prepared prompt", usage_limits=None, cancellation_token=ANY
+            "prepared prompt", usage=ANY, usage_limits=None, cancellation_token=ANY
         )

@@ -52,7 +52,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     if: contains(fromJSON('[
       "ashb",
       "eladkal",
@@ -74,9 +74,6 @@ jobs:
       target-branch: ${{ steps.stage.outputs.target-branch }}
       allow-pre-releases: ${{ steps.stage.outputs.allow-pre-releases }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ inputs.ref }}"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -85,6 +82,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # See ci-amd.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
@@ -188,6 +187,9 @@ jobs:
       # the constraints, which is exactly the version the release needed pinned.
       pypi-providers-only: "true"
       allow-pre-releases: ${{ needs.build-info.outputs.allow-pre-releases }}
+      # A final must not be cut while a provider candidate is still neither released nor yanked.
+      fail-on-pending-provider-candidates: >-
+        ${{ needs.build-info.outputs.allow-pre-releases == 'true' && 'false' || 'true' }}
       debug-resources: "false"
       checkout-ref: ${{ inputs.ref }}
       use-uv: "true"
@@ -199,6 +201,11 @@ jobs:
     timeout-minutes: 20
     name: "Publish and tag constraints"
     needs: [build-info, generate-constraints]
+    # Shared with the publish jobs of update-constraints-on-push.yml and
+    # update-constraints-on-push-stable.yml, so they never push to the same constraints branch at once.
+    concurrency:
+      group: constraints-publish-${{ needs.build-info.outputs.target-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read

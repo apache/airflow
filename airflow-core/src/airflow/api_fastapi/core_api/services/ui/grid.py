@@ -68,6 +68,8 @@ class GridNodeAgg:
     has_note: bool = False
     loop_iterations: dict[str, set[tuple[UUID, int]]] = field(default_factory=dict)
     latest_region: tuple[UUID, int] | None = None
+    # Only meaningful while the summary holds a single task instance.
+    retry_at: datetime | None = None
 
     def add_ti(
         self,
@@ -80,6 +82,7 @@ class GridNodeAgg:
         loop_positions: dict[str, tuple[UUID, int]] | None = None,
         is_latest_pass: bool = True,
         region: tuple[UUID, int] | None = None,
+        retry_at: datetime | None = None,
     ) -> None:
         """
         Merge one task instance row into the summary.
@@ -92,6 +95,7 @@ class GridNodeAgg:
         does not supply the coordinate: a link has to address the newest row.
         """
         self.child_states[state] += 1
+        self.retry_at = retry_at if self.child_states.total() == 1 else None
         # A looped task has one row per iteration, so a link without a coordinate cannot say
         # which one it means. Carry the newest so the grid can address it.
         if is_latest_pass and region is not None:
@@ -254,6 +258,7 @@ def _find_aggregates(
                 "type": "task",
                 "parent_id": parent_id,
                 **_get_aggs_for_node(summary),
+                "retry_at": summary.retry_at,
             },
             summary,
         )
