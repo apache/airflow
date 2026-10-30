@@ -34,6 +34,7 @@ import structlog
 from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.secrets_backend.base import call_secrets_backend_method
 from airflow.sdk._shared.state import AssetScope
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
@@ -205,6 +206,15 @@ _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
     "_preset_connections", default=None
 )
 
+# A plain global rather than a ContextVar, so threads started by task code see it too.
+_current_team_name: str | None = None
+
+
+def set_current_team_name(team_name: str | None) -> None:
+    """Set the team that Connection and Variable lookups in this process belong to."""
+    global _current_team_name
+    _current_team_name = team_name
+
 
 def _get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
@@ -232,7 +242,9 @@ def _get_connection(conn_id: str) -> Connection:
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
+            conn = call_secrets_backend_method(
+                secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+            )
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
                 _mask_connection_secrets(conn)
@@ -288,7 +300,9 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 maybe_awaitable = async_method(conn_id)
                 conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
-                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+                conn = await sync_to_async(call_secrets_backend_method)(
+                    secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+                )
 
             if conn:
                 # Use aget_uri if the returned connection object supports it (the SDK's own
@@ -371,7 +385,9 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)
@@ -414,7 +430,12 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
             if async_method is not None:
                 var_val = await async_method(key=key)
             else:
-                var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+                var_val = await asyncio.to_thread(
+                    call_secrets_backend_method,
+                    secrets_backend.get_variable,
+                    team_name=_current_team_name,
+                    key=key,
+                )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val)

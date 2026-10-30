@@ -2279,6 +2279,33 @@ def test_startup_and_run_dag_with_rtif(
     mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.set_current_team_name", autospec=True)
+def test_startup_sets_the_current_team(mock_set_current_team_name, mocked_parse, make_ti_context):
+    ti_context = make_ti_context()
+    ti_context.dag_run.team_name = "team_a"
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=ti_context,
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mocked_parse(what, "basic_dag", CustomOperator(task_id="my_task"))
+
+    startup(what)
+
+    mock_set_current_team_name.assert_called_once_with("team_a")
+
+
 @patch("os.execvp")
 @patch("os.set_inheritable")
 def test_task_run_with_user_impersonation(

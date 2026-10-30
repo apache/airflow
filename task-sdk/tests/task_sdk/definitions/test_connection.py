@@ -378,7 +378,7 @@ class TestConnectionsFromSecrets:
         """Tests getting a connection from environment variable."""
         mock_env_get.return_value = Connection(conn_id="something", conn_type="some-type")  # return None
         Connection.get("something")
-        mock_env_get.assert_called_once_with(conn_id="something")
+        mock_env_get.assert_called_once_with(conn_id="something", team_name=None)
 
     @conf_vars(
         {
