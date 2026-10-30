@@ -79,7 +79,7 @@ export const DagRunStateCounts = ({ compact = false, counts, dagId, isLoading, s
   // cards doesn't mount hundreds of tooltip state machines (same pattern as RecentRuns).
   return (
     <Tooltip.Root>
-      <HStack data-testid={`run-state-counts-${dagId}`} gap={gap}>
+      <HStack data-testid={`run-state-counts-${dagId}`} gap={gap} wrap={compact ? "nowrap" : "wrap"}>
         {DISPLAYED_STATES.map((state) => {
           const { formattedCount, isZero, label } = describeState(state);
 

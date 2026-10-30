@@ -60,6 +60,7 @@ import { DagsFilters } from "./DagsFilters";
 import { createColumns, getRowKey } from "./DagsListColumns";
 import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
+import { MAX_RECENT_RUNS } from "./recentRunsLayout";
 
 const {
   DAG_BUNDLE,
@@ -142,7 +143,7 @@ export const DagsList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
-  const dagRunsLimit = display === "card" ? 14 : 1;
+  const dagRunsLimit = display === "card" ? MAX_RECENT_RUNS : 1;
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 

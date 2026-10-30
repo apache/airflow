@@ -98,6 +98,11 @@ describe("DagRunStateCounts", () => {
     expect(screen.getByTestId("run-state-count-failed-my_dag")).toHaveTextContent("2");
   });
 
+  it("wraps the badges outside the compact table cell", () => {
+    renderCounts({ failed: 0, queued: 0, running: 0, success: 1000 }, { stateCountLimit: 1000 });
+    expect(screen.getByTestId("run-state-counts-my_dag")).toHaveStyle({ flexWrap: "wrap" });
+  });
+
   it("suffixes counts that reached the cap with '+'", () => {
     renderCounts({ failed: 5, queued: 0, running: 1, success: 1000 }, { stateCountLimit: 1000 });
     expect(screen.getByTestId("run-state-count-success-my_dag")).toHaveTextContent("1,000+");
