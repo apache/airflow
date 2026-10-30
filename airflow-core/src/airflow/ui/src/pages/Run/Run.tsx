@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiPhoneCall } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
@@ -24,7 +23,7 @@ import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
@@ -80,10 +79,8 @@ export const Run = () => {
   ];
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
-        {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel error={error} isLoading={isLoading} tabs={tabs}>
+      {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
+    </DetailsPanel>
   );
 };

@@ -52,8 +52,8 @@ vi.mock("../HITLTaskInstances/HITLResponseForm", () => ({
     <div>{hitlDetail.subject}</div>
   ),
 }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({
     children,
     error,
     tabs,

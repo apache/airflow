@@ -42,8 +42,8 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 vi.mock("src/hooks/usePluginTabs", () => ({ usePluginTabs: vi.fn(() => []) }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ tabs }: PropsWithChildren<{ readonly tabs: Array<NavTab> }>) => <NavTabs tabs={tabs} />,
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({ tabs }: PropsWithChildren<{ readonly tabs: Array<NavTab> }>) => <NavTabs tabs={tabs} />,
 }));
 vi.mock("src/utils", async () => {
   const actual = await vi.importActual("src/utils");

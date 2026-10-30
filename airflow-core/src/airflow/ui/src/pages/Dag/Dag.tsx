@@ -18,7 +18,6 @@
  */
 import { useEffect, useRef, useState } from "react";
 
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiBarChart, FiCode, FiCalendar, FiGitCommit } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -27,16 +26,14 @@ import { RiArrowGoBackFill } from "react-icons/ri";
 import { useParams } from "react-router-dom";
 
 import { useDagServiceGetDagDetails, useDagServiceGetLatestRunInfo } from "openapi/queries";
-import { ApiError } from "openapi/requests/core/ApiError";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
 import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
-import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
 
 export const Dag = () => {
@@ -135,16 +132,9 @@ export const Dag = () => {
     return true;
   });
 
-  // Handle 404 error when Dag is not found
-  if (error instanceof ApiError && error.status === 404) {
-    return <DagNotFound dagId={dagId} />;
-  }
-
   return (
-    <ReactFlowProvider>
-      <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
+      <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
+    </DetailsPanel>
   );
 };

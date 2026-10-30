@@ -23,7 +23,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
-// Last Grid scrollTop per Dag. Module scope so it outlives the Grid remounting.
+// Last Grid scrollTop per Dag. Module scope so it outlives the Grid unmounting.
 const gridScrollTops = new Map<string, number>();
 
 type Params = {
@@ -36,10 +36,10 @@ type Params = {
   selectedTaskId?: string;
 };
 
-// Navigating into a task swaps the route (Dag/Run/TaskInstance each render their own Grid), so the
-// Grid unmounts and a fresh one mounts scrolled to the top. We restore the last position here so a
-// click doesn't jump the Grid: the rows are unchanged across the remount, so the saved pixel offset
-// still points at the same rows.
+// A Grid that mounts starts scrolled to the top — a first visit, or a browser reload — and one
+// that stays mounted while the route switches to another Dag keeps the offset of the Dag it was
+// showing. We restore the position last saved for this Dag so it picks up where it was left: its
+// rows are usually unchanged, so the saved pixel offset still points at the same rows.
 //
 // If the rows did change since we saved (a new version, or groups expanded/collapsed) the saved
 // offset no longer lines up, so we fall back to locating the selected task by id and centering it.
