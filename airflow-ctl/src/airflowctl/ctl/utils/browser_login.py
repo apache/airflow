@@ -38,6 +38,9 @@ _CALLBACK_PAGE = (
     b"<!doctype html><title>airflowctl</title>"
     b"<p>Login complete. You can close this window and return to the terminal.</p>"
 )
+_CALLBACK_FAILED_PAGE = (
+    b"<!doctype html><title>airflowctl</title><p>Login failed. Return to the terminal for details.</p>"
+)
 
 
 @dataclass
@@ -57,38 +60,63 @@ def build_pkce_pair() -> tuple[str, str]:
     return code_verifier, code_challenge
 
 
+def resolve_endpoint(api_url: str, endpoint: str) -> str:
+    """Return the URL of a login metadata endpoint, which must be on the API server."""
+    url = urljoin(api_url, endpoint)
+    if urlsplit(url)[:2] != urlsplit(api_url)[:2]:
+        raise AirflowCtlBrowserLoginException(f"{endpoint} is not an endpoint of {api_url}.")
+    return url
+
+
+def _find_login_error(params: dict[str, str], state: str) -> str | None:
+    """Return why the callback parameters do not complete this login, or ``None`` if they do."""
+    # compare_digest raises TypeError on non-ASCII str.
+    if not secrets.compare_digest(params.get("state", "").encode(), state.encode()):
+        return "The login response does not match this login attempt."
+    if "error" in params:
+        return f"Login refused: {params.get('error_description') or params['error']}"
+    if not params.get("code"):
+        return "The login response contains no authorization code."
+    return None
+
+
 class _CallbackServer(HTTPServer):
+    state: str
     callback_params: dict[str, str] | None = None
+    login_error: str | None = None
 
 
 class _CallbackHandler(BaseHTTPRequestHandler):
     server: _CallbackServer
+    # server.timeout only bounds accept(), so an idle connection such as a browser preconnect would block.
+    timeout = 2
 
     def do_GET(self) -> None:
         url = urlsplit(self.path)
-        # Browsers also ask for /favicon.ico; only the callback ends the wait.
         if url.path != CALLBACK_PATH or self.server.callback_params is not None:
             self.send_error(404)
             return
-        self.server.callback_params = {key: values[0] for key, values in parse_qs(url.query).items()}
-        self.send_response(200)
+        params = {key: values[0] for key, values in parse_qs(url.query).items()}
+        login_error = _find_login_error(params, self.server.state)
+        self.server.callback_params = params
+        self.server.login_error = login_error
+        self.send_response(400 if login_error else 200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(_CALLBACK_PAGE)
+        self.wfile.write(_CALLBACK_FAILED_PAGE if login_error else _CALLBACK_PAGE)
 
     def log_message(self, format, *args) -> None:
-        # The default handler logs every request to stderr, including the code in the query string.
+        # Request lines contain the authorization code.
         pass
 
 
 def get_authorization_code(
-    *, api_url: str, authorization_endpoint: str, open_browser: bool, timeout: float
+    *, authorization_url: str, open_browser: bool, timeout: float
 ) -> AuthorizationCode:
     """
     Run the browser part of the login and return the authorization code it produced.
 
-    :param api_url: URL of the Airflow API server
-    :param authorization_endpoint: ``authorization_endpoint`` from the CLI login metadata
+    :param authorization_url: URL of the ``authorization_endpoint`` from the CLI login metadata
     :param open_browser: open the login page in the default browser, otherwise only print its URL
     :param timeout: seconds to wait for the user to finish logging in
     """
@@ -96,21 +124,18 @@ def get_authorization_code(
     state = secrets.token_urlsafe(32)
 
     with _CallbackServer(("127.0.0.1", 0), _CallbackHandler) as server:
+        server.state = state
         redirect_uri = f"http://127.0.0.1:{server.server_address[1]}{CALLBACK_PATH}"
-        # Endpoints in the metadata are absolute paths, which keeps any path prefix of the API server.
-        login_url = (
-            urljoin(api_url, authorization_endpoint)
-            + "?"
-            + urlencode(
-                {
-                    "redirect_uri": redirect_uri,
-                    "state": state,
-                    "code_challenge": code_challenge,
-                    "code_challenge_method": "S256",
-                }
-            )
+        query = urlencode(
+            {
+                "redirect_uri": redirect_uri,
+                "state": state,
+                "code_challenge": code_challenge,
+                "code_challenge_method": "S256",
+            }
         )
-        # stderr keeps the URL out of `auth token --sso` output; soft_wrap keeps it on one line for copying.
+        login_url = f"{authorization_url}?{query}"
+        # `auth token --sso` prints the token on stdout.
         Console(stderr=True, soft_wrap=True).print(
             f"[blue]Log in from your browser:[/blue] {escape(login_url)}"
         )
@@ -125,13 +150,8 @@ def get_authorization_code(
             server.timeout = remaining
             server.handle_request()
         params = server.callback_params
+        login_error = server.login_error
 
-    if not secrets.compare_digest(params.get("state", ""), state):
-        raise AirflowCtlBrowserLoginException("The login response does not match this login attempt.")
-    if "error" in params:
-        raise AirflowCtlBrowserLoginException(
-            f"Login refused: {params.get('error_description') or params['error']}"
-        )
-    if not params.get("code"):
-        raise AirflowCtlBrowserLoginException("The login response contains no authorization code.")
+    if login_error:
+        raise AirflowCtlBrowserLoginException(login_error)
     return AuthorizationCode(code=params["code"], code_verifier=code_verifier, redirect_uri=redirect_uri)
