@@ -185,6 +185,18 @@ class TestVariableCacheIntegration:
         assert cached_value == value
 
     @patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded")
+    def test_get_variable_cache_is_keyed_by_team(self, mock_ensure_backends, monkeypatch):
+        monkeypatch.setattr("airflow.sdk.execution_time.context._current_team_name", "team_a")
+        SecretCache.save_variable("my_var", "global_value")
+
+        mock_backend = MagicMock(spec=["get_variable"])
+        mock_backend.get_variable.return_value = "team_a_value"
+        mock_ensure_backends.return_value = [mock_backend]
+
+        assert _get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert SecretCache.get_variable("my_var", team_name="team_a") == "team_a_value"
+
+    @patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded")
     def test_get_variable_from_api_saves_to_cache(self, mock_ensure_backends, mock_supervisor_comms):
         """Test that variable from API server is saved to cache."""
         key = "test_key"
