@@ -2019,12 +2019,10 @@ class ActivitySubprocess(WatchedSubprocess):
         can still run Python signal handlers; one that has not reported a terminal state within the grace
         period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        For a Python task, ``SetExecutionTimeout`` arms the deadline right before ``execute()`` with the
-        timeout the task process enforces itself, so both use the same value; bundle loading and Dag
-        parsing are not covered, as Dag parsing has its own ``dagbag_import_timeout``. For a task a language
-        SDK runs, it is armed with the run context's ``execution_timeout`` once the runtime has been sent
-        ``StartupDetails``. Either way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the
-        timeout elapses.
+        ``SetExecutionTimeout`` arms the deadline right before ``execute()`` with the timeout the task
+        process enforces itself, so both use the same value; bundle loading and Dag parsing are not covered,
+        as Dag parsing has its own ``dagbag_import_timeout``. The process is sent SIGTERM
+        ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
