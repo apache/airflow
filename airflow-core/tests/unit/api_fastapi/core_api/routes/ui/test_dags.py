@@ -22,7 +22,7 @@ from unittest import mock
 import pendulum
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -40,7 +40,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import count_queries
+from tests_common.test_utils.asserts import capture_orm_selects, count_queries
 from unit.api_fastapi.core_api.routes.public.test_dags import (
     DAG1_ID,
     DAG2_ID,
@@ -257,6 +257,56 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         dag_runs = response.json()["dags"][0]["latest_dag_runs"]
         assert dag_runs[0]["run_id"] == "tie_second_inserted"
+
+    @pytest.mark.backend("postgres")
+    def test_recent_run_query_does_not_scan_older_history(self, test_client, session):
+        with capture_orm_selects("dag_run") as statements:
+            response = test_client.get("/dags", params={"dag_ids": [DAG1_ID, DAG2_ID], "dag_runs_limit": 2})
+        assert response.status_code == 200
+        recent_run_statements = [statement for statement in statements if "dag_run.run_id" in statement]
+        assert len(recent_run_statements) == 1
+        statement = recent_run_statements[0]
+
+        def count_scanned_runs(node):
+            own_rows = 0
+            if node.get("Relation Name") == "dag_run":
+                own_rows = (node["Actual Rows"] + node.get("Rows Removed by Filter", 0)) * node[
+                    "Actual Loops"
+                ]
+            return own_rows + sum(count_scanned_runs(child) for child in node.get("Plans", []))
+
+        def measure_scanned_runs():
+            session.execute(text("ANALYZE dag_run"))
+            rows = session.execute(text(statement)).all()
+            plan = session.execute(text(f"EXPLAIN (ANALYZE, FORMAT JSON) {statement}")).scalar_one()
+            return rows, count_scanned_runs(plan[0]["Plan"])
+
+        expected_rows, short_history_rows = measure_scanned_runs()
+        for dag_id in (DAG1_ID, DAG2_ID):
+            session.add_all(
+                DagRun(
+                    dag_id=dag_id,
+                    run_id=f"old_{i}",
+                    run_type=DagRunType.MANUAL,
+                    logical_date=pendulum.datetime(2000, 1, 1).add(seconds=i),
+                    run_after=pendulum.datetime(2000, 1, 1).add(seconds=i),
+                    state=DagRunState.SUCCESS,
+                )
+                for i in range(1000)
+            )
+        session.flush()
+
+        rows, long_history_rows = measure_scanned_runs()
+        assert sorted(rows, key=lambda row: row.id) == sorted(expected_rows, key=lambda row: row.id)
+        assert all(a.run_after >= b.run_after for a, b in zip(rows, rows[1:]))
+        assert long_history_rows < short_history_rows * 2
+
+    @pytest.mark.parametrize("dag_runs_limit", [0, -1])
+    def test_recent_runs_with_nonpositive_limit(self, test_client, dag_runs_limit):
+        response = test_client.get("/dags", params={"dag_runs_limit": dag_runs_limit})
+        assert response.status_code == 200
+        assert response.json()["dags"]
+        assert all(not dag["latest_dag_runs"] for dag in response.json()["dags"])
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     @pytest.mark.parametrize(
