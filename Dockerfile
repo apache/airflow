@@ -60,14 +60,14 @@ ARG AIRFLOW_VERSION="3.3.2"
 #
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
-#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.16-debian13-fips-dev"
+#   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
 #
 # AIRFLOW_IMAGE_FLAVOR="legacy" builds the image the way it was built before the hardened base images:
 # BASE_IMAGE is then a plain Debian image (for example "debian:bookworm-slim") and Python
 # AIRFLOW_PYTHON_VERSION is downloaded from python.org, verified and compiled from sources.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev@sha256:2b8a45bc49c1398c8ef8e9092b9a2d028a878e7229f5ff86913f551a089372b3"
-ARG AIRFLOW_PYTHON_VERSION="3.13.16"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:9ed60ac490ee5038920b1e69ea9adb256f9f95ca285b65800d2ddab73b6e3a1e"
+ARG AIRFLOW_PYTHON_VERSION="3.13.18"
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
