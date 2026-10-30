@@ -84,6 +84,20 @@ class TestTriggererCommand:
             execute_callable=mock_trigger_job_runner.return_value._execute,
         )
 
+    @mock.patch("airflow.cli.commands.triggerer_command.gc")
+    @mock.patch("airflow.cli.commands.triggerer_command.Process")
+    def test_serve_logs_freezes_gc_around_fork(self, mock_process, mock_gc):
+        """serve_logs must be forked with the GC frozen so a later GC can't split COW-shared pages."""
+        manager = mock.Mock()
+        manager.attach_mock(mock_gc.freeze, "freeze")
+        manager.attach_mock(mock_gc.unfreeze, "unfreeze")
+        manager.attach_mock(mock_process.return_value.start, "start")
+
+        with triggerer_command._serve_logs(skip_serve_logs=False):
+            pass
+
+        assert manager.mock_calls == [mock.call.freeze(), mock.call.start(), mock.call.unfreeze()]
+
     @mock.patch("airflow.cli.hot_reload.run_with_reloader")
     def test_triggerer_with_dev_flag(self, mock_reloader):
         """Ensure that triggerer with --dev flag uses hot-reload"""

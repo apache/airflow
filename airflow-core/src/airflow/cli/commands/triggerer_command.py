@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import gc
 from collections.abc import Generator
 from contextlib import contextmanager
 from functools import partial
@@ -43,7 +44,17 @@ def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
     if skip_serve_logs is False:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)
         sub_proc = Process(target=partial(serve_logs, port=port))
-        sub_proc.start()
+        # Freeze the GC before forking so existing objects move to the permanent generation and
+        # are not written to by a later full GC, which would split the COW-shared pages into
+        # private copies and inflate memory without any new allocation. Mirrors the executors and
+        # the Dag processor manager, which freeze before forking workers. Only has an effect under
+        # the ``fork`` start method; a no-op for ``forkserver``/``spawn`` (children re-import).
+        # Ref: https://docs.python.org/3/library/gc.html#gc.freeze
+        gc.freeze()
+        try:
+            sub_proc.start()
+        finally:
+            gc.unfreeze()
     try:
         yield
     finally:
