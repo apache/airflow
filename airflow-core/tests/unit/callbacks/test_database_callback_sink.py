@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from sqlalchemy import select
 
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.models.callback import Callback, CallbackFetchMethod, DagProcessorCallback, ExecutorCallback
-from airflow.utils.state import CallbackState
+from airflow.utils.state import CallbackState, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_callbacks
@@ -62,3 +65,36 @@ def test_send_stores_callbacks_for_routing_only_when_it_is_on(session, route, ex
     assert callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
     assert callback.bundle_name == "testing"
     assert callback.get_callback_request() == REQUEST
+
+
+@pytest.mark.parametrize(
+    ("route", "expected_classes"),
+    [
+        pytest.param("True", [], id="routing-on"),
+        pytest.param("False", [DagProcessorCallback], id="routing-off"),
+    ],
+)
+def test_send_stores_task_successes_only_for_dag_processors(session, route, expected_classes):
+    """Dag processors drop them, so with routing on no worker parses a Dag file for one."""
+    request = TaskCallbackRequest(
+        filepath="dag.py",
+        bundle_name="testing",
+        bundle_version=None,
+        ti=TIDataModel(
+            id=uuid.uuid4(),
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            map_index=-1,
+            try_number=1,
+            dag_version_id=uuid.uuid4(),
+        ),
+        task_callback_type=TaskInstanceState.SUCCESS,
+    )
+    with conf_vars({("callbacks", "route_dag_processor_callbacks"): route}):
+        sink = DatabaseCallbackSink()
+
+    sink.send(request, session=session)
+    session.commit()
+
+    assert [type(callback) for callback in session.scalars(select(Callback))] == expected_classes

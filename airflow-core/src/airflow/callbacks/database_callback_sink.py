@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from airflow import settings
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.models.callback import ExecutorCallback
 from airflow.models.db_callback_request import DbCallbackRequest
@@ -49,6 +50,9 @@ class DatabaseCallbackSink(BaseCallbackSink):
         if session is None:
             session = settings.get_session()()
         if self.route_to_executors:
+            if isinstance(callback, TaskCallbackRequest) and not callback.is_failure_callback:
+                # Such as a trigger's task success. Dag processors drop these, so they aren't worth a worker.
+                return
             session.add(ExecutorCallback.from_dag_processor_request(callback))
         else:
             session.add(DbCallbackRequest(callback=callback, priority_weight=1))

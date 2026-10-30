@@ -249,9 +249,9 @@ metrics:
 
   - name: "scheduler.routed_callbacks.reaped"
     description: "Number of Dag processor callbacks routed to executors that the scheduler settled
-    itself: handed back to the Dag processor because they never started by their start deadline,
-    or failed because their worker did not report them finished within their timeout plus a grace
-    period. Metric with team_name tagging."
+    itself: failed, and routed again unless out of tries, because they never started by their start
+    deadline, or failed because their worker did not report them finished within their timeout plus
+    a grace period. Metric with team_name tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
