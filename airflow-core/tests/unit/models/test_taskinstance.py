@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import datetime
 import json
 import operator
 import pathlib
 import re
+import threading
 from typing import TYPE_CHECKING, cast
 from unittest import mock
 from unittest.mock import patch
@@ -44,6 +46,7 @@ from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
@@ -4504,6 +4507,169 @@ def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
             outlet_events=[],
             session=session,
         )
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_concurrent_alias_events_create_one_asset(dag_maker, session):
+    """Concurrent first alias events retain both writers' earlier concrete events."""
+    concrete_assets = {
+        task_id: Asset(name=f"concrete-{task_id}", uri=f"test://alias-race/{task_id}")
+        for task_id in ("producer_1", "producer_2")
+    }
+    alias = AssetAlias("alias-race")
+    dynamic_asset = Asset(name="alias-race-target", uri="test://alias-race/target")
+    with dag_maker(dag_id="alias_race", schedule=None, serialized=True, session=session) as dag:
+        for task_id, concrete_asset in concrete_assets.items():
+            EmptyOperator(task_id=task_id, outlets=[concrete_asset, alias])
+    dag_run = dag_maker.create_dagrun(session=session)
+    task_instance_ids = {ti.task_id: ti.id for ti in dag_run.get_task_instances(session=session)}
+    assert session.scalar(select(AssetModel).where(AssetModel.uri == dynamic_asset.uri)) is None
+    session.commit()
+
+    def register_events(task_id, writer_session):
+        concrete_asset = concrete_assets[task_id]
+        TaskInstance.register_asset_changes_in_db(
+            ti=writer_session.get(TaskInstance, task_instance_ids[task_id]),
+            task_outlets=[
+                ensure_serialized_asset(concrete_asset).asprofile(),
+                AssetProfile(name=alias.name, type="AssetAlias"),
+            ],
+            outlet_events=[
+                {
+                    "dest_asset_key": {"name": concrete_asset.name, "uri": concrete_asset.uri},
+                    "extra": {"producer": task_id},
+                },
+                {
+                    "source_alias_name": alias.name,
+                    "dest_asset_key": {"name": dynamic_asset.name, "uri": dynamic_asset.uri},
+                    "dest_asset_extra": {"created_by": task_id},
+                    "extra": {"producer": task_id},
+                },
+            ],
+            session=writer_session,
+        )
+
+    test_thread = threading.get_ident()
+    second_writer_inserting_asset = threading.Event()
+
+    def on_execute(conn, cursor, statement, parameters, context, executemany):
+        if (
+            threading.get_ident() != test_thread
+            and context.isinsert
+            and context.compiled.statement.table.name == AssetModel.__tablename__
+        ):
+            second_writer_inserting_asset.set()
+
+    def run_second_writer():
+        with create_session(scoped=False) as second:
+            register_events("producer_2", second)
+
+    event.listen(settings.engine, "before_cursor_execute", on_execute)
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            with create_session(scoped=False) as first:
+                register_events("producer_1", first)
+                second_done = pool.submit(run_second_writer)
+                try:
+                    # The first target is still uncommitted when the second writer decides to insert it.
+                    assert second_writer_inserting_asset.wait(timeout=30)
+                finally:
+                    # Release the unique-key lock even if synchronization fails, before joining the worker.
+                    first.commit()
+                second_done.result(timeout=30)
+    finally:
+        event.remove(settings.engine, "before_cursor_execute", on_execute)
+
+    target = session.scalars(
+        select(AssetModel).where(
+            AssetModel.name == dynamic_asset.name,
+            AssetModel.uri == dynamic_asset.uri,
+        )
+    ).one()
+    assert target.extra == {"created_by": "producer_1"}
+    assert [asset_alias.name for asset_alias in target.aliases] == [alias.name]
+    alias_model = session.scalars(select(AssetAliasModel).where(AssetAliasModel.name == alias.name)).one()
+    assert [asset.id for asset in alias_model.assets] == [target.id]
+
+    events = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).all()
+    assert len(events) == 4
+    assert {(asset_event.asset.name, asset_event.source_task_id) for asset_event in events} == {
+        (concrete_asset.name, task_id) for task_id, concrete_asset in concrete_assets.items()
+    } | {(dynamic_asset.name, task_id) for task_id in concrete_assets}
+    for asset_event in events:
+        assert asset_event.extra == {"producer": asset_event.source_task_id}
+        expected_aliases = [alias.name] if asset_event.asset_id == target.id else []
+        assert [asset_alias.name for asset_alias in asset_event.source_aliases] == expected_aliases
+
+
+@mock.patch.object(AssetModel, "from_serialized", autospec=True, side_effect=AssetModel.from_serialized)
+def test_alias_creation_propagates_unrelated_integrity_error(mock_from_serialized, dag_maker, session):
+    concrete_asset = Asset(name="concrete", uri="test://alias-integrity-error/concrete")
+    alias = AssetAlias("alias-integrity-error")
+    dynamic_asset = Asset(name="dynamic", uri="test://alias-integrity-error/dynamic")
+    with dag_maker(dag_id="alias_integrity_error", schedule=None, serialized=True, session=session) as dag:
+        EmptyOperator(task_id="producer", outlets=[concrete_asset, alias])
+    dag_run = dag_maker.create_dagrun(session=session)
+    [ti] = dag_run.get_task_instances(session=session)
+    task_instance_id = ti.id
+    unrelated_asset = AssetModel(name="unrelated", uri="test://alias-integrity-error/unrelated")
+    session.add(unrelated_asset)
+    session.flush()
+    unrelated_asset_id = unrelated_asset.id
+    session.commit()
+
+    mock_from_serialized.side_effect = None
+    mock_from_serialized.return_value = AssetModel(
+        id=unrelated_asset_id, name=dynamic_asset.name, uri=dynamic_asset.uri
+    )
+    database_errors = []
+
+    def on_error(exception_context):
+        database_errors.append(exception_context.sqlalchemy_exception)
+
+    with create_session(scoped=False) as writer:
+        event.listen(settings.engine, "handle_error", on_error)
+        try:
+            with pytest.raises(IntegrityError) as error:
+                TaskInstance.register_asset_changes_in_db(
+                    ti=writer.get(TaskInstance, task_instance_id),
+                    task_outlets=[
+                        ensure_serialized_asset(concrete_asset).asprofile(),
+                        AssetProfile(name=alias.name, type="AssetAlias"),
+                    ],
+                    outlet_events=[
+                        {
+                            "dest_asset_key": {"name": concrete_asset.name, "uri": concrete_asset.uri},
+                            "extra": {"preserved": True},
+                        },
+                        {
+                            "source_alias_name": alias.name,
+                            "dest_asset_key": {"name": dynamic_asset.name, "uri": dynamic_asset.uri},
+                            "extra": {},
+                        },
+                    ],
+                    session=writer,
+                )
+        finally:
+            event.remove(settings.engine, "handle_error", on_error)
+        assert database_errors == [error.value]
+        assert writer.is_active
+        assert (
+            writer.scalar(
+                select(AssetModel.id).where(
+                    AssetModel.name == dynamic_asset.name,
+                    AssetModel.uri == dynamic_asset.uri,
+                )
+            )
+            is None
+        )
+
+    concrete_event = session.scalars(select(AssetEvent).where(AssetEvent.source_dag_id == dag.dag_id)).one()
+    assert concrete_event.asset.name == concrete_asset.name
+    assert concrete_event.extra == {"preserved": True}
+    assert concrete_event.source_task_id == "producer"
+    assert concrete_event.source_aliases == []
+    assert session.scalar(select(AssetModel.id).where(AssetModel.uri == dynamic_asset.uri)) is None
 
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):
