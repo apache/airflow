@@ -50,9 +50,10 @@ job_statuses = true
 # check-fork-ci-gate-config hook rejects a new or changed instant that is in the past.
 [pilot]
 # "login-three" = 2026-10-20T00:00:00Z
-"aaron-y-chen" = 2026-10-29T00:00:00Z
-"Andrushika" = 2026-10-29T00:00:00Z
-"Dev-iL" = 2026-10-29T00:00:00Z
-"justinpakzad" = 2026-10-29T00:00:00Z
-"Prab-27" = 2026-10-29T00:00:00Z
-"sreecharan-desu" = 2026-10-29T00:00:00Z
+"aaron-y-chen" = 2026-10-31T00:00:00Z
+"Andrushika" = 2026-10-31T00:00:00Z
+"Dev-iL" = 2026-10-31T00:00:00Z
+"justinpakzad" = 2026-10-31T00:00:00Z
+"Prab-27" = 2026-10-31T00:00:00Z
+"SameerMesiah97" = 2026-10-31T00:00:00Z
+"sreecharan-desu" = 2026-10-31T00:00:00Z
