@@ -26,7 +26,7 @@ from unittest import mock
 import pytest
 import time_machine
 import uuid6
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, event as sqlalchemy_event, func, insert, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
@@ -408,6 +408,27 @@ class TestGetDagRun:
             response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
             assert response.status_code == 200
             assert response.json()["team_name"] == "team-run"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_does_not_load_task_instances(self, test_client, session):
+        dag_run = session.scalar(select(DagRun).filter_by(dag_id=DAG1_ID, run_id=DAG1_RUN1_ID))
+        expected_dag_versions = get_dag_versions_dict(dag_run.dag_versions)
+        session.expunge_all()
+
+        loaded_tis = []
+
+        def record_ti_load(target, context):
+            loaded_tis.append(target)
+
+        sqlalchemy_event.listen(TaskInstance, "load", record_ti_load)
+        try:
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+        finally:
+            sqlalchemy_event.remove(TaskInstance, "load", record_ti_load)
+
+        assert response.status_code == 200
+        assert response.json()["dag_versions"] == expected_dag_versions
+        assert loaded_tis == []
 
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
