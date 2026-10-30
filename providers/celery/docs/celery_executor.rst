@@ -102,11 +102,11 @@ Setting ``task_acks_late`` does not prevent this. For Redis and SQS it does not 
 Both deliveries carry the same Celery task id, so a failure reported for the redelivery cannot be
 told apart from one reported for the original task.
 
-With ``apache-airflow-providers-celery`` 3.18.0 or newer running on Airflow 3.1.9 or newer, the
+With ``apache-airflow-providers-celery`` 3.18.0 or newer running on Airflow 3.2.0 or newer, the
 redelivered message is detected and discarded. The worker logs ``Task already running elsewhere,
 ignoring redelivered message``, and the original task runs to completion. Both version floors are
-required: the provider recognizes the condition, but it relies on the Execution API behavior added
-in Airflow 3.1.9.
+required: the provider recognizes the condition, but it relies on the ``TaskAlreadyRunningError``
+that the Task SDK raises in Airflow 3.2.0 and newer when a task instance is already running.
 
 On earlier versions the redelivery terminates the still-running original task, which surfaces only as
 ``'Task Instance Not Running' FAILED: Task is in the running state``.
