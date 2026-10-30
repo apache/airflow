@@ -113,6 +113,7 @@ jobs:
       image-stash-ref: "publish-docs-${{ inputs.ref }}"
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
+      docs-kind: ${{ steps.docs_kind.outputs.docs-kind }}
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -178,6 +179,26 @@ jobs:
             exit 0
           fi
           python3 dev/registry/derive_wave_providers.py
+      - name: "Classify the published docs"
+        id: docs_kind
+        env:
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+        shell: bash
+        # Provider and Airflow docs land in different paths of the bucket, so the publish job
+        # serialises each kind separately. A full build or a mixed list counts as `airflow`.
+        # Same non-provider list as the registry step above.
+        run: |
+          NON_PROVIDER_TOKENS=("all" "apache-airflow" "apache-airflow-ctl" "apache-airflow-mypy" "task-sdk" "java-sdk" "ts-sdk" "helm-chart" "docker-stack")
+          kind=providers
+          for token in $INCLUDE_DOCS; do
+            for np in "${NON_PROVIDER_TOKENS[@]}"; do
+              if [[ "$token" == "$np" ]]; then
+                kind=airflow
+              fi
+            done
+          done
+          echo "Publishing ${kind} docs ('${INCLUDE_DOCS}')."
+          echo "docs-kind=${kind}" >> "${GITHUB_OUTPUT}"
       - name: "Derive the default Python version"
         id: default_python
         shell: bash
@@ -585,6 +606,14 @@ jobs:
       needs.build-ts-sdk-docs.result == 'success' &&
       needs.update-registry.result != 'failure'
     name: "Publish documentation to S3"
+    outputs:
+      docs-synced: ${{ steps.sync_docs.outcome == 'success' }}
+    # Keyed on the resolved destination rather than the `destination` input, whose `auto` stands
+    # for either bucket, and on the kind of docs, so provider and Airflow publishes do not wait
+    # for each other. The bucket-wide packages-metadata.json is left to update-packages-metadata.
+    concurrency:
+      group: publish-docs-${{ needs.build-info.outputs.destination }}-${{ needs.build-info.outputs.docs-kind }}
+      cancel-in-progress: false
     permissions:
       id-token: write
       contents: read
@@ -697,6 +726,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
       - name: "Syncing docs to S3"
+        id: sync_docs
         env:
           DESTINATION_LOCATION: "${{ needs.build-info.outputs.destination-location }}"
           SOURCE_DIR_PATH: "/mnt/airflow-site/docs-archive/"
@@ -705,7 +735,8 @@ jobs:
         run: |
           breeze release-management publish-docs-to-s3 --source-dir-path ${SOURCE_DIR_PATH} \
           --destination-location ${DESTINATION_LOCATION} --stable-versions \
-          --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER}
+          --exclude-docs "${EXCLUDE_DOCS}" --overwrite ${SKIP_WRITE_TO_STABLE_FOLDER} \
+          --skip-packages-metadata
       - name: "Download schema artifacts"
         if: needs.build-info.outputs.publish-execution-api-schema == 'true' || needs.build-info.outputs.publish-supervisor-schema == 'true' || needs.build-info.outputs.publish-dag-schema == 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
@@ -734,6 +765,45 @@ jobs:
           fi
           breeze release-management publish-schemas-to-s3 \
             --destination-location "${SCHEMAS_DESTINATION}" "${args[@]}"
+
+  update-packages-metadata:
+    needs: [build-info, publish-docs-to-s3]
+    # Keyed on the sync step rather than the job, so a schema publish failing after a complete sync
+    # still gets its docs into the metadata, while a partial sync is not advertised.
+    if: ${{ !cancelled() && needs.publish-docs-to-s3.outputs.docs-synced == 'true' }}
+    name: "Update packages metadata in S3"
+    # packages-metadata.json is rebuilt from a scan of every package in the bucket, so provider and
+    # Airflow publishes share it. One group per bucket keeps a scan from missing a version another
+    # run is still writing; a pending run cancelled by a later one loses nothing, as that later run
+    # rescans the whole bucket.
+    concurrency:
+      group: publish-docs-metadata-${{ needs.build-info.outputs.destination }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd  # v6.3.0
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+      - name: "Regenerate packages-metadata.json"
+        env:
+          DESTINATION_LOCATION: "${{ needs.build-info.outputs.destination-location }}"
+        run: >
+          breeze release-management publish-docs-to-s3
+          --destination-location ${DESTINATION_LOCATION} --packages-metadata-only
 
   update-registry:
     # Runs alongside the docs build rather than after it: the registry reads nothing the docs
