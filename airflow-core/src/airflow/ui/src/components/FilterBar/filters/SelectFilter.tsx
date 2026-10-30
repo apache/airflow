@@ -27,6 +27,9 @@ import type { FilterConfig, FilterPluginProps } from "../types";
 
 type SelectOption = {
   label: ReactNode;
+  // The collapsed pill is fixed-height and clips a rich label, so it shows this
+  // plain-text form instead (see issue #72283).
+  pillLabel?: string;
   value: string;
 };
 
@@ -49,11 +52,12 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
   };
 
   const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
-  const displayValue = config.options.find(
+  const selectedOption = config.options.find(
     (option) => option.value === (typeof filter.value === "string" ? filter.value : ""),
-  )?.label;
+  );
   // Chakra line-clamps value text by default, which clips padded elements such as state badges.
-  const hasRichDisplayValue = displayValue !== undefined && typeof displayValue !== "string";
+  const hasRichLabel = selectedOption !== undefined && typeof selectedOption.label !== "string";
+  const displayValue = selectedOption?.pillLabel ?? selectedOption?.label;
 
   return (
     <FilterPill
@@ -118,8 +122,8 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
           >
             <Select.Trigger dataTestId={`${filter.config.key}-filter`} triggerProps={{ border: "none" }}>
               <Select.ValueText
-                lineClamp={hasRichDisplayValue ? "none" : undefined}
-                overflow={hasRichDisplayValue ? "visible" : undefined}
+                lineClamp={hasRichLabel ? "none" : undefined}
+                overflow={hasRichLabel ? "visible" : undefined}
                 placeholder={filter.config.placeholder}
               />
             </Select.Trigger>
