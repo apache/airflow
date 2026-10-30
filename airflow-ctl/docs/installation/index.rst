@@ -30,7 +30,7 @@ Installation of airflowctl
     Installing from sources <installing-from-sources>
     Installing from PyPI <installing-from-pypi>
 
-This page describes installations options that you might use when considering how to install Airflow®.
+This page describes installation options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
 installation of Airflow might be quite complex, depending on the options you choose.
 
