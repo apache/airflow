@@ -2900,6 +2900,13 @@ class TaskInstanceHistoryResponse(BaseModel):
         str | None,
         Field(description="The reason this try ended, as recorded by a retry policy.", title="State Reason"),
     ] = None
+    retry_at: Annotated[
+        datetime | None,
+        Field(
+            description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
+            title="Retry At",
+        ),
+    ] = None
 
 
 class TaskInstanceResponse(BaseModel):
@@ -2951,6 +2958,13 @@ class TaskInstanceResponse(BaseModel):
         Field(
             description="The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.",
             title="State Reason",
+        ),
+    ] = None
+    retry_at: Annotated[
+        datetime | None,
+        Field(
+            description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
+            title="Retry At",
         ),
     ] = None
 

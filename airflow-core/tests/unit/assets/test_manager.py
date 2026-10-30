@@ -302,7 +302,7 @@ class TestAssetManager:
         session = mock.MagicMock(spec=Session)
         event = AssetEvent(asset_id=1)
         event.id = 99
-        with mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name):
+        with mock.patch("airflow.models.asset.get_dialect_name", return_value=dialect_name):
             AssetManager._queue_dagruns_nonpartitioned(
                 asset_id=1, dags_to_queue={dag}, event=event, session=session
             )
@@ -323,7 +323,7 @@ class TestAssetManager:
         session = mock.MagicMock(spec=Session)
         event = AssetEvent(asset_id=1)
         event.id = 99
-        with mock.patch("airflow.assets.manager.get_dialect_name", return_value="mysql"):
+        with mock.patch("airflow.models.asset.get_dialect_name", return_value="mysql"):
             AssetManager._queue_dagruns_nonpartitioned(
                 asset_id=1, dags_to_queue={dag}, event=event, session=session
             )

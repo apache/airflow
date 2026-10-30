@@ -263,8 +263,9 @@ jobs:
     if: >-
       needs.gate.outputs.project-ci == 'true' &&
       needs.check-run-needed.outputs.run-needed == 'true'
-    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
-    runs-on: ["ubuntu-22.04"]
+    # At build-info stage we do not yet have outputs so the runs-on is hard-coded. ubuntu-slim is enough:
+    # it only installs breeze and runs selective checks, which need neither docker nor freeing disk space.
+    runs-on: ["ubuntu-slim"]
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -352,6 +353,7 @@ jobs:
       run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
       run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
       run-ts-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ steps.selective-checks.outputs.run-yaml-dag-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
@@ -377,9 +379,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -402,6 +401,8 @@ jobs:
             || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all tests will run"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # The github context can be very large for PRs that touch many files (e.g. Dependabot
@@ -1176,6 +1177,7 @@ jobs:
       providers-compatibility-tests-matrix: >
         ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       run-ts-sdk-e2e-tests: ${{ needs.build-info.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ needs.build-info.outputs.run-yaml-dag-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
