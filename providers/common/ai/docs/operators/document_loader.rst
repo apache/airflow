@@ -88,10 +88,12 @@ A cell merged across columns appears once, with an empty cell for each further
 column it spans, so later values stay under their headers. A cell merged down
 several rows is repeated on each of those rows, so every row still reads on its own.
 A table nested inside a cell is flattened into that cell, with ``/`` between its
-cells and ``;`` between its rows. A table that ``python-docx`` cannot read, such as
-one with a malformed vertical merge or a cell whose column span does not fit the
-table, is skipped with a warning. If that table is nested inside a cell, only the
-nested table is left out.
+cells and ``;`` between its rows. A table is skipped with a warning when it is
+malformed, such as one with a broken vertical merge or a cell whose column span
+does not fit the table, when it has more than 1,000 columns, or when its output,
+including any tables nested in it, would be longer than about 1,000,000
+characters. If a skipped table is nested inside a cell, only that table is left
+out.
 
 .. note::
 
