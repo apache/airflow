@@ -210,11 +210,15 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
 
 
 @pytest.mark.parametrize("invalid_path", [r"bad\dag.py", "a" * 2001], ids=["backslash", "too-long"])
-@pytest.mark.parametrize("container", [False, True], ids=["standalone", "container-member"])
+@pytest.mark.parametrize(
+    "valid_members",
+    [None, {"archive.zip/valid.py"}, set()],
+    ids=["standalone", "container-with-valid-member", "container-with-only-invalid-member"],
+)
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
 def test_invalid_inventory_paths_do_not_pause_valid_sources(
-    find_files, clock, invalid_path, container, caplog, tmp_path
+    find_files, clock, invalid_path, valid_members, caplog, tmp_path
 ):
     clock.monotonic.return_value = 100.0
     bundle = _create_bundle(tmp_path, "testing")
@@ -225,14 +229,18 @@ def test_invalid_inventory_paths_do_not_pause_valid_sources(
     manager.request_bundle_refresh(bundle.name)
     valid_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("valid.py"), bundle_path=tmp_path)
     valid_file.absolute_path.touch()
-    source_path = "archive.zip" if container else invalid_path
+    container = valid_members is not None
     invalid_location = f"archive.zip/{invalid_path}" if container else invalid_path
-    invalid_file = DagFileInfo(
-        bundle_name=bundle.name,
-        rel_path=Path(source_path),
-        bundle_path=tmp_path,
-        definition_locs=frozenset({"archive.zip/valid.py", invalid_location}) if container else frozenset(),
-    )
+    if container:
+        invalid_file = DagFileInfo(
+            bundle_name=bundle.name,
+            rel_path=Path("archive.zip"),
+            bundle_path=tmp_path,
+            definition_locs=frozenset({*valid_members, invalid_location}),
+        )
+        invalid_file.absolute_path.touch()
+    else:
+        invalid_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path(invalid_path), bundle_path=tmp_path)
     find_files.return_value = DagBundleDiscoveryResult(
         files={valid_file, invalid_file}, failed_sources=frozenset({"failed.zip", invalid_path})
     )
@@ -245,10 +253,14 @@ def test_invalid_inventory_paths_do_not_pause_valid_sources(
     manager._refresh_dag_bundles(known_files)
 
     body = client.publish_inventory.call_args.args[1]
-    assert body.files == ["valid.py"]
-    assert set(body.failed_sources) == ({"failed.zip", "archive.zip"} if container else {"failed.zip"})
-    assert known_files == {bundle.name: {valid_file}}
-    assert list(manager._file_queue) == [valid_file]
+    expected_files = {valid_file, invalid_file} if container else {valid_file}
+    assert body.files == (["archive.zip", *sorted(valid_members), "valid.py"] if container else ["valid.py"])
+    assert body.failed_sources == ["failed.zip"]
+    assert known_files == {bundle.name: expected_files}
+    assert {file: file.definition_locs for file in known_files[bundle.name]} == {
+        file: file.definition_locs - {invalid_location} for file in expected_files
+    }
+    assert set(manager._file_queue) == expected_files
     assert manager._bundle_parse_sources[bundle.name].bundle_revision == revision
     assert not manager._bundle_inventory_retry_times
     assert {
@@ -256,14 +268,6 @@ def test_invalid_inventory_paths_do_not_pause_valid_sources(
         "bundle_name": bundle.name,
         "relative_fileloc": invalid_location,
     } in caplog
-    assert (
-        {
-            "event": "Not parsing a source with an unrepresentable member; keeping its earlier Dags",
-            "bundle_name": bundle.name,
-            "relative_fileloc": "archive.zip",
-        }
-        in caplog
-    ) is container
 
     clock.monotonic.return_value = 105.0
     manager._refresh_dag_bundles(known_files)
