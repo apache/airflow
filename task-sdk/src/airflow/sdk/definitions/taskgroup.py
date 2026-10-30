@@ -194,14 +194,16 @@ class TaskGroup(TaskGroupMixin, DAGNode):
             return
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
-        if self.group_id in self.used_group_ids:
+        if (group_id := self.group_id) and group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
             base = re.split(r"__\d+$", self._group_id)[0]
+            # used_group_ids holds full ids, so a nested group has to be matched with its parent's prefix
+            prefixed_base = re.escape(re.split(r"__\d+$", group_id)[0])
             suffixes = sorted(
                 int(re.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
+                if used_group_id is not None and re.match(rf"^{prefixed_base}__\d+$", used_group_id)
             )
             if not suffixes:
                 self._group_id += "__1"
