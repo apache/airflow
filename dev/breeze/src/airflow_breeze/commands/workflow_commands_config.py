@@ -88,4 +88,11 @@ WORKFLOW_RUN_PARAMETERS["breeze workflow-run upgrade-check"] = [
         ],
     },
 ]
-WORKFLOW_RUN_PARAMETERS["breeze workflow-run mirror-base-images"] = []
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run mirror-base-images"] = [
+    {
+        "name": "Mirror flags",
+        "options": [
+            "--trigger-upgrade-check",
+        ],
+    },
+]

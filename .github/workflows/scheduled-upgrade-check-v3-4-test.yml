@@ -25,7 +25,7 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: write
   pull-requests: write
-  # Dispatches the "Mirror hardened base images" workflow before the upgrade pins its images.
+  # Only the job of upgrade-check.yml that dispatches the "Mirror hardened base images" workflow gets it.
   actions: write
 jobs:
   upgrade-v3-4-test:

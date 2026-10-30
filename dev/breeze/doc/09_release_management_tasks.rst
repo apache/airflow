@@ -1179,9 +1179,10 @@ These are all available flags of ``workflow-run mirror-base-images`` command:
   :alt: Breeze workflow-run mirror-base-images
 
 ``breeze workflow-run upgrade-check`` runs the upgrade check for a branch, by default the branch breeze
-comes from. The check mirrors the base images first - ``breeze ci upgrade`` does that before it upgrades
-the important versions, locally as well as in CI, unless ``--no-mirror-base-images`` is passed. When
-anything moved, it opens an upgrade PR against the branch.
+comes from. The check mirrors the base images first: in CI a job of its own does it, so the token that may
+dispatch workflows never reaches the job running the upgraded tools, and a local ``breeze ci upgrade`` does
+it before it upgrades the important versions, unless ``--no-mirror-base-images`` is passed. When anything
+moved, it opens an upgrade PR against the branch.
 
 These are all available flags of ``workflow-run upgrade-check`` command:
 

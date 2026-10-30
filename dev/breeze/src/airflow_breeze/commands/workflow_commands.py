@@ -499,8 +499,15 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
     name="mirror-base-images",
     help="Mirror the latest hardened base images and wait until they are mirrored.",
 )
-def workflow_run_mirror_base_images():
-    mirror_hardened_base_images(APACHE_AIRFLOW_REPO)
+@click.option(
+    "--trigger-upgrade-check/--no-trigger-upgrade-check",
+    default=True,
+    show_default=True,
+    help="Let the mirror run the main upgrade check when a tag moves past its pin. Turn it off when the "
+    "main upgrade check is what runs the mirror.",
+)
+def workflow_run_mirror_base_images(trigger_upgrade_check: bool):
+    mirror_hardened_base_images(APACHE_AIRFLOW_REPO, trigger_upgrade_check=trigger_upgrade_check)
 
 
 @workflow_run_group.command(

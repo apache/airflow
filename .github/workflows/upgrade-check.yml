@@ -30,20 +30,48 @@ on:  # yamllint disable-line rule:truthy
         description: "Slack bot token for notifications"
         required: true
 permissions:
-  contents: write
-  pull-requests: write
-  # Dispatches the "Mirror hardened base images" workflow before the upgrade pins its images.
-  actions: write
+  contents: read
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   TARGET_BRANCH: ${{ inputs.target-branch }}
 jobs:
+  # A job of its own, so the token that may dispatch workflows never reaches the upgrade job, which
+  # runs the third-party tools and hooks it upgrades.
+  mirror-base-images:
+    timeout-minutes: 30
+    name: >-
+      [${{ inputs.target-branch }}] Mirror hardened base images
+    runs-on: ["ubuntu-22.04"]
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: >-
+          [${{ inputs.target-branch }}] Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: >-
+          [${{ inputs.target-branch }}] Install Breeze
+        uses: ./.github/actions/breeze
+      # The upgrade for main is the one the mirror would otherwise start a second time.
+      - name: >-
+          [${{ inputs.target-branch }}] Mirror the base images and wait for the run
+        env:
+          TRIGGER_UPGRADE_CHECK_FLAG: >-
+            ${{ inputs.target-branch == 'main' && '--no-trigger-upgrade-check' || '--trigger-upgrade-check' }}
+        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}"
   createupgrade-check:
     timeout-minutes: 45
     name: >-
       [${{ inputs.target-branch }}] Upgrade checks and PR
     runs-on: ["ubuntu-22.04"]
+    needs: [mirror-base-images]
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: >-
           [${{ inputs.target-branch }}] Cleanup repo
@@ -87,6 +115,7 @@ jobs:
           --switch-to-base
           --no-k8s-schema-sync
           --latest-package-managers
+          --no-mirror-base-images
           --answer yes
       - name: >-
           [${{ inputs.target-branch }}] Find upgrade PR
