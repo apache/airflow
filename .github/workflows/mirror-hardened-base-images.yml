@@ -50,9 +50,50 @@ concurrency:
   group: mirror-hardened-base-images
   cancel-in-progress: false
 jobs:
+  # Picks the runner the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true".
+  build-info:
+    name: "Build info"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Save github context to file"
+        # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
+        # the single-quoted heredoc disables every shell expansion of the JSON anyway.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   mirror:
     name: "Mirror hardened base images"
-    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    # Copies manifests registry-to-registry without pulling layers, so the smallest class is enough.
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
+    timeout-minutes: 30
     # Never runs on forks - they have neither the credentials nor the package to push to. Only main
     # pushes: the mirror is the default BASE_IMAGE of every build, so a manual dispatch from any other
     # branch must not be able to replace it. Main mirrors every Python version an active release
