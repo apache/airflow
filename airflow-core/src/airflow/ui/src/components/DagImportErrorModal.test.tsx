@@ -18,10 +18,12 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen, within } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ImportErrorResponse } from "openapi/requests/types.gen";
 
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { DagImportErrorModal } from "./DagImportErrorModal";
@@ -43,8 +45,31 @@ describe("DagImportErrorModal", () => {
     // i18n resources are not loaded in unit tests, so the title renders as its key.
     const dialog = screen.getByRole("dialog", { name: "importErrors.dagImportError" });
 
-    expect(dialog).toHaveTextContent("dags-folder");
     expect(dialog).toHaveTextContent("dags/broken_dag.py");
     expect(within(dialog).getByText(/Traceback \(most recent call last\)/u)).toBeInTheDocument();
+  });
+
+  it.each([
+    { shown: false, totalEntries: 1 },
+    { shown: true, totalEntries: 2 },
+  ])("shows the bundle name only with several bundles ($totalEntries)", async ({ shown, totalEntries }) => {
+    server.use(
+      http.get("/api/v2/dagBundles", () =>
+        HttpResponse.json({ dag_bundles: [], total_entries: totalEntries }),
+      ),
+    );
+
+    render(<DagImportErrorModal importError={importError} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    const dialog = screen.getByRole("dialog", { name: "importErrors.dagImportError" });
+
+    if (shown) {
+      expect(await within(dialog).findByText(/dags-folder/u)).toBeInTheDocument();
+    } else {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 50);
+      });
+      expect(dialog).not.toHaveTextContent("dags-folder");
+    }
   });
 });
