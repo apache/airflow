@@ -263,8 +263,9 @@ jobs:
     if: >-
       needs.gate.outputs.project-ci == 'true' &&
       needs.check-run-needed.outputs.run-needed == 'true'
-    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
-    runs-on: ["ubuntu-22.04"]
+    # At build-info stage we do not yet have outputs so the runs-on is hard-coded. ubuntu-slim is enough:
+    # it only installs breeze and runs selective checks, which need neither docker nor freeing disk space.
+    runs-on: ["ubuntu-slim"]
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -377,9 +378,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -402,6 +400,8 @@ jobs:
             || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all tests will run"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # The github context can be very large for PRs that touch many files (e.g. Dependabot

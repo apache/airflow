@@ -824,6 +824,7 @@ DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "Dockerfile.ci",
+    "dev/breeze/src/airflow_breeze/files/hardened_python_image_digests.json",
     ".dockerignore",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
@@ -939,9 +940,9 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.10": "3.10.22",
-    "3.11": "3.11.17",
-    "3.12": "3.12.15",
-    "3.13": "3.13.16",
+    "3.11": "3.11.18",
+    "3.12": "3.12.16",
+    "3.13": "3.13.18",
     "3.14": "3.14.8",
 }
 
@@ -960,12 +961,45 @@ def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEB
     return f"{ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python)}-{distro}-dev"
 
 
+# The mirror refreshes its tags several times a day, so images are built on the digest each tag had
+# when "breeze ci upgrade" last moved it. A new base image therefore reaches the builds only through
+# the upgrade PR, after the full CI has passed on it. The digests live in a file of their own, which
+# scripts/ci/prek/upgrade_important_versions.py rewrites and the CI image rebuild check watches.
+HARDENED_PYTHON_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_python_image_digests.json"
+)
+HARDENED_PYTHON_IMAGE_DIGESTS: dict[str, str] = json.loads(HARDENED_PYTHON_IMAGE_DIGESTS_PATH.read_text())
+
+
 def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
-    return f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_tag(python, debian_version)}"
+    tag = get_hardened_python_image_tag(python, debian_version)
+    image = f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}"
+    digest = HARDENED_PYTHON_IMAGE_DIGESTS.get(tag)
+    return f"{image}@{digest}" if digest else image
+
+
+def get_hardened_python_image_retention_tag(tag: str, digest: str) -> str:
+    """Return the mirror tag that keeps a pinned digest tagged after its moving tag has moved on."""
+    return f"{tag}-{digest.removeprefix('sha256:')[:12]}"
 
 
 def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
     return f"debian:{debian_version}-slim"
+
+
+# The legacy flavor compiles Python from python.org sources, which get a patch release days before the
+# hardened images do, so it has patchlevels of its own. "breeze ci upgrade" moves them, which changes
+# the AIRFLOW_PYTHON_VERSION build arg and so rebuilds the legacy images on the new patch release.
+LEGACY_PYTHON_VERSIONS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "files" / "legacy_python_versions.json"
+)
+LEGACY_PYTHON_VERSIONS: dict[str, str] = json.loads(LEGACY_PYTHON_VERSIONS_PATH.read_text())
 
 
 # Number of slices for low dep tests
