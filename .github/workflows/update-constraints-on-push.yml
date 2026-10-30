@@ -210,6 +210,11 @@ jobs:
     timeout-minutes: 20
     name: "Commit and push constraints"
     needs: [build-info, generate-constraints]
+    # Shared with the other constraints publishers. The baseline check below still decides
+    # whether this run may publish at all; this only stops the two pushes overlapping.
+    concurrency:
+      group: constraints-publish-${{ needs.build-info.outputs.default-constraints-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read
