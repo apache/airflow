@@ -88,15 +88,4 @@ public class InterfaceExampleBuilder {
       }
     }
   }
-
-  private static final String DAG_ID = "java_task_handler_interface_example";
-
-  // The Python Dag file owns this Dag, so register task handlers rather than a
-  // DagDef, which would declare a Java Dag with the same id.
-  public static Bundle registerInto(Bundle bundle) {
-    return bundle
-        .register(DAG_ID, "extract", Extract.class)
-        .register(DAG_ID, "transform", Transform.class)
-        .register(DAG_ID, "summarize", Summarize.class);
-  }
 }
