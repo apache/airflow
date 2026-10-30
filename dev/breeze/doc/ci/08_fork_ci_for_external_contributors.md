@@ -701,11 +701,17 @@ with a comment explaining why when it changes any of:
   `[pilot]` entry, which is how contributors join and leave the pilot (the configuration is
   parsed from the head commit and compared with its version at the pull request's merge base,
   so comments and later changes on the base branch do not count);
-- the `gate` job of `.github/workflows/ci-amd.yml`, the `needs` and `if` that make
-  `build-info` depend on it, the set of jobs that do not depend on the gate (directly or through
-  other jobs), or the workflow-level `on`, `defaults`, `env`, `permissions` and `concurrency` (the head and merge-base versions are parsed and those parts
-  compared, so other changes to the workflow are left to the green-trust check; a head version
-  that does not parse as a workflow counts as a change).
+- the `gate` job of `.github/workflows/ci-amd.yml`, the `needs` and `if` that make `build-info`
+  depend on it, the whole definition of every job that runs when the gate skips `build-info`
+  (one whose `if` calls `always()`, `success()`, `failure()` or `cancelled()`, in any case, or
+  all of whose `needs` run, such as `ci-passed`, which reports the `CI passed` check the merge
+  ruleset requires), including whether such jobs are added or removed, the `name` of any job,
+  with its `strategy` when the name is an expression (GitHub treats a skipped required check as
+  passed, so a job skipped in a gated run and renamed to `CI passed` would satisfy the merge
+  ruleset), or the workflow-level `on`, `defaults`, `env`, `permissions` and `concurrency` (the
+  head and merge-base versions are parsed and those parts compared, so other changes to the
+  workflow are left to the green-trust check; a head version that does not parse as a workflow,
+  uses YAML aliases, or cannot be compared counts as a change).
 
 A changed-file listing at GitHub's 3000-file cap may leave out a gate file, so such a pull
 request is closed as one whose gate change cannot be checked.
@@ -713,8 +719,11 @@ request is closed as one whose gate change cannot be checked.
 The state comment's marker records `"gate_checked": true` with the head commit only when this
 check ran for it, so a marker written before the check existed, or while `use fork ci` exempted
 the pull request, does not count, and a retarget since the state began makes it check again.
-The changed files are listed for the pull request as it is when listed, so the head commit is
-read again afterwards: if it moved, nothing is recorded and the next run checks the new one.
+The changed files are listed for the pull request as it is when listed, so the head commit and
+the base branch are read again afterwards: if either changed, nothing is recorded and the next
+run checks the pull request again, with the gate configuration of its new base. Otherwise a
+retarget to a base without the gate in between could close a pull request that should be
+released to project CI.
 
 The state is `gate_modified`: the pull request is drafted, loses `ready for maintainer review`
 and `needs project ci`, gets an `error` status linking its changed files, and the closure is
