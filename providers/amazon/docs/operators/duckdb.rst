@@ -132,9 +132,10 @@ DuckDB how to authenticate, and the ``credential_strategy`` parameter selects ho
 
 ``credential_chain`` (default)
     Issues ``CREATE SECRET (TYPE s3, PROVIDER credential_chain)``, which resolves credentials through
-    the AWS SDK inside DuckDB's ``aws`` extension. Nothing secret is written into SQL text and the SDK
-    refreshes expiring credentials itself, so a long query does not fail partway through when a set of
-    temporary credentials expires.
+    the AWS SDK inside DuckDB's ``aws`` extension. Nothing secret is written into SQL text, and the
+    secret is created with ``REFRESH 'auto'``: when S3 rejects expired credentials, DuckDB resolves the
+    chain again and retries, so a long query does not fail partway through when a set of temporary
+    credentials expires.
 
     From DuckDB 1.4 onward the chain is resolved when the secret is created rather than when S3 is
     first read. If nothing can be resolved, the hook logs a warning and opens the connection anyway,
