@@ -73,7 +73,7 @@ env:
 jobs:
   build-info:
     name: "Build info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     # Automatic uv.lock-push runs are unrestricted; manual (workflow_dispatch)
     # runs are limited to release managers (same allowlist as the prod image
     # release workflow) because they push to the protected constraints-* branches.
@@ -101,9 +101,6 @@ jobs:
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       constraints-baseline-sha: ${{ steps.constraints-baseline.outputs.sha }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ inputs.ref || github.ref }} ( ${{ inputs.ref || github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -112,6 +109,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # See ci-amd.yml for the full rationale: avoids ARG_MAX on big PRs by writing the

@@ -75,7 +75,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ["ubuntu-24.04"]
+    runs-on: ["ubuntu-slim"]
     env:
       VERBOSE: true
       REF: ${{ inputs.ref }}
