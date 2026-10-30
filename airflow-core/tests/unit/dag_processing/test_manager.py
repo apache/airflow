@@ -6387,6 +6387,58 @@ class TestDagFileProcessorManager:
             read_end.close()
             proc.close()
 
+    @pytest.mark.parametrize("with_valid_member", [True, False], ids=["beside-valid-member", "only-member"])
+    def test_api_publication_drops_container_members_with_unrepresentable_paths(
+        self, with_valid_member, caplog
+    ):
+        client = mock.create_autospec(DagProcessorAPIClient, instance=True)
+        manager = DagFileProcessorManager(max_runs=1, api_client=client)
+        file = _get_file_infos(["archive.zip"])[0]
+        invalid_location = r"archive.zip/sub\invalid.py"
+        invalid_error_location = r"archive.zip/sub\broken.py"
+        locations = ["archive.zip/valid.py", invalid_location] if with_valid_member else [invalid_location]
+        dags = []
+        for index, location in enumerate(locations):
+            dag = SdkDAG(f"dag_{index}", schedule=None)
+            dag.fileloc = f"/worker/{location}"
+            dag.relative_fileloc = location
+            dags.append(dag)
+        import_errors = {invalid_error_location: "import error"}
+        if with_valid_member:
+            import_errors["archive.zip/broken.py"] = "import error"
+        proc, read_end = self.mock_processor()
+        proc.dispatch_sequence = 1
+        proc.parsing_result = DagFileParsingResult(
+            fileloc="/worker/archive.zip",
+            serialized_dags=[LazyDeserializedDAG.from_dag(dag) for dag in dags],
+            warnings=[
+                {"dag_id": dag.dag_id, "warning_type": "python:deprecated", "message": "warning"}
+                for dag in dags
+            ],
+            parsed_definitions=locations,
+            import_errors=import_errors,
+            dag_source_codes={
+                dag.dag_id: DagSourceCode(source_code=dag.dag_id, language="python") for dag in dags
+            },
+        )
+        try:
+            body = manager._build_parse_result(file, proc, 0.5)
+        finally:
+            read_end.close()
+            proc.close()
+
+        published = ["dag_0"] if with_valid_member else []
+        assert [dag["dag"]["dag_id"] for dag in body.serialized_dags] == published
+        assert body.parsed_definitions == locations[:-1]
+        assert body.import_errors == ({"archive.zip/broken.py": "import error"} if with_valid_member else {})
+        assert [warning.dag_id for warning in body.warnings] == published
+        assert [source.source_code for source in body.source_codes] == published
+        assert {
+            "event": "Not publishing definitions with an unrepresentable API path",
+            "relative_fileloc": "archive.zip",
+            "locations": [invalid_error_location, invalid_location],
+        } in caplog
+
     @pytest.mark.parametrize("different_language", [False, True])
     def test_api_publication_deduplicates_factory_source(self, different_language):
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)

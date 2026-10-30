@@ -32,7 +32,7 @@ import time
 from collections import Counter, OrderedDict, defaultdict, deque
 from contextlib import AbstractContextManager, nullcontext
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
 from pathlib import Path
@@ -138,6 +138,17 @@ def _compute_retry_delay(attempts: int) -> float:
         conf.getfloat("workers", "execution_api_retry_wait_max"),
         max(conf.getfloat("workers", "execution_api_retry_wait_min"), 2 ** (attempts - 1)),
     )
+
+
+def _get_api_path_error(path: str) -> str | None:
+    """Return why the API cannot accept ``path`` as a bundle-relative location, or ``None`` if it can."""
+    if len(path) > FILELOC_MAX_LENGTH:
+        return f"Definition location exceeds {FILELOC_MAX_LENGTH} characters"
+    try:
+        DagParseTokenBody.validate_relative_fileloc(path)
+    except ValueError as error:
+        return str(error)
+    return None
 
 
 class BundleState(NamedTuple):
@@ -1445,34 +1456,20 @@ class DagFileProcessorManager(LoggingMixin):
     ) -> DagBundleDiscoveryResult:
         invalid_paths = set()
         for path in sorted(self._get_observed_filelocs(discovery.files) | discovery.failed_sources):
-            try:
-                if len(path) > FILELOC_MAX_LENGTH:
-                    raise ValueError(f"Definition location exceeds {FILELOC_MAX_LENGTH} characters")
-                DagParseTokenBody.validate_relative_fileloc(path)
-            except ValueError as error:
+            if (error := _get_api_path_error(path)) is not None:
                 invalid_paths.add(path)
                 self.log.warning(
                     "Skipping source with an unrepresentable API path",
                     bundle_name=bundle_name,
                     relative_fileloc=path,
-                    error=str(error),
+                    error=error,
                 )
-        files = set()
-        failed_sources = set(discovery.failed_sources) - invalid_paths
-        for file in discovery.files:
-            if str(file.rel_path) in invalid_paths:
-                continue
-            if file.definition_locs & invalid_paths:
-                # Omitting a container's members means deletion; retain its earlier valid definitions.
-                self.log.warning(
-                    "Not parsing a source with an unrepresentable member; keeping its earlier Dags",
-                    bundle_name=bundle_name,
-                    relative_fileloc=str(file.rel_path),
-                )
-                failed_sources.add(str(file.rel_path))
-            else:
-                files.add(file)
-        return DagBundleDiscoveryResult(files=files, failed_sources=frozenset(failed_sources))
+        files = {
+            replace(file, definition_locs=file.definition_locs - invalid_paths)
+            for file in discovery.files
+            if str(file.rel_path) not in invalid_paths
+        }
+        return DagBundleDiscoveryResult(files=files, failed_sources=discovery.failed_sources - invalid_paths)
 
     @staticmethod
     def _get_observed_filelocs(present: set[DagFileInfo]) -> set[str]:
@@ -2051,7 +2048,25 @@ class DagFileProcessorManager(LoggingMixin):
         result = proc.parsing_result
         if result is None or self.api_client is None:
             raise ValueError("API publication requires a client and completed parse result")
-        published_dag_ids = {dag.dag_id for dag in result.serialized_dags}
+        import_errors = result.import_errors or {}
+        # The inventory skipped these container members, and the API refuses a result that names them.
+        dropped_paths = {
+            path
+            for path in (
+                *import_errors,
+                *result.parsed_definitions,
+                *(dag.relative_fileloc for dag in result.serialized_dags),
+            )
+            if isinstance(path, str) and _get_api_path_error(path) is not None
+        }
+        if dropped_paths:
+            self.log.warning(
+                "Not publishing definitions with an unrepresentable API path",
+                relative_fileloc=str(file.rel_path),
+                locations=sorted(dropped_paths),
+            )
+        serialized_dags = [dag for dag in result.serialized_dags if dag.relative_fileloc not in dropped_paths]
+        published_dag_ids = {dag.dag_id for dag in serialized_dags}
         warnings = [
             ParseWarning(
                 **{
@@ -2066,7 +2081,7 @@ class DagFileProcessorManager(LoggingMixin):
         source_codes: list[ParseSourceCode] = []
         source_indexes: dict[tuple[str | None, str], int] = {}
         dag_source_indexes = {}
-        for dag in result.serialized_dags:
+        for dag in serialized_dags:
             source = result.dag_source_codes.get(dag.dag_id)
             source_key = (source.source_code, source.language) if source else (None, "python")
             if source_key not in source_indexes:
@@ -2084,9 +2099,9 @@ class DagFileProcessorManager(LoggingMixin):
                 dict(proc.parse_source.version_data) if proc.parse_source.version_data is not None else None
             ),
             parse_duration=run_duration,
-            serialized_dags=[dag.data for dag in result.serialized_dags],
-            import_errors=result.import_errors or {},
-            parsed_definitions=result.parsed_definitions,
+            serialized_dags=[dag.data for dag in serialized_dags],
+            import_errors={path: error for path, error in import_errors.items() if path not in dropped_paths},
+            parsed_definitions=[path for path in result.parsed_definitions if path not in dropped_paths],
             warnings=warnings,
             source_codes=source_codes,
             dag_source_indexes=dag_source_indexes,
