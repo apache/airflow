@@ -49,11 +49,29 @@ const DEFAULT_LOGGER_NAME = "ts-sdk";
 
 const CLOSE_FLUSH_TIMEOUT_MS = 3_000;
 
+const LOG_LEVELS = new Map([
+  ["NOTSET", 0],
+  ["DEBUG", 10],
+  ["INFO", 20],
+  ["WARN", 30],
+  ["WARNING", 30],
+  ["ERROR", 40],
+  ["EXCEPTION", 40],
+  ["CRITICAL", 50],
+  ["FATAL", 50],
+]);
+
+function parseLogLevel(value: string | undefined): number | undefined {
+  return LOG_LEVELS.get(value?.trim().toUpperCase() ?? "");
+}
+
 interface LogChannelState {
   sock: Socket | null;
   connected: boolean;
   closed: boolean;
   buffer: string[];
+  level: number;
+  namespaceLevels: ReadonlyMap<string, number>;
 }
 
 export class LogChannel {
@@ -70,7 +88,35 @@ export class LogChannel {
   /** Create a root channel with no socket yet; records are buffered
    *  until {@link LogChannel#connect} flushes them. */
   static createBuffered(name: string = DEFAULT_LOGGER_NAME): LogChannel {
-    return new LogChannel({ sock: null, connected: false, closed: false, buffer: [] }, name, true);
+    const namespaceLevels = new Map<string, number>();
+    const invalidEntries: string[] = [];
+    for (const entry of (process.env["AIRFLOW__LOGGING__NAMESPACE_LEVELS"] ?? "")
+      .split(/[\s,]+/)
+      .filter(Boolean)) {
+      const separator = entry.indexOf("=");
+      const level = parseLogLevel(entry.slice(separator + 1));
+      if (separator <= 0 || level === undefined) {
+        invalidEntries.push(entry);
+      } else {
+        namespaceLevels.set(entry.slice(0, separator), level);
+      }
+    }
+    const root = new LogChannel(
+      {
+        sock: null,
+        connected: false,
+        closed: false,
+        buffer: [],
+        level: parseLogLevel(process.env["AIRFLOW__LOGGING__LOGGING_LEVEL"]) ?? 20,
+        namespaceLevels,
+      },
+      name,
+      true,
+    );
+    for (const entry of invalidEntries) {
+      root.error("Ignoring invalid namespace_levels entry", { entry });
+    }
+    return root;
   }
 
   /** Connect the socket and flush buffered records, in order. Root only,
@@ -115,14 +161,32 @@ export class LogChannel {
     return this.name;
   }
 
+  private getLogLevel(name: string): number {
+    // Match whole dotted segments, preferring the most specific configured ancestor.
+    let namespace = name;
+    while (namespace) {
+      const level = this.shared.namespaceLevels.get(namespace);
+      if (level !== undefined) return level;
+      const separator = namespace.lastIndexOf(".");
+      if (separator < 0) break;
+      namespace = namespace.slice(0, separator);
+    }
+    return this.shared.level;
+  }
+
   send(
-    record: Omit<LogRecord, "timestamp" | "logger"> & {
+    record: Pick<LogRecord, "event" | "level"> & {
       timestamp?: string;
       logger?: string;
+      [key: string]: unknown;
     },
   ): void {
     // Drop late records after the log socket has closed.
     if (this.shared.closed) return;
+    // The supervisor forwards records unchanged; filtering belongs in the subprocess.
+    // Apply it before buffering so startup and stderr fallback logs follow the same rules.
+    if (LOG_LEVELS.get(record.level.toUpperCase())! < this.getLogLevel(record.logger ?? this.name))
+      return;
     // Prepend the logger name to the event message so it surfaces in
     // the Airflow UI task log view, which renders the message text but
     // hides the `logger` JSON field. The field is still emitted for
