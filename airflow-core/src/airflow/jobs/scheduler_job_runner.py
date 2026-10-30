@@ -318,6 +318,18 @@ def _create_scheduler_dag_bag() -> CachedDBDagBag:
     )
 
 
+def _scheduled_asset_event(dag_id: str) -> ColumnElement[bool]:
+    """Check whether an asset event is of an asset the Dag schedules on, directly or via an alias."""
+    return or_(
+        AssetEvent.asset_id.in_(
+            select(DagScheduleAssetReference.asset_id).where(DagScheduleAssetReference.dag_id == dag_id)
+        ),
+        AssetEvent.source_aliases.any(
+            AssetAliasModel.scheduled_dags.any(DagScheduleAssetAliasReference.dag_id == dag_id)
+        ),
+    )
+
+
 def _get_current_dr_task_concurrency(states: Iterable[TaskInstanceState]) -> Subquery:
     """Get the dag_run IDs and how many tasks are in the provided states for each one."""
     return (
@@ -2969,17 +2981,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .exists()
         )
         if dag.catchup:
-            event_predicate = or_(
-                event_predicate,
-                AssetEvent.asset_id.in_(
-                    select(DagScheduleAssetReference.asset_id).where(
-                        DagScheduleAssetReference.dag_id == dag.dag_id
-                    )
-                ),
-                AssetEvent.source_aliases.any(
-                    AssetAliasModel.scheduled_dags.any(DagScheduleAssetAliasReference.dag_id == dag.dag_id)
-                ),
-            )
+            event_predicate |= _scheduled_asset_event(dag.dag_id)
         return session.scalars(
             select(AssetEvent)
             .where(event_predicate, ~consumed_by_dag(dag.dag_id, AssetEvent.id))
@@ -3077,9 +3079,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 limit=None if dag.timetable.batch_asset_events else run_limit + 1,
                 session=session,
             )
-            next_event: AssetEvent | None = None
-            if not dag.timetable.batch_asset_events and len(asset_events) > run_limit:
-                next_event = asset_events[run_limit]
+            if has_more_events := not dag.timetable.batch_asset_events and len(asset_events) > run_limit:
                 asset_events = asset_events[:run_limit]
             triggered_date = timezone.coerce_datetime(max(event.timestamp for event in asset_events))
             self.log.debug(
@@ -3119,27 +3119,49 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()  # Make consumed events visible to ADRQ cleanup.
             # Dequeue rows for events just consumed above and any stale ones.
             self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)
-            if next_event is not None and dag.catchup:
-                # Historical events may have no ADRQ row. Queue the next one so
+            if has_more_events and dag.catchup:
+                # Historical events may have no ADRQ row. Queue the next ones so
                 # the Dag is selected again until the backlog drains.
-                self._queue_asset_event(dag_id=dag.dag_id, event=next_event, session=session)
+                self._queue_next_backlog_events(dag_id=dag.dag_id, session=session)
 
-    def _queue_asset_event(self, *, dag_id: str, event: AssetEvent, session: Session) -> None:
-        """Queue an ADRQ row for an asset event if the Dag does not have one yet."""
-        # Check first since inserting a duplicate key can wait on a row locked
-        # elsewhere (e.g. by the API) on MySQL.
-        queued = session.scalar(
-            select(AssetDagRunQueue.asset_event_id).where(
-                AssetDagRunQueue.target_dag_id == dag_id,
-                AssetDagRunQueue.asset_event_id == event.id,
+    def _queue_next_backlog_events(self, *, dag_id: str, session: Session) -> None:
+        """
+        Queue an ADRQ row for the earliest unconsumed event of each asset the Dag schedules on.
+
+        This lets the Dag's asset condition be evaluated against its catchup
+        backlog. Events already queued for the Dag are skipped, so the insert
+        does not wait on a row locked elsewhere (e.g. by the API) on MySQL.
+        """
+        ranked = (
+            select(
+                AssetEvent.id.label("event_id"),
+                AssetEvent.asset_id.label("asset_id"),
+                func.row_number()
+                .over(
+                    partition_by=AssetEvent.asset_id,
+                    order_by=(AssetEvent.timestamp.asc(), AssetEvent.id.asc()),
+                )
+                .label("event_rank"),
             )
+            .where(_scheduled_asset_event(dag_id), ~consumed_by_dag(dag_id, AssetEvent.id))
+            .subquery()
         )
-        if queued is not None:
-            return
-        insert_asset_dag_run_queue_rows(
-            [{"asset_id": event.asset_id, "target_dag_id": dag_id, "asset_event_id": event.id}],
-            session=session,
+        queued = (
+            select(AssetDagRunQueue.asset_event_id)
+            .where(
+                AssetDagRunQueue.target_dag_id == dag_id,
+                AssetDagRunQueue.asset_event_id == ranked.c.event_id,
+            )
+            .exists()
         )
+        values = [
+            {"asset_id": asset_id, "target_dag_id": dag_id, "asset_event_id": event_id}
+            for event_id, asset_id in session.execute(
+                select(ranked.c.event_id, ranked.c.asset_id).where(ranked.c.event_rank == 1, ~queued)
+            )
+        ]
+        if values:
+            insert_asset_dag_run_queue_rows(values, session=session)
 
     def _lock_backfills(self, dag_runs: Collection[DagRun], session: Session) -> dict[int, Backfill]:
         """

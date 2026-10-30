@@ -14430,6 +14430,66 @@ def test_unbatched_asset_runs_drain_backlog_within_limits(
 
 
 @pytest.mark.need_serialized_dag
+def test_unbatched_catchup_backlog_drains_with_multi_asset_condition(dag_maker, session, monkeypatch):
+    monkeypatch.setattr(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
+    # Asset A is scheduled on through an alias, so its backlog can only be matched via the alias.
+    asset_a_model = AssetModel(name="backlog-a", uri="test://backlog-a", group="asset")
+    alias_model = AssetAliasModel(name="backlog-a-alias", group="asset")
+    alias_model.assets.append(asset_a_model)
+    session.add_all([asset_a_model, alias_model])
+    session.flush()
+    asset_b = Asset(name="backlog-b")
+    dag_id = "backlog-and-consumer"
+    with dag_maker(
+        dag_id=dag_id,
+        schedule=AssetTriggeredTimetable(
+            assets=AssetAlias(name=alias_model.name, group=alias_model.group) & asset_b,
+            batch_asset_events=False,
+        ),
+        catchup=True,
+        session=session,
+    ):
+        EmptyOperator(task_id="consume")
+    session.commit()
+    a_id = asset_a_model.id
+    b_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset_b.uri))
+    assert set(
+        session.scalars(
+            select(DagScheduleAssetReference.asset_id).where(DagScheduleAssetReference.dag_id == dag_id)
+        )
+    ) == {b_id}
+    timestamp = timezone.parse("2026-10-01T00:00:00Z")
+    a1, b1, a2, b2 = events = [
+        AssetEvent(asset_id=asset_id, timestamp=timestamp + timedelta(minutes=i))
+        for i, asset_id in enumerate([a_id, b_id, a_id, b_id])
+    ]
+    for event in (a1, a2):
+        event.source_aliases.append(alias_model)
+    session.add_all(events)
+    session.flush()
+    # Only the first event of each asset is queued; the rest is backlog.
+    session.add_all(
+        AssetDagRunQueue(asset_id=event.asset_id, target_dag_id=dag_id, asset_event_id=event.id)
+        for event in (a1, b1)
+    )
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+    for _ in range(4):
+        query, triggered_dates = DagModel.dags_needing_dagruns(session=session)
+        runner._create_dag_runs_asset_triggered(
+            dag_models=[model for model in query.all() if model.dag_id in triggered_dates], session=session
+        )
+        session.flush()
+
+    # The backlog drains one event per run while the condition holds. The last
+    # event of B waits for a new event of A, as it would without catchup.
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+    assert [run.consumed_asset_events for run in runs] == [[a1], [b1], [a2]]
+    assert session.scalars(select(AssetDagRunQueue.asset_event_id)).all() == [b2.id]
+
+
+@pytest.mark.need_serialized_dag
 @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 3)
 @pytest.mark.parametrize("batch_first_dag", [False, True])
 def test_asset_runs_share_creation_budget(dag_maker, session, batch_first_dag):
