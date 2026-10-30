@@ -125,11 +125,16 @@ const taskNameColumnRef = {
 const makeTask = (id: string): GridTask => ({ id }) as unknown as GridTask;
 const makeTasks = (count: number) => Array.from({ length: count }, (_, index) => makeTask(`task_${index}`));
 
-type RestoreArgs = Omit<Parameters<typeof useGridScrollRestore>[0], "headerPad" | "taskNameColumnRef"> &
-  Partial<Pick<Parameters<typeof useGridScrollRestore>[0], "headerPad" | "taskNameColumnRef">>;
+type HookArgs = Parameters<typeof useGridScrollRestore>[0];
+type Defaulted = "headerPad" | "sharesScroller" | "taskNameColumnRef";
+type RestoreArgs = Omit<HookArgs, Defaulted> & Partial<Pick<HookArgs, Defaulted>>;
 
 const renderRestore = (args: RestoreArgs) =>
-  renderHook(() => useGridScrollRestore({ headerPad: HEADER_PAD, taskNameColumnRef, ...args }));
+  renderHook(
+    (props: RestoreArgs) =>
+      useGridScrollRestore({ headerPad: HEADER_PAD, sharesScroller: false, taskNameColumnRef, ...props }),
+    { initialProps: args },
+  );
 
 describe("useGridScrollRestore", () => {
   it("does nothing when there is no scroll element yet", () => {
@@ -370,6 +375,116 @@ describe("useGridScrollRestore", () => {
     });
 
     expect(scrollEl.scrollLeft).toBe(0);
+  });
+
+  it("centers the selected run when only a vertical position was saved", () => {
+    // A deep link to a task scrolls the Grid down before the runs have arrived. That scroll must
+    // not count as a horizontal position, or the run is merely nudged to the edge afterwards.
+    const beforeRuns = makeScrollEl({ runColumnLeft: 800, scrollWidth: VIEWPORT_WIDTH });
+    const before = makeVirtualizer(beforeRuns);
+    const { unmount } = renderRestore({
+      dagId: "dag_vertical_only",
+      flatNodes: [],
+      rowVirtualizer: before.rowVirtualizer,
+      runIds: [],
+      selectedRunId: "run_1",
+    });
+
+    beforeRuns.scrollTop = 400;
+    beforeRuns.dispatchScroll();
+    unmount();
+
+    const withRuns = makeScrollEl({ runColumnLeft: 800 });
+    const after = makeVirtualizer(withRuns);
+
+    renderRestore({
+      dagId: "dag_vertical_only",
+      flatNodes: [],
+      rowVirtualizer: after.rowVirtualizer,
+      runIds: ["run_1"],
+      selectedRunId: "run_1",
+    });
+
+    expect(withRuns.scrollLeft).toBe(centeredScrollLeft(800));
+    expect(withRuns.scrollTop).toBe(400);
+  });
+
+  it("leaves the horizontal axis alone when the scroller is shared with the Gantt", () => {
+    const scrollEl = makeScrollEl({ runColumnLeft: 800 });
+    const { rowVirtualizer } = makeVirtualizer(scrollEl);
+
+    renderRestore({
+      dagId: "dag_shared_scroller",
+      flatNodes: [],
+      rowVirtualizer,
+      runIds: ["run_1"],
+      selectedRunId: "run_1",
+      sharesScroller: true,
+    });
+
+    expect(scrollEl.scrollLeft).toBe(0);
+  });
+
+  it("does not move the Grid when a refresh brings the same runs", () => {
+    const scrollEl = makeScrollEl({ runColumnLeft: 800 });
+    const virtualizer = makeVirtualizer(scrollEl);
+    const args = {
+      dagId: "dag_same_runs",
+      flatNodes: [],
+      rowVirtualizer: virtualizer.rowVirtualizer,
+      runIds: ["run_1", "run_2"],
+      selectedRunId: "run_1",
+    };
+    const rendered = renderRestore(args);
+
+    scrollEl.dispatchScroll();
+    scrollEl.scrollLeft = 120;
+    scrollEl.dispatchScroll();
+
+    // The poll rebuilds the array every render; only the ids in it should matter.
+    rendered.rerender({ ...args, runIds: ["run_1", "run_2"] });
+
+    expect(scrollEl.scrollLeft).toBe(120);
+  });
+
+  it("keeps each Dag's position to itself", () => {
+    const dagA = makeScrollEl({ runColumnLeft: 800 });
+    const firstA = makeVirtualizer(dagA);
+    const visitA = renderRestore({
+      dagId: "dag_a",
+      flatNodes: [],
+      rowVirtualizer: firstA.rowVirtualizer,
+      runIds: ["run_1"],
+    });
+
+    dagA.scrollLeft = 300;
+    dagA.dispatchScroll();
+    visitA.unmount();
+
+    const dagB = makeScrollEl({ runColumnLeft: 800 });
+    const firstB = makeVirtualizer(dagB);
+    const visitB = renderRestore({
+      dagId: "dag_b",
+      flatNodes: [],
+      rowVirtualizer: firstB.rowVirtualizer,
+      runIds: ["run_1"],
+      selectedRunId: "run_1",
+    });
+
+    expect(dagB.scrollLeft).toBe(centeredScrollLeft(800));
+    visitB.unmount();
+
+    const backToA = makeScrollEl({ runColumnLeft: 800 });
+    const secondA = makeVirtualizer(backToA);
+
+    renderRestore({
+      dagId: "dag_a",
+      flatNodes: [],
+      rowVirtualizer: secondA.rowVirtualizer,
+      runIds: ["run_1"],
+    });
+
+    expect(backToA.scrollLeft).toBe(300);
   });
 
   it("removes the scroll listener on unmount", () => {

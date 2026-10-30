@@ -66,8 +66,8 @@ export const GridPaginationButtons = ({
 
   if (side === "newer") {
     return latestNotVisible || hasNewerRuns ? (
-      <Box position="sticky" right={1} width={0} zIndex={1}>
-        <Flex bottom={0} flexDirection="column" gap={1} position="absolute" right={0}>
+      <Box insetEnd={1} position="sticky" width={0} zIndex={1}>
+        <Flex bottom={0} flexDirection="column" gap={1} insetEnd={0} position="absolute">
           {latestNotVisible ? (
             <IconButton label={resetLabel} onClick={onJumpToLatest} {...buttonProps}>
               <FiChevronsRight />
@@ -86,11 +86,11 @@ export const GridPaginationButtons = ({
   // Stopping at the task name column's inner edge rather than the scrollport's keeps the button
   // overlapping that column by the same few pixels as when nothing is scrolled.
   return hasOlderRuns ? (
-    <Box left={`${taskNameColumnWidthPx}px`} position="sticky" width={0} zIndex={1}>
+    <Box insetStart={`${taskNameColumnWidthPx}px`} position="sticky" width={0} zIndex={1}>
       <IconButton
         bottom={0}
+        insetStart={-6}
         label={olderLabel}
-        left={-6}
         onClick={onOlderRuns}
         position="absolute"
         {...buttonProps}

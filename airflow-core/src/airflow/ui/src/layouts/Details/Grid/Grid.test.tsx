@@ -28,6 +28,7 @@ import { GroupsProvider } from "src/context/groups";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Grid } from "./Grid";
+import { TASK_NAME_COLUMN_MIN_WIDTH_PX } from "./constants";
 
 const buildRun = (runId: string, versionNumber: number): GridRunsResponse => ({
   dag_id: "example_dag",
@@ -155,6 +156,10 @@ describe("Grid", () => {
     for (const pager of [olderPager, newerPager]) {
       expect(pager).toHaveStyle({ position: "sticky", width: "0" });
     }
+
+    // The older side stops at the task name column's inner edge. Whenever the run columns overflow
+    // there is no free space for the column to grow into, so it sits at exactly this minimum.
+    expect(olderPager).toHaveStyle({ insetInlineStart: `${TASK_NAME_COLUMN_MIN_WIDTH_PX}px` });
 
     // Sticky parks a box at its natural position until the edge pushes it, so each side has to sit
     // on its own side of the columns in the flow.

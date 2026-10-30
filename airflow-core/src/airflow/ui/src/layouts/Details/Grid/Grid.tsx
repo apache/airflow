@@ -253,6 +253,7 @@ export const Grid = ({
     selectedGroupId,
     selectedRunId,
     selectedTaskId,
+    sharesScroller: usesSharedScroll,
     taskNameColumnRef,
   });
 
@@ -275,7 +276,7 @@ export const Grid = ({
         <Box
           bg="bg"
           borderTopRadius="md"
-          left={0}
+          insetStart={0}
           position="sticky"
           pt={`${GRID_HEADER_PADDING_PX}px`}
           zIndex={1}
@@ -327,7 +328,14 @@ export const Grid = ({
       >
         {/* bg is what the run columns scroll behind: the rows themselves only paint a background
           when selected, so without it the cells show through the pinned column. */}
-        <Box bg="bg" left={0} position="sticky" ref={taskNameColumnRef} zIndex={1} {...taskNameColumnStyles}>
+        <Box
+          bg="bg"
+          insetStart={0}
+          position="sticky"
+          ref={taskNameColumnRef}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
           <TaskNames
             nodes={flatNodes}
             onRowClick={handleRowClick}

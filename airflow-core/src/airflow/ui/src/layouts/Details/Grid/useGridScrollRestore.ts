@@ -24,9 +24,11 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
 
+// Each axis is absent until it has actually been scrollable: a Dag whose runs have not arrived
+// reports 0 for an axis that cannot move, and storing that 0 would read back as a real position.
 type ScrollPosition = {
-  left: number;
-  top: number;
+  left?: number;
+  top?: number;
 };
 
 // Last Grid scroll offsets per Dag. Module scope so they outlive the Grid remounting.
@@ -42,6 +44,8 @@ type Params = {
   selectedGroupId?: string;
   selectedRunId?: string;
   selectedTaskId?: string;
+  // Gantt view shares one scroller with the Grid, where the horizontal axis is the Gantt's timeline.
+  sharesScroller: boolean;
   taskNameColumnRef: RefObject<HTMLDivElement | null>;
 };
 
@@ -119,6 +123,7 @@ export const useGridScrollRestore = ({
   selectedGroupId,
   selectedRunId,
   selectedTaskId,
+  sharesScroller,
   taskNameColumnRef,
 }: Params) => {
   // Value dep: the runs array is rebuilt on every render, so its identity would re-run the effect
@@ -134,8 +139,11 @@ export const useGridScrollRestore = ({
 
     const saved = gridScrollPositions.get(dagId);
 
-    if (saved !== undefined) {
+    if (saved?.top !== undefined) {
       scrollEl.scrollTop = saved.top;
+    }
+
+    if (saved?.left !== undefined && !sharesScroller) {
       scrollEl.scrollLeft = saved.left;
     }
 
@@ -152,21 +160,25 @@ export const useGridScrollRestore = ({
       }
     }
 
-    scrollSelectedRunIntoView({
-      center: saved === undefined,
-      scrollEl,
-      selectedRunId,
-      taskNameColumn: taskNameColumnRef.current,
-    });
+    // Sharing a scroller means moving it horizontally would drag the Gantt's timeline along with
+    // the run columns, so the Grid leaves that axis to the Gantt.
+    if (!sharesScroller) {
+      scrollSelectedRunIntoView({
+        // A saved vertical offset says nothing about where the runs were; only a saved horizontal
+        // one means the user has a position worth keeping instead of being centred.
+        center: saved?.left === undefined,
+        scrollEl,
+        selectedRunId,
+        taskNameColumn: taskNameColumnRef.current,
+      });
+    }
 
     const handleScroll = () => {
       const previous = gridScrollPositions.get(dagId);
 
-      // An axis that cannot scroll reports 0, which would erase where the user was once it can
-      // scroll again — a Dag whose runs are still loading reads 0 on both axes.
       gridScrollPositions.set(dagId, {
-        left: scrollEl.scrollWidth > scrollEl.clientWidth ? scrollEl.scrollLeft : (previous?.left ?? 0),
-        top: scrollEl.scrollHeight > scrollEl.clientHeight ? scrollEl.scrollTop : (previous?.top ?? 0),
+        left: scrollEl.scrollWidth > scrollEl.clientWidth ? scrollEl.scrollLeft : previous?.left,
+        top: scrollEl.scrollHeight > scrollEl.clientHeight ? scrollEl.scrollTop : previous?.top,
       });
     };
 
@@ -182,6 +194,7 @@ export const useGridScrollRestore = ({
     selectedGroupId,
     selectedRunId,
     selectedTaskId,
+    sharesScroller,
     taskNameColumnRef,
   ]);
 };
