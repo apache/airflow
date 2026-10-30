@@ -44,13 +44,15 @@ from airflow._shared.timezones import timezone
 from airflow.configuration import conf as airflow_conf
 from airflow.models.base import Base, StringID
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime, get_dialect_name
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from typing import Any, TypeAlias
 
+    from sqlalchemy import Insert
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement, SQLColumnExpression
 
     from airflow.models.dag import DagModel
     from airflow.models.trigger import Trigger
@@ -831,6 +833,44 @@ association_table = Table(
     Index("idx_dagrun_asset_events_dag_run_id", "dag_run_id"),
     Index("idx_dagrun_asset_events_event_id", "event_id"),
 )
+
+
+def build_consumed_by_dag_clause(
+    dag_id: str | SQLColumnExpression[str], event_id: SQLColumnExpression[int]
+) -> ColumnElement[bool]:
+    """Check whether the asset event *event_id* has been consumed by a run of the Dag *dag_id*."""
+    from airflow.models.dagrun import DagRun  # Avoid circular import
+
+    return (
+        select(association_table.c.event_id)
+        .join(DagRun, DagRun.id == association_table.c.dag_run_id)
+        .where(DagRun.dag_id == dag_id, association_table.c.event_id == event_id)
+        .exists()
+    )
+
+
+def insert_asset_dag_run_queue_rows(values: Sequence[dict[str, Any]], *, session: Session) -> None:
+    """Insert ADRQ rows, ignoring rows that are already queued."""
+    stmt: Insert
+    if (dialect_name := get_dialect_name(session)) == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        # The on-dup update is a no-op since we are always working on ADRQs
+        # for the asset. It may not hold if you change e.g. ADRQ schema.
+        stmt = mysql_insert(AssetDagRunQueue).on_duplicate_key_update(asset_id=AssetDagRunQueue.asset_id)
+    elif dialect_name == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        stmt = pg_insert(AssetDagRunQueue).on_conflict_do_nothing(
+            index_elements=["target_dag_id", "asset_event_id"]
+        )
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(AssetDagRunQueue).on_conflict_do_nothing(
+            index_elements=["target_dag_id", "asset_event_id"]
+        )
+    session.execute(stmt, values)
 
 
 class AssetEvent(Base):
