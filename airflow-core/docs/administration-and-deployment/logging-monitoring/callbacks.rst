@@ -48,8 +48,8 @@ There are three different places where callbacks can be defined.
     :ref:`callbacks.route_dag_processor_callbacks <config:callbacks__route_dag_processor_callbacks>` to ``True`` to
     run them on executors instead: a task's callbacks run on the task's executor and queue, and a Dag's callbacks on
     the default executor of the Dag's team. Their logs are then written under
-    ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Callbacks whose executor cannot run callbacks stay
-    with the Dag processor.
+    ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Every executor must then be able to run callbacks,
+    or the scheduler doesn't start.
 
 .. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions

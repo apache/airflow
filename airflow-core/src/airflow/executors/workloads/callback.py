@@ -60,6 +60,8 @@ START_DEADLINE_KEY = "start_deadline"
 STARTED_AT_KEY = "started_at"
 STARTED_BY_KEY = "started_by"
 EXECUTION_TIMEOUT_KEY = "execution_timeout"
+# Which try at getting the callback started this is, from 1; absent on a first try.
+TRY_NUMBER_KEY = "try_number"
 # Holds the serialized callback request; workers read it from the Execution API, not the workload.
 CALLBACK_REQUEST_DATA_KEY = "req_data"
 
