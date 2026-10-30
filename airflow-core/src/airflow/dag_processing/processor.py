@@ -161,9 +161,8 @@ ToManagerMessage = (
 
 ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
 
-ToDagProcessor = Annotated[
-    DagFileParseRequest
-    | ConnectionResult
+ToDagProcessorResponse = (
+    ConnectionResult
     | VariableResult
     | VariableKeysResult
     | TaskStatesResult
@@ -175,7 +174,11 @@ ToDagProcessor = Annotated[
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
-    | XComSequenceSliceResult,
+    | XComSequenceSliceResult
+)
+
+ToDagProcessor = Annotated[
+    DagFileParseRequest | ToDagProcessorResponse,
     Field(discriminator="type"),
 ]
 

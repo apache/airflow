@@ -42,6 +42,7 @@ from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParseRequest as BaseDagFileParseRequest,
     DagFileParsingResult,
+    ToDagProcessorResponse,
     ToManagerMessage,
 )
 from airflow.exceptions import DeserializationError
@@ -86,6 +87,12 @@ class DagFileParseRequest(BaseDagFileParseRequest):
     """Language SDK parse request; retains the existing wire discriminator."""
 
     serialization_options: DagSerializationOptions
+
+
+LangSDKToDagProcessor = Annotated[
+    DagFileParseRequest | ToDagProcessorResponse,
+    Field(discriminator="type"),
+]
 
 
 _IMPORT_TIMEOUT_SETTING = "[core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
