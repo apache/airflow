@@ -20,13 +20,16 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytest
+from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.routes.asset_events import _get_asset_events_through_sql_clauses
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
 from airflow.models.dagrun import DagRun
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.parse("2021-01-01T00:00:00")
@@ -93,6 +96,48 @@ def test_asset_alias(session, test_asset_events, test_asset):
 
     session.delete(alias)
     session.commit()
+
+
+@pytest.fixture
+def test_asset_event_created_dagrun(session, test_asset_events):
+    created_dagrun = DagRun(
+        dag_id="created_dag",
+        run_id="queued_run",
+        logical_date=DEFAULT_DATE,
+        state=DagRunState.QUEUED,
+        run_type=DagRunType.ASSET_TRIGGERED,
+        data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+    )
+    test_asset_events[0].created_dagruns.append(created_dagrun)
+    session.commit()
+    yield created_dagrun
+    session.delete(created_dagrun)
+    session.commit()
+
+
+@pytest.mark.parametrize("by_alias", [False, True], ids=["asset", "alias"])
+@pytest.mark.parametrize(("ascending", "limit"), [(True, 1), (True, None), (False, 2)])
+@pytest.mark.usefixtures("test_asset_alias", "test_asset_event_created_dagrun")
+def test_get_asset_events_loads_response_relationships(session, by_alias, ascending, limit):
+
+    with Session(session.get_bind()) as read_session, assert_queries_count(2, session=read_session):
+        response = _get_asset_events_through_sql_clauses(
+            join_clause=AssetEvent.source_aliases if by_alias else AssetEvent.asset,
+            where_clause=AssetAliasModel.id == 1 if by_alias else AssetModel.id == 1,
+            session=read_session,
+            ascending=ascending,
+            limit=limit,
+        )
+
+    expected_ids = sorted([1, 2, 3], reverse=not ascending)[:limit]
+    assert [event.id for event in response.asset_events] == expected_ids
+    for event in response.asset_events:
+        assert event.asset.name == "test_get_asset_by_name"
+        if event.id == 1:
+            assert [run.run_id for run in event.created_dagruns] == ["queued_run"]
+            assert event.created_dagruns[0].start_date is None
+        else:
+            assert event.created_dagruns == []
 
 
 class TestGetAssetEventByAsset:
