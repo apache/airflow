@@ -42,7 +42,13 @@ import { GridPaginationButtons } from "./GridPaginationButtons";
 import { GridSelectionActionBar } from "./GridSelectionActionBar";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
+import {
+  GANTT_ROW_OFFSET_PX,
+  GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_PADDING_PX,
+  ROW_HEIGHT,
+  TASK_NAME_COLUMN_MIN_WIDTH_PX,
+} from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
@@ -180,7 +186,7 @@ export const Grid = ({
       : {
           flexGrow: 1,
           flexShrink: 0,
-          minW: "200px",
+          minW: `${TASK_NAME_COLUMN_MIN_WIDTH_PX}px`,
         };
 
   const { setMode } = useNavigation({
@@ -214,6 +220,17 @@ export const Grid = ({
     [handleSelectionClick, setMode],
   );
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
+
+  const paginationButtonProps = {
+    hasNewerRuns,
+    hasOlderRuns,
+    isLoading,
+    latestNotVisible,
+    onJumpToLatest,
+    onNewerRuns: handleNewerRuns,
+    onOlderRuns: handleOlderRuns,
+    taskNameColumnWidthPx: taskNameColumnWidthPx ?? TASK_NAME_COLUMN_MIN_WIDTH_PX,
+  };
 
   const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
 
@@ -281,6 +298,7 @@ export const Grid = ({
             <DurationAxis top="4px" />
             {/* Isolated so version indicators stay beneath the sticky task name column when scrolled
               behind it. Pagination buttons sit outside on purpose: the older-runs button overlaps that column. */}
+            <GridPaginationButtons {...paginationButtonProps} side="older" />
             <Flex flexDirection="row-reverse" style={{ isolation: "isolate" }}>
               {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
               {runsWithVersionFlags?.map((dr) => (
@@ -293,15 +311,7 @@ export const Grid = ({
                 />
               ))}
             </Flex>
-            <GridPaginationButtons
-              hasNewerRuns={hasNewerRuns}
-              hasOlderRuns={hasOlderRuns}
-              isLoading={isLoading}
-              latestNotVisible={latestNotVisible}
-              onJumpToLatest={onJumpToLatest}
-              onNewerRuns={handleNewerRuns}
-              onOlderRuns={handleOlderRuns}
-            />
+            <GridPaginationButtons {...paginationButtonProps} side="newer" />
           </Flex>
         </Flex>
       </Flex>

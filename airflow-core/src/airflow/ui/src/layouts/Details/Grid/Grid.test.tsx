@@ -101,13 +101,15 @@ describe("Grid", () => {
     const { container } = render(
       <Wrapper>
         <GroupsProvider dagId="example_dag">
-          <Grid
-            limit={10}
-            offset={0}
-            onJumpToLatest={vi.fn()}
-            setOffset={vi.fn()}
-            showVersionIndicatorMode={VersionIndicatorOptions.ALL}
-          />
+          <GridSelectionProvider>
+            <Grid
+              limit={10}
+              offset={0}
+              onJumpToLatest={vi.fn()}
+              setOffset={vi.fn()}
+              showVersionIndicatorMode={VersionIndicatorOptions.ALL}
+            />
+          </GridSelectionProvider>
         </GroupsProvider>
       </Wrapper>,
     );
@@ -124,5 +126,41 @@ describe("Grid", () => {
     // column's containing block there, so it stops being pinned partway through a horizontal scroll.
     expect(bodyRow).toHaveStyle({ minWidth: "max-content" });
     expect(headerRow).toHaveStyle({ minWidth: "max-content" });
+  });
+
+  it("pins the pager buttons to the scrollport, on either side of the run columns", () => {
+    // limit below the run count gives an older page, and a non-zero offset a newer one.
+    const { container } = render(
+      <Wrapper>
+        <GroupsProvider dagId="example_dag">
+          <GridSelectionProvider>
+            <Grid
+              limit={1}
+              offset={10}
+              onJumpToLatest={vi.fn()}
+              setOffset={vi.fn()}
+              showVersionIndicatorMode={VersionIndicatorOptions.ALL}
+            />
+          </GridSelectionProvider>
+        </GroupsProvider>
+      </Wrapper>,
+    );
+
+    const [olderButton, newerButton] = [...container.querySelectorAll("button")];
+    const olderPager = olderButton?.parentElement;
+    const newerPager = newerButton?.parentElement?.parentElement;
+
+    // Sticky to the scrollport rather than absolute to the content, so scrolling cannot carry the
+    // buttons out of reach; zero width keeps them out of the flex layout either way.
+    for (const pager of [olderPager, newerPager]) {
+      expect(pager).toHaveStyle({ position: "sticky", width: "0" });
+    }
+
+    // Sticky parks a box at its natural position until the edge pushes it, so each side has to sit
+    // on its own side of the columns in the flow.
+    const runColumn = container.querySelector("[data-run-id]");
+
+    expect(olderPager?.compareDocumentPosition(runColumn as Node)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(newerPager?.compareDocumentPosition(runColumn as Node)).toBe(Node.DOCUMENT_POSITION_PRECEDING);
   });
 });
