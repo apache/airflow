@@ -25,8 +25,7 @@ import org.apache.airflow.sdk.*;
 // whose Dags the Python file owns.
 public class ExampleBundleBuilder {
   public static Bundle build() {
-    return new Bundle()
-        .register(InterfaceExampleBuilder.build())
+    return InterfaceExampleBuilder.registerInto(new Bundle())
         .register(AnnotationExample.class)
         .register(XComCastingExample.class)
         .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
