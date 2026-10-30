@@ -321,14 +321,19 @@ class S3DocsPublish:
         console_print(f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n")
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
-        all_packages_infos = [
-            {
-                "package-name": package_name,
-                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
-                "stable-version": all_versions[-1],
-            }
-            for package_name, versions in package_versions.items()
-        ]
+        all_packages_infos = []
+        for package_name, versions in package_versions.items():
+            all_versions = self.get_latest_minor_versions(package_name, versions)
+            if not all_versions:
+                console_print(f"[warning]Skipping {package_name}: no released versions found\n")
+                continue
+            all_packages_infos.append(
+                {
+                    "package-name": package_name,
+                    "all-versions": all_versions,
+                    "stable-version": all_versions[-1],
+                }
+            )
 
         return all_packages_infos
 
@@ -340,6 +345,11 @@ class S3DocsPublish:
         console_print(versions)
         all_versions: list[Version] = []
         for v in versions:
+            # Maven snapshot builds (e.g. java-sdk 1.0.0-SNAPSHOT) are staged for testing,
+            # but they are not releases and not valid PEP 440 versions.
+            if v.endswith("-SNAPSHOT"):
+                console_print(f"[warning]Skipping snapshot version {v}\n")
+                continue
             try:
                 all_versions.append(Version(v))
             except ValueError as e:

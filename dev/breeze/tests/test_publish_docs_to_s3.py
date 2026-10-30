@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 
-from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
+from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish, VersionError
 
 
 class TestPublishDocsToS3:
@@ -298,3 +298,17 @@ class TestPublishDocsToS3:
         self.publish_docs_to_s3.run_publish()
 
         assert mock_generate_packages_metadata.call_count == expected_calls
+
+    @patch.object(VersionError, "version_error", False)
+    def test_dump_docs_package_metadata_skips_snapshot_versions(self):
+        metadata = self.publish_docs_to_s3.dump_docs_package_metadata(
+            {
+                "java-sdk": ["1.0.0-SNAPSHOT", "1.0.0-beta1"],
+                "snapshot-only-sdk": ["1.0.0-SNAPSHOT"],
+            }
+        )
+
+        assert metadata == [
+            {"package-name": "java-sdk", "all-versions": ["1.0.0b1"], "stable-version": "1.0.0b1"},
+        ]
+        assert not VersionError.has_any_error()
