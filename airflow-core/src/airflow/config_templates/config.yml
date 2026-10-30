@@ -2961,7 +2961,9 @@ scheduler:
     max_dagruns_per_loop_to_schedule:
       description: |
         How many DagRuns should a scheduler examine (and lock) when scheduling
-        and queuing tasks.
+        and queuing tasks. The scheduler also examines up to this many more
+        running DagRuns that have a task instance finished since they were last
+        examined.
       example: ~
       version_added: 2.0.0
       type: integer
