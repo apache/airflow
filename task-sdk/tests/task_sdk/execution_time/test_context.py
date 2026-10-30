@@ -1814,8 +1814,8 @@ class TestJsonSizeExceeds:
         assert _json_size_exceeds(value, 10) is True
 
 
-class TestTeamSecretsFromEnvironment:
-    """A team's env var wins over a global env var of the same name."""
+class TestTeamSecretLookups:
+    """Lookups pass the current team, so a team's env var wins over a global one of the same name."""
 
     @pytest.fixture(autouse=True)
     def _team_a_and_global_env_vars(self, monkeypatch):
@@ -1841,6 +1841,22 @@ class TestTeamSecretsFromEnvironment:
     async def test_async_lookups(self):
         assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
         assert (await _async_get_connection("my_conn")).host == "team-a.example.com"
+
+    @pytest.mark.asyncio
+    async def test_async_backend_methods(self, monkeypatch):
+        class AsyncBackend:
+            async def aget_variable(self, key, team_name=None):
+                return f"{team_name}_value"
+
+            async def aget_connection(self, conn_id, team_name=None):
+                return Connection(conn_id=conn_id, conn_type="http", host=f"{team_name}.example.com")
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: [AsyncBackend()]
+        )
+
+        assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert (await _async_get_connection("my_conn")).host == "team_a.example.com"
 
 
 class TestTaskStateStoreAccessor:
