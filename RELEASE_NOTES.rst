@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.4.0 (2026-11-02)
+Airflow 3.4.0 (2026-11-04)
 --------------------------
 
 Significant Changes
@@ -603,6 +603,17 @@ New Features
 Bug Fixes
 ^^^^^^^^^
 
+- UI: Fix Portuguese and Hungarian labels that show a raw placeholder (#75964)
+- Fix the 404 on a looped task group's breadcrumb (#76050)
+- Fix stale queued asset rows in scheduler cleanup and readiness (#76002)
+- Stop Recent Configurations flashing on the trigger form (#75991)
+- Avoid unbounded IN lists for queued asset events (#75943)
+- Stop requesting the details of an empty Dag id after a bulk selection (#75862)
+- Fix hourly cron schedules running an hour off across a DST change (#75847)
+- Preserve XCom value types when editing in the UI (#75496)
+- Reject non-object JSON files when importing variables (#75384)
+- Fix dashboard Active Dags filtering (#75350)
+- Stop a stale callback stat from forcing constant Dag file reparsing (#73433)
 - UI: Fix a crash caused by an unresolvable Windows PT timezone (#75723)
 - UI: Stop keyboard shortcuts firing while typing in a Monaco editor (#75684)
 - UI: Fix slow pending Dag run checks on large databases (#75674)
@@ -760,6 +771,12 @@ Bug Fixes
 Miscellaneous
 ^^^^^^^^^^^^^
 
+- UI: Make asset state store entries scrollable (#75870)
+- UI: Stop bundling the ELK worker twice (#75864)
+- Store and show the retry deadline; start retries with empty run fields (#76027)
+- Freeze the GC before the triggerer's forks to keep memory flat (#76016)
+- Honor Airflow logging levels in the TypeScript SDK (#76005)
+- Make the bundle name less prominent in the Dag import error modals (#75958)
 - Load the serialized Dag when starting a task only for stub tasks (#75795)
 - UI: Hide the scheduled run icon in the grid legend (#75775)
 - Avoid loading timetables for Dags in Execution API endpoints (#75765)
@@ -971,6 +988,8 @@ Miscellaneous
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
 
+- Show UI doc screenshots in synced dark/light tabs (#75957)
+- Document the zh-TW translation workflow (#75702)
 - Go SDK: Correct the documented install command that broke the first bundle build (#75574)
 - Add missing German Dag trigger translations (#75519)
 - Normalize zh-TW plural forms and wording (#75504)
