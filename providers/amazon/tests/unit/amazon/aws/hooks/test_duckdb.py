@@ -138,19 +138,8 @@ class TestAwsDuckDBHookCredentials:
         secret_statement(AwsDuckDBHook())
         aws_base_hook.get_credentials.assert_not_called()
 
-    @pytest.mark.parametrize(
-        ("duckdb_version", "refreshes"),
-        [
-            pytest.param("1.2.1", False, id="duckdb-without-refresh"),
-            pytest.param("1.2.2", True, id="duckdb-with-refresh"),
-        ],
-    )
-    def test_credential_chain_secret_refreshes_where_duckdb_supports_it(
-        self, aws_base_hook, duckdb_version, refreshes
-    ):
-        with mock.patch.object(duckdb, "__version__", duckdb_version):
-            statement = secret_statement(AwsDuckDBHook())
-        assert ("REFRESH 'auto'" in statement) is refreshes
+    def test_credential_chain_secret_refreshes_expired_credentials(self, aws_base_hook):
+        assert "REFRESH 'auto'" in secret_statement(AwsDuckDBHook())
 
     def test_explicit_chain_is_passed_through(self, aws_base_hook):
         statement = secret_statement(AwsDuckDBHook(credential_chain="env;instance"))
