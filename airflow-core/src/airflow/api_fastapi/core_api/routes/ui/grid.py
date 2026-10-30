@@ -25,7 +25,7 @@ from uuid import UUID
 import structlog
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.orm import Session, joinedload, load_only
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -84,6 +84,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.utils.helpers import chunks
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -418,20 +419,25 @@ def _build_ti_summaries(
     session: Session,
     *,
     dag_bag: DBDagBag,
+    structure_version_id: UUID | None = None,
 ) -> dict[str, Any] | None:
     ti_details: dict[str, GridNodeAgg] = {}
     rows = iter(task_instances)
     first = next(rows, None)
     if first is None:
         return None
-    dag_version_id = first.dag_version_id or session.scalar(
-        select(TaskInstance.dag_version_id)
-        .where(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.dag_version_id.is_not(None),
+    dag_version_id = (
+        structure_version_id
+        or first.dag_version_id
+        or session.scalar(
+            select(TaskInstance.dag_version_id)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.dag_version_id.is_not(None),
+            )
+            .limit(1)
         )
-        .limit(1)
     )
     serdag = _get_serdag(dag_bag, dag_id, dag_version_id, session)
     if TYPE_CHECKING:
@@ -559,6 +565,10 @@ def _build_ti_summaries(
 def get_grid_ti_summaries_stream(
     dag_id: str,
     dag_bag: DagBagDep,
+    start_date_range: Annotated[
+        RangeFilter, Depends(datetime_range_filter_factory("start_date", TaskInstance))
+    ],
+    end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TaskInstance))],
     run_ids: Annotated[list[str] | None, Query()] = None,
 ) -> StreamingResponse:
     """
@@ -572,6 +582,7 @@ def get_grid_ti_summaries_stream(
     (keyed by ``dag_version_id``), which avoids repeated deserialization across
     runs of the same version *and* across requests.
     """
+    has_date_filter = start_date_range.is_active() or end_date_range.is_active()
 
     def _generate() -> Generator[str, None, None]:
         # Each iteration opens and closes its own DB session so the connection is
@@ -588,7 +599,7 @@ def get_grid_ti_summaries_stream(
 
         for run_id in run_ids or []:
             with create_session(scoped=False) as session:
-                tis = session.execute(
+                query = (
                     select(
                         TaskInstance.task_id,
                         TaskInstance.region_id,
@@ -606,15 +617,41 @@ def get_grid_ti_summaries_stream(
                     .order_by(TaskInstance.task_id)
                     .execution_options(yield_per=1000)
                 )
+                structure_version_id = None
+                if has_date_filter:
+                    structure_version_id = session.scalar(
+                        select(TaskInstance.dag_version_id)
+                        .join(DagVersion, TaskInstance.dag_version_id == DagVersion.id)
+                        .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
+                        .order_by(DagVersion.version_number.desc())
+                        .limit(1)
+                    )
+                    query = query.where(
+                        or_(
+                            TaskInstance.state != TaskInstanceState.UP_FOR_RETRY, TaskInstance.state.is_(None)
+                        )
+                    ).execution_options(include_all_attempts=True)
+                query = start_date_range.to_orm(query)
+                query = end_date_range.to_orm(query)
+                tis = session.execute(query)
                 summary = _build_ti_summaries(
                     dag_id,
                     run_id,
                     tis,
                     session,
                     dag_bag=dag_bag,
+                    structure_version_id=structure_version_id,
                 )
-            if summary is None:
-                continue
+                if summary is None:
+                    if (
+                        not has_date_filter
+                        or session.scalar(
+                            select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).limit(1)
+                        )
+                        is None
+                    ):
+                        continue
+                    summary = {"run_id": run_id, "dag_id": dag_id, "task_instances": []}
             yield GridTISummaries.model_validate(summary).model_dump_json() + "\n"
 
     return StreamingResponse(content=_generate(), media_type="application/x-ndjson")

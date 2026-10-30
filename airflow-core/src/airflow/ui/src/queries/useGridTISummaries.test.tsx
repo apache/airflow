@@ -83,6 +83,78 @@ describe("useGridTiSummariesStream", () => {
     (useAutoRefresh as Mock).mockReturnValue(false);
   });
 
+  it("refetches aggregate summaries when the Gantt date window changes", async () => {
+    const queryClient = new QueryClient();
+    const wrapper = createWrapper(queryClient);
+    const summary = {
+      dag_id: "dag_1",
+      run_id: "run_1",
+      task_instances: [
+        {
+          child_states: { success: 1 },
+          max_end_date: "2024-12-31T00:01:00Z",
+          min_start_date: "2024-12-31T00:00:00Z",
+          state: "success",
+          task_display_name: "group",
+          task_id: "group",
+        },
+      ],
+    };
+
+    mockFetch
+      .mockResolvedValueOnce(createMockResponse([`${JSON.stringify(summary)}\n`]))
+      .mockResolvedValueOnce(createMockResponse([`${JSON.stringify({ ...summary, task_instances: [] })}\n`]))
+      .mockResolvedValueOnce(createMockResponse([`${JSON.stringify(summary)}\n`]));
+
+    const { rerender, result } = renderHook<
+      ReturnType<typeof useGridTiSummariesStream>,
+      { endDateLte?: string; startDateGte?: string }
+    >(
+      ({ endDateLte, startDateGte }) =>
+        useGridTiSummariesStream({
+          dagId: "dag_1",
+          endDateLte,
+          runIds: ["run_1"],
+          startDateGte,
+        }),
+      {
+        initialProps: { endDateLte: "2024-12-31T23:59:00Z", startDateGte: "2024-12-31T00:00:00Z" },
+        wrapper,
+      },
+    );
+
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    const firstUrl = new URL(mockFetch.mock.calls[0]?.[0] as string, "http://localhost");
+
+    expect(firstUrl.searchParams.get("start_date_gte")).toBe("2024-12-31T00:00:00Z");
+    expect(firstUrl.searchParams.get("end_date_lte")).toBe("2024-12-31T23:59:00Z");
+    expect(result.current.summariesByRunId.get("run_1")).toEqual(summary);
+
+    rerender({ startDateGte: "2025-01-01T00:00:00Z" });
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const secondUrl = new URL(mockFetch.mock.calls[1]?.[0] as string, "http://localhost");
+
+    expect(secondUrl.searchParams.get("start_date_gte")).toBe("2025-01-01T00:00:00Z");
+    expect(result.current.summariesByRunId.get("run_1")?.task_instances).toEqual([]);
+
+    rerender({});
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+
+    const thirdUrl = new URL(mockFetch.mock.calls[2]?.[0] as string, "http://localhost");
+
+    expect(thirdUrl.searchParams.has("start_date_gte")).toBe(false);
+    expect(thirdUrl.searchParams.has("end_date_lte")).toBe(false);
+    expect(result.current.summariesByRunId.get("run_1")).toEqual(summary);
+  });
+
   it("streams summaries correctly on mount", async () => {
     const queryClient = new QueryClient({
       defaultOptions: {
