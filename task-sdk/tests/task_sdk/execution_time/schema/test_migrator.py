@@ -584,22 +584,21 @@ class TestRealBundleArgBindingsDowngrade:
         else:
             assert "execution_timeout" not in context
 
-    def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
-        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
-
-        out = real_migrator.downgrade(startup_details, "2027-02-28")
+    @pytest.mark.parametrize("version", ["2026-10-30", "2027-02-28"])
+    def test_arg_bindings_kept_from_version_that_added_them(self, real_migrator, startup_details, version):
+        out = real_migrator.downgrade(startup_details, version)
         assert out.ti_context.arg_bindings is not None
         literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
-        assert isinstance(literal, LiteralArgBinding)
+        assert literal.kind == "literal"
         assert literal.value == "uk"
         assert literal.name == "country"
         assert literal.from_default is False
         assert literal.value_schema is None
-        assert isinstance(xcom, XComArgBinding)
+        assert xcom.kind == "xcom"
         assert xcom.task_id == "extract"
         assert xcom.name == "extracted"
         assert xcom.value_schema.root == {"type": "object"}
-        assert isinstance(defaulted, LiteralArgBinding)
+        assert defaulted.kind == "literal"
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 
