@@ -30,7 +30,11 @@ import httpx
 import pytest
 
 from airflowctl.api.client import Client
-from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, ConnectionTestResponse
+from airflowctl.api.datamodels.generated import (
+    ClearTaskInstancesBody,
+    ConnectionBody,
+    ConnectionTestResponse,
+)
 from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
@@ -999,6 +1003,66 @@ class TestCliConfigMethods:
         command_factory = CommandFactory()
         with pytest.raises(SystemExit, match="Invalid JSON list for --task-ids"):
             command_factory._apply_datamodel_defaults(ClearTaskInstancesBody, {"task_ids": '["oops'})
+
+    def test_validate_datamodel_returns_model_for_valid_params(self):
+        """Test _validate_datamodel returns the validated datamodel when all required fields are given."""
+        command_factory = CommandFactory()
+        body = command_factory._validate_datamodel(
+            ConnectionBody, {"connection_id": "my_conn", "conn_type": "http"}
+        )
+
+        assert isinstance(body, ConnectionBody)
+        assert body.connection_id == "my_conn"
+        assert body.conn_type == "http"
+
+    def test_validate_datamodel_reports_missing_required_fields_as_flags(self):
+        """Test missing required fields are reported as CLI flags instead of a pydantic traceback."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(ConnectionBody, {"connection_id": None, "conn_type": None})
+
+        message = str(ctx.value)
+        assert "the following arguments are required: --connection-id, --conn-type" in message
+        assert "ValidationError" not in message
+
+    def test_validate_datamodel_does_not_report_optional_fields_as_missing(self):
+        """Test an unset optional field is not reported as a missing argument."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(
+                ConnectionBody, {"connection_id": "my_conn", "conn_type": None, "host": None}
+            )
+
+        message = str(ctx.value)
+        assert "--conn-type" in message
+        assert "--connection-id" not in message
+        assert "--host" not in message
+
+    def test_validate_datamodel_reports_invalid_values_with_flag_name(self):
+        """Test a value of the wrong type is reported against its flag, not as a missing argument."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(
+                ConnectionBody, {"connection_id": "my_conn", "conn_type": "http", "port": "not-a-port"}
+            )
+
+        message = str(ctx.value)
+        assert "--port" in message
+        assert "required" not in message
+
+    def test_create_command_without_required_option_exits_with_friendly_message(self):
+        """Test ``connections create`` without --conn-type exits cleanly and never calls the API."""
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            ["connections", "create", "--api-token", "token", "--connection-id", "my_conn"]
+        )
+
+        with mock.patch.object(ConnectionsOperations, "create") as mock_create:
+            with pytest.raises(SystemExit) as ctx:
+                args.func(args)
+
+        assert "the following arguments are required: --conn-type" in str(ctx.value)
+        mock_create.assert_not_called()
 
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
