@@ -62,7 +62,7 @@ class FakeRegistry:
 
     @property
     def sources(self) -> list[str]:
-        return [source for source, _ in self.copies if source.startswith("dhi.io/")]
+        return [source for source, _ in self.copies if source.partition("/")[0] == "dhi.io"]
 
 
 def _catalog_response(text: str) -> mock.MagicMock:
