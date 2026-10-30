@@ -316,7 +316,7 @@ function prefer_hardened_apt_repository() {
     # image ships (docker-hardened-images/catalog#610). Ranking dhi.io above the default priority of
     # 500 makes apt take Docker's build whenever dhi.io publishes the package, and fall back to Debian
     # only when it does not.
-    # The priority stays below 1000 so the preference never forces a downgrade: apt still favours
+    # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
     # dhi.io's build of a package it publishes, but may take a newer version from another repository
     # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
     # ">= 18.6" and dhi.io does not carry. Pinning the base image to a digest CI has passed on keeps

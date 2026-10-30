@@ -973,7 +973,7 @@ previous images that can matter when you extend or run the image are:
 * **Packages come from Docker's apt repository first.** The image keeps stock Debian's apt sources beside
   ``dhi.io``, and ``/etc/apt/preferences.d/airflow-prefer-dhi`` ranks ``dhi.io`` higher, so apt installs
   Docker's build of a package whenever ``dhi.io`` publishes it and falls back to Debian's otherwise - also
-  in images that extend it. The priority stays below 1000, so apt still favours ``dhi.io``'s build but can
+  in images that extend it. The priority stays below 1000, so apt still favors ``dhi.io``'s build but can
   take a newer version from another repository when a dependency needs it (for example PGDG's ``libpq5``).
 
 .. _image-legacy-flavor:
