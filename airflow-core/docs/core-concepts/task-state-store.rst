@@ -316,4 +316,10 @@ When ``[state_store] clear_on_success = True``, all task state store keys for a 
 
    ``clear_on_success`` clears **task state store only**. Asset store is scoped to the asset, not the task instance, and is never affected by this setting. Asset store persists across runs and must be cleared explicitly.
 
+.. note::
+
+   With a custom ``[workers] state_store_backend``, the worker deletes the backend's entries only
+   after the success has been reported. If that deletion fails the task stays successful and the
+   failure is logged; the leftover entries are removed by retention or overwritten by the next run.
+
 See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.

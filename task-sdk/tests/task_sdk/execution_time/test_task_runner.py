@@ -7455,6 +7455,66 @@ class TestTaskInstanceStateOperations:
         ]
         assert ClearTaskStateStore not in sent_types
 
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_runs_after_success_is_reported(self, create_runtime_ti, mock_supervisor_comms):
+        """The backend is only cleared once SucceedTask has been reported to the supervisor."""
+        mock_backend = mock.MagicMock()
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        mock_backend.clear.side_effect = lambda *a, **kw: order.append("clear")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+        ):
+            state, _, _ = run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
+
+        assert state == TaskInstanceState.SUCCESS
+        assert order.index("SucceedTask") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_failure_does_not_fail_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        """A backend that cannot be cleared leaves the task successful instead of failing it."""
+        mock_backend = mock.MagicMock()
+        mock_backend.clear.side_effect = ConnectionError("object storage is down")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
+
+        with (
+            mock.patch(
+                "airflow.sdk.execution_time.context._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+            mock.patch(
+                "airflow.sdk.execution_time.task_runner._get_worker_state_store_backend",
+                return_value=mock_backend,
+            ),
+        ):
+            state, msg, error = run(
+                runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock()
+            )
+
+        assert state == TaskInstanceState.SUCCESS
+        assert error is None
+        assert isinstance(msg, SucceedTask)
+        assert runtime_ti._terminal_state_send_failed is False
+
 
 class _WalkerModelA(BaseModel):
     a: int
