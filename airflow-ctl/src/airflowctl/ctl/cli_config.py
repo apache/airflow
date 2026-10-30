@@ -27,6 +27,7 @@ import inspect
 import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -745,6 +746,11 @@ class CommandFactory:
             help=arg_help,
         )
 
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
+
     def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
         """Find the subgroup suffix an operation belongs to, if one exists."""
         for suffix in self.subgroups.get(operation_group_name, set()):
@@ -793,7 +799,11 @@ class CommandFactory:
                         if annotation is bool
                         else None
                     ),
-                    arg_required=field_type.is_required() and annotation is not bool,
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
             )
         return commands

@@ -639,6 +639,15 @@ class TestCommandFactory:
 
         assert missing == []
 
+    def test_required_but_nullable_datamodel_field_stays_optional(self):
+        """A field with no default that accepts None (e.g. ``logical_date``) must not become a required flag."""
+        command_factory = CommandFactory()
+        dags_group = next(g for g in command_factory.group_commands if g.name == "dags")
+        trigger = next(c for c in dags_group.subcommands if c.name == "trigger")
+
+        logical_date_arg = next(arg for arg in trigger.args if arg.flags == ("--logical-date",))
+        assert not logical_date_arg.kwargs.get("required")
+
 
 class TestCliConfigMethods:
     @pytest.mark.parametrize(
