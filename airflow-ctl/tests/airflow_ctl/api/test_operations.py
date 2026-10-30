@@ -158,7 +158,12 @@ class TestBaseOperations:
         }
 
     def test_server_connection_refused(self):
-        client = make_api_client(base_url="http://localhost")
+        # A real connect to localhost depends on the machine: a local web server answers, and WSL2
+        # mirrored networking turns a closed loopback port into a timeout instead of a refusal.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("[Errno 111] Connection refused", request=request)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
         with pytest.raises(
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
