@@ -459,20 +459,34 @@ class TestBigQueryStreamingBufferEmptySensor:
         assert exc.value.timeout == timedelta(seconds=expected_timeout)
         assert exc.value.method_name == "execute_complete"
 
-    @mock.patch("airflow.providers.google.cloud.sensors.bigquery.AIRFLOW_V_3_0_PLUS", False)
+    @pytest.mark.skipif(AIRFLOW_V_3_0_PLUS, reason="_orig_start_date only exists in Airflow 2")
+    @mock.patch("airflow.sensors.base._orig_start_date", autospec=True)
     @mock.patch("airflow.providers.google.cloud.sensors.bigquery.BigQueryHook")
-    def test_poke_defers_with_full_timeout_in_reschedule_mode_on_airflow_2(self, mock_hook):
-        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10, timeout=100)
+    def test_poke_defers_with_remaining_timeout_in_reschedule_mode_on_airflow_2(
+        self, mock_hook, mock_orig_start_date
+    ):
+        now = datetime(2026, 1, 1, tzinfo=UTC)
+        mock_orig_start_date.return_value = now - timedelta(seconds=30)
+        sensor = _make_streaming_sensor(mode="reschedule", poke_interval=10, timeout=100, retries=2)
         mock_hook.return_value.get_client.return_value.get_table.return_value = mock.MagicMock(
             streaming_buffer=None
         )
-        ti = mock.MagicMock(spec=["get_first_reschedule_date"])
+        ti = mock.MagicMock(
+            spec=["dag_id", "task_id", "run_id", "map_index", "max_tries"],
+            dag_id="dag",
+            task_id="task-id",
+            run_id="run",
+            map_index=-1,
+            max_tries=3,
+        )
 
-        with pytest.raises(TaskDeferred) as exc:
+        with time_machine.travel(now, tick=False), pytest.raises(TaskDeferred) as exc:
             sensor.poke({"ti": ti})
 
-        assert exc.value.timeout == timedelta(seconds=100)
-        ti.get_first_reschedule_date.assert_not_called()
+        mock_orig_start_date.assert_called_once_with(
+            dag_id="dag", task_id="task-id", run_id="run", map_index=-1, try_number=2
+        )
+        assert exc.value.timeout == timedelta(seconds=70)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="get_first_reschedule_date is Airflow 3 only")
     @mock.patch(

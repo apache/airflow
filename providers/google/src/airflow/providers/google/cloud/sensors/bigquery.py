@@ -38,6 +38,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.providers.common.compat.sdk import Context
 
 
@@ -346,8 +348,7 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         ``empty_confirmations``), but this may delay success by up to one
         ``poke_interval`` compared to earlier releases. ``mode="reschedule"`` with
         ``empty_confirmations > 1`` needs a running triggerer once an empty reading is seen;
-        ``empty_confirmations=1`` keeps the worker-only behaviour. On Airflow 2.x the deferred
-        phase gets the full ``timeout``, so the total wait can exceed it.
+        ``empty_confirmations=1`` keeps the worker-only behaviour.
 
     :param project_id: Google Cloud project containing the table.
     :param dataset_id: Dataset of the table to monitor.
@@ -465,12 +466,25 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
         if self.reschedule and not self.deferrable:
             # A reschedule rebuilds the operator and Airflow 3 clears XComs on each run start, so the
             # confirmation count cannot survive it; the trigger repeats the full confirmation count instead.
-            elapsed = 0.0
-            # shortcut: Airflow 2.x has no get_first_reschedule_date, so the trigger gets the full timeout.
-            if AIRFLOW_V_3_0_PLUS:
-                first_reschedule_date = context["ti"].get_first_reschedule_date(context)
-                if first_reschedule_date:
-                    elapsed = (timezone.utcnow() - first_reschedule_date).total_seconds()
+            first_reschedule_date = self._get_first_reschedule_date(context)
+            elapsed = (
+                (timezone.utcnow() - first_reschedule_date).total_seconds() if first_reschedule_date else 0
+            )
             if self.timeout - elapsed > 0:
                 self._defer_to_trigger(timeout=self.timeout - elapsed)
         return False
+
+    def _get_first_reschedule_date(self, context: Context) -> datetime | None:
+        if AIRFLOW_V_3_0_PLUS:
+            return context["ti"].get_first_reschedule_date(context)
+        # Same lookup as the Airflow 2.11 BaseSensorOperator.execute; `_orig_start_date` only exists in Airflow 2.
+        from airflow.sensors.base import _orig_start_date  # type: ignore[attr-defined]
+
+        ti = context["ti"]
+        return _orig_start_date(
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            run_id=ti.run_id,
+            map_index=ti.map_index,
+            try_number=(ti.max_tries or 0) - (self.retries or 0) + 1,
+        )
