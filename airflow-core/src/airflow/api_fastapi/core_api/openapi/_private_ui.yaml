@@ -1871,7 +1871,9 @@ components:
           - type: 'null'
           title: Relative Fileloc
         fileloc:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Fileloc
         description:
           anyOf:
