@@ -35,6 +35,13 @@ name: Mirror hardened base images
 # follow Docker's rebuilds within hours.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
+    inputs:
+      trigger-upgrade-check:
+        description: >-
+          Run the main upgrade check when a tag moves past its pin. "breeze ci upgrade" for main turns
+          it off, as it is the upgrade that pins the images.
+        type: boolean
+        default: true
   schedule:
     - cron: '27 */6 * * *'
 permissions:
@@ -84,7 +91,9 @@ jobs:
       # failed mirror step: a tag it moved before failing stays moved, so a re-run would not see it
       # move again.
       - name: "Trigger the upgrade check to move the pinned base images"
-        if: "!cancelled() && steps.mirror.outputs.moved-past-pins == 'true'"
+        if: >-
+          !cancelled() && steps.mirror.outputs.moved-past-pins == 'true' &&
+          (github.event_name == 'schedule' || inputs.trigger-upgrade-check)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run scheduled-upgrade-check-main.yml --repo "${GITHUB_REPOSITORY}" --ref main

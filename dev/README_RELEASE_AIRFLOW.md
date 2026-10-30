@@ -151,8 +151,9 @@ The upgrade check first runs the "Mirror hardened base images" workflow on `main
 shared by all branches), so it pins the images Docker published last. The command waits until both
 workflow runs complete and fails when either does not succeed. It needs `gh` credentials that may
 dispatch `apache/airflow` workflows. When anything moved, it opens a
-`[<branch>] Upgrade important CI environment` PR, and no PR when nothing did. Merge that PR once its
-CI has passed, before you go on with the release.
+`[<branch>] Upgrade important CI environment` PR, and no PR when nothing did. The PR is opened as a
+draft, and its CI starts only when you mark it ready for review. Merge it once its CI has passed,
+before you go on with the release.
 
 ### Before cutting an RC: check the full run of the branch HEAD
 

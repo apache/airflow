@@ -315,10 +315,20 @@ def check_can_dispatch_workflows(repo: str, hint: str) -> None:
         sys.exit(1)
 
 
-def mirror_hardened_base_images(repo: str, hint: str = "") -> None:
-    """Mirror the latest hardened base images by running the mirror workflow on main, and wait for it."""
+def mirror_hardened_base_images(repo: str, hint: str = "", trigger_upgrade_check: bool = True) -> None:
+    """
+    Mirror the latest hardened base images by running the mirror workflow on main, and wait for it.
+
+    :param trigger_upgrade_check: whether the mirror runs the main upgrade check when a tag moves past
+        its pin - off when the caller is that upgrade, which would otherwise run twice.
+    """
     check_can_dispatch_workflows(repo, hint)
     console_print("[blue]Mirroring the latest hardened base images[/blue]")
     # The mirror is shared by every branch, and main mirrors every Python version an active release
     # branch still builds on.
-    trigger_workflow_and_monitor(workflow_name=HARDENED_BASE_IMAGES_MIRROR_WORKFLOW, repo=repo, branch="main")
+    trigger_workflow_and_monitor(
+        workflow_name=HARDENED_BASE_IMAGES_MIRROR_WORKFLOW,
+        repo=repo,
+        branch="main",
+        **{"trigger-upgrade-check": trigger_upgrade_check},
+    )

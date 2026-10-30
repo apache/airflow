@@ -206,11 +206,14 @@ def test_mirror_hardened_base_images_runs_the_mirror_on_main_after_the_check(moc
     calls.attach_mock(mock_check, "check")
     calls.attach_mock(mock_trigger, "trigger")
 
-    mirror_hardened_base_images("apache/airflow", hint="hint")
+    mirror_hardened_base_images("apache/airflow", hint="hint", trigger_upgrade_check=False)
 
     assert calls.mock_calls == [
         mock.call.check("apache/airflow", "hint"),
         mock.call.trigger(
-            workflow_name="mirror-hardened-base-images.yml", repo="apache/airflow", branch="main"
+            workflow_name="mirror-hardened-base-images.yml",
+            repo="apache/airflow",
+            branch="main",
+            **{"trigger-upgrade-check": False},
         ),
     ]

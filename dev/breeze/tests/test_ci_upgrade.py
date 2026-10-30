@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import os
+from unittest import mock
+
 import pytest
 
 from airflow_breeze.commands.ci_commands import (
@@ -23,6 +26,7 @@ from airflow_breeze.commands.ci_commands import (
     build_update_pr_body_command,
     build_upgrade_pr_body,
     get_step_enabled,
+    mirror_base_images_before_upgrade,
     read_floors_report,
     upgrade,
 )
@@ -131,3 +135,26 @@ def test_read_floors_report_removes_its_temp_dir(tmp_path, content, expected):
         report_path.write_text(content)
     assert read_floors_report(report_path) == expected
     assert not report_dir.exists()
+
+
+@pytest.mark.parametrize(
+    ("target_branch", "trigger_upgrade_check"),
+    [
+        pytest.param("main", False, id="main-upgrade-runs-once"),
+        pytest.param("v3-4-test", True, id="release-branch-also-upgrades-main"),
+    ],
+)
+@mock.patch("airflow_breeze.commands.ci_commands.mirror_hardened_base_images", autospec=True)
+def test_upgrade_mirrors_the_base_images_with_its_token(
+    mock_mirror, monkeypatch, target_branch, trigger_upgrade_check
+):
+    monkeypatch.setenv("GITHUB_TOKEN", "ambient-token")
+
+    mirror_base_images_before_upgrade(target_branch, "explicit-token")
+
+    assert os.environ["GITHUB_TOKEN"] == "explicit-token"
+    mock_mirror.assert_called_once_with(
+        "apache/airflow",
+        hint="Or skip it with --no-mirror-base-images.",
+        trigger_upgrade_check=trigger_upgrade_check,
+    )

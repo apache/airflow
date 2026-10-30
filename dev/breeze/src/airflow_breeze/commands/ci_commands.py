@@ -718,6 +718,18 @@ def build_upgrade_pr_body(floors_report: str | None) -> str:
     return f"{UPGRADE_PR_BODY}\n\n{floors_report}"
 
 
+def mirror_base_images_before_upgrade(target_branch: str, github_token: str | None) -> None:
+    if github_token:
+        # The mirror's gh calls read the token from the process environment, not the upgrade's env.
+        os.environ["GITHUB_TOKEN"] = github_token
+    mirror_hardened_base_images(
+        "apache/airflow",
+        hint="Or skip it with --no-mirror-base-images.",
+        # The mirror would otherwise start a second main upgrade next to this one.
+        trigger_upgrade_check=target_branch != "main",
+    )
+
+
 def get_step_enabled(
     *,
     autoupdate: bool,
@@ -1020,7 +1032,7 @@ def upgrade(
 
     # The upgrade pins the base images to the digests the mirror serves, so the mirror has to be current.
     if step_enabled["upgrade-important-versions"] and mirror_base_images:
-        mirror_hardened_base_images("apache/airflow", hint="Or skip it with --no-mirror-base-images.")
+        mirror_base_images_before_upgrade(target_branch, github_token)
 
     # Execute upgrade commands
     for step_name, command in UPGRADE_COMMANDS:
