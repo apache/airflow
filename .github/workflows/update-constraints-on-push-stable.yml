@@ -35,7 +35,7 @@ env:
 jobs:
   build-info:
     name: "Build info"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     outputs:
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
@@ -43,9 +43,6 @@ jobs:
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -58,6 +55,8 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # See ci-amd.yml for the full rationale: avoids ARG_MAX on big PRs by writing the
