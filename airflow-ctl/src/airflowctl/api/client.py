@@ -318,12 +318,35 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-def _should_retry_api_request(exception: BaseException) -> bool:
-    """Determine if an API request should be retried based on the exception type."""
-    if isinstance(exception, httpx.HTTPStatusError):
-        return exception.response.status_code >= 500
+_REPLAY_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-    return isinstance(exception, httpx.RequestError)
+
+def _request_method(error: httpx.HTTPError) -> str | None:
+    """
+    Return the method of the request behind ``error``.
+
+    httpx leaves ``.request`` unset for some errors and reading it then raises, so return None for those.
+    """
+    try:
+        return error.request.method
+    except RuntimeError:
+        return None
+
+
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """
+    Determine if an API request can be sent again after it failed.
+
+    A request that never reached the server can always be sent again. Otherwise the server may
+    already have applied it, so only read-only methods are sent again.
+    """
+    if isinstance(exception, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
+        return True
+    if not isinstance(exception, (httpx.HTTPStatusError, httpx.RequestError)):
+        return False
+    if isinstance(exception, httpx.HTTPStatusError) and exception.response.status_code < 500:
+        return False
+    return _request_method(exception) in _REPLAY_SAFE_METHODS
 
 
 def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
