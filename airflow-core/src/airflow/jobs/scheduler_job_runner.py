@@ -3791,8 +3791,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         reset_tis_message.append(repr(ti))
                         successor = ti.prepare_db_for_next_try(session=session)
                         successor.state = None
-                        successor.queued_by_job_id = None
-                        successor.external_executor_id = None
                         successor.clear_next_method_args()
 
                     for ti in set(tis_to_adopt_or_reset) - set(to_reset):

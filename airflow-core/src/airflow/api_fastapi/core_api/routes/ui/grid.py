@@ -491,6 +491,7 @@ def _build_ti_summaries(
                 iteration == latest_iteration[(ti.task_id, loop_id, family_id)]
                 for loop_id, (family_id, iteration) in positions.items()
             ),
+            retry_at=getattr(ti, "retry_at", None),
         )
 
     def get_node_summaries() -> Iterable[dict[str, Any]]:
@@ -597,6 +598,7 @@ def get_grid_ti_summaries_stream(
                         TaskInstance.dag_version_id,
                         TaskInstance.start_date,
                         TaskInstance.end_date,
+                        TaskInstance.retry_at,
                         DagVersion.version_number,
                         has_note_subq,
                     )
