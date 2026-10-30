@@ -45,9 +45,9 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     ForkObservation,
     ForkState,
     GateChangeFinder,
-    HeadMovedError,
     JobStatusReporter,
     Plan,
+    PullRequestChangedError,
     PullRequestSnapshot,
     apply_plan,
     build_job_statuses,
@@ -1599,7 +1599,7 @@ def test_run_reconcile_isolates_failures_and_reports_them(client, tmp_path):
         if path.endswith("/files?per_page=100"):
             return []
         if path.startswith(f"repos/{REPO}/pulls/"):
-            return {"head": {"sha": f"sha{path.rsplit('/', 1)[1]}"}}
+            return {"head": {"sha": f"sha{path.rsplit('/', 1)[1]}"}, "base": {"ref": "main"}}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
@@ -1649,7 +1649,7 @@ def test_run_reconcile_rereads_workflow_state_while_awaiting_push(client, tmp_pa
         if path.endswith("/files?per_page=100"):
             return []
         if path.startswith(f"repos/{REPO}/pulls/"):
-            return {"head": {"sha": "sha1"}}
+            return {"head": {"sha": "sha1"}, "base": {"ref": "main"}}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
@@ -2433,18 +2433,26 @@ jobs:
     needs: [gate]
     if: needs.gate.outputs.project-ci == 'true'
   tests:
+    name: ${{ matrix.suite }} tests
+    strategy: {matrix: {suite: [core, providers]}}
     needs: [build-info]
     steps: [{run: tests}]
+  ci-passed:
+    name: ${{ (needs.build-info.result == 'skipped' && 'CI passed (project CI not run)') || 'CI passed' }}
+    if: always()
+    needs: [gate, build-info, tests]
+    steps: [{run: check}]
 """
 
 
 GATE_JOB_CHANGE = (
-    "it changes the `gate` job of `.github/workflows/ci-amd.yml`, which jobs depend on it, "
-    "or the workflow-level triggers or settings it runs with"
+    "it changes the `gate` job of `.github/workflows/ci-amd.yml`, a job that runs when the gate "
+    "leaves a pull request to fork CI, the name of a job, or the workflow-level triggers or "
+    "settings they run with"
 )
 
 
-def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="abc123"):
+def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="abc123", base_ref="main"):
     base_files = {
         ".github/workflows/ci-amd.yml": CI_AMD,
         ".github/fork-ci-gate.toml": PILOT_BASE,
@@ -2457,7 +2465,7 @@ def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="
         if "/compare/" in path:
             return {"merge_base_commit": {"sha": "merge-base"}}
         if path == f"repos/{REPO}/pulls/42":
-            return {"head": {"sha": head_sha}}
+            return {"head": {"sha": head_sha}, "base": {"ref": base_ref}}
         repo_name, rest = path.removeprefix("repos/").split("/contents/")
         name, ref = rest.split("?ref=")
         files = base_files if (repo_name, ref) == (REPO, "merge-base") else head_files
@@ -2535,6 +2543,97 @@ def _gate_change_finder(client, changed, head_files, base_files=None, head_sha="
             [{"filename": ".github/workflows/ci-amd.yml"}],
             {
                 ".github/workflows/ci-amd.yml": CI_AMD.replace(
+                    "'CI passed (project CI not run)'", "'CI passed'"
+                )
+            },
+            GATE_JOB_CHANGE,
+            id="ci-passed-renamed",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD
+                + "  extra:\n    name: CI passed\n    needs: [gate]\n    steps: [{run: check}]\n"
+            },
+            GATE_JOB_CHANGE,
+            id="job-run-when-gated-added",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD.replace(
+                    "needs: [build-info]\n    steps: [{run: tests}]",
+                    "needs: [build-info]\n    if: always()\n    steps: [{run: tests}]",
+                )
+            },
+            GATE_JOB_CHANGE,
+            id="job-made-to-run-when-gated",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD.replace(
+                    "needs: [build-info]\n    steps: [{run: tests}]",
+                    "needs: [build-info]\n    if: Success() || true\n    steps: [{run: tests}]",
+                )
+            },
+            GATE_JOB_CHANGE,
+            id="job-made-to-run-when-gated-by-explicit-success",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": CI_AMD.replace("${{ matrix.suite }} tests", "CI passed")},
+            GATE_JOB_CHANGE,
+            id="skipped-job-renamed",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {".github/workflows/ci-amd.yml": CI_AMD.replace("[core, providers]", "[core, CI passed]")},
+            GATE_JOB_CHANGE,
+            id="matrix-of-expression-name-changed",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD
+                + "  after-ci-passed:\n    needs: [ci-passed]\n    steps: [{run: publish}]\n"
+            },
+            GATE_JOB_CHANGE,
+            id="job-needing-only-a-job-run-when-gated",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD.replace(
+                    "steps: [{run: gate}]", "steps: &s [{run: gate}]"
+                ).replace("steps: [{run: tests}]", "steps: *s")
+            },
+            GATE_JOB_CHANGE,
+            id="yaml-alias",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD
+                + "  1:\n    steps: [{run: a}]\n  '1':\n    steps: [{run: b}]\n"
+            },
+            GATE_JOB_CHANGE,
+            id="job-ids-alike-as-strings",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD
+                + "".join(f"  j{i}:\n    needs: [j{i + 1}]\n" for i in range(3000))
+                + "  j3000:\n    needs: [build-info]\n"
+            },
+            GATE_JOB_CHANGE,
+            id="needs-chain-deeper-than-the-recursion-limit",
+        ),
+        pytest.param(
+            [{"filename": ".github/workflows/ci-amd.yml"}],
+            {
+                ".github/workflows/ci-amd.yml": CI_AMD.replace(
                     "[push, pull_request]", "[push, pull_request, issue_comment]"
                 )
             },
@@ -2572,10 +2671,23 @@ def test_marker_records_whether_the_gate_was_checked(pr_overrides, gate_checked)
     assert ('"gate_checked": true' in plan.marker_comment) is gate_checked
 
 
-def test_gate_change_finder_aborts_when_the_head_moved(client):
-    finder = _gate_change_finder(client, [], {}, head_sha="newer")
+@pytest.mark.parametrize(
+    ("head_sha", "base_ref", "match"),
+    [
+        pytest.param("newer", "main", "head moved from abc123 to newer", id="head-moved"),
+        pytest.param("abc123", "v3-1-test", "base changed from main to v3-1-test", id="base-changed"),
+    ],
+)
+def test_gate_change_finder_aborts_when_the_pull_request_changed(client, head_sha, base_ref, match):
+    finder = _gate_change_finder(
+        client,
+        [{"filename": ".github/workflows/ci-amd.yml"}],
+        {".github/workflows/ci-amd.yml": CI_AMD.replace("[gate]", "[]")},
+        head_sha=head_sha,
+        base_ref=base_ref,
+    )
 
-    with pytest.raises(HeadMovedError, match="head moved from abc123 to newer"):
+    with pytest.raises(PullRequestChangedError, match=match):
         finder.find(_pr())
 
 
@@ -2595,7 +2707,7 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
         if path == f"repos/{REPO}/pulls/1/files?per_page=100":
             return []
         if path == f"repos/{REPO}/pulls/1":
-            return {"head": {"sha": "moved"}}
+            return {"head": {"sha": "moved"}, "base": {"ref": "main"}}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
