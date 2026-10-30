@@ -2,7 +2,7 @@
   "alerts": {
     "seeLessContext": "Ver menos",
     "seeMoreContext": "Ver más",
-    "showMoreAlerts_many": "+{{count, number}} alertas más",
+    "showMoreAlerts_many": "+{{count, number}} de alertas más",
     "showMoreAlerts_one": "+{{count, number}} alerta más",
     "showMoreAlerts_other": "+{{count, number}} alertas más"
   },
@@ -21,7 +21,7 @@
   "deferredSlotsNotCounted": "Diferidos no contados en slots: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Las tareas diferidas mostradas en la barra se cuentan contra los slots del pool. Las tareas diferidas mostradas debajo de la barra provienen de pools que no cuentan las tareas diferidas contra los slots.",
   "favorite": {
-    "favoriteDags_many": "Primeros {{count, number}} Dags Favoritos",
+    "favoriteDags_many": "Primeros {{count, number}} de Dags Favoritos",
     "favoriteDags_one": "Primer {{count, number}} Dag Favorito",
     "favoriteDags_other": "Primeros {{count, number}} Dags Favoritos",
     "noDagRuns": "Aún no hay Ejecuciones de Dag para este Dag.",
@@ -42,7 +42,7 @@
       "bundles": "Bundles",
       "hostname": "Host",
       "team": "Equipo",
-      "title_many": "{{title}} — {{status}} ({{count, number}} instancias)",
+      "title_many": "{{title}} — {{status}} ({{count, number}} de instancias)",
       "title_one": "{{title}} — {{status}} ({{count, number}} instancia)",
       "title_other": "{{title}} — {{status}} ({{count, number}} instancias)",
       "unknownHostname": "Host desconocido"

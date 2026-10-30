@@ -26,7 +26,7 @@
     "connection_one": "Conexión",
     "connection_other": "Conexiones",
     "delete": {
-      "deleteConnection_many": "Eliminar {{count, number}} conexiones",
+      "deleteConnection_many": "Eliminar {{count, number}} de conexiones",
       "deleteConnection_one": "Eliminar 1 conexión",
       "deleteConnection_other": "Eliminar {{count, number}} conexiones",
       "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes conexiones:",
@@ -163,7 +163,7 @@
       "isEncrypted": "Está Encriptada"
     },
     "delete": {
-      "deleteVariable_many": "Eliminar {{count, number}} Variables",
+      "deleteVariable_many": "Eliminar {{count, number}} de Variables",
       "deleteVariable_one": "Eliminar 1 Variable",
       "deleteVariable_other": "Eliminar {{count, number}} Variables",
       "firstConfirmMessage_many": "Estás a punto de eliminar las siguientes variables:",

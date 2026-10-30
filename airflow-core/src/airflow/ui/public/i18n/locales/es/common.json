@@ -239,7 +239,7 @@
     "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
   "pause": "Pausar",
-  "pendingDagRun_many": "{{count, number}} Ejecuciones del Dag Pendientes",
+  "pendingDagRun_many": "{{count, number}} de Ejecuciones del Dag Pendientes",
   "pendingDagRun_one": "{{count, number}} Ejecución del Dag Pendiente",
   "pendingDagRun_other": "{{count, number}} Ejecuciones del Dag Pendientes",
   "presetFilters": {

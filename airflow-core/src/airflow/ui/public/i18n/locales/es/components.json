@@ -1,6 +1,6 @@
 {
   "backfill": {
-    "affected_many": "Se activarán {{count, number}} ejecuciones.",
+    "affected_many": "Se activarán {{count, number}} de ejecuciones.",
     "affected_one": "1 ejecución será activada.",
     "affected_other": "Se activarán {{count, number}} ejecuciones.",
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
@@ -19,7 +19,7 @@
     "notCreatedReason": "Motivo de No Creación",
     "overrideExistingParams": "Sobrescribir parámetros en ejecuciones existentes",
     "partitionRange": "Rango de Particiones",
-    "partitionsAffected_many": "Se aplicará backfill a {{count, number}} particiones:",
+    "partitionsAffected_many": "Se aplicará backfill a {{count, number}} de particiones:",
     "partitionsAffected_one": "Se aplicará backfill a 1 partición:",
     "partitionsAffected_other": "Se aplicará backfill a {{count, number}} particiones:",
     "partitionsNone": "No hay particiones que coincidan con el rango seleccionado.",
@@ -67,7 +67,7 @@
       "runtime varying value": "Valor variable en tiempo de ejecución",
       "task group cycle": "Ciclo en el grupo de tareas"
     },
-    "warning_many": "{{count, number}} Advertencias",
+    "warning_many": "{{count, number}} de Advertencias",
     "warning_one": "1 Advertencia",
     "warning_other": "{{count, number}} Advertencias"
   },
@@ -80,10 +80,10 @@
   },
   "durationChart": {
     "duration": "Duración (segundos)",
-    "lastDagRun_many": "Últimas {{count, number}} Ejecuciones de Dag",
+    "lastDagRun_many": "Últimas {{count, number}} de Ejecuciones de Dag",
     "lastDagRun_one": "Última Ejecución de Dag",
     "lastDagRun_other": "Últimas {{count, number}} Ejecuciones de Dag",
-    "lastTaskInstance_many": "Últimas {{count, number}} Instancias de Tarea",
+    "lastTaskInstance_many": "Últimas {{count, number}} de Instancias de Tarea",
     "lastTaskInstance_one": "Última Instancia de Tarea",
     "lastTaskInstance_other": "Últimas {{count, number}} Instancias de Tarea",
     "medianTotalDuration": "Total: {{duration}}",
@@ -92,7 +92,7 @@
     "runDuration": "Duración de la Ejecución"
   },
   "fileUpload": {
-    "files_many": "{{count, number}} archivos",
+    "files_many": "{{count, number}} de archivos",
     "files_one": "{{count, number}} archivo",
     "files_other": "{{count, number}} archivos"
   },
@@ -117,14 +117,14 @@
     "downloadImageError": "Error al descargar la imagen.",
     "downloadImageErrorTitle": "Descarga Fallida",
     "otherDagRuns": "+Otras Ejecuciones de Dag",
-    "taskCount_many": "{{count, number}} Tareas",
+    "taskCount_many": "{{count, number}} de Tareas",
     "taskCount_one": "{{count, number}} Tarea",
     "taskCount_other": "{{count, number}} Tareas",
     "taskGroup": "Grupo de Tareas",
     "zoomToTask": "Zoom a la tarea seleccionada"
   },
   "jsonPreview": {
-    "items_many": "{{count, number}} elementos",
+    "items_many": "{{count, number}} de elementos",
     "items_one": "1 elemento",
     "items_other": "{{count, number}} elementos"
   },
@@ -136,7 +136,7 @@
   "limitedList.clickToInteract": "Haz clic en una etiqueta para filtrar Dags",
   "limitedList.clickToOpenFull": "Haz clic en \"+{{count, number}} más\" para ver la lista completa",
   "limitedList.copyPasteText": "Puedes copiar y pegar el texto de arriba",
-  "limitedList.showingItems_many": "Mostrando {{count, number}} elementos",
+  "limitedList.showingItems_many": "Mostrando {{count, number}} de elementos",
   "limitedList.showingItems_one": "Mostrando 1 elemento",
   "limitedList.showingItems_other": "Mostrando {{count, number}} elementos",
   "logs": {
@@ -153,7 +153,7 @@
     "keepPaused": "Mantener pausado",
     "keepPausedDescription": "Las ejecuciones nuevas y las sin terminar esperan hasta que el Dag se reanude.",
     "title": "El Dag está pausado",
-    "unfinishedRunsWillRun_many": "{{count, number}} ejecuciones del Dag sin terminar se iniciarán o reanudarán.",
+    "unfinishedRunsWillRun_many": "{{count, number}} de ejecuciones del Dag sin terminar se iniciarán o reanudarán.",
     "unfinishedRunsWillRun_one": "1 ejecución del Dag sin terminar se iniciará o reanudará.",
     "unfinishedRunsWillRun_other": "{{count, number}} ejecuciones del Dag sin terminar se iniciarán o reanudarán.",
     "unpause": "Reanudar",

@@ -33,7 +33,7 @@
       "file_other": "Archivos",
       "importErrorGone": "Este error de importación ya no está registrado. Probablemente se corrigió con un nuevo análisis.",
       "neverParsed": "Nunca",
-      "showImportError_many": "Ver {{count, number}} errores",
+      "showImportError_many": "Ver {{count, number}} de errores",
       "showImportError_one": "Ver error",
       "showImportError_other": "Ver {{count, number}} errores"
     },
