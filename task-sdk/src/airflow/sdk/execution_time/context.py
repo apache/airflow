@@ -228,7 +228,7 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Check cache first (optional; only on dag processor)
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -246,7 +246,7 @@ def _get_connection(conn_id: str) -> Connection:
                 secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
             )
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=_current_team_name)
                 _mask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -278,7 +278,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
     # Check cache first
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -297,7 +297,9 @@ async def _async_get_connection(conn_id: str) -> Connection:
             # getattr avoids triggering AsyncMock coroutine creation under Python 3.13
             async_method = getattr(secrets_backend, "aget_connection", None)
             if async_method is not None:
-                maybe_awaitable = async_method(conn_id)
+                maybe_awaitable = call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, conn_id=conn_id
+                )
                 conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
                 conn = await sync_to_async(call_secrets_backend_method)(
@@ -314,7 +316,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                     uri = await aget_uri()
                 else:
                     uri = await sync_to_async(conn.get_uri)()
-                SecretCache.save_connection_uri(conn_id, uri)
+                SecretCache.save_connection_uri(conn_id, uri, team_name=_current_team_name)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -374,7 +376,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -390,7 +392,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
             )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -415,7 +417,7 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -428,7 +430,9 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
         try:
             async_method = getattr(secrets_backend, "aget_variable", None)
             if async_method is not None:
-                var_val = await async_method(key=key)
+                var_val = await call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, key=key
+                )
             else:
                 var_val = await asyncio.to_thread(
                     call_secrets_backend_method,
@@ -438,7 +442,7 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
                 )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -550,7 +554,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_set_variable(
@@ -603,7 +607,7 @@ async def _async_set_variable(
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 def _delete_variable(key: str) -> None:
@@ -620,7 +624,7 @@ def _delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_delete_variable(key: str) -> None:
@@ -637,7 +641,7 @@ async def _async_delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 class ConnectionAccessor:
