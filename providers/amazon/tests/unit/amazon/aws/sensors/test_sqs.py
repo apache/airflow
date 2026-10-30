@@ -21,6 +21,7 @@ import json
 from unittest import mock
 
 import pytest
+from botocore.stub import Stubber
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -46,6 +47,42 @@ def mocked_client():
 
 
 class TestSqsSensor:
+    @pytest.mark.parametrize("failed_ids", [["two"], ["one", "two"]])
+    def test_poke_reports_batch_delete_failures_without_dropping_messages(self, failed_ids, caplog):
+        self.sensor.max_messages = 2
+        self.sensor.sqs_queue = "https://sqs.eu-central-1.amazonaws.com/123456789012/queue"
+        messages = [
+            {"MessageId": name, "ReceiptHandle": f"handle-{name}", "Body": "message"}
+            for name in ["one", "two"]
+        ]
+        task_instance = mock.MagicMock(spec=["xcom_push"])
+        failed_entries = [{"Id": name, "Code": "InternalError", "SenderFault": False} for name in failed_ids]
+        with Stubber(self.sensor.hook.conn) as stubber:
+            stubber.add_response(
+                "receive_message",
+                {"Messages": messages},
+                {"QueueUrl": self.sensor.sqs_queue, "MaxNumberOfMessages": 2, "WaitTimeSeconds": 1},
+            )
+            stubber.add_response(
+                "delete_message_batch",
+                {
+                    "Successful": [{"Id": name} for name in ["one", "two"] if name not in failed_ids],
+                    "Failed": failed_entries,
+                },
+                {
+                    "QueueUrl": self.sensor.sqs_queue,
+                    "Entries": [{"Id": name, "ReceiptHandle": f"handle-{name}"} for name in ["one", "two"]],
+                },
+            )
+            assert self.sensor.poke({"ti": task_instance}) is True
+            stubber.assert_no_pending_responses()
+        task_instance.xcom_push.assert_called_once_with(key="messages", value=messages)
+        assert {
+            "event": "SQS batch deletion failed",
+            "failed_entries": failed_entries,
+            "log_level": "warning",
+        } in caplog
+
     @pytest.fixture(autouse=True)
     def _setup_test_cases(self):
         self.default_op_kwargs = {
@@ -186,7 +223,7 @@ class TestSqsSensor:
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
 
         def mock_delete_message_batch(**kwargs):
-            return {"Successful"}
+            return {"Successful": [{"Id": entry["Id"]} for entry in kwargs["Entries"]]}
 
         mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
 
@@ -231,7 +268,7 @@ class TestSqsSensor:
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
 
         def mock_delete_message_batch(**kwargs):
-            return {"Successful"}
+            return {"Successful": [{"Id": entry["Id"]} for entry in kwargs["Entries"]]}
 
         mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
 
@@ -275,7 +312,7 @@ class TestSqsSensor:
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
 
         def mock_delete_message_batch(**kwargs):
-            return {"Successful"}
+            return {"Successful": [{"Id": entry["Id"]} for entry in kwargs["Entries"]]}
 
         mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
 
@@ -319,7 +356,7 @@ class TestSqsSensor:
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
 
         def mock_delete_message_batch(**kwargs):
-            return {"Successful"}
+            return {"Successful": [{"Id": entry["Id"]} for entry in kwargs["Entries"]]}
 
         mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
 
@@ -362,7 +399,7 @@ class TestSqsSensor:
         mocked_client.return_value.receive_message.side_effect = mock_receive_message
 
         def mock_delete_message_batch(**kwargs):
-            return {"Successful"}
+            return {"Successful": [{"Id": entry["Id"]} for entry in kwargs["Entries"]]}
 
         mocked_client.return_value.delete_message_batch.side_effect = mock_delete_message_batch
 
