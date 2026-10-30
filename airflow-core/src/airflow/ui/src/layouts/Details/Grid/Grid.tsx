@@ -306,9 +306,18 @@ export const Grid = ({
         </Flex>
       </Flex>
 
-      {/* Grid body */}
-      <Flex bg="bg" height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
-        <Box left={0} position="sticky" ref={taskNameColumnRef} zIndex={1} {...taskNameColumnStyles}>
+      {/* Grid body. minWidth matches the header: without it the body is only as wide as the
+        scrollport, so the sticky task name column runs out of containing block partway through a
+        horizontal scroll and slides out of view, leaving the rows unlabelled. */}
+      <Flex
+        bg="bg"
+        height={`${rowVirtualizer.getTotalSize()}px`}
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="relative"
+      >
+        {/* bg is what the run columns scroll behind: the rows themselves only paint a background
+          when selected, so without it the cells show through the pinned column. */}
+        <Box bg="bg" left={0} position="sticky" ref={taskNameColumnRef} zIndex={1} {...taskNameColumnStyles}>
           <TaskNames
             nodes={flatNodes}
             onRowClick={handleRowClick}

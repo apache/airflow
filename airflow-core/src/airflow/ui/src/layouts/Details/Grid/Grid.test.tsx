@@ -96,4 +96,33 @@ describe("Grid", () => {
       expect(runContainer).toHaveStyle({ isolation: "isolate" });
     }
   });
+
+  it("keeps the task name column pinned for the full width of the run columns", () => {
+    const { container } = render(
+      <Wrapper>
+        <GroupsProvider dagId="example_dag">
+          <Grid
+            limit={10}
+            offset={0}
+            onJumpToLatest={vi.fn()}
+            setOffset={vi.fn()}
+            showVersionIndicatorMode={VersionIndicatorOptions.ALL}
+          />
+        </GroupsProvider>
+      </Wrapper>,
+    );
+
+    // The run columns live in two rows, header then body; each row also holds the sticky task
+    // name column. The virtualizer renders no rows without layout, so reach them via the columns.
+    const [, bodyRunColumns] = [
+      ...new Set([...container.querySelectorAll("[data-run-id]")].map((element) => element.parentElement)),
+    ];
+    const bodyRow = bodyRunColumns?.parentElement;
+    const headerRow = bodyRow?.previousElementSibling;
+
+    // Both rows have to outgrow the scrollport. A row only as wide as the scrollport ends the sticky
+    // column's containing block there, so it stops being pinned partway through a horizontal scroll.
+    expect(bodyRow).toHaveStyle({ minWidth: "max-content" });
+    expect(headerRow).toHaveStyle({ minWidth: "max-content" });
+  });
 });
