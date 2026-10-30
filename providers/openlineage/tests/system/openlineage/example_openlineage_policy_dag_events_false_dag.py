@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage emission policy authoring API.
+Dag exercising the OpenLineage emission policy authoring API.
 
-Dag-level ``emit_dag_events=False`` suppresses DAG-run events only; task events
+Dag-level ``emit_dag_events=False`` suppresses Dag run events only; task events
 must remain fully intact (source code, inputs/outputs, ...). The task registers
 hook lineage so the emitted task event carries real inputs/outputs to assert on.
 """

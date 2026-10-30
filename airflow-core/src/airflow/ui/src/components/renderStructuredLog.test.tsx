@@ -16,15 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
 
-import { renderStructuredLog, renderTIContextPreamble, tiContextFields } from "./renderStructuredLog";
+import {
+  extractTIContext,
+  renderStructuredLog,
+  renderTIContextPreamble,
+  tiContextFields,
+} from "./renderStructuredLog";
 
 const translate = (key: string) => key;
+
+const renderWithLevel = (showLogLevel: boolean) => {
+  const result = renderStructuredLog({
+    index: 0,
+    logLink: "",
+    logMessage: {
+      event: "Task started",
+      level: "info",
+      timestamp: "2026-01-01T00:00:00Z",
+    },
+    renderingMode: "jsx",
+    showLogLevel,
+    translate: translate as never,
+  });
+
+  return render(<Wrapper>{result}</Wrapper>);
+};
 
 describe("tiContextFields", () => {
   it("contains the six fields bound via bind_contextvars", () => {
@@ -76,6 +98,52 @@ describe("renderStructuredLog — traceback frame highlighting", () => {
   });
 });
 
+describe("renderStructuredLog — traceback source lines", () => {
+  const props = {
+    index: 0,
+    logLink: "",
+    logMessage: {
+      error_detail: [
+        {
+          exc_notes: [],
+          exc_type: "ZeroDivisionError",
+          exc_value: "division by zero",
+          frames: [{ filename: "/dags/my_dag.py", line: "return 1 / 0", lineno: 12, name: "divide" }],
+          is_cause: false,
+          syntax_error: null,
+        },
+      ],
+      event: "Task failed with exception",
+    },
+    translate: translate as never,
+  };
+
+  it("shows the source line under its frame", () => {
+    render(<Wrapper>{renderStructuredLog({ ...props, renderingMode: "jsx" })}</Wrapper>);
+
+    expect(screen.getByText("return 1 / 0")).toBeInTheDocument();
+    expect(renderStructuredLog({ ...props, renderingMode: "text" })).toContain(
+      "components:logs.location\n      return 1 / 0\n",
+    );
+  });
+});
+
+describe("renderStructuredLog — log level visibility", () => {
+  it("renders the level when showLogLevel is true", () => {
+    renderWithLevel(true);
+
+    expect(screen.getByText("INFO")).toBeInTheDocument();
+    expect(screen.getByText("Task started")).toBeInTheDocument();
+  });
+
+  it("omits the level when showLogLevel is false", () => {
+    renderWithLevel(false);
+
+    expect(screen.queryByText("INFO")).toBeNull();
+    expect(screen.getByText("Task started")).toBeInTheDocument();
+  });
+});
+
 describe("renderStructuredLog — TI context field stripping", () => {
   it("does not render TI context fields as per-line structured attributes", () => {
     const result = renderStructuredLog({
@@ -124,6 +192,17 @@ describe("renderStructuredLog — TI context field stripping", () => {
 
     expect(screen.getByText(/some_custom_key/u)).toBeInTheDocument();
     expect(screen.queryByText(/ti_id/u)).toBeNull();
+  });
+});
+
+describe("extractTIContext", () => {
+  it("ignores TI fields logged as null, e.g. by callback triggers", () => {
+    const nullContext = { dag_id: null, event: "trigger starting", task_id: null, ti_id: null };
+
+    expect(extractTIContext([nullContext as never])).toBeUndefined();
+    expect(extractTIContext([nullContext as never, { dag_id: "my_dag", event: "x" }])).toEqual({
+      dag_id: "my_dag",
+    });
   });
 });
 

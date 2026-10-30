@@ -28,6 +28,69 @@
 Changelog
 ---------
 
+6.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Spark submit standalone status polling to use correct REST endpoint (#71949)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'SparkSubmitHook': Mask '_mask_cmd' secrets in linear time (#71711)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document durable Spark execution across cluster managers (#72325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+
+6.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make SparkSubmitOperator durable execution inert below Airflow 3.3 (#71534)``
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Pin providers in constraints to the versions published in PyPI (#71324)``
+
+
 6.3.1
 .....
 
@@ -35,6 +98,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Anchor spark-submit log trail on actual exception instead of lines (#70513)``
+* ``Spark: Fix missing space in YARN waitAppCompletion error message (#71055)``
 
 Misc
 ~~~~

@@ -149,6 +149,8 @@ Override ``custom_operator_name`` to change the displayed name to something othe
             custom_operator_name = "Howdy"
             # ...
 
+.. _custom-operator/template-fields:
+
 Templating
 ----------
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize your operator.
@@ -352,6 +354,33 @@ still belongs in ``execute()``:
                 self.foo = foo
                 self.bar = bar
 
+5. Operators that support ``start_from_trigger`` may copy a templated field verbatim into
+``start_trigger_args.trigger_kwargs`` under the field's own name. The scheduler sends the task straight to
+the triggerer, which renders those entries itself, and ``execute()`` never runs. The key has to match the
+field name and be an attribute of the trigger; nothing else in ``StartTriggerArgs`` is rendered, so a
+transformed value, or a key that is not a template field, is still invalid. Storing one field's value
+under another template field's key is rendered, under that key, but is invalid too — the entry no
+longer holds the field its key names:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+            template_fields = ("foo",)
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="my_package.triggers.HelloTrigger",
+                trigger_kwargs={},
+                next_method="execute_complete",
+            )
+
+            def __init__(self, foo, start_from_trigger=False) -> None:
+                self.foo = foo
+                self.start_from_trigger = start_from_trigger
+                if start_from_trigger:
+                    self.start_trigger_args = dataclasses.replace(
+                        self.start_trigger_args,
+                        trigger_kwargs={"foo": self.foo},  # allowed: verbatim copy under the field's name
+                    )
+
 When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
 do not apply. However, the templated fields must be set properly in the parent according to those limitations.
 
@@ -370,6 +399,13 @@ Thus, the following example is valid:
             template_fields = "foo"
 
 The limitations above are enforced by a prek hook named 'validate-operators-init'.
+
+Connection ids are template fields too. Every ``*conn_id`` argument an operator, sensor or notifier
+accepts must be listed in its ``template_fields``, so users can pass ``conn_id="{{ params.conn_id }}"``.
+Because ``template_fields`` is a plain class attribute, a subclass that redefines it must spread the
+parent's fields (``template_fields = (*ParentOperator.template_fields, "extra")``) or the parent's
+connection ids stop being rendered. This is enforced for providers by a prek hook named
+'check-conn-id-templated'.
 
 Add template fields with subclassing
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -448,4 +484,25 @@ that your sensor is not suitable for use with reschedule mode.
 An example of a sensor that keeps internal state and cannot be used with reschedule mode
 is :class:`airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor`.
 It polls the number of objects at a prefix (this number is the internal state of the sensor)
-and succeeds when there a certain amount of time has passed without the number of objects changing.
+and succeeds when there has been a certain amount of time passed without the number of objects changing.
+
+Testing your operator
+---------------------
+
+Instantiate your operator and call ``execute()`` — or ``poke()`` for a sensor — with the context
+keys your code reads. This needs no Dag, no Dag run and no metadata database:
+
+.. code-block:: python
+
+    def test_hello_operator():
+        op = HelloOperator(task_id="hello", name="Bob")
+
+        assert op.execute(context={}) == "Hello Bob"
+
+Use ``op.render_template_fields(context)`` if you need to assert on rendered
+:ref:`template fields <custom-operator/template-fields>`.
+
+Reach for :ref:`dag.test() <concepts:debugging>` only when you want to exercise a whole Dag run,
+which is an integration test: it requires a metadata database and a Dag defined in a file that
+Airflow can serialize. See :ref:`Unit tests <best_practices:unit_tests>` for the full set of
+patterns, including deferrable operators.

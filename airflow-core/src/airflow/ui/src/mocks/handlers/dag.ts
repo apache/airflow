@@ -58,6 +58,59 @@ export const MOCK_DAG = {
   timezone: "UTC",
 };
 
+const buildDag = (dagId: string) => ({ ...MOCK_DAG, dag_display_name: dagId, dag_id: dagId, tags: [] });
+
+const buildTask = (taskId: string) => ({
+  class_ref: null,
+  depends_on_past: false,
+  doc_md: null,
+  downstream_task_ids: [],
+  end_date: null,
+  execution_timeout: null,
+  extra_links: [],
+  is_mapped: false,
+  operator_name: "PythonOperator",
+  owner: "airflow",
+  params: {},
+  pool: "default_pool",
+  pool_slots: 1,
+  priority_weight: 1,
+  queue: "default",
+  retries: 0,
+  retry_delay: null,
+  retry_exponential_backoff: 0,
+  start_date: "2021-01-01T00:00:00Z",
+  task_display_name: taskId,
+  task_id: taskId,
+  template_fields: [],
+  trigger_rule: "all_success",
+  ui_color: "#ffefeb",
+  ui_fgcolor: "#000",
+  wait_for_downstream: false,
+  weight_rule: "downstream",
+});
+
 export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/dags/tutorial_taskflow_api/details", () => HttpResponse.json(MOCK_DAG)),
+  http.get("/api/v2/dags/:dagId/details", ({ params }) => HttpResponse.json(buildDag(String(params.dagId)))),
+  http.get("/api/v2/dags/:dagId", ({ params }) => HttpResponse.json(buildDag(String(params.dagId)))),
+  http.get("/api/v2/dags/:dagId/tasks/:taskId", ({ params }) =>
+    HttpResponse.json(buildTask(String(params.taskId))),
+  ),
+  http.get("/api/v2/dagTags", () =>
+    HttpResponse.json({ tags: ["example", "example_tag", "other_tag"], total_entries: 3 }),
+  ),
+  http.get("/ui/dags/folders", () => HttpResponse.json({ folders: [], total_entries: 0 })),
+  http.get("/ui/dags/:dagId/latest_run", () => HttpResponse.json(null)),
+  http.get("/ui/dags/:dagId/deadlineAlerts", () =>
+    HttpResponse.json({ deadline_alerts: [], total_entries: 0 }),
+  ),
+  // An empty grid: no runs, so the TI summaries stream is never opened by the grid itself.
+  http.get("/ui/grid/runs/:dagId", () => HttpResponse.json([])),
+  http.get("/ui/grid/structure/:dagId", () => HttpResponse.json([])),
+  http.get(
+    "/ui/grid/ti_summaries/:dagId",
+    () => new HttpResponse("", { headers: { "Content-Type": "application/x-ndjson" } }),
+  ),
+  http.get("/ui/structure/structure_data", () => HttpResponse.json({ edges: [], nodes: [] })),
 ];

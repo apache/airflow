@@ -10,7 +10,8 @@
     "columns": {
       "section": "Section"
     },
-    "title": "Airflow Configuration"
+    "config_one": "Config",
+    "config_other": "Configs"
   },
   "connections": {
     "add": "Add $t(connections.connection_one)",
@@ -24,19 +25,21 @@
     "connection_other": "Connections",
     "delete": {
       "deleteConnection_one": "Delete 1 connection",
-      "deleteConnection_other": "Delete {{count}} connections",
+      "deleteConnection_other": "Delete {{count, number}} connections",
       "firstConfirmMessage_one": "You are about to delete the following connection:",
       "firstConfirmMessage_other": "You are about to delete the following connections:",
       "title": "Delete $t(connections.connection_one)"
     },
+    "duplicate": "Duplicate $t(connections.connection_one)",
     "edit": "Edit $t(connections.connection_one)",
     "form": {
       "connectionIdRequired": "Connection ID is required",
       "connectionIdRequirement": "Connection ID cannot contain only spaces",
+      "connectionTypeFields": "{{connectionType}} Fields",
       "connectionTypeRequired": "Connection Type is required",
-      "extraFields": "Extra Fields",
       "extraFieldsJson": "Extra Fields JSON",
       "helperText": "Connection type missing? Make sure you have installed the corresponding Airflow Providers Package.",
+      "helperTextForDuplicatedRedactedFields": "Redacted fields ('***') are not copied. Fill them in for the new connection.",
       "helperTextForRedactedFields": "Redacted fields ('***') will remain unchanged if not modified.",
       "selectConnectionType": "Select Connection Type",
       "standardFields": "Standard Fields"
@@ -96,7 +99,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "Job",
+    "job_other": "Jobs"
   },
   "plugins": {
     "columns": {
@@ -104,6 +109,8 @@
     },
     "importError_one": "Plugin Import Error",
     "importError_other": "Plugin Import Errors",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "Search by file"
   },
   "pools": {
@@ -137,7 +144,9 @@
     "columns": {
       "packageName": "Package Name",
       "version": "Version"
-    }
+    },
+    "provider_one": "Provider",
+    "provider_other": "Providers"
   },
   "variables": {
     "add": "Add $t(variables.variable_one)",
@@ -146,7 +155,7 @@
     },
     "delete": {
       "deleteVariable_one": "Delete 1 $t(variables.variable_one)",
-      "deleteVariable_other": "Delete {{count}} $t(variables.variable_other)",
+      "deleteVariable_other": "Delete {{count, number}} $t(variables.variable_other)",
       "firstConfirmMessage_one": "You are about to delete the following variable:",
       "firstConfirmMessage_other": "You are about to delete the following variables:",
       "title": "Delete $t(variables.variable_one)",

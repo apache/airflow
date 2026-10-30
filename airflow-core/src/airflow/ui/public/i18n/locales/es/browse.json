@@ -7,9 +7,8 @@
       "when": "Cuando"
     },
     "filters": {
-      "eventType": "Tipo de evento"
-    },
-    "title": "Auditar Log"
+      "eventType": "Tipo de Evento"
+    }
   },
   "deadlines": {
     "columns": {
@@ -17,7 +16,6 @@
       "deadlineTime": "Hora del Plazo",
       "status": "Estado"
     },
-    "deadline_many": "Plazos",
     "deadline_one": "Plazo",
     "deadline_other": "Plazos",
     "filters": {
@@ -58,6 +56,8 @@
       "successTitle": "XCom Actualizado",
       "title": "Editar XCom"
     },
+    "entry_one": "Entrada de XCom",
+    "entry_other": "Entradas de XCom",
     "key": "Clave",
     "title": "XCom",
     "value": "Valor"

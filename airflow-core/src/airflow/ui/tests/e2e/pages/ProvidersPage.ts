@@ -19,23 +19,22 @@
 import { expect } from "@playwright/test";
 import type { Locator, Page } from "@playwright/test";
 
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
+
 import { BasePage } from "./BasePage";
 
 export class ProvidersPage extends BasePage {
-  public readonly adminMenuButton: Locator;
   public readonly heading: Locator;
-  public readonly providersMenuItem: Locator;
   public readonly rows: Locator;
   public readonly table: Locator;
 
   public constructor(page: Page) {
     super(page);
 
-    this.adminMenuButton = page.getByRole("button", { name: /^admin$/i });
-    this.heading = page.getByRole("heading", { name: /^providers$/i });
-    this.providersMenuItem = page.getByRole("menuitem", { name: /^providers$/i });
+    // DataTable's row count is the page heading, so this reads "90 Providers" rather than "Providers"
+    this.heading = page.getByRole("heading", { name: /providers/i });
     this.table = page.getByTestId("table-list");
-    this.rows = this.table.locator("tbody tr").filter({
+    this.rows = this.table.locator(DATA_ROWS).filter({
       has: page.locator("td"),
     });
   }
@@ -65,15 +64,6 @@ export class ProvidersPage extends BasePage {
       await this.navigateTo("/providers");
       await this.waitForLoad();
     }).toPass({ intervals: [2000], timeout: 60_000 });
-  }
-
-  public async navigateFromAdminMenu(): Promise<void> {
-    await expect(async () => {
-      await this.navigateTo("/");
-      await this.adminMenuButton.click();
-      await expect(this.providersMenuItem).toBeVisible();
-    }).toPass({ intervals: [2000], timeout: 60_000 });
-    await this.providersMenuItem.click();
   }
 
   public packageLinkAt(index: number): Locator {

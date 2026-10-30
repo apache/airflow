@@ -16,10 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider } from "@chakra-ui/react";
 import type { PropsWithChildren } from "react";
 
+import { ChakraProvider } from "@chakra-ui/react";
+
 import type { Theme } from "openapi/requests/types.gen";
+
 import { useConfig } from "src/queries/useConfig";
 import { createTheme } from "src/theme";
 

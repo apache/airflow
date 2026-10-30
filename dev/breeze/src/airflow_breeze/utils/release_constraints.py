@@ -39,13 +39,22 @@ APACHE_AIRFLOW_REPO = "apache/airflow"
 def publish_constraints(*, version: str, ref: str, workflow_branch: str = "main") -> None:
     """Resolve, publish and tag the constraints belonging to ``version``.
 
-    ``version`` alone decides what happens: a candidate (``3.1.3rc1``) resolves with pre-releases
-    allowed - the providers of the wave being voted on are on PyPI only as rc versions - and lands
-    on a branch of its own, leaving the branch every other build reads where it was. A final
-    (``3.1.3``) resolves without them and commits onto ``constraints-X-Y``, which is what makes the
-    released constraints the baseline everything downstream reads.
+    ``version`` alone decides what happens: a candidate (``3.3.1rc1``) pins the providers at the
+    versions PyPI holds - the wave being voted on is there only as rc versions - and lands on a
+    branch of its own, leaving the branch every other build reads where it was. Re-running it for
+    the same candidate replaces that branch and its tag, so a wave can be re-cut. A final
+    (``3.3.1``) resolves against the published releases and commits onto ``constraints-X-Y``, which
+    is what makes the released constraints the baseline everything downstream reads.
     """
-    stage = "candidate" if "rc" in version else "final"
+    from packaging.version import Version
+
+    parsed = Version(version)
+    if not parsed.is_prerelease:
+        stage = "final"
+    elif parsed.pre and parsed.pre[0] == "b":
+        stage = "beta"
+    else:
+        stage = "candidate"
     if not confirm_action(
         f"Trigger the release-constraints workflow for the {stage} {version} (resolved from {ref})?"
     ):

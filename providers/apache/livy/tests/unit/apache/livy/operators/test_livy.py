@@ -25,7 +25,9 @@ import pytest
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
-from airflow.providers.apache.livy.operators.livy import LivyOperator
+from airflow.providers.apache.livy.operators.livy import (
+    LivyOperator,
+)
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
@@ -713,6 +715,12 @@ class TestLivyOperatorResumable:
         assert operator.is_job_active("success") is False
         assert operator.is_job_succeeded("success") is True
         assert operator.is_job_succeeded("dead") is False
+
+    def test_default_args_durable_reaches_operator(self):
+        operator = LivyOperator(
+            task_id="livy_default_args", file="sparkapp.jar", default_args={"durable": False}
+        )
+        assert operator.durable is False
 
     def test_get_job_status_reads_batch_state_value(self):
         operator = self._make_operator()

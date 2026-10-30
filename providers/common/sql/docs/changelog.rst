@@ -25,6 +25,90 @@
 Changelog
 ---------
 
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support 'abfs://' and 'abfss://' URIs in DataFusion Azure Blob Storage (#74228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Blob Storage support to the DataFusion object storage layer (#73374)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add GCS support to the DataFusion object storage layer (#73370)``
+* ``Allow DataSourceConfig to represent a plain database table (#73273)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the legacy extra__google_cloud_platform__ prefix for GCS credentials (#73613)``
+* ``Fix DataFusion storage-type error message on Python 3.11+ (#73413)``
+* ``Reject a DataSourceConfig with no uri or format in DataFusionEngine (#73287)``
+* ``Fix exception messages rendering as a tuple instead of the value (#73296)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rewrite the 'common.sql' connections guide and fix the dialect extra name (#73605)``
+* ``Fix grammar in the dialects documentation (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add tests for DataFusion base classes (#71983)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
 2.1.0
 .....
 
@@ -43,11 +127,12 @@ Bug Fixes
 Misc
 ~~~~
 
-* ``Limit pandas to < 3 for DataFrame XComs (#70791)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
 
 2.0.3
 .....
@@ -577,7 +662,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.22.0
 ......

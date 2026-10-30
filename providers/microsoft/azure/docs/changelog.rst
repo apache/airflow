@@ -27,12 +27,201 @@
 Changelog
 ---------
 
+15.3.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, ``PowerBIDatasetRefreshOperator`` resumes an existing refresh
+    by default. Durable execution starts refreshes on the worker, so workers need access
+    to the Power BI service. Set ``durable=False`` to preserve triggerer-only access:
+    the trigger starts a fresh refresh on each try and cancels it after polling errors.
+    On Airflow versions before 3.3, durable execution is disabled and this triggerer-only
+    behavior is preserved automatically. ``MSGraphAsyncOperator`` recovery remains opt-in
+    with ``durable=True`` and requires Airflow 3.3 or later.
+
+Features
+~~~~~~~~
+
+* ``Add AzureAISearchHook to the Microsoft Azure provider (#74290)``
+* ``Make the PowerBI refresh and MSGraph operators durable (#74675, #75272)``
+* ``Add WasbDagBundle to load Dags from Azure Blob Storage (#67016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix MSGraphSensor timeout being reset on every re-defer (#75774)``
+* ``Detect when enhanced Power BI refreshes finish or fail (#74600)``
+
+Misc
+~~~~
+
+* ``Require azure-keyvault-secrets 4.11.0 or newer (#73822)``
+* ``Accept optional task instances in Azure Blob remote-log type hints (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-20 (#75209)``
+
+15.2.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the msgraph connection extra with get_async_extra_dejson (#74161)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Cap microsoft-kiota-http below 1.13 in the Microsoft Azure provider (#74090)``
+* ``Support azure-datalake-store 1.x in AzureDataLakeHook (#73819)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix connection screenshots missing from the msgraph and IBM MQ docs (#74287)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+15.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Invalidate cached Microsoft Graph request adapter on 403 Forbidden (#73601)``
+* ``Contain remote log upload paths within base_log_folder (#72162)``
+
+Doc-only
+~~~~~~~~
+
+* ``Keep message queue provider doc markers out of class docstrings (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Remove newsfragments for changes already shipped in released versions (#73300)``
+   * ``Fix grammar typos (#73145)``
+
+15.1.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add support for sending emails through Microsoft Graph (#71565)``
+* ``Add Azure Analysis Services model refresh support (#71350)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph pagination offset across paginated pages (#71986)``
+* ``Invalidate cached Microsoft Graph request adapter on 401 Unauthorized (#72688)``
+* ``Avoid extra_dejson in ADF and Synapse async hooks (#72130)``
+* ``Restrict MSGraph deferrable pagination to the configured host (#71842)``
+
+Misc
+~~~~
+
+* ``Depend on ''httpx2'' instead of ''httpx'' (#72111)``
+* ``Replace generic AirflowException in AzureBatchOperator input validation (#71981)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+
+15.0.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph path parameters across paginated pages (#71866)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix typos across contributor and provider documentation (#71884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+15.0.0
+......
+
+.. warning::
+  The ``AzureBatchHook`` and ``AzureBatchOperator`` have been migrated to the ``azure-batch`` 15.x
+  SDK (track 2). This is a breaking change and requires ``azure-batch>=15.0.0``.
+
+  The following changes were introduced:
+
+  * Hooks
+
+    * ``AzureBatchHook.get_conn`` and ``AzureBatchHook.connection`` now return an ``azure.batch.BatchClient``
+      instead of an ``azure.batch.BatchServiceClient``.
+    * Shared key authentication now uses ``azure.core.credentials.AzureNamedKeyCredential`` instead of
+      ``azure.batch.batch_auth.SharedKeyCredentials``.
+    * Managed identity / workload identity authentication now uses
+      ``azure.identity.DefaultAzureCredential`` (via ``get_sync_default_azure_credential``) instead of
+      ``AzureIdentityCredentialAdapter``, since the track 2 client requires a credential implementing
+      ``get_token()``.
+    * ``AzureBatchHook.configure_pool`` no longer accepts the ``os_family`` and ``os_version`` parameters.
+      Cloud service configuration is not supported by the track 2 SDK; use a virtual machine configuration
+      (``vm_publisher``, ``vm_offer``, ``vm_sku``, ``vm_version`` or ``use_latest_image_and_sku``) instead.
+    * The Batch model classes were renamed by the SDK: ``PoolAddParameter`` is now ``BatchPoolCreateOptions``,
+      ``JobAddParameter`` is now ``BatchJobCreateOptions``, ``TaskAddParameter`` is now ``BatchTaskCreateOptions``,
+      and ``CloudTask`` is now ``BatchTask``.
+
+  * Operators
+
+    * ``AzureBatchOperator`` no longer accepts the ``os_family`` parameter. A ``vm_publisher`` must now be
+      provided to configure the pool's virtual machine image.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Migrate 'AzureBatchHook' and 'AzureBatchOperator' to the azure-batch 15.x SDK (#71071)``
+
+Features
+~~~~~~~~
+
+* ``Support certificate auth for Microsoft Graph filesystem (#71362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep MSGraph request configuration across paginated pages (#71649)``
+* ``Fix Microsoft Graph filesystem auth by defaulting OAuth2 scope (#70879)``
+* ``Check GCSToAzureBlobStorageOperator match_glob support after template… (#70574)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
 14.1.0
 ......
 
 Features
 ~~~~~~~~
 
+* ``Add certificate-based authentication support to Microsoft Graph filesystem (#69335)``
 * ``Add WasbRemoteLogIO.from_config and register wasb remote logging scheme (#70301)``
 
 Bug Fixes
@@ -42,6 +231,7 @@ Bug Fixes
 * ``Refuse the team agnostic fall-through for a team scoped Key Vault secret name (#70876)``
 * ``Fix duplicated task logs in the WASB log handler (#70860)``
 * ``Validate AzureVirtualMachineStateSensor target_state after rendering, outside poke() (#70329, #70372)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 Misc
 ~~~~
@@ -51,6 +241,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix some docs and test gaps following up multi team secret refusal (#71106)``
 
 14.0.0
 ......
@@ -688,7 +879,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 12.1.0
 ......

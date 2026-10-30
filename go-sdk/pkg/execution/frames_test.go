@@ -20,6 +20,8 @@ package execution
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -110,6 +112,18 @@ func TestWriteAndReadFrame(t *testing.T) {
 	assert.True(t, isNilRaw(frame.Err))
 }
 
+func TestReadFrameRejectsLengthPastPlatformInt(t *testing.T) {
+	if strconv.IntSize == 64 {
+		t.Skip("a length past a 64-bit int does not fit the 4-byte prefix")
+	}
+	var buf bytes.Buffer
+	require.NoError(t, binary.Write(&buf, binary.BigEndian, uint32(math.MaxInt32)+1))
+
+	_, err := readFrame(&buf)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds this platform's max")
+}
+
 func TestDecodeResponseFrame(t *testing.T) {
 	// Encode a 3-element response frame: [id, body, error]
 	var buf bytes.Buffer
@@ -177,4 +191,34 @@ func TestRoundTripMultipleFrames(t *testing.T) {
 		assert.Equal(t, int64(i), frame.ID)
 		assert.Equal(t, expected["key"], rawToMap(t, frame.Body)["key"])
 	}
+}
+
+func TestEncodeRequestHonoursJSONTags(t *testing.T) {
+	type userValue struct {
+		GoVersion string `json:"go_version"`
+		Ignored   string `json:"-"`
+		Untagged  int
+	}
+	type protocolValue struct {
+		Field string `msgpack:"wire_name" json:"json_name"`
+	}
+
+	data, err := encodeRequest(1, map[string]any{
+		"user":     userValue{GoVersion: "go1.25", Ignored: "dropped", Untagged: 7},
+		"protocol": protocolValue{Field: "v"},
+	})
+	require.NoError(t, err)
+
+	var frame []any
+	require.NoError(t, msgpack.Unmarshal(data[:], &frame))
+	require.Len(t, frame, 2)
+	body, ok := frame[1].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(
+		t,
+		map[string]any{"go_version": "go1.25", "Untagged": int8(7)},
+		body["user"],
+	)
+	assert.Equal(t, map[string]any{"wire_name": "v"}, body["protocol"])
 }

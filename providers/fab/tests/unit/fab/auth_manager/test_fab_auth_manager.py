@@ -22,11 +22,13 @@ from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, Mock
+from urllib.parse import urlencode
 
 import pytest
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -137,6 +139,23 @@ if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
 
 
+@mock.patch(
+    "airflow.providers.fab.auth_manager.fab_auth_manager.ApplessAirflowSecurityManager", autospec=True
+)
+def test_sync_dag_perms_without_auth_manager_initialization(mock_security_manager):
+    dag = Mock(spec=["dag_id", "access_control"])
+    dag.dag_id = "test"
+    dag.access_control = {"Viewer": {"can_read"}}
+    session = Mock(spec=Session)
+
+    FabAuthManager.sync_dag_perms(dag, session=session)
+
+    mock_security_manager.assert_called_once_with(session=session)
+    mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+        dag.dag_id, dag.access_control
+    )
+
+
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
@@ -221,6 +240,36 @@ class TestFabAuthManager:
 
         assert user.get_id() == result.get_id()
 
+    def test_deserialize_user_rejects_inactive_user(self, flask_app, auth_manager_with_appbuilder):
+        """A token naming a deactivated account must not resolve to a user."""
+        user = create_user(flask_app, "test_inactive")
+        auth_manager_with_appbuilder.cache.clear()
+
+        user.active = False
+        auth_manager_with_appbuilder.session.commit()
+        auth_manager_with_appbuilder.cache.clear()
+
+        with pytest.raises(ValueError, match=f"User with id {user.id} is not active"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+    def test_deserialize_user_rejects_null_active(self, flask_app, auth_manager_with_appbuilder):
+        """``active`` is nullable; a null is treated as inactive, as on the password path."""
+        user = create_user(flask_app, "test_null_active")
+        user.active = None
+        auth_manager_with_appbuilder.session.commit()
+        auth_manager_with_appbuilder.cache.clear()
+
+        with pytest.raises(ValueError, match=f"User with id {user.id} is not active"):
+            auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+    def test_deserialize_user_accepts_active_user(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "test_still_active")
+        auth_manager_with_appbuilder.cache.clear()
+
+        result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
+
+        assert result.get_id() == user.get_id()
+
     def test_deserialize_user_not_found(self, flask_app, auth_manager_with_appbuilder):
         """Test that deserialize_user raises ValueError when the user does not exist."""
         non_existent_id = "99999"
@@ -256,12 +305,24 @@ class TestFabAuthManager:
 
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
+        # ``is_anonymous`` and ``is_active`` are properties on the real model, so the
+        # mock has to set attributes rather than ``return_value``; setting the latter
+        # leaves a truthy Mock in place and the assertion passes regardless of state.
         user = Mock()
-        user.is_anonymous.return_value = False
-        user.is_active.return_value = True
+        user.is_anonymous = False
+        user.is_active = False
         mock_get_user.return_value = user
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
+
+    @mock.patch.object(FabAuthManager, "get_user")
+    def test_is_logged_in_with_active_user(self, mock_get_user, auth_manager_with_appbuilder):
+        user = Mock()
+        user.is_anonymous = False
+        user.is_active = True
+        mock_get_user.return_value = user
+
+        assert auth_manager_with_appbuilder.is_logged_in() is True
 
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_auth_role_public(self, mock_get_user, flask_app, auth_manager_with_appbuilder):
@@ -843,6 +904,26 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
+            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
+            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
+            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
+            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            *(
+                [
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [MenuItem.DAG_BUNDLES],
+                    ),
+                    (
+                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
+                        [],
+                    ),
+                ]
+                if hasattr(MenuItem, "DAG_BUNDLES")
+                else []
+            ),
             (
                 [],
                 [],
@@ -861,6 +942,12 @@ class TestFabAuthManager:
         user.perms = user_permissions
         result = auth_manager.filter_authorized_menu_items(menu_items, user=user)
         assert result == expected_result
+
+    def test_get_authorized_assets(self, auth_manager):
+        session = Mock()
+        session.execute.return_value.scalars.return_value.all.return_value = [1, 2]
+        result = auth_manager.get_authorized_assets(user=Mock(), method="GET", session=session)
+        assert result == {1, 2}
 
     def test_get_authorized_connections(self, auth_manager):
         session = Mock()
@@ -1003,6 +1090,17 @@ class TestFabAuthManager:
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
+
+    def test_get_url_login_with_next_url(self, auth_manager):
+        next_url = "http://localhost:8080/dags/example_dag/runs/manual__2026-05-20/tasks/example_task"
+        result = auth_manager.get_url_login(next_url=next_url)
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/?{urlencode({'next': next_url})}"
+
+    def test_get_url_login_without_next_url_kwarg(self, auth_manager):
+        # Callers that don't pass next_url (or pass an empty one) must keep getting the
+        # bare login url, matching the pre-existing behavior relied on elsewhere.
+        result = auth_manager.get_url_login(next_url=None)
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/"
 
     def test_get_url_logout(self, auth_manager):

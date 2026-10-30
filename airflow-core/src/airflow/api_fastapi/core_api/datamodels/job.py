@@ -37,6 +37,8 @@ class JobResponse(BaseModel):
     executor_class: str | None
     hostname: str | None
     unixname: str | None
+    team_names: list[str] = Field(default_factory=list)
+    bundle_names: list[str] | None = None
     dag_display_name: str | None = Field(
         validation_alias=AliasPath("dag_model", "dag_display_name"), default=None
     )

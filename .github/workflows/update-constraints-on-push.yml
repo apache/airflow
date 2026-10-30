@@ -16,14 +16,15 @@
 # under the License.
 #
 ---
-name: Update constraints (on uv.lock push or manual dispatch)
+name: Update constraints (on uv.lock push)
 # This workflow refreshes the pinned constraint files stored in the
 # `constraints-*` branches. It runs automatically whenever `uv.lock` changes on
-# `main` or a `vX-Y-test` branch, and can also be triggered manually via the
-# "Run workflow" button (workflow_dispatch) - for example to pick up newly
-# released providers/dependencies from PyPI just before promoting an RC.
+# `main` or a `vX-Y-test` branch. The manual path lives in
+# `refresh-constraints.yml`, which calls this workflow -- keeping the two triggers
+# in separate workflows means a manual refresh is not filtered by `paths: uv.lock`
+# and shows up in the Actions list under its own name.
 #
-# The manual run is always launched from `main` (so the workflow definition and
+# A manual run is always launched from `main` (so the workflow definition and
 # `breeze` come from `main`), and the `ref` input selects the commit-ish
 # (branch, tag or commit hash) whose sources the constraints are refreshed from.
 # The `constraints-X-Y` branch to push to is derived from that ref's
@@ -37,7 +38,7 @@ on:  # yamllint disable-line rule:truthy
       - v[0-9]+-[0-9]+-test
     paths:
       - 'uv.lock'
-  workflow_dispatch:
+  workflow_call:
     inputs:
       # `ref` is optional. Leave it empty to refresh constraints for the branch
       # you run the workflow from (normally `main` -> `constraints-main`). Set a
@@ -51,8 +52,13 @@ on:  # yamllint disable-line rule:truthy
         type: string
       upgrade-to-newer-dependencies:
         description: "Upgrade deps to newest from PyPI"
+        required: false
         type: boolean
         default: true
+    secrets:
+      SLACK_BOT_TOKEN:
+        description: "Slack bot token used to post provider-downgrade alerts (optional)."
+        required: false
 permissions:
   contents: read
 
@@ -93,6 +99,7 @@ jobs:
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+      constraints-baseline-sha: ${{ steps.constraints-baseline.outputs.sha }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -123,6 +130,19 @@ jobs:
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
         run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      # Recorded before the constraints are generated, so any commit landing on the branch while
+      # this run works - a release candidate's constraints above all - stops the publish below
+      # instead of being overwritten by pins resolved against the older baseline.
+      - name: "Record the constraints baseline"
+        id: constraints-baseline
+        shell: bash
+        env:
+          CONSTRAINTS_BRANCH: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+        run: |
+          sha="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}" \
+            "refs/heads/${CONSTRAINTS_BRANCH}" | cut -f1)"
+          echo "sha=${sha}" >> "${GITHUB_OUTPUT}"
+          echo "Constraints baseline: ${CONSTRAINTS_BRANCH} @ ${sha:-<branch does not exist yet>}"
       - name: "Parameters summary"
         shell: bash
         env:
@@ -190,6 +210,11 @@ jobs:
     timeout-minutes: 20
     name: "Commit and push constraints"
     needs: [build-info, generate-constraints]
+    # Shared with the other constraints publishers. The baseline check below still decides
+    # whether this run may publish at all; this only stops the two pushes overlapping.
+    concurrency:
+      group: constraints-publish-${{ needs.build-info.outputs.default-constraints-branch }}
+      cancel-in-progress: false
     permissions:
       contents: write
       packages: read
@@ -211,8 +236,22 @@ jobs:
           ref: ${{ env.CONSTRAINTS_BRANCH }}
           persist-credentials: true
           fetch-depth: 0
+      - name: "Check ${{ env.CONSTRAINTS_BRANCH }} did not move while the constraints were generated"
+        working-directory: "constraints"
+        env:
+          BASELINE_SHA: ${{ needs.build-info.outputs.constraints-baseline-sha }}
+        run: |
+          current_sha="$(git rev-parse HEAD)"
+          if [[ -n "${BASELINE_SHA}" && "${current_sha}" != "${BASELINE_SHA}" ]]; then
+            echo "::error::${CONSTRAINTS_BRANCH} moved from ${BASELINE_SHA} to ${current_sha}" \
+              "while this run generated its constraints. Publishing would overwrite those commits" \
+              "with pins resolved against the older baseline. Re-run the workflow so it starts" \
+              "from the current branch."
+            git log --oneline "${BASELINE_SHA}..${current_sha}" || true
+            exit 1
+          fi
       - name: "Download constraints from the generate-constraints job"
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           pattern: constraints-*
           path: ./files
@@ -228,7 +267,7 @@ jobs:
 
   notify-on-failure:
     name: "Notify on failure"
-    runs-on: ["ubuntu-22.04"]
+    runs-on: ["ubuntu-slim"]
     needs: [build-info, build-ci-images, generate-constraints, update-constraints]
     if: failure()
     env:

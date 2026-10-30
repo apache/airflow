@@ -26,26 +26,7 @@ from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.sdk import AirflowException, conf
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "redshift_statement_id"
-
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = durable
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
+from airflow.providers.common.compat.sdk import AirflowException, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data.type_defs import (
@@ -135,8 +116,13 @@ class RedshiftDataOperator(ResumableJobMixin, AwsBaseOperator[RedshiftDataHook])
         session_id: str | None = None,
         session_keep_alive_seconds: int | None = None,
         cancel_on_kill: bool = True,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.database = database
         self.sql = sql

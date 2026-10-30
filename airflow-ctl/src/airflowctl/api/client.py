@@ -35,7 +35,7 @@ import structlog
 from httpx import URL
 from keyring.errors import NoKeyringError
 from tenacity import (
-    before_log,
+    before_sleep_log,
     retry,
     retry_if_exception,
     stop_after_attempt,
@@ -113,7 +113,9 @@ def get_json_error(response: httpx.Response):
         # This part is used in integration tests to verify the error message
         # If you are updating here don't forget to update the airflow-ctl-tests
         if not response.request.extensions.get("airflowctl_suppress_error_log"):
-            log.warning("Server error ", extra=dict(err.response.json()))
+            detail = err.response.json()
+            # ``extra`` needs a mapping, but a JSON error body can be any JSON value.
+            log.warning("Server error ", extra=detail if isinstance(detail, dict) else {"detail": detail})
         raise err
 
 
@@ -229,10 +231,12 @@ class Credentials:
                 for candidate in candidates:
                     if hasattr(candidate, "_get_new_password"):
                         candidate._get_new_password = _bounded_get_new_password
+                if self.api_token is None:
+                    raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.")
                 keyring.set_password(
                     "airflowctl",
                     self.token_key_for_environment(self.api_environment),
-                    self.api_token,  # type: ignore[arg-type]
+                    self.api_token,
                 )
         except (NoKeyringError, NotImplementedError) as e:
             log.error(e)
@@ -243,10 +247,6 @@ class Credentials:
                 "the --api-token flag to any command.\n"
                 "Use `airflowctl auth login --skip-keyring ...` to dismiss this error."
             ) from e
-        except TypeError as e:
-            # This happens when the token is None, which is not allowed by keyring
-            if self.api_token is None and self.client_kind == ClientKind.CLI:
-                raise AirflowCtlCredentialNotFoundException("No API token found. Please login first.") from e
 
     def load(self) -> Credentials:
         """Load the credentials from keyring and URL from disk file."""
@@ -298,9 +298,10 @@ class Credentials:
                         if self.client_kind == ClientKind.CLI:
                             raise AirflowCtlKeyringException("Keyring backend is not available") from e
                         self.api_token = None
-        except FileNotFoundError:
+        except (FileNotFoundError, json.JSONDecodeError):
             # This is expected during the auth login command.
             # Also allow token-only usage without local config (for commands like `version --remote`).
+            # JSONDecodeError handles the case where the credentials file exists but is empty or corrupted.
             if self.client_kind not in (ClientKind.AUTH, ClientKind.NO_AUTH) and self.api_token is None:
                 raise AirflowCtlCredentialNotFoundException("No credentials file found. Please login first.")
 
@@ -325,10 +326,32 @@ def _should_retry_api_request(exception: BaseException) -> bool:
     return isinstance(exception, httpx.RequestError)
 
 
+def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
+    """Read an integer tuning knob, keeping a bad value from taking the whole CLI down at import."""
+    value = os.getenv(name)
+    # Docker and Kubernetes spell "not configured" as an empty value, not an absent one.
+    if not value:
+        return default
+
+    parsed: int | None
+    try:
+        parsed = int(value)
+    except ValueError:
+        parsed = None
+    if parsed is not None and parsed >= minimum:
+        return parsed
+
+    # stderr, not the logger: logging is unconfigured at import and structlog would use stdout.
+    sys.stderr.write(
+        f"Warning: ignoring {name}={value!r}, expected an integer >= {minimum}; using {default}.\n"
+    )
+    return default
+
+
 # API Client Retry Configuration
-API_RETRIES = int(os.getenv("AIRFLOW_CLI_API_RETRIES", "3"))
-API_RETRY_WAIT_MIN = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MIN", "1"))
-API_RETRY_WAIT_MAX = int(os.getenv("AIRFLOW_CLI_API_RETRY_WAIT_MAX", "10"))
+API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
+API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
+API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
 
 
 class Client(httpx.Client):
@@ -378,7 +401,7 @@ class Client(httpx.Client):
         retry=retry_if_exception(_should_retry_api_request),
         stop=stop_after_attempt(API_RETRIES),
         wait=wait_random_exponential(min=API_RETRY_WAIT_MIN, max=API_RETRY_WAIT_MAX),
-        before_sleep=before_log(log, logging.WARNING),
+        before_sleep=before_sleep_log(log, logging.WARNING),
         reraise=True,
     )
     def request(self, *args, **kwargs):
@@ -493,6 +516,7 @@ class Client(httpx.Client):
 def get_client(
     kind: Literal[ClientKind.CLI, ClientKind.AUTH, ClientKind.NO_AUTH] = ClientKind.CLI,
     api_token: str | None = None,
+    api_environment: str = "production",
 ):
     """
     Get CLI API client.
@@ -504,10 +528,12 @@ def get_client(
     try:
         # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
-            credentials = Credentials(client_kind=kind).load()
+            credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
         else:
-            credentials = Credentials(client_kind=kind, api_token=api_token).load()
+            credentials = Credentials(
+                client_kind=kind, api_token=api_token, api_environment=api_environment
+            ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
             base_url=credentials.api_url or "http://localhost:8080",
@@ -539,7 +565,13 @@ def provide_api_client(
         def wrapper(*args, **kwargs) -> RT:
             if "api_client" not in kwargs:
                 api_token = getattr(args[0], "api_token", None) if args else None
-                with get_client(kind=kind, api_token=api_token) as api_client:
+                # ``env`` comes from ARG_AUTH_ENVIRONMENT on every command that
+                # accepts ``--env``/``-e``; Credentials itself still honours
+                # AIRFLOW_CLI_ENVIRONMENT over this value.
+                api_environment = (getattr(args[0], "env", None) if args else None) or "production"
+                with get_client(
+                    kind=kind, api_token=api_token, api_environment=api_environment
+                ) as api_client:
                     return func(*args, api_client=api_client, **kwargs)
             # The CLI API Client should be only passed for Mocking and Testing
             return func(*args, **kwargs)

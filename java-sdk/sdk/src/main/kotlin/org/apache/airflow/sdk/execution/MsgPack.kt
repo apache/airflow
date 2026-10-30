@@ -41,11 +41,6 @@ import java.math.BigInteger
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
-private fun MessagePacker.packByteArray(data: ByteArray) {
-  packBinaryHeader(data.size)
-  data.forEach { packByte(it) }
-}
-
 private fun MessagePacker.packMap(data: Map<*, *>) {
   packMapHeader(data.size)
   data.forEach { (k, v) ->
@@ -71,7 +66,13 @@ fun MessagePacker.packAny(data: Any?) {
     is BigInteger -> packBigInteger(data)
     is Float -> packFloat(data)
     is Double -> packDouble(data)
-    is ByteArray -> packByteArray(data)
+    // The supervisor rejects bytes in values such as XCom values. It does not reply
+    // to a request it cannot decode, so the task that sent the request would wait forever.
+    is ByteArray ->
+      throw IllegalArgumentException(
+        "Airflow does not accept byte arrays because they are not JSON values. " +
+          "Encode the bytes as a string first, for example with java.util.Base64.",
+      )
     is String -> packString(data)
     is Map<*, *> -> packMap(data)
     is Collection<*> -> packCollection(data)
@@ -92,10 +93,11 @@ private fun MapValue.decodeMap(): Map<*, *> =
 private fun ExtensionValue.decodeExtensionValue(): Any? =
   when (type) {
     TimestampToJavaOffsetDateTimeModule.EXT_TYPE -> {
-      MessagePack
-        .newDefaultUnpacker(data)
-        .unpackTimestamp(ExtensionTypeHeader(type, data.size))
-        .atOffset(ZoneOffset.UTC)
+      MessagePack.newDefaultUnpacker(data).use { unpacker ->
+        unpacker
+          .unpackTimestamp(ExtensionTypeHeader(type, data.size))
+          .atOffset(ZoneOffset.UTC)
+      }
     }
     else -> throw IllegalArgumentException("Unsupported extension type: $this")
   }
@@ -143,8 +145,10 @@ class TimestampToJavaOffsetDateTimeModule : SimpleModule() {
       if (ext.type != EXT_TYPE) {
         return null
       }
-      val unpacker = MessagePack.newDefaultUnpacker(ext.data)
-      val instant = unpacker.unpackTimestamp(ExtensionTypeHeader(EXT_TYPE, ext.data.size))
+      val instant =
+        MessagePack.newDefaultUnpacker(ext.data).use { unpacker ->
+          unpacker.unpackTimestamp(ExtensionTypeHeader(EXT_TYPE, ext.data.size))
+        }
       return instant.atOffset(ZoneOffset.UTC)
     }
   }

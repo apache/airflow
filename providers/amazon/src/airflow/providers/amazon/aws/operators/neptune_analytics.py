@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.neptune_analytics import (
     NeptuneImportTaskCompleteTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import conf
 
@@ -72,7 +73,9 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param tags: Specifies metadata tags to add to the graph.
     :param wait_for_completion: Whether to wait for the graph to start. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the graph to start.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -82,6 +85,8 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -168,11 +173,14 @@ class NeptuneCreateGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         )
         self.log.info("You can view this Neptune Graph at : %s", graph_url)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until graph %s is available", self.graph_id)
             self.defer(
                 trigger=NeptuneGraphAvailableTrigger(
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     graph_id=self.graph_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -220,7 +228,9 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     :param vpc_security_group_ids: Security groups to be attached to the private graph endpoint
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -230,6 +240,8 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -312,11 +324,14 @@ class NeptuneCreatePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         )
         self.log.info("You can view this private endpoint at : %s", endpoint_url)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until endpoint is available")
             self.defer(
                 trigger=NeptuneGraphPrivateEndpointAvailableTrigger(
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     graph_id=self.graph_identifier,
                     vpc_id=self.vpc_id,
                     waiter_delay=self.waiter_delay,
@@ -363,7 +378,9 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
     :param vpc_id: VPC where endpoint resides
     :param wait_for_completion: Whether to wait for the endpoint to be deleted. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the endpoint to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -373,7 +390,8 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -415,11 +433,14 @@ class NeptuneDeletePrivateGraphEndpointOperator(AwsBaseOperator[NeptuneAnalytics
                 f"Failed to delete private endpoint {endpoint_id}"
             )
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until endpoint %s is deleted", endpoint_id)
             self.defer(
                 trigger=NeptuneGraphPrivateEndpointDeletedTrigger(
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     graph_id=self.graph_identifier,
                     vpc_id=self.vpc_id,
                     endpoint_id=endpoint_id,
@@ -463,7 +484,9 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param skip_snapshot: Determines whether a final graph snapshot is created before the graph is deleted. If true is specified, no graph snapshot is created. If false is specified, a graph snapshot is created before the graph is deleted.
     :param wait_for_completion: Whether to wait for the graph to delete. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the graph to be deleted.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -473,7 +496,8 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -512,11 +536,14 @@ class NeptuneDeleteGraphOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                 return
             raise NeptuneGraphDeletionFailedError(e.response["Error"])
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until graph %s is deleted", self.graph_id)
             self.defer(
                 trigger=NeptuneGraphDeletedTrigger(
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     graph_id=self.graph_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -574,7 +601,9 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
     :param waiter_delay: Time in seconds to wait between status checks. (default: 30)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 60)
     :param deferrable: If True, the operator will wait asynchronously for the graph to be created and data imported.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
@@ -582,6 +611,8 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -724,11 +755,14 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
 
         self.log.info("You can view this Neptune Graph at : %s", graph_url)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until graph %s is available", self.graph_id)
             self.defer(
                 trigger=NeptuneGraphAvailableTrigger(
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                     graph_id=self.graph_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -773,6 +807,9 @@ class NeptuneCreateGraphWithImportOperator(AwsBaseOperator[NeptuneAnalyticsHook]
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
                 kwargs={"graph_id": graph_id},
@@ -812,7 +849,9 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param parquet_type: Parquet type of import task
     :param wait_for_completion: Whether to wait for the endpoint to be available. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the endpoint to become available.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -822,6 +861,8 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -906,7 +947,7 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         )
         self.log.info("You can view this import task at : %s", import_task_url)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until import task %s completes", import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCompleteTrigger(
@@ -914,6 +955,9 @@ class NeptuneStartImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -952,7 +996,9 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
     :param wait_for_completion: Whether to wait for the task to be cancelled. If the task is already
         in a completed state, the operator will end successfully. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the task to be cancelled.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param waiter_delay: Time in seconds to wait between status checks.
     :param waiter_max_attempts: Maximum number of attempts to check for job completion.
@@ -962,6 +1008,8 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     :return: dictionary with Neptune graph id
@@ -994,7 +1042,7 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
 
         self.log.info("Import task %s status is %s", self.import_task_id, response.get("status", "Unknown"))
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until import task %s is cancelled", self.import_task_id)
             self.defer(
                 trigger=NeptuneImportTaskCancelledTrigger(
@@ -1002,6 +1050,9 @@ class NeptuneCancelImportTaskOperator(AwsBaseOperator[NeptuneAnalyticsHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )

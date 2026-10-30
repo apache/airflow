@@ -17,12 +17,11 @@
 from __future__ import annotations
 
 import json
-from io import BytesIO
 from unittest import mock
 from unittest.mock import ANY
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
@@ -69,11 +68,6 @@ TEST_VARIABLE_DESCRIPTION4 = "Some description for the variable"
 TEST_VARIABLE_SEARCH_KEY = "test_variable_search_key"
 TEST_VARIABLE_SEARCH_VALUE = "random search value"
 TEST_VARIABLE_SEARCH_DESCRIPTION = "Some description for the variable"
-
-
-# Helper function to simulate file upload
-def create_file_upload(content: dict) -> BytesIO:
-    return BytesIO(json.dumps(content).encode("utf-8"))
 
 
 @provide_session
@@ -546,6 +540,29 @@ class TestPatchVariable(TestVariableEndpoint):
         }
         check_last_log(session, dag_id=None, event="patch_variable", logical_date=None)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            ["a", "b"],
+            {"name": "test", "id": 123, "active": True},
+            42,
+            4.2,
+            True,
+            None,
+        ],
+        ids=["list", "dict", "int", "float", "bool", "none"],
+    )
+    def test_patch_non_string_json_value_round_trips(self, test_client, value):
+        """Non-string JSON values must be stored as valid JSON, not raise a 500 (issue #71010)."""
+        self.create_variables()
+        body = {"key": TEST_VARIABLE_KEY, "value": value, "description": TEST_VARIABLE_DESCRIPTION}
+
+        response = test_client.patch(f"/variables/{TEST_VARIABLE_KEY}", json=body)
+
+        assert response.status_code == 200
+        assert json.loads(response.json()["value"]) == value
+        assert Variable.get(TEST_VARIABLE_KEY, deserialize_json=True) == value
+
     def test_patch_should_respond_400(self, test_client):
         response = test_client.patch(
             f"/variables/{TEST_VARIABLE_KEY}",
@@ -592,6 +609,18 @@ class TestPatchVariable(TestVariableEndpoint):
             "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
             in response.json()["detail"][0]["msg"]
         )
+
+    # Only values a uri can carry: the body key has to match the uri parameter to get past the
+    # mismatch check, and httpx refuses to put a raw tab or newline in a url.
+    @pytest.mark.parametrize("key", ["", " "])
+    def test_patch_variable_rejects_blank_key(self, test_client, session, key):
+        # PATCH takes the full VariableBody, so it picks up the same constraint as POST. A blank
+        # key matched the equally blank `:path` uri parameter, so the update went ahead.
+        Variable.set(key=key, value="old value", session=session)
+        session.commit()
+        response = test_client.patch(f"/variables/{key}", json={"key": key, "value": "new value"})
+        assert response.status_code == 422
+        assert Variable.get(key, session=session) == "old value"
 
     @pytest.mark.enable_redact
     def test_patch_with_update_mask_description_only(self, test_client, session):
@@ -681,6 +710,30 @@ class TestPostVariable(TestVariableEndpoint):
         assert response.json() == expected_response
         check_last_log(session, dag_id=None, event="post_variable", logical_date=None)
 
+    @pytest.mark.parametrize(
+        "value",
+        [
+            ["a", "b"],
+            {"name": "test", "id": 123, "active": True},
+            42,
+            4.2,
+            True,
+            None,
+        ],
+        ids=["list", "dict", "int", "float", "bool", "none"],
+    )
+    def test_post_non_string_json_value_round_trips(self, test_client, value):
+        """Non-string JSON values must be stored as valid JSON, not a Python repr (issue #71010)."""
+        body = {"key": "non_string_value", "value": value, "description": "non-string JSON value"}
+
+        response = test_client.post("/variables", json=body)
+
+        assert response.status_code == 201
+        assert json.loads(response.json()["value"]) == value
+        stored_raw = Variable.get("non_string_value")
+        assert json.loads(stored_raw) == value
+        assert Variable.get("non_string_value", deserialize_json=True) == value
+
     def test_post_with_team_should_respond_201(self, test_client, testing_team, session):
         self.create_variables()
         body = {
@@ -758,6 +811,24 @@ class TestPostVariable(TestVariableEndpoint):
             ]
         }
 
+    @pytest.mark.parametrize(
+        "body",
+        [[{"key": "new variable key", "value": "new variable value"}], '{"key": "a"}', 42],
+        ids=["list", "string", "number"],
+    )
+    def test_post_should_respond_422_for_non_dict_json_body(self, test_client, session, body):
+        """The audit-log dependency reads the body before validation, so a non-object body still gets a 422."""
+        response = test_client.post("/variables", json=body)
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body"]
+        check_last_log(
+            session,
+            dag_id=None,
+            event="post_variable",
+            logical_date=None,
+            expected_extra={"method": "POST"},
+        )
+
     @conf_vars({("core", "multi_team"): "False"})
     def test_post_rejects_team_name_when_multi_team_disabled(self, test_client):
         body = {
@@ -772,6 +843,12 @@ class TestPostVariable(TestVariableEndpoint):
             "team_name cannot be set when multi_team mode is disabled. Please contact your administrator."
             in response.json()["detail"][0]["msg"]
         )
+
+    @pytest.mark.parametrize("key", ["", " ", "   ", "\t", "\n"])
+    def test_post_variable_rejects_blank_key(self, test_client, session, key):
+        response = test_client.post("/variables", json={"key": key, "value": "some value"})
+        assert response.status_code == 422
+        assert session.scalar(select(Variable).filter_by(key=key)) is None
 
     @pytest.mark.parametrize(
         "body",
@@ -1395,11 +1472,15 @@ class TestBulkVariables(TestVariableEndpoint):
             ),
             ("my_list_var_param", ["alpha", 42, False, {"nested": "item param"}], "A list value (param)"),
             ("my_string_var_param", "plain string param", "A plain string (param)"),
+            ("my_bool_var_param", True, "A bool value (param)"),
+            ("my_none_var_param", None, "A null value (param)"),
         ],
         ids=[
             "dict_variable",
             "list_variable",
             "string_variable",
+            "bool_variable",
+            "none_variable",
         ],
     )
     def test_bulk_create_entity_serialization(
@@ -1420,19 +1501,45 @@ class TestBulkVariables(TestVariableEndpoint):
         response = test_client.patch("/variables", json=actions)
         assert response.status_code == 200
 
-        if isinstance(entity_value, (dict, list)):
+        if isinstance(entity_value, str):
+            # Strings are stored verbatim; a plain non-JSON string is not deserializable.
+            retrieved_value_raw = Variable.get(entity_key, deserialize_json=False)
+            assert retrieved_value_raw == entity_value
+
+            with pytest.raises(json.JSONDecodeError):
+                Variable.get(entity_key, deserialize_json=True)
+        else:
             retrieved_value_deserialized = Variable.get(entity_key, deserialize_json=True)
             assert retrieved_value_deserialized == entity_value
             retrieved_value_raw_string = Variable.get(entity_key, deserialize_json=False)
             assert retrieved_value_raw_string == json.dumps(entity_value, indent=2)
-        else:
-            retrieved_value_raw = Variable.get(entity_key, deserialize_json=False)
-            assert retrieved_value_raw == str(entity_value)
-
-            with pytest.raises(json.JSONDecodeError):
-                Variable.get(entity_key, deserialize_json=True)
 
         check_last_log(session, dag_id=None, event="bulk_variables", logical_date=None)
+
+    def test_bulk_update_non_string_json_value_round_trips(self, test_client):
+        """A non-string value in bulk update must not 500 the whole request (issue #71010)."""
+        self.create_variables()
+        actions = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [
+                        {
+                            "key": TEST_VARIABLE_KEY,
+                            "value": {"nested": [1, 2, True, None]},
+                            "description": TEST_VARIABLE_DESCRIPTION,
+                        }
+                    ],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        response = test_client.patch("/variables", json=actions)
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {"success": [TEST_VARIABLE_KEY], "errors": []}
+        assert Variable.get(TEST_VARIABLE_KEY, deserialize_json=True) == {"nested": [1, 2, True, None]}
 
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/variables", json={})
@@ -1506,6 +1613,30 @@ class TestBulkVariables(TestVariableEndpoint):
         expected_error_keys = {err["input"]["key"] for err in detail}
         assert sorted(expected_error_keys) == ["var_2", "var_3"]
 
+    @pytest.mark.parametrize("action", ["create", "update"])
+    @pytest.mark.parametrize("key", ["", " ", "\t"])
+    def test_bulk_rejects_blank_key(self, test_client, session, action, key):
+        # The bulk endpoint validates its entities as VariableBody, so one blank key rejects the
+        # whole request before any action runs.
+        self.create_variables()
+        n_variables = session.scalar(select(func.count()).select_from(Variable))
+        response = test_client.patch(
+            "/variables",
+            json={
+                "actions": [
+                    {
+                        "action": action,
+                        "entities": [
+                            {"key": TEST_VARIABLE_KEY, "value": "some value"},
+                            {"key": key, "value": "some value"},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 422
+        assert session.scalar(select(func.count()).select_from(Variable)) == n_variables
+
     @pytest.mark.parametrize("num_variables", [1, 25])
     def test_bulk_delete_resolves_existence_in_single_query(self, session, num_variables):
         """Bulk delete looks up all targeted variables in one query, not one per key (no N+1)."""
@@ -1528,3 +1659,34 @@ class TestBulkVariables(TestVariableEndpoint):
 
         session.commit()
         assert session.scalars(select(Variable.key).where(Variable.key.in_(keys))).all() == []
+
+    @pytest.mark.parametrize("num_variables", [1, 25])
+    def test_bulk_update_resolves_existence_in_single_query(self, session, num_variables):
+        """Bulk update looks up all targeted variables in one query, not one per key (no N+1)."""
+        keys = [f"bulk_update_var_{i}" for i in range(num_variables)]
+        for key in keys:
+            Variable.set(key=key, value="old_value", session=session)
+        session.commit()
+
+        request = BulkBody[VariableBody].model_validate(
+            {
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"key": key, "value": "new_value"} for key in keys],
+                        "action_on_non_existence": "skip",
+                    }
+                ]
+            }
+        )
+        service = BulkVariableService(session=session, request=request)
+
+        with assert_queries_count(1):
+            response = service.handle_request()
+
+        assert response.update is not None
+        assert sorted(response.update.success) == sorted(keys)
+
+        session.commit()
+        updated_variables = session.scalars(select(Variable).where(Variable.key.in_(keys))).all()
+        assert {variable.val for variable in updated_variables} == {"new_value"}

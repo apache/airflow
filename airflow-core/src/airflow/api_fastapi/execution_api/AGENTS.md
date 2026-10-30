@@ -32,6 +32,17 @@ uv run --active --group codegen --project apache-airflow-task-sdk --directory ta
 - Don't use keyword arguments with `endpoint()` — use positional: `endpoint("/path", ["GET"])`.
 - Don't add changes to already-released version files.
 - Don't forget response converters for new fields in nested objects.
+- Don't branch business logic by comparing the negotiated API version to a date/version string. For this case, subclass `VersionChangeWithSideEffects` for the version change and check its `is_applied` flag instead:
+
+  ```python
+  class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects): ...
+
+
+  def _client_supports_arg_bindings() -> bool:
+      return AddArgBindingsToTIRunContext.is_applied
+  ```
+
+  See [Cadwyn's docs](https://docs.cadwyn.dev/concepts/version_changes/#version-changes-with-side-effects).
 
 ### Adding a New Feature End-to-End
 
@@ -66,4 +77,4 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 
 ## Token Scope Infrastructure
 
-Token types (`"execution"`, `"workload"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`.
+Token types (`"execution"`, `"workload"`, `"callback"`, `"dag_processor_session"`, `"dag_processor"`, `"dag_parse"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`. A route that admits `dag_processor` or `dag_parse` tokens for Connection, Variable, XCom, Dag run or task-instance reads must also bind the request to a granted Dag bundle (`SelectedDagBundle` or `DagInGrantedBundle`); the `/jobs` routes bind to the `job_id` claim instead. `test_token_scope_boundaries.py` lists the bundle-bound routes and the parse-time messages that use them.

@@ -17,16 +17,22 @@
 
 from __future__ import annotations
 
+import json
+import uuid
 from datetime import timedelta
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.routes.ui.deadlines import get_dag_deadline_alerts
+from airflow.logging.remote import RemoteLogStreamIO
+from airflow.models.callback import Callback, CallbackType
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
@@ -37,13 +43,17 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_deadline,
     clear_db_deadline_alert,
     clear_db_runs,
     clear_db_serialized_dags,
+    clear_db_teams,
 )
+from tests_common.test_utils.team import attach_dag_to_team
 
 pytestmark = pytest.mark.db_test
 
@@ -64,6 +74,12 @@ ALERT_NAME = "SLA Breach Alert"
 _CALLBACK_PATH = "tests.unit.api_fastapi.core_api.routes.ui.test_deadlines._noop_callback"
 
 
+_CALLBACK_LOG_FILES = [
+    (CallbackType.EXECUTOR, "executor_callbacks/{dag_id}/{run_id}/{cb_id}"),
+    (CallbackType.TRIGGERER, "triggerer_callbacks/{dag_id}/{run_id}/{cb_id}/callback.log"),
+]
+
+
 async def _noop_callback(**kwargs):
     """No-op callback used to satisfy Deadline creation in tests."""
 
@@ -72,13 +88,21 @@ def _cb() -> AsyncCallback:
     return AsyncCallback(_CALLBACK_PATH)
 
 
-@pytest.fixture(autouse=True)
-def setup(dag_maker, session):
+def _clear_db():
     clear_db_deadline()
     clear_db_deadline_alert()
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
+    # attach_dag_to_team commits its bundle and team before yielding, so a run interrupted
+    # inside that context manager leaves rows behind that would collide on the next run.
+    clear_db_dag_bundles()
+    clear_db_teams()
+
+
+@pytest.fixture(autouse=True)
+def setup(dag_maker, session):
+    _clear_db()
 
     with dag_maker(DAG_ID, serialized=True, session=session):
         EmptyOperator(task_id="task")
@@ -166,6 +190,17 @@ def setup(dag_maker, session):
         callback_def={"path": _CALLBACK_PATH},
     )
     session.add(alert)
+
+    session.add(
+        DeadlineAlert(
+            serialized_dag_id=serialized_dag.id,
+            name="Another Alert",
+            reference=DeadlineReference.DAGRUN_QUEUED_AT.serialize_reference(),
+            interval=3600.0,
+            callback_def={"path": _CALLBACK_PATH},
+        )
+    )
+
     session.flush()
     session.add(
         Deadline(
@@ -226,11 +261,7 @@ def setup(dag_maker, session):
     dag_maker.sync_dagbag_to_db()
     session.commit()
     yield
-    clear_db_deadline()
-    clear_db_deadline_alert()
-    clear_db_runs()
-    clear_db_dags()
-    clear_db_serialized_dags()
+    _clear_db()
 
 
 class TestGetDagRunDeadlines:
@@ -253,6 +284,10 @@ class TestGetDagRunDeadlines:
         assert deadline1["alert_id"] is None
         assert deadline1["dag_id"] == DAG_ID
         assert deadline1["dag_run_id"] == RUN_SINGLE
+        assert deadline1["callback_type"] == "triggerer"
+        assert deadline1["callback_state"] == "scheduled"
+        assert deadline1["callback_path"] == _CALLBACK_PATH
+        assert "callback_id" in deadline1
         assert "id" in deadline1
         assert "created_at" in deadline1
 
@@ -285,8 +320,8 @@ class TestGetDagRunDeadlines:
 
     @pytest.mark.parametrize(
         "order_by",
-        ["deadline_time", "id", "created_at", "alert_name"],
-        ids=["deadline_time", "id", "created_at", "alert_name"],
+        ["deadline_time", "id", "created_at", "alert_name", "callback_state"],
+        ids=["deadline_time", "id", "created_at", "alert_name", "callback_state"],
     )
     def test_should_response_200_order_by(self, test_client, order_by):
         url = f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines"
@@ -456,6 +491,47 @@ class TestGetDeadlines:
         unlinked = [dl for dl in deadlines if dl["alert_name"] is None]
         assert all(dl["alert_id"] is None for dl in unlinked)
 
+    @pytest.mark.parametrize(
+        ("multi_team", "expected_team_name", "expected_queries"),
+        [
+            pytest.param("True", "team-deadlines", 4, id="multi_team_enabled"),
+            pytest.param("False", None, 3, id="multi_team_disabled"),
+        ],
+    )
+    def test_team_name_only_exposed_in_multi_team_mode(
+        self, test_client, session, multi_team, expected_team_name, expected_queries
+    ):
+        with (
+            conf_vars({("core", "multi_team"): multi_team}),
+            attach_dag_to_team(
+                session, DAG_ID, bundle_name="team-bundle-deadlines", team_name="team-deadlines"
+            ),
+        ):
+            with assert_queries_count(expected_queries):
+                response = test_client.get("/dags/~/dagRuns/~/deadlines")
+            assert response.status_code == 200
+            teams_by_dag = {dl["dag_id"]: dl["team_name"] for dl in response.json()["deadlines"]}
+            assert teams_by_dag == {DAG_ID: expected_team_name, DAG_ID_2: None}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_filter_by_team(self, test_client, session):
+        with attach_dag_to_team(
+            session, DAG_ID, bundle_name="team-bundle-deadline-filter", team_name="team-deadline-filter"
+        ):
+            with assert_queries_count(4):
+                response = test_client.get(
+                    "/dags/~/dagRuns/~/deadlines", params={"teams": ["team-deadline-filter"]}
+                )
+            assert response.status_code == 200
+            data = response.json()
+            assert data["total_entries"] == 7
+            assert {dl["dag_id"] for dl in data["deadlines"]} == {DAG_ID}
+
+            # A team with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns/~/deadlines", params={"teams": ["unknown-team"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+
     def test_filter_nonexistent_dag_returns_empty(self, test_client):
         """Filtering by a dag_id that doesn't exist returns an empty list."""
         response = test_client.get("/dags/nonexistent_dag/dagRuns/~/deadlines")
@@ -484,7 +560,14 @@ class TestGetDagDeadlineAlerts:
         session.scalar.return_value = None
 
         with pytest.raises(HTTPException, match=f"Dag with id {DAG_ID} was not found"):
-            get_dag_deadline_alerts(DAG_ID, session, limit=100, offset=0, order_by=Mock())
+            get_dag_deadline_alerts(
+                DAG_ID,
+                session,
+                limit=100,
+                offset=0,
+                order_by=Mock(),
+                name_pattern=None,
+            )
 
         statement = session.scalar.call_args.args[0]
         assert "LIMIT 1" in str(statement.compile(compile_kwargs={"literal_binds": True}))
@@ -494,19 +577,62 @@ class TestGetDagDeadlineAlerts:
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
         assert response.status_code == 200
         data = response.json()
-        assert data["total_entries"] == 1
-        assert len(data["deadline_alerts"]) == 1
+        assert data["total_entries"] == 2
+        assert len(data["deadline_alerts"]) == 2
 
     def test_alert_response_fields(self, test_client):
         """Alert response includes expected fields with correct values."""
         response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts")
+
         assert response.status_code == 200
-        alert = response.json()["deadline_alerts"][0]
+
+        data = response.json()
+        alert = next(alert for alert in data["deadline_alerts"] if alert["name"] == ALERT_NAME)
+
         assert alert["name"] == ALERT_NAME
         assert alert["interval"] == 3600.0
         assert alert["reference_type"] == "DagRunQueuedAtDeadline"
         assert "id" in alert
         assert "created_at" in alert
+
+    @pytest.mark.parametrize(
+        ("params", "expected_alerts"),
+        [
+            pytest.param(
+                {"name_pattern": ALERT_NAME},
+                [ALERT_NAME],
+                id="matching_name",
+            ),
+            pytest.param(
+                {"name_pattern": "Another"},
+                ["Another Alert"],
+                id="matching_substring",
+            ),
+            pytest.param(
+                {"name_pattern": "Alert"},
+                [ALERT_NAME, "Another Alert"],
+                id="matching_multiple_alerts",
+            ),
+            pytest.param(
+                {"name_pattern": "does-not-exist"},
+                [],
+                id="no_match",
+            ),
+        ],
+    )
+    def test_filter_by_name_pattern(self, test_client, params, expected_alerts):
+        """Filtering by name pattern returns matching DeadlineAlerts."""
+        response = test_client.get(
+            f"/dags/{DAG_ID}/deadlineAlerts",
+            params=params,
+        )
+
+        assert response.status_code == 200
+
+        data = response.json()
+
+        assert data["total_entries"] == len(expected_alerts)
+        assert sorted(alert["name"] for alert in data["deadline_alerts"]) == sorted(expected_alerts)
 
     def test_dag_with_no_alerts_returns_empty_list(self, test_client, dag_maker, session):
         """A DAG with no deadline alerts returns an empty list."""
@@ -556,19 +682,29 @@ class TestGetDagDeadlineAlerts:
         return dag_id
 
     @pytest.mark.parametrize(
-        ("params", "expected_alert"),
+        ("params", "expected_alerts"),
         [
-            pytest.param({}, "v2_alert", id="default_returns_latest_version"),
-            pytest.param({"version_number": 1}, "v1_alert", id="older_version"),
-            pytest.param({"version_number": 2}, "v2_alert", id="latest_version"),
+            pytest.param({}, ["v2_alert"], id="default_returns_latest_version"),
+            pytest.param({"version_number": 1}, ["v1_alert"], id="older_version"),
+            pytest.param({"version_number": 2}, ["v2_alert"], id="latest_version"),
+            pytest.param(
+                {"version_number": 1, "name_pattern": "v1_alert"},
+                ["v1_alert"],
+                id="version_1_matching_name",
+            ),
+            pytest.param(
+                {"version_number": 1, "name_pattern": "v2_alert"},
+                [],
+                id="version_1_non_matching_name",
+            ),
         ],
     )
-    def test_version_number_scopes_alerts(self, test_client, dag_maker, session, params, expected_alert):
+    def test_version_number_scopes_alerts(self, test_client, dag_maker, session, params, expected_alerts):
         dag_id = self._make_two_versions_with_alerts(dag_maker, session)
         response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params=params)
         assert response.status_code == 200
         data = response.json()
-        assert [alert["name"] for alert in data["deadline_alerts"]] == [expected_alert]
+        assert [alert["name"] for alert in data["deadline_alerts"]] == expected_alerts
 
     def test_unknown_version_number_returns_404(self, test_client, dag_maker, session):
         dag_id = self._make_two_versions_with_alerts(dag_maker, session)
@@ -662,3 +798,106 @@ class TestDeadlineAlertsIntervalSerialization:
         assert response.status_code == 200
         alerts = {a["name"]: a for a in response.json()["deadline_alerts"]}
         assert alerts["dynamic_interval_alert"]["interval"] is None
+
+
+class TestGetCallbackLogs:
+    """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs."""
+
+    @pytest.fixture
+    def missed_callback_id(self, session):
+        deadline = session.scalar(select(Deadline).join(Deadline.dagrun).where(DagRun.run_id == RUN_MISSED))
+        return str(deadline.callback_id)
+
+    @pytest.fixture
+    def set_callback_type(self, session, missed_callback_id):
+        def _set(callback_type: CallbackType) -> None:
+            session.execute(
+                update(Callback)
+                .where(Callback.id == uuid.UUID(missed_callback_id))
+                .values(type=callback_type)
+            )
+            session.commit()
+
+        return _set
+
+    @pytest.mark.parametrize("accept", ["application/json", "application/x-ndjson"])
+    @pytest.mark.parametrize(
+        ("callback_type", "log_file"), _CALLBACK_LOG_FILES, ids=["executor", "triggerer"]
+    )
+    def test_returns_logs_from_local_storage(
+        self, test_client, missed_callback_id, set_callback_type, tmp_path, accept, callback_type, log_file
+    ):
+        set_callback_type(callback_type)
+        log_path = tmp_path / log_file.format(dag_id=DAG_ID, run_id=RUN_MISSED, cb_id=missed_callback_id)
+        log_path.parent.mkdir(parents=True)
+        log_path.write_text("callback ran\n")
+
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            response = test_client.get(
+                f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs",
+                headers={"Accept": accept},
+            )
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith(accept)
+        if accept == "application/x-ndjson":
+            entries = [json.loads(line) for line in response.text.splitlines() if line]
+        else:
+            entries = response.json()["content"]
+        assert "callback ran" in [entry["event"] for entry in entries]
+
+    @pytest.mark.parametrize(
+        ("callback_type", "log_file"), _CALLBACK_LOG_FILES, ids=["executor", "triggerer"]
+    )
+    @mock.patch("airflow.logging_config.get_remote_task_log")
+    def test_reads_remote_log_at_the_path_for_the_callback_type(
+        self,
+        mock_get_remote_task_log,
+        test_client,
+        missed_callback_id,
+        set_callback_type,
+        callback_type,
+        log_file,
+    ):
+        # Like CloudWatch, the remote IO returns a lazy stream for any path, even one that has no log.
+        def lines(relative_path):
+            yield json.dumps({"event": f"remote log at {relative_path}"}) + "\n"
+
+        remote_io = mock.create_autospec(RemoteLogStreamIO, instance=True)
+        remote_io.stream.side_effect = lambda relative_path, ti: ([relative_path], [lines(relative_path)])
+        mock_get_remote_task_log.return_value = remote_io
+        set_callback_type(callback_type)
+
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{missed_callback_id}/logs")
+
+        assert response.status_code == 200
+        expected_path = log_file.format(dag_id=DAG_ID, run_id=RUN_MISSED, cb_id=missed_callback_id)
+        remote_io.stream.assert_called_once_with(expected_path, None)
+        assert f"remote log at {expected_path}" in [entry["event"] for entry in response.json()["content"]]
+
+    @pytest.mark.parametrize(
+        ("run_id", "known_callback"),
+        [(RUN_MISSED, False), (RUN_SINGLE, True)],
+        ids=["unknown_callback", "callback_of_other_run"],
+    )
+    def test_should_response_404(self, test_client, missed_callback_id, run_id, known_callback):
+        callback_id = missed_callback_id if known_callback else uuid.uuid4()
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{run_id}/callbacks/{callback_id}/logs")
+        assert response.status_code == 404
+
+    # HTTP clients normalize away a literal "..", so only encoded or otherwise unsafe values reach the check.
+    @pytest.mark.parametrize("bad_run_id", ["%2e%2e", "..%5c..%5cetc", "run%20id"])
+    def test_path_traversal_in_dag_run_id_returns_400(self, test_client, missed_callback_id, bad_run_id):
+        response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{bad_run_id}/callbacks/{missed_callback_id}/logs")
+        assert response.status_code == 400
+
+    def test_should_response_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{uuid.uuid4()}/logs"
+        )
+        assert response.status_code == 401
+
+    def test_should_response_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MISSED}/callbacks/{uuid.uuid4()}/logs"
+        )
+        assert response.status_code == 403

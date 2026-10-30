@@ -17,8 +17,9 @@
  * under the License.
  */
 import { Box, HStack, Table, Text, type SelectValueChangeDetails } from "@chakra-ui/react";
-import { useState, useCallback, useEffect } from "react";
 import { useUiServiceJobs } from "openapi/queries";
+import type { TaskInstanceState } from "openapi/requests/types.gen";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import TimeAgo from "react-timeago";
 
@@ -28,7 +29,6 @@ import { StateBadge } from "src/components/StateBadge";
 import { Select } from "src/components/ui";
 import { jobStateOptions } from "src/constants";
 import { autoRefreshInterval } from "src/utils";
-import type { TaskInstanceState } from "openapi/requests/types.gen";
 
 export const JobsPage = () => {
   const [searchParams] = useSearchParams();
@@ -207,7 +207,14 @@ export const JobsPage = () => {
           <Table.Body>
             {data.jobs.map((job) => (
               <Table.Row
-                key={`${job.dag_id}.${job.run_id}.${job.task_id}.${job.map_index}.${job.try_number}`}
+                key={JSON.stringify([
+                  job.dag_id,
+                  job.run_id,
+                  job.task_id,
+                  job.map_index,
+                  job.try_number,
+                  job.task_instance_id ?? "",
+                ])}
               >
                 <Table.Cell>
                   <Link to={`/dags/${job.dag_id}`}>{job.dag_id}</Link>
@@ -240,7 +247,9 @@ export const JobsPage = () => {
                   {job.queued_dttm ? <TimeAgo date={job.queued_dttm} live={false} /> : undefined}
                 </Table.Cell>
                 <Table.Cell>
-                  <Link relative="path" to={`../worker#${job.edge_worker}`}>{job.edge_worker}</Link>
+                  <Link relative="path" to={`../worker#${job.edge_worker}`}>
+                    {job.edge_worker}
+                  </Link>
                 </Table.Cell>
                 <Table.Cell>
                   {job.last_update ? <TimeAgo date={job.last_update} live={false} /> : undefined}

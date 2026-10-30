@@ -240,11 +240,27 @@ class TestAsyncCallback:
         with pytest.raises(AttributeError, match="is not awaitable."):
             AsyncCallback(empty_sync_callback_for_deadline_tests)
 
+    @pytest.mark.parametrize(
+        "queue",
+        [pytest.param("custom-queue", id="with_queue"), pytest.param(None, id="without_queue")],
+    )
+    def test_init_queue(self, queue):
+        callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, queue=queue)
+        assert callback.queue == queue
+
     def test_serialize_deserialize(self):
         callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS)
         serialized = serialize(callback)
         deserialized = cast("Callback", deserialize(serialized.copy()))
         assert callback == deserialized
+
+    def test_serialize_deserialize_round_trip_keeps_queue(self):
+        callback = AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS, queue="custom-queue")
+
+        deserialized = cast("AsyncCallback", deserialize(serialize(callback)))
+
+        assert deserialized == callback
+        assert deserialized.queue == "custom-queue"
 
 
 class TestSyncCallback:

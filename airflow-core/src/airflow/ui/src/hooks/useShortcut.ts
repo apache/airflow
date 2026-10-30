@@ -17,10 +17,17 @@
  * under the License.
  */
 import { type DependencyList, useEffect, useId } from "react";
+
 import { type HotkeyCallback, type Options, useHotkeys } from "react-hotkeys-hook";
 import { useTranslation } from "react-i18next";
 
 import { type ShortcutDefinition, useShortcutRegistry } from "src/context/keyboardShortcuts";
+
+// Where the browser supports it, Monaco takes input through an EditContext <div>
+// rather than a <textarea>, so react-hotkeys-hook's form-field check does not see
+// it and a shortcut key would be swallowed instead of typed into the editor.
+const isFromMonacoEditor = (event: KeyboardEvent) =>
+  event.target instanceof Element && event.target.closest(".monaco-editor") !== null;
 
 type UseShortcutParams = {
   readonly callback: HotkeyCallback;
@@ -47,10 +54,18 @@ export const useShortcut = ({
   options,
 }: UseShortcutParams) => {
   const id = useId();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const { register, unregister } = useShortcutRegistry();
 
-  const ref = useHotkeys(keys, callback, options, dependencies);
+  const ref = useHotkeys(
+    keys,
+    callback,
+    {
+      ...options,
+      ignoreEventWhen: (event) => isFromMonacoEditor(event) || (options?.ignoreEventWhen?.(event) ?? false),
+    },
+    dependencies,
+  );
 
   const description = translate(descriptionKey);
 

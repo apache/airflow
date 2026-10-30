@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+4.6.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+4.5.2
+.....
+
+Misc
+~~~~
+
+* ``Require ''grpcio'' 1.78.0 or newer on all Python versions (#66952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
 4.5.1
 .....
 
@@ -34,6 +76,7 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Refuse the team agnostic fall-through for a team scoped Lockbox secret name (#70877)``
+* ``Only refuse team scoped like secret ids when multi_team is on (#71078)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

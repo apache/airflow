@@ -47,7 +47,7 @@ from tests_common.test_utils.version_compat import (
 if AIRFLOW_V_3_2_PLUS:
     from airflow.dag_processing.dagbag import DagBag
 else:
-    from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
+    from airflow.models.dagbag import DagBag  # type: ignore[no-redef]
 
 pytestmark = pytest.mark.db_test
 
@@ -72,7 +72,7 @@ class TestTimedeltaSensor:
         if AIRFLOW_V_3_3_PLUS:
             self.dagbag = DagBag(dag_folder=DEV_NULL)
         else:
-            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)  # type: ignore[call-arg]
+            self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=False)
         self.dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), start_date=DEFAULT_DATE)
 
     def test_timedelta_sensor(self, mocker):
@@ -254,6 +254,36 @@ class TestTimeDeltaSensorAsync:
             op.execute(context)
 
         assert caught.value.trigger.moment == expected_time
+
+    @pytest.mark.parametrize("delta", [timedelta(minutes=1), 1, "{{ 1*2 }}"])
+    def test_time_delta_sensor_templating(self, mocker, delta):
+        defer_mock = mocker.patch(DEFER_PATH)
+        op = TimeDeltaSensor(task_id="time_sensor_check", delta=delta, dag=self.dag, deferrable=True)
+
+        time = pendulum.datetime(year=2024, month=8, day=1, tz="UTC")
+
+        with time_machine.travel(time, tick=False):
+            data_interval_end = time.add(hours=1)
+
+            context = {"data_interval_end": data_interval_end}
+            op.render_template_fields(context)
+            op.execute(context)
+            defer_mock.assert_called_once()
+
+    def test_time_delta_sensor_templating_error(self, mocker):
+        op = TimeDeltaSensor(
+            task_id="time_sensor_check", delta="{{ 'nothing' }}", dag=self.dag, deferrable=True
+        )
+        time = pendulum.datetime(year=2024, month=8, day=1, tz="UTC")
+
+        with time_machine.travel(time, tick=False):
+            data_interval_end = time.add(hours=1)
+            context = {"data_interval_end": data_interval_end}
+            op.render_template_fields(context)
+            with pytest.raises(
+                ValueError, match=re.escape("invalid literal for int() with base 10: 'nothing'")
+            ):
+                op.execute(context)
 
     @pytest.mark.parametrize(
         "time_to_wait",

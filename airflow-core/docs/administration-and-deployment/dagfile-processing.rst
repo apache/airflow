@@ -19,18 +19,19 @@
 Dag File Processing
 -------------------
 
-Dag File Processing refers to the process of reading the python files that define your Dags and storing them such that the scheduler can schedule them.
+Dag File Processing refers to the process of reading the files that define your Dags and storing them such that the scheduler can schedule them.
+Airflow reads these files through :doc:`Dag importers <dag-importers>`; the built-in ones read Python files and zip archives.
 
 There are two primary components involved in Dag file processing.  The ``DagFileProcessorManager`` is a process executing an infinite loop that determines which files need
 to be processed, and the ``DagFileProcessorProcess`` is a separate process that is started to convert an individual file into one or more Dag objects.
 
-The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a standalone process by running the ``airflow dag-processor`` CLI command.
+The ``DagFileProcessorManager`` coordinates this work but never runs user code itself; it is started as a standalone process via the ``airflow dag-processor`` CLI command.
 
 .. image:: /img/dag_file_processing_diagram.png
 
 ``DagFileProcessorManager`` has the following steps:
 
-1. Check for new files:  If the elapsed time since the Dag was last refreshed is > :ref:`config:dag_processor__refresh_interval` then update the file paths list
+1. Check for new files:  If the elapsed time since the Dag was last refreshed is > :ref:`config:dag_processor__refresh_interval` then update the file paths list with the files holding the Dag definitions that the bundle's importers list
 2. Exclude recently processed files:  Exclude files that have been processed more recently than :ref:`min_file_process_interval<config:dag_processor__min_file_process_interval>` and have not been modified
 3. Queue file paths: Add files discovered to the file path queue
 4. Process files:  Start a new ``DagFileProcessorProcess`` for each file, up to a maximum of :ref:`config:dag_processor__parsing_processes`
@@ -40,18 +41,17 @@ The ``DagFileProcessorManager`` runs user codes. As a result, it runs as a stand
 ``DagFileProcessorProcess`` has the following steps:
 
 1. Process file: The entire process must complete within :ref:`dag_file_processor_timeout<config:dag_processor__dag_file_processor_timeout>`
-2. The Dag files are loaded as Python module: Must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`
-3. Process modules:  Find Dag objects within Python module
-4. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
+2. Import Dag definitions: Each Dag definition in the file is imported by the importer that listed it. The Python importer loads the file as a Python module, which must complete within :ref:`dagbag_import_timeout<config:core__dagbag_import_timeout>`, and finds the Dag objects within it
+3. Return DagBag:  Provide the ``DagFileProcessorManager`` a list of the discovered Dag objects
 
 
 Fine-tuning your Dag processor performance
-------------------------------------------
+""""""""""""""""""""""""""""""""""""""""""
 
 What impacts Dag processor's performance
-""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The Dag processor is responsible for continuously parsing Dag files and synchronizing with the Dag in the database
+The Dag processor is responsible for continuously parsing Dag files and synchronizing with the Dag in the database.
 In order to fine-tune your Dag processor, you need to include a number of factors:
 
 * The kind of deployment you have
@@ -77,7 +77,7 @@ In order to fine-tune your Dag processor, you need to include a number of factor
    * How many callbacks you run per Dag processor loop
 
 How to approach Dag processor's fine-tuning
-"""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Airflow gives you a lot of "knobs" to turn to fine tune the performance but it's a separate task,
 depending on your particular deployment, your Dag structure, hardware availability and expectations,
@@ -103,8 +103,8 @@ to observe and monitor your systems):
 * based on your expectations and observations - decide what is your next improvement and go back to
   the observation of your performance, bottlenecks. Performance improvement is an iterative process.
 
-What resources might limit Dag processors's performance
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+What resources might limit Dag processor's performance
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are several areas of resource usage that you should pay attention to:
 
@@ -134,7 +134,7 @@ There are several areas of resource usage that you should pay attention to:
   `PGBouncer <https://www.pgbouncer.org/>`_ as a proxy to your database. The :doc:`helm-chart:index`
   supports PGBouncer out-of-the-box.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
-  Python Dag files. Since Dag processors typically triggers such parsing continuously, when you have a lot of Dags,
+  Python Dag files. Since Dag processors typically trigger such parsing continuously, when you have a lot of Dags,
   the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:dag_processor__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between
@@ -153,7 +153,7 @@ There are several areas of resource usage that you should pay attention to:
   on your deployment) rather than ``total memory used``.
 
 What can you do, to improve Dag processor's performance
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you know what your resource usage is, the improvements that you can consider might be:
 
@@ -179,7 +179,7 @@ When you know what your resource usage is, the improvements that you can conside
   in order to get better fine-tuned results for your particular deployment.
 
 Dag processor Configuration options
-"""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following config settings can be used to control aspects of the Dag processor.
 However, you can also look at other non-performance-related Dag processor configuration parameters available at

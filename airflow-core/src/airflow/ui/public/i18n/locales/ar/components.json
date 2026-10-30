@@ -1,9 +1,9 @@
 {
   "backfill": {
-    "affected_few": "{{count}} مهام ستُشغّل.",
-    "affected_many": "{{count}} مهمة ستُشغّل.",
+    "affected_few": "{{count, number}} مهام ستُشغّل.",
+    "affected_many": "{{count, number}} مهمة ستُشغّل.",
     "affected_one": "مهمة واحدة ستُشغّل.",
-    "affected_other": "{{count}} مهمة ستُشغل.",
+    "affected_other": "{{count, number}} مهمة ستُشغل.",
     "affected_two": "مهمتان ستُشغّلان.",
     "affected_zero": "لا توجد أي مهمة ستُشغَّل.",
     "affectedNone": "لا توجد مهام تطابق المعايير المحددة.",
@@ -11,10 +11,24 @@
     "backwards": "تشغيل رجعي",
     "dateRange": "نطاق التاريخ",
     "errorStartDateBeforeEndDate": "يجب أن يكون تاريخ البدء قبل تاريخ الانتهاء",
+    "exceptionReason": {
+      "alreadyExists": "موجود مسبقاً",
+      "inFlight": "قيد التنفيذ",
+      "unknown": "غير معروف"
+    },
     "maxRuns": "الحد الأقصى للتشغيلات النشطة",
     "missingAndErroredRuns": "تشغيلات مفقودة وخاطئة",
     "missingRuns": "تشغيلات مفقودة",
+    "notCreatedReason": "سبب عدم الإنشاء",
     "overrideExistingParams": "تجاوز المعلمات في التشغيلات الحالية",
+    "partitionRange": "نطاق التقسيم",
+    "partitionsAffected_few": "ستتم تعبئة {{count, number}} تقسيمات رجعياً:",
+    "partitionsAffected_many": "ستتم تعبئة {{count, number}} تقسيماً رجعياً:",
+    "partitionsAffected_one": "ستتم تعبئة تقسيم واحد رجعياً:",
+    "partitionsAffected_other": "ستتم تعبئة {{count, number}} تقسيم رجعياً:",
+    "partitionsAffected_two": "ستتم تعبئة تقسيمين رجعياً:",
+    "partitionsAffected_zero": "لن تتم تعبئة أي تقسيم رجعياً:",
+    "partitionsNone": "لا توجد تقسيمات تطابق النطاق المحدد.",
     "permissionDenied": "فشل التشغيل التجريبي (Dry Run): ليس لدى المستخدم صلاحية لإنشاء تعبئات رجعية.",
     "reprocessBehavior": "اعادة معالجة السلوك",
     "run": "تشغيل التعبئة الرجعية",
@@ -29,11 +43,11 @@
         "title": "تم إنشاء التعبئة الرجعية"
       }
     },
-    "unpause": "إلغاء إيقاف {{dag_display_name}} عند التشغيل",
     "validation": {
       "datesRequired": "يجب توفير بيانات كل من تاريخ بدء فترة وتاريخ الانتهاء.",
       "startBeforeEnd": "بيانات فترة تاريخ البدء يجب ان تكون من او قبل تاريخ الانتهاء. "
-    }
+    },
+    "viewSlots": "عرض الحصص للتعبئة الرجعية {{id}}"
   },
   "banner": {
     "backfillInProgress": "التعبئة الرجعية قيد التنفيذ",
@@ -46,17 +60,23 @@
   },
   "close": "إغلاق",
   "configForm": {
-    "advancedOptions": "خيارات متقدمة",
     "configJson": "تكوين JSON",
     "invalidJson": "تنسيق JSON غير صالح: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "خطأ",
     "errorAndWarning": "1 خطأ و{{warningText}}",
-    "warning_few": "{{count}} تحذيرات",
-    "warning_many": "{{count}} تحذير",
+    "types": {
+      "asset conflict": "تعارض في الأصل",
+      "duplicate dag id": "تكرار Dag ID",
+      "non-existent pool": "مجموعة موارد غير موجودة",
+      "runtime varying value": "قيمة متغيّرة أثناء التشغيل",
+      "task group cycle": "دورة في مجموعة المهام"
+    },
+    "warning_few": "{{count, number}} تحذيرات",
+    "warning_many": "{{count, number}} تحذير",
     "warning_one": "1 تحذير",
-    "warning_other": "{{count}} تحذير",
+    "warning_other": "{{count, number}} تحذير",
     "warning_two": "تحذيران",
     "warning_zero": "لا يوجد أي تحذير"
   },
@@ -69,16 +89,16 @@
   },
   "durationChart": {
     "duration": "المدة (بالثواني)",
-    "lastDagRun_few": "آخر {{count}} تشغيلات Dag",
-    "lastDagRun_many": "آخر {{count}} تشغيل Dag",
+    "lastDagRun_few": "آخر {{count, number}} تشغيلات Dag",
+    "lastDagRun_many": "آخر {{count, number}} تشغيل Dag",
     "lastDagRun_one": "آخر تشغيل Dag",
-    "lastDagRun_other": "آخر {{count}} تشغيل Dag",
+    "lastDagRun_other": "آخر {{count, number}} تشغيل Dag",
     "lastDagRun_two": "آخر تشغيلين Dag",
     "lastDagRun_zero": "لا يوجد أي تشغيل Dag",
-    "lastTaskInstance_few": "آخر {{count}} مثيلات مهمة",
-    "lastTaskInstance_many": "آخر {{count}} مثيل مهمة",
+    "lastTaskInstance_few": "آخر {{count, number}} مثيلات مهمة",
+    "lastTaskInstance_many": "آخر {{count, number}} مثيل مهمة",
     "lastTaskInstance_one": "آخر مثيل مهمة",
-    "lastTaskInstance_other": "آخر {{count}} مثيل مهمة",
+    "lastTaskInstance_other": "آخر {{count, number}} مثيل مهمة",
     "lastTaskInstance_two": "آخر مثيلين مهمة",
     "lastTaskInstance_zero": "لا يوجد أي مثيل مهمة",
     "medianTotalDuration": "الإجمالي: {{duration}}",
@@ -87,10 +107,10 @@
     "runDuration": "مدة التشغيل"
   },
   "fileUpload": {
-    "files_few": "{{count}} ملفات",
-    "files_many": "{{count}} ملف",
+    "files_few": "{{count, number}} ملفات",
+    "files_many": "{{count, number}} ملف",
     "files_one": "ملف",
-    "files_other": "{{count}} ملف",
+    "files_other": "{{count, number}} ملف",
     "files_two": "ملفان",
     "files_zero": "لا يوجد أي ملف"
   },
@@ -115,37 +135,70 @@
     "downloadImageError": "فشل تحميل صورة الرسم البياني.",
     "downloadImageErrorTitle": "فشل التحميل",
     "otherDagRuns": "+تشغيلات Dag أخرى",
-    "taskCount_few": "{{count}} مهام",
-    "taskCount_many": "{{count}} مهمة",
-    "taskCount_one": "{{count}} مهمة",
-    "taskCount_other": "{{count}} مهمة",
+    "taskCount_few": "{{count, number}} مهام",
+    "taskCount_many": "{{count, number}} مهمة",
+    "taskCount_one": "{{count, number}} مهمة",
+    "taskCount_other": "{{count, number}} مهمة",
     "taskCount_two": "مهمتان",
     "taskCount_zero": "لا يوجد أي مهمة",
     "taskGroup": "مجموعة المهام",
     "zoomToTask": "تكبير إلى المهمة المحددة"
   },
-  "limitedList": "+{{count}} المزيد",
-  "limitedList.allItems": "جميع العناصر {{count}}:",
-  "limitedList.allTags_few": "كل العلامات ({{count}})",
-  "limitedList.allTags_many": "كل العلامات ({{count}})",
+  "jsonPreview": {
+    "items_few": "{{count, number}} عناصر",
+    "items_many": "{{count, number}} عنصراً",
+    "items_one": "عنصر واحد",
+    "items_other": "{{count, number}} عنصر",
+    "items_two": "عنصران",
+    "items_zero": "لا توجد عناصر"
+  },
+  "limitedList": "+{{count, number}} المزيد",
+  "limitedList.allItems": "جميع العناصر {{count, number}}:",
+  "limitedList.allTags_few": "كل العلامات ({{count, number}})",
+  "limitedList.allTags_many": "كل العلامات ({{count, number}})",
   "limitedList.allTags_one": "كل العلامات (1)",
-  "limitedList.allTags_other": "كل العلامات ({{count}})",
+  "limitedList.allTags_other": "كل العلامات ({{count, number}})",
   "limitedList.allTags_two": "كل العلامات (2)",
   "limitedList.allTags_zero": "كل العلامات (0)",
   "limitedList.clickToInteract": "انقر على علامة لتصفية Dags",
-  "limitedList.clickToOpenFull": "انقر \"+{{count}} المزيد\" لعرض القائمة الكاملة",
+  "limitedList.clickToOpenFull": "انقر \"+{{count, number}} المزيد\" لعرض القائمة الكاملة",
   "limitedList.copyPasteText": "يمكنك نسخ ولصق النص أعلاه",
-  "limitedList.showingItems_few": "عرض {{count}} عناصر",
-  "limitedList.showingItems_many": "عرض {{count}} عنصر",
+  "limitedList.showingItems_few": "عرض {{count, number}} عناصر",
+  "limitedList.showingItems_many": "عرض {{count, number}} عنصر",
   "limitedList.showingItems_one": "عرض عنصر واحد",
-  "limitedList.showingItems_other": "عرض {{count}} عنصر",
+  "limitedList.showingItems_other": "عرض {{count, number}} عنصر",
   "limitedList.showingItems_two": "عرض عنصرين",
   "limitedList.showingItems_zero": "عرض 0 عناصر",
   "logs": {
     "file": "ملف",
     "location": "سطر {{line}} في {{name}}"
   },
+  "passwordToggle": {
+    "hide": "إخفاء القيمة",
+    "show": "إظهار القيمة"
+  },
+  "pausedDag": {
+    "drain": "تصريف",
+    "drainDescription": "تستمر التشغيلات غير المكتملة، لكن لا يتم إنشاء تشغيلات مجدولة. تبقى التعبئات الرجعية المتوقفة متوقفة. يتوقف Dag مرة أخرى بعد انتهاء جميع التشغيلات غير المكتملة.",
+    "keepPaused": "إبقاء متوقفاً",
+    "keepPausedDescription": "تنتظر التشغيلات الجديدة وغير المكتملة حتى يتم استئناف Dag.",
+    "title": "Dag متوقف",
+    "unfinishedRunsWillRun_few": "سيبدأ أو يُستأنف {{count, number}} تشغيلات Dag غير مكتملة.",
+    "unfinishedRunsWillRun_many": "سيبدأ أو يُستأنف {{count, number}} تشغيل Dag غير مكتمل.",
+    "unfinishedRunsWillRun_one": "سيبدأ أو يُستأنف تشغيل Dag واحد غير مكتمل.",
+    "unfinishedRunsWillRun_other": "سيبدأ أو يُستأنف {{count, number}} تشغيل Dag غير مكتمل.",
+    "unfinishedRunsWillRun_two": "سيبدأ أو يُستأنف تشغيلا Dag غير مكتملين.",
+    "unfinishedRunsWillRun_zero": "لا توجد تشغيلات Dag غير مكتملة ستبدأ أو تُستأنف.",
+    "unpause": "استئناف",
+    "unpauseDescription": "يصبح Dag نشطاً: تستمر التشغيلات غير المكتملة ويُستأنف الجدول. تبقى التعبئات الرجعية المتوقفة متوقفة."
+  },
   "reparseDag": "إعادة تحليل Dag",
+  "slowestTaskInstances": {
+    "empty": "لا توجد مثيلات مهام مكتملة ضمن هذا النطاق",
+    "title": "أبطأ مثيلات المهام"
+  },
+  "sort": "فرز",
+  "sortMultiColumnHint": "انقر مع الضغط على Shift للفرز حسب عدة أعمدة",
   "sortedAscending": "الترتيب تصاعدي",
   "sortedDescending": "الترتيب تنازلي",
   "sortedUnsorted": "غير مرتب",
@@ -162,15 +215,24 @@
   "toggleTableView": "عرض الجدول",
   "triggerDag": {
     "button": "تشغيل",
+    "dagStartEndDate": {
+      "both": "تاريخ بدء Dag: {{startDate}}، تاريخ الانتهاء: {{endDate}}",
+      "end": "تاريخ انتهاء Dag: {{endDate}}",
+      "noTaskWillRun": "لن يتم تشغيل أي مهمة.",
+      "start": "تاريخ بدء Dag: {{startDate}}"
+    },
     "dataInterval": "فترة البيانات",
     "dataIntervalAuto": "مستنتجة من التاريخ المنطقي والجدول الزمني",
     "dataIntervalManual": "تحديد يدويًا",
+    "editConfigAndTrigger": "تعديل التكوين والتشغيل",
     "intervalEnd": "النهاية",
     "intervalStart": "البداية",
     "loading": "جارٍ تحميل معلومات Dag...",
     "loadingFailed": "فشل تحميل معلومات Dag. يرجى المحاولة مرة أخرى.",
     "manualRunDenied": "التشغيلات اليدوية غير مسموح بها لهذا الـDag",
     "partitionKeyHelp": "اختياري - ينطبق فقط على Dags المُجزأة",
+    "recentConfig": "التكوينات الأخيرة",
+    "recentConfigPlaceholder": "اختر تكويناً حديثاً",
     "runIdHelp": "اختياري - سيتم توليده تلقائيًا إذا لم يتم توفيره.",
     "selectDescription": "تشغيل عملية واحدة من هذا Dag",
     "selectLabel": "تشغيلة واحدة",
@@ -185,7 +247,7 @@
       }
     },
     "triggerAgainWithConfig": "تشغيل مرة أخرى باستخدام هذا التكوين",
-    "unpause": "إلغاء إيقاف {{dagDisplayName}} عند التشغيل"
+    "triggerOptions": "خيارات التشغيل"
   },
   "trimText": {
     "details": "التفاصيل",
@@ -202,6 +264,7 @@
   "versionSelect": {
     "allVersions": "كل الإصدارات",
     "dagVersion": "إصدار Dag",
+    "placeholder": "اختر إصداراً",
     "versionCode": "v{{versionCode}}"
   }
 }

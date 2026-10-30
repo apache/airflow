@@ -16,19 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { Button, HStack, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiDatabase } from "react-icons/fi";
 
 import { useAssetServiceGetDagAssetQueuedEvents, useAssetServiceNextRunAssets } from "openapi/queries";
 import type { NextRunAssetEventResponse } from "openapi/requests/types.gen";
+
+import { Popover, RouterLink, Tooltip } from "src/system-components";
+
 import { AssetExpression, type ExpressionType } from "src/components/AssetExpression";
 import { RollupKeyChecklistPopover } from "src/components/RollupKeyChecklist";
 import { TruncatedText } from "src/components/TruncatedText";
-import { Popover, RouterLink } from "src/components/ui";
-import { Tooltip } from "src/components/ui/Tooltip";
 
 import { PartitionScheduleModal } from "./PartitionScheduleModal";
 
@@ -47,7 +49,7 @@ type PartitionScheduleProps = {
 };
 
 const PartitionSchedule = ({ dagId, hasInactiveAsset, isLoading, pendingCount }: PartitionScheduleProps) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const [open, setOpen] = useState(false);
 
   return (
@@ -116,13 +118,17 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
         0,
       )
     : pendingEvents.length;
+  // `events` only carries the assets the caller may read, so the total and the
+  // layout branches below come from `scheduling_asset_count` instead — the schedule
+  // a Dag shows should not change with who is looking at it.
+  const schedulingAssetCount = nextRun?.scheduling_asset_count ?? 0;
   const scheduledTotal = timetablePartitioned
     ? nextRunEvents.reduce((sum, event) => sum + (event.required_count ?? 1), 0)
-    : nextRunEvents.length;
+    : schedulingAssetCount;
 
   const isLoading = isNextRunLoading || (!timetablePartitioned && isQueuedEventsLoading);
 
-  if (!nextRunEvents.length) {
+  if (!schedulingAssetCount) {
     return (
       <HStack>
         <FiDatabase style={{ display: "inline", flexShrink: 0 }} />
@@ -158,7 +164,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
     // pendingCount === 1: render single-asset view with inactive warning.
     const [partitionedAsset] = nextRunEvents;
 
-    if (nextRunEvents.length === 1 && partitionedAsset !== undefined) {
+    if (schedulingAssetCount === 1 && partitionedAsset !== undefined) {
       const requiredCount = partitionedAsset.required_count ?? 1;
       const receivedCount = partitionedAsset.received_count ?? 0;
       const requiredKeys = partitionedAsset.required_keys ?? [];
@@ -212,7 +218,7 @@ export const AssetSchedule = ({ assetExpression, dagId, timetablePartitioned, ti
 
   const [asset] = nextRunEvents;
 
-  if (nextRunEvents.length === 1 && asset !== undefined) {
+  if (schedulingAssetCount === 1 && asset !== undefined) {
     const requiredCount = asset.required_count ?? 1;
     const receivedCount = asset.received_count ?? 0;
     const requiredKeys = asset.required_keys ?? [];

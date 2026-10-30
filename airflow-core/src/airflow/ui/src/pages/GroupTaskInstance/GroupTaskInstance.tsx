@@ -18,11 +18,13 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { MdOutlineTask } from "react-icons/md";
+import { MdLoop, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
+import { useIsLoopGroup } from "src/queries/useIsLoopGroup";
 import { useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
@@ -37,7 +39,13 @@ export const GroupTaskInstance = () => {
   const gridTISummaries = summariesByRunId.get(runId);
   const taskInstance = gridTISummaries?.task_instances.find((ti) => ti.task_id === groupId);
 
-  const tabs = [{ icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" }];
+  const isLoopGroup = useIsLoopGroup(groupId);
+
+  const tabs = [
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    // Only a looped group has passes to list.
+    ...(isLoopGroup ? [{ icon: <MdLoop />, label: translate("loop.iterations"), value: "iterations" }] : []),
+  ];
 
   return (
     <ReactFlowProvider>

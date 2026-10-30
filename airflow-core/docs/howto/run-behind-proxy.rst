@@ -33,7 +33,7 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
     base_url = http://my_host/myorg/airflow
 
-- Configure your reverse  proxy (e.g. nginx) to pass the url and http header as it for the Airflow webserver, without any rewrite, for example::
+- Configure your reverse proxy (e.g. nginx) to pass the url and http header as-is to the Airflow webserver, without any rewrite, for example::
 
       server {
         listen 80;
@@ -56,15 +56,51 @@ To do so, you need to set the following setting in your ``airflow.cfg``::
 
       add_header Content-Security-Policy "frame-ancestors 'self';";
 
-- Use ``--proxy-headers`` CLI flag to tell Uvicorn to respect these headers: ``airflow api-server --proxy-headers``
+- The API server runs on one of two application servers, selected with the ``[api] server_type``
+  option: `Uvicorn <https://www.uvicorn.org>`_, the default, or `Gunicorn <https://gunicorn.org>`_
+  with Uvicorn workers. Both read the settings below.
+
+- Use ``--proxy-headers`` CLI flag to tell the application server to respect these headers: ``airflow api-server --proxy-headers``
 
 - If your proxy server is not on the same host (or in the same docker container) as Airflow, then you will need to
-  set the ``FORWARDED_ALLOW_IPS`` environment variable so Uvicorn knows who to trust this header from. See
+  set the ``FORWARDED_ALLOW_IPS`` environment variable so the application server knows who to trust this header from. See
   `Uvicorn's docs <https://www.uvicorn.org/deployment/#proxies-and-forwarded-headers>`_. For the full options you can pass here.
   (Please note the ``--forwarded-allow-ips`` CLI option does not exist in Airflow.)
 
 - Please make sure your proxy does not enforce http-only status on the Set-Cookie headers.
   Airflow frontend needs to access the cookies through javascript, and a http-only flag would disturb this functionality.
+
+Running multiple Airflow instances on the same host
+---------------------------------------------------
+
+If you serve several Airflow instances from the same host name (for example ``https://lab.mycompany.com``,
+or ``localhost`` on different ports), give each instance its own path in ``[api] base_url``. Browsers scope
+cookies by host name and path, not by port, so instances that share the same ``base_url`` path also share
+the authentication cookie: logging in to one instance logs you out of the others.
+
+Airflow scopes its authentication cookie to the ``base_url`` path since Airflow 3.1.8. With the FAB,
+Keycloak or AWS auth manager, this also requires ``apache-airflow-providers-fab`` 3.5.0,
+``apache-airflow-providers-keycloak`` 0.6.0 or ``apache-airflow-providers-amazon`` 9.23.0 or later.
+For example::
+
+    # instance serving production
+    base_url = https://lab.mycompany.com/prod
+
+    # instance serving development
+    base_url = https://lab.mycompany.com/dev
+
+Paths that share a prefix, such as ``/airflow`` and ``/airflow_dev``, are fine: the cookie path always
+ends with ``/``, so the cookie of one instance is not sent to the other.
+
+.. warning::
+
+    The ``base_url`` path of one instance must not be a parent path of another's, such as ``/prod`` and
+    ``/prod/dev``, or ``/`` and any other path. The browser sends the parent instance's cookie with every
+    request under its path, so the other instance reads the parent instance's token instead of its own and
+    cannot keep you logged in.
+
+Alternatively, serve each instance from its own host name, for example ``prod.lab.mycompany.com`` and
+``dev.lab.mycompany.com``.
 
 Helm Chart Configuration
 ------------------------

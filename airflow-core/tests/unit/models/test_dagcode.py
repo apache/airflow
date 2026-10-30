@@ -29,6 +29,7 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagcode import DagCode
 from airflow.sdk import task as task_decorator
+from airflow.sdk.importers import DagSourceCode
 from airflow.serialization.definitions.dag import SerializedDAG
 
 # To move it to a shared module.
@@ -214,3 +215,97 @@ class TestDagCode:
         DagCode.update_source_code(dag.dag_id, dag.fileloc)
         dag_code3 = DagCode.get_latest_dagcode(dag.dag_id)
         assert dag_code3.source_code_hash != 2
+
+    def test_update_source_code_refreshes_fileloc(self, dag_maker, session):
+        """When the source changes, update_source_code also refreshes a stale fileloc."""
+        with dag_maker("dag_fileloc") as dag:
+
+            @task_decorator
+            def mytask():
+                print("hi")
+
+            mytask()
+        sync_dag_to_db(dag)
+
+        dag_code = DagCode.get_latest_dagcode(dag.dag_id)
+        # Simulate a stale fileloc and a changed source so the update path is taken.
+        dag_code.fileloc = "/old/stale/path.py"
+        dag_code.source_code_hash = "stalehash"
+        session.add(dag_code)
+        session.commit()
+
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
+        refreshed = DagCode.get_latest_dagcode(dag.dag_id)
+        assert refreshed.fileloc == dag.fileloc
+        assert refreshed.source_code_hash != "stalehash"
+
+    def test_update_source_code_refreshes_fileloc_when_source_unchanged(self, dag_maker, session):
+        """A moved/renamed file with identical contents still refreshes a stale fileloc."""
+        with dag_maker("dag_fileloc_moved") as dag:
+
+            @task_decorator
+            def mytask():
+                print("hi")
+
+            mytask()
+        sync_dag_to_db(dag)
+
+        dag_code = DagCode.get_latest_dagcode(dag.dag_id)
+        # Stale fileloc but the stored source hash still matches the file contents.
+        dag_code.fileloc = "/old/stale/path.py"
+        session.add(dag_code)
+        session.commit()
+        original_hash = dag_code.source_code_hash
+
+        DagCode.update_source_code(dag.dag_id, dag.fileloc)
+
+        refreshed = DagCode.get_latest_dagcode(dag.dag_id)
+        assert refreshed.fileloc == dag.fileloc
+        assert refreshed.source_code_hash == original_hash
+
+    def test_language_defaults_to_python(self, dag_maker):
+        """Code written without an explicit language is recorded as Python."""
+        with dag_maker("dag_language_default") as dag:
+            pass
+        sync_dag_to_db(dag)
+
+        assert DagCode.get_latest_dagcode(dag.dag_id).language == "python"
+
+    def test_write_code_with_dag_source_code(self, dag_maker, session):
+        with dag_maker("dag_source_code_test") as dag:
+            pass
+        sync_dag_to_db(dag)
+        dag_version = DagVersion.get_latest_version(dag.dag_id)
+        clear_db_dag_code()
+
+        dag_code = DagCode.write_code(
+            dag_version,
+            dag.fileloc,
+            dag_source_code=DagSourceCode(source_code="dag: my_dag\nversion: 1", language="yaml"),
+            session=session,
+        )
+        session.commit()
+
+        stored = DagCode.get_latest_dagcode(dag.dag_id, session=session)
+        assert (stored.id, stored.source_code, stored.language) == (
+            dag_code.id,
+            "dag: my_dag\nversion: 1",
+            "yaml",
+        )
+
+    def test_update_source_code_with_dag_source_code(self, dag_maker, session):
+        with dag_maker("dag_source_code_update") as dag:
+            pass
+        sync_dag_to_db(dag)
+
+        DagCode.update_source_code(
+            dag.dag_id,
+            dag.fileloc,
+            dag_source_code=DagSourceCode(source_code="print('custom importer')", language="custom_lang"),
+            session=session,
+        )
+        session.commit()
+
+        latest = DagCode.get_latest_dagcode(dag.dag_id, session=session)
+        assert (latest.source_code, latest.language) == ("print('custom importer')", "custom_lang")

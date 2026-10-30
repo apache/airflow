@@ -23,12 +23,17 @@ import {
   useDagRunServiceDeleteDagRun,
   useDagRunServiceGetDagRunsKey,
   UseDagRunServiceGetDagRunKeyFn,
+  useDagServiceGetDagRunStateCountsUiKey,
+  useDagServiceGetDagsUiKey,
+  useDagServiceGetRecentTaskInstanceStateCountsUiKey,
   UseGanttServiceGetGanttDataKeyFn,
   useTaskInstanceServiceGetHitlDetailsKey,
   useTaskInstanceServiceGetMappedTaskInstanceKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
+
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "src/queries/gridViewQueryKeys";
 import { createErrorToaster } from "src/utils";
 
@@ -57,6 +62,9 @@ export const useDeleteDagRun = ({ dagId, dagRunId, onSuccessConfirm }: DeleteDag
     const queryKeys = [
       UseDagRunServiceGetDagRunKeyFn({ dagId, dagRunId }),
       [useDagRunServiceGetDagRunsKey],
+      [useDagServiceGetDagsUiKey],
+      [useDagServiceGetDagRunStateCountsUiKey],
+      [useDagServiceGetRecentTaskInstanceStateCountsUiKey],
       [useTaskInstanceServiceGetTaskInstancesKey],
       [useTaskInstanceServiceGetHitlDetailsKey],
       UseGanttServiceGetGanttDataKeyFn({ dagId, runId: dagRunId }),

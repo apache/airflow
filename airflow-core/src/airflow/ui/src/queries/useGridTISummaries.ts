@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+
+import { focusManager, useQueryClient } from "@tanstack/react-query";
 
 import {
   useDagRunServiceGetDagRunsKey,
@@ -26,6 +27,7 @@ import {
 } from "openapi/queries";
 import type { GridTISummaries, TaskInstanceState } from "openapi/requests";
 import { OpenAPI } from "openapi/requests/core/OpenAPI";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 
 const GRID_MUTATION_WATCHED_KEYS = new Set([
@@ -149,7 +151,10 @@ export const useGridTiSummariesStream = ({
     // reopen it — a redundant connection plus an AbortError on every grid mount — so let the interval be
     // the only re-stream trigger.
     const timer = setInterval(() => {
-      setRefreshTick((tick) => tick + 1);
+      // Skip re-streams while the tab is hidden, matching React Query's refetchIntervalInBackground: false.
+      if (focusManager.isFocused()) {
+        setRefreshTick((tick) => tick + 1);
+      }
     }, baseRefetchInterval);
 
     return () => clearInterval(timer);

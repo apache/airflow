@@ -39,7 +39,7 @@ runs:
           --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
           ${AIRFLOW_EXTRAS} \
           --answer y &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
+        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANAGERS}
                     ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"
@@ -73,7 +73,7 @@ runs:
           --use-airflow-version "${MIN_AIRFLOW_VERSION}" \
           ${AIRFLOW_EXTRAS} \
           --answer y &&
-        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANGERS}
+        breeze shell "export AIRFLOW__DATABASE__EXTERNAL_DB_MANAGERS=${DB_MANAGERS}
              ${AIRFLOW_3_CMD}" --no-db-cleanup
       env:
         COMPOSE_PROJECT_NAME: "docker-compose"

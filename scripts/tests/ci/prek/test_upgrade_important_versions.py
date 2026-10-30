@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC
 from unittest import mock
 
 import pytest
@@ -199,15 +200,152 @@ def test_remove_override_entry_no_match_is_noop():
 
 def test_is_version_within_cooldown_uses_per_package_override():
     """A shorter per-package cooldown lets a release through that the global window would block."""
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from ci.prek.upgrade_important_versions import _is_version_within_cooldown
 
     # Published 2 days ago — inside the 4-day global window, outside a 6-hour window.
-    two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+    two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
     releases = {"1.0.1": [{"upload_time_iso_8601": two_days_ago.replace("+00:00", "Z")}]}
 
     # No override → global 4-day cooldown applies → version is "within cooldown".
     assert _is_version_within_cooldown(releases, "1.0.1") is True
     # 6-hour override → version is older than that → "outside cooldown".
     assert _is_version_within_cooldown(releases, "1.0.1", cooldown_hours=6) is False
+
+
+def test_flit_core_upgrade_updates_provider_pyproject_template(monkeypatch):
+    """Provider pyproject.toml files are regenerated from the template, so its pin must move with them."""
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "UPGRADE_FLIT_CORE", True)
+    monkeypatch.setattr(uiv, "UPGRADE_PYTHON", False)
+    template = (
+        uiv.AIRFLOW_ROOT_PATH
+        / "dev"
+        / "breeze"
+        / "src"
+        / "airflow_breeze"
+        / "templates"
+        / "pyproject_TEMPLATE.toml.jinja2"
+    )
+    files_to_update = dict(uiv.FILES_TO_UPDATE)
+    assert template in files_to_update
+
+    new_content = uiv.update_file_with_versions(
+        template.read_text(), files_to_update[template], {"flit_core": "99.0.0"}, latest_python_versions={}
+    )
+
+    assert 'requires = ["flit_core==99.0.0"]' in new_content
+
+
+def _catalog_responses(uiv, definitions: dict[str, str]):
+    def get(url, **kwargs):
+        response = mock.MagicMock(spec=uiv.requests.Response)
+        response.text = next(text for debian, text in definitions.items() if f"/debian-{debian}/" in url)
+        return response
+
+    return mock.create_autospec(uiv.requests.get, side_effect=get)
+
+
+@pytest.mark.parametrize(
+    ("definitions", "expected"),
+    [
+        pytest.param(
+            {
+                "13": "tags:\n  - 3.14-debian13-dev\n  - 3.14.8-debian13-dev\nplatforms:\n",
+                "12": "tags:\n  - 3.14-debian12-dev\n  - 3.14.8-debian12-dev\nplatforms:\n",
+            },
+            "3.14.8",
+            id="floating-and-patchlevel-tags",
+        ),
+        pytest.param(
+            {
+                "13": "tags:\n  - 3.14.9-debian13-dev\n  - 3.14.15-debian13-dev\n",
+                "12": "tags:\n  - 3.14.9-debian12-dev\n  - 3.14.15-debian12-dev\n",
+            },
+            "3.14.15",
+            id="highest-patchlevel-wins-numerically",
+        ),
+        pytest.param(
+            {
+                "13": "tags:\n  - 3.14.9-debian13-dev\n",
+                "12": "tags:\n  - 3.14.8-debian12-dev\n",
+            },
+            "3.14.8",
+            id="patchlevel-published-for-every-debian-release",
+        ),
+    ],
+)
+def test_python_patchlevel_comes_from_the_hardened_image_catalog(monkeypatch, definitions, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    get = _catalog_responses(uiv, definitions)
+    monkeypatch.setattr(uiv.requests, "get", get)
+
+    assert uiv.get_latest_python_version("3.14") == expected
+    assert [call.args[0].split("/image/python/")[1] for call in get.call_args_list] == [
+        "debian-13/3.14-dev.yaml",
+        "debian-12/3.14-dev.yaml",
+    ]
+
+
+def test_python_patchlevel_exits_when_the_catalog_lists_no_tag(monkeypatch):
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.text = "tags:\n  - 3.14-debian12-dev\n"
+    monkeypatch.setattr(uiv.requests, "get", mock.create_autospec(uiv.requests.get, return_value=response))
+
+    with pytest.raises(SystemExit):
+        uiv.get_latest_python_version("3.14")
+
+
+@pytest.mark.parametrize(
+    ("package_name", "latest_package_managers", "expected_version"),
+    [
+        pytest.param("pip", True, "26.3.0", id="pip-latest-package-managers-bypasses-cooldown"),
+        pytest.param("pip", False, "26.2.1", id="pip-default-respects-cooldown"),
+        pytest.param("uv", True, "0.14.0", id="uv-latest-package-managers-bypasses-cooldown"),
+        pytest.param("uv", False, "0.13.1", id="uv-default-respects-cooldown"),
+        pytest.param(
+            "rich",
+            True,
+            "13.6.0",
+            id="non-package-manager-respects-cooldown-even-with-latest-package-managers",
+        ),
+    ],
+)
+def test_get_latest_pypi_version_latest_package_managers(
+    monkeypatch, package_name, latest_package_managers, expected_version
+):
+    from datetime import datetime, timedelta
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "LATEST_PACKAGE_MANAGERS", latest_package_managers)
+
+    now = datetime.now(UTC)
+    two_days_ago = (now - timedelta(days=2)).isoformat().replace("+00:00", "Z")
+    ten_days_ago = (now - timedelta(days=10)).isoformat().replace("+00:00", "Z")
+
+    pypi_data = {
+        "info": {
+            "version": "26.3.0" if package_name == "pip" else "0.14.0" if package_name == "uv" else "13.7.0"
+        },
+        "releases": {
+            "26.2.1" if package_name == "pip" else "0.13.1" if package_name == "uv" else "13.6.0": [
+                {"upload_time_iso_8601": ten_days_ago}
+            ],
+            "26.3.0" if package_name == "pip" else "0.14.0" if package_name == "uv" else "13.7.0": [
+                {"upload_time_iso_8601": two_days_ago}
+            ],
+        },
+    }
+
+    response = mock.MagicMock()
+    response.raise_for_status = mock.MagicMock()
+    response.json = mock.MagicMock(return_value=pypi_data)
+    monkeypatch.setattr(uiv.requests, "get", mock.MagicMock(return_value=response))
+
+    assert uiv.get_latest_pypi_version(package_name, should_upgrade=True) == expected_version

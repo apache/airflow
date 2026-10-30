@@ -48,7 +48,10 @@ class OpsgenieNotifier(BaseNotifier):
     :param opsgenie_conn_id: Optional. The name of the Opsgenie connection to use. Default conn_id is opsgenie_default
     """
 
-    template_fields: Sequence[str] = ("payload",)
+    template_fields: Sequence[str] = (
+        "payload",
+        "opsgenie_conn_id",
+    )
 
     def __init__(
         self,

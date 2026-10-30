@@ -64,7 +64,7 @@ class CustomTZ(datetime.tzinfo):
 
 class NoNameTZ(datetime.tzinfo):
     def utcoffset(self, dt):
-        return datetime.timedelta(hours=2)
+        return None
 
 
 class FooBarModel(BaseModel):
@@ -107,16 +107,21 @@ class TestSerializers:
             pytest.param(DateTime(2022, 7, 10, tzinfo=tzutc()), id="datetime_tzutc"),
             pytest.param(DateTime(2022, 7, 10, tzinfo=ZoneInfo("Europe/Paris")), id="datetime_zoneinfo"),
             pytest.param(datetime.datetime.now(), id="datetime_now"),
+            pytest.param(
+                datetime.datetime(2022, 7, 10, tzinfo=datetime.timezone(datetime.timedelta(hours=2))),
+                id="datetime_stdlib_fixed_offset",
+            ),
         ],
     )
     def test_datetime(self, input_obj):
         """Test serialization and deserialization of various datetime-related objects."""
         serialized_obj = serialize(input_obj)
         deserialized_obj = deserialize(serialized_obj)
-        if isinstance(input_obj, (datetime.date, datetime.timedelta, Date)):
+        if isinstance(input_obj, datetime.datetime):
             assert input_obj == deserialized_obj
+            assert input_obj.utcoffset() == deserialized_obj.utcoffset()
         else:
-            assert input_obj.timestamp() == deserialized_obj.timestamp()
+            assert input_obj == deserialized_obj
 
     @pytest.mark.parametrize(
         ("tz_input", "expected_tz_name"),
@@ -152,7 +157,7 @@ class TestSerializers:
         serde must read that form back (used e.g. for trigger kwargs encoded via
         BaseSerialization) and reconstruct a UTC ``datetime`` with the same instant.
         """
-        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.timezone.utc)
+        moment = datetime.datetime(2026, 1, 15, 12, 30, tzinfo=datetime.UTC)
         legacy = {"__type": "datetime", "__var": moment.timestamp()}
 
         deserialized = deserialize(legacy)
@@ -163,6 +168,18 @@ class TestSerializers:
         # The same form nested inside a dict (the shape trigger kwargs take).
         nested = deserialize({"moment": legacy})
         assert nested["moment"].timestamp() == moment.timestamp()
+
+    @pytest.mark.parametrize(
+        ("payload", "expected"),
+        [
+            pytest.param(2700, datetime.timedelta(minutes=45), id="int"),
+            pytest.param(2700.0, datetime.timedelta(minutes=45), id="float"),
+            pytest.param("2700", datetime.timedelta(minutes=45), id="str"),
+        ],
+    )
+    def test_deserialize_timedelta_numeric_payloads(self, payload, expected):
+        """Timedelta payloads may arrive as int (DeadlineAlert interval); see #72319."""
+        assert deserialize({CLASSNAME: "datetime.timedelta", VERSION: 2, DATA: payload}) == expected
 
     @pytest.mark.parametrize(
         ("expr", "expected"),
@@ -281,48 +298,45 @@ class TestSerializers:
         d = deserialize(e)
         assert i.equals(d)
 
+    @pytest.mark.parametrize(
+        "classname",
+        ["pandas.DataFrame", "pandas.core.frame.DataFrame"],
+    )
+    def test_pandas_deserializes_regardless_of_writer_qualname(self, classname):
+        """
+        A DataFrame XCom must deserialize under either pandas major's registry qualname.
+
+        The installed pandas only ever produces its own qualname, so this forges the tag to
+        force the lookup through the other registry entry.
+        """
+        import pandas as pd
+
+        i = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
+        e = serialize(i)
+        e[CLASSNAME] = classname
+        d = deserialize(e)
+        assert i.equals(d)
+
     def test_pandas_serializers(self):
         from airflow.sdk.serde.serializers.pandas import serialize
 
         assert serialize(123) == ("", "", 0, False)
 
-    def test_pandas_3_dataframe_name_is_registered(self):
-        """The pandas 3 qualname must be registered, or the guard below is unreachable.
-
-        Under pandas 3 a DataFrame qualifies as ``pandas.DataFrame``. serde dispatches on
-        that name, so if it is absent from the registry the caller gets the generic
-        "cannot serialize object of type" from serde and never reaches this module.
-        """
-        from airflow.sdk.serde.serializers.pandas import deserializers, serializers
-
-        assert "pandas.DataFrame" in serializers
-        assert "pandas.core.frame.DataFrame" in deserializers
-
-    @pytest.mark.parametrize("version", ["3.0.0", "3.0.5", "4.1.2"])
-    def test_pandas_3_dataframe_xcom_is_refused(self, monkeypatch, version):
-        """pandas >= 3 must fail loudly on both write and read, not round trip silently."""
-        import pandas as pd
-
-        from airflow.sdk.serde.serializers import pandas as pandas_serializer
-
-        monkeypatch.setattr(pd, "__version__", version)
-        df = pd.DataFrame(data={"col1": [1, 2], "col2": [3, 4]})
-
-        with pytest.raises(RuntimeError, match=rf"DataFrame XComs are not supported with pandas {version}"):
-            pandas_serializer.serialize(df)
-
-        with pytest.raises(RuntimeError, match=r"DataFrame XComs are not supported with pandas"):
-            pandas_serializer.deserialize(pd.DataFrame, 1, "")
-
     @pytest.mark.parametrize(
         ("klass", "version", "data", "msg"),
         [
-            (pd.DataFrame, 999, "", r"serialized 999 of pandas.core.frame.DataFrame > 1"),  # version too new
+            # pandas 3 qualifies the class as pandas.DataFrame, pandas 2 as pandas.core.frame.DataFrame
+            (
+                pd.DataFrame,
+                999,
+                "",
+                r"serialized 999 of pandas(\.core\.frame)?\.DataFrame > 1",
+            ),  # version too new
             (
                 pd.DataFrame,
                 1,
                 123,
-                r"serialized pandas.core.frame.DataFrame has wrong data type .*<class 'int'>",
+                r"serialized pandas(\.core\.frame)?\.DataFrame has wrong data type .*<class 'int'>",
             ),  # bad payload type
             (str, 1, "", r"do not know how to deserialize builtins.str"),  # bad class
         ],
@@ -615,6 +629,12 @@ class TestSerializers:
         from airflow.sdk.serde.serializers.timezone import serialize
 
         assert serialize(FixedTimezone(0)) == ("UTC", "pendulum.tz.timezone.FixedTimezone", 1, True)
+
+    def test_timezone_serialize_fixed_offset(self):
+        from airflow.sdk.serde.serializers.timezone import serialize
+
+        tz = datetime.timezone(datetime.timedelta(hours=-5))
+        assert serialize(tz) == (-18000, "pendulum.tz.timezone.FixedTimezone", 1, True)
 
     def test_timezone_serialize_no_name(self):
         from airflow.sdk.serde.serializers.timezone import serialize

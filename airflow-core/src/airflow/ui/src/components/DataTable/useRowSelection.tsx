@@ -18,7 +18,7 @@
  */
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-import { Checkbox } from "src/components/ui/Checkbox";
+import { Checkbox } from "src/system-components";
 
 type UseRowSelectionProps<T> = {
   data?: Array<T>;
@@ -82,6 +82,8 @@ export const SelectionRowCheckbox = ({ colorPalette, rowKey }: SelectionRowCheck
       checked={selectedRows.has(rowKey)}
       colorPalette={colorPalette}
       onCheckedChange={(event) => onRowSelect(rowKey, Boolean(event.checked))}
+      size="xs"
+      verticalAlign="middle"
     />
   );
 };
@@ -99,19 +101,25 @@ export const SelectionHeaderCheckbox = ({ colorPalette }: SelectionHeaderCheckbo
       checked={allRowsSelected}
       colorPalette={colorPalette}
       onCheckedChange={(event) => onSelectAll(Boolean(event.checked))}
+      size="xs"
+      verticalAlign="middle"
     />
   );
 };
 
 export const useRowSelection = <T,>({ data = [], getKey }: UseRowSelectionProps<T>) => {
-  const [selectedRows, setSelectedRows] = useState<Map<string, boolean>>(new Map());
+  const [selectedItems, setSelectedItems] = useState<Map<string, T>>(new Map());
+  const currentItems = new Map(data.map((item) => [getKey(item), item]));
+  const selectedRows = new Map([...selectedItems.keys()].map((key) => [key, true]));
 
   const handleRowSelect = (key: string, isChecked: boolean) => {
-    setSelectedRows((prev) => {
+    setSelectedItems((prev) => {
       const isAlreadySelected = prev.has(key);
 
       if (isChecked && !isAlreadySelected) {
-        return new Map(prev).set(key, true);
+        const item = currentItems.get(key);
+
+        return item === undefined ? prev : new Map(prev).set(key, item);
       } else if (!isChecked && isAlreadySelected) {
         const newMap = new Map(prev);
 
@@ -125,11 +133,11 @@ export const useRowSelection = <T,>({ data = [], getKey }: UseRowSelectionProps<
   };
 
   const handleSelectAll = (isChecked: boolean) => {
-    setSelectedRows((prev) => {
+    setSelectedItems((prev) => {
       const newMap = new Map(prev);
 
       if (isChecked) {
-        data.forEach((item) => newMap.set(getKey(item), true));
+        data.forEach((item) => newMap.set(getKey(item), item));
       } else {
         data.forEach((item) => newMap.delete(getKey(item)));
       }
@@ -141,14 +149,14 @@ export const useRowSelection = <T,>({ data = [], getKey }: UseRowSelectionProps<
   const allRowsSelected = data.length > 0 && data.every((item) => selectedRows.has(getKey(item)));
 
   const clearSelections = () => {
-    setSelectedRows(new Map());
+    setSelectedItems(new Map());
   };
 
   const deselectKeys = (keys: Array<string>) => {
     if (keys.length === 0) {
       return;
     }
-    setSelectedRows((prev) => {
+    setSelectedItems((prev) => {
       const newMap = new Map(prev);
 
       keys.forEach((key) => newMap.delete(key));
@@ -163,6 +171,7 @@ export const useRowSelection = <T,>({ data = [], getKey }: UseRowSelectionProps<
     deselectKeys,
     handleRowSelect,
     handleSelectAll,
+    selectedItems: [...selectedItems].map(([key, item]) => currentItems.get(key) ?? item),
     selectedRows,
   };
 };

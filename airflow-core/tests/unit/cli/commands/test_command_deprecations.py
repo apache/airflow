@@ -36,6 +36,7 @@ from airflow.cli.commands import (
     config_command,
     connection_command,
     dag_command,
+    jobs_command,
     pool_command,
     provider_command,
     task_command,
@@ -53,6 +54,7 @@ MIGRATED_CLI_COMMANDS = [
     (connection_command.create_default_connections, "airflowctl connections create-defaults"),
     (dag_command.dag_trigger, "airflowctl dags trigger"),
     (dag_command.dag_delete, "airflowctl dags delete"),
+    (dag_command.dag_clear, "airflowctl dags clear"),
     (dag_command.dag_list_dags, "airflowctl dags list"),
     (dag_command.dag_details, "airflowctl dags get-details"),
     (dag_command.dag_list_import_errors, "airflowctl dags list-import-errors"),
@@ -75,7 +77,7 @@ MIGRATED_CLI_COMMANDS = [
     (variable_command.variables_import, "airflowctl variables import"),
     (asset_command.asset_materialize, "airflowctl assets materialize"),
     (asset_command.asset_list, "airflowctl assets list / airflowctl assets list-aliases"),
-    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-by-alias"),
+    (asset_command.asset_details, "airflowctl assets get / airflowctl assets get-alias"),
     (provider_command.provider_get, "airflowctl providers get"),
     (provider_command.providers_list, "airflowctl providers list"),
     (config_command.get_value, "airflowctl config get"),
@@ -86,6 +88,7 @@ MIGRATED_CLI_COMMANDS = [
     (task_command.task_states_for_dag_run, "airflowctl tasks states-for-dag-run"),
     (task_command.task_clear, "airflowctl tasks clear"),
     (task_command.task_failed_deps, "airflowctl tasks failed-deps"),
+    (jobs_command.check, "airflowctl jobs check"),
 ]
 
 

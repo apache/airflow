@@ -24,8 +24,14 @@ import time
 from unittest import mock
 
 import pytest
+from opentelemetry import metrics
 from opentelemetry.metrics import MeterProvider
-from opentelemetry.sdk.metrics.view import ExponentialBucketHistogramAggregation, View
+from opentelemetry.sdk.metrics import MeterProvider as SDKMeterProvider
+from opentelemetry.sdk.metrics.view import (
+    ExplicitBucketHistogramAggregation,
+    ExponentialBucketHistogramAggregation,
+    View,
+)
 
 from airflow_shared.observability.metrics.otel_logger import (
     DEFAULT_METRIC_NAME_PREFIX,
@@ -62,7 +68,36 @@ def name():
     return "test_stats_run"
 
 
+@pytest.fixture
+def reset_meter_provider():
+    """Let a test install its own global MeterProvider, then restore the previous one.
+
+    ``set_meter_provider`` is guarded by a process-wide ``Once``, so tests that install a
+    provider have to clear it the same way ``configure_otel`` does after a fork.
+    """
+    import opentelemetry.metrics._internal as metrics_internal
+
+    def clear() -> None:
+        metrics_internal._METER_PROVIDER_SET_ONCE._done = False
+        metrics_internal._METER_PROVIDER = None
+
+    previous = metrics_internal._METER_PROVIDER
+    clear()
+    yield
+    clear()
+    metrics_internal._METER_PROVIDER = previous
+
+
 class TestOtelMetrics:
+    @pytest.fixture(autouse=True)
+    def _clear_otel_env(self, monkeypatch):
+        # CI runners (e.g. RunsOn) export OTEL_EXPORTER_OTLP_ENDPOINT, which otherwise wins
+        # over the Airflow config host/port and leaks into the config-priority assertions.
+        # Clear all OTEL_* vars so each test only sees the env it sets itself.
+        for name in list(os.environ):
+            if name.startswith("OTEL_"):
+                monkeypatch.delenv(name, raising=False)
+
     def setup_method(self):
         self.meter = mock.Mock(MeterProvider)
         self.stats = SafeOtelLogger(otel_provider=self.meter)
@@ -656,6 +691,37 @@ class TestOtelMetrics:
         with env_vars({"OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"}):
             second = _load_exporter_from_env()
             assert second.__class__.__module__ == "opentelemetry.exporter.otlp.proto.grpc.metric_exporter"
+
+    def test_declaratively_configured_provider_is_not_replaced(self, reset_meter_provider):
+        """A MeterProvider built from OTEL_CONFIG_FILE must survive configure_otel().
+
+        The declarative configuration spec makes that file the sole source of SDK
+        construction, so replacing its provider silently drops the deployment's views.
+        See https://github.com/apache/airflow/issues/64690 for why the provider is
+        otherwise force-replaced.
+        """
+        declarative_view = View(
+            instrument_name="*_duration",
+            aggregation=ExplicitBucketHistogramAggregation(boundaries=(0.5, 1, 2, 4, 8)),
+        )
+        configured_provider = SDKMeterProvider(views=[declarative_view], shutdown_on_exit=False)
+        metrics.set_meter_provider(configured_provider)
+
+        with env_vars({"OTEL_CONFIG_FILE": "/tmp/otel-config.yaml"}):
+            logger = configure_otel(host="localhost", port="4318")
+
+        assert logger.otel is configured_provider
+        assert metrics.get_meter_provider() is configured_provider
+        assert list(configured_provider._sdk_config.views) == [declarative_view]
+
+    def test_provider_is_replaced_without_declarative_config(self, reset_meter_provider):
+        """Without OTEL_CONFIG_FILE, Airflow still installs its own provider."""
+        pre_existing = SDKMeterProvider(shutdown_on_exit=False)
+        metrics.set_meter_provider(pre_existing)
+
+        logger = configure_otel(host="localhost", port="4318")
+
+        assert logger.otel is not pre_existing
 
     def test_atexit_flush_on_process_exit(self):
         """

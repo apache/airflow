@@ -54,7 +54,8 @@ A **Team** is a logical grouping that represents a group of users within your or
 
 Teams within the Airflow database have a very simple structure, only containing one field:
 
-- **name**: A unique identifier for the team (3-50 characters, alphanumeric with hyphens and underscores)
+- **name**: A unique identifier for the team (3-50 characters, lower case letters, digits, hyphens and
+  underscores, with no two consecutive underscores)
 
 Teams are associated with Dag bundles through a separate association table, which links team names to Dag bundle names.
 
@@ -82,6 +83,10 @@ When Multi-Team mode is enabled, the following resources can be scoped to specif
 - **Connections**: Team members can only access connections owned by their team or global connections
 - **Pools**: Pools can be assigned to teams
 - **XComs**: Tasks can only access XComs of Dags in their own team (plus, for reads, global Dags)
+- **Plugins**: A plugin can declare the team that owns it, scoping what it contributes to that team
+
+Dags themselves are team-scoped through bundle ownership (see `Dag Bundles and Team Ownership`_ above);
+their visibility in the UI and REST API follows the same team boundary, subject to the auth manager.
 
 Resources without a team assignment are considered **global** and accessible to all teams.
 
@@ -108,6 +113,20 @@ Secrets Backends are supported on a case by case basis.
 When a task requests a Variable or Connection, the secrets backend will return a team-specific value, if any. The
 backend will automatically resolve the correct value based on the requesting task's team.
 
+Plugins
+"""""""
+
+A plugin declares the team that owns it by setting ``team_name`` in its own code. Airflow then offers its
+API endpoints, UI views, macros, operator extra links and scheduling classes (timetables, partition mappers,
+deadline references, etc) to that team only. A plugin that leaves ``team_name`` unset is global, as every
+plugin written before this feature is.
+
+Listeners are deployment-wide: every listener receives events for all teams, and choosing which listeners run
+is the Deployment Manager's responsibility.
+
+See :ref:`plugins-multi-team` for what each plugin attribute does, and for the cases where the scoping is
+logical rather than enforceable.
+
 Auth Manager
 """"""""""""
 
@@ -118,8 +137,10 @@ implement two methods:
   used primarily to check whether a user belongs to a team.
 - ``_get_teams``: Returns the set of teams defined in the auth manager.
 
-During initialization, Airflow validates that all teams defined in the auth manager are also present in the
-Airflow metadata database. If any team is missing, Airflow will raise an error.
+During initialization, Airflow compares the teams defined in the auth manager with the teams in the Airflow
+metadata database. A mismatch in either direction -- a team the auth manager defines that the database does
+not have, or a team the database has that the auth manager does not define -- emits a ``UserWarning``.
+Startup is not blocked, so watch the startup log for these warnings.
 
 If the auth manager you are using does not implement these methods, Airflow will raise a
 ``NotImplementedError`` at runtime.
@@ -149,6 +170,26 @@ Or via environment variable:
 
     Changing this setting on an existing deployment requires careful planning.
 
+.. _multi-team-team-name-cache:
+
+Tuning Team Resolution Caching
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.3.0
+
+Every Dag authorization check resolves the Dag's owning team from its bundle. Because some endpoints
+(such as the grid view) re-poll continuously, Airflow caches this ``Dag -> team`` mapping in memory to
+avoid repeated joins against the Team table. Control the cache lifetime with:
+
+.. code-block:: ini
+
+    [core]
+    team_name_cache_ttl = 30
+
+The value is the number of seconds a resolved team is cached before it is looked up again (default
+``30``). A team reassignment takes up to this many seconds to take effect, and different API server
+workers may briefly disagree during that window. Set it to ``0`` to disable caching.
+
 Creating and Managing Teams
 ---------------------------
 
@@ -161,7 +202,7 @@ Creating a Team
 
     airflow teams create <team_name>
 
-Team names must be 3-50 characters long and contain only alphanumeric characters, hyphens, and underscores.
+The team name must satisfy the constraints described in `Teams`_ above.
 
 Listing Teams
 ^^^^^^^^^^^^^
@@ -188,6 +229,38 @@ Or to skip the confirmation prompt:
 .. warning::
 
     A team cannot be deleted if it has associated resources (Dag bundles, Variables, Connections, or Pools). You must remove these associations first.
+
+.. _multi-team-teams-sync:
+
+Syncing Teams from the Dag Bundle Config
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.3.0
+
+.. code-block:: bash
+
+    airflow teams sync
+
+Creates a team for every ``team_name`` in the :ref:`Dag bundle config <multi-team-dag-bundles>` that the
+database does not have yet, so the bundle config can be the one place teams are declared instead of running
+``airflow teams create`` once per team. It also creates the default pool of any configured team that is
+missing one, including teams that already existed.
+
+.. _multi-team-teams-verify:
+
+Verifying the Configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 3.4.0
+
+.. code-block:: bash
+
+    airflow teams verify
+
+Checks the multi-team configuration against the database and reports any of these problems:
+
+- a team that has no default pool
+- a team referenced by a Dag bundle but missing from the database
 
 Configuring Team Resources
 --------------------------
@@ -268,6 +341,11 @@ Use the ``--team-name`` option with ``airflow pools set`` to assign a pool to a 
 
     The ``--team-name`` option is rejected when ``core.multi_team`` is disabled.
     The specified team must exist in the database (create it first with ``airflow teams create``).
+
+    When ``core.multi_team`` is enabled, ``airflow teams create`` automatically
+    creates a default pool named ``default_pool_<team_name>``. By default, tasks
+    in Dag bundles associated with that team are automatically assigned to
+    the team's default pool unless another pool is explicitly configured.
 
 Creating Team-scoped Pools via the REST API
 """""""""""""""""""""""""""""""""""""""""""
@@ -511,6 +589,8 @@ name followed by an equals sign:
     broker_url = redis://team-b-redis:6379/0
     result_backend = db+postgresql+psycopg://team-b-db/celery_results
 
+.. _multi-team-dag-bundles:
+
 Dag Bundle to Team Association
 ------------------------------
 
@@ -547,7 +627,9 @@ In this example:
 
 .. note::
 
-    The team specified in ``team_name`` must exist in the database before syncing the Dag bundles. Create teams first using ``airflow teams create``.
+    The team specified in ``team_name`` must exist in the database before syncing the Dag bundles. Create the
+    teams first with ``airflow teams create``, or let ``airflow teams sync`` create them from this config
+    (see :ref:`multi-team-teams-sync`).
 
 How Scheduling Works
 --------------------
@@ -617,6 +699,49 @@ Team filtering and queue filtering are orthogonal — they combine as AND condit
     Ensure that at least one triggerer is running for every team, otherwise that team's triggers will
     remain unassigned until one starts — the same applies to every queue when ``--queues`` is used. If you
     combine ``--team-name`` and ``--queues``, this requirement extends to each team-and-queue combination.
+
+.. _multi-team-dag-processor:
+
+Team-scoped Dag Processing
+--------------------------
+
+The Dag processor parses Dag files from your configured Dag bundles. Unlike the triggerer, it is not
+scoped with ``--team-name`` directly; it is scoped by **bundle** using the ``--bundle-name`` CLI argument
+(which may be passed more than once). Because each bundle is owned by at most one team, scoping a
+processor to a team's bundle(s) scopes it to that team. The teams a processor serves are derived from the
+:ref:`Dag bundle config <multi-team-dag-bundles>`.
+
+.. code-block:: bash
+
+    # Process only team_a's bundle(s)
+    airflow dag-processor --bundle-name team_a_dags
+
+    # Process several bundles (for example, all of team_b's bundles)
+    airflow dag-processor --bundle-name team_b_dags --bundle-name team_b_extra_dags
+
+    # Process every configured bundle (all teams and global bundles)
+    airflow dag-processor
+
+Running **one Dag processor per team** (scoped to that team's bundles) is recommended, so that each
+team's Dag code is parsed in a separate process and teams stay isolated. Unlike the triggerer, however,
+this is not required for coverage: a global triggerer only picks up teamless triggers, whereas a Dag
+processor started without ``--bundle-name`` parses *every* configured bundle. A single global Dag
+processor therefore covers every team's Dags as well as global (teamless) bundles, which is possible but
+gives up the per-team parsing isolation.
+
+.. note::
+
+    When you do split parsing across multiple ``--bundle-name`` processors, make sure every configured
+    bundle is covered by at least one running processor; a bundle that no processor parses will not have
+    its Dags parsed or updated.
+
+.. note::
+
+    Scoping a processor to a team's bundles keeps teams in separate parsing processes, but all those
+    processes still share the same host. For the tightest boundary, run each team's Dag processor on
+    separate team-owned compute (for example, separate VMs, containers, or servers) so that one team's
+    Dag parsing cannot consume resources or otherwise interfere with another team's. This is not required,
+    but it provides stronger isolation than per-process separation alone.
 
 .. _multi-team-asset-event-filtering:
 
@@ -1058,26 +1183,24 @@ Dags, and global components emit the same metrics without a ``team_name`` tag.
     When Multi-Team mode is disabled, metrics are emitted with no ``team_name`` tag whatsoever, exactly
     as they have always been emitted for a single-team Airflow environment.
 
-The ``team_name`` tag is applied to metrics across the following components:
+The ``team_name`` tag is applied to metrics across the following components. The metrics named are
+examples only, not a complete list:
 
-- **Triggerer**: heartbeat, capacity, blocked-main-thread, trigger-queue delay, and trigger-outcome metrics
-  (for example, ``triggerer_heartbeat``, ``triggers.running``, ``triggers.succeeded``,
-  ``triggers.blocked_main_thread``, ``triggerer.trigger_queue_delay``).
-- **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing (for example,
-  ``executor.open_slots``, ``executor.queued_tasks``, ``scheduler.executor_heartbeat_duration``).
-- **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters (for
-  example, ``pool.open_slots``, ``scheduler.tasks.killed_externally``, ``asset.triggered_dagruns``).
-- **Dag runs**: dag run timing and lifecycle metrics (for example, ``dagrun.duration.<state>``,
-  ``dagrun.first_task_scheduling_delay``, ``dag.callback_exceptions``).
-- **Task instances**: task start, finish, and outcome counters (for example, ``ti.start``, ``ti.finish``,
-  ``ti_successes``, ``ti_failures``).
-- **Dag processing**: per-file parsing and callback metrics (for example, ``dag_processing.processes``,
-  ``dag_processing.processor_timeouts``, ``dag_processing.callback_only_count``).
-- **Callbacks**: callback execution counters (``callback_success`` / ``callback_failure``, optionally
-  prefixed).
-- **Connection tests**: per-request worker and reaper metrics for team-owned connection tests (for
-  example, ``connection_test.success``, ``connection_test.failed``, ``connection_test.hook_duration``,
-  ``connection_test.reaped``). Instance-wide connection-test queue gauges remain untagged.
+- **Triggerer**: heartbeat, capacity, blocked-main-thread, trigger-queue delay, and trigger-outcome
+  metrics (``triggerer_heartbeat``, ``triggers.running``, etc.).
+- **Executors**: executor slot gauges and scheduler-observed executor heartbeat timing
+  (``executor.open_slots``, ``executor.queued_tasks``, etc.).
+- **Scheduler**: pool slot gauges for team-scoped pools plus task- and asset-scheduling counters
+  (``pool.open_slots``, ``scheduler.tasks.killed_externally``, etc.).
+- **Dag runs**: dag run timing and lifecycle metrics (``dagrun.duration.<state>``,
+  ``dagrun.first_task_scheduling_delay``, etc.).
+- **Task instances**: task start, finish, and outcome counters (``ti.start``, ``ti.finish``, etc.).
+- **Dag processing**: per-file parsing and callback metrics (``dag_processing.processes``,
+  ``dag_processing.processor_timeouts``, etc.).
+- **Callbacks**: callback execution counters (``callback_<state>``, optionally prefixed).
+- **Connection tests**: per-request worker and reaper metrics for team-owned connection tests
+  (``connection_test.success``, ``connection_test.failed``, etc.). Instance-wide connection-test queue
+  gauges remain untagged.
 
 .. note::
 
@@ -1085,6 +1208,12 @@ The ``team_name`` tag is applied to metrics across the following components:
     team-scoped executor and worker metrics). Provider executors additionally inherit core
     ``executor.*`` slot gauges from the base executor. Check individual provider change logs for the
     minimum Airflow version that includes ``team_name`` tagging.
+
+.. note::
+
+    This list is not exhaustive and may lag behind the code. Use it to see which areas of Airflow
+    carry the ``team_name`` tag; the metric emission sites in the Airflow source are the
+    authoritative reference for individual metric names.
 
 Important Considerations
 ------------------------
@@ -1098,7 +1227,6 @@ Multi-Team mode is currently an experimental feature in preview. It is not yet f
 
 - Some UI elements may not be fully team-aware
 - Command and Secrets based lookup for team based configuration
-- Plugin support
 
 Global Uniqueness of Identifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

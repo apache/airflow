@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 #   "PyYAML>=6.0",
@@ -58,7 +58,7 @@ def generate_mprocs_config() -> str:
 
     procs["scheduler"] = {
         "shell": scheduler_cmd,
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 
@@ -84,7 +84,7 @@ def generate_mprocs_config() -> str:
             api_cmd = (
                 f"airflow api-server {api_host_arg} -d" if dev_mode else f"airflow api-server {api_host_arg}"
             )
-        procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000}
+        procs["api_server"] = {"shell": api_cmd, "autorestart": True, "scrollback": 100000}
     else:
         # Webserver (Airflow 2.x)
         if get_env_bool("BREEZE_DEBUG_WEBSERVER"):
@@ -96,7 +96,7 @@ def generate_mprocs_config() -> str:
 
         procs["webserver"] = {
             "shell": web_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
@@ -108,7 +108,7 @@ def generate_mprocs_config() -> str:
 
     procs["triggerer"] = {
         "shell": triggerer_cmd,
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 
@@ -122,36 +122,8 @@ def generate_mprocs_config() -> str:
 
         procs["celery_worker"] = {
             "shell": celery_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
-        }
-
-    if get_env("GO_WORKER") != "":
-        env = {}
-        env["AIRFLOW__EDGE__API_URL"] = "http://localhost:8080"
-        env["AIRFLOW__BUNDLES__FOLDER"] = "./bin"
-        env["AIRFLOW__LOGGING__BASE_LOG_FOLDER"] = "./logs"
-        env["AIRFLOW__EXECUTION__API_URL"] = "http://localhost:8080/execution/"
-
-        # Build command with environment cleanup
-        go_worker_cmd_parts = [
-            "export AIRFLOW__API_AUTH__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
-            "export AIRFLOW__LOGGING__SECRET_KEY=${AIRFLOW__API_AUTH__JWT_SECRET}",
-            "unset AIRFLOW__API_AUTH__JWT_SECRET || true",
-            "unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN || true",
-            "unset AIRFLOW__CELERY__RESULT_BACKEND || true",
-            "unset POSTGRES_HOST_PORT || true",
-            "unset BACKEND || true",
-            "unset POSTGRES_VERSION || true",
-            "export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs",
-            "go run ./cmd/airflow-go-edge-worker/main.go run",
-        ]
-        go_worker_cmd = " && ".join(go_worker_cmd_parts)
-
-        procs["go_worker"] = {
-            "shell": go_worker_cmd,
-            "cwd": "go-sdk",
-            "env": env,
         }
 
     # Flower (conditional)
@@ -164,7 +136,7 @@ def generate_mprocs_config() -> str:
 
         procs["flower"] = {
             "shell": flower_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
@@ -187,7 +159,7 @@ def generate_mprocs_config() -> str:
             ]
             edge_cmd = " && ".join(edge_cmd_parts)
 
-        procs["edge_worker"] = {"shell": edge_cmd, "restart": "always", "scrollback": 100000}
+        procs["edge_worker"] = {"shell": edge_cmd, "autorestart": True, "scrollback": 100000}
 
     # Dag Processor (conditional)
     if get_env_bool("STANDALONE_DAG_PROCESSOR"):
@@ -199,18 +171,19 @@ def generate_mprocs_config() -> str:
 
         procs["dag_processor"] = {
             "shell": dag_proc_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
     procs["shell"] = {
         "shell": "bash",
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 
     # Generate YAML output
-    config_dict = {"procs": procs}
+    # dekit/mprocs 0.10.x: default <q> opens a quit menu (ShowQuit); override to quit immediately.
+    config_dict = {"procs": procs, "keymap_procs": {"<q>": {"c": "quit"}}}
     return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
 
 

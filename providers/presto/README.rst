@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-presto``
 
-Release: ``5.12.1``
+Release: ``5.13.1``
 
 
 `Presto <https://prestodb.io/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``presto`` provider. All classes for this provide
 are in ``airflow.providers.presto`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.12.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.13.1/>`_.
 
 Installation
 ------------
@@ -45,24 +45,24 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-presto``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
 
-==========================================  ====================================================================
+==========================================  =================================================================
 PIP package                                 Version required
-==========================================  ====================================================================
+==========================================  =================================================================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``presto-python-client``                    ``>=0.8.4``
-``pandas``                                  ``>=2.1.2,<3; python_version < "3.13"``
-``pandas``                                  ``>=2.2.3,<3; python_version >= "3.13" and python_version < "3.14"``
-``pandas``                                  ``>=2.3.3,<3; python_version >= "3.14"``
+``pandas``                                  ``>=2.1.2; python_version < "3.13"``
+``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
+``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``psycopg2-binary``                         ``>=2.9.9; python_version < "3.13"``
 ``psycopg2-binary``                         ``>=2.9.10; python_version >= "3.13"``
-==========================================  ====================================================================
+==========================================  =================================================================
 
 Optional cross provider package dependencies
 --------------------------------------------
@@ -90,8 +90,8 @@ Optional dependencies
 Extra           Dependencies
 ==============  ===================================
 ``google``      ``apache-airflow-providers-google``
-``sqlalchemy``  ``sqlalchemy>=1.4.54``
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
 ==============  ===================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.12.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-presto/5.13.1/changelog.html>`_.

@@ -19,8 +19,26 @@
 from __future__ import annotations
 
 from airflow.providers.common.ai.toolsets.hook import HookToolset
+from airflow.providers.common.ai.toolsets.managed_agent import (
+    BaseManagedAgentToolset,
+    ManagedAgentToolset,
+)
+from airflow.providers.common.ai.toolsets.object_storage import ObjectStorageToolset
+from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
+from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
 
-__all__ = ["HookToolset", "MCPToolset", "SQLToolset", "airflow_toolset_to_langchain_tools"]
+__all__ = [
+    "AgentSkillsToolset",
+    "BaseManagedAgentToolset",
+    "DataFusionToolset",
+    "HookToolset",
+    "MCPToolset",
+    "ManagedAgentToolset",
+    "ObjectStorageToolset",
+    "SQLToolset",
+    "SandboxToolset",
+    "airflow_toolset_to_langchain_tools",
+]
 
 
 def __getattr__(name: str):
@@ -46,4 +64,8 @@ def __getattr__(name: str):
 
             raise AirflowOptionalProviderFeatureException(e)
         return MCPToolset
+    if name == "DataFusionToolset":
+        from airflow.providers.common.ai.toolsets.datafusion import DataFusionToolset
+
+        return DataFusionToolset
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -116,6 +116,48 @@ MODULE_TYPES: dict[str, dict] = {
         "label": "Retry Policies",
         "icon": "R",
     },
+    "extra_link": {
+        "yaml_key": "extra-links",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Extra Links",
+        "icon": "I",
+    },
+    "queue": {
+        "yaml_key": "queues",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Message Queues",
+        "icon": "Q",
+    },
+    "plugin": {
+        "yaml_key": "plugins",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Plugins",
+        "icon": "P",
+    },
+    "auth_manager": {
+        "yaml_key": "auth-managers",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Auth Managers",
+        "icon": "A",
+    },
+    "db_manager": {
+        "yaml_key": "db-managers",
+        "level": "flat",
+        "suffixes": [],
+        "label": "DB Managers",
+        "icon": "M",
+    },
+    "dialect": {
+        "yaml_key": "dialects",
+        "level": "flat",
+        "suffixes": [],
+        "label": "Dialects",
+        "icon": "D",
+    },
 }
 
 # Runtime base class imports for issubclass checks (extract_parameters.py).
@@ -147,11 +189,38 @@ TYPE_SUFFIXES: dict[str, list[str]] = {type_id: info["suffixes"] for type_id, in
 
 # Class-level sections used by extract_parameters.py (subset of flat that
 # list full class paths rather than simple entries).
+#
+# "plugins" and "dialects" are also flat/class-path sections, but each entry is a
+# dict (plugin-class / dialect-class-name) rather than a bare string, so they are
+# handled by the generic dict-shaped loop driven by DICT_SHAPED_CLASS_LEVEL_SECTIONS
+# below instead of this table.
 CLASS_LEVEL_SECTIONS: dict[str, str] = {
     "notifications": "notifier",
     "secrets-backends": "secret",
     "logging": "logging",
     "executors": "executor",
+    "extra-links": "extra_link",
+    "queues": "queue",
+    "auth-managers": "auth_manager",
+    "db-managers": "db_manager",
+}
+
+# Maps yaml section key -> (type id, class-path field name, integration-name
+# field name) for dict-shaped class-level sections (each yaml entry is a dict,
+# not a bare class-path string). Shared by extract_versions.py and
+# extract_parameters.py so both walk these sections with a single generic loop
+# instead of one per section, and so the field names are defined exactly once.
+DICT_SHAPED_CLASS_LEVEL_SECTIONS: dict[str, tuple[str, str, str]] = {
+    "plugins": ("plugin", "plugin-class", "name"),
+    "dialects": ("dialect", "dialect-class-name", "dialect-type"),
+}
+
+# Maps yaml section key -> category string for class-level (FQCN) sections.
+# Only lists yaml keys whose category differs from the key itself. Callers
+# fall back to the yaml key via .get(section_name, section_name) for every
+# other key, including ones like "notifications" where key == category.
+CLASS_LEVEL_CATEGORY_OVERRIDES: dict[str, str] = {
+    "secrets-backends": "secrets",
 }
 
 # All type ids, ordered consistently.

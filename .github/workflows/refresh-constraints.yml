@@ -1,0 +1,72 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: Refresh constraints
+# Refreshes the pinned constraint files on demand, when waiting for the automatic path is not an
+# option -- a `main` / `vX-Y-test` build that cannot be made green, or newly released providers
+# that a release candidate has to pick up before it is promoted.
+#
+# All three constraint flavours are refreshed, not just the PyPI one:
+#
+#   * `constraints-source-providers-X.Y.txt` -- providers resolved from this checkout's sources,
+#     which is what a contributor's Breeze environment and CI install from;
+#   * `constraints-no-providers-X.Y.txt` -- core dependencies alone, used to install Airflow
+#     without any provider pinned;
+#   * `constraints-X.Y.txt` -- providers as published on PyPI, which is what users install with.
+#
+# Refreshing only the PyPI flavour would leave CI and Breeze on the older pins, so the three
+# would disagree about the same dependency.
+#
+# This does the same work as the automatic `uv.lock` push (whose workflow it calls), against the
+# ref you name rather than the branch the push landed on. Run it from `main`: the workflow
+# definition and `breeze` come from `main`, while the sources come from `ref`, so refreshing a
+# release line needs no cherry-pick to `vX-Y-test` / `vX-Y-stable` first. The `constraints-X-Y`
+# branch written to is derived from that ref's `branch_defaults.py`.
+#
+# See dev/MANUALLY_GENERATING_IMAGE_CACHE_AND_CONSTRAINTS.md.
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Repo reference to refresh constraints from (e.g. v3-3-stable). Empty = this branch."
+        required: false
+        default: ""
+        type: string
+      upgrade-to-newer-dependencies:
+        description: "Upgrade deps to newest from PyPI"
+        required: false
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  # Two refreshes of the same ref would race each other onto the same `constraints-X-Y` branch.
+  group: refresh-constraints-${{ inputs.ref || github.ref }}
+  cancel-in-progress: false
+jobs:
+  refresh-constraints:
+    name: "Refresh constraints"
+    uses: ./.github/workflows/update-constraints-on-push.yml
+    permissions:
+      contents: write
+      packages: write
+    with:
+      ref: ${{ inputs.ref }}
+      upgrade-to-newer-dependencies: ${{ inputs.upgrade-to-newer-dependencies }}
+    secrets:
+      SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

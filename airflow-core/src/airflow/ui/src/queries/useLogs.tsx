@@ -16,56 +16,110 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { JSX } from "react";
+
 import type { UseQueryOptions } from "@tanstack/react-query";
+import Anser from "anser";
 import dayjs from "dayjs";
 import type { TFunction } from "i18next";
-import type { JSX } from "react";
 import { useTranslation } from "react-i18next";
 import innerText from "react-innertext";
 
-import { useTaskInstanceServiceGetLog } from "openapi/queries";
-import type { TaskInstanceResponse, TaskInstancesLogResponse } from "openapi/requests/types.gen";
+import { useDeadlinesServiceGetCallbackLogs, useTaskInstanceServiceGetLog } from "openapi/queries";
+import type {
+  StructuredLogMessage,
+  TaskInstanceResponse,
+  TaskInstanceHistoryResponse,
+  TaskInstancesLogResponse,
+} from "openapi/requests/types.gen";
+
 import {
   extractTIContext,
   renderStructuredLog,
   renderTIContextPreamble,
 } from "src/components/renderStructuredLog";
+
 import { isStatePending, useAutoRefresh } from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 import { parseStreamingLogContent } from "src/utils/logs";
 
 export type ParsedLogEntry = {
   element: JSX.Element | string | undefined;
+  getPlainText?: () => string;
   group?: { id: number; level: number; parentId?: number; type: "header" | "line" };
   lineNumber?: number;
+  timestamp?: string;
 };
+
+type GetLogLineTextOptions = {
+  logLevelFilters?: Array<string>;
+  logMessage: string | StructuredLogMessage;
+  showLogLevel?: boolean;
+  showSource?: boolean;
+  showTimestamp?: boolean;
+  sourceFilters?: Array<string>;
+  translate: TFunction;
+};
+
+/**
+ * Plain-text rendering of a single log line — same pipeline as the log
+ * download, with ANSI escape codes stripped. Used to rebuild copied text for
+ * selected rows the virtualizer has unmounted.
+ */
+export const getLogLineText = ({
+  logLevelFilters,
+  logMessage,
+  showLogLevel,
+  showSource,
+  showTimestamp,
+  sourceFilters,
+  translate,
+}: GetLogLineTextOptions): string =>
+  Anser.ansiToText(
+    renderStructuredLog({
+      index: 0,
+      logLevelFilters,
+      logLink: "",
+      logMessage,
+      renderingMode: "text",
+      showLogLevel,
+      showSource,
+      showTimestamp,
+      sourceFilters,
+      translate,
+    }),
+  );
 
 type Props = {
   accept?: "*/*" | "application/json" | "application/x-ndjson";
   dagId: string;
+  historical?: boolean;
   limit?: number;
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   tryNumber?: number;
 };
 
 type ParseLogsProps = {
   data: TaskInstancesLogResponse["content"];
   logLevelFilters?: Array<string>;
+  showLogLevel?: boolean;
   showSource?: boolean;
   showTimestamp?: boolean;
   sourceFilters?: Array<string>;
-  taskInstance?: TaskInstanceResponse;
+  taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   translate: TFunction;
   tryNumber: number;
 };
 
-const parseLogs = ({
+export const parseLogs = ({
   data,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -77,7 +131,15 @@ const parseLogs = ({
   let parsedLines;
   const sources: Array<string> = [];
 
-  const logLink = taskInstance ? `${getTaskInstanceLink(taskInstance)}?try_number=${tryNumber}` : "";
+  const logSearch = new URLSearchParams({ try_number: String(tryNumber) });
+
+  if (taskInstance?.region_id !== undefined) {
+    logSearch.set("region_id", taskInstance.region_id);
+    logSearch.set("region_index", String(taskInstance.region_index));
+  }
+  const logLink = taskInstance
+    ? `${getTaskInstanceLink({ dagId: taskInstance.dag_id, dagRunId: taskInstance.dag_run_id, mapIndex: taskInstance.map_index, taskId: taskInstance.task_id }, "logs")}?${logSearch}`
+    : "";
 
   try {
     let lineNumber = 0;
@@ -111,12 +173,14 @@ const parseLogs = ({
             logLink,
             logMessage: datum,
             renderingMode: "jsx",
+            showLogLevel,
             showSource,
             showTimestamp,
             sourceFilters,
             translate,
           }),
           lineNumber: lineNumbers[index],
+          logMessage: datum,
         };
       })
       .filter(({ element }) => element !== "");
@@ -131,13 +195,23 @@ const parseLogs = ({
   }
 
   const flatEntries: Array<ParsedLogEntry> = (() => {
-    type Group = { id: number; level: number; name: string };
+    type Group = { headerIndex: number; id: number; level: number; name: string };
     const groupStack: Array<Group> = [];
     const result: Array<ParsedLogEntry> = [];
     let nextGroupId = 0;
 
-    parsedLines.forEach(({ element, lineNumber }) => {
+    parsedLines.forEach(({ element, lineNumber, logMessage }) => {
       const text = innerText(element);
+      const getPlainText = () =>
+        getLogLineText({
+          logLevelFilters,
+          logMessage,
+          showLogLevel,
+          showSource,
+          showTimestamp,
+          sourceFilters,
+          translate,
+        });
 
       if (text.includes("::group::")) {
         const groupName = text.split("::group::")[1] as string;
@@ -147,7 +221,7 @@ const parseLogs = ({
         const level = groupStack.length;
         const parentGroup = groupStack[groupStack.length - 1];
 
-        groupStack.push({ id, level, name: groupName });
+        groupStack.push({ headerIndex: result.length, id, level, name: groupName });
         result.push({
           element: groupName,
           group: { id, level, parentId: parentGroup?.id, type: "header" },
@@ -157,21 +231,29 @@ const parseLogs = ({
       }
 
       if (text.includes("::endgroup::")) {
-        groupStack.pop();
+        const closedGroup = groupStack.pop();
+
+        // Hide groups that closed with nothing in them.
+        if (closedGroup !== undefined && result.length === closedGroup.headerIndex + 1) {
+          result.pop();
+        }
 
         return;
       }
 
       const currentGroup = groupStack[groupStack.length - 1];
+      const timestamp = typeof logMessage === "string" ? undefined : logMessage.timestamp;
 
       if (groupStack.length > 0 && currentGroup) {
         result.push({
           element,
+          getPlainText,
           group: { id: currentGroup.id, level: currentGroup.level, type: "line" },
           lineNumber,
+          timestamp,
         });
       } else {
-        result.push({ element, lineNumber });
+        result.push({ element, getPlainText, lineNumber, timestamp });
       }
     });
 
@@ -236,12 +318,25 @@ const truncateData = (data: TaskInstancesLogResponse | undefined, limit?: number
   };
 };
 
+// Build a 1:1 searchable text array from parsedLogs so search indices align
+// with the rendered output. Each entry maps to exactly one line.
+const getSearchableText = (parsedLogs: Array<ParsedLogEntry> | undefined): Array<string> =>
+  (parsedLogs ?? []).map((entry) => {
+    if (typeof entry.element === "string") {
+      return entry.element;
+    }
+
+    return entry.element ? innerText(entry.element) : "";
+  });
+
 export const useLogs = (
   {
     accept = "application/x-ndjson",
     dagId,
+    historical = false,
     limit,
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -250,7 +345,7 @@ export const useLogs = (
   }: Props,
   options?: Omit<UseQueryOptions<TaskInstancesLogResponse>, "queryFn" | "queryKey">,
 ) => {
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
   const refetchInterval = useAutoRefresh({ dagId });
 
   const { data, ...rest } = useTaskInstanceServiceGetLog(
@@ -259,6 +354,8 @@ export const useLogs = (
       dagId,
       dagRunId: taskInstance?.dag_run_id ?? "",
       mapIndex: taskInstance?.map_index ?? -1,
+      regionId: taskInstance?.region_id,
+      regionIndex: taskInstance?.region_index,
       taskId: taskInstance?.task_id ?? "",
       tryNumber,
     },
@@ -266,10 +363,10 @@ export const useLogs = (
     {
       enabled: Boolean(taskInstance),
       refetchInterval: (query) =>
-        isStatePending(taskInstance?.state) ||
-        dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)
-          ? refetchInterval
-          : false,
+        !historical &&
+        (isStatePending(taskInstance?.state) ||
+          dayjs(query.state.dataUpdatedAt).isBefore(taskInstance?.end_date)) &&
+        refetchInterval,
       ...options,
     },
   );
@@ -277,6 +374,7 @@ export const useLogs = (
   const parsedData = parseLogs({
     data: parseStreamingLogContent(truncateData(data, limit)),
     logLevelFilters,
+    showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
@@ -285,15 +383,33 @@ export const useLogs = (
     tryNumber,
   });
 
-  // Build a 1:1 searchable text array from parsedLogs so search indices align
-  // with the rendered output. Each entry maps to exactly one line.
-  const searchableText: Array<string> = (parsedData.parsedLogs ?? []).map((entry) => {
-    if (typeof entry.element === "string") {
-      return entry.element;
-    }
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
-    return entry.element ? innerText(entry.element) : "";
+  return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
+};
+
+type CallbackLogsProps = { callbackId: string; dagRunId: string } & Omit<
+  Props,
+  "accept" | "limit" | "taskInstance" | "tryNumber"
+>;
+
+export const useCallbackLogs = ({ callbackId, dagId, dagRunId, ...displayOptions }: CallbackLogsProps) => {
+  const { t: translate } = useTranslation();
+
+  const { data, ...rest } = useDeadlinesServiceGetCallbackLogs({
+    accept: "application/x-ndjson",
+    callbackId,
+    dagId,
+    dagRunId,
   });
+
+  const parsedData = parseLogs({
+    data: parseStreamingLogContent(data),
+    ...displayOptions,
+    translate,
+    tryNumber: 1,
+  });
+  const searchableText = getSearchableText(parsedData.parsedLogs);
 
   return { parsedData: { ...parsedData, searchableText }, ...rest, fetchedData: data };
 };

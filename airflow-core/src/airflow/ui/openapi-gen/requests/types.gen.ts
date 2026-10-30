@@ -78,6 +78,7 @@ export type AssetEventResponse = {
     source_dag_id?: string | null;
     source_run_id?: string | null;
     source_map_index: number;
+    source_task_instance_id?: string | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -126,12 +127,17 @@ export type AssetExpressionAsset = {
  * persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
  * optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
  * degrades gracefully instead of failing response validation.
+ *
+ * A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+ * and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+ * schedule stays visible without revealing which asset it waits on.
  */
 export type AssetExpressionAssetInfo = {
-    uri: string;
-    name: string;
+    uri: string | null;
+    name: string | null;
     group: string;
     id?: number | null;
+    hidden?: boolean;
 };
 
 /**
@@ -188,6 +194,10 @@ export type AssetStateStoreLastUpdatedBy = {
     run_id?: string | null;
     task_id?: string | null;
     map_index?: number | null;
+    task_instance_id?: string | null;
+    region_id?: string;
+    region_index?: number;
+    try_number?: number | null;
 };
 
 /**
@@ -277,6 +287,10 @@ export type BackfillPostBody = {
      * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Drain the Dag together with the backfill. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag. Ignored by the dry-run endpoint.
+     */
+    drain_dag?: boolean;
 };
 
 /**
@@ -303,7 +317,7 @@ export type BackfillResponse = {
  * Base info serializer for responses.
  */
 export type BaseInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
 };
 
 /**
@@ -336,6 +350,10 @@ export type BulkActionResponse = {
     }>;
 };
 
+export type BulkBody_BulkDAGBody_ = {
+    actions: Array<(BulkCreateAction_BulkDAGBody_ | BulkUpdateAction_BulkDAGBody_ | BulkDeleteAction_BulkDAGBody_)>;
+};
+
 export type BulkBody_BulkDAGRunBody_ = {
     actions: Array<(BulkCreateAction_BulkDAGRunBody_ | BulkUpdateAction_BulkDAGRunBody_ | BulkDeleteAction_BulkDAGRunBody_)>;
 };
@@ -354,6 +372,18 @@ export type BulkBody_PoolBody_ = {
 
 export type BulkBody_VariableBody_ = {
     actions: Array<(BulkCreateAction_VariableBody_ | BulkUpdateAction_VariableBody_ | BulkDeleteAction_VariableBody_)>;
+};
+
+export type BulkCreateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "create";
+    /**
+     * A list of entities to be created.
+     */
+    entities: Array<BulkDAGBody>;
+    action_on_existence?: BulkActionOnExistence;
 };
 
 export type BulkCreateAction_BulkDAGRunBody_ = {
@@ -417,6 +447,15 @@ export type BulkCreateAction_VariableBody_ = {
 };
 
 /**
+ * Request body for bulk update of Dags.
+ */
+export type BulkDAGBody = {
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
+    dag_id: string;
+};
+
+/**
  * Request body for bulk operations on Dag Runs.
  */
 export type BulkDAGRunBody = {
@@ -454,6 +493,18 @@ export type BulkDAGRunClearBody = {
     run_on_latest_version?: boolean | null;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
+};
+
+export type BulkDeleteAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "delete";
+    /**
+     * A list of entity id/key or entity objects to be deleted.
+     */
+    entities: Array<(string | BulkDAGBody)>;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkDeleteAction_BulkDAGRunBody_ = {
@@ -543,6 +594,8 @@ export type BulkResponse = {
  */
 export type BulkTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -552,6 +605,22 @@ export type BulkTaskInstanceBody = {
     map_index?: number | null;
     dag_id?: string | null;
     dag_run_id?: string | null;
+};
+
+export type BulkUpdateAction_BulkDAGBody_ = {
+    /**
+     * The action to be performed on the entities.
+     */
+    action: "update";
+    /**
+     * A list of entities to be updated.
+     */
+    entities: Array<BulkDAGBody>;
+    /**
+     * A list of field names to update for each entity.Only these fields will be applied from the request body to the database model.Any extra fields provided will be ignored.
+     */
+    update_mask?: Array<(string)> | null;
+    action_on_non_existence?: BulkActionNotOnExistence;
 };
 
 export type BulkUpdateAction_BulkDAGRunBody_ = {
@@ -698,6 +767,22 @@ export type ClearTaskInstancesBody = {
     string,
     number
 ])> | null;
+    /**
+     * Clear every task in this task group. Mutually exclusive with `task_ids`. The group's tasks are resolved on the server from the dag structure, so all of them are targeted regardless of how many there are.
+     */
+    task_group_id?: string | null;
+    /**
+     * Exact current executions in one DAG run. Mutually exclusive with task_ids and task_group_id.
+     */
+    task_instance_ids?: Array<(string)> | null;
+    /**
+     * Selected execution IDs whose entire mapped expansion should be cleared.
+     */
+    whole_expansion_ids?: Array<(string)>;
+    /**
+     * Clear later iterations when the selection includes a loop gate.
+     */
+    include_later_loop_iterations?: boolean;
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
@@ -708,7 +793,22 @@ export type ClearTaskInstancesBody = {
      */
     run_on_latest_version?: boolean | null;
     prevent_running_task?: boolean;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
+};
+
+/**
+ * Login methods the auth manager offers to command-line clients, named as in RFC 8414.
+ */
+export type CliLoginMetadataResponse = {
+    grant_types_supported: Array<(string)>;
+    code_challenge_methods_supported: Array<(string)>;
+    authorization_endpoint: string | null;
+    device_authorization_endpoint: string | null;
+    token_endpoint: string | null;
 };
 
 /**
@@ -853,6 +953,7 @@ export type DAGDetailsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;
@@ -901,6 +1002,8 @@ export type DAGDetailsResponse = {
 } | null;
     is_favorite?: boolean;
     active_runs_count?: number;
+    team_name?: string | null;
+    latest_dag_version: DagVersionResponse | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -916,17 +1019,14 @@ export type DAGDetailsResponse = {
      * @deprecated
      */
     readonly concurrency: number;
-    /**
-     * Return the latest DagVersion.
-     */
-    readonly latest_dag_version: DagVersionResponse | null;
 };
 
 /**
  * Dag Serializer for updatable bodies.
  */
 export type DAGPatchBody = {
-    is_paused: boolean;
+    is_paused?: boolean | null;
+    scheduling_state?: DagSchedulingState | null;
 };
 
 /**
@@ -936,6 +1036,7 @@ export type DAGResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;
@@ -1001,9 +1102,13 @@ export type DAGRunClearBody = {
 export type DAGRunCollectionResponse = {
     dag_runs: Array<DAGRunResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1093,6 +1198,7 @@ export type DAGSourceResponse = {
     dag_id: string;
     version_number: number | null;
     dag_display_name: string;
+    language?: string | null;
 };
 
 /**
@@ -1124,18 +1230,134 @@ export type DAGWarningCollectionResponse = {
  */
 export type DAGWarningResponse = {
     dag_id: string;
-    warning_type: DagWarningType;
+    warning_type: DagWarningType | string;
     message: string;
     timestamp: string;
     dag_display_name: string;
 };
 
 /**
+ * Dag bundle collection response.
+ */
+export type DagBundleCollectionResponse = {
+    dag_bundles: Array<DagBundleResponse>;
+    total_entries: number;
+};
+
+/**
+ * Dag bundle serializer for the single-bundle response.
+ */
+export type DagBundleDetailResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+    /**
+     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     */
+    dag_count: number;
+};
+
+/**
+ * Dag bundle file collection response.
+ */
+export type DagBundleFileCollectionResponse = {
+    dag_bundle_files: Array<DagBundleFileResponse>;
+    total_entries: number;
+};
+
+/**
+ * A file in a Dag bundle, as the Dag processor last saw it.
+ */
+export type DagBundleFileResponse = {
+    relative_fileloc: string;
+    /**
+     * Number of live Dags the file defines that the caller may read.
+     */
+    dag_count: number;
+    /**
+     * When the file was last parsed, or null if it has never parsed successfully.
+     */
+    last_parsed_time: string | null;
+    /**
+     * How long the last successful parse of the file took, in seconds.
+     */
+    last_parse_duration: number | null;
+    /**
+     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     */
+    import_error_count: number | null;
+};
+
+/**
+ * Dag bundle serializer for responses.
+ */
+export type DagBundleResponse = {
+    name: string;
+    /**
+     * Whether the bundle is still present in this deployment's configuration.
+     */
+    active: boolean | null;
+    /**
+     * The latest version Airflow has seen for the bundle. Null when the bundle does not support versioning, or when no Dag processor has refreshed it successfully yet.
+     */
+    version: string | null;
+    /**
+     * When a Dag processor last successfully refreshed the bundle. It advances even when the version did not change, and a failed refresh leaves it untouched.
+     */
+    last_refreshed: string | null;
+    /**
+     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     */
+    bundle_url: string | null;
+    /**
+     * The team owning the bundle, in a multi-team deployment.
+     */
+    team_name: string | null;
+    /**
+     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     */
+    import_error_count: number | null;
+};
+
+/**
  * DagProcessor info serializer for responses.
  */
 export type DagProcessorInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_dag_processor_heartbeat: string | null;
+    detailed_status: DetailedHealthStatus | null;
+    instances?: Array<DagProcessorInstanceInfoResponse> | null;
+};
+
+/**
+ * Dag processor instance info serializer for responses.
+ */
+export type DagProcessorInstanceInfoResponse = {
+    hostname: string | null;
+    latest_dag_processor_heartbeat: string | null;
+    bundle_names: Array<(string)> | null;
 };
 
 /**
@@ -1145,12 +1367,16 @@ export type DagRunAssetReference = {
     run_id: string;
     dag_id: string;
     logical_date: string | null;
-    start_date: string;
+    start_date: string | null;
     end_date: string | null;
     state: string;
     data_interval_start: string | null;
     data_interval_end: string | null;
     partition_key: string | null;
+    /**
+     * Whether this asset event triggered the referenced dag run. Only a run's most recent consumed asset event triggers it; earlier consumed events are included in the run but did not trigger it.
+     */
+    triggering: boolean;
 };
 
 /**
@@ -1184,7 +1410,13 @@ export type DagScheduleAssetReference = {
     dag_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
+
+/**
+ * States controlling whether a Dag can create and schedule work.
+ */
+export type DagSchedulingState = 'active' | 'draining' | 'paused';
 
 /**
  * Dag Stats Collection serializer for responses.
@@ -1221,6 +1453,100 @@ export type DagTagResponse = {
 };
 
 /**
+ * What part of a Dag a difference belongs to. Mirrors ``DiffCategory``.
+ */
+export type DagVersionDiffCategory = 'asset' | 'authorization' | 'callback' | 'deadline' | 'dependency' | 'metadata' | 'param' | 'provenance' | 'schedule' | 'task' | 'unknown';
+
+/**
+ * One structural difference between two stored Dag versions.
+ */
+export type DagVersionDiffChangeResponse = {
+    path: string;
+    operation: DagVersionDiffOperation;
+    category: DagVersionDiffCategory;
+    impact: DagVersionDiffImpact;
+    /**
+     * How many underlying changes this record stands for. Always 1 when values are disclosed, since each change is then its own record; a redacted record merges every change sharing its path and operation.
+     */
+    occurrence_count: number;
+    /**
+     * SHA-256 over the canonical JSON of `before_value`. Present only when values are disclosed, and null when the change has no before side.
+     */
+    before_digest?: string | null;
+    /**
+     * SHA-256 over the canonical JSON of `after_value`. Present only when values are disclosed, and null when the change has no after side.
+     */
+    after_digest?: string | null;
+    /**
+     * The value this path held in the base version. Present only when values are disclosed, and omitted entirely when the change has no before side — which is how an absent side is told apart from a stored null.
+     */
+    before_value?: unknown;
+    /**
+     * The value this path holds in the target version. Present only when values are disclosed, and omitted entirely when the change has no after side — which is how an absent side is told apart from a stored null.
+     */
+    after_value?: unknown;
+};
+
+/**
+ * What a difference affects. Mirrors ``DiffImpact``.
+ */
+export type DagVersionDiffImpact = 'authorization' | 'execution' | 'metadata' | 'provenance' | 'unknown';
+
+/**
+ * Whether a comparison could be made at all.
+ */
+export type DagVersionDiffMode = 'observed_state' | 'unavailable';
+
+/**
+ * How a difference presents at its path.
+ */
+export type DagVersionDiffOperation = 'added' | 'removed' | 'changed';
+
+/**
+ * Observed-state difference between two stored Dag versions.
+ */
+export type DagVersionDiffResponse = {
+    /**
+     * Wire format of this payload. Incremented when its shape changes.
+     */
+    diff_schema_version: number;
+    base_version_number: number;
+    target_version_number: number;
+    serializer_versions: DagVersionDiffSerializerVersions;
+    mode: DagVersionDiffMode;
+    /**
+     * Why no comparison could be made. Populated only when `mode` is `unavailable`.
+     */
+    unavailable_reason?: string | null;
+    values_status: DagVersionDiffValuesStatus;
+    /**
+     * Whether a change at a path not already in `changes` was dropped to stay within `max_changes`. Paths that are absent are absent, not unchanged.
+     */
+    truncated: boolean;
+    /**
+     * Underlying changes across every disclosed path, not the number of records. Exact when `truncated` is false; a lower bound when it is true, because the changes at dropped paths are not counted.
+     */
+    total_changes: number;
+    changes: Array<DagVersionDiffChangeResponse>;
+};
+
+/**
+ * Which Dag serializer format each compared version was stored under.
+ *
+ * Unrelated to ``diff_schema_version``, which versions this payload rather than the
+ * serialized Dags it describes.
+ */
+export type DagVersionDiffSerializerVersions = {
+    base: number | null;
+    target: number | null;
+};
+
+/**
+ * Whether values were disclosed. Mirrors ``ValuesStatus``.
+ */
+export type DagVersionDiffValuesStatus = 'available' | 'unavailable';
+
+/**
  * Dag Version serializer for responses.
  */
 export type DagVersionResponse = {
@@ -1240,7 +1566,12 @@ export type DagVersionResponse = {
  * This is the set of allowable values for the ``warning_type`` field
  * in the DagWarning model.
  */
-export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value';
+export type DagWarningType = 'asset conflict' | 'duplicate dag id' | 'non-existent pool' | 'runtime varying value' | 'task group cycle';
+
+/**
+ * How much of a component's work has a live instance covering it.
+ */
+export type DetailedHealthStatus = 'healthy' | 'degraded' | 'down';
 
 /**
  * Backfill collection serializer for responses in dry-run mode.
@@ -1273,6 +1604,7 @@ export type EventLogCollectionResponse = {
 export type EventLogResponse = {
     event_log_id: number;
     when: string;
+    task_instance_id?: string | null;
     dag_id: string | null;
     task_id: string | null;
     run_id: string | null;
@@ -1285,6 +1617,7 @@ export type EventLogResponse = {
     extra: string | null;
     dag_display_name?: string | null;
     task_display_name?: string | null;
+    team_name?: string | null;
 };
 
 /**
@@ -1304,6 +1637,7 @@ export type ExternalViewResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -1440,6 +1774,11 @@ export type HealthInfoResponse = {
 };
 
 /**
+ * Aggregate health of a component: whether it has at least one live instance.
+ */
+export type HealthStatus = 'healthy' | 'unhealthy';
+
+/**
  * Import Error Collection Response.
  */
 export type ImportErrorCollectionResponse = {
@@ -1454,8 +1793,13 @@ export type ImportErrorResponse = {
     import_error_id: number;
     timestamp: string;
     filename: string;
+    source_reference: string | null;
     bundle_name: string | null;
     stack_trace: string;
+    /**
+     * Return a signed token identifying the file, used to request its reparse.
+     */
+    readonly file_token: string;
 };
 
 /**
@@ -1480,6 +1824,8 @@ export type JobResponse = {
     executor_class: string | null;
     hostname: string | null;
     unixname: string | null;
+    team_names?: Array<(string)>;
+    bundle_names?: Array<(string)> | null;
     dag_display_name?: string | null;
 };
 
@@ -1491,6 +1837,17 @@ export type JsonValue = unknown;
 export type LastAssetEventResponse = {
     id?: number | null;
     timestamp?: string | null;
+};
+
+/**
+ * A task execution's position in an enclosing loop.
+ */
+export type LoopIterationResponse = {
+    loop_id: string;
+    /**
+     * Position in the enclosing loop, counting from one.
+     */
+    iteration: number;
 };
 
 /**
@@ -1508,6 +1865,10 @@ export type MaterializeAssetBody = {
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
+    /**
+     * Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.
+     */
+    drain_dag?: boolean;
 };
 
 /**
@@ -1523,11 +1884,27 @@ export type NewTaskResponse = {
  */
 export type PatchTaskInstanceBody = {
     new_state?: TaskInstanceState | null;
+    region_id?: string | null;
+    region_index?: number | null;
     note?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
     include_future?: boolean;
     include_past?: boolean;
+};
+
+/**
+ * Serializer for the optional scoping criteria of a UI plugin.
+ *
+ * An open map of dotted field path to the values that path may take -- not a closed set of
+ * criteria. ``{"state": ["failed"], "dag.tags.name": ["ml"]}`` scopes to failed entities of
+ * ml-tagged Dags. An unqualified path is rooted at the entity the ``destination`` is about;
+ * a path may instead name a related record (``dag``, ``dag_run``, ``task``, ``task_instance``)
+ * as its first segment. Matching is equality against the listed values, OR within a path and
+ * AND across paths, and is evaluated client-side.
+ */
+export type PluginAppliesToResponse = {
+    [key: string]: Array<(string)>;
 };
 
 /**
@@ -1555,6 +1932,36 @@ export type PluginImportErrorResponse = {
 };
 
 /**
+ * Serializer for a UI action that opens a URL.
+ */
+export type PluginLinkActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "link";
+    href: string;
+    [key: string]: unknown | string | "link";
+};
+
+export type destination2 = 'dag' | 'dag_run' | 'task_instance';
+
+/**
+ * Serializer for a UI action that mounts a React component behind a button.
+ */
+export type PluginReactActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "react";
+    bundle_url: string;
+    [key: string]: unknown | string | "react";
+};
+
+/**
  * Plugin serializer.
  */
 export type PluginResponse = {
@@ -1569,6 +1976,10 @@ export type PluginResponse = {
      */
     external_views: Array<ExternalViewResponse>;
     react_apps: Array<ReactAppResponse>;
+    /**
+     * User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.
+     */
+    ui_actions?: Array<(PluginLinkActionResponse | PluginReactActionResponse)>;
     appbuilder_views: Array<AppBuilderViewResponse>;
     /**
      * @deprecated
@@ -1635,11 +2046,175 @@ export type PoolResponse = {
 };
 
 /**
+ * Asset URI scheme handling provided by a provider.
+ */
+export type ProviderAssetUriInfo = {
+    schemes: Array<(string)>;
+    handler?: string | null;
+    factory?: string | null;
+    to_openlineage_converter?: string | null;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
     providers: Array<ProviderResponse>;
     total_entries: number;
+};
+
+/**
+ * Configuration option contributed by a provider.
+ */
+export type ProviderConfigOptionInfo = {
+    description?: string | null;
+    version_added?: string | null;
+    type?: string | null;
+    example?: string | number | null;
+    default?: string | number | null;
+    sensitive?: boolean | null;
+    is_template?: boolean | null;
+    see_also?: string | null;
+};
+
+/**
+ * Configuration section contributed by a provider.
+ */
+export type ProviderConfigSectionInfo = {
+    description?: string | null;
+    options?: {
+        [key: string]: ProviderConfigOptionInfo;
+    };
+};
+
+/**
+ * Custom connection field a connection type stores in ``Connection.extra``.
+ */
+export type ProviderConnectionFieldInfo = {
+    label: string;
+    description?: string | null;
+    schema: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Connection type provided by a provider.
+ */
+export type ProviderConnectionTypeInfo = {
+    connection_type: string;
+    hook_class_name: string;
+    hook_name?: string | null;
+    ui_field_behaviour?: ProviderConnectionUiFieldBehaviourInfo | null;
+    conn_fields?: {
+    [key: string]: ProviderConnectionFieldInfo;
+} | null;
+    external_services?: Array<(string)> | null;
+};
+
+/**
+ * Customizations a connection type applies to the standard connection form fields.
+ */
+export type ProviderConnectionUiFieldBehaviourInfo = {
+    hidden_fields?: Array<(string)> | null;
+    relabeling?: {
+    [key: string]: (string);
+} | null;
+    placeholders?: {
+    [key: string]: (string);
+} | null;
+};
+
+/**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: ProviderInfoResponse;
+};
+
+/**
+ * SQL dialect provided by a provider.
+ */
+export type ProviderDialectInfo = {
+    dialect_type?: string | null;
+    dialect_class_name?: string | null;
+};
+
+/**
+ * Typed provider metadata (from ``provider.yaml``) exposed by the API.
+ */
+export type ProviderInfoResponse = {
+    package_name?: string | null;
+    name?: string | null;
+    description?: string | null;
+    documentation_url?: string | null;
+    filesystems?: Array<(string)> | null;
+    integrations?: Array<ProviderIntegrationInfo> | null;
+    operators?: Array<ProviderIntegrationModulesInfo> | null;
+    sensors?: Array<ProviderIntegrationModulesInfo> | null;
+    hooks?: Array<ProviderIntegrationModulesInfo> | null;
+    triggers?: Array<ProviderIntegrationModulesInfo> | null;
+    bundles?: Array<ProviderIntegrationModulesInfo> | null;
+    asset_uris?: Array<ProviderAssetUriInfo> | null;
+    dialects?: Array<ProviderDialectInfo> | null;
+    transfers?: Array<ProviderTransferInfo> | null;
+    connection_types?: Array<ProviderConnectionTypeInfo> | null;
+    extra_links?: Array<(string)> | null;
+    secrets_backends?: Array<(string)> | null;
+    email_backends?: Array<(string)> | null;
+    logging?: Array<(string)> | null;
+    remote_logging?: Array<ProviderRemoteLoggingInfo> | null;
+    auth_backends?: Array<(string)> | null;
+    auth_managers?: Array<(string)> | null;
+    notifications?: Array<(string)> | null;
+    executors?: Array<(string)> | null;
+    db_managers?: Array<(string)> | null;
+    cli?: Array<(string)> | null;
+    config?: {
+    [key: string]: ProviderConfigSectionInfo;
+} | null;
+    task_decorators?: Array<ProviderTaskDecoratorInfo> | null;
+    plugins?: Array<ProviderPluginInfo> | null;
+    queues?: Array<(string)> | null;
+};
+
+/**
+ * Integration provided by a provider.
+ */
+export type ProviderIntegrationInfo = {
+    integration_name: string;
+    external_doc_url?: string | null;
+    how_to_guide?: Array<(string)> | null;
+    logo?: string | null;
+    tags?: Array<(string)> | null;
+};
+
+/**
+ * Python modules an integration contributes for one kind of functionality.
+ */
+export type ProviderIntegrationModulesInfo = {
+    integration_name: string;
+    python_modules: Array<(string)>;
+};
+
+/**
+ * Plugin provided by a provider.
+ */
+export type ProviderPluginInfo = {
+    name?: string | null;
+    plugin_class?: string | null;
+};
+
+/**
+ * Remote logging IO handler provided by a provider.
+ */
+export type ProviderRemoteLoggingInfo = {
+    classpath: string;
+    scheme: string;
 };
 
 /**
@@ -1650,6 +2225,24 @@ export type ProviderResponse = {
     description: string;
     version: string;
     documentation_url: string | null;
+};
+
+/**
+ * TaskFlow decorator provided by a provider.
+ */
+export type ProviderTaskDecoratorInfo = {
+    name?: string | null;
+    class_name?: string | null;
+};
+
+/**
+ * Transfer operator provided by a provider.
+ */
+export type ProviderTransferInfo = {
+    source_integration_name: string;
+    target_integration_name: string;
+    python_module: string;
+    how_to_guide?: string | null;
 };
 
 /**
@@ -1680,12 +2273,13 @@ export type ReactAppResponse = {
     url_route?: string | null;
     category?: string | null;
     nav_top_level?: boolean | null;
+    applies_to?: PluginAppliesToResponse | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
+export type destination3 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -1698,7 +2292,17 @@ export type ReprocessBehavior = 'failed' | 'completed' | 'none';
  * Scheduler info serializer for responses.
  */
 export type SchedulerInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
+    latest_scheduler_heartbeat: string | null;
+    detailed_status: DetailedHealthStatus | null;
+    instances?: Array<SchedulerInstanceInfoResponse> | null;
+};
+
+/**
+ * Scheduler instance info serializer for responses.
+ */
+export type SchedulerInstanceInfoResponse = {
+    hostname: string | null;
     latest_scheduler_heartbeat: string | null;
 };
 
@@ -1757,9 +2361,13 @@ export type TaskInletAssetReference = {
 export type TaskInstanceCollectionResponse = {
     task_instances: Array<TaskInstanceResponse>;
     /**
-     * Total number of matching items. Populated for offset pagination, ``null`` when using cursor pagination.
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
      */
     total_entries?: number | null;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
     /**
      * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
      */
@@ -1782,10 +2390,14 @@ export type TaskInstanceHistoryCollectionResponse = {
  * TaskInstanceHistory serializer for responses.
  */
 export type TaskInstanceHistoryResponse = {
+    id: string;
     task_id: string;
     dag_id: string;
     dag_run_id: string;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
     start_date: string | null;
     end_date: string | null;
     duration: number | null;
@@ -1808,6 +2420,15 @@ export type TaskInstanceHistoryResponse = {
     executor: string | null;
     executor_config: string;
     dag_version: DagVersionResponse | null;
+    note?: string | null;
+    /**
+     * The reason this try ended, as recorded by a retry policy.
+     */
+    state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -1819,6 +2440,10 @@ export type TaskInstanceResponse = {
     dag_id: string;
     dag_run_id: string;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
+    in_loop: boolean;
+    loop_iteration?: LoopIterationResponse | null;
     logical_date: string | null;
     run_after: string;
     start_date: string | null;
@@ -1851,6 +2476,14 @@ export type TaskInstanceResponse = {
     triggerer_job: JobResponse | null;
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
+    /**
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
+     */
+    state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -1912,6 +2545,7 @@ export type TaskOutletAssetReference = {
     task_id: string;
     created_at: string;
     updated_at: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2018,6 +2652,10 @@ export type TriggerDAGRunPostBody = {
     note?: string | null;
     partition_key?: string | null;
     bundle_version?: string | null;
+    /**
+     * Drain the Dag together with this run. Draining changes the whole Dag: unfinished runs can start or resume except those held by paused backfills. No scheduled runs are created, and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining to complete. Requires the same permission as pausing the Dag.
+     */
+    drain_dag?: boolean;
 };
 
 /**
@@ -2039,8 +2677,19 @@ export type TriggerResponse = {
  * Triggerer info serializer for responses.
  */
 export type TriggererInfoResponse = {
-    status: string | null;
+    status: HealthStatus | null;
     latest_triggerer_heartbeat: string | null;
+    detailed_status: DetailedHealthStatus | null;
+    instances?: Array<TriggererInstanceInfoResponse> | null;
+};
+
+/**
+ * Triggerer instance info serializer for responses.
+ */
+export type TriggererInstanceInfoResponse = {
+    hostname: string | null;
+    latest_triggerer_heartbeat: string | null;
+    team_names: Array<(string)>;
 };
 
 /**
@@ -2051,6 +2700,10 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
+    /**
+     * The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.
+     */
+    request_created_at?: string | null;
 };
 
 export type ValidationError = {
@@ -2115,6 +2768,8 @@ export type XComCreateBody = {
     key: string;
     value: unknown;
     map_index?: number;
+    region_id?: string | null;
+    region_index?: number | null;
 };
 
 /**
@@ -2125,12 +2780,15 @@ export type XComResponse = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
 };
 
 /**
@@ -2141,12 +2799,15 @@ export type XComResponseNative = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: unknown;
 };
 
@@ -2158,12 +2819,15 @@ export type XComResponseString = {
     timestamp: string;
     logical_date: string | null;
     map_index: number;
+    region_id?: string;
+    region_index?: number;
     task_id: string;
     dag_id: string;
     run_id: string;
     dag_display_name: string;
     task_display_name: string;
     run_after: string;
+    team_name?: string | null;
     value: string | null;
 };
 
@@ -2173,6 +2837,8 @@ export type XComResponseString = {
 export type XComUpdateBody = {
     value: unknown;
     map_index?: number;
+    region_id?: string | null;
+    region_index?: number | null;
 };
 
 /**
@@ -2181,6 +2847,10 @@ export type XComUpdateBody = {
 export type AuthenticatedMeResponse = {
     id: string;
     username: string;
+    /**
+     * Teams the user has access to. Null when the environment does not run in multi-team mode.
+     */
+    teams?: Array<(string)> | null;
 };
 
 /**
@@ -2244,9 +2914,15 @@ export type CalendarTimeRangeResponse = {
     date: string;
     state: 'queued' | 'running' | 'success' | 'failed' | 'planned';
     count: number;
+    is_backfill?: boolean;
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
+
+/**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
 
 /**
  * configuration serializer.
@@ -2304,6 +2980,21 @@ export type ConnectionHookMetaData = {
 };
 
 /**
+ * Task-instance state counts for a Dag's recent runs.
+ *
+ * The counts cover every running Dag run, or the latest run when none is running;
+ * ``run_ids`` lists those runs. ``state_counts`` only carries states present in them;
+ * task instances without a state yet are keyed as ``no_status``.
+ */
+export type DAGRecentTaskInstanceStateCountsResponse = {
+    dag_id: string;
+    run_ids: Array<(string)>;
+    state_counts: {
+        [key: string]: (number);
+    };
+};
+
+/**
  * DAG Run serializer for responses.
  */
 export type DAGRunLightResponse = {
@@ -2353,6 +3044,7 @@ export type DAGWithLatestDagRunsResponse = {
     dag_id: string;
     dag_display_name: string;
     is_paused: boolean;
+    scheduling_state?: DagSchedulingState;
     is_stale: boolean;
     last_parsed_time: string | null;
     last_parse_duration: number | null;
@@ -2380,6 +3072,7 @@ export type DAGWithLatestDagRunsResponse = {
     owners: Array<(string)>;
     asset_expression: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     latest_dag_runs: Array<DAGRunLightResponse>;
+    has_unfinished_runs: boolean;
     pending_actions: Array<HITLDetail>;
     is_favorite: boolean;
     team_name?: string | null;
@@ -2394,11 +3087,34 @@ export type DAGWithLatestDagRunsResponse = {
 };
 
 /**
+ * Collection of per-Dag recent task-instance state counts for the Dag list page.
+ */
+export type DAGsRecentTaskInstanceStateCountsCollectionResponse = {
+    dags: Array<DAGRecentTaskInstanceStateCountsResponse>;
+};
+
+/**
  * Collection of per-Dag DagRun-state counts for the Dag list page.
  */
 export type DAGsRunStateCountsCollectionResponse = {
     dags: Array<DAGRunStateCountsResponse>;
     state_count_limit: number;
+};
+
+/**
+ * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
+ */
+export type DagFolderCollectionResponse = {
+    folders: Array<DagFolderResponse>;
+    total_entries: number;
+};
+
+/**
+ * A distinct Dag folder (directory of ``relative_fileloc``) within a bundle.
+ */
+export type DagFolderResponse = {
+    bundle_name: string;
+    folder: string;
 };
 
 /**
@@ -2468,6 +3184,11 @@ export type DeadlineResponse = {
     dag_run_id: string;
     alert_id?: string | null;
     alert_name?: string | null;
+    team_name?: string | null;
+    callback_id: string;
+    callback_type: string;
+    callback_state?: CallbackState | null;
+    callback_path?: string | null;
 };
 
 /**
@@ -2493,6 +3214,49 @@ export type EdgeResponse = {
 };
 
 /**
+ * A page of task executions with their region ancestry.
+ */
+export type ExecutionCollectionResponse = {
+    task_instances: Array<ExecutionTaskResponse>;
+    regions: Array<ExecutionRegionResponse>;
+    total_entries: number;
+};
+
+/**
+ * Immutable region structure for interpreting task coordinates.
+ */
+export type ExecutionRegionResponse = {
+    id: string;
+    node_id: string;
+    parent_region_id: string | null;
+    parent_region_index: number | null;
+    forked_from_region_id: string | null;
+    resumes_from_index: number;
+};
+
+/**
+ * A task try together with the coordinates that address it exactly.
+ */
+export type ExecutionTaskResponse = {
+    id: string;
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    task_display_name: string;
+    region_id?: string;
+    region_index?: number;
+    map_index: number;
+    try_number: number;
+    state: TaskInstanceState | null;
+    start_date: string | null;
+    end_date: string | null;
+    duration: number | null;
+    dag_version_id: string | null;
+    operator: string | null;
+    note?: string | null;
+};
+
+/**
  * Define a menu item that can be added to the menu by auth managers or plugins.
  */
 export type ExtraMenuItem = {
@@ -2513,6 +3277,11 @@ export type GanttResponse = {
  * Task instance data for Gantt chart.
  */
 export type GanttTaskInstance = {
+    id: string;
+    region_id?: string;
+    region_index?: number;
+    loop_iteration?: LoopIterationResponse | null;
+    map_index: number;
     task_id: string;
     task_display_name: string;
     try_number: number;
@@ -2549,6 +3318,10 @@ export type GridNodeResponse = {
     label: string;
     children?: Array<GridNodeResponse> | null;
     is_mapped: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     doc_md?: string | null;
 };
@@ -2604,12 +3377,84 @@ export type LightGridTaskInstanceSummary = {
     max_end_date: string | null;
     dag_version_number?: number | null;
     has_note?: boolean;
+    loop_iterations_count?: number | null;
+    latest_region_id?: string | null;
+    latest_region_index?: number | null;
+    retry_at?: string | null;
+};
+
+/**
+ * Loop invocations across recent DAG runs.
+ */
+export type LoopHistoryResponse = {
+    dag_id: string;
+    group_id: string;
+    runs: Array<LoopRunSummary>;
+};
+
+/**
+ * One invocation of a loop in a Dag run.
+ */
+export type LoopInvocationResponse = {
+    region_id: string;
+};
+
+/**
+ * Execution state for one existing iteration.
+ */
+export type LoopIterationSummary = {
+    index: number;
+    task_count?: number;
+    state?: TaskInstanceState | null;
+    start_date?: string | null;
+    end_date?: string | null;
+    /**
+     * Why the loop's gate continued or stopped the loop at this iteration, if its until callable said.
+     */
+    decision_reason?: string;
+};
+
+/**
+ * A loop invocation in a recent DAG run.
+ */
+export type LoopRunSummary = {
+    run_id: string;
+    run_after: string;
+    logical_date?: string | null;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    reason?: 'cap_reached' | 'iteration_failed' | null;
+    loop_region_id?: string | null;
+};
+
+export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+
+/**
+ * Runtime state of one loop invocation.
+ */
+export type LoopSummaryResponse = {
+    dag_id: string;
+    run_id: string;
+    group_id: string;
+    max_iterations: number;
+    iterations_ran: number;
+    status: 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+    stopped_at_iteration?: number | null;
+    failed_at_iteration?: number | null;
+    exit_criteria_doc?: string | null;
+    exit_criteria_name?: string | null;
+    reason?: 'cap_reached' | 'iteration_failed' | null;
+    reason_task_id?: string | null;
+    loop_region_id?: string | null;
+    loop_regions?: Array<LoopInvocationResponse>;
+    iterations: Array<LoopIterationSummary>;
 };
 
 /**
  * Define all menu items defined in the menu.
  */
-export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
+export type MenuItem = 'Required Actions' | 'Assets' | 'Audit Log' | 'Config' | 'Connections' | 'Dags' | 'Dag Bundles' | 'Deadlines' | 'Docs' | 'Jobs' | 'Plugins' | 'Pools' | 'Providers' | 'Variables' | 'XComs';
 
 /**
  * Menu Item Collection serializer for responses.
@@ -2642,6 +3487,7 @@ export type NextRunAssetEventResponse = {
 export type NextRunAssetsResponse = {
     asset_expression?: AssetExpressionAsset | AssetExpressionAlias | AssetExpressionRef | AssetExpressionAny | AssetExpressionAll | null;
     events: Array<NextRunAssetEventResponse>;
+    scheduling_asset_count?: number;
     pending_partition_count?: number | null;
 };
 
@@ -2656,6 +3502,10 @@ export type NodeResponse = {
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
+    is_loop?: boolean | null;
+    loop_max_iterations?: number | null;
+    loop_exit_task_id?: string | null;
+    loop_exit_criteria_doc?: string | null;
     tooltip?: string | null;
     setup_teardown_type?: 'setup' | 'teardown' | null;
     operator?: string | null;
@@ -2669,9 +3519,10 @@ export type OklchColor = string;
  * Asset info within a partitioned Dag run detail.
  */
 export type PartitionedDagRunAssetResponse = {
-    asset_id: number;
-    asset_name: string;
-    asset_uri: string;
+    asset_id: number | null;
+    asset_name: string | null;
+    asset_uri: string | null;
+    hidden?: boolean;
     received: boolean;
     received_count: number;
     required_count: number;
@@ -2918,6 +3769,7 @@ export type GetAssetEventsData = {
     sourceMapIndex?: number | null;
     sourceRunId?: string | null;
     sourceTaskId?: string | null;
+    sourceTaskInstanceId?: string | null;
     timestampGt?: string | null;
     timestampGte?: string | null;
     timestampLt?: string | null;
@@ -2934,7 +3786,7 @@ export type CreateAssetEventResponse = AssetEventResponse;
 
 export type MaterializeAssetData = {
     assetId: number;
-    requestBody?: MaterializeAssetBody | null;
+    requestBody: MaterializeAssetBody;
 };
 
 export type MaterializeAssetResponse = DAGRunResponse;
@@ -2999,6 +3851,10 @@ export type GetAssetsUiData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     groupPrefixPattern?: string | null;
+    /**
+     * Filter assets that have events
+     */
+    hasEvents?: boolean | null;
     lastAssetEventTimestampGt?: string | null;
     lastAssetEventTimestampGte?: string | null;
     lastAssetEventTimestampLt?: string | null;
@@ -3102,13 +3958,38 @@ export type CreateBackfillDryRunResponse = DryRunBackfillCollectionResponse;
 
 export type ListBackfillsUiData = {
     active?: boolean | null;
+    completedAtGt?: string | null;
+    completedAtGte?: string | null;
+    completedAtLt?: string | null;
+    completedAtLte?: string | null;
+    createdAtGt?: string | null;
+    createdAtGte?: string | null;
+    createdAtLt?: string | null;
+    createdAtLte?: string | null;
     dagId?: string | null;
+    durationGt?: number | null;
+    durationGte?: number | null;
+    durationLt?: number | null;
+    durationLte?: number | null;
+    fromDateGt?: string | null;
+    fromDateGte?: string | null;
+    fromDateLt?: string | null;
+    fromDateLte?: string | null;
     limit?: number;
+    maxActiveRunsGt?: number | null;
+    maxActiveRunsGte?: number | null;
+    maxActiveRunsLt?: number | null;
+    maxActiveRunsLte?: number | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id`
      */
     orderBy?: Array<(string)>;
+    reprocessBehavior?: ReprocessBehavior | null;
+    toDateGt?: string | null;
+    toDateGte?: string | null;
+    toDateLt?: string | null;
+    toDateLte?: string | null;
 };
 
 export type ListBackfillsUiResponse = BackfillCollectionResponse;
@@ -3289,6 +4170,8 @@ export type GetDagRunsData = {
     startDateLt?: string | null;
     startDateLte?: string | null;
     state?: Array<(string)>;
+    tags?: Array<(string)>;
+    tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `triggering_user_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -3371,6 +4254,37 @@ export type GetDagRunStatsData = {
 
 export type GetDagRunStatsResponse = DagRunStatsResponse;
 
+export type GetExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    limit?: number;
+    offset?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId?: string | null;
+    tryNumber?: number | null;
+};
+
+export type GetExecutionResponse = ExecutionCollectionResponse;
+
+export type GetDagVersionDiffData = {
+    /**
+     * Version to compare from.
+     */
+    baseVersionNumber: number;
+    dagId: string;
+    /**
+     * Largest number of records `changes` may hold. A repeat of a path already recorded does not count towards it, and `truncated` says whether the bound dropped anything.
+     */
+    maxChanges?: number;
+    /**
+     * Version to compare to.
+     */
+    targetVersionNumber: number;
+};
+
+export type GetDagVersionDiffResponse = DagVersionDiffResponse;
+
 export type GetDagSourceData = {
     accept?: 'application/json' | 'text/plain' | '*/*';
     dagId: string;
@@ -3378,6 +4292,31 @@ export type GetDagSourceData = {
 };
 
 export type GetDagSourceResponse = DAGSourceResponse;
+
+export type GetDagBundlesData = {
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `name, version, last_refreshed, active`
+     */
+    orderBy?: Array<(string)>;
+};
+
+export type GetDagBundlesResponse = DagBundleCollectionResponse;
+
+export type GetDagBundleData = {
+    bundleName: string;
+};
+
+export type GetDagBundleResponse = DagBundleDetailResponse;
+
+export type GetDagBundleFilesData = {
+    bundleName: string;
+    limit?: number;
+    offset?: number;
+};
+
+export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -3410,7 +4349,7 @@ export type ListDagWarningsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, warning_type, message, timestamp`
      */
     orderBy?: Array<(string)>;
-    warningType?: DagWarningType | null;
+    warningType?: DagWarningType | string | null;
 };
 
 export type ListDagWarningsResponse = DAGWarningCollectionResponse;
@@ -3457,11 +4396,15 @@ export type GetDagsData = {
      */
     hasImportErrors?: boolean | null;
     isFavorite?: boolean | null;
+    /**
+     * Filter Dags by whether their timetable can create scheduled runs.
+     */
+    isScheduled?: boolean | null;
     lastDagRunState?: DagRunState | null;
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -3520,6 +4463,12 @@ export type GetDagDetailsData = {
 };
 
 export type GetDagDetailsResponse = DAGDetailsResponse;
+
+export type BulkDagsData = {
+    requestBody: BulkBody_BulkDAGBody_;
+};
+
+export type BulkDagsResponse = BulkResponse;
 
 export type FavoriteDagData = {
     dagId: string;
@@ -3581,6 +4530,10 @@ export type GetDagsUiData = {
      * Filter Dags that have any DagRun in the given state.
      */
     dagRunState?: DagRunState | null;
+    /**
+     * Only match DagRuns whose run_after falls within the last given hours. Ignored unless dag_run_state is set.
+     */
+    dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
     /**
      * Filter Dags with asset-based scheduling
@@ -3596,11 +4549,16 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
     paused?: boolean | null;
+    /**
+     * Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
+     */
+    relativeFilelocPrefix?: string | null;
+    schedulingState?: DagSchedulingState | null;
     tags?: Array<(string)>;
     tagsMatchMode?: 'any' | 'all' | null;
     teams?: Array<(string)>;
@@ -3620,6 +4578,8 @@ export type GetDagTimetableTypesUiData = {
 
 export type GetDagTimetableTypesUiResponse = DagTimetableTypeCollectionResponse;
 
+export type GetDagFoldersResponse = DagFolderCollectionResponse;
+
 export type GetLatestRunInfoData = {
     dagId: string;
 };
@@ -3631,6 +4591,12 @@ export type GetDagRunStateCountsUiData = {
 };
 
 export type GetDagRunStateCountsUiResponse = DAGsRunStateCountsCollectionResponse;
+
+export type GetRecentTaskInstanceStateCountsUiData = {
+    dagRunIds: Array<(number)>;
+};
+
+export type GetRecentTaskInstanceStateCountsUiResponse = DAGsRecentTaskInstanceStateCountsCollectionResponse;
 
 export type GetEventLogData = {
     eventLogId: number;
@@ -3685,6 +4651,8 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     ownerPrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     runId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `run_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -3703,6 +4671,8 @@ export type GetEventLogsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    taskInstanceId?: string | null;
+    teams?: Array<(string)>;
     tryNumber?: number | null;
 };
 
@@ -3712,6 +4682,8 @@ export type GetExtraLinksData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber?: number | null;
 };
@@ -3721,6 +4693,8 @@ export type GetExtraLinksResponse = ExtraLinkCollectionResponse;
 export type GetTaskInstanceData = {
     dagId: string;
     dagRunId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3730,6 +4704,8 @@ export type PatchTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -3741,6 +4717,8 @@ export type DeleteTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3796,6 +4774,8 @@ export type GetMappedTaskInstancesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
@@ -3828,6 +4808,8 @@ export type GetTaskInstanceDependenciesByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3837,6 +4819,8 @@ export type GetTaskInstanceDependenciesData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3846,6 +4830,8 @@ export type GetTaskInstanceTriesData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3855,6 +4841,8 @@ export type GetMappedTaskInstanceTriesData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3864,6 +4852,8 @@ export type GetMappedTaskInstanceData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -3873,6 +4863,8 @@ export type PatchTaskInstanceByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -3904,11 +4896,19 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    /**
+     * Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
+     */
+    iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    /**
+     * Task group id of a loop; matches every instance it produced.
+     */
+    loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
     operator?: Array<(string)>;
@@ -3942,6 +4942,8 @@ export type GetTaskInstancesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     queueNamePrefixPattern?: string | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `rendered_map_index_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
@@ -4011,6 +5013,8 @@ export type GetTaskInstanceTryDetailsData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     taskTryNumber: number;
 };
@@ -4021,6 +5025,8 @@ export type GetMappedTaskInstanceTryDetailsData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     taskTryNumber: number;
 };
@@ -4038,6 +5044,8 @@ export type PatchTaskGroupInstancesData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     updateMask?: Array<(string)> | null;
 };
@@ -4048,6 +5056,8 @@ export type PatchTaskGroupInstancesDryRunData = {
     dagId: string;
     dagRunId: string;
     groupId: string;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
 };
 
@@ -4057,6 +5067,8 @@ export type PatchTaskInstanceDryRunByMapIndexData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4068,6 +5080,8 @@ export type PatchTaskInstanceDryRunData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number | null;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: PatchTaskInstanceBody;
     taskId: string;
     updateMask?: Array<(string)> | null;
@@ -4081,6 +5095,8 @@ export type GetLogData = {
     dagRunId: string;
     fullContent?: boolean;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     token?: string | null;
     tryNumber: number;
@@ -4092,6 +5108,8 @@ export type GetExternalLogUrlData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber: number;
 };
@@ -4102,6 +5120,8 @@ export type UpdateHitlDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: UpdateHITLDetailPayload;
     taskId: string;
 };
@@ -4112,6 +5132,8 @@ export type GetHitlDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4121,6 +5143,8 @@ export type GetHitlDetailTryDetailData = {
     dagId: string;
     dagRunId: string;
     mapIndex: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     tryNumber: number | null;
 };
@@ -4153,6 +5177,8 @@ export type GetHitlDetailsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `ti_id, subject, responded_at, created_at, responded_by_user_id, responded_by_user_name, dag_id, run_id, task_display_name, run_after, rendered_map_index, task_instance_operator, task_instance_state`
      */
     orderBy?: Array<(string)>;
+    regionId?: string | null;
+    regionIndex?: number | null;
     respondedByUserId?: Array<(string)>;
     respondedByUserName?: Array<(string)>;
     responseReceived?: boolean | null;
@@ -4170,6 +5196,7 @@ export type GetHitlDetailsData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetHitlDetailsResponse = HITLDetailCollection;
@@ -4200,7 +5227,7 @@ export type GetImportErrorsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, bundle_name, stacktrace, import_error_id`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, timestamp, filename, source_reference, bundle_name, stacktrace, import_error_id`
      */
     orderBy?: Array<(string)>;
 };
@@ -4228,6 +5255,7 @@ export type GetJobsData = {
     startDateGte?: string | null;
     startDateLt?: string | null;
     startDateLte?: string | null;
+    teams?: Array<(string)>;
 };
 
 export type GetJobsResponse = JobCollectionResponse;
@@ -4299,6 +5327,12 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
+
 export type ListAssetStateStoreData = {
     assetId: number;
     limit?: number;
@@ -4341,6 +5375,8 @@ export type ListTaskStateStoreData = {
     limit?: number;
     mapIndex?: number;
     offset?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4351,6 +5387,8 @@ export type ClearTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4361,6 +5399,8 @@ export type GetTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4371,6 +5411,8 @@ export type SetTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: TaskStateStoreBody;
     taskId: string;
 };
@@ -4382,6 +5424,8 @@ export type PatchTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     requestBody: TaskStateStorePatchBody;
     taskId: string;
 };
@@ -4393,6 +5437,8 @@ export type DeleteTaskStateStoreData = {
     dagRunId: string;
     key: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
 };
 
@@ -4403,6 +5449,8 @@ export type GetXcomEntryData = {
     dagRunId: string;
     deserialize?: boolean;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     stringify?: boolean;
     taskId: string;
     xcomKey: string;
@@ -4424,6 +5472,8 @@ export type DeleteXcomEntryData = {
     dagId: string;
     dagRunId: string;
     mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
     taskId: string;
     xcomKey: string;
 };
@@ -4441,6 +5491,10 @@ export type GetXcomEntriesData = {
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
     dagRunId: string;
+    /**
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+     */
+    excludeInternalKeys?: boolean;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
@@ -4450,9 +5504,11 @@ export type GetXcomEntriesData = {
     mapIndexFilter?: number | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, timestamp, run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `key, dag_id, run_id, task_id, map_index, region_id, region_index, timestamp, run_after`
      */
     orderBy?: Array<(string)>;
+    regionId?: string | null;
+    regionIndex?: number | null;
     runAfterGt?: string | null;
     runAfterGte?: string | null;
     runAfterLt?: string | null;
@@ -4474,6 +5530,7 @@ export type GetXcomEntriesData = {
      * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
      */
     taskIdPrefixPattern?: string | null;
+    teams?: Array<(string)>;
     xcomKey?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4506,6 +5563,7 @@ export type GetTasksResponse = TaskCollectionResponse;
 export type GetTaskData = {
     dagId: string;
     taskId: unknown;
+    versionNumber?: number | null;
 };
 
 export type GetTaskResponse = TaskResponse;
@@ -4599,6 +5657,8 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
+export type GetCliLoginMetadataResponse = CliLoginMetadataResponse;
+
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
@@ -4622,6 +5682,7 @@ export type GetPartitionedDagRunsResponse = PartitionedDagRunCollectionResponse;
 
 export type GetPendingPartitionedDagRunData = {
     dagId: string;
+    partitionedDagRunId?: number | null;
     partitionKey: string;
 };
 
@@ -4658,9 +5719,10 @@ export type GetDeadlinesData = {
     missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
      */
     orderBy?: Array<(string)>;
+    teams?: Array<(string)>;
 };
 
 export type GetDeadlinesResponse = DeadlineCollectionResponse;
@@ -4668,6 +5730,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -4677,6 +5743,15 @@ export type GetDagDeadlineAlertsData = {
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
+
+export type GetCallbackLogsData = {
+    accept?: 'application/json' | 'application/x-ndjson' | '*/*';
+    callbackId: string;
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetCallbackLogsResponse = TaskInstancesLogResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -4768,9 +5843,34 @@ export type GetGridTiSummariesStreamData = {
 
 export type GetGridTiSummariesStreamResponse = string;
 
+export type GetLoopSummaryData = {
+    dagId: string;
+    groupId: string;
+    loopRegionId?: string | null;
+    runId: string;
+};
+
+export type GetLoopSummaryResponse = LoopSummaryResponse;
+
+export type GetLoopHistoryData = {
+    dagId: string;
+    groupId: string;
+    limit?: number;
+};
+
+export type GetLoopHistoryResponse = LoopHistoryResponse;
+
 export type GetGanttDataData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runId: string;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;
@@ -5188,6 +6288,10 @@ export type $OpenApiTs = {
                  */
                 200: NextRunAssetsResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5409,6 +6513,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DryRunBackfillCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -5670,6 +6778,10 @@ export type $OpenApiTs = {
                  */
                 200: ConnectionTestResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -5762,6 +6874,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -5826,6 +6942,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -5953,6 +7073,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -6067,6 +7191,60 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/execution': {
+        get: {
+            req: GetExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ExecutionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dags/{dag_id}/dagVersions/diff': {
+        get: {
+            req: GetDagVersionDiffData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagVersionDiffResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dagSources/{dag_id}': {
         get: {
             req: GetDagSourceData;
@@ -6095,6 +7273,83 @@ export type $OpenApiTs = {
                  * Not Acceptable
                  */
                 406: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles': {
+        get: {
+            req: GetDagBundlesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}': {
+        get: {
+            req: GetDagBundleData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/dagBundles/{bundle_name}/files': {
+        get: {
+            req: GetDagBundleFilesData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleFileCollectionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6367,6 +7622,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Unprocessable Entity
                  */
                 422: HTTPExceptionResponse;
@@ -6404,6 +7663,29 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/dags/bulk': {
+        patch: {
+            req: BulkDagsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: BulkResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/dags/{dag_id}/favorite': {
         post: {
             req: FavoriteDagData;
@@ -6424,6 +7706,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6515,6 +7801,16 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/dags/folders': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagFolderCollectionResponse;
+            };
+        };
+    };
     '/ui/dags/{dag_id}/latest_run': {
         get: {
             req: GetLatestRunInfoData;
@@ -6523,6 +7819,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGRunLightResponse | null;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -6542,6 +7842,21 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DAGsRunStateCountsCollectionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/recent_task_instance_state_counts': {
+        get: {
+            req: GetRecentTaskInstanceStateCountsUiData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DAGsRecentTaskInstanceStateCountsCollectionResponse;
                 /**
                  * Validation Error
                  */
@@ -6585,6 +7900,10 @@ export type $OpenApiTs = {
                  */
                 200: EventLogCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6608,6 +7927,10 @@ export type $OpenApiTs = {
                  */
                 200: ExtraLinkCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6619,6 +7942,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6635,6 +7962,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6646,6 +7977,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6693,6 +8028,10 @@ export type $OpenApiTs = {
                  */
                 200: unknown;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6704,6 +8043,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6719,6 +8062,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -6747,6 +8094,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskDependencyCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6758,6 +8109,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6774,6 +8129,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskDependencyCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6785,6 +8144,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6801,6 +8164,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6812,6 +8179,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6828,6 +8199,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6839,6 +8214,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6855,6 +8234,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6866,6 +8249,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -6994,6 +8381,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7005,6 +8396,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7021,6 +8416,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstanceHistoryResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7032,6 +8431,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7047,6 +8450,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TaskInstanceCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7130,6 +8537,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7160,6 +8571,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7192,6 +8607,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7207,6 +8626,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskInstancesLogResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7218,6 +8641,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7250,6 +8677,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7264,6 +8695,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7294,6 +8729,10 @@ export type $OpenApiTs = {
                  */
                 200: HITLDetail;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7305,6 +8744,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7321,6 +8764,10 @@ export type $OpenApiTs = {
                  */
                 200: HITLDetailHistory;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7332,6 +8779,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7347,6 +8798,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: HITLDetailCollection;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Unauthorized
                  */
@@ -7657,6 +9112,33 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/assets/{asset_id}/state-store': {
         get: {
             req: ListAssetStateStoreData;
@@ -7795,6 +9277,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskStateStoreCollectionResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7806,6 +9292,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7820,6 +9310,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7831,6 +9325,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7847,6 +9345,10 @@ export type $OpenApiTs = {
                  */
                 200: TaskStateStoreResponse;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7858,6 +9360,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7872,6 +9378,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7883,6 +9393,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7897,6 +9411,10 @@ export type $OpenApiTs = {
                  */
                 200: unknown;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7908,6 +9426,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7922,6 +9444,10 @@ export type $OpenApiTs = {
                  */
                 204: void;
                 /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -7933,6 +9459,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -7965,6 +9495,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -7994,6 +9528,10 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8022,6 +9560,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8082,6 +9624,10 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Conflict
+                 */
+                409: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8270,6 +9816,10 @@ export type $OpenApiTs = {
                  */
                 403: HTTPExceptionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Conflict
                  */
                 409: HTTPExceptionResponse;
@@ -8425,6 +9975,16 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/auth/cli/metadata': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CliLoginMetadataResponse;
+            };
+        };
+    };
     '/api/v2/auth/logout': {
         get: {
             res: {
@@ -8483,6 +10043,10 @@ export type $OpenApiTs = {
                  */
                 200: PartitionedDagRunCollectionResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8498,6 +10062,10 @@ export type $OpenApiTs = {
                  */
                 200: PartitionedDagRunDetailResponse;
                 /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
                  * Validation Error
                  */
                 422: HTTPValidationError;
@@ -8512,6 +10080,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: BaseGraphResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -8583,6 +10155,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs': {
+        get: {
+            req: GetCallbackLogsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -8682,6 +10277,44 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/ui/grid/loop/{dag_id}/{run_id}/{group_id}': {
+        get: {
+            req: GetLoopSummaryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopSummaryResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Unprocessable Entity
+                 */
+                422: HTTPExceptionResponse;
+            };
+        };
+    };
+    '/ui/grid/loop-history/{dag_id}/{group_id}': {
+        get: {
+            req: GetLoopHistoryData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: LoopHistoryResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/gantt/{dag_id}/{run_id}': {
         get: {
             req: GetGanttDataData;
@@ -8709,6 +10342,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: CalendarTimeRangeCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */
@@ -8739,6 +10376,10 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: TeamCollectionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

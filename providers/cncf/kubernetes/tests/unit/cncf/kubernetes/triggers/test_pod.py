@@ -23,15 +23,18 @@ import datetime
 import logging
 import time
 from asyncio import Future
+from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
 from kubernetes.client import models as k8s
 from pendulum import DateTime
+from sqlalchemy.orm.session import Session
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
@@ -49,7 +52,7 @@ IN_CLUSTER = False
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 STARTUP_CHECK_INTERVAL_SECS = 0.1
-TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.timezone.utc)
+TRIGGER_START_TIME = datetime.datetime.now(tz=datetime.UTC)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
@@ -135,6 +138,15 @@ class TestKubernetesPodTrigger:
             "logging_interval": None,
             "trigger_kwargs": {},
         }
+
+    def test_serialize_emits_log_events_on_startup_only_when_disabled(self, trigger):
+        assert "log_events_on_startup" not in trigger.serialize()[1]
+
+        trigger.log_events_on_startup = False
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["log_events_on_startup"] is False
 
     def test_serialize_with_connection_extras(self):
         extras = {"token": "abc"}
@@ -428,7 +440,7 @@ class TestKubernetesPodTrigger:
         """
         If log interval given, check that the trigger fetches logs at the right times.
         """
-        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.timezone.utc)
+        fixed_now = datetime.datetime(2022, 1, 1, tzinfo=datetime.UTC)
         mock_datetime.datetime.now.side_effect = [
             fixed_now,
             fixed_now + datetime.timedelta(seconds=1),
@@ -580,6 +592,44 @@ class TestKubernetesPodTrigger:
                 "last_log_time": None,
             }
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("log_events_on_startup", "expected_calls"),
+        [(True, 1), (False, 0)],
+    )
+    @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state", autospec=True)
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.await_pod_start", autospec=True
+    )
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.triggers.pod.AsyncPodManager.watch_pod_events", autospec=True
+    )
+    @mock.patch(f"{TRIGGER_PATH}._get_pod", autospec=True)
+    async def test_wait_for_pod_start_watches_events_only_when_enabled(
+        self,
+        mock_get_pod,
+        mock_watch_events,
+        mock_await_start,
+        mock_state,
+        trigger,
+        log_events_on_startup,
+        expected_calls,
+    ):
+        mock_get_pod.return_value = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name=POD_NAME, namespace=NAMESPACE))
+        mock_state.return_value = ContainerState.RUNNING
+
+        async def _await_pod_start(*_, **__):
+            # An autospecced coroutine records its call only once it runs, so let the watcher task start.
+            await asyncio.sleep(0)
+
+        mock_await_start.side_effect = _await_pod_start
+        trigger.log_events_on_startup = log_events_on_startup
+
+        await trigger._wait_for_pod_start()
+
+        assert mock_watch_events.call_count == expected_calls
+        mock_await_start.assert_awaited_once()
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_pod_container_state")
@@ -978,8 +1028,6 @@ class TestKubernetesPodTrigger:
         # response is missing the expected (composite) key, so callers
         # like ``safe_to_cancel`` keep the same behaviour they had before
         # the lookup was fixed.
-        from airflow.exceptions import AirflowException
-
         run_id = "manual__2026-05-21T00:00:00+00:00"
         # Response has the run_id but not the (``map_group.task_a``, ``2``)
         # entry -- e.g. supervisor has not observed the TI yet.
@@ -996,8 +1044,41 @@ class TestKubernetesPodTrigger:
             dag_id="my_dag", task_id="map_group.task_a", run_id=run_id, map_index=2
         )
 
-        with pytest.raises(AirflowException, match="TaskInstance with dag_id"):
+        with pytest.raises(AirflowException) as exc_info:
             await trigger.get_task_state()
+
+        assert str(exc_info.value) == (
+            "TaskInstance with dag_id: my_dag, task_id: map_group.task_a, "
+            f"run_id: {run_id} and map_index: 2 is not found"
+        )
+
+    @pytest.mark.skipif(
+        AIRFLOW_V_3_0_PLUS,
+        reason="get_task_instance reads the metadata DB on Airflow 2.x only",
+    )
+    def test_get_task_instance_reports_identifiers_when_row_missing(self):
+        run_id = "manual__2026-05-21T00:00:00+00:00"
+        session = mock.MagicMock(spec=Session)
+        session.scalar.return_value = None
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            trigger_start_time=TRIGGER_START_TIME,
+            schedule_timeout=STARTUP_TIMEOUT_SECS,
+        )
+        trigger.task_instance = SimpleNamespace(
+            dag_id="my_dag", task_id="my_task", run_id=run_id, map_index=-1
+        )
+
+        with pytest.raises(AirflowException) as exc_info:
+            trigger.get_task_instance(session=session)
+
+        assert str(exc_info.value) == (
+            "TaskInstance with dag_id: my_dag, task_id: my_task, "
+            f"run_id: {run_id} and map_index: -1 is not found"
+        )
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_3_PLUS,

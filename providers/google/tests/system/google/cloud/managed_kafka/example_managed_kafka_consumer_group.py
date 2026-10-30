@@ -73,7 +73,7 @@ NETWORK = os.environ.get("GOOGLE_PROVIDER_NETWORK") if not IS_COMPOSER else "def
 DAG_ID = "managed_kafka_consumer_group_operations"
 LOCATION = "us-central1"
 
-CLUSTER_ID = f"cluster_{DAG_ID}_{ENV_ID}".replace("_", "-")
+CLUSTER_ID = f"cluster-kafka-cg-{ENV_ID}".replace("_", "-")
 CLUSTER_CONF = {
     "gcp_config": {
         "access_config": {

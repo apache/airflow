@@ -25,27 +25,145 @@
 Changelog
 ---------
 
-0.9.0
-.....
+0.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Grant Keycloak SuperAdmin access to teamless resources (#74640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+
+0.11.1
+......
 
 .. note::
-    Keycloak's access and refresh tokens are now stored in dedicated ``_access_token`` and
-    ``_refresh_token`` cookies instead of being carried inside the Airflow JWT claims. Sessions
-    established before this release carry the tokens in the old form, so the first request after
-    the upgrade cannot be refreshed and the session is cleared -- **every logged-in user is signed
-    out once when you upgrade**. No action is required beyond logging back in; this is a one-time
-    effect of the move and does not recur.
+    In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
+    entries not tied to a Dag, import errors for files with no registered Dag and reparsing such
+    files -- are now checked against a new ``AdminView`` Keycloak resource instead of ``View``.
+    Only ``SuperAdmin`` is granted access to it; team roles keep access to the other views through
+    ``View``. Until the Keycloak client is updated, access to these views is denied to every user.
+    Run ``airflow keycloak-auth-manager create-team <team>`` again for an existing team to create the
+    resource and the ``AdminViewAccess`` permission and grant it to ``SuperAdmin``. Deployments
+    without ``[core] multi_team`` are not affected.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop Keycloak middleware from reissuing a JWT revoked during the request (#73695)``
+* ``Check admin-only views against a dedicated Keycloak resource in multi-team mode (#73696)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+0.11.0
+......
 
 Features
 ~~~~~~~~
 
-* ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
-* ``Move keycloak JWT tokens to separate cookies (#70550)``
-* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800)``
-* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Include the Dag Bundles menu item in the team role resources generated for Keycloak (#72909)``
+* ``Support exchanging a Keycloak-issued access token for an Airflow API token with the JWT bearer grant, gated by the new jwt_federated_client_ids allow-list (#72978)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Return 403 when Keycloak UMA ticket grant returns invalid_grant (#73234)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
+0.10.0
+......
+
+.. note::
+    The unauthenticated ``POST /auth/token`` endpoint now accepts the ``client_credentials``
+    grant only for the client configured in ``[keycloak_auth_manager] client_id``. Previously
+    the credentials of any confidential client in the realm were accepted and exchanged for an
+    Airflow token. If a deployment authenticates with a service account belonging to a different
+    client, either point ``[keycloak_auth_manager] client_id`` at that client or issue the
+    credentials against the configured one -- other clients now receive ``403``.
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep API tokens usable with the Authorization header (#72381)``
+* ``Bind Keycloak cookie tokens to the Airflow session identity (#72207)``
+* ``Accept only the configured client on the Keycloak client_credentials grant (#72205)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+0.9.0
+.....
+
+.. note::
+    Upgrading the provider does not update existing Keycloak permissions. For each existing team,
+    run ``airflow keycloak-auth-manager create-team <team>`` again to update the team-specific
+    permissions and repair the global ``ReadOnly`` and ``Admin`` permissions. For non-team
+    installations, run ``airflow keycloak-auth-manager create-permissions`` again without
+    ``--teams`` to update the global ``ReadOnly`` and ``Admin`` permissions.
+
+    Manually added policies attached to these permissions will also be evaluated under the
+    ``AFFIRMATIVE`` strategy after the update.
+
+.. note::
+    For Airflow v3.3.0+ Keycloak's access and refresh tokens are now stored in dedicated
+    ``_access_token`` and ``_refresh_token`` cookies instead of being carried inside the
+    Airflow JWT claims. Sessions established before this release carry the tokens in the old form,
+    so the first request after the upgrade cannot be refreshed and the session is cleared --
+    **every logged-in user is signed out once when you upgrade**. No action is required
+    beyond logging back in; this is a one-time effect of the move and does not recur.
+
+Features
+~~~~~~~~
+
+* ``Grant team Op role access to team Dags in Keycloak auth manager (#71572)``
+* ``Make KeycloakAuthManager '_CACHE_TTL_SECONDS' configurable (#70839)``
+* ``Add KeycloakJWTMiddleware to KeycloakAuthManager (#70800, #71077, #71506)``
+* ``Implement bulk authorization methods in KeycloakAuthManager (#70647)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Keycloak multi-team permission repair (#71614)``
+* ``Make Keycloak permission creation quietly idempotent like its sibling helpers (#71505)``
+* ``Fix Keycloak access for individual roles (#70906)``
+* ``Move keycloak JWT tokens to separate cookies (#70550, #70981)``
+
+Misc
+~~~~
+
+* ``Remove groups claim from access tokens in the Keycloak client created by the KeycloakAuthManager CLI (#71093)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Correct the uv.lock versions and keycloak changelog after the 2026-08-01 wave (#70952)``
+   * ``Prepare providers release 2026-08-01 (#70932)``
    * ``Add tests for Keycloak token models (#70689)``
 
 0.8.2

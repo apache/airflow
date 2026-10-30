@@ -16,17 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useQueryClient } from "@tanstack/react-query";
 import { useRef } from "react";
+
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import {
   useDagRunServiceBulkDagRuns,
   useDagRunServiceGetDagRunsKey,
+  useDagServiceGetDagRunStateCountsUiKey,
+  useDagServiceGetDagsUiKey,
+  useDagServiceGetRecentTaskInstanceStateCountsUiKey,
   useTaskInstanceServiceGetTaskInstancesKey,
 } from "openapi/queries";
 import type { BulkBody_BulkDAGRunBody_, BulkResponse } from "openapi/requests/types.gen";
-import { toaster } from "src/components/ui";
+
+import { toaster } from "src/system-components";
 
 import { gridQueryKeys, tiPerAttemptQueryKeys } from "./gridViewQueryKeys";
 
@@ -43,6 +48,9 @@ export const useBulkDeleteDagRuns = ({ deselectKeys, onSuccessConfirm }: Props) 
   const onSuccess = async (responseData: BulkResponse) => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: [useDagRunServiceGetDagRunsKey] }),
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagsUiKey] }),
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetDagRunStateCountsUiKey] }),
+      queryClient.invalidateQueries({ queryKey: [useDagServiceGetRecentTaskInstanceStateCountsUiKey] }),
       queryClient.invalidateQueries({ queryKey: [useTaskInstanceServiceGetTaskInstancesKey] }),
       ...tiPerAttemptQueryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
       ...[...affectedDagIds.current].flatMap((dagId) =>

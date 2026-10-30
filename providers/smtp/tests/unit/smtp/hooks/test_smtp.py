@@ -22,6 +22,7 @@ import os
 import smtplib
 import ssl
 import tempfile
+from contextlib import nullcontext
 from email.mime.application import MIMEApplication
 from unittest import mock
 from unittest.mock import AsyncMock, Mock, call, patch
@@ -83,6 +84,27 @@ def _create_fake_smtp(mock_smtplib, use_ssl=True):
 
 
 class TestSmtpHook:
+    @pytest.mark.parametrize("close_fails", [False, True])
+    @patch("smtplib.SMTP_SSL", autospec=True)
+    def test_reconnect_after_context_exit(self, mock_smtp_ssl, close_fails):
+        clients = [mock.create_autospec(smtplib.SMTP, instance=True) for _ in range(2)]
+        mock_smtp_ssl.side_effect = clients
+        if close_fails:
+            clients[0].close.side_effect = OSError("Close failed")
+        hook = SmtpHook()
+
+        with pytest.raises(OSError, match="Close failed") if close_fails else nullcontext():
+            with hook:
+                hook.send_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        with hook:
+            hook.send_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp_ssl.call_count == 2
+        for client in clients:
+            client.sendmail.assert_called_once()
+            client.close.assert_called_once()
+
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
         create_connection_without_db(
@@ -610,6 +632,26 @@ class TestSmtpHook:
 class TestSmtpHookAsync:
     """Tests for async functionality in SmtpHook."""
 
+    @pytest.mark.parametrize("quit_fails", [False, True])
+    async def test_reconnect_after_context_exit(self, mock_get_connection, mocker, quit_fails):
+        clients = [self._create_fake_async_smtp(Mock()) for _ in range(2)]
+        mock_smtp = mocker.patch("airflow.providers.smtp.hooks.smtp.aiosmtplib.SMTP", side_effect=clients)
+        if quit_fails:
+            clients[0].quit.side_effect = OSError("Quit failed")
+        hook = SmtpHook()
+
+        with pytest.raises(OSError, match="Quit failed") if quit_fails else nullcontext():
+            async with hook:
+                await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        async with hook:
+            await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp.call_count == 2
+        for client in clients:
+            client.sendmail.assert_awaited_once()
+            client.quit.assert_awaited_once()
+
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
         create_connection_without_db(
@@ -713,9 +755,7 @@ class TestSmtpHookAsync:
         assert call_kwargs["use_tls"] == expected_ssl
         assert call_kwargs["start_tls"] == (None if expected_ssl else True)
         assert isinstance(call_kwargs["tls_context"], ssl.SSLContext)
-
-        if expected_ssl:
-            assert mock_smtp_client.starttls.await_count == 1
+        mock_smtp_client.starttls.assert_not_awaited()
 
         assert mock_smtp_client.auth_login.await_count == 1
         mock_smtp_client.auth_login.assert_awaited_once_with(SMTP_LOGIN, SMTP_PASSWORD)
@@ -786,14 +826,33 @@ class TestSmtpHookAsync:
 
         mock_smtp_client.sendmail.assert_not_awaited()
 
+    async def test_async_starttls_not_repeated_after_connect(
+        self, mock_smtp, mock_smtp_client, mock_get_connection
+    ):
+        """Test that aget_conn does not repeat the STARTTLS upgrade aiosmtplib already did in connect()."""
+        # Like aiosmtplib, reject STARTTLS on a connection that already uses TLS.
+        mock_smtp_client.starttls.side_effect = aiosmtplib.errors.SMTPException(
+            "Connection already using TLS"
+        )
+
+        async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL) as hook:
+            await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp.call_args.kwargs["start_tls"] is True
+        mock_smtp_client.starttls.assert_not_awaited()
+        mock_smtp_client.sendmail.assert_awaited_once()
+
     async def test_async_ehlo_called_after_starttls(self, mock_smtp, mock_smtp_client, mock_get_connection):
-        """Test that ehlo() is called after starttls() in async path."""
+        """Test that ehlo() is called after connect(), which does the STARTTLS upgrade, and before login."""
+        manager = AsyncMock()
+        mock_smtp_client.connect = manager.connect
+        mock_smtp_client.ehlo = manager.ehlo
+        mock_smtp_client.auth_login = manager.auth_login
+
         async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
             pass
 
-        # For non-SSL, starttls is called followed by ehlo
-        assert mock_smtp_client.starttls.await_count == 1
-        assert mock_smtp_client.ehlo.await_count >= 2  # once in _abuild_client + once after starttls
+        assert manager.mock_calls == [call.connect(), call.ehlo(), call.auth_login(SMTP_LOGIN, SMTP_PASSWORD)]
 
     async def test_async_oauth2_auth(
         self, mock_smtp, mock_smtp_client, mock_get_connection, create_connection_without_db

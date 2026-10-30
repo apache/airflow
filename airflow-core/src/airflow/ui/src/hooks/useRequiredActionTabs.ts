@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
+
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
@@ -25,18 +26,22 @@ import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
 export type HITLQueryParams = {
   dagId: string;
   dagRunId?: string;
+  mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
   taskId?: string;
   taskIdPattern?: string;
 };
 
 export type TabItem = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   value: string;
 };
 
 export type UseRequiredActionTabsOptions = {
   autoRedirect?: boolean;
+  enabled?: boolean;
   refetchInterval?: number | false;
 };
 
@@ -46,11 +51,12 @@ export const useRequiredActionTabs = (
   options: UseRequiredActionTabsOptions = {},
 ) => {
   const { t: translate } = useTranslation("hitl");
-  const { autoRedirect = false, refetchInterval } = options;
+  const { autoRedirect = false, enabled = true, refetchInterval } = options;
   const location = useLocation();
   const navigate = useNavigate();
 
-  const { dagId, dagRunId, taskId, taskIdPattern } = hitlParams;
+  const { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId, taskIdPattern } = hitlParams;
+  const exact = regionId !== undefined && regionIndex !== undefined && taskId !== undefined;
   let redirectPath: string;
 
   if (Boolean(dagId) && Boolean(dagRunId) && Boolean(taskId)) {
@@ -66,21 +72,29 @@ export const useRequiredActionTabs = (
     redirectPath = location.pathname.replace("/required_actions", "");
   }
 
-  const { data: hitlData, isLoading: isLoadingHitl } = useTaskInstanceServiceGetHitlDetails(
+  // Both the broad and the exact lookup go through the collection endpoint. Asking the single-detail
+  // endpoint whether one task instance is HITL answers "no" with a 404, which every non-HITL task
+  // then logs as a failed request; the collection answers the same question with `total_entries: 0`.
+  const collection = useTaskInstanceServiceGetHitlDetails(
     {
       dagId,
       dagRunId: dagRunId ?? "~",
+      mapIndex: exact ? (mapIndex ?? -1) : undefined,
+      regionId: exact ? regionId : undefined,
+      regionIndex: exact ? regionIndex : undefined,
       taskId,
       taskIdPrefixPattern: taskIdPattern,
     },
     undefined,
     {
-      enabled: Boolean(dagId),
+      enabled: enabled && Boolean(dagId),
       refetchInterval,
     },
   );
+  const hitlData = collection.data;
+  const isLoadingHitl = collection.isLoading;
 
-  const hasHitlData = (hitlData?.total_entries ?? 0) > 0;
+  const hasHitlData = enabled && (hitlData?.total_entries ?? 0) > 0;
   const pendingActionsCount =
     hitlData?.hitl_details.filter(
       (hitl) =>
@@ -111,9 +125,24 @@ export const useRequiredActionTabs = (
 
   useEffect(() => {
     if (autoRedirect && !hasHitlData && !isLoadingHitl && location.pathname.includes("required_actions")) {
-      void Promise.resolve(navigate(redirectPath));
+      void Promise.resolve(
+        navigate(
+          exact
+            ? { pathname: location.pathname.replace("/required_actions", ""), search: location.search }
+            : redirectPath,
+        ),
+      );
     }
-  }, [autoRedirect, hasHitlData, isLoadingHitl, location.pathname, navigate, redirectPath]);
+  }, [
+    autoRedirect,
+    exact,
+    hasHitlData,
+    isLoadingHitl,
+    location.pathname,
+    location.search,
+    navigate,
+    redirectPath,
+  ]);
 
   return {
     hasHitlData,

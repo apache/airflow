@@ -30,33 +30,12 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.common.compat.sdk import BaseOperator, conf
+from airflow.providers.common.compat.sdk import BaseOperator, ResumableJobMixin, conf
 
 try:
     from airflow.providers.cncf.kubernetes import kube_client
 except ImportError:
     kube_client = None  # type: ignore[assignment]
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-    # Airflow 2 compat.
-    # ResumableJobMixin does not exist in Airflow 2, so we need to add a stub to make it
-    # behave as before
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow 2 stub — no task_state_store, always submits fresh."""
-
-        external_id_key: str = "remote_job_id"
-
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Accept durable so the kwarg doesn't leak to BaseOperator; crash recovery is a no-op here.
-            super().__init__(**kwargs)
-            self.durable = durable
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
 
 
 if TYPE_CHECKING:
@@ -152,7 +131,7 @@ class _YarnSparkSubmitBackend(_SparkSubmitDeploymentBackend):
     def submit_job(self, context: Context) -> str | None:
         if self.hook._conf.get("spark.yarn.submit.waitAppCompletion", "").strip().lower() == "true":
             raise ValueError(
-                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts"
+                "spark.yarn.submit.waitAppCompletion=true cannot be set for cluster mode as it conflicts "
                 "with the need to exit spark-submit immediately to persist the application ID for tracking. "
                 "Either remove the explicit conf or set durable=False."
             )
@@ -326,6 +305,9 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
     :param durable: When ``True`` (the default), the external job ID is persisted to task state
         store before polling begins so that a worker crash and retry reconnects to the existing job
         instead of submitting a fresh one. Set to ``False`` to always submit a new job on retry.
+        Requires Airflow 3.3 or newer; below that, ``durable`` has no effect -- setting it
+        explicitly only emits a warning.
+    :param reconnect_on_retry: deprecated, use ``durable`` instead.
     """
 
     # Generic key used across all Spark deployment modes (standalone driver ID,
@@ -400,15 +382,22 @@ class SparkSubmitOperator(ResumableJobMixin, BaseOperator):
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
         reconnect_on_retry: bool | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
         if reconnect_on_retry is not None:
             warnings.warn(
-                "reconnect_on_retry is renamed to durable.",
+                "`reconnect_on_retry` is deprecated and will be removed once this provider's "
+                "minimum supported Airflow version reaches 3.3. Use `durable` instead.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            kwargs.setdefault("durable", reconnect_on_retry)
+            if durable is None:
+                durable = reconnect_on_retry
+        # Named here (not left to **kwargs) so default_args={"durable": ...} reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.application = application
         self.conf = conf

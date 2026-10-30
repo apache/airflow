@@ -24,17 +24,17 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
 from airflow.providers.amazon.aws.sensors.mwaa import MwaaDagRunSensor, MwaaTaskSensor
+from airflow.providers.common.compat.sdk import timezone
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
-    from airflow.sdk import DAG, chain, task, timezone
+    from airflow.sdk import DAG, chain, task
 else:
     # Airflow 2 path
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
     from airflow.models.baseoperator import chain  # type: ignore[attr-defined,no-redef]
     from airflow.models.dag import DAG  # type: ignore[attr-defined,no-redef,assignment]
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
 
 
 from system.amazon.aws.utils import SystemTestContextBuilder

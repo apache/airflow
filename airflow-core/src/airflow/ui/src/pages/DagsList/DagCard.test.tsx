@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PropsWithChildren } from "react";
+
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import i18n from "i18next";
 import type { DagTagResponse, DAGWithLatestDagRunsResponse } from "openapi-gen/requests/types.gen";
-import type { PropsWithChildren } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, it, vi, expect, beforeAll } from "vitest";
 
@@ -88,7 +89,11 @@ type CardContentMode = "fallback" | "hydrated" | "pending";
 // skeletons rather than StateBadges. Without this, every card would emit
 // 4 extra "state-badge" testids and break getByTestId assertions in tests
 // that target the latest-run badge.
-const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentMode = "hydrated") => {
+const renderCard = (
+  dag: DAGWithLatestDagRunsResponse,
+  contentMode: CardContentMode = "hydrated",
+  showRecentTaskStateCounts = true,
+) => {
   dagCardObservers.length = 0;
 
   if (contentMode === "fallback") {
@@ -98,7 +103,13 @@ const renderCard = (dag: DAGWithLatestDagRunsResponse, contentMode: CardContentM
   }
 
   const result = render(
-    <DagCard dag={dag} runStateCounts={undefined} runStateCountsLoading stateCountLimit={undefined} />,
+    <DagCard
+      dag={dag}
+      recentTasks={{ entriesByDag: {}, isLoading: true, show: showRecentTaskStateCounts }}
+      runStateCounts={undefined}
+      runStateCountsLoading
+      stateCountLimit={undefined}
+    />,
     {
       wrapper: GMTWrapper,
     },
@@ -145,6 +156,7 @@ const mockDag = {
   fileloc: "/files/dags/nested_task_groups.py",
   has_import_errors: false,
   has_task_concurrency_limits: false,
+  has_unfinished_runs: false,
   is_backfillable: true,
   is_favorite: false,
   is_paused: false,
@@ -267,6 +279,14 @@ describe("DagCard", () => {
     expect(screen.getByTestId("toggle-pause")).toBeInTheDocument();
   });
 
+  it("offers draining when the API reports an unfinished run outside the recent-run payload", async () => {
+    renderCard({ ...mockDag, has_unfinished_runs: true });
+
+    fireEvent.click(screen.getByTestId("toggle-pause"));
+
+    expect(await screen.findByTestId("drain-dag")).toBeInTheDocument();
+  });
+
   it("DagCard should render without tags", () => {
     renderCard(mockDag);
     expect(screen.getByText(mockDag.dag_display_name)).toBeInTheDocument();
@@ -379,6 +399,15 @@ describe("DagCard", () => {
     expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
   });
 
+  it("DagCard should render the draining badge instead of the next run timestamp for a draining Dag", () => {
+    renderCard({ ...mockDag, scheduling_state: "draining" });
+    const nextRunElement = screen.getByTestId("next-run");
+
+    expect(nextRunElement).toBeInTheDocument();
+    expect(nextRunElement).not.toHaveTextContent("2024-08-22 19:00:00");
+    expect(screen.getByTestId("draining-badge")).toBeInTheDocument();
+  });
+
   it("DagCard should render StateBadge as success", () => {
     renderCard(mockDag);
     const stateBadge = screen.getByTestId("state-badge");
@@ -411,5 +440,17 @@ describe("DagCard", () => {
     expect(stateBadge).toBeInTheDocument();
     // Should have the failed state
     expect(stateBadge).toHaveAttribute("aria-label", "failed");
+  });
+
+  it.each([true, false])("shows recent tasks only when the setting is %s", (show) => {
+    renderCard(mockDag, "hydrated", show);
+
+    const counts = screen.queryByTestId(`recent-task-state-counts-loading-${mockDag.dag_id}`);
+
+    if (show) {
+      expect(counts).toBeInTheDocument();
+    } else {
+      expect(counts).not.toBeInTheDocument();
+    }
   });
 });

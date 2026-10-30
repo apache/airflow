@@ -24,9 +24,13 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRuns } from "openapi/queries";
 import type { DAGRunResponse } from "openapi/requests/types.gen";
+
+import { RouterLink, ActionBar } from "src/system-components";
+
 import { ClearRunButton } from "src/components/Clear";
 import { DagVersion } from "src/components/DagVersion";
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -35,21 +39,25 @@ import {
   type GetColumnsParams,
 } from "src/components/DataTable/useRowSelection";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { DurationCell } from "src/components/DurationCell";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { ExpandCollapseButtons } from "src/components/ExpandCollapseButtons";
 import { LimitedItemsList } from "src/components/LimitedItemsList";
 import { MarkRunAsButton } from "src/components/MarkAs";
+import { PluginActions } from "src/components/PluginActions";
+import { PluginActionsProvider } from "src/components/PluginActions/PluginActionsContext";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
-import { RouterLink } from "src/components/ui";
-import { ActionBar } from "src/components/ui/ActionBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
-import { renderDuration, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import { formatNumber, useAutoRefresh, hasDagRunConfig, isStatePending, useDocumentTitle } from "src/utils";
 
 import BulkClearDagRunsButton from "./BulkClearDagRunsButton";
 import BulkDeleteDagRunsButton from "./BulkDeleteDagRunsButton";
@@ -83,6 +91,8 @@ const {
   START_DATE_GTE: START_DATE_GTE_PARAM,
   START_DATE_LTE: START_DATE_LTE_PARAM,
   STATE: STATE_PARAM,
+  TAGS: TAGS_PARAM,
+  TAGS_MATCH_MODE: TAGS_MATCH_MODE_PARAM,
   TEAMS: TEAMS_PARAM,
   TRIGGERING_USER_NAME_PATTERN: TRIGGERING_USER_NAME_PATTERN_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
@@ -93,7 +103,12 @@ type ColumnProps = {
   readonly translate: TFunction;
 } & GetColumnsParams;
 
-const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<ColumnDef<DAGRunResponse>> => [
+const runColumns = ({
+  dagId,
+  multiTeam,
+  open,
+  translate,
+}: ColumnProps): Array<ColumnDef<DataTableFeatures, DAGRunResponse>> => [
   {
     accessorKey: "select",
     cell: ({ row }) => <SelectionRowCheckbox colorPalette="brand" rowKey={getRowKey(row.original)} />,
@@ -137,6 +152,11 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
     header: translate("dagRun.runAfter"),
   },
   {
+    accessorKey: "logical_date",
+    cell: ({ row: { original } }) => <Time datetime={original.logical_date} />,
+    header: translate("logicalDate"),
+  },
+  {
     accessorKey: "state",
     cell: ({
       row: {
@@ -160,12 +180,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
     ? [
         {
           accessorKey: "team_name",
-          cell: ({ row: { original } }: DagRunRow) =>
-            original.team_name !== undefined && original.team_name !== null ? (
-              <RouterLink to={`/dags?teams=${encodeURIComponent(original.team_name)}`}>
-                {original.team_name}
-              </RouterLink>
-            ) : undefined,
+          cell: ({ row: { original } }: DagRunRow) => <TeamName teamName={original.team_name} />,
           enableSorting: false,
           header: translate("dagDetails.team"),
         },
@@ -189,7 +204,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   },
   {
     accessorKey: "duration",
-    cell: ({ row: { original } }) => renderDuration(original.duration),
+    cell: ({ row: { original } }) => <DurationCell duration={original.duration} />,
     header: translate("duration"),
   },
   {
@@ -214,7 +229,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
   {
     accessorKey: "conf",
     cell: ({ row: { original } }) =>
-      original.conf && Object.keys(original.conf).length > 0 ? (
+      hasDagRunConfig(original.conf) ? (
         <RenderedJsonField collapsed={!open} content={original.conf} />
       ) : undefined,
     header: translate("dagRun.conf"),
@@ -227,8 +242,10 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
         <ClearRunButton dagRun={row.original} />
         <MarkRunAsButton dagRun={row.original} />
         <DeleteRunButton dagRun={row.original} />
+        <PluginActions entity={{ dagRun: row.original, destination: "dag_run" }} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
     meta: {
@@ -238,7 +255,7 @@ const runColumns = ({ dagId, multiTeam, open, translate }: ColumnProps): Array<C
 ];
 
 export const DagRuns = () => {
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
   const { dagId } = useParams();
 
   // Only the standalone list page owns the tab title; the Dag-scoped tab inherits the Dag page's title.
@@ -252,6 +269,7 @@ export const DagRuns = () => {
     columnVisibility: {
       dag_version: false,
       end_date: false,
+      logical_date: false,
       partition_key: false,
     },
   });
@@ -280,6 +298,8 @@ export const DagRuns = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const confContains = searchParams.get(CONF_CONTAINS_PARAM);
   const partitionKeyPattern = searchParams.get(PARTITION_KEY_PATTERN_PARAM);
+  const tags = searchParams.getAll(TAGS_PARAM);
+  const tagsMatchMode = searchParams.get(TAGS_MATCH_MODE_PARAM) === "all" ? "all" : "any";
   const teams = searchParams.getAll(TEAMS_PARAM);
 
   const refetchInterval = useAutoRefresh({});
@@ -335,6 +355,8 @@ export const DagRuns = () => {
       startDateGte: startDateGte ?? undefined,
       startDateLte: startDateLte ?? undefined,
       state: filteredState === null ? undefined : [filteredState],
+      tags: tags.length > 0 ? tags : undefined,
+      tagsMatchMode: tags.length > 0 ? tagsMatchMode : undefined,
       teams: teams.length > 0 ? teams : undefined,
       ...triggeringUserArg,
     },
@@ -346,6 +368,7 @@ export const DagRuns = () => {
     },
   );
 
+  const dagRuns = data?.dag_runs ?? [];
   const nextCursor = data?.next_cursor ?? undefined;
   const previousCursor = data?.previous_cursor ?? undefined;
 
@@ -355,7 +378,9 @@ export const DagRuns = () => {
       getKey: getRowKey,
     });
 
-  const selectedDagRuns = (data?.dag_runs ?? []).filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
+  const pluginActions = usePluginActions("dag_run");
+
+  const selectedDagRuns = dagRuns.filter((dagRun) => selectedRows.has(getRowKey(dagRun)));
 
   const columns = runColumns({
     dagId,
@@ -371,31 +396,37 @@ export const DagRuns = () => {
       onSelectAll={handleSelectAll}
       selectedRows={selectedRows}
     >
-      <Flex alignItems="center" justifyContent="space-between">
-        <DagRunsFilters dagId={dagId} />
-        <ExpandCollapseButtons
-          collapseLabel={translate("common:collapseAllExtra")}
-          expandLabel={translate("common:expandAllExtra")}
-          isExpanded={open}
-          onCollapse={onClose}
-          onExpand={onOpen}
+      <PluginActionsProvider value={pluginActions}>
+        <DataTable
+          columns={columns}
+          data={dagRuns}
+          errorMessage={<ErrorAlert error={error} />}
+          filterActions={<DagRunsFilters dagId={dagId} />}
+          initialState={tableURLState}
+          isLoading={isLoading}
+          modelName="common:dagRun"
+          nextCursor={nextCursor}
+          onStateChange={setTableURLState}
+          presentationActions={
+            dagRuns.length > 0 ? (
+              <ExpandCollapseButtons
+                collapseLabel={translate("common:collapseAllExtra")}
+                expandLabel={translate("common:expandAllExtra")}
+                isExpanded={open}
+                onCollapse={onClose}
+                onExpand={onOpen}
+              />
+            ) : undefined
+          }
+          previousCursor={previousCursor}
+          total={data?.total_entries ?? 0}
+          totalEntriesLimit={data?.total_entries_limit ?? undefined}
         />
-      </Flex>
-      <DataTable
-        columns={columns}
-        data={data?.dag_runs ?? []}
-        errorMessage={<ErrorAlert error={error} />}
-        initialState={tableURLState}
-        isLoading={isLoading}
-        modelName="common:dagRun"
-        nextCursor={nextCursor}
-        onStateChange={setTableURLState}
-        previousCursor={previousCursor}
-      />
+      </PluginActionsProvider>
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <BulkClearDagRunsButton deselectKeys={deselectKeys} selectedDagRuns={selectedDagRuns} />

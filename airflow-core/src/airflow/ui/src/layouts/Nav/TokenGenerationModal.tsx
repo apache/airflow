@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useCallback, useState } from "react";
+
 import { Box, Button, Flex, HStack, Text } from "@chakra-ui/react";
-import React, { useCallback, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle } from "react-icons/fi";
 
 import { useAuthLinksServiceGenerateToken } from "openapi/queries";
 import type { GenerateTokenResponse } from "openapi/requests/types.gen";
-import { Dialog, toaster } from "src/components/ui";
-import { ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/components/ui/Clipboard";
+
+import { Modal, toaster, ClipboardIconButton, ClipboardInput, ClipboardRoot } from "src/system-components";
 
 type TokenGenerationModalProps = {
   readonly isOpen: boolean;
@@ -46,7 +47,7 @@ const formatExpiration = (seconds: number): string => {
   return `${String(minutes)}m`;
 };
 
-const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onClose }) => {
+const TokenGenerationModal = ({ isOpen, onClose }: TokenGenerationModalProps) => {
   const { t: translate } = useTranslation();
   const [tokenType, setTokenType] = useState<TokenType>("api");
   const [generatedToken, setGeneratedToken] = useState<string>();
@@ -78,59 +79,47 @@ const TokenGenerationModal: React.FC<TokenGenerationModalProps> = ({ isOpen, onC
   }, [generateToken, tokenType]);
 
   return (
-    <Dialog.Root lazyMount onOpenChange={handleClose} open={isOpen}>
-      <Dialog.Content backdrop>
-        <Dialog.Header>{translate("tokenGeneration.title")}</Dialog.Header>
-        <Dialog.CloseTrigger />
-        <Dialog.Body>
-          {generatedToken !== undefined && generatedToken !== "" ? (
-            <Box>
-              <Text fontWeight="semibold" mb={2}>
-                {translate("tokenGeneration.tokenGenerated")}
-              </Text>
-              <ClipboardRoot value={generatedToken}>
-                <Flex alignItems="center" gap={2}>
-                  <ClipboardInput readOnly />
-                  <ClipboardIconButton />
-                </Flex>
-              </ClipboardRoot>
-              <HStack color="orange.500" gap={2} mt={3}>
-                <FiAlertTriangle />
-                <Text fontSize="sm">{translate("tokenGeneration.tokenShownOnce")}</Text>
-              </HStack>
-              {expiresIn !== undefined && expiresIn > 0 ? (
-                <Text color="fg.muted" fontSize="sm" mt={2}>
-                  {translate("tokenGeneration.tokenExpiresIn", {
-                    duration: formatExpiration(expiresIn),
-                  })}
-                </Text>
-              ) : undefined}
-            </Box>
-          ) : (
-            <Box>
-              <Text mb={3}>{translate("tokenGeneration.selectType")}</Text>
-              <HStack gap={3} mb={4}>
-                <Button
-                  onClick={() => setTokenType("api")}
-                  variant={tokenType === "api" ? "solid" : "outline"}
-                >
-                  {translate("tokenGeneration.apiToken")}
-                </Button>
-                <Button
-                  onClick={() => setTokenType("cli")}
-                  variant={tokenType === "cli" ? "solid" : "outline"}
-                >
-                  {translate("tokenGeneration.cliToken")}
-                </Button>
-              </HStack>
-              <Button loading={isPending} onClick={handleGenerate} width="full">
-                {translate("tokenGeneration.generate")}
-              </Button>
-            </Box>
-          )}
-        </Dialog.Body>
-      </Dialog.Content>
-    </Dialog.Root>
+    <Modal lazyMount onOpenChange={handleClose} open={isOpen} title={translate("tokenGeneration.title")}>
+      {generatedToken !== undefined && generatedToken !== "" ? (
+        <Box>
+          <Text fontWeight="semibold" mb={2}>
+            {translate("tokenGeneration.tokenGenerated")}
+          </Text>
+          <ClipboardRoot value={generatedToken}>
+            <Flex alignItems="center" gap={2}>
+              <ClipboardInput readOnly />
+              <ClipboardIconButton />
+            </Flex>
+          </ClipboardRoot>
+          <HStack color="orange.500" gap={2} mt={3}>
+            <FiAlertTriangle />
+            <Text fontSize="sm">{translate("tokenGeneration.tokenShownOnce")}</Text>
+          </HStack>
+          {expiresIn !== undefined && expiresIn > 0 ? (
+            <Text color="fg.muted" fontSize="sm" mt={2}>
+              {translate("tokenGeneration.tokenExpiresIn", {
+                duration: formatExpiration(expiresIn),
+              })}
+            </Text>
+          ) : undefined}
+        </Box>
+      ) : (
+        <Box>
+          <Text mb={3}>{translate("tokenGeneration.selectType")}</Text>
+          <HStack gap={3} mb={4}>
+            <Button onClick={() => setTokenType("api")} variant={tokenType === "api" ? "solid" : "outline"}>
+              {translate("tokenGeneration.apiToken")}
+            </Button>
+            <Button onClick={() => setTokenType("cli")} variant={tokenType === "cli" ? "solid" : "outline"}>
+              {translate("tokenGeneration.cliToken")}
+            </Button>
+          </HStack>
+          <Button loading={isPending} onClick={handleGenerate} width="full">
+            {translate("tokenGeneration.generate")}
+          </Button>
+        </Box>
+      )}
+    </Modal>
   );
 };
 

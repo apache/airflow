@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import tenacity
@@ -29,11 +30,11 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
+from airflow.utils import yaml
+from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-
-    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 
 class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
@@ -48,7 +49,13 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: Which AWS region the connection should use.
          If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -57,6 +64,8 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "region_name": region_name},
@@ -70,10 +79,9 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
         async with await self.hook().get_async_conn() as client:
@@ -180,45 +188,23 @@ class EksPodTrigger(KubernetesPodTrigger):
 
     async def run(self):
         """Generate fresh kubeconfig, then delegate to the parent trigger."""
-        from airflow.utils import yaml
-
         eks_hook = EksHook(
             aws_conn_id=self._aws_conn_id,
             region_name=self.region,
         )
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise RuntimeError(
-                "Unable to retrieve AWS credentials for EKS trigger. "
-                "Credentials may have expired or not been configured."
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.eks_cluster_name, pod_namespace=self.pod_namespace
+        ) as (config_file_path, _):
+            self.config_dict = yaml.safe_load(
+                Path(config_file_path).read_text()  # noqa: ASYNC240
             )
-        credentials = credentials_obj.get_frozen_credentials()
 
-        # Create fresh credential and kubeconfig files.  The context managers
-        # keep the temp files alive for the entire duration of the trigger.
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.eks_cluster_name,
-                pod_namespace=self.pod_namespace,
-                credentials_file=credentials_file,
-            ) as config_file_path:
-                # Reading a small local temp file created by the context manager above.
-                # Blocking I/O is acceptable here as the file is tiny and local.
-                from pathlib import Path
+            # Invalidate any previously cached hook so the new config_dict
+            # is picked up when the parent creates the AsyncKubernetesHook.
+            self.__dict__.pop("hook", None)
 
-                self.config_dict = yaml.safe_load(
-                    Path(config_file_path).read_text()  # noqa: ASYNC240
-                )
-
-                # Invalidate any previously cached hook so the new config_dict
-                # is picked up when the parent creates the AsyncKubernetesHook.
-                self.__dict__.pop("hook", None)
-
-                async for event in super().run():
-                    yield event
+            async for event in super().run():
+                yield event
 
 
 class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
@@ -237,7 +223,13 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
          If this is None or empty then the default boto3 behaviour is used.
     :param force_delete_compute: If True, any nodegroups or fargate profiles associated
         with the cluster will be deleted before the cluster is deleted.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -247,12 +239,16 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str | None,
         region_name: str | None,
         force_delete_compute: bool,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         self.cluster_name = cluster_name
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.verify = verify
+        self.botocore_config = botocore_config
         self.force_delete_compute = force_delete_compute
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -265,11 +261,9 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "force_delete_compute": self.force_delete_compute,
+                **prune_dict({"verify": self.verify, "botocore_config": self.botocore_config}),
             },
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
         async with await self.hook().get_async_conn() as client:
@@ -367,7 +361,14 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: Which AWS region the connection should use.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -377,6 +378,8 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
@@ -390,10 +393,9 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
@@ -405,7 +407,14 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: Which AWS region the connection should use.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -415,6 +424,8 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "fargate_profile_name": fargate_profile_name},
@@ -428,10 +439,9 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
@@ -448,7 +458,13 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -458,6 +474,8 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={
@@ -475,10 +493,9 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
 class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
@@ -495,7 +512,13 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates.
+        See: https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -505,6 +528,8 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
         waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__(
             serialized_fields={"cluster_name": cluster_name, "nodegroup_name": nodegroup_name},
@@ -518,7 +543,6 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
             region_name=region_name,
+            verify=verify,
+            botocore_config=botocore_config,
         )
-
-    def hook(self) -> AwsGenericHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

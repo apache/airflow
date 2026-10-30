@@ -79,6 +79,8 @@ from airflow.sdk.definitions.deadline import (
     AsyncCallback,
     DeadlineAlert,
     DeadlineReference,
+    SyncCallback,
+    VariableInterval,
 )
 from airflow.sdk.definitions.decorators import task
 from airflow.sdk.definitions.operator_resources import Resources
@@ -95,7 +97,11 @@ from airflow.serialization.definitions.assets import (
     SerializedAssetBase,
     SerializedAssetRef,
 )
-from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedDeadlineAlert
+from airflow.serialization.definitions.deadline import (
+    DeadlineAlertFields,
+    SerializedDeadlineAlert,
+    SerializedVariableInterval,
+)
 from airflow.serialization.encoders import ensure_serialized_asset, ensure_serialized_deadline_alert
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import PartitionMapperNotFound
@@ -492,13 +498,36 @@ def test_serialize_deserialize_connection():
 
 
 @pytest.mark.parametrize("reference", REFERENCE_TYPES)
-def test_serialize_deserialize_deadline_alert(reference):
+@pytest.mark.parametrize(
+    ("alert_class", "interval", "expected_interval"),
+    [
+        pytest.param(
+            DeadlineAlert,
+            timedelta(hours=1),
+            timedelta(hours=1),
+            id="timedelta",
+        ),
+        pytest.param(
+            DeadlineAlert,
+            VariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="sdk_variable_interval",
+        ),
+        pytest.param(
+            SerializedDeadlineAlert,
+            SerializedVariableInterval("deadline_seconds"),
+            SerializedVariableInterval("deadline_seconds"),
+            id="core_serialized_alert",
+        ),
+    ],
+)
+def test_serialize_deserialize_deadline_alert(reference, alert_class, interval, expected_interval):
     public_deadline_alert_fields = {
         field.lower() for field in vars(DeadlineAlertFields) if not field.startswith("_")
     }
-    original = DeadlineAlert(
+    original = alert_class(
         reference=reference,
-        interval=timedelta(hours=1),
+        interval=interval,
         callback=AsyncCallback(empty_callback_for_deadline, kwargs=TEST_CALLBACK_KWARGS),
     )
 
@@ -509,7 +538,7 @@ def test_serialize_deserialize_deadline_alert(reference):
 
     deserialized = BaseSerialization.deserialize(serialized)
     assert deserialized.reference.serialize_reference() == reference.serialize_reference()
-    assert deserialized.interval == original.interval
+    assert deserialized.interval == expected_interval
     assert deserialized.callback == original.callback
 
 
@@ -833,6 +862,36 @@ def test_decode_asset_with_consumer_teams():
         "consumer_teams": ["team_ml"],
         "allow_global": False,
     }
+
+
+@pytest.mark.parametrize("q_val", [None, "my_q"])
+def test_decode_asset_preserves_watcher_trigger_queue(q_val: str | None):
+    from airflow.serialization.decoders import decode_asset_like
+
+    decoded = decode_asset_like(
+        {
+            "__type": "asset",
+            "name": "test",
+            "uri": "s3://bucket/key",
+            "group": "asset",
+            "extra": {},
+            "watchers": [
+                {
+                    "name": "watcher",
+                    "trigger": {
+                        "classpath": "airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                        "kwargs": {"filepath": "/tmp"},
+                        **({"queue": q_val} if q_val else {}),
+                    },
+                }
+            ],
+        }
+    )
+    assert isinstance(decoded, SerializedAsset)
+    if q_val:
+        assert decoded.watchers[0].trigger["queue"] == q_val
+    else:
+        assert "queue" not in decoded.watchers[0].trigger
 
 
 def test_decode_asset_defaults_access_control_to_empty_dict():
@@ -1577,3 +1636,242 @@ def test_serialized_dag_getitem_returns_task_group(dag_maker):
     ser_dag = DagSerialization.from_dict(ser_dict)
     assert isinstance(ser_dag, SerializedDAG)
     assert ser_dag["section"].group_id == tg.group_id
+
+
+class _DeadlineGadget:
+    """Stands in for any allow-listed class a Dag author could name in a deadline field.
+
+    Deliberately constructible by serde -- it carries the ``serialize`` /
+    ``deserialize`` pair serde requires. A gadget serde cannot build would make the
+    test pass for the wrong reason: deserialization would fail on its own and the
+    "was it constructed" assertion would never be exercised.
+    """
+
+    instantiated = False
+
+    def __init__(self, **kwargs):
+        type(self).instantiated = True
+        self.kwargs = kwargs
+
+    def serialize(self):
+        return {}
+
+    @staticmethod
+    def deserialize(data, version):
+        return _DeadlineGadget(**(data or {}))
+
+
+def _encode_as(classname: str) -> dict:
+    """Build a serde payload naming ``classname``."""
+    from airflow.sdk.serde import CLASSNAME, DATA, VERSION
+
+    return {CLASSNAME: classname, VERSION: 1, DATA: {}}
+
+
+@pytest.mark.parametrize("field", [DeadlineAlertFields.CALLBACK, DeadlineAlertFields.INTERVAL])
+def test_deadline_fields_refuse_unexpected_classes_without_constructing_them(field):
+    """A Dag author must not be able to name an arbitrary class in a deadline field.
+
+    These decoders run in the scheduler and API server whenever a serialized Dag is
+    loaded, and the Security Model says a Dag author reaches those processes only
+    through registered plugins. The assertion that matters is that the class is never
+    *constructed*: `deserialize()` instantiates before returning, so a check on the
+    returned object would already be too late for a class with side effects in
+    `__init__`.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][field] = _encode_as(gadget_name)
+
+    # Make the gadget acceptable to serde itself, so the refusal comes from the
+    # deadline gate rather than from the general deserialization allow list.
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        with pytest.raises(ValueError, match="Refusing to deserialize"):
+            BaseSerialization.deserialize(serialized)
+
+    assert _DeadlineGadget.instantiated is False, "the class was constructed before being rejected"
+
+
+@pytest.mark.parametrize("encoding", ["current", "legacy"])
+def test_deadline_callback_kwargs_are_kept_encoded(encoding):
+    """Callback kwargs are not decoded with the alert: classes named there are not constructed.
+
+    The kwargs are decoded where the callback runs, so the decoded alert holds them exactly as
+    they were stored, and encoding the alert again writes them back unchanged.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_TYPE
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+    nested = _encode_as(gadget_name) if encoding == "current" else {OLD_TYPE: gadget_name, OLD_DATA: {}}
+    encoded_kwargs = {"nested": nested, "items": [nested], "plain": "value"}
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    callback_payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    callback_payload[serde.DATA]["kwargs"] = encoded_kwargs
+
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        decoded = BaseSerialization.deserialize(serialized)
+        reencoded = BaseSerialization.serialize(decoded)
+
+    assert _DeadlineGadget.instantiated is False
+    assert isinstance(decoded.callback, AsyncCallback)
+    assert decoded.callback.kwargs == encoded_kwargs
+    assert reencoded[Encoding.VAR][DeadlineAlertFields.CALLBACK] == callback_payload
+
+
+def test_deadline_callback_kwargs_legacy_container_is_unwrapped():
+    from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_DICT, OLD_TYPE
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    callback_payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    callback_payload[serde.DATA]["kwargs"] = {OLD_TYPE: OLD_DICT, OLD_DATA: TEST_CALLBACK_KWARGS}
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert decoded.callback.kwargs == TEST_CALLBACK_KWARGS
+
+
+@pytest.mark.parametrize("kwargs", [["not", "a", "mapping"], _encode_as("builtins.dict")])
+def test_deadline_callback_kwargs_must_be_a_mapping(kwargs):
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA]["kwargs"] = kwargs
+
+    with pytest.raises(ValueError, match="kwargs is not a mapping"):
+        BaseSerialization.deserialize(serialized)
+
+
+def test_deadline_alert_with_live_callback_kwargs_round_trips():
+    """An alert written by the Dag processor keeps its kwargs encoded through decode and re-encode."""
+    from airflow.sdk import serde
+
+    original = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(
+            TEST_CALLBACK_PATH, kwargs={"interval": timedelta(minutes=5), "pair": (1, 2), "plain": {"a": 1}}
+        ),
+    )
+    serialized = BaseSerialization.serialize(original)
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert (
+        decoded.callback.kwargs
+        == serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA]["kwargs"]
+    )
+    assert BaseSerialization.serialize(decoded) == serialized
+
+
+@pytest.mark.parametrize("field", [DeadlineAlertFields.CALLBACK, DeadlineAlertFields.INTERVAL])
+def test_deadline_fields_refuse_legacy_encoded_classes(field):
+    """The legacy ``{"__type", "__var"}`` spelling must not slip past the check.
+
+    serde rewrites that shape into ``__classname__`` *inside* deserialize, so a payload
+    inspected beforehand carries no ``__classname__`` at all and an unnormalised check
+    sees nothing to reject.
+    """
+    from unittest import mock
+
+    from airflow.sdk import serde
+    from airflow.sdk._shared.serialization import OLD_DATA, OLD_TYPE
+
+    gadget_name = f"{_DeadlineGadget.__module__}.{_DeadlineGadget.__qualname__}"
+    _DeadlineGadget.instantiated = False
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=AsyncCallback(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][field] = {OLD_TYPE: gadget_name, OLD_DATA: {}}
+
+    with mock.patch.object(serde, "_extra_allowed", serde._extra_allowed | {gadget_name}):
+        with pytest.raises(ValueError, match="Refusing to deserialize"):
+            BaseSerialization.deserialize(serialized)
+
+    assert _DeadlineGadget.instantiated is False
+
+
+@pytest.mark.parametrize("callback_cls", [AsyncCallback, SyncCallback])
+def test_deadline_callback_accepts_pre_3_2_module_path(callback_cls):
+    """Callbacks serialized before 3.2 name the module they were defined in back then.
+
+    3.2 moved them out of ``airflow.sdk.definitions.deadline`` into
+    ``...definitions.callback``, so an alert stored by an earlier version carries the old
+    path. Rejecting it would make those rows undecodable on upgrade.
+    """
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=callback_cls(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    payload = serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK]
+    payload[serde.CLASSNAME] = f"airflow.sdk.definitions.deadline.{callback_cls.__qualname__}"
+
+    decoded = BaseSerialization.deserialize(serialized)
+
+    assert isinstance(decoded.callback, callback_cls)
+    assert decoded.callback.path == TEST_CALLBACK_PATH
+    assert decoded.callback.kwargs == TEST_CALLBACK_KWARGS
+
+
+@pytest.mark.parametrize(
+    ("callback_cls", "foreign_field"),
+    [(AsyncCallback, "executor"), (SyncCallback, "queue")],
+    ids=["async-rejects-executor", "sync-rejects-queue"],
+)
+def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callback_cls, foreign_field):
+    """``queue`` and ``executor`` belong to one subclass each, not to both.
+
+    Accepting either for both classes would hand the constructor an argument it does not
+    take, turning a malformed payload into a TypeError from deep inside the rebuild.
+    """
+    from airflow.sdk import serde
+
+    valid = DeadlineAlert(
+        reference=DeadlineReference.DAGRUN_QUEUED_AT,
+        interval=timedelta(hours=1),
+        callback=callback_cls(TEST_CALLBACK_PATH, kwargs=TEST_CALLBACK_KWARGS),
+    )
+    serialized = BaseSerialization.serialize(valid)
+    serialized[Encoding.VAR][DeadlineAlertFields.CALLBACK][serde.DATA][foreign_field] = "something"
+
+    with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
+        BaseSerialization.deserialize(serialized)

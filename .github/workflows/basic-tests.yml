@@ -20,6 +20,11 @@ name: Basic tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      newsfragment-pr-number:
+        description: "Pull request the newsfragments are checked against; empty to accept any number"
+        required: false
+        type: string
+        default: ""
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -42,6 +47,12 @@ on:  # yamllint disable-line rule:truthy
         type: string
       run-scripts-tests:
         description: "Whether to run scripts tests (true/false)"
+        required: true
+        type: string
+      run-generic-basic-tests:
+        description: >-
+          Whether to run the standalone Airflow and shared distributions tests (true/false): not on the
+          release branch of a single component
         required: true
         type: string
       basic-checks-only:
@@ -76,13 +87,18 @@ on:  # yamllint disable-line rule:truthy
         description: 'Platform for the build - linux/amd64 or linux/arm64'
         required: true
         type: string
+      push-base-commit:
+        description: "For a push: the last successfully tested commit of the branch (empty otherwise)"
+        required: false
+        type: string
+        default: ""
 permissions:
   contents: read
 jobs:
   run-breeze-tests:
     timeout-minutes: 10
     name: Breeze unit tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -95,12 +111,12 @@ jobs:
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
       - name: "Run unit tests"
-        run: uv tool run --from apache-airflow-breeze pytest -n auto --color=yes
+        run: uv run --locked pytest -n auto --color=yes
         working-directory: ./dev/breeze/
   run-breeze-integration-tests:
     timeout-minutes: 120
     name: Breeze integration tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     if: inputs.run-breeze-integration-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -115,29 +131,32 @@ jobs:
       - name: "Install SVN"
         run: sudo apt-get update && sudo apt-get install -y subversion
       - name: "Install Java (for Apache RAT)"
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95  # v5.6.0
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
           distribution: 'temurin'
           java-version: '17'
       - name: "Install hatch"
         run: uv tool install hatch
       - name: "Run integration tests"
-        run: uv tool run --from apache-airflow-breeze pytest -v --color=yes -m integration_tests
+        run: uv run --locked pytest -v --color=yes -m integration_tests
         working-directory: ./dev/breeze/
   tests-shared-distributions:
     timeout-minutes: 10
-    name: Shared ${{ matrix.shared-distribution }} tests
-    strategy:
-      fail-fast: false
-      matrix:
-        shared-distribution: ${{ fromJSON(inputs.shared-distributions-as-json) }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    name: Shared distributions tests
+    if: inputs.run-generic-basic-tests == 'true'
+    env:
+      # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
+      UV_PYTHON: "${{ inputs.default-python-version }}"
+      SHARED_DISTRIBUTIONS: ${{ join(fromJSON(inputs.shared-distributions-as-json), ' ') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
@@ -149,20 +168,36 @@ jobs:
           fi
           echo "Installing uv==${UV_VERSION}"
           pip install "uv==${UV_VERSION}"
-      - name: "Run shared ${{ matrix.shared-distribution }} tests"
-        run: uv run --group dev pytest --color=yes -n auto
-        working-directory: shared/${{ matrix.shared-distribution }}
+      - name: "Run shared distributions tests"
+        run: |
+          failed=()
+          for dist in ${SHARED_DISTRIBUTIONS}; do
+            echo "::group::Shared ${dist} tests"
+            if ! (cd "shared/${dist}" && uv run --exact --group dev pytest --color=yes -n auto); then
+              failed+=("${dist}")
+            fi
+            echo "::endgroup::"
+          done
+          if (( ${#failed[@]} )); then
+            echo "::error::Shared distribution tests failed: ${failed[*]}"
+            exit 1
+          fi
   tests-scripts:
     timeout-minutes: 10
     name: Scripts tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     if: inputs.run-scripts-tests == 'true'
+    env:
+      # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
+      UV_PYTHON: "${{ inputs.default-python-version }}"
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.
@@ -181,7 +216,7 @@ jobs:
   tests-ui:
     timeout-minutes: 15
     name: React UI tests
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.run-ui-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -191,63 +226,36 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271  # v6.0.9
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
           version: 9
           run_install: false
       - name: "Setup node"
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
         with:
           node-version: 24
           cache: 'pnpm'
-          cache-dependency-path: 'airflow-core/src/airflow/**/pnpm-lock.yaml'
-      - name: "Restore eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          path: airflow-core/src/airflow/ui/node_modules/
-          # yamllint disable-line rule:line-length
-          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow-core/src/airflow/ui/**/pnpm-lock.yaml') }}
-        id: restore-eslint-cache-ui
+          cache-dependency-path: |
+            airflow-core/src/airflow/ui/pnpm-lock.yaml
+            airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/pnpm-lock.yaml
+      # setup-node already caches pnpm's package store. Recreate node_modules rather than
+      # transferring another archive that excludes pnpm's hidden .pnpm directory by default.
       - run: cd airflow-core/src/airflow/ui && pnpm install --frozen-lockfile
       - run: cd airflow-core/src/airflow/ui && pnpm test
         env:
           FORCE_COLOR: 2
-      - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          path: airflow-core/src/airflow/ui/node_modules/
-          key: cache-ui-node-modules-v1-${{ runner.os }}-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
-          if-no-files-found: 'error'
-          retention-days: '2'
-        if: steps.restore-eslint-cache-ui.outputs.stash-hit != 'true'
-      - name: "Restore eslint cache (simple auth manager UI)"
-        uses: apache/infrastructure-actions/stash/restore@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
-          key: >
-            cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
-        id: restore-eslint-cache-simple-am-ui
       - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm install --frozen-lockfile
       - run: cd airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui && pnpm test
         env:
           FORCE_COLOR: 2
-      - name: "Save eslint cache (ui)"
-        uses: apache/infrastructure-actions/stash/save@0ff9972b5872e19c9f4555c9159c2fea4f794355
-        with:
-          path: airflow-core/src/airflow/api_fastapi/auth/managers/simple/ui/node_modules/
-          key: >
-            cache-simple-am-ui-node-modules-v1-
-            ${{ runner.os }}-${{ hashFiles('airflow/api_fastapi/auth/managers/simple/ui/**/pnpm-lock.yaml') }}
-          if-no-files-found: 'error'
-          retention-days: '2'
-        if: steps.restore-eslint-cache-simple-am-ui.outputs.stash-hit != 'true'
 
   check-translation-completness:
     timeout-minutes: 15
     name: "Check translation completeness"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -264,7 +272,7 @@ jobs:
   static-checks-basic-checks-only:
     timeout-minutes: 30
     name: "Static checks: basic checks only"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.basic-checks-only == 'true'
     steps:
       - name: "Cleanup repo"
@@ -281,7 +289,6 @@ jobs:
         uses: ./.github/actions/install-prek
         id: prek
         with:
-          python-version: ${{ steps.breeze.outputs.host-python-version }}
           platform: ${{ inputs.platform }}
           save-cache: true
       - name: Fetch incoming commit ${{ github.sha }} with its parent
@@ -290,15 +297,52 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-      - name: "Static checks: basic checks only"
-        run: >
-          prek --show-diff-on-failure --color always
-          --from-ref "${{ github.sha }}"^ --to-ref "${{ github.sha }}"
+      - name: "Fetch the last tested push commit"
+        if: inputs.push-base-commit != ''
+        shell: bash
         env:
+          PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${PUSH_BASE_COMMIT}" \
+            || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all files will be checked"
+      - name: "Static checks: basic checks only"
+        # A push is checked from the last tested commit of the branch, like its test selection: the
+        # commits of earlier failed or cancelled push runs are checked again. `--from-ref` needs the
+        # merge base, which the shallow fetch does not have, so the changed files are listed here.
+        shell: bash
+        run: |
+          set -euo pipefail
+          prek_args=(--show-diff-on-failure --color always)
+          if [[ -z "${PUSH_BASE_COMMIT}" ]]; then
+            prek "${prek_args[@]}" --from-ref "${GITHUB_SHA}^" --to-ref "${GITHUB_SHA}"
+          elif git cat-file -e "${PUSH_BASE_COMMIT}^{commit}"; then
+            mapfile -t files < <(git diff --name-only --no-renames --diff-filter=d \
+              "${PUSH_BASE_COMMIT}" "${GITHUB_SHA}")
+            if (( ${#files[@]} > 0 )); then
+              prek "${prek_args[@]}" --files "${files[@]}"
+            fi
+          else
+            prek "${prek_args[@]}" --all-files
+          fi
+        env:
+          PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}
           VERBOSE: "false"
           SKIP_BREEZE_PREK_HOOKS: "true"
+          PR_NUMBER: ${{ inputs.newsfragment-pr-number }}
+          GITHUB_TOKEN: ${{ github.token }}
           SKIP: ${{ inputs.skip-prek-hooks }}
           COLUMNS: "202"
+      - name: "Fail if static checks modified tracked files"
+        # prek does not report files that a nested-project hook modifies outside its own project,
+        # so check the tree independently.
+        shell: bash
+        run: |
+          if ! git diff --quiet; then
+            echo "::error::Static checks passed but modified tracked files. Commit the changes below."
+            git diff --stat
+            git diff | head -n 500 || true
+            exit 1
+          fi
 
   test-git-clone-on-windows:
     timeout-minutes: 5
@@ -314,7 +358,7 @@ jobs:
   test-airflow-release-commands:
     timeout-minutes: 80
     name: "Test Airflow release commands"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
@@ -368,7 +412,8 @@ jobs:
   test-airflow-standalone:
     timeout-minutes: 30
     name: "Test Airflow standalone commands"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    if: inputs.run-generic-basic-tests == 'true'
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       AIRFLOW_HOME: ~/airflow
       FORCE_COLOR: 1
@@ -377,6 +422,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Install uv"
         # Extract uv version from uv.lock. The format is stable: the line
         # immediately after `name = "uv"` is `version = "<X.Y.Z>"`.

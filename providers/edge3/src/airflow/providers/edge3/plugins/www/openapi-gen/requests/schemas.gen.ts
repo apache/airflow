@@ -183,6 +183,12 @@ export const $Job = {
             title: 'Try Number',
             description: 'The number of attempt to execute this task.'
         },
+        task_instance_id: {
+            type: 'string',
+            title: 'Task Instance Id',
+            description: 'Task-instance UUID, or empty for a legacy job.',
+            default: ''
+        },
         state: {
             '$ref': '#/components/schemas/TaskInstanceState',
             description: 'State of the job from the view of the executor.'
@@ -601,6 +607,12 @@ export const $WorkerQueuesBody = {
             type: 'integer',
             title: 'Free Concurrency',
             description: 'Number of free concurrency slots on the worker.'
+        },
+        supports_task_instance_uuid: {
+            type: 'boolean',
+            title: 'Supports Task Instance Uuid',
+            description: 'Whether the worker reports task-instance UUIDs when updating jobs.',
+            default: false
         }
     },
     type: 'object',

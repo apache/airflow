@@ -1,0 +1,21 @@
+{
+  "//": [
+    "Docs-only tsconfig for the TypeDoc analysis pass. It inherits the SDK's compiler",
+    "settings verbatim and roots the program at the docs-only API category entry points: TypeScript",
+    "pulls in whatever those entry points transitively import, but a glob like",
+    "`../src/**/*.ts` would also root unreachable internal modules (e.g. the `cli/` bin,",
+    "which needs the optional `esbuild` peer dependency) that the docs toolchain has no",
+    "reason to install. `paths` below redirects `@msgpack/msgpack`, a real transitive",
+    "dependency of the checked program (coordinator/frames.ts, reachable from the public",
+    "serveDags export): Node module resolution walks up node_modules from the",
+    "*importing file* (ts-sdk/src/coordinator/), never sideways into this package's own",
+    "node_modules, so the bare specifier would otherwise never resolve here."
+  ],
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@msgpack/msgpack": ["./node_modules/@msgpack/msgpack/dist.esm/index.d.ts"]
+    }
+  },
+  "include": ["../api-docs/*.ts"]
+}

@@ -28,9 +28,9 @@ Use the :class:`SnowparkOperator <airflow.providers.snowflake.operators.snowpark
     Currently, this operator does not support `Snowpark pandas API <https://docs.snowflake.com/en/developer-guide/snowpark/python/pandas-on-snowflake>`__ because conflicting pandas version is used in Airflow.
     Consider using Snowpark pandas API with other Snowpark decorators or operators.
 
-.. tip::
+.. note::
 
-    The :doc:`@task.snowpark </decorators/snowpark>` decorator is recommended over the ``SnowparkOperator`` to run Snowpark Python code.
+    The :doc:`@task.snowpark </decorators/snowpark>` decorator is the Taskflow equivalent of ``SnowparkOperator`` to run Snowpark Python code.
 
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^

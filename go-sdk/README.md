@@ -17,372 +17,169 @@
  under the License.
  -->
 
-# Apache Airflow Go Task SDK
+# Airflow Go SDK
 
-The Go SDK is a Go implementation of the Airflow Task SDK. It lets you write task functions in Go that
-have native access to the Airflow "model" (Variables, Connections, and XCom), instead of writing them in
-Python.
+Write Apache Airflow Dags and tasks in Go.
 
-It is built on the Task Execution Interface (TEI, a.k.a. the Task API) introduced by AIP-72 in Airflow
-3.0.0. AIP-72 standardised how a task runtime talks to Airflow over an HTTP Execution API, which decoupled
-the language a task is written in from the Airflow core. The Go SDK is one such runtime; the Java SDK is
-another.
+Requires Go 1.25 or later.
 
-> [!WARNING]
-> This is an **experimental** feature. The SDK is under active development and its APIs, wire protocols,
-> and tooling may change between releases without notice.
+## Installation
 
-## The compiled-language constraint
-
-Python tasks are imported and run in-process. Go is compiled, so the model is different.
-
-A single binary that bundles one or more Dags' task functions is called a **bundle**. You build one with
-the SDK's packer, `airflow-go-pack`, which compiles your code and appends a metadata footer (the manifest
-of `dag_id`s and `task_id`s, plus the Dag source) to the executable. The result is a **self-contained
-executable bundle**: a single runnable file that *is* the bundle, with no separate manifest or archive to
-ship alongside it.
-
-## You still need a Python stub Dag (for now)
-
-The Task API does not yet carry Dag *structure* for non-Python languages, so the Dag's shape and task
-dependencies are still declared in a small Python file using `@task.stub`:
-
-```python
-from airflow.sdk import dag, task
-
-
-@task.stub(queue="golang")
-def extract(): ...
-
-
-@task.stub(queue="golang")
-def transform(): ...
-
-
-@dag()
-def simple_dag():
-    extract() >> transform()
-
-
-simple_dag()
+```bash
+go get github.com/apache/airflow/go-sdk/airflow
+go get -tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
 ```
 
-`@task.stub` tells the Dag parser the "shape" of the Go tasks (their names and dependencies) without any
-Python implementation. The `queue=` value routes the task to the Go runtime. This Python requirement is a
-known limitation.
+## Quick start
 
-
-## Authoring a bundle
-
-Implement `bundlev1.BundleProvider`, register your Dags and tasks, and `main` is one line. From
-[`example/bundle/main.go`](./example/bundle/main.go):
+Declare a Dag in `main.go`:
 
 ```go
-type myBundle struct{}
+package main
 
-var _ v1.BundleProvider = (*myBundle)(nil)
+import (
+    "log"
 
-func (m *myBundle) GetBundleVersion() v1.BundleInfo {
-    return v1.BundleInfo{Name: bundleName, Version: &bundleVersion}
+    "github.com/apache/airflow/go-sdk/airflow"
+)
+
+func extract(airflow.Context) (int, error) {
+    return 42, nil
 }
 
-func (m *myBundle) RegisterDags(dagbag v1.Registry) error {
-    simpleDag := dagbag.AddDag("simple_dag")
-    simpleDag.AddTask(extract)
-    simpleDag.AddTask(transform)
+func report(actx airflow.Context, rows int) error {
+    actx.Logger().InfoContext(actx, "extracted rows", "rows", rows)
     return nil
 }
 
 func main() {
-    if err := bundlev1server.Serve(&myBundle{}); err != nil {
+    dag := airflow.Dag("go_hello", airflow.DagSpec{Schedule: "@daily", Queue: "golang"})
+
+    extracted := dag.Task(extract)
+    dag.Task(report, airflow.Inputs(extracted))
+
+    bundle := airflow.Bundle()
+    bundle.Register(dag)
+    if err := bundle.Serve(); err != nil {
         log.Fatal(err)
     }
 }
 ```
 
-A task is an ordinary Go function. The runtime inspects its signature and injects arguments by type:
-`sdk.TIRunContext`, `*slog.Logger`, and an `sdk.Client` (or a narrower interface such as
-`sdk.VariableClient`). An optional `(any, error)` return becomes the task's XCom; an `error` return marks
-the task failed.
+Build it into a bundle, a single executable:
 
-```go
-func extract(ctx sdk.TIRunContext, client sdk.Client, log *slog.Logger) (any, error) {
-    conn, err := client.GetConnection(ctx, "test_http")
-    // ... do work, honour ctx cancellation ...
-    return map[string]any{"go_version": runtime.Version()}, nil
-}
-
-func transform(ctx sdk.TIRunContext, client sdk.VariableClient, log *slog.Logger) error {
-    val, err := client.GetVariable(ctx, "my_variable")
-    if err != nil {
-        return err
-    }
-    log.Info("Obtained variable", "my_variable", val)
-    return nil
-}
+```bash
+go tool airflow-go-pack --output dist/go_hello .
 ```
 
-Asking for the narrowest interface a task needs (e.g. `sdk.VariableClient` instead of `sdk.Client`) makes
-unit testing easier and documents which Airflow features the task touches. `RegisterDags` is the single
-source of truth for which `dag_id`s and `task_id`s a bundle can run.
+Put `dist/go_hello` in a Dag bundle, such as the default `dags-folder` bundle, and send the `golang` queue to the
+Go coordinator in `airflow.cfg`:
 
-### Reading the task runtime context
-
-Declare an `sdk.TIRunContext` parameter on a task to read the identifiers and scheduling timestamps of the
-running task instance and its Dag run -- the Go equivalent of the execution context the Python and Java SDKs
-expose. It is an interface that embeds `context.Context`, so the same `ctx` drives cancellation and client
-calls. The runtime binds it by type, just like the other injected parameters:
-
-```go
-func extract(ctx sdk.TIRunContext, log *slog.Logger) (any, error) {
-    ti := ctx.TaskInstance()
-    log.Info("running",
-        "dag_id", ti.DagID,
-        "run_id", ti.RunID,
-        "task_id", ti.TaskID,
-        "try_number", ti.TryNumber,
-        "logical_date", ctx.DagRun().LogicalDate,
-    )
-    return nil, nil
-}
+```ini
+[sdk]
+coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator"}}
+queue_to_coordinator = {"golang": "go"}
 ```
 
-`ctx.TaskInstance()` returns `DagID`, `RunID`, `TaskID`, `MapIndex` (nil for an unmapped task), and
-`TryNumber`; `ctx.DagRun()` returns `DagID`, `RunID`, and the `*time.Time` fields `LogicalDate`,
-`DataIntervalStart`, and `DataIntervalEnd` (nil when the run has no such value, e.g. a manual trigger).
-
-## Deployment modes
-
-A bundle can run in two ways. The same bundle binary works in both; you pick one per deployment:
-
-1. **Coordinator** (recommended)
-2. **Edge Worker**
-
-For the protocol details behind each, see [How it works](#how-it-works).
-
-### Coordinator (recommended)
-
-A Python task runner executes the Go task directly, with no separate Go worker process to run on the host.
-This is the same coordinator mechanism the Java SDK uses.
-
-**Why this is recommended:** the mature Python supervisor handles the Airflow-facing concerns, so this path
-inherits its capabilities (remote task logs to S3/GCS, the full range of task states, and alternate XCom
-backends) rather than reimplementing them in Go. These are exactly the features the Edge Worker path is
-still missing (see [Known limitations](#known-limitations)).
-
-#### Quickstart
-
-- Build and pack your bundle with `airflow-go-pack`. The packer compiles the bundle and appends an
-  embedded metadata footer so the coordinator can read its `dag_id`s without executing the binary,
-  producing a single runnable file:
-
-  ```bash
-  go tool airflow-go-pack ./example/bundle -- -trimpath -tags=prod
-  ```
-
-  Use `--output <path>` to write the packed bundle straight into a directory the coordinator scans
-  (`executables_root`), and pass extra `go build` flags after `--`.
-
-  For cross-compiling (e.g. deploy to a Linux host from an Apple-silicon (darwin/arm64) machine), pass `--goos`/`--goarch` and the
-  packer cross-builds for you:
-
-  ```bash
-  go tool airflow-go-pack --goos linux --goarch amd64 \
-    --output ~/airflow/executable-bundles/sample-dag-bundle \
-    ./example/bundle
-  ```
-
-  Alternatively, use `--executable`/`--source`. The packer normally execs the binary to read
-  its metadata; a cross-compiled binary cannot run on the host, so generate the metadata on a machine that
-  can run it and pass the file with `--airflow-metadata`:
-
-  ```bash
-  # on linux/amd64 machine:
-  go build -o my-bundle ./example/bundle
-  ./my-bundle --airflow-metadata > airflow-metadata.yaml
-
-  # on darwin/arm64 machine:
-  go tool airflow-go-pack --executable ./my-bundle --source main.go --airflow-metadata airflow-metadata.yaml
-  ```
-
-  > [!NOTE]
-  > The packer ships via the Go 1.24 `tool` directive, so there is no global install: add
-  > `tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack` to your bundle module's `go.mod` and run
-  > it with `go tool airflow-go-pack`. This pins the packer version per project.
-
-- Register the coordinator and route the queue to it, under `[sdk]` in `airflow.cfg` (or the equivalent
-  `AIRFLOW__SDK__*` env vars):
-
-  ```ini
-  [sdk]
-  coordinators = {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator", "kwargs": {"executables_root": ["~/airflow/executable-bundles"]}}}
-  queue_to_coordinator = {"golang": "go"}
-  ```
-
-  `executables_root` is one or more directories the coordinator scans for bundles; `queue_to_coordinator`
-  routes stub tasks with `queue="golang"` to this Go coordinator.
-
-  > [!IMPORTANT]
-  > The coordinator is part of the Airflow worker, so the `[sdk]` config (and the bundle files in
-  > `executables_root`) only need to be present wherever tasks actually execute. With `CeleryExecutor`,
-  > setting it on the Celery workers is sufficient. With `LocalExecutor`, tasks run inside the scheduler
-  > process, so it must be set where the scheduler can read it. The API server and Dag processor do not
-  > need it.
-
-- Deploy the matching Python stub Dag (above) into Airflow. There is no separate Go worker to run: the
-  Airflow worker forks the bundle binary once per task instance.
-
-### Edge Worker (go-plugin)
-
-A long-running Go worker process (`airflow-go-edge-worker`) polls Airflow for work and runs your bundle,
-with no Python in the data path. This path runs end-to-end today, but is missing the features listed under
-[Known limitations](#known-limitations).
-
-#### Quickstart
-
-- See [`example/bundle/main.go`](./example/bundle/main.go) for an example Dag bundle.
-
-- Compile it into a binary:
-
-  ```bash
-  go build -o ./bin/sample-dag-bundle ./example/bundle
-  ```
-
-  (or see the [`Justfile`](./example/bundle/Justfile) for how to build it and set the bundle version at
-  build time.)
-
-- Configure the Go edge worker by editing `$AIRFLOW_HOME/go-sdk.yaml`. The ports below are the defaults
-  assuming Airflow runs locally via `airflow standalone`; tweak the ports and secrets to match your setup:
-
-  ```yaml
-  edge:
-    api_url: "http://0.0.0.0:8080/"
-
-  execution:
-    api_url: "http://0.0.0.0:8080/execution/"
-
-  api_auth:
-    # This needs to match the value from the same setting in your API server for Edge API to function
-    secret_key: "hPDU4Yi/wf5COaWiqeI3g=="
-
-  bundles:
-    # Which folder to look in for pre-compiled bundle binaries
-    folder: "./bin"
-
-  logging:
-    # Where to write task logs to
-    base_log_folder: "./logs"
-    # Secret key matching airflow API server config, to only allow log requests from there.
-    secret_key: "u0ZDb2ccINAbhzNmvYzclw=="
-  ```
-
-  You can also set these options via environment variables of `AIRFLOW__${SECTION}__${KEY}`, for example
-  `AIRFLOW__API_AUTH__SECRET_KEY`.
-
-- Install the worker:
-
-  ```bash
-  go install github.com/apache/airflow/go-sdk/cmd/airflow-go-edge-worker@latest
-  ```
-
-- Run it:
-
-  ```bash
-  airflow-go-edge-worker run --queues golang
-  ```
-
-- Deploy the matching Python stub Dag (above) into Airflow.
-
-## Known limitations
-
-A non-exhaustive list of features the **Edge Worker (go-plugin)** path has yet to implement. These are the
-main reason the coordinator-based path is recommended: in that mode the Python supervisor handles these
-concerns, so they are not limitations there.
-
-- Putting tasks into states other than success or failed/up-for-retry (deferred,
-  failed-without-retries, etc.).
-- Remote task logs (i.e. S3/GCS etc.).
-- XCom reading/writing through non-default XCom backends.
-
-## How it works
-
-The same bundle binary speaks two different protocols; which one it uses is decided at launch by the CLI
-flags it was invoked with. User code (`func main`) is identical either way.
-
-### Coordinator protocol
-
-```
-Python supervisor / task runner
-        │  finds + validates the bundle, then forks it:
-        ▼
-  <bundle binary> --comm=127.0.0.1:P1 --logs=127.0.0.1:P2
-        │  binary dials BACK over TCP loopback (msgpack-over-IPC)
-        ▼
-  GetConnection / GetVariable / GetXCom / SetXCom ... → SucceedTask / TaskState
-```
-
-- The Python `ExecutableCoordinator` forks the bundle binary with `--comm`/`--logs` addresses it is already
-  listening on. The binary dials back (it never listens) and speaks a length-prefixed msgpack-over-IPC wire
-  protocol on the comm socket, with structured JSON-line logs on the logs socket.
-- The Python runtime is the worker. It proxies every `GetConnection` / `GetVariable` / `GetXCom` /
-  `SetXCom` call through to the Execution API. The Go binary just runs the task function.
-
-The Go side of the protocol is implemented in `pkg/execution/`. On the Python side it is the
-`ExecutableCoordinator` in `task-sdk/src/airflow/sdk/coordinators/executable/coordinator.py`.
-
-### Edge Worker protocol
-
-```
-Airflow scheduler ──Edge Executor API──► airflow-go-edge-worker ──go-plugin/gRPC──► bundle binary
-   (ExecuteTaskWorkload)                  (long-running Go process)                  (child process)
-```
-
-- `airflow-go-edge-worker` is a long-running Go process. It registers with the scheduler, polls the Edge
-  Executor API for `ExecuteTaskWorkload`s, and heartbeats.
-- For each workload it execs the bundle binary as a child and connects over HashiCorp
-  [`go-plugin`](https://github.com/hashicorp/go-plugin) (gRPC over a handshake-gated socket).
-- The Task API itself has no way to deliver an `ExecuteTaskWorkload` to a Go worker, so the Edge Executor
-  API fills that gap. Longer term that API will likely need stabilising and versioning.
-
-## Regenerating the coordinator-protocol models
-
-The types in `pkg/execution/genmodels/` are generated from the in-tree supervisor schema snapshot
-(`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit them by hand. To move the
-SDK to a newer schema version:
-
-1. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
-   snapshot's `api_version` date.
-2. Run `just generate-models`.
-
-`TestSupervisorSchemaVersionMatchesSnapshot` fails when the constant and the snapshot's `api_version`
-drift, so a missed bump is caught by `go test` instead of needing a dedicated prek hook.
-
-## Architectural decisions
-
-The [`adr/`](./adr) directory records the design decisions behind the SDK:
-
-- [ADR 0001](./adr/0001-bundle-packing-options.md): bundle-packing options.
-- [ADR 0002](./adr/0002-use-go-tool-directive-for-bundle-packer.md): deliver the bundle packer via the
-  Go 1.24 `tool` directive.
-- [ADR 0003](./adr/0003-coordinator-protocol-msgpack-ipc.md): dual-mode coordinator protocol, where one
-  binary speaks both go-plugin gRPC (Edge Worker) and msgpack-over-IPC (Python coordinator).
-- [ADR 0004](./adr/0004-self-contained-executable-bundle.md): the self-contained executable bundle, where
-  the executable *is* the bundle.
-
-Cross-cutting Lang-SDK decisions — the coordinator architecture and how non-Python tasks integrate with
-Airflow core surfaces — are recorded in [`airflow-core/adr/lang-sdk/`](../airflow-core/adr/lang-sdk).
-
-The normative, language-agnostic on-disk bundle format (the footer layout, manifest fields, and what the
-`ExecutableCoordinator` reads) is specified in
-[`executable-bundle-spec.rst`](https://github.com/apache/airflow/blob/main/task-sdk/docs/executable-bundle-spec.rst).
-`airflow-go-pack` produces bundles conforming to that spec.
-
-## Future Direction
-
-This is more of an "it would be nice to have" than any plan or commitment, and a place to record ideas.
-
-- Defining the whole Dag in the Go SDK, so the Python stub Dag is no longer required and a bundle's
-  structure and task dependencies can be declared natively in Go.
-- The ability to run Airflow tasks "in" an existing code base, i.e. defining an Airflow task function that
-  runs (in a goroutine) inside an existing app.
-- Doing the task function reflection ahead of time, rather than for each Execute call.
+Airflow reads the bundle like any other Dag file: `go_hello` shows up in the UI, runs on its schedule, and
+`report` receives the value `extract` returned.
+
+## Learn more
+
+The [Go SDK guide][guide] covers:
+
+| Topic                                                                                         | Guide section                                  |
+| --------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| Task inputs, options, order-only dependencies, task groups, branching, triggering another Dag | [Declaring a Dag in Go][declaring-a-dag-in-go] |
+| The `airflow.Context`, the `sdk.Client` and the task state store                              | [Writing tasks][writing-tasks]                 |
+| Building a bundle with `airflow-go-pack`, and cross-platform builds                           | [Building a bundle][building-a-bundle]         |
+| Where to deploy a bundle, and the `ExecutableCoordinator` options                             | [Deploying][deploying]                         |
+| What a Dag declared in Go cannot do yet                                                       | [Limitations][limitations]                     |
+
+See [`example/`](./example) for working projects.
+
+[guide]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html
+[declaring-a-dag-in-go]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html#declaring-a-dag-in-go
+[writing-tasks]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html#writing-tasks
+[building-a-bundle]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html#building-a-bundle
+[deploying]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html#deploying
+[limitations]: https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/go.html#limitations
+
+## Compatibility matrix
+
+Which Airflow TaskInstance states and capabilities this SDK supports. This table is generated from
+[`capabilities.yaml`](capabilities.yaml); the conformance dimensions are defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst).
+The minimum version applies to the current SDK source, while "Since" records when each capability
+first became available and can therefore be earlier than the current minimum.
+Do not edit the table by hand — edit `capabilities.yaml` and let the `update-go-sdk-readme-matrix`
+prek hook regenerate it.
+
+<!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+
+| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
+|---|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `failed` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4.0 | 1.0.0 | RetryTask |
+| state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun with SkipWhenAlreadyExists only |
+| state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun with Deferrable only; resumes in the Go runtime |
+| state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| **Task runtime** |  |  |  |  |  |
+| capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | slog records streamed over the logs socket |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | PushXCom / GetXCom |
+| capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | GetConnection |
+| capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | AFBNDL01 native binary via airflow-go-pack |
+| capability: `retry-policy` | MAY | ✗ | – | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `asset-state-store` | MAY | ✗ | – | – | no task-facing asset state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
+| capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
+| capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
+| **Dag definition** |  |  |  |  |  |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 | airflow.Dag |
+| capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-params` | MUST † | ✗ | – | – |  |
+| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
+| capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | Before / After |
+| capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.Label(text).On(task) |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 | DagRef.TaskGroup |
+| capability: `task-loops` | MAY † | ✗ | – | – |  |
+| capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.If |
+| capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagRef.Switch |
+| capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | airflow.TriggerDagRun |
+| capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `human-in-the-loop` | MAY † | ✗ | – | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
+| capability: `asset-definition` | MAY † | ✗ | – | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
+| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
+| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
+| **Python Dag with stub TaskHandler** |  |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
+| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
+
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
+
+<!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
+
+## Links
+
+- [Go SDK guide][guide]
+- [API reference](https://pkg.go.dev/github.com/apache/airflow/go-sdk) on pkg.go.dev
+- [Source](https://github.com/apache/airflow/tree/main/go-sdk): the `go-sdk/` directory of the Apache Airflow monorepo
+- [Issues](https://github.com/apache/airflow/issues): bug reports and feature requests
+- [Developing this module](./DEVELOPMENT.md): building, testing, code generation and design decisions

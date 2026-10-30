@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import re
+import secrets
+import string
 import tempfile
 from contextlib import redirect_stdout
 from importlib import reload
 from io import StringIO
+from unittest import mock
 
 import pytest
 
@@ -37,6 +41,18 @@ pytestmark = pytest.mark.db_test
 TEST_USER1_EMAIL = "test-user1@example.com"
 TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
+
+
+@mock.patch(
+    "airflow.providers.fab.auth_manager.cli_commands.user_command.secrets.choice",
+    side_effect=secrets.choice,
+)
+def test_create_password_uses_csprng_without_whitespace(mock_choice):
+    args = argparse.Namespace(use_random_password=True, password=None)
+    password = user_command._create_password(args)
+    assert mock_choice.call_count == 16
+    assert len(password) == 16
+    assert not any(char in string.whitespace for char in password)
 
 
 def _does_user_belong_to_role(appbuilder, email, rolename):

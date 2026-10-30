@@ -17,13 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
 from unittest import mock
 
 import botocore.exceptions
 import pytest
 
+from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
-from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
+from airflow.providers.amazon.aws.operators.redshift_data import (
+    RedshiftDataOperator,
+)
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
@@ -721,3 +725,13 @@ class TestRedshiftDataOperatorDurable:
 
         assert operator.is_job_succeeded("FINISHED") is True
         assert operator.is_job_succeeded("STARTED") is False
+
+    def test_default_args_durable_reaches_operator(self):
+        with DAG(
+            dag_id="test_redshift_data_durable_default_args",
+            schedule=None,
+            start_date=datetime(2024, 1, 1),
+            default_args={"durable": False},
+        ):
+            operator = self._make_operator()
+        assert operator.durable is False

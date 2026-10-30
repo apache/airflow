@@ -27,30 +27,7 @@ from airflow.providers.common.compat.openlineage.utils.spark import (
     inject_parent_job_information_into_spark_properties,
     inject_transport_information_into_spark_properties,
 )
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, conf
-
-# ResumableJobMixin ships in airflow.sdk, which only exists on Airflow 3, while this provider
-# still targets apache-airflow>=2.11. Guard the import and fall back to a stub on Airflow 2;
-# drop the fallback once the provider's minimum Airflow version is >=3.0.
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "livy_batch_id"
-
-        def __init__(self, *, durable: bool = True, **kwargs: Any) -> None:
-            # Swallow ``durable`` so it doesn't reach BaseOperator; crash recovery is a no-op here.
-            super().__init__(**kwargs)
-            self.durable = durable
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
+from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, ResumableJobMixin, conf
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -130,8 +107,13 @@ class LivyOperator(ResumableJobMixin, BaseOperator):
         openlineage_inject_transport_info: bool = conf.getboolean(
             "openlineage", "spark_inject_transport_info", fallback=False
         ),
+        durable: bool | None = None,
         **kwargs: Any,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
 
         if conf is None:

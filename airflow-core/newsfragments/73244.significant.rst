@@ -1,0 +1,22 @@
+Task heartbeats are no longer retried by ``[workers] execution_api_retries``
+
+Heartbeats had two overlapping retry mechanisms: the Task SDK API client retried
+every request, including heartbeats, and the supervisor separately counted
+consecutive heartbeat failures against ``[workers] max_failed_heartbeats``. The
+client retries also had the unwanted side-effect of blocking the supervisor's
+monitor loop while it backed off, so during an API server outage the supervisor
+would be delayed forwarding task logs and/or noticing that the task subprocess
+had exited.
+
+Heartbeat retries are now governed solely by ``max_failed_heartbeats``, whose
+default has been adjusted from ``3`` to ``30`` to keep roughly the same
+tolerance for an unreachable API server as the two mechanisms combined gave
+before.
+
+If you have set ``[workers] max_failed_heartbeats`` explicitly, you may wish
+reconsider value you have chosen. It is now the whole retry budget: with the
+default ``[workers] min_heartbeat_interval`` of 5 seconds, the worker tolerates
+roughly ``5 * max_failed_heartbeats`` seconds of API unavailability before
+terminating a running task. You should likely keep the resulting value below any
+configured ``[scheduler] task_instance_heartbeat_timeout`` (default 300
+seconds).

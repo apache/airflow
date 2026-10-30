@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -55,8 +56,8 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: '{"enabled": true,' } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));
 
@@ -73,8 +74,8 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: "[DRAFT] plain string value" } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));
 
@@ -91,8 +92,8 @@ describe("VariableForm", () => {
 
     fireEvent.change(screen.getByLabelText(/value/iu), { target: { value: "{{ var.value.x }}" } });
 
-    await waitFor(() => expect(screen.getByText("variables.form.invalidJson")).toBeInTheDocument());
-    expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled();
+    await waitFor(() => expect(screen.getByText(/variables\.form\.invalidJson/u)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /save/iu })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: /save/iu }));
 

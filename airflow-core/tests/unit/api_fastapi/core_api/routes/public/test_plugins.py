@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
 from unittest import mock
 from unittest.mock import patch
 
 import pytest
+import yaml
 
+import airflow.api_fastapi.core_api.openapi as openapi_package
 from airflow.plugins_manager import AirflowPlugin
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -39,11 +42,12 @@ class TestGetPlugins:
             # Filters
             (
                 {},
-                19,
+                20,
                 [
                     "InformaticaProviderPlugin",
                     "MetadataCollectionPlugin",
                     "OpenLineageProviderPlugin",
+                    "ai_model_panel",
                     "business_day_window_plugin",
                     "databricks_workflow",
                     "decreasing_priority_weight_strategy_plugin",
@@ -64,14 +68,14 @@ class TestGetPlugins:
             ),
             (
                 {"limit": 3, "offset": 3},
-                19,
+                20,
                 [
+                    "ai_model_panel",
                     "business_day_window_plugin",
                     "databricks_workflow",
-                    "decreasing_priority_weight_strategy_plugin",
                 ],
             ),
-            ({"limit": 1}, 19, ["InformaticaProviderPlugin"]),
+            ({"limit": 1}, 20, ["InformaticaProviderPlugin"]),
         ],
     )
     def test_should_respond_200(
@@ -101,9 +105,13 @@ class TestGetPlugins:
                 "icon": "https://raw.githubusercontent.com/lucide-icons/lucide/refs/heads/main/icons/plug.svg",
                 "icon_dark_mode": None,
                 "url_route": "test_iframe_plugin",
-                "destination": "nav",
+                "destination": "dag",
                 "category": "browse",
                 "nav_top_level": False,
+                "applies_to": {
+                    "dag.tags.name": ["ml", "production"],
+                    "dag.dag_id": ["example_dag"],
+                },
             },
         ]
 
@@ -122,6 +130,7 @@ class TestGetPlugins:
                         "name": "Google",
                         "nav_top_level": False,
                         "url_route": None,
+                        "applies_to": None,
                     },
                     {
                         "category": None,
@@ -133,6 +142,7 @@ class TestGetPlugins:
                         "name": "apache",
                         "nav_top_level": False,
                         "url_route": None,
+                        "applies_to": None,
                     },
                 ]
             )
@@ -148,6 +158,107 @@ class TestGetPlugins:
     def test_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.get("/plugins")
         assert response.status_code == 403
+
+    def test_applies_to_defaults_to_none_when_omitted(self):
+        from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
+
+        view = ExternalViewResponse(name="No Filter", href="https://example.com/")
+
+        assert view.applies_to is None
+
+    def test_applies_to_accepts_any_field_path(self):
+        from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
+
+        view = ExternalViewResponse(
+            name="Scoped",
+            href="https://example.com/",
+            applies_to={
+                "dag.tags.name": ["ml"],
+                "operator_name": ["@task.bash"],
+                "state": ["failed", "upstream_failed"],
+            },
+        )
+
+        assert view.applies_to is not None
+        # An open map: the key set is whatever the entity records expose, not a fixed list.
+        assert view.applies_to.root == {
+            "dag.tags.name": ["ml"],
+            "operator_name": ["@task.bash"],
+            "state": ["failed", "upstream_failed"],
+        }
+
+    def test_applies_to_rejects_non_list_values(self):
+        from pydantic import ValidationError
+
+        from airflow.api_fastapi.core_api.datamodels.plugins import ExternalViewResponse
+
+        with pytest.raises(ValidationError):
+            ExternalViewResponse(
+                name="Scoped",
+                href="https://example.com/",
+                applies_to={"state": "failed"},
+            )
+
+    def test_ui_actions_schema_stays_discriminated_on_action_type(self):
+        """The UI and the generated ctl client both dispatch on ``action_type``.
+
+        Losing the discriminator in a refactor would still serialize, so nothing else fails.
+        """
+        spec_path = Path(openapi_package.__file__).parent / "v2-rest-api-generated.yaml"
+        spec = yaml.safe_load(spec_path.read_text())
+
+        actions = spec["components"]["schemas"]["PluginResponse"]["properties"]["ui_actions"]
+        variants = actions["items"]
+
+        assert variants["discriminator"]["propertyName"] == "action_type"
+        assert set(variants["discriminator"]["mapping"]) == {"link", "react"}
+        assert len(variants.get("oneOf") or variants.get("anyOf") or []) == 2
+
+    def test_ui_actions_are_served_and_one_bad_action_does_not_drop_the_plugin(self, test_client):
+        """A rejected action must cost the plugin that action and nothing else."""
+
+        class ActionsPlugin(AirflowPlugin):
+            name = "ui_actions_route_plugin"
+            ui_actions = [
+                {
+                    "action_type": "link",
+                    "name": "Runbook",
+                    "destination": "dag",
+                    "href": "https://example.com/{DAG_ID}",
+                    "applies_to": {"dag.tags.name": ["production"]},
+                },
+                {
+                    "action_type": "react",
+                    "name": "Inspect payload",
+                    "destination": "task_instance",
+                    "bundle_url": "https://example.com/inspect.js",
+                },
+                # Unknown key: rejected at load time, and the reason the plugin used to be
+                # dropped wholesale at serialization time.
+                {
+                    "action_type": "link",
+                    "name": "Typo",
+                    "destination": "dag",
+                    "href": "https://example.com",
+                    "url_route": "copied-from-a-react-app",
+                },
+            ]
+
+        with mock_plugin_manager(plugins=[ActionsPlugin()]):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        plugin = next(
+            entry for entry in response.json()["plugins"] if entry["name"] == "ui_actions_route_plugin"
+        )
+
+        assert [action["name"] for action in plugin["ui_actions"]] == ["Runbook", "Inspect payload"]
+        link, react = plugin["ui_actions"]
+        assert link["action_type"] == "link"
+        assert link["href"] == "https://example.com/{DAG_ID}"
+        assert link["applies_to"] == {"dag.tags.name": ["production"]}
+        assert react["action_type"] == "react"
+        assert react["bundle_url"] == "https://example.com/inspect.js"
 
     def test_invalid_external_view_destination_should_log_warning_and_continue(self, test_client, caplog):
         caplog.set_level("WARNING", "airflow.api_fastapi.core_api.routes.public.plugins")
@@ -174,7 +285,7 @@ class TestGetPlugins:
         assert len(plugins_page) == 8
         assert "test_plugin_invalid" not in [p["name"] for p in plugins_page]
 
-        assert body["total_entries"] == 19
+        assert body["total_entries"] == 20
 
 
 @skip_if_force_lowest_dependencies_marker
@@ -274,3 +385,108 @@ class TestGetPluginsTeamFiltering:
 
         team_name_by_plugin = {p["name"]: p["team_name"] for p in response.json()["plugins"]}
         assert team_name_by_plugin == {"global_plugin": None, "team_a_plugin": "team_a"}
+
+
+def _make_view_plugin(name: str, team_name: str | None) -> AirflowPlugin:
+    """Build a plugin instance carrying one external view and one react app.
+
+    Uses per-instance lists (not class attributes) so the dedup/validation pass in
+    ``_get_ui_plugins`` cannot mutate shared state across tests.
+    """
+    plugin = AirflowPlugin()
+    plugin.name = name
+    plugin.team_name = team_name
+    plugin.external_views = [
+        {
+            "name": f"{name} view",
+            "href": f"https://example.com/{name}",
+            "url_route": f"{name}_view",
+            "destination": "nav",
+        }
+    ]
+    plugin.react_apps = [
+        {
+            "name": f"{name} app",
+            "bundle_url": f"https://example.com/{name}.js",
+            "url_route": f"{name}_app",
+            "destination": "nav",
+        }
+    ]
+    return plugin
+
+
+@skip_if_force_lowest_dependencies_marker
+class TestGetPluginsUIViewTeamFiltering:
+    """The React UI builds its nav items, external-view tabs, and react apps from the
+    ``external_views``/``react_apps`` nested in the /api/v2/plugins response. Because a
+    team-scoped plugin's whole entry is filtered out for non-team users, its UI views
+    and apps must be absent from the response as well.
+    """
+
+    def _plugins(self) -> list[AirflowPlugin]:
+        return [
+            _make_view_plugin("global_view_plugin", None),
+            _make_view_plugin("team_a_view_plugin", "team_a"),
+            _make_view_plugin("team_b_view_plugin", "team_b"),
+        ]
+
+    @staticmethod
+    def _view_routes(plugins: list[dict]) -> set[str]:
+        return {view["url_route"] for plugin in plugins for view in plugin["external_views"]}
+
+    @staticmethod
+    def _app_routes(plugins: list[dict]) -> set[str]:
+        return {app["url_route"] for plugin in plugins for app in plugin["react_apps"]}
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.plugins.get_auth_manager")
+    def test_views_and_apps_scoped_to_authorized_teams(self, mock_get_auth_manager, test_client):
+        """A team_a user sees global + team_a views/apps, but never team_b's."""
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = {"team_a"}
+
+        with mock_plugin_manager(plugins=self._plugins()):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        plugins = response.json()["plugins"]
+
+        view_routes = self._view_routes(plugins)
+        assert "global_view_plugin_view" in view_routes
+        assert "team_a_view_plugin_view" in view_routes
+        assert "team_b_view_plugin_view" not in view_routes
+
+        app_routes = self._app_routes(plugins)
+        assert "global_view_plugin_app" in app_routes
+        assert "team_a_view_plugin_app" in app_routes
+        assert "team_b_view_plugin_app" not in app_routes
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch("airflow.api_fastapi.core_api.routes.public.plugins.get_auth_manager")
+    def test_user_with_no_teams_sees_only_global_views_and_apps(self, mock_get_auth_manager, test_client):
+        mock_get_auth_manager.return_value.get_authorized_teams.return_value = set()
+
+        with mock_plugin_manager(plugins=self._plugins()):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        plugins = response.json()["plugins"]
+        assert self._view_routes(plugins) == {"global_view_plugin_view"}
+        assert self._app_routes(plugins) == {"global_view_plugin_app"}
+
+    def test_no_view_filtering_when_multi_team_disabled(self, test_client):
+        """With multi_team off, every plugin's views/apps are returned."""
+        with mock_plugin_manager(plugins=self._plugins()):
+            response = test_client.get("/plugins")
+
+        assert response.status_code == 200
+        plugins = response.json()["plugins"]
+        assert {
+            "global_view_plugin_view",
+            "team_a_view_plugin_view",
+            "team_b_view_plugin_view",
+        } <= self._view_routes(plugins)
+        assert {
+            "global_view_plugin_app",
+            "team_a_view_plugin_app",
+            "team_b_view_plugin_app",
+        } <= self._app_routes(plugins)

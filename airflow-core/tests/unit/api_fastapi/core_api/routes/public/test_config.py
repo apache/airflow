@@ -22,6 +22,8 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.configuration import conf
+
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -559,3 +561,65 @@ class TestPerKeyBackendKwargMasking(TestConfigEndpoint):
         )
         assert response.status_code == 200
         assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_SENSITIVE_HIDDEN
+
+
+TEAM_NAME = "team_a"
+SECTION_TEAM_DATABASE = f"{TEAM_NAME}={SECTION_DATABASE}"
+SECTION_TEAM_CORE = f"{TEAM_NAME}={SECTION_CORE}"
+OPTION_VALUE_TEAM_SQL_ALCHEMY_CONN = "postgresql://team_a_user:team_a_password@team-a-db/airflow"
+OPTION_VALUE_TEAM_PARALLELISM = "512"
+
+
+class TestTeamScopedOptionMasking(TestConfigEndpoint):
+    """A team scoped override of a sensitive option lives in a ``[<team>=<section>]`` section rather
+    than in the section the option is registered under. The single-option endpoint has to resolve
+    that spelling back to the registered option, so that it redacts a team scoped value exactly as
+    it redacts the base one."""
+
+    @pytest.fixture(autouse=True)
+    def setup_team_scoped(self) -> Generator[None, None, None]:
+        team_config = {
+            SECTION_TEAM_DATABASE: {OPTION_KEY_SQL_ALCHEMY_CONN: OPTION_VALUE_TEAM_SQL_ALCHEMY_CONN},
+            SECTION_TEAM_CORE: {OPTION_KEY_PARALLELISM: OPTION_VALUE_TEAM_PARALLELISM},
+        }
+
+        # Anything that is not one of the team scoped options under test keeps being read from the
+        # real configuration - the endpoint reads [api] expose_config through the same object.
+        real_get = conf.get
+
+        def _mock_has_option(section: str, option: str, **_) -> bool:
+            return option in team_config.get(section, {})
+
+        def _mock_get(section: str, option: str, *args, **kwargs) -> str:
+            if option in team_config.get(section, {}):
+                return team_config[section][option]
+            return real_get(section, option, *args, **kwargs)
+
+        with (
+            conf_vars(AIRFLOW_CONFIG_ENABLE_EXPOSE_CONFIG),
+            patch(
+                "airflow.api_fastapi.core_api.routes.public.config.conf.has_option",
+                new=_mock_has_option,
+            ),
+            patch(
+                "airflow.api_fastapi.core_api.routes.public.config.conf.get",
+                new=_mock_get,
+            ),
+        ):
+            yield
+
+    def test_get_config_value_masks_team_scoped_sensitive_option(self, test_client):
+        response = test_client.get(
+            f"/config/section/{SECTION_TEAM_DATABASE}/option/{OPTION_KEY_SQL_ALCHEMY_CONN}",
+            headers=HEADERS_JSON,
+        )
+        assert response.status_code == 200
+        assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_SENSITIVE_HIDDEN
+
+    def test_get_config_value_keeps_team_scoped_non_sensitive_option(self, test_client):
+        response = test_client.get(
+            f"/config/section/{SECTION_TEAM_CORE}/option/{OPTION_KEY_PARALLELISM}",
+            headers=HEADERS_JSON,
+        )
+        assert response.status_code == 200
+        assert response.json()["sections"][0]["options"][0]["value"] == OPTION_VALUE_TEAM_PARALLELISM

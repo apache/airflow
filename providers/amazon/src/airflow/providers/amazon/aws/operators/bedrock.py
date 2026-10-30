@@ -36,17 +36,20 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockAgentRuntimeDeletedTrigger,
     BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.sdk import Context
 
 
@@ -132,8 +135,9 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for runtime readiness. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
-        to reach READY. This implies waiting for completion. This mode requires aiobotocore
-        module to be installed. (default: False)
+        to reach READY. This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -201,7 +205,7 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
         agent_runtime_id = response["agentRuntimeId"]
         agent_runtime_version = response["agentRuntimeVersion"]
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until AgentCore Runtime %s reaches READY.", agent_runtime_arn)
             self.defer(
                 trigger=BedrockAgentRuntimeReadyTrigger(
@@ -211,6 +215,9 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -340,8 +347,9 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for runtime deletion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
-        deletion to complete. This implies waiting for completion. This mode requires aiobotocore
-        module to be installed. (default: False)
+        deletion to complete. This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -385,7 +393,7 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     def execute(self, context: Context) -> None:
         self.hook.conn.delete_agent_runtime(agentRuntimeId=self.agent_runtime_id)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until AgentCore Runtime %s is deleted.", self.agent_runtime_id)
             self.defer(
                 trigger=BedrockAgentRuntimeDeletedTrigger(
@@ -393,6 +401,9 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -431,8 +442,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -537,7 +549,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
             raise AirflowException(f"Bedrock model customization job creation failed: {response}")
 
         task_description = f"Bedrock model customization job {self.job_name} to complete."
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s", task_description)
             self.defer(
                 trigger=BedrockCustomizeModelCompletedTrigger(
@@ -545,6 +557,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -575,8 +590,9 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -626,7 +642,7 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
             **self.create_throughput_kwargs,
         )["provisionedModelArn"]
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for provisioned throughput.")
             self.defer(
                 trigger=BedrockProvisionModelThroughputCompletedTrigger(
@@ -634,6 +650,9 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -683,8 +702,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -799,7 +819,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.log.info("Creating Amazon Bedrock Knowledge Base %s", self.name)
         knowledge_base_id = _create_kb()
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for Knowledge base creation.")
             self.defer(
                 trigger=BedrockKnowledgeBaseActiveTrigger(
@@ -807,6 +827,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -897,8 +920,9 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -984,7 +1008,7 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
 
         ingestion_job_id = start_ingestion_job()
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for ingestion job.")
             self.defer(
                 trigger=BedrockIngestionJobTrigger(
@@ -994,6 +1018,9 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -1221,14 +1248,18 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
     :param output_uri: The S3 location of the output data. (templated)
     :param invoke_kwargs: Additional keyword arguments to pass to the  API call. (templated)
 
-    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param wait_for_completion: Whether to wait for the job to reach ``success_state``. (default: True)
         NOTE:  The way batch inference jobs work, your jobs are added to a queue and done "eventually"
         so using deferrable mode is much more practical than using wait_for_completion.
+    :param success_state: The job state to wait for, either ``"completed"`` or ``"scheduled"``. Use
+        ``"scheduled"`` to stop waiting once Bedrock has queued the job. Accepts the
+        ``BedrockBatchInferenceSensor.SuccessState`` values. (default: "completed")
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
-    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
-    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
+    :param deferrable: If True, the operator will wait asynchronously for the job to reach ``success_state``.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -1250,6 +1281,10 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         "output_uri",
         "invoke_kwargs",
     )
+    _WAITERS: dict[str, tuple[str, type[BedrockBaseBatchInferenceTrigger]]] = {
+        "completed": ("batch_inference_complete", BedrockBatchInferenceCompletedTrigger),
+        "scheduled": ("batch_inference_scheduled", BedrockBatchInferenceScheduledTrigger),
+    }
 
     def __init__(
         self,
@@ -1260,6 +1295,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         output_uri: str,
         invoke_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
+        success_state: str = "completed",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -1273,7 +1309,11 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         self.output_uri = output_uri
         self.invoke_kwargs = invoke_kwargs or {}
 
+        if success_state not in self._WAITERS:
+            raise ValueError(f"success_state must be one of {list(self._WAITERS)}, got {success_state!r}.")
+
         self.wait_for_completion = wait_for_completion
+        self.success_state = success_state
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
@@ -1286,7 +1326,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running {self.activity}: {validated_event}")
 
-        self.log.info("%s '%s' complete.", self.activity, validated_event["job_arn"])
+        self.log.info("%s '%s' is %s.", self.activity, validated_event["job_arn"], self.success_state)
 
         return validated_event["job_arn"]
 
@@ -1302,21 +1342,25 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         job_arn = response["jobArn"]
         self.log.info("%s '%s' started with ARN: %s", self.activity, self.job_name, job_arn)
 
-        task_description = f"for {self.activity} '{self.job_name}' to complete."
-        if self.deferrable:
+        waiter_name, trigger_class = self._WAITERS[self.success_state]
+        task_description = f"for {self.activity} '{self.job_name}' to be {self.success_state}."
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", task_description)
             self.defer(
-                trigger=BedrockBatchInferenceCompletedTrigger(
+                trigger=trigger_class(
                     job_arn=job_arn,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
             self.log.info("Waiting %s", task_description)
-            self.hook.get_waiter(waiter_name="batch_inference_complete").wait(
+            self.hook.get_waiter(waiter_name=waiter_name).wait(
                 jobIdentifier=job_arn,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )

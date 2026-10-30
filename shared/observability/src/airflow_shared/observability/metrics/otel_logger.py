@@ -78,6 +78,11 @@ DEFAULT_METRIC_NAME_PREFIX = "airflow"
 # Delimiter is placed between the universal metric prefix and the unique metric name.
 DEFAULT_METRIC_NAME_DELIMITER = "."
 
+# Not imported from ``opentelemetry.sdk.environment_variables``: the constant postdates the
+# ``opentelemetry-api>=1.27.0`` floor this distribution declares, while the name is spec-fixed.
+# https://opentelemetry.io/docs/specs/otel/configuration/sdk/#declarative-configuration
+OTEL_CONFIG_FILE = "OTEL_CONFIG_FILE"
+
 
 def full_name(name: str, *, prefix: str = DEFAULT_METRIC_NAME_PREFIX) -> str:
     """Assembles the prefix, delimiter, and name and returns it as a string."""
@@ -532,6 +537,20 @@ def configure_otel(
     stat_name_handler: Callable[[str], str] | None = None,
     statsd_influxdb_enabled: bool = False,
 ) -> SafeOtelLogger:
+    # A MeterProvider already built from OTEL_CONFIG_FILE is used as-is: the declarative
+    # configuration spec makes that file the sole source of SDK construction.
+    configured_provider = metrics.get_meter_provider()
+    if os.environ.get(OTEL_CONFIG_FILE) and isinstance(configured_provider, MeterProvider):
+        log.info("%s is set; using the MeterProvider it built.", OTEL_CONFIG_FILE)
+        atexit_register_metrics_flush()
+        return SafeOtelLogger(
+            configured_provider,
+            prefix or DEFAULT_METRIC_NAME_PREFIX,
+            get_validator(allow_list, block_list),
+            stat_name_handler,
+            statsd_influxdb_enabled,
+        )
+
     backcompat_endpoint, backcompat_interval_ms, resource = _get_backcompat_config(
         host=host,
         port=port,

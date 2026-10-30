@@ -25,9 +25,14 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.routing import Mount
+from starlette.middleware import Middleware
 
+from airflow import settings
 from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
+from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
+from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -37,9 +42,12 @@ from airflow.api_fastapi.core_api.app import (
 from airflow.api_fastapi.execution_api.app import create_task_execution_api_app
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.observability.metrics import stats_utils
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
+    from fastapi import Request
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 
 API_BASE_URL = conf.get("api", "base_url", fallback="")
@@ -60,6 +68,22 @@ def get_cookie_path() -> str:
     return API_ROOT_PATH or "/"
 
 
+def request_cookie_is_secure(request: Request) -> bool:
+    """
+    Return whether a FastAPI request cookie should be tagged as HTTP secure.
+
+    :param request: FastAPI Request object
+
+    usage:
+    ```python
+    secure = request_cookie_is_secure(request)
+
+    response.set_cookie("mycookie", "myvalue", path=get_cookie_path(), secure=secure, httponly=True)
+    ```
+    """
+    return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+
+
 # Fast API apps mounted under these prefixes are not allowed
 RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
@@ -74,6 +98,7 @@ class _AuthManagerState:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     async with AsyncExitStack() as stack:
+        stack.push_async_callback(settings.dispose_async_engine)
         for route in app.routes:
             if isinstance(route, Mount) and isinstance(route.app, FastAPI):
                 await stack.enter_async_context(
@@ -106,6 +131,7 @@ def create_app(apps: str = "all") -> FastAPI:
         "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
+        telemetry=NATIVE_TELEMETRY_DISABLED,
         version="2",
         docs_url="/docs" if conf.getboolean("api", "enable_swagger_ui") else None,
         redoc_url="/redoc" if conf.getboolean("api", "enable_swagger_ui") else None,
@@ -114,8 +140,7 @@ def create_app(apps: str = "all") -> FastAPI:
     dag_bag = create_dag_bag()
 
     if "all" in apps_list or "execution" in apps_list:
-        task_exec_api_app = create_task_execution_api_app()
-        task_exec_api_app.state.dag_bag = dag_bag
+        task_exec_api_app = create_task_execution_api_app(dag_bag=dag_bag)
         app.mount("/execution", task_exec_api_app)
 
     if "all" in apps_list or "core" in apps_list:
@@ -126,6 +151,9 @@ def create_app(apps: str = "all") -> FastAPI:
         init_views(app)  # Core views need to be the last routes added - it has a catch all route
         init_error_handlers(app)
         init_middlewares(app)
+
+    init_api_metrics(app)
+    init_access_logging(app)
 
     init_config(app)
 
@@ -194,11 +222,25 @@ def get_auth_manager() -> BaseAuthManager:
     return _AuthManagerState.instance
 
 
+def init_access_logging(app: FastAPI) -> None:
+    """Install the access log middleware, the only producer of access records."""
+    app.add_middleware(HttpAccessLogMiddleware)
+
+
+def init_api_metrics(app: FastAPI) -> None:
+    """Install the API metrics middleware, the only producer of API request metrics."""
+    if not stats_utils.is_metrics_enabled():
+        return
+    app.add_middleware(HttpMetricsMiddleware)
+
+
 def init_plugins(app: FastAPI) -> None:
     """Integrate FastAPI app, middlewares and UI plugins."""
     from airflow import plugins_manager
+    from airflow.api_fastapi.auth.middlewares.team_authorization import TeamAuthorizationMiddleware
 
     apps, root_middlewares = plugins_manager.get_fastapi_plugins()
+    multi_team = conf.getboolean("core", "multi_team")
 
     for subapp_dict in apps:
         name = subapp_dict.get("name")
@@ -217,6 +259,25 @@ def init_plugins(app: FastAPI) -> None:
             log.error("Plugin %s attempted to use reserved url_prefix '%s'", name, url_prefix)
             continue
 
+        if multi_team and (team_name := subapp_dict.get("team_name")) is not None:
+            # Airflow applies no authorization to mounted plugin apps, so a team-scoped
+            # plugin's endpoints would otherwise be reachable by any authenticated user.
+            # `app.mount()` cannot attach middleware, so build the Mount directly.
+            log.debug(
+                "Adding subapplication %s under prefix %s, restricted to team %s",
+                name,
+                url_prefix,
+                team_name,
+            )
+            app.router.routes.append(
+                Mount(
+                    url_prefix,
+                    app=subapp,
+                    middleware=[Middleware(TeamAuthorizationMiddleware, team_name=team_name)],
+                )
+            )
+            continue
+
         log.debug("Adding subapplication %s under prefix %s", name, url_prefix)
         app.mount(url_prefix, subapp)
 
@@ -232,6 +293,19 @@ def init_plugins(app: FastAPI) -> None:
 
         if not callable(middleware):
             log.error("'middleware' value for %s is should be callable: %s", name, middleware)
+            continue
+
+        if multi_team and (team_name := middleware_dict.get("team_name")) is not None:
+            # Root middlewares wrap every request to the API server, including other
+            # teams' and core routes, so they cannot be scoped to one team. A team plugin
+            # that needs middleware should apply it inside its own FastAPI app.
+            log.warning(
+                "Skipping root middleware %s from team-scoped plugin (team %s): root middlewares "
+                "apply to the entire API server and cannot be restricted to a single team. "
+                "Apply it within the plugin's own fastapi_apps instead.",
+                name,
+                team_name,
+            )
             continue
 
         log.debug("Adding root middleware %s", name)

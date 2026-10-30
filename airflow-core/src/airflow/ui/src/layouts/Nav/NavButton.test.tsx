@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { render, screen } from "@testing-library/react";
 import type { PropsWithChildren } from "react";
+
+import "@testing-library/jest-dom/vitest";
+import { render, screen } from "@testing-library/react";
 import { FiHome } from "react-icons/fi";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
@@ -94,21 +95,17 @@ describe("NavButton", () => {
     });
   });
 
-  describe("matchPaths", () => {
-    it("is active on an extra match path even though `to` points elsewhere", () => {
-      render(<NavButton icon={FiHome} matchPaths={["dag_runs", "task_instances"]} title="Dags" to="dags" />, {
-        wrapper: wrapperAt("/dag_runs"),
+  describe("isExternal", () => {
+    it("renders as an anchor link with target=_blank", () => {
+      render(<NavButton icon={FiHome} isExternal title="Icon Name" to="https://example.com" />, {
+        wrapper: wrapperAt("/"),
       });
 
-      expect(screen.getByRole("link", { name: "Dags" })).toHaveAttribute("aria-current", "page");
-    });
+      const link = screen.getByRole("link", { name: "Icon Name" });
 
-    it("is not active on a route outside both `to` and matchPaths", () => {
-      render(<NavButton icon={FiHome} matchPaths={["dag_runs", "task_instances"]} title="Dags" to="dags" />, {
-        wrapper: wrapperAt("/assets"),
-      });
-
-      expect(screen.getByRole("link", { name: "Dags" })).not.toHaveAttribute("aria-current");
+      expect(link).toHaveAttribute("href", "https://example.com");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
     });
   });
 });

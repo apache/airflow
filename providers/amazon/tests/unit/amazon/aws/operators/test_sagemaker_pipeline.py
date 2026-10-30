@@ -30,10 +30,16 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
+
+
+REGION_NAME = "eu-west-2"
+VERIFY = False
+BOTOCORE_CONFIG = {"read_timeout": 42}
 
 
 class TestSageMakerStartPipelineOperator:
@@ -59,19 +65,43 @@ class TestSageMakerStartPipelineOperator:
         )
         check_status.assert_called_once()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(SageMakerHook, "start_pipeline")
-    def test_defer(self, start_mock):
+    def test_defer(self, start_mock, wait_for_completion):
         op = SageMakerStartPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_name="my_pipeline",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
         assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.COMPLETE
+
+    @mock.patch.object(SageMakerHook, "start_pipeline")
+    def test_deferred_trigger_receives_hook_configuration(self, start_mock):
+        op = SageMakerStartPipelineOperator(
+            task_id="test_sagemaker_operator",
+            pipeline_name="my_pipeline",
+            wait_for_completion=True,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+
+        assert exc.value.trigger.region_name == REGION_NAME
+        assert exc.value.trigger.verify == VERIFY
+        assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
 
     def test_template_fields(self):
         operator = SageMakerStartPipelineOperator(
@@ -95,20 +125,45 @@ class TestSageMakerStopPipelineOperator:
             fail_if_not_running=False,
         )
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(SageMakerHook, "stop_pipeline")
-    def test_defer(self, stop_mock: MagicMock):
+    def test_defer(self, stop_mock: MagicMock, wait_for_completion):
         stop_mock.return_value = "Stopping"
         op = SageMakerStopPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_exec_arn="my_pipeline_arn",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
         assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.STOPPED
+
+    @mock.patch.object(SageMakerHook, "stop_pipeline")
+    def test_deferred_trigger_receives_hook_configuration(self, stop_mock: MagicMock):
+        stop_mock.return_value = "Stopping"
+        op = SageMakerStopPipelineOperator(
+            task_id="test_sagemaker_operator",
+            pipeline_exec_arn="my_pipeline_arn",
+            wait_for_completion=True,
+            deferrable=True,
+            region_name=REGION_NAME,
+            verify=VERIFY,
+            botocore_config=BOTOCORE_CONFIG,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute({})
+
+        assert exc.value.trigger.region_name == REGION_NAME
+        assert exc.value.trigger.verify == VERIFY
+        assert exc.value.trigger.botocore_config == BOTOCORE_CONFIG
 
     def test_template_fields(self):
         operator = SageMakerStopPipelineOperator(

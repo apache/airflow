@@ -22,10 +22,11 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, model_validator
+from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, field_validator, model_validator
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
@@ -202,8 +203,14 @@ class DAGRunCollectionResponse(BaseModel):
     dag_runs: Iterable[DAGRunResponse]
     total_entries: int | None = Field(
         default=None,
-        description="Total number of matching items. Populated for offset pagination, "
-        "``null`` when using cursor pagination.",
+        description="Number of matching items. For offset pagination this is the exact total. "
+        "For cursor pagination it is capped at ``total_entries_limit``; a value equal to that "
+        "limit means at least that many items match.",
+    )
+    total_entries_limit: int | None = Field(
+        default=None,
+        description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset "
+        "pagination, where ``total_entries`` is exact.",
     )
     next_cursor: str | None = Field(
         default=None,
@@ -230,6 +237,18 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     note: str | None = None
     partition_key: str | None = None
     bundle_version: str | None = None
+    drain_dag: bool = Field(
+        default=False,
+        description="Drain the Dag together with this run. Draining changes the whole Dag: unfinished "
+        "runs can start or resume except those held by paused backfills. No scheduled runs are created, "
+        "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
+        "to complete. Requires the same permission as pausing the Dag.",
+    )
+
+    @field_validator("conf")
+    @classmethod
+    def _check_reserved_keys(cls, conf: dict | None) -> dict | None:
+        return check_conf_reserved_keys(conf, root="conf")
 
     @model_validator(mode="after")
     def check_data_intervals(self):

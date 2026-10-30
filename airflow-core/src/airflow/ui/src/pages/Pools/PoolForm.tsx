@@ -21,9 +21,11 @@ import { Controller, useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { FiSave } from "react-icons/fi";
 
+import { Checkbox } from "src/system-components";
+
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { TeamSelector } from "src/components/TeamSelector.tsx";
-import { Checkbox } from "src/components/ui/Checkbox";
+
 import { useConfig } from "src/queries/useConfig.tsx";
 
 export type PoolBody = {
@@ -82,7 +84,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         )}
         rules={{
           required: translate("pools.form.nameRequired"),
-          validate: (_value) => _value.length <= 256 || translate("pools.form.rules.nameMaxLength"),
+          validate: (_value) => _value.length <= 256 || translate("pools.form.nameMaxLength"),
         }}
       />
 
@@ -113,16 +115,11 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
           </Field.Root>
         )}
         rules={{
-          validate: (value: number) => {
-            if (!Number.isFinite(value)) {
-              return translate("common:validation.mustBeValidNumber");
-            }
-            if (value < POOL_SLOTS_MIN) {
-              return translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN });
-            }
-
-            return true;
-          },
+          validate: (value: number) =>
+            Number.isFinite(value)
+              ? value >= POOL_SLOTS_MIN ||
+                translate("common:validation.mustBeAtLeast", { min: POOL_SLOTS_MIN })
+              : translate("common:validation.mustBeValidNumber"),
         }}
       />
 

@@ -44,7 +44,7 @@ class Neo4jOperator(BaseOperator):
     :param parameters: the parameters to send to Neo4j driver session
     """
 
-    template_fields: Sequence[str] = ("cypher", "sql", "parameters")
+    template_fields: Sequence[str] = ("cypher", "sql", "parameters", "neo4j_conn_id")
     template_fields_renderers = {"cypher": "sql", "sql": "sql", "parameters": "json"}
 
     def __init__(

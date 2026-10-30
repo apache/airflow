@@ -264,9 +264,9 @@ of the Cloud SQL instance is authorized to write to the selected GCS bucket.
 It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
-To grant the service account with the appropriate WRITE permissions for the GCS bucket
-you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
-as shown in the example:
+Grant the Cloud SQL instance service account the ``roles/storage.objectAdmin`` IAM role
+on the GCS bucket. This works with uniform bucket-level access, where bucket and object
+ACLs are disabled:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
@@ -349,15 +349,14 @@ of the Cloud SQL instance is authorized to read from the selected GCS object.
 It is not the service account configured in Airflow that communicates with GCS,
 but rather the service account of the particular Cloud SQL instance.
 
-To grant the service account with the appropriate READ permissions for the GCS object
-you can use the :class:`~airflow.providers.google.cloud.operators.gcs.GCSBucketCreateAclEntryOperator`,
-as shown in the example:
+The ``roles/storage.objectAdmin`` IAM role granted for export also provides the object read
+permissions required for import:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/cloud_sql/example_cloud_sql.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_cloudsql_import_gcs_permissions]
-    :end-before: [END howto_operator_cloudsql_import_gcs_permissions]
+    :start-after: [START howto_operator_cloudsql_export_gcs_permissions]
+    :end-before: [END howto_operator_cloudsql_export_gcs_permissions]
 
 .. _howto/operator:CloudSQLNoOperationInProgressSensor:
 

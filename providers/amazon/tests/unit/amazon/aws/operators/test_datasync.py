@@ -23,10 +23,17 @@ import pytest
 from moto import mock_aws
 
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.amazon.aws.exceptions import (
+    DataSyncLocationNotFoundError,
+    DataSyncMultipleLocationsError,
+    DataSyncMultipleTasksError,
+    DataSyncTaskCreationError,
+    DataSyncTaskExecutionFailedError,
+    DataSyncTaskNotFoundError,
+)
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.links.datasync import DataSyncTaskLink
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
@@ -212,13 +219,13 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator(task_id="task_1", source_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         self.set_up_operator(task_id="task_2", destination_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         self.set_up_operator(task_id="task_3", source_location_uri=None, destination_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
@@ -320,7 +327,7 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         self.client.create_location_smb(**MOCK_DATA["create_source_location_kwargs"])
 
         self.set_up_operator(task_id="datasync_task1")
-        with pytest.raises(AirflowException):
+        with pytest.raises(DataSyncMultipleLocationsError):
             self.datasync.execute(None)
 
         # Delete all tasks:
@@ -330,6 +337,64 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
 
         self.set_up_operator(task_id="datasync_task2", allow_random_location_choice=True)
         self.datasync.execute(None)
+        # ### Check mocks:
+        mock_get_conn.assert_called()
+
+    def test_no_task_identified_or_created(self, mock_get_conn):
+        # ### Set up mocks:
+        mock_get_conn.return_value = self.client
+        # ### Begin tests:
+
+        # Delete all tasks so none can be matched.
+        tasks = self.client.list_tasks()
+        for task in tasks["Tasks"]:
+            self.client.delete_task(TaskArn=task["TaskArn"])
+
+        # Without create_task_kwargs there is nothing to run or create.
+        self.datasync = DataSyncOperator(
+            task_id="datasync_no_task",
+            dag=self.dag,
+            source_location_uri=SOURCE_LOCATION_URI,
+            destination_location_uri=DESTINATION_LOCATION_URI,
+            wait_interval_seconds=0,
+        )
+        with pytest.raises(DataSyncTaskNotFoundError):
+            self.datasync.execute(None)
+        # ### Check mocks:
+        mock_get_conn.assert_called()
+
+    def test_create_task_no_source_location(self, mock_get_conn):
+        # ### Set up mocks:
+        mock_get_conn.return_value = self.client
+        # ### Begin tests:
+
+        self.datasync = DataSyncOperator(
+            task_id="datasync_no_source_location",
+            dag=self.dag,
+            source_location_uri="smb://nowhere/subdir",
+            destination_location_uri=DESTINATION_LOCATION_URI,
+            create_task_kwargs={"Options": {"VerifyMode": "NONE"}},
+            wait_interval_seconds=0,
+        )
+        with pytest.raises(DataSyncLocationNotFoundError):
+            self.datasync.execute(None)
+        # ### Check mocks:
+        mock_get_conn.assert_called()
+
+    @mock.patch.object(DataSyncHook, "create_task", return_value=None)
+    def test_create_task_without_task_arn(self, mock_create_task, mock_get_conn):
+        # ### Set up mocks:
+        mock_get_conn.return_value = self.client
+        # ### Begin tests:
+
+        # Delete all tasks so the operator falls through to creation.
+        tasks = self.client.list_tasks()
+        for task in tasks["Tasks"]:
+            self.client.delete_task(TaskArn=task["TaskArn"])
+
+        self.set_up_operator()
+        with pytest.raises(DataSyncTaskCreationError):
+            self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_called()
 
@@ -439,13 +504,13 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator(task_id="task_1", source_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         self.set_up_operator(task_id="task_2", destination_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         self.set_up_operator(task_id="task_3", source_location_uri=None, destination_location_uri=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
@@ -543,7 +608,7 @@ class TestDataSyncOperatorGetTasks(DataSyncTestCaseBase):
         assert len(locations["Locations"]) == 2
 
         # Execute the task
-        with pytest.raises(AirflowException):
+        with pytest.raises(DataSyncMultipleTasksError):
             self.datasync.execute(None)
 
         # Assert 0 additional task and 0 additional locations
@@ -652,7 +717,7 @@ class TestDataSyncOperatorUpdate(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator(task_arn=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
@@ -774,7 +839,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator(task_arn=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()
@@ -863,7 +928,7 @@ class TestDataSyncOperator(DataSyncTestCaseBase):
         self.set_up_operator()
 
         # Execute the task
-        with pytest.raises(AirflowException):
+        with pytest.raises(DataSyncTaskExecutionFailedError):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_called()
@@ -987,7 +1052,7 @@ class TestDataSyncOperatorDelete(DataSyncTestCaseBase):
         # ### Begin tests:
 
         self.set_up_operator(task_arn=None)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="Either specify task_arn"):
             self.datasync.execute(None)
         # ### Check mocks:
         mock_get_conn.assert_not_called()

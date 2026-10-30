@@ -42,7 +42,7 @@ in the Airflow UI. This is useful for integrating external applications or custo
 In this object reference, the list of dictionaries with the view name, href (templatable), destination and
 optional parameters like the icon and url_route are passed on.
 
-Using react_apps  in Airflow plugin, allows to register custom React applications that can be rendered
+Using react_apps in Airflow plugin, allows to register custom React applications that can be rendered
 in the Airflow UI. This is useful for integrating custom React components or applications into the Airflow UI.
 In this object reference, the list of dictionaries with the app name, bundle_url (where to load the js assets, templatable), destination and
 optional parameters like the icon and url_route are passed on.
@@ -52,7 +52,7 @@ Information and code samples to register ``fastapi_apps``, ``fastapi_root_middle
 available in :doc:`plugin </administration-and-deployment/plugins>`.
 
 Developing React Applications with the Bootstrap Tool
-=====================================================
+-----------------------------------------------------
 
 .. warning::
   React applications are new in Airflow 3.1 and should be considered experimental. The feature may be
@@ -66,7 +66,7 @@ and recommended way to customize the Airflow UI.
 This tool generates a complete React project structure that builds as a library compatible with dynamic imports and shares React instances with the host Airflow application.
 
 Creating a New React Plugin Project
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The bootstrap tool is located in ``dev/react-plugin-tools/`` and provides a simple CLI to generate new React plugin projects:
 
@@ -89,7 +89,7 @@ This generates a complete React project with Vite, TypeScript, Chakra UI integra
    React and React-DOM are shared dependencies with the host application and need to have compatible versions.
 
 React Development Workflow
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Once your project is generated, refer to the ``README.md`` file in your project directory for complete development instructions, including:
 
@@ -102,7 +102,7 @@ Once your project is generated, refer to the ``README.md`` file in your project 
 The generated project is pre-configured with all necessary tools and follows Airflow's UI development patterns.
 
 Integrating with Airflow
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To integrate your React application with Airflow, you need to:
 
@@ -110,7 +110,7 @@ To integrate your React application with Airflow, you need to:
 2. **Register the React app** using ``react_apps`` plugin configuration
 
 Example Plugin Implementation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Create an Airflow plugin that serves your React application:
 
@@ -161,13 +161,13 @@ Create an Airflow plugin that serves your React application:
         ]
 
 Plugin Configuration Options
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 React apps support several configuration options, you can take a look at :doc:`plugin </administration-and-deployment/plugins>` for more details.
 
 
 Integration Best Practices
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The generated template follows these best practices for Airflow integration:
 
@@ -177,10 +177,10 @@ The generated template follows these best practices for Airflow integration:
 4. **MIME Types**: Proper JavaScript MIME type handling for ``.cjs`` files because FastAPI serves them as plain text by default
 
 Deployment Strategies
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 External Hosting
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 You can also host assets on external infrastructure:
 
@@ -196,7 +196,7 @@ You can also host assets on external infrastructure:
     ]
 
 Troubleshooting Integration Issues
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Common integration issues and solutions:
 
@@ -210,7 +210,7 @@ Common integration issues and solutions:
     Refer to the ``README.md`` file generated with your project for detailed troubleshooting of React-specific development issues.
 
 Support for Airflow 2 plugins
-=============================
+-----------------------------
 
 Airflow 2 plugins are still supported with some limitations. More information on such
 plugins can be found in the Airflow 2 documentation.
