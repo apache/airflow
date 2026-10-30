@@ -137,6 +137,10 @@ DuckDB how to authenticate, and the ``credential_strategy`` parameter selects ho
     chain again and retries, so a long query does not fail partway through when a set of temporary
     credentials expires.
 
+    Before DuckDB 1.5.6, only opening a file to read refreshes the credentials. Listing files with a
+    glob, reading further into a file that is already open, and writing with ``COPY ... TO`` can
+    still fail once the credentials expire.
+
     From DuckDB 1.4 onward the chain is resolved when the secret is created rather than when S3 is
     first read. If nothing can be resolved, the hook logs a warning and opens the connection anyway,
     so a query that does not use S3 still runs; one that does will fail on its own. A ``config``

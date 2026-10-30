@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any, Literal
 from urllib.parse import urlsplit
 
 from botocore.config import Config
-from packaging.version import Version
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
@@ -62,7 +61,9 @@ class AwsDuckDBHook(DuckDBHook):
         through the AWS SDK inside DuckDB's ``aws`` extension. Nothing secret is written into SQL
         text, and the secret is created with ``REFRESH 'auto'``: when S3 rejects expired credentials,
         DuckDB resolves the chain again and retries, so a query that outlives a set of temporary
-        credentials does not fail partway through.
+        credentials does not fail partway through. Before DuckDB 1.5.6, only opening a file to read
+        refreshes the credentials, so listing files, reading further into a file that is already
+        open, and writing can still fail once the credentials expire.
 
     ``config``
         Resolves credentials through :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
@@ -276,10 +277,8 @@ class AwsDuckDBHook(DuckDBHook):
             clauses = ["PROVIDER credential_chain"]
             if self.credential_chain:
                 clauses.append(f"CHAIN '{self._quote(self.credential_chain)}'")
-            # Without REFRESH, DuckDB keeps the credentials it resolved at creation for the life of
-            # the secret. DuckDB 1.2.0 and 1.2.1 do not know the option and fail the statement.
-            if Version(duckdb.__version__) >= Version("1.2.2"):
-                clauses.append("REFRESH 'auto'")
+            # Without REFRESH, DuckDB keeps the credentials it first resolved for the life of the secret.
+            clauses.append("REFRESH 'auto'")
             return clauses
         if strategy == "config":
             credentials = self.aws_hook.get_credentials(region_name=self.get_region_name())
