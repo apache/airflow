@@ -491,3 +491,14 @@ def test_python_image_digest_exits_when_the_tag_is_not_mirrored(monkeypatch):
 
     with pytest.raises(SystemExit):
         uiv.get_mirrored_python_image_digest("3.13.17-debian13-dev")
+
+
+def test_legacy_python_version_fails_on_a_server_error_instead_of_picking_an_older_release():
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.status_code = 503
+    response.raise_for_status.side_effect = uiv.requests.HTTPError("503")
+    with mock.patch.object(uiv.requests, "head", autospec=True, return_value=response):
+        with pytest.raises(uiv.requests.HTTPError):
+            uiv.get_latest_released_python_version("3.13", FTP_LISTING)

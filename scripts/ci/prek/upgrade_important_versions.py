@@ -525,7 +525,9 @@ def get_latest_released_python_version(python_major_minor: str, ftp_listing: str
             allow_redirects=True,
             timeout=30,
         )
-        if response.status_code == 200:
+        # Any other error must not fall through to an older release, which would downgrade the pin.
+        if response.status_code != 404:
+            response.raise_for_status()
             return str(candidate)
     console.print(f"[bright_red]No released Python {python_major_minor} found on {PYTHON_ORG_FTP_URL}")
     sys.exit(1)

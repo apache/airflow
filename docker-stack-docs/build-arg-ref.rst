@@ -38,11 +38,13 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                           | a plain Debian ``BASE_IMAGE`` (see below    |
 |                                          |                                           | the table).                                 |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PYTHON_VERSION``               |                                           | Python version recorded in the image        |
-|                                          |                                           | labels. In the hardened flavor Python comes |
-|                                          |                                           | from ``BASE_IMAGE``: leave it empty, and a  |
-|                                          |                                           | version that does not match ``BASE_IMAGE``  |
-|                                          |                                           | fails the build. In the legacy flavor it is |
+| ``AIRFLOW_PYTHON_VERSION``               |                                           | Python version recorded, as passed, in the  |
+|                                          |                                           | image labels (the published images record   |
+|                                          |                                           | the full patch release). In the hardened    |
+|                                          |                                           | flavor Python comes from ``BASE_IMAGE``:    |
+|                                          |                                           | leave it empty, and a version that does not |
+|                                          |                                           | match ``BASE_IMAGE`` fails the build. In    |
+|                                          |                                           | the legacy flavor it is                     |
 |                                          |                                           | the version compiled from sources:          |
 |                                          |                                           | ``MAJOR.MINOR`` builds the latest release   |
 |                                          |                                           | of that line.                               |
