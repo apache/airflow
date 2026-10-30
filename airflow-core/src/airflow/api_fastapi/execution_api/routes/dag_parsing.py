@@ -45,12 +45,10 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
-    _reject_other_teams_plugin_classes,
     is_source_discovery_failed,
     update_dag_parsing_results_in_db,
     validate_dag_bundle_ownership,
 )
-from airflow.exceptions import DeserializationError
 from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
@@ -59,7 +57,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.sdk.importers.base import DagSourceCode  # noqa: SDK001
-from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
+from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Coroutine
@@ -132,7 +130,7 @@ def _validate_job(job_id: int, token, *, session: Session, for_update: bool = Tr
     "/{job_id}/parse-results",
     responses=create_openapi_http_exception_doc(
         [
-            (status.HTTP_403_FORBIDDEN, "The bundle or a Dag's plugin is not granted, or the Job has ended"),
+            (status.HTTP_403_FORBIDDEN, "The bundle is not granted, or the Job has ended"),
             status.HTTP_404_NOT_FOUND,
             status.HTTP_409_CONFLICT,
             status.HTTP_413_CONTENT_TOO_LARGE,
@@ -188,16 +186,6 @@ def publish_parse_result(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}
         ) from error
-    if len(_reject_other_teams_plugin_classes(body.bundle_name, dags, {}, session=session)) != len(dags):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "plugin_not_granted"})
-    try:
-        for dag in dags:
-            DagSerialization.validate_serialized_dag(dag.data)
-    except (DeserializationError, ValueError, TypeError, KeyError) as error:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail={"reason": "invalid_dag", "message": str(error)},
-        ) from error
 
     # Dags missing from an accepted result go stale in the same transaction. DB mode waits
     # stale_dag_threshold because its manager compares file and Dag parse times written separately;
@@ -248,6 +236,7 @@ def publish_parse_result(
             atomic=True,
             enforce_bundle_ownership=True,
             resolve_bundle_paths=False,
+            validate_serialized_dags=True,
             session=session,
         )
     except DagPublicationValidationError as error:
