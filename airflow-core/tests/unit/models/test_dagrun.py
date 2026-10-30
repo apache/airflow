@@ -6144,6 +6144,54 @@ def test_get_running_dag_runs_to_examine_does_not_starve_backfill_runs(dag_maker
     assert "starved_backfill_dag" in examined_dag_ids
 
 
+@pytest.mark.parametrize(
+    ("ti_state", "ti_updated_at_offset", "exclude", "expected"),
+    [
+        pytest.param(TaskInstanceState.SUCCESS, 1, False, True, id="finished-after-decision"),
+        pytest.param(TaskInstanceState.UPSTREAM_FAILED, 1, False, True, id="upstream-failed-after-decision"),
+        pytest.param(TaskInstanceState.SUCCESS, -1, False, False, id="finished-before-decision"),
+        pytest.param(TaskInstanceState.RUNNING, 1, False, False, id="unfinished"),
+        pytest.param(TaskInstanceState.SUCCESS, 1, True, False, id="excluded"),
+    ],
+)
+def test_get_running_dag_runs_with_finished_tis(
+    dag_maker, session, ti_state, ti_updated_at_offset, exclude, expected
+):
+    with dag_maker("dag_with_finished_ti", session=session):
+        EmptyOperator(task_id="task")
+    dr = dag_maker.create_dagrun()
+    dr.last_scheduling_decision = DEFAULT_DATE
+    ti = dr.get_task_instance("task", session=session)
+    ti.state = ti_state
+    ti.updated_at = DEFAULT_DATE + datetime.timedelta(minutes=ti_updated_at_offset)
+    session.commit()
+
+    runs = DagRun.get_running_dag_runs_with_finished_tis(
+        session=session, exclude_ids=[dr.id] if exclude else [], eagerly_load_dag_tags=False
+    ).all()
+
+    assert runs == ([dr] if expected else [])
+
+
+def test_get_running_dag_runs_with_finished_tis_eager_loads_dag_tags(dag_maker, session):
+    with dag_maker("eager_tag_dag", tags=["env:prod"], session=session):
+        EmptyOperator(task_id="task")
+    dr = dag_maker.create_dagrun()
+    dr.last_scheduling_decision = DEFAULT_DATE
+    ti = dr.get_task_instance("task", session=session)
+    ti.state = TaskInstanceState.SUCCESS
+    ti.updated_at = DEFAULT_DATE + datetime.timedelta(minutes=1)
+    session.commit()
+    session.expunge_all()
+
+    (dr,) = DagRun.get_running_dag_runs_with_finished_tis(
+        session=session, exclude_ids=[], eagerly_load_dag_tags=True
+    )
+
+    assert "dag_model" not in sa_inspect(dr).unloaded
+    assert "tags" not in sa_inspect(dr.dag_model).unloaded
+
+
 class TestClearPartitionRuns:
     """Direct unit tests for the clear_partition_runs model-layer function."""
 
