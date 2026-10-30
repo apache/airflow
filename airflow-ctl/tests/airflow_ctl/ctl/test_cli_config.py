@@ -359,6 +359,19 @@ class TestCommandFactory:
 
         assert list_type("dag1, dag2") == ["dag1", "dag2"]
 
+    def test_group_commands_is_stable_across_repeated_access(self):
+        """Reading ``group_commands`` twice must not duplicate groups or subcommands."""
+        command_factory = CommandFactory()
+
+        # Snapshot the names and sizes rather than the list itself: both accesses
+        # hand back the same object, so only values captured before the second
+        # access can witness it mutating them.
+        first = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+        second = [(group.name, len(group.subcommands)) for group in command_factory.group_commands]
+
+        assert second == first
+        assert len(second) == len({name for name, _ in second})
+
     def test_json_dict_type_returns_dict_input_unchanged(self):
         """A dict input is returned as-is without re-parsing."""
         value = {"my-key": "my-value"}
