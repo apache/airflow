@@ -1164,11 +1164,11 @@ Refreshing the base images before a release
 
 The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
 Python patch releases. Only the "Upgrade important CI environment" check moves those pins, to images the
-mirror already has. Before cutting a release, mirror the latest base images and then run the upgrade check
-for the release branch. Both commands wait until their workflow run completes and fail when it does not
-succeed.
+mirror already has, so it runs before every beta (for ``main``) and every RC (for the release branch).
+Both commands below wait until their workflow runs complete and fail when one does not succeed. They need
+``gh`` credentials that may dispatch ``apache/airflow`` workflows, and check that first.
 
-``breeze workflow-run mirror-base-images`` always runs the mirror on ``main``. The mirror is shared by all
+``breeze workflow-run mirror-base-images`` runs the mirror on ``main``. The mirror is shared by all
 branches, and ``main`` mirrors every Python version an active release branch still builds on.
 
 These are all available flags of ``workflow-run mirror-base-images`` command:
@@ -1179,7 +1179,9 @@ These are all available flags of ``workflow-run mirror-base-images`` command:
   :alt: Breeze workflow-run mirror-base-images
 
 ``breeze workflow-run upgrade-check`` runs the upgrade check for a branch, by default the branch breeze
-comes from. When anything moved, it opens an upgrade PR against the branch.
+comes from. The check mirrors the base images first - ``breeze ci upgrade`` does that before it upgrades
+the important versions, locally as well as in CI, unless ``--no-mirror-base-images`` is passed. When
+anything moved, it opens an upgrade PR against the branch.
 
 These are all available flags of ``workflow-run upgrade-check`` command:
 

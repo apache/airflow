@@ -129,30 +129,30 @@ introduced have it already. An older release branch only behaves this way once t
 `ci-amd.yml` / `ci-arm.yml` that introduced it has been backported to it; until then it keeps
 running the full CI on every push.
 
-### Before cutting an RC: refresh the base images and the important CI versions
+### Before cutting a beta or an RC: refresh the base images and the important CI versions
 
 The images are built on hardened Python base images pinned to digests, and the legacy images compile
 a pinned Python patch release. Only the "Upgrade important CI environment" check moves those pins,
-and it moves them only to images the mirror already has. Run both commands below before you cut an
-RC or a beta, so the release ships with the latest base images, Python patch releases and their
-security fixes. Do it before the full-run check in the next section, because merging the upgrade PR
-moves the branch HEAD.
+so a release ships with the latest base images, Python patch releases and their security fixes only
+when the check ran right before it. Run it at these two points:
 
-Both commands wait until their workflow run completes and fail when it does not succeed:
+- **Beta**: for `main`, before you fast-forward `vX-Y-test` to `main` for the beta (see
+  [Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)) - during the beta phase
+  `vX-Y-test` takes its changes only from `main`.
+- **RC**: for `vX-Y-test`, before you open the PR syncing `vX-Y-test` into `vX-Y-stable`, and before
+  the full-run check in the next section, because merging the upgrade PR moves the branch HEAD.
 
 ```shell script
-breeze workflow-run mirror-base-images
-breeze workflow-run upgrade-check --branch vX-Y-test
+breeze workflow-run upgrade-check --branch main        # beta
+breeze workflow-run upgrade-check --branch vX-Y-test   # RC
 ```
 
-The first mirrors the latest hardened base images. The mirror is shared by all branches, so it
-always runs on `main`. The second runs the upgrade check for the branch (by default the branch your
-breeze comes from), which opens a `[vX-Y-test] Upgrade important CI environment` PR when anything
-moved, and no PR when nothing did. Merge that PR once its CI has passed.
-
-During the beta phase `vX-Y-test` only takes changes from `main` (see
-[Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)). Run the upgrade check with
-`--branch main` instead, merge the upgrade PR there, and only then fast-forward `vX-Y-test`.
+The upgrade check first runs the "Mirror hardened base images" workflow on `main` (the mirror is
+shared by all branches), so it pins the images Docker published last. The command waits until both
+workflow runs complete and fails when either does not succeed. It needs `gh` credentials that may
+dispatch `apache/airflow` workflows. When anything moved, it opens a
+`[<branch>] Upgrade important CI environment` PR, and no PR when nothing did. Merge that PR once its
+CI has passed, before you go on with the release.
 
 ### Before cutting an RC: check the full run of the branch HEAD
 
@@ -196,9 +196,12 @@ released from `vX-Y-test` only: there is no `vX-Y-stable` branch yet and therefo
 PR exists only to carry changes from `vX-Y-test` into `vX-Y-stable` for an `rc`/final), and there is
 no vote.
 
-1. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
+1. Run the upgrade check for `main` and merge its PR, as described in
+   [Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions),
+   then fast-forward `vX-Y-test` to `main`.
+2. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
    `vX-Y-test` is exactly what the beta should ship.
-2. Run:
+3. Run:
 
    ```shell script
    breeze release-management start-beta-process \
@@ -493,9 +496,8 @@ Before cutting an RC, we should look at the milestone and merge anything ready, 
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
-**Before you build the artifacts**, mirror the hardened base images and run the upgrade check for the
-branch, as described in
-[Before cutting an RC: refresh the base images and the important CI versions](#before-cutting-an-rc-refresh-the-base-images-and-the-important-ci-versions).
+**Before you build the artifacts**, run the upgrade check, as described in
+[Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions).
 
 > [!IMPORTANT]
 > When you start the release candidates of a major/minor release that went through beta releases
@@ -663,6 +665,10 @@ still works but is no longer recommended.
 - Commit the release note change.
 
 - PR from the 'test' branch to the 'stable' branch
+
+  Before you open it, run the upgrade check for `vX-Y-test` and merge its PR, as described in
+  [Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions),
+  so the release is built on the latest base images.
 
   Cherry-picked commits often include provider dependency bumps (changes to `>=` constraints on
   `apache-airflow-providers-*` packages in `pyproject.toml`). CI blocks such changes by default —

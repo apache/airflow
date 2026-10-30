@@ -71,6 +71,11 @@ def test_upgrade_has_floor_flag():
     assert option.default is True
 
 
+def test_upgrade_mirrors_the_base_images_by_default():
+    option = next(p for p in upgrade.params if p.name == "mirror_base_images")
+    assert option.default is True
+
+
 def test_upgrade_has_latest_package_managers_flag():
     option = next(p for p in upgrade.params if p.name == "latest_package_managers")
     assert option.default is False

@@ -32,6 +32,8 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: write
   pull-requests: write
+  # Dispatches the "Mirror hardened base images" workflow before the upgrade pins its images.
+  actions: write
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}

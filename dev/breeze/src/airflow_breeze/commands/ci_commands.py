@@ -63,6 +63,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.fork_compare import get_fork_changes, get_fork_pull_request_labels, is_fork_push
+from airflow_breeze.utils.gh_workflow_utils import mirror_hardened_base_images
 from airflow_breeze.utils.git_remotes import find_remote, find_remote_for_repo, get_remotes
 from airflow_breeze.utils.github import format_github_token_scope_guidance, retrieve_github_token
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, AIRFLOW_ROOT_PATH
@@ -814,6 +815,14 @@ def build_update_pr_body_command(branch_name: str, pr_body: str) -> list[str]:
     help="Raise the floors of the curated dependencies in [tool.airflow.dependency-floors]",
 )
 @click.option(
+    "--mirror-base-images/--no-mirror-base-images",
+    default=True,
+    show_default=True,
+    help="Mirror the latest hardened base images (a workflow run on main) before upgrading important "
+    "versions, so the upgrade can pin them. Needs gh credentials that may dispatch apache/airflow "
+    "workflows",
+)
+@click.option(
     "--update-uv-lock/--no-update-uv-lock",
     default=True,
     show_default=True,
@@ -847,6 +856,7 @@ def upgrade(
     update_chart_dependencies: bool,
     upgrade_important_versions: bool,
     upgrade_dependency_floors: bool,
+    mirror_base_images: bool,
     update_uv_lock: bool,
     k8s_schema_sync: bool,
     latest_package_managers: bool,
@@ -1007,6 +1017,10 @@ def upgrade(
         upgrade_dependency_floors=upgrade_dependency_floors,
         update_uv_lock=update_uv_lock,
     )
+
+    # The upgrade pins the base images to the digests the mirror serves, so the mirror has to be current.
+    if step_enabled["upgrade-important-versions"] and mirror_base_images:
+        mirror_hardened_base_images("apache/airflow", hint="Or skip it with --no-mirror-base-images.")
 
     # Execute upgrade commands
     for step_name, command in UPGRADE_COMMANDS:

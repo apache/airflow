@@ -25,8 +25,10 @@ import pytest
 
 from airflow_breeze.utils.gh_workflow_utils import (
     NEW_RUN_TIMEOUT_SECONDS,
+    check_can_dispatch_workflows,
     get_latest_workflow_run_id,
     get_staging_only_commits,
+    mirror_hardened_base_images,
     monitor_workflow_run,
     trigger_workflow_and_monitor,
     wait_for_new_workflow_run,
@@ -162,4 +164,53 @@ def test_get_staging_only_commits_formats_sha_date_and_subject(mock_run_gh_comma
         "gh",
         "api",
         "repos/apache/airflow-site/compare/main...staging",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "allowed"),
+    [
+        pytest.param(0, "true\n", True, id="write-access"),
+        pytest.param(0, "false\n", False, id="read-only"),
+        pytest.param(1, "", False, id="not-logged-in"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.run_gh_command", autospec=True)
+def test_check_can_dispatch_workflows_needs_write_access(
+    mock_run_gh_command, monkeypatch, returncode, stdout, allowed
+):
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    mock_run_gh_command.return_value = subprocess.CompletedProcess(
+        args=[], returncode=returncode, stdout=stdout, stderr=""
+    )
+
+    with contextlib.nullcontext() if allowed else pytest.raises(SystemExit):
+        check_can_dispatch_workflows("apache/airflow", hint="")
+
+
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.run_gh_command", autospec=True)
+def test_check_can_dispatch_workflows_trusts_the_job_permissions_in_github_actions(
+    mock_run_gh_command, monkeypatch
+):
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+
+    check_can_dispatch_workflows("apache/airflow", hint="")
+
+    mock_run_gh_command.assert_not_called()
+
+
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.trigger_workflow_and_monitor", autospec=True)
+@mock.patch("airflow_breeze.utils.gh_workflow_utils.check_can_dispatch_workflows", autospec=True)
+def test_mirror_hardened_base_images_runs_the_mirror_on_main_after_the_check(mock_check, mock_trigger):
+    calls = mock.Mock()
+    calls.attach_mock(mock_check, "check")
+    calls.attach_mock(mock_trigger, "trigger")
+
+    mirror_hardened_base_images("apache/airflow", hint="hint")
+
+    assert calls.mock_calls == [
+        mock.call.check("apache/airflow", "hint"),
+        mock.call.trigger(
+            workflow_name="mirror-hardened-base-images.yml", repo="apache/airflow", branch="main"
+        ),
     ]

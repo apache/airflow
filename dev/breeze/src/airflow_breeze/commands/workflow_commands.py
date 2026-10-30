@@ -31,7 +31,11 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.custom_param_types import BetterChoice
-from airflow_breeze.utils.gh_workflow_utils import get_staging_only_commits, trigger_workflow_and_monitor
+from airflow_breeze.utils.gh_workflow_utils import (
+    get_staging_only_commits,
+    mirror_hardened_base_images,
+    trigger_workflow_and_monitor,
+)
 from airflow_breeze.utils.github import run_gh_command
 from airflow_breeze.utils.packages import (
     expand_all_provider_distributions,
@@ -47,7 +51,6 @@ WORKFLOW_NAME_MAPS = {
     "sync-s3-to-github": "s3-to-github.yml",
     "release-constraints": "release-constraints.yml",
     "reset-staging": "reset-staging.yml",
-    "mirror-base-images": "mirror-hardened-base-images.yml",
 }
 
 # Every branch the upgrade check runs for has a scheduled workflow of its own on main.
@@ -497,20 +500,14 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
     help="Mirror the latest hardened base images and wait until they are mirrored.",
 )
 def workflow_run_mirror_base_images():
-    console_print("[blue]Mirroring the latest hardened base images[/blue]")
-    # Every branch builds on the same Python lines, and a mirror run from main copies the latest patch
-    # release of each, so there is no need to mirror per branch.
-    trigger_workflow_and_monitor(
-        workflow_name=WORKFLOW_NAME_MAPS["mirror-base-images"],
-        repo=APACHE_AIRFLOW_REPO,
-        branch="main",
-    )
+    mirror_hardened_base_images(APACHE_AIRFLOW_REPO)
 
 
 @workflow_run_group.command(
     name="upgrade-check",
     help="Run the 'Upgrade important CI environment' check for a branch and wait until it completes. "
-    "It opens an upgrade PR against the branch when anything moved - run 'mirror-base-images' first.",
+    "The check mirrors the latest hardened base images first, and opens an upgrade PR against the "
+    "branch when anything moved.",
 )
 @click.option(
     "--branch",

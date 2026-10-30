@@ -394,14 +394,12 @@ class TestSyncStagingToMain:
         assert mock_trigger.call_count == 2
 
 
-@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
-def test_mirror_base_images_always_runs_on_main(mock_trigger):
+@patch("airflow_breeze.commands.workflow_commands.mirror_hardened_base_images", autospec=True)
+def test_mirror_base_images_runs_the_mirror(mock_mirror):
     result = CliRunner().invoke(workflow_run_mirror_base_images, [], catch_exceptions=False)
 
     assert result.exit_code == 0
-    mock_trigger.assert_called_once_with(
-        workflow_name="mirror-hardened-base-images.yml", repo="apache/airflow", branch="main"
-    )
+    mock_mirror.assert_called_once_with("apache/airflow")
 
 
 @pytest.mark.parametrize(
