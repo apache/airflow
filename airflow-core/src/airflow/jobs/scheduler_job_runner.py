@@ -91,7 +91,7 @@ from airflow.models.asset import (
     TaskInletAssetReference,
     TaskOutletAssetReference,
     alias_association_table,
-    consumed_by_dag,
+    build_consumed_by_dag_clause,
     insert_asset_dag_run_queue_rows,
 )
 from airflow.models.asset_state_store import AssetStateStoreModel
@@ -318,7 +318,7 @@ def _create_scheduler_dag_bag() -> CachedDBDagBag:
     )
 
 
-def _scheduled_asset_event(dag_id: str) -> ColumnElement[bool]:
+def _build_scheduled_asset_event_clause(dag_id: str) -> ColumnElement[bool]:
     """Check whether an asset event is of an asset the Dag schedules on, directly or via an alias."""
     return or_(
         AssetEvent.asset_id.in_(
@@ -2937,7 +2937,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.scalars(
                 select(AssetDagRunQueue.asset_event_id).where(
                     AssetDagRunQueue.target_dag_id == dag.dag_id,
-                    consumed_by_dag(dag.dag_id, AssetDagRunQueue.asset_event_id),
+                    build_consumed_by_dag_clause(dag.dag_id, AssetDagRunQueue.asset_event_id),
                 )
             )
         )
@@ -2981,10 +2981,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .exists()
         )
         if dag.catchup:
-            event_predicate |= _scheduled_asset_event(dag.dag_id)
+            event_predicate |= _build_scheduled_asset_event_clause(dag.dag_id)
         return session.scalars(
             select(AssetEvent)
-            .where(event_predicate, ~consumed_by_dag(dag.dag_id, AssetEvent.id))
+            .where(event_predicate, ~build_consumed_by_dag_clause(dag.dag_id, AssetEvent.id))
             .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             .limit(limit)
         ).all()
@@ -3013,7 +3013,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             stmt = delete(AssetDagRunQueue).where(
                 AssetDagRunQueue.target_dag_id == dag.dag_id,
                 AssetDagRunQueue.asset_event_id.in_(chunk),
-                consumed_by_dag(dag.dag_id, AssetDagRunQueue.asset_event_id),
+                build_consumed_by_dag_clause(dag.dag_id, AssetDagRunQueue.asset_event_id),
             )
             deleted += cast("CursorResult", session.execute(stmt)).rowcount
         self.log.info("Deleted %d ADRQ rows for '%s'", deleted, dag.dag_id)
@@ -3143,7 +3143,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 .label("event_rank"),
             )
-            .where(_scheduled_asset_event(dag_id), ~consumed_by_dag(dag_id, AssetEvent.id))
+            .where(
+                _build_scheduled_asset_event_clause(dag_id),
+                ~build_consumed_by_dag_clause(dag_id, AssetEvent.id),
+            )
             .subquery()
         )
         queued = (

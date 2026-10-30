@@ -62,7 +62,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
-from airflow.models.asset import AssetDagRunQueue, consumed_by_dag
+from airflow.models.asset import AssetDagRunQueue, build_consumed_by_dag_clause
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -740,7 +740,7 @@ class DagModel(Base):
         for adrq, consumed in session.execute(
             select(
                 AssetDagRunQueue,
-                consumed_by_dag(AssetDagRunQueue.target_dag_id, AssetDagRunQueue.asset_event_id),
+                build_consumed_by_dag_clause(AssetDagRunQueue.target_dag_id, AssetDagRunQueue.asset_event_id),
             ).options(
                 joinedload(AssetDagRunQueue.dag_model),
                 joinedload(AssetDagRunQueue.asset),
