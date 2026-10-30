@@ -220,6 +220,9 @@ def _dag_bag_from_serialized(session):
 
 
 def _assert_serialization_leaves_ti_collections_unloaded(dag_run, *, old_dag_version, new_dag_version):
+    session = sa_inspect(dag_run).session
+    session.expire(dag_run, ["task_instances", "historical_task_instances"])
+    dag_run._prefetched_dag_version_ids = None
     serialized = DAGRunResponse.model_validate(dag_run)
     unloaded = sa_inspect(dag_run).unloaded
     assert "task_instances" in unloaded
@@ -3852,10 +3855,13 @@ class TestTriggerDagRun:
             session=session,
             request=mock.Mock(headers={}),
         )
-        DAGRunResponse.model_validate(dag_run)
+        session.expire(dag_run, ["task_instances", "historical_task_instances"])
+        dag_run._prefetched_dag_version_ids = None
+        serialized = DAGRunResponse.model_validate(dag_run)
         unloaded = sa_inspect(dag_run).unloaded
         assert "task_instances" in unloaded
         assert "historical_task_instances" in unloaded
+        assert serialized.dag_versions
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(

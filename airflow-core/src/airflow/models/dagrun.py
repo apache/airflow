@@ -615,7 +615,7 @@ class DagRun(Base, LoggingMixin):
             .execution_options(include_all_attempts=True)
         ).all()
         version_ids = {r.dag_version_id for r in rows}
-        versions_by_id = {}
+        versions_by_id: dict[UUID, DagVersion] = {}
         if version_ids:
             versions_by_id = {
                 dv.id: dv

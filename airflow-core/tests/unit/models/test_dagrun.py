@@ -31,6 +31,7 @@ from uuid import UUID
 import pendulum
 import pytest
 import time_machine
+import uuid6
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -1908,7 +1909,7 @@ class TestDagRun:
         dag_id = "test_transient_dag_versions"
         with DAG(dag_id=dag_id, schedule=None, start_date=DEFAULT_DATE):
             task = EmptyOperator(task_id="empty")
-        v1 = DagVersion(dag_id=dag_id, version_number=1, bundle_name="testing")
+        v1 = DagVersion(id=uuid6.uuid7(), dag_id=dag_id, version_number=1, bundle_name="testing")
         dag_run = DagRun(dag_id=dag_id, run_id="manual", run_type=DagRunType.MANUAL)
         ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=v1.id)
         ti.dag_version = v1
