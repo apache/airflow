@@ -26,6 +26,7 @@ from contextlib import closing
 from functools import cached_property
 from importlib import resources as importlib_resources
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
@@ -118,8 +119,14 @@ class AdbcHook(DbApiHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Get custom field behaviour."""
         return {
-            "hidden_fields": ["port", "schema"],
-            "relabeling": {"host": "Connection URL"},
+            "hidden_fields": [],
+            "relabeling": {"host": "Host or URI", "schema": "Database"},
+            "placeholders": {
+                "host": "db.example.com, or postgresql://user:pass@db.example.com:5432/db",
+                "port": "5432",
+                "schema": "db",
+                "extra": '{"dialect": "postgresql"}',
+            },
         }
 
     @cached_property
@@ -149,14 +156,30 @@ class AdbcHook(DbApiHook):
 
     @cached_property
     def uri(self) -> str:
-        host = self.connection.host
-        if host and "::" in str(host):
-            return str(host)
-        uri = self.get_uri()
-        return uri.replace(
-            f"{self.conn_type.lower().replace('_', '-')}://",
-            f"{self.dialect_name.lower().replace('_', '-')}://",
-        )
+        """
+        Return the URI handed to the driver.
+
+        A host that already is a URI or a path (``postgresql://user:pass@host:5432/db``,
+        ``file::memory:``, ``:memory:``, ``/data/app.db``) is passed through unchanged. Otherwise the
+        URI is built as ``<dialect>://login:password@host:port/schema`` from the connection's fields.
+        Airflow's own connection URI is of no use here: its query string carries the extras, which
+        drivers such as libpq refuse as unknown parameters.
+        """
+        host = self.connection.host or ""
+        if "://" in host or "::" in host or host.startswith(("/", ":", "file:")):
+            return host
+        uri = f"{self.dialect_name.lower().replace('_', '-')}://"
+        if self.connection.login:
+            uri += quote(self.connection.login, safe="")
+            if self.connection.password:
+                uri += f":{quote(self.connection.password, safe='')}"
+            uri += "@"
+        uri += host
+        if self.connection.port:
+            uri += f":{self.connection.port}"
+        if self.connection.schema:
+            uri += f"/{quote(self.connection.schema, safe='')}"
+        return uri
 
     @cached_property
     def driver(self) -> str:
