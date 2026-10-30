@@ -200,27 +200,8 @@ class AwsDuckDBHook(DuckDBHook):
             return explicit
         return self.connection_extra.get("endpoint_url") or self.aws_hook.conn_config.endpoint_url
 
-    def get_conn(self) -> DuckDBPyConnection:
-        """Return a DuckDB connection, and log the AWS identity once to help debug S3 ``HTTP 403`` errors."""
-        conn = super().get_conn()
-        if self._aws_identity_looked_up:
-            return conn
-        self._aws_identity_looked_up = True
-        try:
-            if self.credential_strategy != "none" and not self.get_s3_endpoint_url():
-                # Keeps an unreachable STS endpoint from delaying the task by more than a few seconds.
-                bounded = Config(connect_timeout=2, read_timeout=2, retries={"total_max_attempts": 1})
-                config = self.aws_hook.config.merge(bounded)
-                sts_hook = StsHook(
-                    aws_conn_id=self.aws_conn_id, region_name=self.get_region_name(), config=config
-                )
-                self.log.info("AWS identity: %s", sts_hook.get_conn().get_caller_identity()["Arn"])
-        except Exception as error:  # Not BaseException: a task timeout must still stop the task.
-            self.log.debug("Could not look up the AWS identity: %s", error)
-        return conn
-
     def configure_secrets(self, conn: DuckDBPyConnection) -> None:
-        """Create the DuckDB S3 secret for this connection."""
+        """Create the DuckDB S3 secret for this connection, and log the AWS identity it uses."""
         strategy = self.credential_strategy
         if strategy == "none":
             self.log.debug("credential_strategy is 'none'; not creating a DuckDB S3 secret.")
@@ -254,6 +235,39 @@ class AwsDuckDBHook(DuckDBHook):
                 self.secret_name,
                 error,
             )
+
+        self._log_aws_identity(strategy, region, endpoint_url)
+
+    def _log_aws_identity(
+        self, strategy: CredentialStrategy, region: str | None, endpoint_url: str | None
+    ) -> None:
+        """Log the AWS identity once per hook, to help debug S3 ``HTTP 403`` errors."""
+        if self._aws_identity_looked_up:
+            return
+        self._aws_identity_looked_up = True
+        try:
+            if endpoint_url:
+                host = urlsplit(endpoint_url if "//" in endpoint_url else f"//{endpoint_url}").hostname or ""
+                if not host.endswith((".amazonaws.com", ".amazonaws.com.cn")):
+                    return  # Not AWS (e.g. MinIO), so no AWS identity applies.
+            aws_config = self.aws_hook.config
+            bounded = Config(
+                # Keeps an unreachable STS endpoint from delaying the task by more than a few seconds.
+                connect_timeout=2,
+                read_timeout=2,
+                retries={"total_max_attempts": 1},
+                # Caller names only the operator (_PythonDecoratedOperator for @task), so name the hook too.
+                user_agent_extra=f"AwsDuckDBHook {aws_config.user_agent_extra or ''}".strip(),
+            )
+            sts_hook = StsHook(
+                # DuckDB's credential chain ignores the connection's credentials, so boto3 has to as well.
+                aws_conn_id=self.aws_conn_id if strategy == "config" else None,
+                region_name=region,
+                config=aws_config.merge(bounded),
+            )
+            self.log.info("AWS identity: %s", sts_hook.get_conn().get_caller_identity()["Arn"])
+        except Exception as error:  # Not BaseException: a task timeout must still stop the task.
+            self.log.debug("Could not look up the AWS identity: %s", error)
 
     def _provider_clauses(self, strategy: CredentialStrategy) -> list[str]:
         if strategy == "credential_chain":

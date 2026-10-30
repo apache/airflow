@@ -21,6 +21,7 @@ from unittest import mock
 
 import duckdb
 import pytest
+from botocore.config import Config
 from botocore.exceptions import EndpointConnectionError
 
 from airflow.models.connection import Connection
@@ -31,6 +32,8 @@ from airflow.providers.duckdb.operators.duckdb import DuckDBExecuteQueryOperator
 GET_CONNECTION = "airflow.providers.amazon.aws.hooks.duckdb.AwsDuckDBHook.get_connection"
 AWS_BASE_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.AwsBaseHook"
 STS_HOOK = "airflow.providers.amazon.aws.hooks.duckdb.StsHook"
+ARN = "arn:aws:sts::123456789012:assumed-role/airflow-worker/session"
+S3_VPC_ENDPOINT = "https://bucket.vpce-1a2b3c4d-5e6f.s3.us-east-1.vpce.amazonaws.com"
 
 try:
     from airflow.sdk.exceptions import AirflowNotFoundException
@@ -310,17 +313,52 @@ class TestAwsDuckDBHookConnectionOverrides:
 
 
 class TestAwsDuckDBHookIdentityLookup:
-    @pytest.mark.usefixtures("aws_base_hook", "no_duckdb_connection")
-    @mock.patch.object(AwsDuckDBHook, "configure_secrets", autospec=True)
-    @mock.patch.object(AwsDuckDBHook, "load_extensions", autospec=True)
+    @pytest.mark.usefixtures("no_duckdb_connection")
+    @pytest.mark.parametrize(
+        ("hook_kwargs", "sts_conn_id"),
+        [
+            pytest.param({}, None, id="credential-chain"),
+            pytest.param({"credential_strategy": "config"}, "aws_default", id="config"),
+            pytest.param({"s3_endpoint_url": S3_VPC_ENDPOINT}, None, id="s3-vpc-endpoint"),
+        ],
+    )
     @mock.patch(STS_HOOK, autospec=True)
-    def test_lookup_is_tried_once_and_its_failure_is_ignored(self, mock_sts_hook, *_):
+    def test_identity_is_logged(self, mock_sts_hook, aws_base_hook, hook_kwargs, sts_conn_id):
+        aws_base_hook.config = Config(user_agent_extra="from-connection")
+        mock_sts_hook.return_value.get_conn.return_value.get_caller_identity.return_value = {"Arn": ARN}
+
+        with mock.patch.object(AwsDuckDBHook, "log") as mock_log:
+            AwsDuckDBHook(**hook_kwargs).configure_secrets(mock.MagicMock(spec=duckdb.DuckDBPyConnection))
+
+        mock_sts_hook.assert_called_once_with(
+            aws_conn_id=sts_conn_id, region_name="us-west-2", config=mock.ANY
+        )
+        assert mock_sts_hook.call_args.kwargs["config"].user_agent_extra == "AwsDuckDBHook from-connection"
+        mock_log.info.assert_any_call("AWS identity: %s", ARN)
+
+    @pytest.mark.usefixtures("aws_base_hook", "no_duckdb_connection")
+    @pytest.mark.parametrize(
+        "hook_kwargs",
+        [
+            pytest.param({"credential_strategy": "none"}, id="no-s3-secret"),
+            pytest.param({"s3_endpoint_url": "http://minio:9000"}, id="s3-compatible-endpoint"),
+        ],
+    )
+    @mock.patch(STS_HOOK, autospec=True)
+    def test_lookup_is_skipped_without_aws_s3(self, mock_sts_hook, hook_kwargs):
+        AwsDuckDBHook(**hook_kwargs).configure_secrets(mock.MagicMock(spec=duckdb.DuckDBPyConnection))
+
+        mock_sts_hook.assert_not_called()
+
+    @pytest.mark.usefixtures("aws_base_hook", "no_duckdb_connection")
+    @mock.patch(STS_HOOK, autospec=True)
+    def test_lookup_is_tried_once_and_its_failure_is_ignored(self, mock_sts_hook):
         get_caller_identity = mock_sts_hook.return_value.get_conn.return_value.get_caller_identity
         get_caller_identity.side_effect = EndpointConnectionError(endpoint_url="https://sts.amazonaws.com")
         hook = AwsDuckDBHook()
+        conn = mock.MagicMock(spec=duckdb.DuckDBPyConnection)
 
-        conn = hook.get_conn()
-        hook.get_conn()
+        hook.configure_secrets(conn)
+        hook.configure_secrets(conn)
 
-        assert conn.execute("SELECT 42").fetchone() == (42,)
         get_caller_identity.assert_called_once_with()
