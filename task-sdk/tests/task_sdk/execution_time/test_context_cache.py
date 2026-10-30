@@ -79,7 +79,7 @@ class TestConnectionCacheIntegration:
         result = _get_connection(conn_id)
         assert result.conn_id == conn_id
         assert result.conn_type == "mysql"
-        mock_backend.get_connection.assert_called_once_with(conn_id=conn_id)
+        mock_backend.get_connection.assert_called_once_with(conn_id=conn_id, team_name=None)
 
         cached_uri = SecretCache.get_connection_uri(conn_id)
         cached_conn = Connection.from_uri(cached_uri, conn_id=conn_id)
@@ -180,7 +180,7 @@ class TestVariableCacheIntegration:
 
         result = _get_variable(key, deserialize_json=False)
         assert result == value
-        mock_backend.get_variable.assert_called_once_with(key=key)
+        mock_backend.get_variable.assert_called_once_with(key=key, team_name=None)
         cached_value = SecretCache.get_variable(key)
         assert cached_value == value
 
