@@ -29,9 +29,12 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
 
+import { useHasGridSelection } from "src/context/gridSelection";
 import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { dagId = "", runId = "" } = useParams();
   const { i18n, t: translate } = useTranslation();
   const { formatElapsed } = useDurationFormat();
@@ -75,15 +78,17 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
   return (
     <HeaderCard
       actions={
-        <ClearTaskInstanceButton
-          allMapped
-          bg="bg"
-          dagId={dagId}
-          dagRunId={runId}
-          isHotkeyEnabled
-          taskId={taskInstance.task_id}
-          variant="outline"
-        />
+        hasGridSelection ? undefined : (
+          <ClearTaskInstanceButton
+            allMapped
+            bg="bg"
+            dagId={dagId}
+            dagRunId={runId}
+            isHotkeyEnabled
+            taskId={taskInstance.task_id}
+            variant="outline"
+          />
+        )
       }
       icon={<MdOutlineTask />}
       state={taskInstance.state}

@@ -488,7 +488,12 @@ class SnowflakeHook(DbApiHook):
         This is used in ``get_uri()`` and ``get_conn()``.
         """
         static_config = self._get_static_conn_params
-        conn_config = dict(static_config)
+        conn_config: dict[str, Any] = dict(static_config)
+        # snowflake-connector-python < 5 merges the server's session parameters, AUTOCOMMIT among them, into
+        # the dict it is given, and _has_autocommit_session_parameter() reads that dict, hence the copy.
+        # Connector 5 leaves the dict alone, so the copy can go once the minimum version is 5.
+        if isinstance(conn_config.get("session_parameters"), dict):
+            conn_config["session_parameters"] = dict(conn_config["session_parameters"])
 
         if conn_config.get("authenticator") == "oauth":
             azure_conn_id = conn_config.get("azure_conn_id")

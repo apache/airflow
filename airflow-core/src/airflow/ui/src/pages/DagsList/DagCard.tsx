@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -31,7 +31,6 @@ import { TeamName } from "src/components/TeamName";
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
 import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
-import { isStatePending, useAutoRefresh } from "src/utils";
 
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
@@ -64,8 +63,6 @@ export const DagCard = ({
     revealedKeys,
     revealKey: dag.dag_id,
   });
-
-  const refetchInterval = useAutoRefresh({});
 
   return (
     <Box
@@ -124,9 +121,6 @@ export const DagCard = ({
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
-                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
-                  <Spinner />
-                ) : undefined}
               </RouterLink>
             ) : undefined}
           </Stat>

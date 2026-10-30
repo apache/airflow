@@ -38,6 +38,30 @@ from airflow_breeze.utils.path_utils import (
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+# RunsOn (runs-on.com) EC2 runner label templates. Jobs fill in their size class with
+# `format(<label>, cpu, ram)` in the workflow; the same call leaves the public labels unchanged.
+# `spot=co` (capacity-optimized) takes Spot from the pools least likely to run out or be reclaimed
+# instead of RunsOn's default price-capacity-optimized: a capacity miss or an interruption sends the
+# runner to on-demand (and reruns the whole job), which costs more than the higher Spot price.
+RUNS_ON_AMD_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}"
+)
+RUNS_ON_ARM_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={{0}}/ram={{1}}"
+)
+# The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
+# databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
+# ask for memory headroom and also accept the memory-optimized r-family.
+RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i"
+    "/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
+RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
 
 # Platform the tests of a CI run execute on.
 CI_AMD_PLATFORM = "linux/amd64"
@@ -943,6 +967,42 @@ NUMBER_OF_LOW_DEP_SLICES = 5
 
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
+
+# Slice counts on the self-hosted RunsOn runners. Jobs using `--run-in-parallel` run one serial pytest per
+# test type, so a job never uses more CPUs than it has test types. The core jobs are bound by their slowest
+# test type and the Non-DB xdist collection gets enough memory on RunsOn, so one slice only removes jobs.
+# Low dep providers run on 32-CPU runners and the heaviest test types start first, so about 40 test types per
+# job keep those CPUs busy while the short ones fill in around the long ones.
+NUMBER_OF_CORE_SLICES_ON_RUNS_ON = 1
+LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON = 40
+
+# On RunsOn the longest-running providers are split further in the individually listed provider test types,
+# so every part runs in its own pytest process: `Providers[<id>:<part>]` runs the listed paths (relative to the
+# provider's `tests` folder), and `Providers[<id>:other]` runs the rest of the provider's tests.
+PROVIDER_TEST_SPLITS: dict[str, dict[str, list[str]]] = {
+    "amazon": {
+        "hooks": ["unit/amazon/aws/hooks"],
+        "operators": ["unit/amazon/aws/operators"],
+    },
+    "google": {
+        "cloud-hooks": ["unit/google/cloud/hooks"],
+        "cloud-operators": ["unit/google/cloud/operators"],
+    },
+    "standard": {
+        "decorators": ["unit/standard/decorators"],
+        "python": ["unit/standard/operators/test_python.py"],
+    },
+}
+PROVIDER_TEST_SPLIT_OTHER_PART = "other"
+
+
+def get_provider_split_test_types(provider_id: str) -> list[str]:
+    """Test types running the tests of a split provider, or the provider's single test type."""
+    parts = PROVIDER_TEST_SPLITS.get(provider_id)
+    if not parts:
+        return [f"Providers[{provider_id}]"]
+    return [f"Providers[{provider_id}:{part}]" for part in [*parts, PROVIDER_TEST_SPLIT_OTHER_PART]]
+
 
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone

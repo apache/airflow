@@ -294,10 +294,6 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context):
         pass
 
-    @staticmethod
-    def _get_settings_version(instance):
-        return instance.get(SETTINGS).get(SETTINGS_VERSION)
-
 
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     """

@@ -1,0 +1,765 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "t_declared": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_empty_hook": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_extractor_empty_declared": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_hook_scoped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_dag": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_hook_rule": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_sql_dropped": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_dataset": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_dataset_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_query": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_emit_query_all_excluded": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_failed": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "t_after_failed": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/hook_scoped_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/hook_scoped_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_declared"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/hook_scoped_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/hook_scoped_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_declared"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "extractor://source",
+                "name": "hook_scoped_in"
+            },
+            {
+                "namespace": "extractor://source",
+                "name": "keep_in"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "extractor://source",
+                "name": "hook_scoped_out"
+            },
+            {
+                "namespace": "extractor://source",
+                "name": "keep_out"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_all_excluded"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_all_excluded"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_empty_hook"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_empty_hook"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_empty_declared"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_extractor_empty_declared"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_hook_scoped"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/dag_excluded_in.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/dag_excluded_out.txt"
+            },
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_hook_scoped"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag.hll_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag.hll_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag.hll_query.2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dag.hll_query.2"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_hook_rule"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_hook_rule"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_excluded_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_hook_rule.hll_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_excluded_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_hook_rule.hll_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded.hll_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded.hll_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded.hll_query.2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_all_excluded.hll_query.2"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped.hll_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped.hll_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped.hll_query.2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_sql_dropped.hll_query.2"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset"
+        }
+    },
+    {
+        "eventType": "RUNNING",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "hook_scoped_in"
+            },
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "hook_scoped_out"
+            },
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset_all_excluded"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset_all_excluded"
+        }
+    },
+    {
+        "eventType": "RUNNING",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_dataset_all_excluded"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            },
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            },
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query.manual_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            },
+            {
+                "name": "{{ result.endswith('sql_keep_in') }}"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            },
+            {
+                "name": "{{ result.endswith('sql_keep_out') }}"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query.manual_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded.manual_query.1"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded.manual_query.1"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded.manual_query.2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_in"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "emit://source",
+                "name": "keep_out"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_emit_query_all_excluded.manual_query.2"
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_failed"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "inputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_in.txt"
+            }
+        ],
+        "outputs": [
+            {
+                "namespace": "file://host1",
+                "name": "/keep_out.txt"
+            }
+        ],
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_failed"
+        }
+    },
+    {
+        "$absent": "the task failed",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_failed"
+        }
+    },
+    {
+        "$absent": "an EmptyOperator never runs on a worker, so it emits no events",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_after_failed"
+        }
+    },
+    {
+        "$absent": "an EmptyOperator never runs on a worker, so it emits no events",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_after_failed"
+        }
+    },
+    {
+        "$absent": "an EmptyOperator never runs on a worker, so it emits no events",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_exclude_datasets_sources_dag.t_after_failed"
+        }
+    }
+]

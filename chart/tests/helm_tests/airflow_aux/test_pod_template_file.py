@@ -1456,14 +1456,6 @@ class TestPodTemplateFile:
 
         assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
 
-    def test_kerberos_init_container_default_different_versions(self):
-        docs = render_chart(
-            show_only=["templates/pod-template-file.yaml"],
-            chart_dir=self.temp_chart_dir,
-        )
-
-        assert jmespath.search("spec.initContainers[?name=='kerberos-init']", docs[0]) is None
-
     def test_kerberos_init_container_enable(self):
         docs = render_chart(
             values={

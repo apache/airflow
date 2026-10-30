@@ -57,28 +57,6 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetAlias
 
 
-def fetch_active_assets_by_name(names: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
-    return {
-        asset_model.name: asset_model.to_serialized()
-        for asset_model in session.scalars(
-            select(AssetModel)
-            .join(AssetActive, AssetActive.name == AssetModel.name)
-            .where(AssetActive.name.in_(names))
-        )
-    }
-
-
-def fetch_active_assets_by_uri(uris: Iterable[str], session: Session) -> dict[str, SerializedAsset]:
-    return {
-        asset_model.uri: asset_model.to_serialized()
-        for asset_model in session.scalars(
-            select(AssetModel)
-            .join(AssetActive, AssetActive.uri == AssetModel.uri)
-            .where(AssetActive.uri.in_(uris))
-        )
-    }
-
-
 def expand_alias_to_assets(alias_name: str, *, session: Session) -> Iterable[AssetModel]:
     """Expand asset alias to resolved assets."""
     asset_alias_obj = session.scalar(

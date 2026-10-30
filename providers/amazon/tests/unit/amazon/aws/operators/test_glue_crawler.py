@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.operators.glue_crawler import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -157,6 +158,24 @@ class TestGlueCrawlerRunOperator:
         assert result == mock_crawler_name
         mock_start_crawler.assert_called_once_with(op.hook, mock_crawler_name)
         mock_wait.assert_not_called()
+
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
+    @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
+    @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
+    def test_execute_deferrable_wait_combinations(self, mock_start_crawler, mock_wait, wait_for_completion):
+        op = GlueCrawlerRunOperator(
+            task_id="run_crawler",
+            crawler_name=mock_crawler_name,
+            wait_for_completion=wait_for_completion,
+            deferrable=True,
+        )
+        op.defer = mock.MagicMock(spec=op.defer)
+
+        with expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion):
+            op.execute({})
+
+        mock_wait.assert_not_called()
+        op.defer.assert_called_once()
 
     @mock.patch.object(GlueCrawlerHook, "wait_for_crawler_completion", autospec=True)
     @mock.patch.object(GlueCrawlerHook, "start_crawler", autospec=True)
@@ -332,7 +351,8 @@ class TestGlueCrawlerOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(True, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(GlueCrawlerHook, "get_waiter")
@@ -341,10 +361,11 @@ class TestGlueCrawlerOperator:
         self.op.wait_for_completion = wait_for_completion
         self.op.deferrable = deferrable
 
-        response = self.op.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.op.execute({})
 
         assert response == mock_crawler_name
-        assert crawler_hook.get_waiter.call_count == wait_for_completion
+        assert crawler_hook.get_waiter.call_count == (wait_for_completion and not deferrable)
         assert self.op.defer.call_count == deferrable
 
     def test_template_fields(self):
