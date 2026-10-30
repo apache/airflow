@@ -196,3 +196,29 @@ def test_mirror_reports_moving_past_the_pins(mock_latest, previous_digest, new_d
 
     assert result.exit_code == 0
     assert github_output.read_text() == f"moved-past-pins={expected}\n"
+
+
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.CURRENT_PYTHON_MAJOR_MINOR_VERSIONS", ["3.14"]
+)
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.ALL_PYTHON_MAJOR_MINOR_VERSIONS", ["3.13", "3.14"]
+)
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.get_latest_hardened_python_patchlevel",
+    autospec=True,
+    return_value=None,
+)
+def test_mirror_covers_the_python_versions_release_branches_still_use(mock_latest):
+    registry = FakeRegistry({})
+    with mock.patch(
+        "airflow_breeze.commands.release_management_commands.run_command",
+        autospec=True,
+        side_effect=registry,
+    ):
+        result = CliRunner().invoke(
+            mirror_base_images, [], env={"GITHUB_OUTPUT": None}, catch_exceptions=False
+        )
+
+    assert result.exit_code == 0
+    assert {source.split(":")[1].rsplit(".", 1)[0] for source in registry.sources} == {"3.13", "3.14"}

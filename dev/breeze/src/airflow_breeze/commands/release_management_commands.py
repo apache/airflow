@@ -92,6 +92,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
@@ -5294,7 +5295,9 @@ def copy_image(source: str, targets: list[str]) -> bool:
 @option_verbose
 @option_dry_run
 def mirror_base_images(python: str | None):
-    python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    # Only main mirrors, so it covers every Python version an active release branch still builds on,
+    # not only the ones main itself uses.
+    python_versions = ALL_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
     failed: list[str] = []
     # Tags this run moved to an image other than the one the builds are pinned to. Only a move counts:
     # a pin that was already behind has had its upgrade triggered by the run that moved the tag.

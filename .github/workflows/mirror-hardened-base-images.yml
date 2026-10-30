@@ -47,14 +47,10 @@ jobs:
     name: "Mirror hardened base images"
     runs-on: ["ubuntu-22.04"]
     # Never runs on forks - they have neither the credentials nor the package to push to. Only main
-    # and the v3-*-test release branches may push: the mirror is the default BASE_IMAGE of every
-    # build, so a manual dispatch from any other branch must not be able to replace it.
-    if: >-
-      github.repository == 'apache/airflow' && (
-        github.ref == 'refs/heads/main' || (
-          startsWith(github.ref, 'refs/heads/v3-') && endsWith(github.ref, '-test')
-        )
-      )
+    # pushes: the mirror is the default BASE_IMAGE of every build, so a manual dispatch from any other
+    # branch must not be able to replace it. Main mirrors every Python version an active release
+    # branch still builds on, so the release branches need no runs of their own.
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
     permissions:
       actions: write
       contents: read
@@ -84,13 +80,11 @@ jobs:
       - name: "Mirror base images"
         id: mirror
         run: breeze release-management mirror-base-images
-      # Release branches pin their own digests and move them on their own upgrade schedule. Also after
-      # a failed mirror step: a tag it moved before failing stays moved, so a re-run would not see it
+      # Only main's pins: release branches move theirs on their own upgrade schedule. Also after a
+      # failed mirror step: a tag it moved before failing stays moved, so a re-run would not see it
       # move again.
       - name: "Trigger the upgrade check to move the pinned base images"
-        if: >-
-          !cancelled() && steps.mirror.outputs.moved-past-pins == 'true' &&
-          github.ref == 'refs/heads/main'
+        if: "!cancelled() && steps.mirror.outputs.moved-past-pins == 'true'"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run scheduled-upgrade-check-main.yml --repo "${GITHUB_REPOSITORY}" --ref main
