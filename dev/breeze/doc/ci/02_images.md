@@ -429,7 +429,7 @@ can be used for CI images:
 
 | Build argument                    | Default value               | Description                                                                                                       |
 |-----------------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<AIRFLOW_PYTHON_VERSION>-debian13-dev` | Mirror of the hardened base image Python comes from                                           |
+| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<AIRFLOW_PYTHON_VERSION>-debian13-dev@<digest>` | Mirror of the hardened base image Python comes from, pinned to a digest by `breeze ci upgrade` |
 | `PYTHON_MAJOR_MINOR_VERSION`      | `3.11`                      | major/minor version of Python (should match base image)                                                           |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                         | increasing this number will reinstall all apt dependencies                                                        |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                             | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                |

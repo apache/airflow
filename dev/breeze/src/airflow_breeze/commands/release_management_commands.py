@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import glob
 import itertools
+import json
 import operator
 import os
 import random
@@ -102,6 +103,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
+    HARDENED_PYTHON_IMAGE_DIGESTS,
     HARDENED_PYTHON_IMAGE_MIRROR,
     HARDENED_PYTHON_IMAGE_SOURCE,
     MULTI_PLATFORM,
@@ -111,6 +113,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_hardened_python_base_image,
+    get_hardened_python_image_retention_tag,
     get_hardened_python_image_tag,
     get_task_sdk_version,
     get_ts_sdk_version,
@@ -5261,6 +5264,28 @@ def get_latest_hardened_python_patchlevel(
     return max(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
 
 
+def get_image_digest(image: str) -> str | None:
+    """Return the digest of an image's (multi-platform) manifest in its registry, or None if absent."""
+    result = run_command(
+        ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{json .Manifest}}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return None
+    return json.loads(result.stdout)["digest"]
+
+
+def copy_image(source: str, targets: list[str]) -> bool:
+    console_print(f"[info]Mirroring {source} -> {', '.join(targets)}[/]")
+    # imagetools copies the multi-platform manifest registry-to-registry, so the layers never travel
+    # through the machine running this.
+    tag_flags = [flag for target in targets for flag in ("--tag", target)]
+    result = run_command(["docker", "buildx", "imagetools", "create", *tag_flags, source], check=False)
+    return result.returncode == 0
+
+
 @release_management_group.command(
     name="mirror-base-images",
     help="Mirror the hardened Python base images Airflow builds on to Airflow's public registry.",
@@ -5271,39 +5296,61 @@ def get_latest_hardened_python_patchlevel(
 def mirror_base_images(python: str | None):
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
     failed: list[str] = []
+    # Tags this run moved to an image other than the one the builds are pinned to. Only a move counts:
+    # a pin that was already behind has had its upgrade triggered by the run that moved the tag.
+    moved: list[str] = []
     # Every Debian version is mirrored: the CI image and the default PROD image use the first one, the
     # others are still available to build PROD images on.
     for python_version, debian_version in itertools.product(python_versions, ALLOWED_DEBIAN_VERSIONS):
         tag = get_hardened_python_image_tag(python_version, debian_version)
-        source = f"{HARDENED_PYTHON_IMAGE_SOURCE}:{tag}"
         # The floating major/minor tag is what documentation and ad-hoc builds refer to, so that they
         # do not have to be edited on every Python patch release.
         floating_tag = tag.replace(
             ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version), python_version, 1
         )
-        targets = [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}", f"{HARDENED_PYTHON_IMAGE_MIRROR}:{floating_tag}"]
-        copies = [(source, targets)]
+        copies = [(tag, [floating_tag])]
         pinned = ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version)
         latest = get_latest_hardened_python_patchlevel(python_version, debian_version)
         if latest and latest != pinned:
-            latest_tag = tag.replace(pinned, latest, 1)
-            copies.append(
-                (
-                    f"{HARDENED_PYTHON_IMAGE_SOURCE}:{latest_tag}",
-                    [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{latest_tag}"],
-                )
-            )
-        for copy_source, copy_targets in copies:
-            console_print(f"[info]Mirroring {copy_source} -> {', '.join(copy_targets)}[/]")
-            # imagetools copies the multi-platform manifest registry-to-registry, so the layers never
-            # travel through the machine running this.
-            tag_flags = [flag for target in copy_targets for flag in ("--tag", target)]
-            result = run_command(
-                ["docker", "buildx", "imagetools", "create", *tag_flags, copy_source],
-                check=False,
-            )
-            if result.returncode != 0:
-                failed.append(copy_source)
+            copies.append((tag.replace(pinned, latest, 1), []))
+        for copy_tag, extra_tags in copies:
+            mirrored = f"{HARDENED_PYTHON_IMAGE_MIRROR}:{copy_tag}"
+            targets = [mirrored, *(f"{HARDENED_PYTHON_IMAGE_MIRROR}:{extra}" for extra in extra_tags)]
+            previous_digest = get_image_digest(mirrored)
+            if not copy_image(f"{HARDENED_PYTHON_IMAGE_SOURCE}:{copy_tag}", targets):
+                failed.append(copy_tag)
+                continue
+            digest = get_image_digest(mirrored)
+            if digest is None:
+                continue
+            if digest != previous_digest and digest != HARDENED_PYTHON_IMAGE_DIGESTS.get(copy_tag):
+                moved.append(copy_tag)
+            # The moving tag is replaced by the next refresh, which would leave the digest an upgrade
+            # PR is testing untagged.
+            if not copy_image(
+                f"{mirrored}@{digest}",
+                [
+                    f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_retention_tag(copy_tag, digest)}"
+                ],
+            ):
+                failed.append(f"{copy_tag}@{digest}")
+        # The builds keep using the pinned digest after the moving tag has moved on, so it stays tagged
+        # too - also when it was pinned before this command started tagging digests.
+        pinned_digest = HARDENED_PYTHON_IMAGE_DIGESTS.get(tag)
+        if pinned_digest and not copy_image(
+            f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}@{pinned_digest}",
+            [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_retention_tag(tag, pinned_digest)}"],
+        ):
+            failed.append(f"{tag}@{pinned_digest}")
+    if moved:
+        console_print(
+            f"[warning]The mirror moved past the pinned base images for: {', '.join(moved)}. "
+            "Run 'breeze ci upgrade' to move the pins.[/]"
+        )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as output_file:
+            output_file.write(f"moved-past-pins={'true' if moved else 'false'}\n")
     if failed:
         console_print(f"[error]Failed to mirror: {', '.join(failed)}[/]")
         sys.exit(1)

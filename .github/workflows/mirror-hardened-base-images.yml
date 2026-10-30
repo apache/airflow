@@ -27,13 +27,15 @@ name: Mirror hardened base images
 #
 # `docker buildx imagetools create` copies the multi-platform manifest between registries without
 # pulling the layers into the runner, so a refresh of all Python versions is cheap.
+#
+# The builds do not use these moving tags: they are pinned to digests that only "breeze ci upgrade"
+# moves, in a PR that has to pass the full CI. Docker rebuilds the images in place and moves the
+# dhi.io apt repository on together with them, so a pin left behind soon stops matching what apt
+# installs. A run that moves a tag past its pin therefore triggers that upgrade check, and the pins
+# follow Docker's rebuilds within hours.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
   schedule:
-    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags, and moves the
-    # dhi.io apt repository on at the same time. A stale mirror then cannot install packages whose
-    # dependencies were rebuilt (docker-hardened-images/catalog#689), so it is refreshed several
-    # times a day rather than weekly.
     - cron: '27 */6 * * *'
 permissions:
   contents: read
@@ -54,6 +56,7 @@ jobs:
         )
       )
     permissions:
+      actions: write
       contents: read
       packages: write
     steps:
@@ -79,4 +82,15 @@ jobs:
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
       - name: "Mirror base images"
+        id: mirror
         run: breeze release-management mirror-base-images
+      # Release branches pin their own digests and move them on their own upgrade schedule. Also after
+      # a failed mirror step: a tag it moved before failing stays moved, so a re-run would not see it
+      # move again.
+      - name: "Trigger the upgrade check to move the pinned base images"
+        if: >-
+          !cancelled() && steps.mirror.outputs.moved-past-pins == 'true' &&
+          github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run scheduled-upgrade-check-main.yml --repo "${GITHUB_REPOSITORY}" --ref main

@@ -963,11 +963,17 @@ previous images that can matter when you extend or run the image are:
   ``dpkg`` keeps the image's copy of a configuration file without asking - also in images that extend
   it. A package upgrade therefore does not replace a configuration file that differs from the
   package's version.
-* **The tags are rebuilt in place.** Docker republishes the same tags as CVEs are fixed, and Airflow
-  refreshes its mirror every six hours, so rebuilding an image from the same ``BASE_IMAGE`` tag can pick up
-  a newer base. The mirror also copies the newest Python patch release Docker publishes, and Airflow's
-  regular dependency upgrade moves the pinned patch level to it, so the images follow Docker's releases
-  rather than python.org's.
+* **The tags are rebuilt in place, so the default is pinned to a digest.** Docker republishes the same tags
+  as CVEs are fixed, and Airflow refreshes its mirror every six hours, so building from a tag alone can pick
+  up a newer base at any time. The default ``BASE_IMAGE`` therefore names the digest as well, and Airflow's
+  regular dependency upgrade moves it - in a pull request that has to pass the full CI before the new base
+  is used. Pass a tag without a digest to build on the newest mirrored base instead. The mirror also copies
+  the newest Python patch release Docker publishes, and the same upgrade moves the pinned patch level to it,
+  so the images follow Docker's releases rather than python.org's.
+* **Packages come from Docker's apt repository first.** The image keeps stock Debian's apt sources beside
+  ``dhi.io``, and ``/etc/apt/preferences.d/airflow-prefer-dhi`` ranks ``dhi.io`` higher, so apt installs
+  Docker's build of a package whenever ``dhi.io`` publishes it and falls back to Debian's otherwise - also
+  in images that extend it.
 
 .. _image-legacy-flavor:
 

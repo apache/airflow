@@ -54,7 +54,9 @@ ARG AIRFLOW_VERSION="3.3.2"
 # image are based on it, so Python is never compiled during the build.
 #
 # The default is Airflow's public mirror of the upstream "dhi.io/python" image, so building needs no
-# registry credentials. The upstream image itself requires a "docker login dhi.io".
+# registry credentials. The upstream image itself requires a "docker login dhi.io". It is pinned to a
+# digest, because the mirror's tags move several times a day: "breeze ci upgrade" moves the pin once
+# the full CI has passed on the new image.
 #
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
@@ -64,7 +66,7 @@ ARG AIRFLOW_VERSION="3.3.2"
 # BASE_IMAGE is then a plain Debian image (for example "debian:bookworm-slim") and Python
 # AIRFLOW_PYTHON_VERSION is downloaded from python.org, verified and compiled from sources.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.16-debian13-dev@sha256:2b8a45bc49c1398c8ef8e9092b9a2d028a878e7229f5ff86913f551a089372b3"
 ARG AIRFLOW_PYTHON_VERSION="3.13.16"
 
 # You can swap comments between those two args to test pip from the main version
@@ -307,6 +309,18 @@ function keep_image_conffiles() {
     printf '%s\n' force-confdef force-confold > /etc/dpkg/dpkg.cfg.d/airflow-keep-conffiles
 }
 
+function prefer_hardened_apt_repository() {
+    # The hardened base images take their packages from dhi.io, but stock Debian's sources stay
+    # configured beside it and apt installs whichever repository offers the higher version. Debian's
+    # build of a package then replaces Docker's, and its dependencies no longer match the packages the
+    # image ships (docker-hardened-images/catalog#610). Ranking dhi.io above the default priority of
+    # 500 makes apt take Docker's build whenever dhi.io publishes the package, and fall back to Debian
+    # only when it does not. Staying below 1000 means apt never downgrades an installed package for it.
+    # The preference covers every apt run - this build's and those of images extending it.
+    mkdir -p /etc/apt/preferences.d
+    printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 900\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
 function refresh_ldconfig_after_dpkg() {
     # The hardened base images ship libc-bin without its dpkg trigger, so installing a shared library
     # does not refresh the ldconfig cache and ctypes.util.find_library() - which reads that cache -
@@ -366,6 +380,7 @@ function align_perl_base_with_perl() {
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
@@ -630,6 +645,7 @@ function install_python() {
 function install_debian_runtime_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
+        prefer_hardened_apt_repository
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
