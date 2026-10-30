@@ -22,7 +22,7 @@ import logging
 import os
 import re
 from collections import defaultdict
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass, field, fields, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar, cast, overload
@@ -64,6 +64,7 @@ from sqlalchemy.orm import (
     declared_attr,
     joinedload,
     mapped_column,
+    object_session,
     relationship,
     synonym,
     validates,
@@ -598,19 +599,55 @@ class DagRun(Base, LoggingMixin):
             partition_date=self.partition_date,
         )
 
+    @classmethod
+    def fetch_dag_versions_for_runs(
+        cls, run_keys: Collection[tuple[str, str]], *, session: Session
+    ) -> dict[tuple[str, str], dict[UUID, DagVersion]]:
+        """Distinct DagVersions per (dag_id, run_id) across current and archived attempts, one query."""
+        from airflow.models.dag_version import DagVersion
+
+        if not run_keys:
+            return {}
+        rows = session.execute(
+            select(TI.dag_id, TI.run_id, TI.dag_version_id.label("dag_version_id"))
+            .where(TI.dag_version_id.is_not(None), tuple_(TI.dag_id, TI.run_id).in_(list(run_keys)))
+            .distinct()
+            .execution_options(include_all_attempts=True)
+        ).all()
+        version_ids = {r.dag_version_id for r in rows}
+        versions_by_id = {}
+        if version_ids:
+            versions_by_id = {
+                dv.id: dv
+                for dv in session.scalars(
+                    select(DagVersion)
+                    .where(DagVersion.id.in_(version_ids))
+                    .options(joinedload(DagVersion.bundle))
+                )
+            }
+        out: dict[tuple[str, str], dict[UUID, DagVersion]] = defaultdict(dict)
+        for r in rows:
+            if dv := versions_by_id.get(r.dag_version_id):
+                out[(r.dag_id, r.run_id)][dv.id] = dv
+        return out
+
     @property
     def dag_versions(self) -> list[DagVersion]:
-        """Return the DAG versions associated with the TIs of this DagRun."""
-        # Always derive from actual TI/TIH versions.
+        """Return the DAG versions used by any attempt of this DagRun, current or archived."""
+        versions: Iterable[DagVersion | None]
         if self._prefetched_dag_version_ids is not None:
-            dag_version_objects = list(self._prefetched_dag_version_ids.values())
+            versions = self._prefetched_dag_version_ids.values()
+        elif (session := object_session(self)) is not None:
+            # One DISTINCT query; never loads task_instances / historical_task_instances.
+            versions = (
+                self.fetch_dag_versions_for_runs([(self.dag_id, self.run_id)], session=session)
+                .get((self.dag_id, self.run_id), {})
+                .values()
+            )
         else:
-            dag_version_objects = [
-                dv
-                for dv in dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
-                if dv is not None
-            ]
-        return sorted(dag_version_objects, key=lambda dv: dv.id)
+            # Transient run (e.g. built in memory in tests): use the in-memory relationships.
+            versions = dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
+        return sorted((dv for dv in versions if dv is not None), key=lambda dv: dv.id)
 
     @property
     def version_number(self) -> int | None:

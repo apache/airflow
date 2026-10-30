@@ -150,7 +150,6 @@ def get_dag_run(dag_id: str, dag_run_id: str, session: SessionDep) -> DAGRunResp
             status.HTTP_404_NOT_FOUND,
             f"The DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
         )
-    attach_dag_versions_to_runs([dag_run], session=session)
     return dag_run
 
 
@@ -249,7 +248,6 @@ def patch_dag_run(
     if not final_dag_run:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dag run not found after update")
 
-    attach_dag_versions_to_runs([final_dag_run], session=session)
     return final_dag_run
 
 

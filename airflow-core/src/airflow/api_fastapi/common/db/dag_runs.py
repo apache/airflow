@@ -17,12 +17,10 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
-from uuid import UUID
 
-from sqlalchemy import func, select, tuple_
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.interfaces import LoaderOption
 
@@ -30,7 +28,6 @@ from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -70,17 +67,7 @@ def eager_load_dag_run_for_list() -> tuple[LoaderOption, ...]:
 
 def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session) -> None:
     """
-    Prefetch distinct dag_version_ids for each DagRun via a lightweight query.
-
-    Instead of loading all attempt rows (potentially thousands per run)
-    through the ORM relationship just to extract distinct dag_version_ids,
-    this issues a single query that returns only the distinct
-    (dag_id, run_id, dag_version_id) tuples for the given runs.
-
-    The result is attached to each DagRun as ``_prefetched_dag_version_ids``
-    (a dict mapping version_id -> DagVersion), which the ``dag_versions``
-    property reads as an optimized substitute for traversing attempt
-    relationships. Sorting and deduplication remain in ``DagRun.dag_versions``.
+    Batch-prefetch dag versions for many runs in one query (list/grid endpoints).
 
     Bundle-versioned runs are included: after a ``run_on_latest_version``
     clear they can keep older versions on uncleared TIs or archived attempts,
@@ -88,38 +75,6 @@ def attach_dag_versions_to_runs(dag_runs: Sequence[DagRun], *, session: Session)
     """
     if not dag_runs:
         return
-
-    run_key_values = [(dr.dag_id, dr.run_id) for dr in dag_runs]
-
-    rows = session.execute(
-        select(
-            TaskInstance.dag_id,
-            TaskInstance.run_id,
-            TaskInstance.dag_version_id.label("dag_version_id"),
-        )
-        .where(
-            TaskInstance.dag_version_id.is_not(None),
-            tuple_(TaskInstance.dag_id, TaskInstance.run_id).in_(run_key_values),
-        )
-        .distinct()
-        .execution_options(include_all_attempts=True)
-    ).all()
-
-    all_version_ids = {r.dag_version_id for r in rows}
-    versions_by_id: dict[UUID, DagVersion] = {}
-    if all_version_ids:
-        dv_query = (
-            select(DagVersion)
-            .where(DagVersion.id.in_(all_version_ids))
-            .options(joinedload(DagVersion.bundle))
-        )
-        versions_by_id = {dv.id: dv for dv in session.scalars(dv_query)}
-
-    versions_per_run: dict[tuple[str, str], dict[UUID, DagVersion]] = defaultdict(dict)
-    for row in rows:
-        dv = versions_by_id.get(row.dag_version_id)
-        if dv:
-            versions_per_run[(row.dag_id, row.run_id)][dv.id] = dv
-
+    per_run = DagRun.fetch_dag_versions_for_runs([(dr.dag_id, dr.run_id) for dr in dag_runs], session=session)
     for dr in dag_runs:
-        dr._prefetched_dag_version_ids = versions_per_run.get((dr.dag_id, dr.run_id), {})
+        dr._prefetched_dag_version_ids = per_run.get((dr.dag_id, dr.run_id), {})

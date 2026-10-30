@@ -1815,11 +1815,16 @@ class TestDagRun:
         assert tis["0"].dag_version_id == new_dag_version.id
         assert tis["1"].dag_version_id == old_dag_version.id
 
+        session.expire(dag_run, ["task_instances", "historical_task_instances"])
+        dag_run._prefetched_dag_version_ids = None
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "historical_task_instances" in unloaded
         version_ids = {dv.id for dv in dag_run.dag_versions}
         assert version_ids == {old_dag_version.id, new_dag_version.id}
+        assert "task_instances" in sa_inspect(dag_run).unloaded
+        assert "historical_task_instances" in sa_inspect(dag_run).unloaded
 
-        # Grid/UI path: attach must prefetch mixed versions even when bundle_version is set.
-        dag_run._prefetched_dag_version_ids = None
         attach_dag_versions_to_runs([dag_run], session=session)
         assert dag_run._prefetched_dag_version_ids is not None
         assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
@@ -1883,14 +1888,32 @@ class TestDagRun:
         )
         assert old_dag_version.id in archived_version_ids
 
+        session.expire(dag_run, ["task_instances", "historical_task_instances"])
+        dag_run._prefetched_dag_version_ids = None
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "historical_task_instances" in unloaded
         version_ids = {dv.id for dv in dag_run.dag_versions}
         assert version_ids == {old_dag_version.id, new_dag_version.id}
+        assert "task_instances" in sa_inspect(dag_run).unloaded
+        assert "historical_task_instances" in sa_inspect(dag_run).unloaded
 
-        dag_run._prefetched_dag_version_ids = None
         attach_dag_versions_to_runs([dag_run], session=session)
         assert dag_run._prefetched_dag_version_ids is not None
         assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
         assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+    def test_dag_run_dag_versions_transient_run_uses_relationships(self):
+        """A DagRun not attached to a session reads versions from in-memory relationships."""
+        dag_id = "test_transient_dag_versions"
+        with DAG(dag_id=dag_id, schedule=None, start_date=DEFAULT_DATE):
+            task = EmptyOperator(task_id="empty")
+        v1 = DagVersion(dag_id=dag_id, version_number=1, bundle_name="testing")
+        dag_run = DagRun(dag_id=dag_id, run_id="manual", run_type=DagRunType.MANUAL)
+        ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=v1.id)
+        ti.dag_version = v1
+        dag_run.task_instances.append(ti)
+        assert {dv.id for dv in dag_run.dag_versions} == {v1.id}
 
     @pytest.mark.parametrize(
         "interval",
