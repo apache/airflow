@@ -343,7 +343,10 @@ def format_trigger_error(exc: list[str] | None) -> str:
     """
     if not exc:
         return "The trigger exited without yielding an event"
-    return str(redact(exc[-1].strip()))[:TRIGGER_ERROR_MAX_LENGTH]
+    error = str(redact(exc[-1].strip()))[:TRIGGER_ERROR_MAX_LENGTH]
+    # Escape what a text column refuses (NUL on Postgres, a lone surrogate in UTF-8), as repr() would, so
+    # writing the failure cannot raise out of the triggerer's loop.
+    return error.replace("\x00", "\\x00").encode("utf-8", "backslashreplace").decode("utf-8")
 
 
 @attrs.define

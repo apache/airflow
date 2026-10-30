@@ -4038,6 +4038,8 @@ class TestTriggerFailureRecording:
             ),
             pytest.param(None, "The trigger exited without yielding an event", id="no-exception"),
             pytest.param([f"ValueError: {'x' * 5000}\n"], f"ValueError: {'x' * 988}", id="truncated"),
+            pytest.param(["ValueError: a\x00b\n"], "ValueError: a\\x00b", id="nul-escaped"),
+            pytest.param(["ValueError: a\udcffb\n"], "ValueError: a\\udcffb", id="lone-surrogate-escaped"),
         ],
     )
     def test_format_trigger_error(self, exc, expected):
