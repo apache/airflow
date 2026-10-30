@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/databricks>
+    Connection types <connections/index>
     Operators <operators/index>
     Toolsets <toolsets/index>
     Plugins <plugins/index>
@@ -157,7 +157,7 @@ Extra               Dependencies
 ``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
 ``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
 ``azure-identity``  ``azure-identity>=1.25.3``
-``common.ai``       ``apache-airflow-providers-common-ai[mcp]>=1.0.0``, ``fastmcp-slim[client]>=4.0.0``
+``common.ai``       ``apache-airflow-providers-common-ai[mcp,openai]>=1.0.0``, ``fastmcp-slim[client]>=4.0.0``
 ``fab``             ``apache-airflow-providers-fab>=2.2.0``
 ``google``          ``apache-airflow-providers-google>=10.24.0``
 ``sdk``             ``databricks-sdk==0.10.0``

@@ -90,7 +90,7 @@ dependencies = [
     "azure-identity>=1.25.3",
 ]
 "common.ai" = [
-    "apache-airflow-providers-common-ai[mcp]>=1.0.0",
+    "apache-airflow-providers-common-ai[mcp,openai]>=1.0.0",
     # 3.x is built on httpx and MCP SDK 1.x; the toolset needs the httpx2 and MCP SDK 2.x of 4.0.
     "fastmcp-slim[client]>=4.0.0",
 ]
