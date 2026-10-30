@@ -152,6 +152,19 @@ describe("FieldArray", () => {
     expect(mockParamsDict.test_param.value).toStrictEqual([1, 2, 3]);
   });
 
+  it("removes only the clicked chip when two chips have the same value", () => {
+    mockParamsDict.test_param = {
+      schema: { items: { type: "string" }, type: "array" },
+      value: ["dup", "dup", "other"],
+    };
+
+    render(<FieldArray name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getAllByLabelText("Remove dup")[0] as HTMLElement);
+
+    expect(mockParamsDict.test_param.value).toStrictEqual(["dup", "other"]);
+  });
+
   it("stores null when the last chip is removed", () => {
     mockParamsDict.test_param = {
       schema: { items: { type: "string" }, type: "array" },

@@ -26,9 +26,11 @@ import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 import type { FlexibleFormElementProps } from ".";
 import { parseArrayElement, type ArrayElement } from "./parseArrayElement";
 
-type ChipOption = { label: string; value: ArrayElement };
+type ChipOption = { index: number; label: string; value: ArrayElement };
 
-const toChip = (value: ArrayElement): ChipOption => ({ label: String(value), value });
+const toChip = (value: ArrayElement, index: number): ChipOption => ({ index, label: String(value), value });
+
+const getChipIdentity = (chip: ChipOption): string => String(chip.index);
 
 export const FieldArray = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
@@ -118,6 +120,7 @@ export const FieldArray = ({ name, namespace = "default", onUpdate }: FlexibleFo
           }),
         }}
         components={{ DropdownIndicator: null }}
+        getOptionValue={getChipIdentity}
         id={`element_${name}`}
         inputValue={inputValue}
         isClearable
