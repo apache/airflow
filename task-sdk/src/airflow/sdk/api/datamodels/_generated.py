@@ -652,7 +652,7 @@ class VariablePostBody(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    val: Annotated[str | None, Field(title="Val")]
+    val: Annotated[str, Field(title="Val")]
     description: Annotated[str | None, Field(title="Description")] = None
 
 
@@ -665,7 +665,7 @@ class VariableResponse(BaseModel):
         extra="forbid",
     )
     key: Annotated[str, Field(title="Key")]
-    value: Annotated[str | None, Field(title="Value")]
+    value: Annotated[str, Field(title="Value")]
 
 
 class XComResponse(BaseModel):

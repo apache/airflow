@@ -94,11 +94,6 @@ describe("getVariableOrThrow", () => {
     const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
   });
-
-  it("throws VariableNotFoundError on a null-valued result", async () => {
-    const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
-    await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
-  });
 });
 
 describe("setVariable", () => {
