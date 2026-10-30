@@ -336,6 +336,30 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec):
     assert base_start.call_args.kwargs["target"] == TriggerRunnerSupervisor.run_in_process
 
 
+@pytest.mark.parametrize("platform_uses_exec", [True, False])
+def test_start_freezes_gc_before_bare_fork(monkeypatch, mocker, platform_uses_exec):
+    """On bare-fork platforms the runner is forked with the GC frozen and left frozen, so a later
+    full GC can't split the COW-shared pages; when the child execs there is no sharing, so skip it."""
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: platform_uses_exec)
+    mock_gc = mocker.patch("airflow.jobs.triggerer_job_runner.gc", autospec=True)
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    manager = mocker.MagicMock()
+    manager.attach_mock(mock_gc.freeze, "freeze")
+    manager.attach_mock(base_start, "start")
+
+    TriggerRunnerSupervisor.start(job=Job(id=999), capacity=10)
+
+    mock_gc.unfreeze.assert_not_called()
+    if platform_uses_exec:
+        mock_gc.freeze.assert_not_called()
+        base_start.assert_called_once()
+    else:
+        # Freeze must happen before the fork (super().start) and never unfreeze.
+        assert [c[0] for c in manager.mock_calls] == ["freeze", "start"]
+
+
 @pytest.mark.parametrize("option_value", ["True", "False"])
 def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
     """

@@ -489,6 +489,7 @@
     "queue": "Queue",
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
+    "retryAt": "Retry At",
     "scheduledWhen": "Scheduled At",
     "stateReason": "Reason for state",
     "stateReasonSummary": {

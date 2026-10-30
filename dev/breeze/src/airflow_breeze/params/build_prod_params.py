@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_TO,
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_IMAGE_FLAVORS,
+    LEGACY_PYTHON_VERSIONS,
     get_airflow_extras,
     get_legacy_base_image,
 )
@@ -67,6 +68,12 @@ class BuildProdParams(CommonBuildParams):
         if self.python_image is None and self.image_flavor == "legacy":
             return get_legacy_base_image(self.debian_version)
         return super().python_base_image
+
+    @property
+    def python_patchlevel_version(self) -> str:
+        if self.image_flavor == "legacy":
+            return LEGACY_PYTHON_VERSIONS.get(self.python, self.python)
+        return ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)
 
     @property
     def airflow_version(self) -> str:
@@ -244,9 +251,7 @@ class BuildProdParams(CommonBuildParams):
         self._req_arg("INSTALL_POSTGRES_CLIENT", self.install_postgres_client)
         self._req_arg("AIRFLOW_IMAGE_FLAVOR", self.image_flavor)
         self._req_arg("BASE_IMAGE", self.python_base_image)
-        self._req_arg(
-            "AIRFLOW_PYTHON_VERSION", ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(self.python, self.python)
-        )
+        self._req_arg("AIRFLOW_PYTHON_VERSION", self.python_patchlevel_version)
         # optional build args
         self._set_common_opt_args()
         self._opt_arg("ADDITIONAL_RUNTIME_APT_COMMAND", self.additional_runtime_apt_command)

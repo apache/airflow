@@ -25,6 +25,8 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: write
   pull-requests: write
+  # Only the job of upgrade-check.yml that dispatches the "Mirror hardened base images" workflow gets it.
+  actions: write
 jobs:
   upgrade-v3-4-test:
     name: "[v3-4-test] Upgrade"
