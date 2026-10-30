@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import collections
 import contextlib
 import datetime
+import gc
 import json
 from typing import Any
+from unittest import mock
 
 import pytest
 
@@ -27,15 +31,21 @@ pytest.importorskip("agents")
 
 from agents import (
     Agent,
+    AgentHooks,
     Model,
     ModelProvider,
     ModelResponse,
     ModelSettings,
+    ModelTracing,
     RunConfig,
+    RunHooks,
     SQLiteSession,
+    ToolGuardrailFunctionOutput,
     ToolOutputText,
     Usage,
     function_tool,
+    handoff,
+    tool_input_guardrail,
 )
 from agents.exceptions import MaxTurnsExceeded, ModelBehaviorError
 from agents.retry import ModelRetryBackoffSettings, ModelRetrySettings
@@ -44,7 +54,12 @@ from pydantic import BaseModel
 
 from airflow.providers.common.ai.durable.base import build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
-from airflow.providers.common.ai.durable.openai_agents import _get_durable_tool, run_durably_sync
+from airflow.providers.common.ai.durable.openai_agents import (
+    _RESERVED_TOOL_STEPS,
+    _DurableModel,
+    _get_durable_tool,
+    run_durably_sync,
+)
 from airflow.providers.common.ai.tools import AirflowTool, ToolResult
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
 
@@ -137,6 +152,97 @@ class _CountingTool:
             parameters={"type": "object", "properties": {"key": {"type": "string"}}},
             function=function,
         )
+
+
+class _ParallelModel(Model):
+    """
+    Asks for one ``lookup`` per key in a single response, then answers with their results.
+
+    The calls get the ids ``call-<key>``. ``fail_on_answer`` makes the request that would
+    answer raise, as a crashed worker would leave it.
+    """
+
+    def __init__(self, keys: tuple[str, ...] = ("a", "b"), *, fail_on_answer: bool = False) -> None:
+        self.keys = keys
+        self.fail_on_answer = fail_on_answer
+        self.calls = 0
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        self.calls += 1
+        outputs = [
+            item["output"]
+            for item in (input if isinstance(input, list) else [])
+            if isinstance(item, dict) and item.get("type") == "function_call_output"
+        ]
+        output: list[ResponseFunctionToolCall | ResponseOutputMessage]
+        if not outputs:
+            output = [
+                ResponseFunctionToolCall(
+                    id=f"fc-{key}",
+                    call_id=f"call-{key}",
+                    name="lookup",
+                    arguments=json.dumps({"key": key}),
+                    type="function_call",
+                )
+                for key in self.keys
+            ]
+        else:
+            if self.fail_on_answer:
+                raise RuntimeError("worker lost")
+            text = ResponseOutputText(text=f"answer: {sorted(outputs)}", type="output_text", annotations=[])
+            output = [
+                ResponseOutputMessage(
+                    id="msg", role="assistant", status="completed", type="message", content=[text]
+                )
+            ]
+        return ModelResponse(output=list(output), usage=Usage(), response_id=f"resp-{self.calls}")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
+
+
+class _SleepingTools:
+    """A ``lookup`` tool that sleeps ``body_delays[key]`` seconds, fails for the keys in ``failing``, and counts the calls per key."""
+
+    def __init__(self, body_delays: dict[str, float] | None = None, failing: set[str] | None = None) -> None:
+        self.body_delays = body_delays or {}
+        self.failing = failing or set()
+        self.calls: collections.Counter[str] = collections.Counter()
+
+    def tools(self) -> list[Any]:
+        async def function(arguments: dict[str, Any]) -> ToolResult:
+            key = arguments["key"]
+            self.calls[key] += 1
+            await asyncio.sleep(self.body_delays.get(key, 0))
+            if key in self.failing:
+                raise RuntimeError(f"lookup {key} failed")
+            return ToolResult(f"{key}=42")
+
+        return AirflowTools(
+            AirflowTool(
+                name="lookup",
+                description="Look a key up.",
+                parameters={"type": "object", "properties": {"key": {"type": "string"}}},
+                function=function,
+            )
+        )
+
+
+class _TransferModel(Model):
+    """Hands the run over to the ``specialist`` agent on its first request."""
+
+    async def get_response(self, system_instructions, input, *args: Any, **kwargs: Any) -> ModelResponse:
+        call = ResponseFunctionToolCall(
+            id="fc-transfer",
+            call_id="call-transfer",
+            name="transfer_to_specialist",
+            arguments="{}",
+            type="function_call",
+        )
+        return ModelResponse(output=[call], usage=Usage(), response_id="resp-transfer")
+
+    def stream_response(self, *args: Any, **kwargs: Any):
+        raise NotImplementedError
 
 
 class _Provider(ModelProvider):
@@ -519,3 +625,232 @@ class TestRunDurably:
 
         assert result.final_output == "answer: k0=42"
         assert model.calls == 2
+
+
+class _SlowRunHooks(RunHooks):
+    """Makes every tool call wait ``delays[call id]`` seconds before it is invoked."""
+
+    def __init__(self, delays: dict[str, float]) -> None:
+        self.delays = delays
+
+    async def on_tool_start(self, context, agent, tool) -> None:
+        await asyncio.sleep(self.delays[context.tool_call_id])
+
+
+class _SlowAgentHooks(AgentHooks):
+    """Makes every tool call of the agent wait ``delays[call id]`` seconds before it is invoked."""
+
+    def __init__(self, delays: dict[str, float]) -> None:
+        self.delays = delays
+
+    async def on_tool_start(self, context, agent, tool) -> None:
+        await asyncio.sleep(self.delays[context.tool_call_id])
+
+
+def _attempt_parallel(
+    storage: MemoryStorage,
+    model: Model,
+    tools: _SleepingTools,
+    *,
+    agent_hooks: AgentHooks | None = None,
+    guardrail_delays: dict[str, float] | None = None,
+    **kwargs: Any,
+):
+    """Run one attempt of an agent whose model asks for several tools at once."""
+    function_tools = tools.tools()
+    if guardrail_delays is not None:
+
+        @tool_input_guardrail
+        async def wait(data):
+            await asyncio.sleep(guardrail_delays[data.context.tool_call_id])
+            return ToolGuardrailFunctionOutput.allow()
+
+        for function_tool_ in function_tools:
+            function_tool_.tool_input_guardrails = [wait]
+    agent = Agent(name="analyst", model=model, tools=function_tools, hooks=agent_hooks)
+    journal = DurableJournal(storage, clean_up_after_run=True)
+    with journal_scope(journal):
+        return run_durably_sync(agent, "go", run_config=NO_TRACING, **kwargs), journal
+
+
+class TestParallelToolCalls:
+    def test_parallel_tool_calls_replay_when_their_bodies_finish_in_a_different_order(self):
+        """
+        Characterizes the documented claim that parallel calls keep the order they started in.
+
+        The model's response reserves a position for each tool call, so how long a tool body takes does not matter.
+        """
+        storage = MemoryStorage()
+        tools = _SleepingTools({"a": 0.05, "b": 0.01})
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt_parallel(storage, _ParallelModel(fail_on_answer=True), tools)
+        assert tools.calls == {"a": 1, "b": 1}
+
+        tools.body_delays = {"a": 0.01, "b": 0.05}
+        retry_model = _ParallelModel()
+        _, journal = _attempt_parallel(storage, retry_model, tools)
+
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert tools.calls == {"a": 1, "b": 1}
+        assert retry_model.calls == 1
+
+    def test_only_the_parallel_tool_call_that_failed_runs_again_on_retry(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools(failing={"b"})
+        with pytest.raises(Exception, match="lookup b failed"):
+            _attempt_parallel(storage, _ParallelModel(("a", "b", "c")), tools)
+        assert tools.calls == {"a": 1, "b": 1, "c": 1}
+
+        tools.failing = set()
+        retry_model = _ParallelModel(("a", "b", "c"))
+        _, journal = _attempt_parallel(storage, retry_model, tools)
+
+        assert tools.calls == {"a": 1, "b": 2, "c": 1}
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert retry_model.calls == 1
+
+    def test_a_finished_run_does_not_keep_its_reserved_tool_steps(self):
+        gc.collect()
+        kept_before = len(_RESERVED_TOOL_STEPS)
+
+        _attempt_parallel(MemoryStorage(), _ParallelModel(), _SleepingTools())
+        gc.collect()
+
+        assert len(_RESERVED_TOOL_STEPS) == kept_before
+
+    @pytest.mark.parametrize("source", ["run-hook", "agent-hook", "tool-input-guardrail"])
+    def test_parallel_tool_calls_replay_when_what_runs_before_them_takes_a_different_time(self, source):
+        """A hook or guardrail the SDK awaits before invoking a tool can let a later call claim first."""
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+
+        def attempt(model: Model, delays: dict[str, float]):
+            kwargs: dict[str, Any] = {}
+            if source == "run-hook":
+                kwargs["hooks"] = _SlowRunHooks(delays)
+            elif source == "agent-hook":
+                kwargs["agent_hooks"] = _SlowAgentHooks(delays)
+            else:
+                kwargs["guardrail_delays"] = delays
+            return _attempt_parallel(storage, model, tools, **kwargs)
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ParallelModel(fail_on_answer=True), {"call-a": 0.01, "call-b": 0.1})
+        assert tools.calls == {"a": 1, "b": 1}
+
+        _, journal = attempt(_ParallelModel(), {"call-a": 0.1, "call-b": 0.01})
+
+        assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert tools.calls == {"a": 1, "b": 1}
+
+
+class TestDurableExceptions:
+    def test_a_static_handoff_agent_replays_its_calls(self):
+        storage, tool = MemoryStorage(), _CountingTool()
+
+        def attempt(specialist_model: _ScriptedModel) -> DurableJournal:
+            specialist = Agent(name="specialist", model=specialist_model, tools=AirflowTools(tool.tool()))
+            lead = Agent(name="lead", model=_TransferModel(), handoffs=[specialist])
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=NO_TRACING)
+            return journal
+
+        # The transfer's own result is the first function output the specialist sees.
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        assert tool.calls == 1
+
+        specialist_model = _ScriptedModel(lookups=2)
+        journal = attempt(specialist_model)
+
+        assert journal.stats.replayed == {"model": 2, "tool": 1}
+        assert specialist_model.calls == 1
+        assert tool.calls == 1
+
+    @pytest.mark.parametrize(
+        ("by_name", "replayed_models"),
+        [
+            pytest.param(False, 1, id="model-instance"),
+            pytest.param(True, 2, id="model-name"),
+        ],
+    )
+    def test_a_handoff_object_agent_runs_its_own_tools_live(self, by_name, replayed_models):
+        storage, tool = MemoryStorage(), _CountingTool()
+
+        def attempt(specialist_model: _ScriptedModel) -> DurableJournal:
+            specialist = Agent(
+                name="specialist",
+                model="specialist-model" if by_name else specialist_model,
+                tools=AirflowTools(tool.tool()),
+            )
+            lead = Agent(name="lead", model=_TransferModel(), handoffs=[handoff(specialist)])
+            config = RunConfig(tracing_disabled=True, model_provider=_Provider(specialist_model))
+            journal = DurableJournal(storage, clean_up_after_run=True)
+            with journal_scope(journal):
+                run_durably_sync(lead, "go", run_config=config)
+            return journal
+
+        with pytest.raises(RuntimeError, match="worker lost"):
+            attempt(_ScriptedModel(lookups=2, fail_on_answer=True))
+        assert tool.calls == 1
+
+        journal = attempt(_ScriptedModel(lookups=2))
+
+        assert journal.stats.replayed == {"model": replayed_models}
+        assert tool.calls == 2
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_model_call_is_not_recorded(self):
+        events = [object(), object()]
+
+        async def stream(*args: Any, **kwargs: Any):
+            for event in events:
+                yield event
+
+        wrapped = mock.create_autospec(Model, instance=True)
+        wrapped.stream_response.side_effect = stream
+        storage = MemoryStorage()
+        durable_run = DurableJournal(storage).start_run()
+        model = _DurableModel(wrapped, durable_run)
+
+        streamed = [
+            event
+            async for event in model.stream_response(
+                None,
+                "go",
+                ModelSettings(),
+                [],
+                None,
+                [],
+                ModelTracing.DISABLED,
+                previous_response_id=None,
+                conversation_id=None,
+                prompt=None,
+            )
+        ]
+
+        assert streamed == events
+        wrapped.get_response.assert_not_called()
+        assert durable_run.position == 0
+        assert storage.steps() == []
+
+    def test_a_tool_that_needs_approval_is_not_invoked_or_recorded(self):
+        calls = []
+
+        @function_tool(needs_approval=True)
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            calls.append(key)
+            return f"{key}=42"
+
+        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
+        with journal_scope(journal):
+            result = run_durably_sync(
+                Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
+            )
+
+        assert len(result.interruptions) == 1
+        assert calls == []
+        assert journal.stats.recorded == {"model": 1}
+        assert _get_durable_tool(lookup, journal.start_run()) is not lookup
