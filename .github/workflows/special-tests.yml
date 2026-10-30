@@ -44,6 +44,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The list of providers test types to run separated by spaces"
         required: true
         type: string
+      providers-split-test-types-list-as-strings-in-json:
+        description: "The providers test types for the jobs running them in parallel in the CI image"
+        required: true
+        type: string
       run-coverage:
         description: "Whether to run coverage or not (true/false)"
         required: true
@@ -123,7 +127,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-sqlalchemy: "true"
       test-name: "MinSQLAlchemy-Postgres"
@@ -134,7 +138,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
@@ -173,7 +177,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-sqlalchemy: "true"
       test-name: "LatestSQLAlchemy-Postgres"
@@ -184,7 +188,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
       skip-providers-tests: ${{ inputs.skip-providers-tests }}
@@ -224,7 +228,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       upgrade-boto: "true"
       test-name: "LatestBoto-Postgres"
@@ -235,7 +239,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -276,7 +280,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.in-memory-runners, '8+16', '32+128') }}
+      runners: ${{ format(inputs.in-memory-runners, '32+64', '128+256') }}
       platform: ${{ inputs.platform }}
       downgrade-pendulum: "true"
       test-name: "Pendulum2-Postgres"
@@ -287,7 +291,7 @@ jobs:
       backend-versions: "['${{ inputs.default-postgres-version }}']"
       excluded-providers-as-string: ${{ inputs.excluded-providers-as-string }}
       excludes: "[]"
-      test-types-as-strings-in-json: ${{ inputs.providers-test-types-list-as-strings-in-json }}
+      test-types-as-strings-in-json: ${{ inputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ inputs.include-success-outputs }}
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
@@ -352,7 +356,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ format(inputs.runners, '32+64', '128+256') }}
+      runners: ${{ format(inputs.runners, '8+16', '32+64') }}
       platform: ${{ inputs.platform }}
       test-name: "SystemTest"
       test-scope: "System"
