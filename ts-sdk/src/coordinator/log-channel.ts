@@ -115,14 +115,13 @@ export class LogChannel {
   private readonly shared: LogChannelState;
   private readonly name: string;
   private readonly isRoot: boolean;
-  // Configuration is fixed when the root is created, so resolve this channel's threshold once.
-  private readonly threshold: number;
+  private readonly logLevel: number;
 
   private constructor(shared: LogChannelState, name: string, isRoot: boolean) {
     this.shared = shared;
     this.name = name;
     this.isRoot = isRoot;
-    this.threshold = resolveLogLevel(shared, name);
+    this.logLevel = resolveLogLevel(shared, name);
   }
 
   /** Create a root channel with no socket yet; records are buffered
@@ -203,13 +202,9 @@ export class LogChannel {
   ): void {
     // Drop late records after the log socket has closed.
     if (this.shared.closed) return;
-    // The supervisor forwards records unchanged; filtering belongs in the subprocess.
-    // Apply it before buffering so startup and stderr fallback logs follow the same rules.
-    // Filter by this channel's name, which is what the `[name]` event prefix shows. A level
-    // outside the LogLevel type (only reachable from untyped callers) is treated as INFO.
     const level =
       typeof record.level === "string" ? LOG_LEVELS.get(record.level.toUpperCase()) : undefined;
-    if ((level ?? DEFAULT_LOG_LEVEL) < this.threshold) return;
+    if ((level ?? DEFAULT_LOG_LEVEL) < this.logLevel) return;
     // Prepend the logger name to the event message so it surfaces in
     // the Airflow UI task log view, which renders the message text but
     // hides the `logger` JSON field. The field is still emitted for
