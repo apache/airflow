@@ -362,6 +362,12 @@ SCHEMA_DESTINATION_LOCATIONS = [
 
 PACKAGES_METADATA_EXCLUDE_NAMES = ["docker-stack", "apache-airflow-providers"]
 
+# Published docs folders that are not PEP 440 versions, such as Maven snapshots staged for testing.
+# Any other invalid version folder still fails the docs publishing.
+PACKAGES_METADATA_EXCLUDE_VERSIONS: dict[str, list[str]] = {
+    "java-sdk": ["1.0.0-SNAPSHOT"],
+}
+
 
 @clearable_cache
 def all_selective_core_test_types() -> tuple[str, ...]:
