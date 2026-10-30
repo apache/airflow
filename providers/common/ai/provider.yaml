@@ -234,13 +234,13 @@ connection-types:
         label: Default Model Provider
         description: >
           Provider for model names without a provider: prefix (e.g. openai-chat).
-          The suggestions are common choices, not a full list: any provider the
-          installed pydantic-ai recognizes works.
+          Any provider the installed pydantic-ai recognizes works.
         schema:
           type:
             - string
             - 'null'
-          # Suggestions only: the form still accepts any provider pydantic-ai recognizes.
+          # Suggestions on a free-text input, not an enum: an enum would reject providers a newer
+          # pydantic-ai adds until the next release of this provider.
           examples:
             - openai-chat
             - openai

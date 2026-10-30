@@ -264,10 +264,19 @@ def _provider_classes_in_module(mod) -> list[type]:
     return provider_classes
 
 
-def _find_pydanticai_external_services() -> list[str]:
+def _find_pydanticai_connection_type() -> dict:
     connection_types = get_provider_info()["connection-types"]
     (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
-    return pydanticai["external-services"]
+    return pydanticai
+
+
+def _find_pydanticai_external_services() -> list[str]:
+    return _find_pydanticai_connection_type()["external-services"]
+
+
+def _module_for_prefix(prefix: str) -> str:
+    """The pydantic-ai provider module behind a model-name prefix (``openai-chat`` -> ``openai``)."""
+    return PREFIX_ALIASES.get(prefix, prefix.replace("-", "_"))
 
 
 class TestConnectionTypeExternalServices:
@@ -278,20 +287,14 @@ class TestConnectionTypeExternalServices:
             )
 
 
-# Default Model Provider suggestions that are a model prefix rather than a provider module.
-# `openai-chat` is pydantic-ai's Chat Completions prefix, served by the `openai` module.
-SUGGESTION_MODULES = {"openai-chat": "openai"}
-
-
 class TestModelProviderSuggestions:
     def test_every_suggestion_is_a_declared_external_service(self):
         """The form must not suggest a vendor the docs and registry don't list for this connection."""
-        connection_types = get_provider_info()["connection-types"]
-        (pydanticai,) = (c for c in connection_types if c["connection-type"] == "pydanticai")
+        pydanticai = _find_pydanticai_connection_type()
         suggestions = pydanticai["conn-fields"]["model_provider"]["schema"]["examples"]
-        declared = set(_find_pydanticai_external_services())
+        declared = set(pydanticai["external-services"])
 
-        undeclared = [s for s in suggestions if LABELS.get(SUGGESTION_MODULES.get(s, s)) not in declared]
+        undeclared = [s for s in suggestions if LABELS.get(_module_for_prefix(s)) not in declared]
 
         assert not undeclared, f"suggested providers missing from external-services: {undeclared}"
 
@@ -396,7 +399,7 @@ class TestPydanticAIExternalServicesDrift:
             if ":" not in name:
                 continue  # the bare "test" entry, pydantic-ai's built-in keyless TestModel
             prefix = name.removeprefix("gateway/").split(":", 1)[0]
-            module = PREFIX_ALIASES.get(prefix, prefix.replace("-", "_"))
+            module = _module_for_prefix(prefix)
             assert module in labelled, f"model prefix {prefix!r} (from {name!r}) has no label"
 
     def test_gateway_note_vendors_match_known_model_names(self):
@@ -411,7 +414,7 @@ class TestPydanticAIExternalServicesDrift:
             for name in known_model_names()
             if name.startswith("gateway/")
         }
-        modules = {PREFIX_ALIASES.get(p, p.replace("-", "_")) for p in gateway_prefixes}
+        modules = {_module_for_prefix(p) for p in gateway_prefixes}
         derived = {LABELS.get(m, f"<unlabelled:{m}>") for m in modules}
 
         assert derived == GATEWAY_NOTE_VENDOR_LABELS, (
