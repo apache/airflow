@@ -1255,6 +1255,18 @@ class TestDagOperations:
         response = client.dags.get("dag_id")
         assert response == self.dag_response
 
+    def test_get_accepts_null_fileloc(self):
+        """Servers with #69110 return ``fileloc: null`` for a Dag whose file location is unknown."""
+        payload = json.loads(self.dag_response.model_dump_json())
+        payload["fileloc"] = None
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.get("dag_id")
+        assert response.fileloc is None
+
     def test_get_details(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id/details"
