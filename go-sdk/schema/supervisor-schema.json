@@ -5409,6 +5409,7 @@
             }
           ],
           "default": null,
+          "description": "The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.",
           "title": "Execution Timeout"
         },
         "multi_team": {

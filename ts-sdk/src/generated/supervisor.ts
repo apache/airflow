@@ -270,6 +270,9 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+/**
+ * The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.
+ */
 export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";

@@ -1709,7 +1709,10 @@ type TIRunContext struct {
 	// DagRun corresponds to the JSON schema field "dag_run".
 	DagRun DagRun `msgpack:"dag_run"`
 
-	// ExecutionTimeout corresponds to the JSON schema field "execution_timeout".
+	// The execution_timeout in seconds set on a task a language SDK runs, from its
+	// serialized Dag. Unset when the task sets none. Zero means no timeout and a
+	// negative value has already elapsed, as for a Python task. A Python task runs
+	// its own timer in the task runner instead, and gets no value here.
 	ExecutionTimeout interface{} `msgpack:"execution_timeout,omitempty"`
 
 	// ExpandedTICount corresponds to the JSON schema field "expanded_ti_count".
