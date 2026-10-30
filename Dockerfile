@@ -993,6 +993,12 @@ install_postgres_client() {
 
     echo "deb [arch=amd64,arm64] https://apt.postgresql.org/pub/repos/apt/ $(common::debian_codename)-pgdg main" > \
         /etc/apt/sources.list.d/pgdg.list
+    # The hardened image's airflow-prefer-dhi pin outranks Debian's default, so apt would otherwise keep
+    # dhi.io's libpq (e.g. 17.11) and postgresql-client (which needs a matching, newer libpq5) could not
+    # install. PostgreSQL's own repository is the authority for its packages - rank it above the dhi.io
+    # preference so apt takes libpq from PGDG.
+    mkdir -p /etc/apt/preferences.d
+    printf 'Package: *\nPin: origin "apt.postgresql.org"\nPin-Priority: 1001\n' > /etc/apt/preferences.d/airflow-prefer-pgdg
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
