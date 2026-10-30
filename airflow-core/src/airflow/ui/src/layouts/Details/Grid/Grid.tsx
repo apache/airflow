@@ -90,6 +90,7 @@ export const Grid = ({
 }: Props) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const taskNameColumnRef = useRef<HTMLDivElement>(null);
 
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
@@ -121,9 +122,11 @@ export const Grid = ({
 
   const scrollbarSpacerWidth = hasNewerRuns || latestNotVisible ? "32px" : "16px";
 
+  const runIds = gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [];
+
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
-    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    runIds,
     states: gridRuns?.map((dr: GridRunsResponse) => dr.state),
   });
 
@@ -224,7 +227,17 @@ export const Grid = ({
     scrollPaddingStart: headerPad,
   });
 
-  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
+  useGridScrollRestore({
+    dagId,
+    flatNodes,
+    headerPad,
+    rowVirtualizer,
+    runIds,
+    selectedGroupId,
+    selectedRunId,
+    selectedTaskId,
+    taskNameColumnRef,
+  });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -295,7 +308,7 @@ export const Grid = ({
 
       {/* Grid body */}
       <Flex bg="bg" height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
-        <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
+        <Box left={0} position="sticky" ref={taskNameColumnRef} zIndex={1} {...taskNameColumnStyles}>
           <TaskNames
             nodes={flatNodes}
             onRowClick={handleRowClick}
