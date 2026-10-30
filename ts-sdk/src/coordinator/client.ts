@@ -477,7 +477,7 @@ interface FrameError {
 
 /** Extract the error code and optional HTTP status from a response frame.
  *  Returns `null` for non-error frames. */
-function parseFrameError(frame: { body: unknown; error?: unknown }): FrameError | null {
+export function parseFrameError(frame: { body: unknown; error?: unknown }): FrameError | null {
   // Case 1: error field on the frame itself
   if (frame.error != null) {
     if (typeof frame.error === "string") return { code: frame.error };

@@ -521,8 +521,8 @@ Two functions give it what it needs while it runs:
    * - ``getContext()``
      - The task's context (a ``TaskContext``): ``dagId``, ``taskId`` (including any task group prefix),
        ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal``
-       that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
-       accepts one, so the task can stop cleanly.
+       that fires when Airflow stops the task or its ``executionTimeout`` passes. Pass ``signal`` to ``fetch()``,
+       timers, or any other API that accepts one, so the task can stop cleanly.
    * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
@@ -533,6 +533,11 @@ after Airflow has recorded the task's result.
 A value the handler returns becomes the task's ``return_value`` XCom, as with Python's ``@task``, and is what a
 downstream task receives. An uncaught exception or a rejected promise fails the task, and retries it if the task
 has retries.
+
+When a task's ``executionTimeout`` passes, ``signal`` is aborted with a ``TaskTimeoutError`` as its ``reason``. The
+handler then has up to 30 seconds to clean up before the task fails with the timeout, and retries if it has retries,
+even if the handler returns. A handler that never yields to the event loop, such as one stuck in a synchronous loop,
+cannot see the signal; Airflow stops its process ``killed_task_cleanup_time`` after the timeout.
 
 The ``TaskClient``
 ~~~~~~~~~~~~~~~~~~

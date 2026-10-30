@@ -41,7 +41,7 @@ import { approval, hitl } from "../../src/hitl/index.js";
 import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
-import { getClient, getContext } from "../../src/sdk/task.js";
+import { getClient, getContext, TaskTimeoutError } from "../../src/sdk/task.js";
 
 /** The arguments `py_dag.bound`'s Python call site passes, as its handler
  *  spells them. Folding absorbs the snake_case on the wire. */
@@ -1858,6 +1858,211 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(resumed, "SetXCom")[0]).toMatchObject({
         value: { chosenOptions: ["Approve"], paramsInput: { amount: 80 } },
       });
+    });
+  });
+
+  describe("execution timeout", () => {
+    /** A handler that waits for its signal, records why it fired, then rethrows that reason. */
+    function waitForAbort(seen: { reason?: unknown }): () => Promise<never> {
+      return () =>
+        new Promise((_, reject) => {
+          const { signal } = getContext();
+          signal.addEventListener("abort", () => {
+            seen.reason = signal.reason;
+            reject(signal.reason as Error);
+          });
+        });
+    }
+
+    it("aborts the signal at the timeout and fails for retry with the timeout as the reason", async () => {
+      const seen: { reason?: unknown } = {};
+      testDag.task("slow", waitForAbort(seen))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("slow", "test_dag", "r1", {
+          execution_timeout: 0.05,
+          should_retry: true,
+        }),
+      );
+
+      expect(seen.reason).toBeInstanceOf(TaskTimeoutError);
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Task timed out after 0.05 seconds",
+      });
+      expect(result.runtimeRequests.map((r) => r.type)).toEqual(["StartExecutionTimeout"]);
+      expect(result.logRecords.some((r) => r["event"] === "[ts-sdk.runtime] Task timed out")).toBe(
+        true,
+      );
+    });
+
+    it("fails without retry when the task has none left", async () => {
+      testDag.task("slow", waitForAbort({}))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("slow", "test_dag", "r1", { execution_timeout: 0.05 }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    });
+
+    it("does not let a handler that returns after the timeout succeed or push its result", async () => {
+      testDag.task("returns_late", async () => {
+        const { signal } = getContext();
+        await new Promise((resolve) => signal.addEventListener("abort", resolve));
+        return "too late";
+      })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("returns_late", "test_dag", "r1", {
+          execution_timeout: 0.05,
+          should_retry: true,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "RetryTask" });
+      expect(requestsOf(result, "SetXCom")).toEqual([]);
+    });
+
+    it("succeeds as before when the handler finishes in time", async () => {
+      testDag.task("quick", async () => "fast")();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("quick", "test_dag", "r1", { execution_timeout: 5 }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(result.runtimeRequests.map((r) => r.type)).toEqual([
+        "StartExecutionTimeout",
+        "SetXCom",
+      ]);
+    });
+
+    it.each([
+      ["no", {}],
+      ["a zero", { execution_timeout: 0 }],
+    ])(
+      "neither times the handler nor starts the supervisor's deadline for %s timeout",
+      async (_, ctx) => {
+        let signal: AbortSignal | undefined;
+        testDag.task("untimed", async () => {
+          signal = getContext().signal;
+        })();
+
+        const result = await driveSupervisor(makeStartupDetails("untimed", "test_dag", "r1", ctx));
+
+        expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+        expect(result.runtimeRequests).toEqual([]);
+        expect(signal!.aborted).toBe(false);
+      },
+    );
+
+    it("fails a task whose timeout has already passed without running it", async () => {
+      let ran = false;
+      testDag.task("late_start", async () => {
+        ran = true;
+      })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("late_start", "test_dag", "r1", {
+          execution_timeout: -1,
+          should_retry: true,
+        }),
+      );
+
+      expect(ran).toBe(false);
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Task timed out after -1 seconds",
+      });
+    });
+
+    it("still enforces the timeout when the supervisor rejects StartExecutionTimeout", async () => {
+      testDag.task("slow", waitForAbort({}))();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("slow", "test_dag", "r1", { execution_timeout: 0.05 }),
+        (msgType) =>
+          msgType === "StartExecutionTimeout"
+            ? { body: { type: "ErrorResponse", error: "API_SERVER_ERROR" } }
+            : null,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(
+        result.logRecords.some(
+          (r) => r["event"] === "[ts-sdk.runtime] Supervisor did not take StartExecutionTimeout",
+        ),
+      ).toBe(true);
+    });
+
+    it("reports the timeout at once when the supervisor's SIGTERM comes during cleanup", async () => {
+      testDag.task("ignores_signal", async () => {
+        // Past the timeout, as the supervisor's deadline would be, but long before
+        // the runtime's own cleanup wait would end.
+        setTimeout(() => process.emit("SIGTERM"), 100);
+        await new Promise((resolve) => setTimeout(resolve, 60_000).unref());
+      })();
+      const started = Date.now();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("ignores_signal", "test_dag", "r1", {
+          execution_timeout: 0.05,
+          should_retry: true,
+        }),
+      );
+
+      expect(Date.now() - started).toBeLessThan(5000);
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Task timed out after 0.05 seconds",
+      });
+    });
+
+    it("keeps reporting SIGTERM, not a timeout, when Airflow stops the task first", async () => {
+      testDag.task("stopped", async () => {
+        const { signal } = getContext();
+        process.emit("SIGTERM");
+        throw signal.reason as Error;
+      })();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("stopped", "test_dag", "r1", {
+          execution_timeout: 5,
+          should_retry: true,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Task aborted by SIGTERM",
+      });
+    });
+
+    it("times an operator too, stopping triggerDagRun's wait for the run", async () => {
+      testDag.task(
+        triggerDagRun({ dagId: "downstream", waitForCompletion: true, pokeInterval: 60 }),
+        { taskId: "trigger" },
+      )();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("trigger", "test_dag", "r1", {
+          execution_timeout: 0.05,
+          should_retry: true,
+        }),
+        (msgType) =>
+          msgType === "TriggerDagRun"
+            ? { body: { type: "OKResponse", ok: true } }
+            : msgType === "GetDagRunState"
+              ? { body: { type: "DagRunStateResult", state: "running" } }
+              : null,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "Task timed out after 0.05 seconds",
+      });
+      expect(result.runtimeRequests[0]!.type).toBe("StartExecutionTimeout");
     });
   });
 });

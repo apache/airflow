@@ -40,12 +40,27 @@ export interface TaskContext {
   readonly mapIndex: number;
   /**
    * AbortSignal that fires when Airflow terminates the task subprocess
-   * with SIGTERM or SIGINT.
+   * with SIGTERM or SIGINT, or when the task's `executionTimeout` passes.
    *
    * Pass this signal to `fetch()`, timers, or any other API that accepts an
-   * abort signal for cooperative cancellation and cleanup.
+   * abort signal for cooperative cancellation and cleanup. On a timeout its
+   * `reason` is a {@link TaskTimeoutError}.
    */
   readonly signal: AbortSignal;
+}
+
+/**
+ * The task ran past its `executionTimeout`.
+ *
+ * It is the `reason` of `getContext().signal` at the timeout, so work given
+ * the signal rejects with it. The task then has up to 30 seconds to clean up
+ * before it fails, and retries if it has retries.
+ */
+export class TaskTimeoutError extends Error {
+  constructor(public readonly timeoutSeconds: number) {
+    super(`Task timed out after ${timeoutSeconds} seconds`);
+    this.name = "TaskTimeoutError";
+  }
 }
 
 /** What the runtime puts in scope for the duration of one handler call. */
