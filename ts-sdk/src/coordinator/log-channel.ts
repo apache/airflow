@@ -49,7 +49,8 @@ const DEFAULT_LOGGER_NAME = "ts-sdk";
 
 const CLOSE_FLUSH_TIMEOUT_MS = 3_000;
 
-// Level names match structlog's NAME_TO_LEVEL, which parses the same settings in Python.
+// Level names match Airflow's Python parser: structlog's NAME_TO_LEVEL plus the `fatal` alias
+// that configure_logging adds.
 const LOG_LEVELS = new Map([
   ["NOTSET", 0],
   ["DEBUG", 10],
@@ -59,6 +60,7 @@ const LOG_LEVELS = new Map([
   ["ERROR", 40],
   ["EXCEPTION", 40],
   ["CRITICAL", 50],
+  ["FATAL", 50],
 ]);
 
 const DEFAULT_LOG_LEVEL = LOG_LEVELS.get("INFO")!;

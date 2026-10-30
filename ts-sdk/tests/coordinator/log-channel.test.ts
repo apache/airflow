@@ -77,7 +77,6 @@ describe("LogChannel", () => {
     ["", ["info", "warning", "error"]],
     // Invalid values fall back to INFO and report themselves as the first record.
     ["VERBOSE", ["error", "info", "warning", "error"]],
-    ["FATAL", ["error", "info", "warning", "error"]],
     ["INFO", ["info", "warning", "error"]],
     [" debug ", ["debug", "info", "warning", "error"]],
     ["WARNING", ["warning", "error"]],
@@ -85,6 +84,7 @@ describe("LogChannel", () => {
     ["ERROR", ["error"]],
     ["EXCEPTION", ["error"]],
     ["CRITICAL", []],
+    ["FATAL", []],
     ["NOTSET", ["debug", "info", "warning", "error"]],
   ] as const)("filters socket records with logging_level=%s", async (level, expected) => {
     vi.stubEnv("AIRFLOW__LOGGING__LOGGING_LEVEL", level);
