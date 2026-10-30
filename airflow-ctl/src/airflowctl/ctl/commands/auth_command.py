@@ -23,16 +23,16 @@ import glob
 import json
 import os
 import sys
-from urllib.parse import urljoin
 
 import keyring
 import rich
 from keyring.errors import NoKeyringError
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, Credentials, provide_api_client
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
-from airflowctl.ctl.utils.browser_login import get_authorization_code
+from airflowctl.ctl.utils.browser_login import get_authorization_code, resolve_endpoint
 from airflowctl.exceptions import AirflowCtlBrowserLoginException
 
 
@@ -48,14 +48,15 @@ def _get_token_with_browser(args, api_client: Client) -> str:
     ):
         raise AirflowCtlBrowserLoginException(f"{args.api_url} does not offer browser login (--sso).")
 
+    authorization_url = resolve_endpoint(args.api_url, metadata.authorization_endpoint)
+    token_url = resolve_endpoint(args.api_url, metadata.token_endpoint)
     authorization_code = get_authorization_code(
-        api_url=args.api_url,
-        authorization_endpoint=metadata.authorization_endpoint,
+        authorization_url=authorization_url,
         open_browser=not args.no_browser,
         timeout=args.timeout,
     )
     return api_client.login.login_with_authorization_code(
-        urljoin(args.api_url, metadata.token_endpoint),
+        token_url,
         code=authorization_code.code,
         code_verifier=authorization_code.code_verifier,
         redirect_uri=authorization_code.redirect_uri,
@@ -80,7 +81,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         try:
             api_token = _get_token_with_browser(args, api_client)
         except Exception as e:
-            rich.print(f"[red]Login failed: {e}")
+            rich.print(f"[red]Login failed: {escape(str(e))}")
             sys.exit(1)
         Credentials(
             api_url=args.api_url,
@@ -157,10 +158,13 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
     if args.sso:
+        if args.username or args.password:
+            rich.print("[red]--sso is not compatible with --username or --password.")
+            sys.exit(1)
         try:
             print(_get_token_with_browser(args, api_client))
         except Exception as e:
-            rich.print(f"[red]Token generation failed: {e}[/red]")
+            rich.print(f"[red]Token generation failed: {escape(str(e))}[/red]")
             sys.exit(1)
         return
 

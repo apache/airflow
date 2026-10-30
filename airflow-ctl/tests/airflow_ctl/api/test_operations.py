@@ -2847,6 +2847,25 @@ class TestAuthOperations:
 
         assert response.access_token == "TOKEN"
 
+    def test_login_with_authorization_code_is_not_retried(self):
+        requests = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(503, json={"detail": "Unavailable"})
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request), kind=ClientKind.AUTH)
+
+        with pytest.raises(ServerResponseError):
+            client.login.login_with_authorization_code(
+                "http://server/auth/token/cli",
+                code="code",
+                code_verifier="verifier",
+                redirect_uri="http://127.0.0.1:1234/callback",
+            )
+
+        assert len(requests) == 1
+
 
 class TestXComOperations:
     """Test suite for XCom operations."""

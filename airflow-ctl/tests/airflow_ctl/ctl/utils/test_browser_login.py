@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import queue
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -27,28 +29,38 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
 
-from airflowctl.ctl.utils.browser_login import build_pkce_pair, get_authorization_code
+from airflowctl.ctl.utils.browser_login import build_pkce_pair, get_authorization_code, resolve_endpoint
 from airflowctl.exceptions import AirflowCtlBrowserLoginException
 
 
-def _fake_browser(build_callback_query):
-    """Return a ``webbrowser.open`` stand-in that calls back the loopback redirect like Keycloak would."""
+def _fake_browser(build_callback_query, pages):
+    """Return a ``webbrowser.open`` stand-in that calls back and puts ``(status, body)`` on ``pages``."""
 
     def open_login_page(login_url):
         params = {key: values[0] for key, values in parse_qs(urlsplit(login_url).query).items()}
         callback_url = f"{params['redirect_uri']}?{urlencode(build_callback_query(params))}"
 
         def call_back():
-            # A stray request must not end the wait.
             redirect = urlsplit(params["redirect_uri"])
             with pytest.raises(urllib.error.HTTPError):
                 urllib.request.urlopen(f"http://{redirect.netloc}/favicon.ico")
-            urllib.request.urlopen(callback_url).read()
+            try:
+                response = urllib.request.urlopen(callback_url)
+            except urllib.error.HTTPError as e:
+                response = e
+            pages.put((response.status, response.read()))
 
         threading.Thread(target=call_back, daemon=True).start()
         return True
 
     return open_login_page
+
+
+def test_resolve_endpoint():
+    assert (
+        resolve_endpoint("https://airflow.example.com/prefix", "/prefix/auth/token/cli")
+        == "https://airflow.example.com/prefix/auth/token/cli"
+    )
 
 
 def test_build_pkce_pair():
@@ -62,16 +74,16 @@ def test_build_pkce_pair():
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
 def test_get_authorization_code(mock_open, capsys):
     seen_params = {}
+    pages = queue.Queue()
 
     def build_callback_query(params):
         seen_params.update(params)
         return {"code": "the-code", "state": params["state"]}
 
-    mock_open.side_effect = _fake_browser(build_callback_query)
+    mock_open.side_effect = _fake_browser(build_callback_query, pages)
 
     result = get_authorization_code(
-        api_url="https://airflow.example.com/prefix",
-        authorization_endpoint="/prefix/auth/login/cli",
+        authorization_url="https://airflow.example.com/prefix/auth/login/cli",
         open_browser=True,
         timeout=10,
     )
@@ -87,6 +99,9 @@ def test_get_authorization_code(mock_open, capsys):
     assert urlsplit(result.redirect_uri).hostname == "127.0.0.1"
     challenge = base64.urlsafe_b64encode(hashlib.sha256(result.code_verifier.encode()).digest())
     assert challenge.rstrip(b"=").decode() == seen_params["code_challenge"]
+    status, page = pages.get(timeout=5)
+    assert status == 200
+    assert b"Login complete" in page
 
 
 @pytest.mark.parametrize(
@@ -96,6 +111,11 @@ def test_get_authorization_code(mock_open, capsys):
             lambda params: {"code": "the-code", "state": "forged"},
             "does not match this login attempt",
             id="state-mismatch",
+        ),
+        pytest.param(
+            lambda params: {"code": "the-code", "state": "forg\u00e9"},
+            "does not match this login attempt",
+            id="non-ascii-state",
         ),
         pytest.param(
             lambda params: {
@@ -115,23 +135,59 @@ def test_get_authorization_code(mock_open, capsys):
 )
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
 def test_get_authorization_code_rejects_callback(mock_open, build_callback_query, message):
-    mock_open.side_effect = _fake_browser(build_callback_query)
+    pages = queue.Queue()
+    mock_open.side_effect = _fake_browser(build_callback_query, pages)
 
     with pytest.raises(AirflowCtlBrowserLoginException, match=message):
         get_authorization_code(
-            api_url="http://localhost:8080",
-            authorization_endpoint="/auth/login/cli",
+            authorization_url="http://localhost:8080/auth/login/cli",
             open_browser=True,
             timeout=10,
         )
+
+    status, page = pages.get(timeout=5)
+    assert status == 400
+    assert b"Login failed" in page
+    assert b"Login complete" not in page
+
+
+@patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
+def test_get_authorization_code_drops_idle_connection(mock_open):
+    closed_by_server = []
+
+    def open_login_page(login_url):
+        params = {key: values[0] for key, values in parse_qs(urlsplit(login_url).query).items()}
+        redirect = urlsplit(params["redirect_uri"])
+
+        def call_back():
+            with socket.create_connection((redirect.hostname, redirect.port), timeout=10) as idle:
+                try:
+                    closed_by_server.append(idle.recv(1) == b"")
+                except TimeoutError:
+                    closed_by_server.append(False)
+            query = urlencode({"code": "the-code", "state": params["state"]})
+            urllib.request.urlopen(f"{params['redirect_uri']}?{query}").read()
+
+        threading.Thread(target=call_back, daemon=True).start()
+        return True
+
+    mock_open.side_effect = open_login_page
+
+    result = get_authorization_code(
+        authorization_url="http://localhost:8080/auth/login/cli",
+        open_browser=True,
+        timeout=30,
+    )
+
+    assert closed_by_server == [True]
+    assert result.code == "the-code"
 
 
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
 def test_get_authorization_code_no_browser_times_out(mock_open):
     with pytest.raises(AirflowCtlBrowserLoginException, match="No login completed within 0.2 seconds"):
         get_authorization_code(
-            api_url="http://localhost:8080",
-            authorization_endpoint="/auth/login/cli",
+            authorization_url="http://localhost:8080/auth/login/cli",
             open_browser=False,
             timeout=0.2,
         )

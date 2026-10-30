@@ -30,6 +30,7 @@ from airflowctl.api.datamodels.auth_generated import LoginResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
 from airflowctl.ctl.utils.browser_login import AuthorizationCode
+from airflowctl.exceptions import AirflowCtlBrowserLoginException
 
 SSO_METADATA = {
     "grant_types_supported": ["password", "refresh_token", "authorization_code"],
@@ -284,10 +285,6 @@ class TestCliAuthCommands:
                 api_client=api_client,
             )
 
-
-class TestListEnvs:
-    parser = cli_parser.get_parser()
-
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     @patch("airflowctl.api.client.keyring")
     def test_login_with_sso(self, mock_keyring, mock_get_authorization_code):
@@ -311,8 +308,7 @@ class TestListEnvs:
         )
 
         mock_get_authorization_code.assert_called_once_with(
-            api_url="http://localhost:8080",
-            authorization_endpoint="/auth/login/cli",
+            authorization_url="http://localhost:8080/auth/login/cli",
             open_browser=False,
             timeout=30,
         )
@@ -324,6 +320,14 @@ class TestListEnvs:
             pytest.param({**SSO_METADATA, "grant_types_supported": ["password"]}, id="no-authorization-code"),
             pytest.param({**SSO_METADATA, "code_challenge_methods_supported": ["plain"]}, id="no-s256"),
             pytest.param({**SSO_METADATA, "authorization_endpoint": None}, id="no-authorization-endpoint"),
+            pytest.param(
+                {**SSO_METADATA, "authorization_endpoint": "//evil.example.com/login"},
+                id="foreign-authorization-endpoint",
+            ),
+            pytest.param(
+                {**SSO_METADATA, "token_endpoint": "https://evil.example.com/token"},
+                id="foreign-token-endpoint",
+            ),
         ],
     )
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
@@ -352,6 +356,33 @@ class TestListEnvs:
 
         mock_get_authorization_code.assert_not_called()
 
+    @pytest.mark.parametrize("extra_args", [["--username", "user"], ["--password", "pass"]])
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_get_token_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args):
+        with pytest.raises(SystemExit):
+            auth_command.get_token(
+                self.parser.parse_args(
+                    ["auth", "token", "--api-url", "http://localhost:8080", "--sso", *extra_args]
+                ),
+                api_client=_make_sso_api_client(SSO_METADATA),
+            )
+
+        mock_get_authorization_code.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("command", "subcommand"),
+        [pytest.param(auth_command.login, "login", id="login"), (auth_command.get_token, "token")],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    def test_sso_error_is_not_read_as_markup(self, mock_get_authorization_code, command, subcommand):
+        mock_get_authorization_code.side_effect = AirflowCtlBrowserLoginException("refused [/oops]")
+
+        with pytest.raises(SystemExit):
+            command(
+                self.parser.parse_args(["auth", subcommand, "--api-url", "http://localhost:8080", "--sso"]),
+                api_client=_make_sso_api_client(SSO_METADATA),
+            )
+
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     def test_get_token_with_sso(self, mock_get_authorization_code, capsys):
         mock_get_authorization_code.return_value = AUTHORIZATION_CODE
@@ -362,6 +393,10 @@ class TestListEnvs:
         )
 
         assert capsys.readouterr().out == "SSO_TOKEN\n"
+
+
+class TestListEnvs:
+    parser = cli_parser.get_parser()
 
     def test_list_envs_empty_airflow_home(self, monkeypatch):
         """Test list-envs with no AIRFLOW_HOME directory."""

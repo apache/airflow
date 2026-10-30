@@ -370,17 +370,19 @@ class LoginOperations:
         self, token_url: str, code: str, code_verifier: str, redirect_uri: str
     ) -> LoginResponse:
         """Redeem an authorization code from the browser login for a CLI token."""
-        return LoginResponse.model_validate_json(
-            self.client.post(
-                token_url,
-                json={
-                    "grant_type": "authorization_code",
-                    "code": code,
-                    "code_verifier": code_verifier,
-                    "redirect_uri": redirect_uri,
-                },
-            ).content
+        request = self.client.build_request(
+            "POST",
+            token_url,
+            json={
+                "grant_type": "authorization_code",
+                "code": code,
+                "code_verifier": code_verifier,
+                "redirect_uri": redirect_uri,
+            },
         )
+        # send() skips the retries of Client.request(): a code is single use, and identity providers can
+        # treat a replayed code as an attack and revoke the session.
+        return LoginResponse.model_validate_json(self.client.send(request).content)
 
 
 # Operations
