@@ -400,20 +400,6 @@ class TestDag:
         clear_db_dags()
         clear_db_assets()
 
-    @staticmethod
-    def _occur_before(a, b, list_):
-        """
-        Assert that a occurs before b in the list.
-        """
-        a_index = -1
-        b_index = -1
-        for i, e in enumerate(list_):
-            if e.task_id == a:
-                a_index = i
-            if e.task_id == b:
-                b_index = i
-        return 0 <= a_index < b_index
-
     def test_dag_naive_default_args_start_date(self):
         dag = DAG("DAG", schedule=None, default_args={"start_date": datetime.datetime(2018, 1, 1)})
         assert dag.timezone == settings.TIMEZONE
@@ -2807,6 +2793,51 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
+    def test_dags_needing_dagruns_ignores_consumed_adrq(self, dag_maker, session):
+        asset_a = Asset(uri="test://asset-a", group="test-group")
+        asset_b = Asset(uri="test://asset-b", group="test-group")
+        with dag_maker(
+            session=session,
+            dag_id="my_dag",
+            schedule=[asset_a, asset_b],
+            start_date=pendulum.now().add(days=-2),
+        ):
+            EmptyOperator(task_id="dummy")
+        dag_model = dag_maker.dag_model
+        a_id, b_id = (
+            session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+            for asset in (asset_a, asset_b)
+        )
+
+        def _queue_event(asset_id):
+            event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
+            session.add(event)
+            session.flush()
+            session.add(
+                AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+            )
+            session.flush()
+            return event
+
+        # A stale row for A (event already consumed) and a fresh event for B
+        # do not satisfy the condition.
+        prior_run = dag_maker.create_dagrun(
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.SUCCESS,
+            logical_date=pendulum.now("UTC"),
+        )
+        prior_run.consumed_asset_events.append(_queue_event(a_id))
+        _queue_event(b_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == []
+        assert triggered_date_by_dag == {}
+
+        # A fresh event for A does.
+        _queue_event(a_id)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        assert query.all() == [dag_model]
+        assert set(triggered_date_by_dag) == {dag_model.dag_id}
+
     def test_dags_needing_dagruns_skips_adrq_when_serialized_dag_missing(
         self, session, caplog, testing_dag_bundle
     ):
@@ -3992,12 +4023,10 @@ def test_iter_dagrun_infos_between_error(caplog):
             "airflow.serialization.encoders.find_registered_custom_timetable",
             _get_registered_timetable,
         ),
+        caplog.at_level(logging.ERROR),
     ):
         scheduler_dag = create_scheduler_dag(dag)
-
-    iterator = scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end)
-    with caplog.at_level(logging.ERROR):
-        infos = list(iterator)
+        infos = list(scheduler_dag.iter_dagrun_infos_between(earliest=start, latest=end))
 
     # The second timetable.next_dagrun_info() call raises an exception, so only the first result is returned.
     assert infos == [DagRunInfo.interval(start, end)]

@@ -297,7 +297,7 @@ class SerializedMappedOperator(DAGNode):
         return float(value)
 
     @property
-    def max_retry_delay(self) -> datetime.timedelta | float | None:
+    def max_retry_delay(self) -> datetime.timedelta | None:
         return self._get_partial_kwargs_or_operator_default("max_retry_delay")
 
     @property

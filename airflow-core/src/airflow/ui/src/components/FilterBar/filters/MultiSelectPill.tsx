@@ -20,6 +20,7 @@ import { useEffect, useRef } from "react";
 
 import { Box, HStack, Text } from "@chakra-ui/react";
 import { CreatableSelect, Select as ReactSelect, type SelectInstance } from "chakra-react-select";
+import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
 import { AdvancedSearchToggle } from "src/components/AdvancedSearchToggle";
@@ -62,6 +63,7 @@ export const MultiSelectPill = ({
   onRemove,
   options,
 }: Props) => {
+  const { t: translate } = useTranslation("common");
   const { mode, setMode } = useMatchMode(filter.config.matchModeKey);
   const advanced = useAdvancedSearch(filter.config.key);
   const values = Array.isArray(filter.value) ? filter.value : [];
@@ -86,7 +88,7 @@ export const MultiSelectPill = ({
       // Each value is its own node so the collapsed chip stays queryable by value.
       displayValue={
         <HStack display="inline-flex" gap={1}>
-          {isAdvanced ? <LuRegex aria-label="match anywhere" /> : undefined}
+          {isAdvanced ? <LuRegex aria-label={translate("search.advanced.title")} /> : undefined}
           {mode === "all" && values.length >= 2 ? (
             <Box as="span" color="fg.muted" fontSize="xs">
               {`(${mode})`}

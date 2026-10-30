@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, type BoxProps } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
 import { useParams } from "react-router-dom";
@@ -24,16 +26,20 @@ import type { GridRunsResponse, GridTISummaries } from "openapi/requests";
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import type { GridCell } from "src/context/gridSelection";
 
 import { GridTI } from "./GridTI";
 import { DagVersionIndicator } from "./VersionIndicator";
 import { ROW_HEIGHT } from "./constants";
+import { getCellKey } from "./useGridSelection";
 import type { GridTask } from "./utils";
 
 type Props = {
   readonly nodes: Array<GridTask>;
-  readonly onCellClick?: () => void;
+  readonly onCellClick?: (event: MouseEvent<HTMLAnchorElement>, cell: GridCell) => void;
   readonly run: GridRunsResponse;
+  // Keys of the selected cells and of the cells inside the selected groups.
+  readonly selectedCellKeys?: ReadonlySet<string>;
   readonly showVersionIndicatorMode?: VersionIndicatorOptions;
   readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
@@ -54,6 +60,7 @@ export const TaskInstancesColumn = ({
   nodes,
   onCellClick,
   run,
+  selectedCellKeys,
   showVersionIndicatorMode,
   tiSummaries,
   virtualItems,
@@ -150,9 +157,14 @@ export const TaskInstancesColumn = ({
               instance={taskInstance}
               isGroup={node.isGroup}
               isMapped={node.is_mapped}
+              isMultiSelected={
+                selectedCellKeys === undefined || selectedCellKeys.size === 0
+                  ? undefined
+                  : selectedCellKeys.has(getCellKey(run.run_id, node.id))
+              }
               label={node.label}
               loopMaxIterations={node.loop_max_iterations}
-              onClick={onCellClick}
+              onClick={(event) => onCellClick?.(event, { runId: run.run_id, taskId: node.id })}
               runId={run.run_id}
               taskId={node.id}
             />

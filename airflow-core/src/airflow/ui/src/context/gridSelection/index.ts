@@ -17,11 +17,5 @@
  * under the License.
  */
 
-export const getFilterCount = (filters: Record<string, unknown>): number =>
-  Object.values(filters).reduce((count: number, value) => {
-    if (Array.isArray(value)) {
-      return count + (value.length > 0 ? 1 : 0);
-    }
-
-    return count + (value !== null && value !== undefined ? 1 : 0);
-  }, 0);
+export * from "./Context";
+export * from "./GridSelectionProvider";

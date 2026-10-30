@@ -75,7 +75,9 @@ const PluginComponent: FC<PluginComponentProps> = (props) => {
  * Chakra semantic tokens handle light/dark mode automatically.
  */
 const WrappedPluginComponent: FC<PluginComponentProps> = (props) => {
-  const system = (globalThis as Record<string, unknown>).ChakraUISystem ?? localSystem;
+  const system =
+    (globalThis as typeof globalThis & { ChakraUISystem?: typeof localSystem }).ChakraUISystem ??
+    localSystem;
 
   return (
     <ChakraProvider value={system}>

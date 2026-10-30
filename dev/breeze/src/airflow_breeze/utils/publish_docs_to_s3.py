@@ -77,6 +77,7 @@ class S3DocsPublish:
         overwrite: bool = False,
         parallelism: int = 1,
         skip_write_to_stable_folder: bool = False,
+        skip_packages_metadata: bool = False,
     ):
         self.source_dir_path = source_dir_path
         self.destination_location = destination_location
@@ -86,6 +87,7 @@ class S3DocsPublish:
         self.parallelism = parallelism
         self.source_dest_mapping: list[tuple[str, str]] = []
         self.skip_write_to_stable_folder = skip_write_to_stable_folder
+        self.skip_packages_metadata = skip_packages_metadata
 
     @cached_property
     def get_all_docs(self):
@@ -244,8 +246,8 @@ class S3DocsPublish:
             include_success_outputs=False,
         )
 
-        # Now generate the packages-metadata.json
-        self.generate_packages_metadata()
+        if not self.skip_packages_metadata:
+            self.generate_packages_metadata()
 
         # Add redirects to package folders
         [

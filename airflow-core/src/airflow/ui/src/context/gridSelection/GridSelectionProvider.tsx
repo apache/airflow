@@ -16,25 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Button, type ButtonProps } from "@chakra-ui/react";
+import { type PropsWithChildren, useState } from "react";
 
-type QuickFilterButtonProps = {
-  readonly isActive: boolean;
-} & ButtonProps;
+import { GridSelectionContext, type GridSelectionState } from "./Context";
 
-export const QuickFilterButton = ({ children, isActive, ...rest }: QuickFilterButtonProps) => (
-  <Button
-    _hover={{ bg: "colorPalette.emphasized" }}
-    bg={isActive ? "colorPalette.muted" : undefined}
-    borderColor="border.emphasized"
-    borderRadius={20}
-    borderWidth={1}
-    color="colorPalette.fg"
-    data-testid="quick-filter-button"
-    fontWeight="normal"
-    variant={isActive ? "solid" : "outline"}
-    {...rest}
-  >
-    {children}
-  </Button>
-);
+// Held above the grid so that the details panel can tell whether task instances are selected in it.
+export const GridSelectionProvider = ({ children }: PropsWithChildren) => {
+  const [selection, setSelection] = useState<GridSelectionState>({ cells: new Map(), dagId: "" });
+
+  return (
+    <GridSelectionContext.Provider value={[selection, setSelection]}>
+      {children}
+    </GridSelectionContext.Provider>
+  );
+};

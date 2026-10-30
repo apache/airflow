@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 from argparse import BooleanOptionalAction
 from datetime import UTC
@@ -33,6 +34,7 @@ from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
     BackfillPostBody,
     ClearTaskInstancesBody,
+    ConnectionBody,
     ConnectionTestResponse,
     DAGPatchBody,
     DagSchedulingState,
@@ -55,6 +57,8 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    is_iso_date_type,
+    is_iso_datetime_type,
     json_dict_type,
     merge_commands,
     safe_call_command,
@@ -449,6 +453,51 @@ class TestCommandFactory:
         with pytest.raises(argparse.ArgumentTypeError, match="expected JSON object"):
             json_dict_type(value)
 
+    def test_is_iso_datetime_type_returns_datetime_input_unchanged(self):
+        """A datetime.datetime input is returned as-is without re-parsing."""
+
+        value = datetime.datetime(2026, 7, 1, tzinfo=UTC)
+
+        assert is_iso_datetime_type(value) is value
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("2026-07-01", "2026-07-01T00:00:00"),
+            ("2026-07-01T00:00:00", "2026-07-01T00:00:00"),
+            ("2026-07-01T12:34:56+00:00", "2026-07-01T12:34:56+00:00"),
+            ("2026-07-01T12:34:56Z", "2026-07-01T12:34:56+00:00"),
+        ],
+    )
+    def test_is_iso_datetime_type_parses_iso_string(self, value, expected):
+        """An ISO-8601 datetime string (date-only or full) is parsed into a datetime."""
+        assert is_iso_datetime_type(value).isoformat() == expected
+
+    def test_is_iso_datetime_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid datetime value"):
+            is_iso_datetime_type("not-a-date")
+
+    def test_is_iso_datetime_type_accepts_trailing_z(self):
+        """A trailing Z (as emitted by the API) parses on all supported Python versions."""
+        assert is_iso_datetime_type("2026-07-01T12:00:00Z") == datetime.datetime(
+            2026, 7, 1, 12, 0, 0, tzinfo=UTC
+        )
+
+    def test_is_iso_date_type_parses_iso_date(self):
+        """An ISO-8601 date string is parsed into a datetime.date."""
+        assert is_iso_date_type("2026-07-01") == datetime.date(2026, 7, 1)
+
+    def test_is_iso_date_type_returns_date_input_unchanged(self):
+        """A datetime.date input is returned as-is without re-parsing."""
+        d = datetime.date(2026, 7, 1)
+        assert is_iso_date_type(d) is d
+
+    def test_is_iso_date_type_rejects_invalid_value(self):
+        """A non-parseable string raises an ArgumentTypeError."""
+        with pytest.raises(argparse.ArgumentTypeError, match="Invalid ISO-8601 date"):
+            is_iso_date_type("not-a-date")
+
     def test_command_factory_required_primitive_param_is_positional(self, tmp_path):
         """Required primitive parameters (no default, not Optional) become positional arguments.
 
@@ -540,6 +589,47 @@ class TestCommandFactory:
         assert limit_arg.flags == ("--limit",)
         assert limit_arg.kwargs["type"] is int
 
+    @pytest.mark.parametrize(
+        ("group", "command", "required_flags"),
+        [
+            pytest.param(
+                "connections", "create", {"--connection-id", "--conn-type"}, id="connections-create"
+            ),
+            pytest.param("pools", "create", {"--name", "--slots"}, id="pools-create"),
+        ],
+    )
+    def test_required_datamodel_fields_become_required_flags(self, group, command, required_flags):
+        """Required fields of a body model are generated as required ``--flags``."""
+        command_factory = CommandFactory()
+        group_command = next(g for g in command_factory.group_commands if g.name == group)
+        sub_command = next(c for c in group_command.subcommands if c.name == command)
+
+        required = {arg.flags[0] for arg in sub_command.args if arg.kwargs.get("required") is True}
+        assert required == required_flags
+
+        for arg in sub_command.args:
+            action = arg.kwargs.get("action")
+            if action is BooleanOptionalAction:
+                assert not arg.kwargs.get("required"), "bool flags always have a default"
+
+    def test_optional_datamodel_fields_default_to_none(self):
+        """Optional non-bool fields stay ``None`` so Pydantic sees them as not provided."""
+        command_factory = CommandFactory()
+        group_command = next(g for g in command_factory.group_commands if g.name == "connections")
+        sub_command = next(c for c in group_command.subcommands if c.name == "create")
+
+        parser = argparse.ArgumentParser()
+        for arg in sub_command.args:
+            arg.add_to_parser(parser)
+
+        namespace = parser.parse_args(["--connection-id", "c1", "--conn-type", "http"])
+
+        assert namespace.connection_id == "c1"
+        assert namespace.conn_type == "http"
+        assert namespace.host is None
+        assert namespace.login is None
+        assert namespace.description is None
+
     def test_every_generated_command_accepts_the_output_flag(self):
         """``_get_func`` always prints through ``args.output``, so every generated command must declare it."""
         command_factory = CommandFactory()
@@ -564,8 +654,63 @@ class TestCommandFactory:
 
         assert missing == []
 
+    def test_required_but_nullable_datamodel_field_stays_optional(self):
+        """A field with no default that accepts None (e.g. ``logical_date``) must not become a required flag."""
+        command_factory = CommandFactory()
+        dags_group = next(g for g in command_factory.group_commands if g.name == "dags")
+        trigger = next(c for c in dags_group.subcommands if c.name == "trigger")
+
+        logical_date_arg = next(arg for arg in trigger.args if arg.flags == ("--logical-date",))
+        assert not logical_date_arg.kwargs.get("required")
+
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"])
+    @pytest.mark.parametrize(
+        ("failure", "ambiguous"),
+        [
+            (httpx.ReadTimeout, True),
+            (httpx.ReadError, True),
+            (httpx.RemoteProtocolError, True),
+            ("json-500", True),
+            ("plain-503", True),
+            ("json-400", False),
+            ("plain-401", False),
+            ("redirect", False),
+            ("connection", False),
+        ],
+    )
+    def test_safe_call_command_warns_only_for_ambiguous_writes(self, method, failure, ambiguous, capsys):
+        request = httpx.Request(method, "http://localhost/operation")
+        error: Exception
+        if failure == "connection":
+            error = AirflowCtlConnectionException("Connection refused. Is the API server running?")
+        elif isinstance(failure, str):
+            status_code = {
+                "json-500": 500,
+                "plain-503": 503,
+                "json-400": 400,
+                "plain-401": 401,
+                "redirect": 302,
+            }[failure]
+            response = httpx.Response(status_code, request=request, json={"detail": "boom"})
+            error_type = ServerResponseError if failure.startswith("json-") else httpx.HTTPStatusError
+            error = error_type("request failed", request=request, response=response)
+        else:
+            error = failure("request failed", request=request)
+
+        def raise_error(_args):
+            raise error
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        stderr = " ".join(capsys.readouterr().err.split())
+        warning_expected = ambiguous and method in {"POST", "PUT", "PATCH", "DELETE"}
+        assert ("may already have been applied" in stderr) is warning_expected
+        assert ("Check the server state before retrying" in stderr) is warning_expected
+
     @pytest.mark.parametrize(
         "raised_exception",
         [
@@ -751,6 +896,27 @@ class TestCliConfigMethods:
                 assert "subcommand2" in sub_command_names
                 assert "subcommand3" in sub_command_names
                 assert "subcommand4" in sub_command_names
+
+    def test_merge_commands_replaces_duplicate_subcommand(self, no_op_method):
+        generated = GroupCommand(
+            name="providers",
+            help="Generated providers commands",
+            subcommands=(
+                ActionCommand(name="get", help="Generated get", func=no_op_method, args=()),
+                ActionCommand(name="list", help="Generated list", func=no_op_method, args=()),
+            ),
+        )
+        custom = GroupCommand(
+            name="providers",
+            help="Custom providers commands",
+            subcommands=(ActionCommand(name="get", help="Custom get", func=no_op_method, args=()),),
+        )
+
+        merged = merge_commands(base_commands=[generated], commands_will_be_merged=[custom])
+
+        subcommands = list(merged[0].subcommands)
+        assert [command.name for command in subcommands] == ["list", "get"]
+        assert subcommands[-1].help == "Custom get"
 
     def test_add_auth_token_to_all_commands(self, no_op_method):
         """Test the add_auth_token_to_all_commands method."""
@@ -1002,6 +1168,66 @@ class TestCliConfigMethods:
         assert [str(ti_id) for ti_id in body.task_instance_ids.root] == [UUID_A, UUID_B]
         assert [str(ti_id) for ti_id in body.whole_expansion_ids] == [UUID_A]
 
+    def test_validate_datamodel_returns_model_for_valid_params(self):
+        """Test _validate_datamodel returns the validated datamodel when all required fields are given."""
+        command_factory = CommandFactory()
+        body = command_factory._validate_datamodel(
+            ConnectionBody, {"connection_id": "my_conn", "conn_type": "http"}
+        )
+
+        assert isinstance(body, ConnectionBody)
+        assert body.connection_id == "my_conn"
+        assert body.conn_type == "http"
+
+    def test_validate_datamodel_reports_missing_required_fields_as_flags(self):
+        """Test missing required fields are reported as CLI flags instead of a pydantic traceback."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(ConnectionBody, {"connection_id": None, "conn_type": None})
+
+        message = str(ctx.value)
+        assert "the following arguments are required: --connection-id, --conn-type" in message
+        assert "ValidationError" not in message
+
+    def test_validate_datamodel_does_not_report_optional_fields_as_missing(self):
+        """Test an unset optional field is not reported as a missing argument."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(
+                ConnectionBody, {"connection_id": "my_conn", "conn_type": None, "host": None}
+            )
+
+        message = str(ctx.value)
+        assert "--conn-type" in message
+        assert "--connection-id" not in message
+        assert "--host" not in message
+
+    def test_validate_datamodel_reports_invalid_values_with_flag_name(self):
+        """Test a value of the wrong type is reported against its flag, not as a missing argument."""
+        command_factory = CommandFactory()
+        with pytest.raises(SystemExit) as ctx:
+            command_factory._validate_datamodel(
+                ConnectionBody, {"connection_id": "my_conn", "conn_type": "http", "port": "not-a-port"}
+            )
+
+        message = str(ctx.value)
+        assert "--port" in message
+        assert "required" not in message
+
+    def test_create_command_without_required_option_exits_with_friendly_message(self):
+        """Test ``connections create`` without --conn-type exits cleanly and never calls the API."""
+        parser = cli_parser.get_parser()
+        args = parser.parse_args(
+            ["connections", "create", "--api-token", "token", "--connection-id", "my_conn"]
+        )
+
+        with mock.patch.object(ConnectionsOperations, "create") as mock_create:
+            with pytest.raises(SystemExit) as ctx:
+                args.func(args)
+
+        assert "the following arguments are required: --conn-type" in str(ctx.value)
+        mock_create.assert_not_called()
+
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
         [
@@ -1026,6 +1252,24 @@ class TestCliConfigMethods:
                         )
                         return
         pytest.fail(f"Auto-generated command not found: {group_name} {subcommand_name}")
+
+    def test_command_factory_wires_iso_parser_to_datetime_params(self):
+        """A generated datetime CLI arg parses an ISO date end to end."""
+        command_factory = CommandFactory()
+        dagrun_list_args = []
+
+        for group in command_factory.group_commands:
+            if group.name != "dagrun":
+                continue
+
+            for sub in group.subcommands:
+                if sub.name == "list":
+                    dagrun_list_args = list(sub.args)
+                    break
+
+        start_date_arg = next(a for a in dagrun_list_args if a.flags == ("--start-date",))
+
+        assert start_date_arg.kwargs["type"]("2026-07-01") == datetime.datetime(2026, 7, 1)
 
     @staticmethod
     def _call_generated_command(monkeypatch, operations_class, method_name: str, **parsed_args):
@@ -1087,6 +1331,19 @@ class TestCliConfigMethods:
         args.func(args, api_client=mock.MagicMock(spec=Client))
 
         assert mocked_print_as.call_args.kwargs["output"] == "json"
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
+    def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
+        """An operation that returns nothing is reported as a successful operation row."""
+        mocked_create_defaults.return_value = None
+        args = cli_parser.get_parser().parse_args(["connections", "create-defaults"])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"operation": "create_defaults", "status": "success"}
+        ]
 
     @pytest.mark.parametrize(
         ("output", "parse", "expected"),

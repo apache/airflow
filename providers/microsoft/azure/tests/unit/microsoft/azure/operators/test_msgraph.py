@@ -28,10 +28,11 @@ import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, Context, TaskDeferred, timezone
+from airflow.providers.microsoft.azure.exceptions import MSGraphPageNotInTaskStateStoreError
 from airflow.providers.microsoft.azure.operators.msgraph import (
-    COMPLETED_KEY,
-    CURSOR_KEY,
-    PAGE_KEY_PREFIX,
+    _COMPLETED_KEY,
+    _CURSOR_KEY,
+    _PAGE_KEY_PREFIX,
     MSGraphAsyncOperator,
     execute_callable,
 )
@@ -40,6 +41,7 @@ from airflow.triggers.base import TriggerEvent
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.mock_context import mock_context
 from tests_common.test_utils.operators.run_deferrable import execute_operator
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
@@ -59,7 +61,12 @@ class TaskStateStore:
         return self.values.get(key, default)
 
     def set(self, key, value, *, retention=None):
+        if value is None:
+            raise ValueError("Cannot set value as None")
         self.values[key] = value
+
+    def delete(self, key):
+        self.values.pop(key, None)
 
 
 def users_event(name: str) -> dict[str, Any]:
@@ -75,6 +82,11 @@ def users_operator(**kwargs) -> MSGraphAsyncOperator:
         result_processor=lambda result, **context: result.get("value"),
         **kwargs,
     )
+
+
+def kept_cursor(pages: int = 1) -> dict[str, Any]:
+    """A cursor as this version of the provider keeps it, pointing at the next page."""
+    return {"version": 1, "url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": pages}
 
 
 class TestMSGraphAsyncOperator:
@@ -548,6 +560,15 @@ class TestMSGraphAsyncOperator:
             assert len(recorded_warnings) == 0
 
 
+@mock.patch("airflow.providers.microsoft.azure.operators.msgraph.AIRFLOW_V_3_3_PLUS", False)
+def test_durable_below_airflow_3_3_warns_and_is_disabled():
+    with pytest.warns(UserWarning, match="`durable` has no effect on Airflow versions below 3.3"):
+        operator = users_operator(durable=True)
+
+    assert operator.durable is False
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The task state store arrived in Airflow 3.3")
 class TestDurableMSGraphAsyncOperator:
     def test_keeps_the_page_and_the_link_to_the_next_one(self):
         operator = users_operator(durable=True)
@@ -559,34 +580,54 @@ class TestDurableMSGraphAsyncOperator:
 
         users = json.loads(users_event("users.json")["response"])
         assert task_state_store.values == {
-            f"{PAGE_KEY_PREFIX}0": users["value"],
-            CURSOR_KEY: {"url": users["@odata.nextLink"], "query_parameters": None, "pages": 1},
+            f"{_PAGE_KEY_PREFIX}0": {"result": users["value"]},
+            _CURSOR_KEY: {
+                "version": 1,
+                "url": users["@odata.nextLink"],
+                "query_parameters": None,
+                "pages": 1,
+            },
         }
         assert exc.value.trigger.url == users["@odata.nextLink"]
         context["ti"].xcom_push.assert_not_called()
 
+    def test_keeps_a_page_whose_result_is_none(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore()
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+        page_without_value = {
+            "@odata.nextLink": "https://graph.microsoft.com/v1.0/users/delta()?$skiptoken=abc"
+        }
+        event = {"status": "success", "type": "builtins.dict", "response": json.dumps(page_without_value)}
+
+        with pytest.raises(TaskDeferred):
+            operator.execute_complete(context=context, event=event)
+
+        assert task_state_store.values[f"{_PAGE_KEY_PREFIX}0"] == {"result": None}
+
     def test_intermediate_page_reads_only_the_cursor(self):
         operator = users_operator(durable=True)
         task_state_store = TaskStateStore(
-            **{f"{PAGE_KEY_PREFIX}{page}": [{"id": str(page)}] for page in range(3)},
-            **{CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 3}},
+            **{f"{_PAGE_KEY_PREFIX}{page}": {"result": [{"id": str(page)}]} for page in range(3)},
+            **{_CURSOR_KEY: kept_cursor(pages=3)},
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
 
         with pytest.raises(TaskDeferred):
             operator.execute_complete(context=context, event=users_event("users.json"))
 
-        assert task_state_store.reads == [CURSOR_KEY]
-        assert task_state_store.values[CURSOR_KEY]["pages"] == 4
+        assert task_state_store.reads == [_CURSOR_KEY]
+        assert task_state_store.values[_CURSOR_KEY]["pages"] == 4
 
     def test_execute_resumes_at_the_kept_link(self):
         operator = users_operator(durable=True, query_parameters={"$top": 12})
         cursor = {
+            "version": 1,
             "url": "users/delta()?$skiptoken=abc",
             "query_parameters": {"$top": 12, "$skip": 12},
             "pages": 1,
         }
-        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{CURSOR_KEY: cursor})}
+        context = {"ti": mock.MagicMock(), "task_state_store": TaskStateStore(**{_CURSOR_KEY: cursor})}
 
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context)
@@ -603,8 +644,9 @@ class TestDurableMSGraphAsyncOperator:
         last_page = json.loads(users_event("next_users.json")["response"])["value"]
         task_state_store = TaskStateStore(
             **{
-                f"{PAGE_KEY_PREFIX}0": first_page,
-                CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                f"{_PAGE_KEY_PREFIX}0": {"result": first_page},
+                _CURSOR_KEY: kept_cursor(),
+                "written_by_the_dag": "kept",
             }
         )
         context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
@@ -612,7 +654,65 @@ class TestDurableMSGraphAsyncOperator:
         results = operator.execute_complete(context=context, event=users_event("next_users.json"))
 
         assert results == first_page + last_page
-        assert COMPLETED_KEY not in task_state_store.values
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+
+    def test_page_no_longer_in_the_store_fails_and_removes_the_pages(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
+                _CURSOR_KEY: kept_cursor(pages=2),
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="Page 2 is no longer"):
+            operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+
+    @pytest.mark.parametrize(
+        "page",
+        [[{"id": "0"}], {"result": "value", "metadata": "keep"}],
+        ids=["list", "dict_with_a_result_key"],
+    )
+    @pytest.mark.parametrize("event", ["users.json", "next_users.json"], ids=["next_page", "last_page"])
+    def test_pages_kept_by_an_earlier_version_fail_and_are_removed(self, page, event):
+        """15.3.0rc1 kept the pages unwrapped, under a cursor without a version."""
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": page,
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(MSGraphPageNotInTaskStateStoreError, match="earlier version of the provider"):
+            operator.execute_complete(context=context, event=users_event(event))
+
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
+        context["ti"].xcom_push.assert_not_called()
+
+    def test_execute_removes_the_pages_kept_by_an_earlier_version_and_starts_again(self):
+        operator = users_operator(durable=True)
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": "value", "metadata": "keep"},
+                _CURSOR_KEY: {"url": "users/delta()?$skiptoken=abc", "query_parameters": None, "pages": 1},
+                "written_by_the_dag": "kept",
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+
+        assert exc.value.trigger.url == operator.url
+        assert exc.value.trigger.pagination_link is False
+        assert task_state_store.values == {"written_by_the_dag": "kept"}
 
     def test_keeps_the_result_of_a_request_that_is_not_a_get(self):
         operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
@@ -621,13 +721,28 @@ class TestDurableMSGraphAsyncOperator:
 
         results = operator.execute_complete(context=context, event=users_event("next_users.json"))
 
-        assert task_state_store.values == {COMPLETED_KEY: {"result": results}}
+        assert task_state_store.values == {_COMPLETED_KEY: {"result": results}}
+
+    def test_keeps_only_the_result_of_a_paginated_request_that_is_not_a_get(self):
+        operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
+        task_state_store = TaskStateStore(
+            **{
+                f"{_PAGE_KEY_PREFIX}0": {"result": [{"id": "0"}]},
+                _CURSOR_KEY: kept_cursor(),
+            }
+        )
+        context = {"ti": mock.MagicMock(), "task_state_store": task_state_store}
+
+        results = operator.execute_complete(context=context, event=users_event("next_users.json"))
+
+        assert results[0] == {"id": "0"}
+        assert task_state_store.values == {_COMPLETED_KEY: {"result": results}}
 
     def test_execute_returns_the_kept_result_without_sending_the_request_again(self):
         operator = users_operator(durable=True, method="POST", data={"requestBody": "value"})
         context = {
             "ti": mock.MagicMock(),
-            "task_state_store": TaskStateStore(**{COMPLETED_KEY: {"result": [{"id": "1"}]}}),
+            "task_state_store": TaskStateStore(**{_COMPLETED_KEY: {"result": [{"id": "1"}]}}),
         }
 
         with mock.patch.object(operator, "defer") as mock_defer:

@@ -144,6 +144,20 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
+
+# Columns describing one attempt's execution; a successor attempt starts with them empty.
+_PER_ATTEMPT_COLUMNS = (
+    "start_date",
+    "end_date",
+    "duration",
+    "hostname",
+    "unixname",
+    "pid",
+    "queued_dttm",
+    "scheduled_dttm",
+    "queued_by_job_id",
+    "last_heartbeat_at",
+)
 tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
@@ -558,6 +572,7 @@ def clear_task_instances(
             # the task's own retry_delay, so a stale value would retime the next retry.
             ti.retry_reason = None
             ti.retry_delay_override = None
+            ti.retry_at = None
             ti.clear_next_method_args()
             # Match DagVersion to latest serialized DAG when running on the latest version.
             if use_latest_version:
@@ -1141,6 +1156,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     priority_weight: Mapped[int | None] = mapped_column(Integer, nullable=True)
     operator: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     custom_operator_name: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Denormalized from the task so ti_run can tell a stub (foreign-runtime) task from a regular one
+    # without loading the serialized Dag. Null on rows written before the column existed. A row moved
+    # to a new Dag version without being refreshed from its task keeps the value it was created with,
+    # which fails closed: a task that has become a stub loses its arg_bindings rather than running wrong.
+    is_stub: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1186,6 +1206,9 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # Read by next_retry_datetime().
     retry_delay_override: Mapped[float | None] = mapped_column(Float, nullable=True)
     retry_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # When an UP_FOR_RETRY attempt becomes due; written by the scheduler on its first pass after the
+    # attempt is created.
+    retry_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
 
     __table_args__ = (
         Index("ti_dag_state", dag_id, state),
@@ -1385,6 +1408,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             "executor_config": task.executor_config,
             "operator": task.task_type,
             "custom_operator_name": getattr(task, "operator_name", None),
+            "is_stub": task.is_stub,
             "region_index": region_index,
             "region_id": region_id,
             "_task_display_property_value": task.task_display_name,
@@ -1581,6 +1605,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         self.operator = task.task_type
         op_name = getattr(task, "operator_name", None)
         self.custom_operator_name = op_name if isinstance(op_name, str) else ""
+        self.is_stub = task.is_stub
         # Re-apply cluster policy here so that task default do not overload previous data
         task_instance_mutation_hook(self, dag_run=dag_run)
 
@@ -1621,6 +1646,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # prepare_db_for_next_try() would otherwise archive them under this try number.
             self.retry_reason = None
             self.retry_delay_override = None
+            self.retry_at = None
         if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
@@ -1748,12 +1774,22 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         """Archive this UUID and return its successor in the caller's transaction."""
         successor_state = self.state
         dag_version_id = self.dag_version_id
+        retry_at = None
+        # The execution API doesn't load the task, so a worker-reported retry without a policy
+        # override is left for DagRun._get_ready_tis.
+        if successor_state == TaskInstanceState.UP_FOR_RETRY and (
+            self.retry_delay_override is not None or self.task is not None
+        ):
+            retry_at = self._compute_retry_deadline(
+                failed_try_number=self.try_number, failed_end_date=self.end_date
+            )
         self.archive(reason="retry", session=session)
         values = {
             attribute.columns[0].name: getattr(self, attribute.key)
             for attribute in inspect(TaskInstance).column_attrs
         }
         values.update(
+            {name: None for name in _PER_ATTEMPT_COLUMNS},
             id=uuid7(),
             try_number=self.try_number + 1,
             working_set=True,
@@ -1762,6 +1798,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             external_executor_id=None,
             dag_version_id=dag_version_id,
             state=successor_state,
+            retry_at=retry_at,
         )
         session.execute(insert(TaskInstance.__table__).values(values))
         successor = session.scalars(select(TaskInstance).where(TaskInstance.id == values["id"])).one()
@@ -2053,28 +2090,60 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             return False
         return region is not None and region.node_id == self.task_id and region.parent_region_id is None
 
-    def next_retry_datetime(self):
+    def next_retry_datetime(self, *, session: Session | None = None) -> datetime:
         """
         Get datetime of the next retry if the task instance fails.
 
+        ``retry_at`` is usually written by the scheduler on its first pass after an
+        ``UP_FOR_RETRY`` attempt is created. Until then, or for a row from before that column, the
+        deadline is computed from the previous attempt's end date.
+        """
+        if self.state == TaskInstanceState.UP_FOR_RETRY:
+            if self.retry_at is not None:
+                return self.retry_at
+            return self._compute_retry_deadline(
+                failed_try_number=self.try_number - 1,
+                failed_end_date=self._get_previous_attempt_end_date(session=session) or self.end_date,
+            )
+        return self._compute_retry_deadline(failed_try_number=self.try_number, failed_end_date=self.end_date)
+
+    def _get_previous_attempt_end_date(self, *, session: Session | None) -> datetime | None:
+        session = session or inspect(self).session
+        if session is None:
+            return None
+        return session.scalar(
+            select(TaskInstance.end_date)
+            .where(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.run_id == self.run_id,
+                TaskInstance.task_id == self.task_id,
+                TaskInstance.region_id == self.region_id,
+                TaskInstance.region_index == self.region_index,
+                TaskInstance.try_number == self.try_number - 1,
+            )
+            .execution_options(include_all_attempts=True)
+        )
+
+    def _compute_retry_deadline(
+        self, *, failed_try_number: int, failed_end_date: datetime | None
+    ) -> datetime:
+        """
+        Compute when the attempt after ``failed_try_number`` may start.
+
         When a :class:`~airflow.sdk.definitions.retry_policy.RetryPolicy` has
-        overridden the delay, ``retry_delay_override`` is stored on the task
-        instance row and takes precedence over the static ``retry_delay`` /
-        exponential-backoff calculation.
+        overridden the delay, ``retry_delay_override`` takes precedence over the
+        static ``retry_delay`` / exponential-backoff calculation.
 
         For exponential backoff, retry_delay is used as base and will be converted to seconds.
         """
-        # Check for a policy-driven delay override.
+        base = failed_end_date if failed_end_date is not None else timezone.utcnow()
         if self.retry_delay_override is not None:
-            base = self.end_date if self.end_date is not None else timezone.utcnow()
             return base + timedelta(seconds=self.retry_delay_override)
 
         from airflow.sdk.definitions._internal.abstractoperator import MAX_RETRY_DELAY
 
-        # While waiting for retry, the live row already identifies the next attempt.
-        failed_try_number = (
-            self.try_number - 1 if self.state == TaskInstanceState.UP_FOR_RETRY else self.try_number
-        )
+        if TYPE_CHECKING:
+            assert self.task is not None
         delay = self.task.retry_delay
         multiplier = self.task.retry_exponential_backoff if self.task.retry_exponential_backoff != 0 else 1.0
         if multiplier != 1.0 and multiplier > 0:
@@ -2117,7 +2186,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             delay = timedelta(seconds=delay_backoff_in_seconds)
             if self.task.max_retry_delay:
                 delay = min(self.task.max_retry_delay, delay)
-        return self.end_date + delay
+        return base + delay
 
     def ready_for_retry(self) -> bool:
         """Check on whether the task instance is in the right state and timeframe to be retried."""
@@ -2346,8 +2415,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             Supported states: QUEUED and RUNNING
         """
         if self.end_date:
-            # if the task has an end date, it means that this is not its first round.
-            # we send the state transition time metric only on the first try, otherwise it gets more complex.
+            # This try already ran once (e.g. a sensor reschedule); only its first scheduling is timed.
             return
 
         # switch on state and deduce which metric to send
@@ -2674,6 +2742,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
             self.retry_reason = None
             self.retry_delay_override = None
+            self.retry_at = None
             self.trigger_id = trigger_row.id
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
