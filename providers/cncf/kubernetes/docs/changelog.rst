@@ -33,6 +33,12 @@ Changelog
   team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
   un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
 
+.. note::
+  Job operators and triggers now read the Job object instead of the ``jobs/status`` subresource, so they
+  need ``get`` on ``jobs`` (``batch`` API group) rather than on ``jobs/status``. If the ``ServiceAccount``
+  of your triggerer or workers was granted ``get`` on ``jobs/status`` but not on ``jobs``, grant it
+  ``get`` on ``jobs``.
+
 10.25.0
 .......
 

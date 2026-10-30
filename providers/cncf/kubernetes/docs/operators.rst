@@ -861,6 +861,23 @@ When the task is killed, ``on_kill`` deletes the Job (with foreground cascade).
 For discovered pods, deletion is controlled by ``on_kill_action``:
 ``delete_pod`` attempts direct pod deletion and ``keep_pod`` skips it.
 
+XCom of a Job
+^^^^^^^^^^^^^
+
+With ``wait_until_job_complete=True`` and ``do_xcom_push=True``, each pod of the Job writes its XCom to
+``/airflow/xcom/return.json``, as with ``KubernetesPodOperator``. The operator returns one value per pod,
+so the ``return_value`` XCom is a list. When the list has a single value, it is unwrapped and
+``return_value`` is that value, unless ``unwrap_single=False``. A pod that writes no XCom gives ``None``.
+
+The operator also pushes these XCom, whatever ``do_xcom_push`` is:
+
+* ``job_name`` and ``job_namespace``: the name and namespace of the Job, pushed when the Job is created.
+* ``job``: the Job as a dictionary, including its ``status`` (the finished Job when
+  ``wait_until_job_complete=True``).
+
+``KubernetesJobOperator`` reads the XCom of the pods it found when the Job started.
+For ``KubernetesStartKueueJobOperator``, see :ref:`howto/operator:KubernetesStartKueueJobOperator`.
+
 
 
 .. _howto/operator:KubernetesDeleteJobOperator:
@@ -929,6 +946,75 @@ you to start a Kueue job in a Kubernetes cluster
     :dedent: 4
     :start-after: [START howto_operator_k8s_install_kueue]
     :end-before: [END howto_operator_k8s_install_kueue]
+
+Waiting for the Job
+^^^^^^^^^^^^^^^^^^^
+
+With ``wait_until_job_complete=True``, the operator waits on the Job itself rather than on its pods:
+the Job stays suspended without pods until Kueue admits it, and Kueue may preempt it (suspend it again
+and delete its running pods) then admit it again, any number of times. New pods, with new names, are
+created at each admission. Pods that already succeeded are not deleted by a preemption and still count
+for the Job. Once the Job is finished, logs are read from the pods the Job has at that time.
+
+XCom
+^^^^
+
+With ``do_xcom_push=True``, the XCom of each pod is read at the first poll after its base container ends,
+while the Job runs: until then, the XCom sidecar keeps the pod, and so the Job, from finishing. Once the Job is
+finished, only the XCom of the pods that are ``Succeeded`` at that time are kept: the XCom of pods
+deleted by a preemption and of failed pods are dropped. ``return_value`` is the list of those XCom,
+one per succeeded pod, ordered by pod name (see :ref:`howto/operator:kubernetesjoboperator` for the
+other XCom pushed and ``unwrap_single``).
+
+If the XCom of a succeeded pod could not be read, for example because the pod was deleted before the
+task finished, the task fails rather than returning an incomplete list. A pod that writes no XCom does
+not fail the task: its value is ``None``.
+
+Number of pods: ``completions`` and ``parallelism``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The number of values in ``return_value`` is the number of pods that succeeded, set by the ``completions``
+and ``parallelism`` parameters of the Job:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Settings
+     - Pods running at once
+     - The Job is finished when
+     - ``return_value``
+   * - Defaults: ``parallelism=1``, ``completions`` not set
+     - 1
+     - one pod succeeded
+     - the value of that pod
+   * - ``completions=N``
+     - up to ``parallelism``
+     - ``N`` pods succeeded
+     - a list of ``N`` values
+   * - ``parallelism=M`` (``M`` > 1), ``completions`` not set (work queue)
+     - up to ``M``
+     - one pod succeeded and all the others ended
+     - a list of one value per pod that succeeded, from 1 to ``M``
+
+Failed pods are retried up to ``backoff_limit`` and never add a value. ``completions`` can also come
+from ``full_job_spec`` or ``job_template_file`` when the parameter is not set.
+
+Pod names end with a random suffix, so the order of ``return_value`` does not follow the order in which
+pods ran. With ``completion_mode="Indexed"``, each pod gets its index, from ``0`` to ``completions - 1``,
+in the ``JOB_COMPLETION_INDEX`` environment variable, and pod names start with ``<job name>-<index>-``.
+As names are sorted as text (``10`` comes before ``2``), write the index into the XCom and sort the list
+on it in the downstream task when the order matters:
+
+.. code-block:: bash
+
+    echo "{\"index\": $JOB_COMPLETION_INDEX, \"rows\": 42}" > /airflow/xcom/return.json
+
+Kueue admits and preempts the Job as a whole: it reserves the quota for the pods the Job runs at once
+(``parallelism``, at most ``completions``), so a high ``parallelism`` may make the Job wait longer for
+admission.
+
+Reference
+^^^^^^^^^
 
 For further information, look at:
 
