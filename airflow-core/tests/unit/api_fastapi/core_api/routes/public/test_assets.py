@@ -23,7 +23,7 @@ from uuid import uuid4
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, func, select, text, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -60,7 +60,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.api_fastapi import iter_api_routes
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
@@ -387,6 +387,55 @@ class TestAssets:
 
 
 class TestGetAssets(TestAssets):
+    @pytest.mark.parametrize("order_by", ["id", "-id", "created_at", "-created_at"])
+    def test_latest_events_follow_filtered_asset_page(self, test_client, session, order_by):
+        assets = _create_assets(session, num=3)
+        hidden_asset = AssetModel(id=4, name="hidden", uri="s3://bucket/hidden", group="asset")
+        session.add(hidden_asset)
+        session.add(AssetActive.for_asset(hidden_asset))
+        events = [
+            AssetEvent(asset_id=assets[0].id, timestamp=DEFAULT_DATE + timedelta(days=1)),
+            AssetEvent(asset_id=assets[0].id, timestamp=DEFAULT_DATE),
+            AssetEvent(asset_id=assets[1].id, timestamp=DEFAULT_DATE),
+            AssetEvent(asset_id=assets[1].id, timestamp=DEFAULT_DATE),
+            AssetEvent(asset_id=999, timestamp=DEFAULT_DATE + timedelta(days=2)),
+        ]
+        session.add_all(events)
+        session.commit()
+        latest_ids = {1: events[0].id, 2: events[3].id, 3: None}
+
+        response = test_client.get(
+            "/assets",
+            params={"order_by": order_by, "limit": 2, "offset": 1, "name_pattern": "simple"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        expected_ids = [2, 1] if order_by.startswith("-") else [2, 3]
+        assert body["total_entries"] == 3
+        assert [asset["id"] for asset in body["assets"]] == expected_ids
+        assert [asset["last_asset_event"]["id"] for asset in body["assets"]] == [
+            latest_ids[asset_id] for asset_id in expected_ids
+        ]
+
+    @pytest.mark.backend("sqlite")
+    def test_latest_event_lookup_does_not_scan_event_history(self, test_client, session):
+        asset, _ = self.create_assets(session=session)
+        event = AssetEvent(asset_id=asset.id, timestamp=DEFAULT_DATE)
+        session.add(event)
+        session.commit()
+        event_id = event.id
+
+        with capture_orm_selects("asset_event") as statements:
+            response = test_client.get("/assets", params={"limit": 1, "order_by": "id"})
+
+        assert response.status_code == 200
+        assert response.json()["assets"][0]["last_asset_event"]["id"] == event_id
+        assert statements
+        for statement in statements:
+            plan = session.execute(text(f"EXPLAIN QUERY PLAN {statement}"))
+            assert not any(row[3].startswith("SCAN asset_event") for row in plan)
+
     def test_should_respond_200(self, test_client, session):
         assets1, asset2 = self.create_assets(session=session)
         session.add(AssetModel("inactive", "inactive"))
