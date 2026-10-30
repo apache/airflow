@@ -356,6 +356,34 @@ def test_gh_api_retries_server_errors(
     assert mock_run.call_count == expected_calls
 
 
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        pytest.param("gh: Server Error (HTTP 502)\n", True, id="server-error"),
+        pytest.param("stream error: stream ID 3; CANCEL; received from peer\n", True, id="stream-reset"),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": read tcp 10.1.0.4:52144->140.82.112.6:443: '
+            "read: connection reset by peer\n",
+            True,
+            id="connection-reset",
+        ),
+        pytest.param('Get "https://api.github.com/repos/x": unexpected EOF\n', True, id="unexpected-eof"),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": net/http: TLS handshake timeout\n', True, id="tls-timeout"
+        ),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": dial tcp 140.82.112.6:443: i/o timeout\n',
+            True,
+            id="dial-timeout",
+        ),
+        pytest.param("gh: Not Found (HTTP 404)\n", False, id="client-error"),
+        pytest.param(None, False, id="no-stderr"),
+    ],
+)
+def test_is_transient(spot, stderr, expected):
+    assert spot.is_transient(subprocess.CalledProcessError(1, ["gh"], stderr=stderr)) is expected
+
+
 def test_run_slack_writes_outputs(spot, monkeypatch, tmp_path):
     output = tmp_path / "output"
     monkeypatch.setenv("GITHUB_OUTPUT", str(output))
