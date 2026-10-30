@@ -437,6 +437,7 @@ class TestGetPools(TestPoolsEndpoint):
         assert len(statements) == 1
         assert "JOIN task_instance ON task_instance.pool = slot_pool.pool" in statements[0]
         assert f"slot_pool.pool IN ('{POOL1_NAME}')" in statements[0]
+        assert f"task_instance.pool IN ('{POOL1_NAME}')" in statements[0]
 
     def test_empty_page_skips_slot_stats(self, test_client):
         self.create_pools()

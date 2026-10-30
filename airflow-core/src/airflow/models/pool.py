@@ -231,7 +231,10 @@ class Pool(Base):
             .group_by(Pool.pool, TaskInstance.state)
         )
         if pool_names is not None:
-            state_count_query = state_count_query.filter(Pool.pool.in_(pool_names))
+            state_count_query = state_count_query.filter(
+                Pool.pool.in_(pool_names),
+                TaskInstance.pool.in_(pool_names),
+            )
         state_count_by_pool = session.execute(state_count_query)
 
         # calculate queued and running metrics
