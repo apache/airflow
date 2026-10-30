@@ -30,9 +30,11 @@ name: Mirror hardened base images
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
   schedule:
-    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags. Re-running
-    # weekly is what picks those rebuilds up.
-    - cron: '27 4 * * 1'
+    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags, and moves the
+    # dhi.io apt repository on at the same time. A stale mirror then cannot install packages whose
+    # dependencies were rebuilt (docker-hardened-images/catalog#689), so it is refreshed several
+    # times a day rather than weekly.
+    - cron: '27 */6 * * *'
 permissions:
   contents: read
 concurrency:
