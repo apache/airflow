@@ -1276,6 +1276,36 @@ def test_process_workloads_routes_execute_callback(
     mock_send_workloads.assert_called_once_with([(workload.callback.key, workload, expected_queue, None)])
 
 
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+@pytest.mark.parametrize(
+    ("workload_queue", "configured_default_queue", "expected_queue"),
+    [
+        pytest.param(None, None, "default", id="default_queue"),
+        pytest.param("ct_queue", None, "ct_queue", id="workload_queue"),
+        pytest.param(None, "custom_default_queue", "custom_default_queue", id="configured_default_queue"),
+        pytest.param("ct_queue", "custom_default_queue", "ct_queue", id="workload_queue_overrides_default"),
+    ],
+)
+@mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor._send_workloads")
+def test_process_workloads_routes_test_connection(
+    mock_send_workloads, workload_queue, configured_default_queue, expected_queue
+):
+    workload = workloads.TestConnection(
+        connection_test_id=uuid4(),
+        connection_id="my_conn",
+        timeout=60,
+        queue=workload_queue,
+        token="test-token",
+    )
+
+    config = {("operators", "default_queue"): configured_default_queue} if configured_default_queue else {}
+    with conf_vars(config):
+        executor = celery_executor.CeleryExecutor()
+        executor._process_workloads([workload])
+
+    mock_send_workloads.assert_called_once_with([(workload.key, workload, expected_queue, None)])
+
+
 @pytest.fixture
 def execute_task_workload_json() -> str:
     """A serialized ExecuteTask workload usable by execute_workload tests."""
@@ -1973,3 +2003,104 @@ def test_celery_task_and_callback_results_keep_distinct_states(identity_executor
     assert type(events[callback.key][0]) is type(callback.failure_state)
     assert not executor.running
     assert not executor.workloads
+
+
+def _queued_connection_tests(executor):
+    if AIRFLOW_V_3_4_PLUS:
+        from airflow.executors.workloads.base import WorkloadType
+
+        return executor.executor_queues[WorkloadType.TEST_CONNECTION]
+    return executor.queued_connection_tests
+
+
+@pytest.fixture
+def connection_test_workload():
+    if not AIRFLOW_V_3_3_PLUS:
+        pytest.skip("TestConnection workload requires Airflow 3.3+")
+    return workloads.TestConnection(
+        connection_test_id=uuid4(),
+        connection_id="my_conn",
+        timeout=60,
+        token="",
+    )
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+def test_celery_executor_declares_connection_test_support():
+    if AIRFLOW_V_3_4_PLUS:
+        from airflow.executors.workloads.base import WorkloadType
+
+        assert WorkloadType.TEST_CONNECTION in CeleryExecutor.supported_workload_types
+    else:
+        assert CeleryExecutor.supports_connection_test is True
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+@pytest.mark.parametrize("state", ["SUCCESS", "FAILURE"])
+def test_connection_test_survives_celery_dispatch_and_completion(
+    identity_executor, connection_test_workload, state, mocker
+):
+    executor, workload = identity_executor, connection_test_workload
+    key = workload.key
+    result = executor.celery_app.AsyncResult("celery-ct")
+    mocker.patch.object(
+        executor,
+        "_send_workloads_to_celery",
+        autospec=True,
+        side_effect=lambda items: [(item[0], None, result) for item in items],
+    )
+    executor.queue_workload(workload, session=None)
+    assert _queued_connection_tests(executor) == {key: workload}
+
+    executor._process_workloads([workload])
+
+    assert not _queued_connection_tests(executor)
+    assert executor.running == {key}
+    assert executor.workloads == {key: result}
+    assert executor.get_event_buffer() == {key: (State.QUEUED, "celery-ct")}
+
+    mocker.patch.object(
+        executor.bulk_state_fetcher, "get_many", autospec=True, return_value={"celery-ct": (state, None)}
+    )
+    executor.sync()
+    events = executor.get_event_buffer()
+    expected = workload.success_state if state == "SUCCESS" else workload.failure_state
+    assert events == {key: (expected, None)}
+    assert type(events[key][0]) is type(expected)
+    assert not executor.running
+    assert not executor.workloads
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+def test_fail_connection_test_revokes_celery_result(identity_executor, connection_test_workload, mocker):
+    executor, workload = identity_executor, connection_test_workload
+    key = workload.key
+    result = executor.celery_app.AsyncResult("celery-ct")
+    mocker.patch.object(
+        executor,
+        "_send_workloads_to_celery",
+        autospec=True,
+        side_effect=lambda items: [(item[0], None, result) for item in items],
+    )
+    revoke = mocker.patch.object(executor.celery_app.control, "revoke", autospec=True)
+    executor.queue_workload(workload, session=None)
+    executor._process_workloads([workload])
+
+    executor.fail_connection_test(key)
+
+    revoke.assert_called_once_with("celery-ct")
+    assert not executor.workloads
+    assert not executor.running
+    assert not _queued_connection_tests(executor)
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+def test_fail_connection_test_drops_unsent_workload(identity_executor, connection_test_workload, mocker):
+    executor, workload = identity_executor, connection_test_workload
+    revoke = mocker.patch.object(executor.celery_app.control, "revoke", autospec=True)
+    executor.queue_workload(workload, session=None)
+
+    executor.fail_connection_test(workload.key)
+
+    revoke.assert_not_called()
+    assert not _queued_connection_tests(executor)
