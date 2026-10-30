@@ -1055,6 +1055,17 @@ To check what documents will be published to S3, you can use the ``--dry-run`` f
      breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
      --destination-location s3://airflow-docs/docs --dry-run
 
+After the sync the command rebuilds ``manifest/packages-metadata.json`` from a scan of every package in
+the bucket. When several publishes to one bucket can run at once, sync with ``--skip-packages-metadata``
+and rebuild the file in a separate, serialised step with ``--packages-metadata-only``, which needs no
+``--source-dir-path``. The ``Publish Docs to S3`` workflow does this so that provider and Airflow docs
+publishes can sync side by side.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3 --destination-location s3://airflow-docs/docs \
+     --packages-metadata-only
+
 These are all available flags of ``release-management publish-docs-to-s3`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
@@ -1147,6 +1158,42 @@ These are all available flags of ``workflow-run release-constraints`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
   :width: 100%
   :alt: Breeze workflow-run release-constraints
+
+Refreshing the base images before a release
+"""""""""""""""""""""""""""""""""""""""""""
+
+The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
+Python patch releases. Only the "Upgrade important CI environment" upgrade moves those pins, to images the
+mirror already has, so the release manager runs it before every beta (for ``main``) and before every
+test-to-stable PR (for the release branch), with one command.
+
+``breeze workflow-run upgrade-check`` mirrors the latest hardened base images first and waits for it, then
+upgrades the branch - by default the branch breeze comes from. For ``main`` it runs the upgrade check
+workflow, which opens an upgrade PR, and waits for it. For a ``vX-Y-test`` branch it runs
+``breeze ci upgrade --push-to-target-branch`` in your checkout, which pushes the upgrade straight to the
+branch, the head of the test-to-stable PR. That runs locally, as the release branch rules let only
+committers push without CI having passed. It fails, rather than switching, resetting or cleaning anything,
+when the checkout is not at the tip of the branch or has local changes. Both need ``gh`` credentials that
+may dispatch ``apache/airflow`` workflows, and check that first.
+
+These are all available flags of ``workflow-run upgrade-check`` command:
+
+.. image:: ./images/output_workflow-run_upgrade-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_upgrade-check.svg
+  :width: 100%
+  :alt: Breeze workflow-run upgrade-check
+
+``breeze workflow-run mirror-base-images`` runs only the mirror on ``main`` and waits for it. The mirror is
+shared by all branches, and ``main`` mirrors every Python version an active release branch still builds
+on. The upgrade check workflow runs it in a job of its own, so the token that may dispatch workflows never
+reaches the job running the upgraded tools.
+
+These are all available flags of ``workflow-run mirror-base-images`` command:
+
+.. image:: ./images/output_workflow-run_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze workflow-run mirror-base-images
 
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""
