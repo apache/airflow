@@ -92,7 +92,7 @@ class EmrAddStepsTrigger(AwsBaseWaiterTrigger):
 
 class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
     """
-    Asynchronously poll the boto3 API and wait for the JobFlow to finish executing.
+    Asynchronously poll the boto3 API and wait for the JobFlow to reach the state set by ``waiter_name``.
 
     :param job_flow_id: The id of the job flow to wait for.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
