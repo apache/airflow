@@ -535,6 +535,80 @@ class TestScheduler:
             in jmespath.search("spec.template.spec.containers[0].startupProbe.exec.command", docs[0])[-1]
         )
 
+    def test_readinessprobe_is_disabled_by_default(self):
+        docs = render_chart(
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert (
+            jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0]) is None
+        )
+
+    @pytest.mark.parametrize("probe", ["livenessProbe", "readinessProbe", "startupProbe"])
+    def test_probes_can_be_disabled(self, probe):
+        docs = render_chart(
+            values={"scheduler": {probe: {"enabled": False}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert jmespath.search(f"spec.template.spec.containers[0].{probe}", docs[0]) is None
+
+    def test_readinessprobe_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "readinessProbe": {
+                        "enabled": True,
+                        "initialDelaySeconds": 111,
+                        "timeoutSeconds": 222,
+                        "failureThreshold": 333,
+                        "periodSeconds": 444,
+                        "successThreshold": 2,
+                        "terminationGracePeriodSeconds": 30,
+                        "command": ["sh", "-c", "echo", "wow such test"],
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        probe = jmespath.search("spec.template.spec.containers[0].readinessProbe", docs[0])
+        assert probe["initialDelaySeconds"] == 111
+        assert probe["timeoutSeconds"] == 222
+        assert probe["failureThreshold"] == 333
+        assert probe["periodSeconds"] == 444
+        assert probe["successThreshold"] == 2
+        assert probe["terminationGracePeriodSeconds"] == 30
+        assert probe["exec"]["command"] == ["sh", "-c", "echo", "wow such test"]
+
+    def test_readinessprobe_command_defaults_to_job_check(self):
+        docs = render_chart(
+            values={"scheduler": {"readinessProbe": {"enabled": True}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert (
+            "airflow jobs check --job-type SchedulerJob --local"
+            in jmespath.search(
+                "spec.template.spec.containers[0].readinessProbe.exec.command", docs[0]
+            )[-1]
+        )
+
+    @pytest.mark.parametrize(
+        ("probe", "handler", "handler_value"),
+        [
+            ("livenessProbe", "httpGet", {"path": "/health", "port": 8974, "scheme": "HTTP"}),
+            ("readinessProbe", "tcpSocket", {"port": 8793}),
+            ("startupProbe", "grpc", {"port": 8974, "service": "scheduler"}),
+        ],
+    )
+    def test_probes_support_non_exec_handlers(self, probe, handler, handler_value):
+        docs = render_chart(
+            values={"scheduler": {probe: {"enabled": True, handler: handler_value}}},
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        rendered = jmespath.search(f"spec.template.spec.containers[0].{probe}", docs[0])
+        assert rendered[handler] == handler_value
+        assert "exec" not in rendered
+
     @pytest.mark.parametrize(
         ("log_values", "expected_volume"),
         [
