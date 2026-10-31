@@ -18,6 +18,9 @@
 """
 Supervisor schema version 2026-10-30.
 
+``StartTaskFinalization`` starts the supervisor's finalization timeout without choosing
+a task outcome, allowing retry callbacks to decide whether the task should retry.
+
 A brand-new message body needs no field-level migration instructions here: a lang-SDK
 pinned to an older version simply never sends it, so there is nothing to strip on the
 way down. Only *changes* to bodies that already existed at an earlier dated version

@@ -123,6 +123,7 @@ from airflow.sdk.execution_time.comms import (
     SetRenderedMapIndex,
     SkipDownstreamTasks,
     StartExecutionTimeout,
+    StartTaskFinalization,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -1798,6 +1799,24 @@ def run(
         # skipping the retry decision and every callback in ``finalize()``.
         msg, state, error = _handle_handler_failure(ti, e, log, context)
     finally:
+        if state == TaskInstanceState.UP_FOR_RETRY:
+            ti.state = state
+            context["exception"] = error
+            if ti.task.on_retry_callback and isinstance(msg, RetryTask):
+                try:
+                    SUPERVISOR_COMMS.send(StartTaskFinalization(retry=msg))
+                except Exception:
+                    log.exception("Failed to report start of task finalization to supervisor")
+            try:
+                _run_task_state_change_callbacks(ti.task, "on_retry_callback", context, log)
+            except AirflowFailException:
+                log.info("Retry callback raised AirflowFailException, failing the task instead of retrying")
+                state = TaskInstanceState.FAILED
+                msg = TaskState(
+                    state=TaskInstanceState.FAILED,
+                    end_date=ti.end_date,
+                    rendered_map_index=ti.rendered_map_index,
+                )
         # `state` may still be unset if an exception handler above raised before
         # binding it
         if state is not None:
@@ -2226,7 +2245,9 @@ def _run_task_state_change_callbacks(
     for i, callback in enumerate(getattr(task, kind)):
         try:
             create_executable_runner(callback, context_get_outlet_events(context), logger=log).run(context)
-        except Exception:
+        except Exception as error:
+            if kind == "on_retry_callback" and isinstance(error, AirflowFailException):
+                raise
             log.exception("Failed to run task callback", kind=kind, index=i, callback=callback)
 
 
@@ -2519,7 +2540,6 @@ def finalize(
         except Exception:
             log.exception("error calling listener")
     elif state == TaskInstanceState.UP_FOR_RETRY:
-        _run_task_state_change_callbacks(task, "on_retry_callback", context, log)
         try:
             get_listener_manager().hook.on_task_instance_failed(
                 previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=error

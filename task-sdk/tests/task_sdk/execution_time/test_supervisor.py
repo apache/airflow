@@ -147,6 +147,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SkipDownstreamTasks,
     StartExecutionTimeout,
+    StartTaskFinalization,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -2775,6 +2776,10 @@ REQUEST_TEST_CASES = [
         test_id="start_execution_timeout",
     ),
     RequestTestCase(
+        message=StartTaskFinalization(retry=RetryTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))),
+        test_id="start_task_finalization",
+    ),
+    RequestTestCase(
         message=SetRenderedMapIndex(rendered_map_index="Label: task_1"),
         client_mock=ClientMock(
             method_path="task_instances.set_rendered_map_index",
@@ -4282,6 +4287,68 @@ class TestHandleRequest:
         process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=1)
 
         monotonic.return_value += supervisor.TASK_OVERTIME_THRESHOLD + 1
+        process._handle_process_overtime_if_needed()
+
+        kill.assert_called_once_with(process, signal.SIGTERM, force=True)
+
+    @pytest.mark.parametrize("exit_code", [0, 1, -signal.SIGTERM])
+    @pytest.mark.parametrize("outcome", [None, TaskInstanceState.FAILED, SERVER_TERMINATED])
+    def test_retry_callback_exit_preserves_retry_unless_replaced(
+        self, watched_subprocess, exit_code, outcome
+    ):
+        process, _ = watched_subprocess
+        retry = RetryTask(
+            end_date=timezone.parse("2024-10-31T12:00:00Z"),
+            rendered_map_index="retrying",
+            retry_delay_seconds=37,
+            retry_reason="rate limited",
+        )
+        process._handle_request(StartTaskFinalization(retry=retry), structlog.get_logger(), req_id=1)
+        process.client.task_instances.retry.assert_not_called()
+        if outcome == TaskInstanceState.FAILED:
+            process._handle_request(
+                TaskState(state=TaskInstanceState.FAILED), structlog.get_logger(), req_id=2
+            )
+        elif outcome == SERVER_TERMINATED:
+            process._terminal_state = SERVER_TERMINATED
+        process._exit_code = exit_code
+
+        process.update_task_state_if_needed()
+
+        if outcome is None:
+            process.client.task_instances.retry.assert_called_once_with(
+                id=TI_ID,
+                end_date=retry.end_date,
+                rendered_map_index=retry.rendered_map_index,
+                retry_delay_seconds=37,
+                retry_reason="rate limited",
+            )
+            process.client.task_instances.finish.assert_not_called()
+        else:
+            process.client.task_instances.retry.assert_not_called()
+            assert process.client.task_instances.finish.call_args.kwargs["state"] == outcome
+
+    @pytest.mark.parametrize("started_at", [0.0, 1.0])
+    def test_retry_callbacks_share_finalization_overtime(self, watched_subprocess, mocker, started_at):
+        process, _ = watched_subprocess
+        kill = mocker.patch.object(ActivitySubprocess, "kill", autospec=True)
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=started_at)
+        process._execution_timeout_enforce_at = started_at + 5
+
+        process._handle_request(
+            StartTaskFinalization(retry=RetryTask(end_date=timezone.utcnow())),
+            structlog.get_logger(),
+            req_id=1,
+        )
+
+        assert process._terminal_state is None
+        assert process._pending_terminal_state_msg is None
+        assert process._execution_timeout_due_in() == float("inf")
+        process.client.task_instances.retry.assert_not_called()
+
+        monotonic.return_value += supervisor.TASK_OVERTIME_THRESHOLD
+        process._handle_request(RetryTask(end_date=timezone.utcnow()), structlog.get_logger(), req_id=2)
+        monotonic.return_value += 1
         process._handle_process_overtime_if_needed()
 
         kill.assert_called_once_with(process, signal.SIGTERM, force=True)

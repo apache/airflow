@@ -156,6 +156,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SkipDownstreamTasks,
     StartExecutionTimeout,
+    StartTaskFinalization,
     StartupDetails,
     SucceedTask,
     TaskRescheduleStartDate,
@@ -5810,6 +5811,94 @@ class TestTaskRunnerCallsCallbacks:
     def _execute_failure(self, context):
         self.results.append("execute failure")
         raise self._Failure("sorry!")
+
+    @pytest.mark.parametrize(
+        ("callback_error", "expected_state", "failed_report"),
+        [
+            (AirflowFailException("do not retry"), TaskInstanceState.FAILED, None),
+            (AirflowFailException("do not retry"), TaskInstanceState.FAILED, "outcome"),
+            (AirflowFailException("do not retry"), TaskInstanceState.FAILED, "start"),
+            (ValueError("callback failed"), TaskInstanceState.UP_FOR_RETRY, None),
+        ],
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner._send_error_email_notification", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager", autospec=True)
+    def test_retry_callback_can_stop_retries(
+        self,
+        mock_listener_manager,
+        mock_send_email,
+        create_runtime_ti,
+        mock_supervisor_comms,
+        callback_error,
+        expected_state,
+        failed_report,
+    ):
+        callback_states = []
+
+        def stop_retrying(context):
+            callback_states.append(("retry", context["ti"].state))
+            raise callback_error
+
+        def remaining_retry_callback(context):
+            callback_states.append(("remaining_retry", context["ti"].state))
+
+        def failure_callback(context):
+            callback_states.append(("failure", context["ti"].state))
+            assert context["exception"] is original_error
+
+        original_error = RuntimeError("task failed")
+
+        class FailingOperator(BaseOperator):
+            def execute(self, context):
+                raise original_error
+
+        task = FailingOperator(
+            task_id="task",
+            on_retry_callback=[stop_retrying, remaining_retry_callback],
+            on_failure_callback=failure_callback,
+            email="alerts@example.com",
+            email_on_retry=False,
+            email_on_failure=True,
+        )
+        ti = create_runtime_ti(task=task, should_retry=True)
+        context = ti.get_template_context()
+        log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+        if failed_report:
+
+            def send(message=None, *, msg=None):
+                message = msg if msg is not None else message
+                if (failed_report == "outcome" and isinstance(message, TaskState)) or (
+                    failed_report == "start" and isinstance(message, StartTaskFinalization)
+                ):
+                    raise ConnectionError("supervisor disconnected")
+                return mock.DEFAULT
+
+            mock_supervisor_comms.send.side_effect = send
+        state, _, error = run(ti, context, log)
+        context["exception"] = error
+        finalize(ti, state, context, log, error)
+
+        assert ti.state == expected_state
+        assert callback_states == [
+            ("retry", TaskInstanceState.UP_FOR_RETRY),
+            ("failure", TaskInstanceState.FAILED)
+            if expected_state == TaskInstanceState.FAILED
+            else ("remaining_retry", TaskInstanceState.UP_FOR_RETRY),
+        ]
+        reports = [
+            call.kwargs["msg"]
+            for call in mock_supervisor_comms.send.call_args_list
+            if isinstance(call.kwargs.get("msg"), (RetryTask, TaskState))
+        ]
+        assert [report.state for report in reports] == [expected_state]
+        assert ti._terminal_state_send_failed is (failed_report == "outcome")
+        mock_listener_manager.return_value.hook.on_task_instance_failed.assert_called_once_with(
+            previous_state=TaskInstanceState.RUNNING, task_instance=ti, error=original_error
+        )
+        if expected_state == TaskInstanceState.FAILED:
+            mock_send_email.assert_called_once_with(task, ti, context, original_error, log)
+        else:
+            mock_send_email.assert_not_called()
 
     @pytest.mark.parametrize(
         ("execute_impl", "should_retry", "expected_state", "expected_results"),
