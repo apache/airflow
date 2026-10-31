@@ -623,6 +623,53 @@ class TestPatchVariable(TestVariableEndpoint):
         assert Variable.get(key, session=session) == "old value"
 
     @pytest.mark.enable_redact
+    @pytest.mark.parametrize(
+        ("key", "stored_value"),
+        [
+            (TEST_VARIABLE_KEY2, TEST_VARIABLE_VALUE2),
+            (TEST_VARIABLE_KEY3, TEST_VARIABLE_VALUE3),
+            (TEST_VARIABLE_KEY5, TEST_VARIABLE_VALUE5),
+            (TEST_VARIABLE_KEY6, TEST_VARIABLE_VALUE6),
+        ],
+        ids=["sensitive-key", "sensitive-json-field", "nested-sensitive-json-fields", "sensitive-key-json"],
+    )
+    def test_patch_with_redacted_value_keeps_stored_secrets(self, test_client, key, stored_value):
+        """Saving the edit form unchanged sends the masked value back, which must not overwrite secrets."""
+        self.create_variables()
+        redacted = test_client.get(f"/variables/{key}").json()["value"]
+        assert "***" in redacted
+
+        response = test_client.patch(
+            f"/variables/{key}", json={"key": key, "value": redacted, "description": "edited"}
+        )
+
+        assert response.status_code == 200
+        assert Variable.get(key) == stored_value
+
+    @pytest.mark.enable_redact
+    def test_patch_with_redacted_value_applies_other_changes(self, test_client):
+        self.create_variables()
+        edited = json.loads(test_client.get(f"/variables/{TEST_VARIABLE_KEY5}").json()["value"])
+        edited["config"]["password"] = "new_password"
+        edited["config"]["next"]["added"] = "new_field"
+
+        response = test_client.patch(
+            f"/variables/{TEST_VARIABLE_KEY5}", json={"key": TEST_VARIABLE_KEY5, "value": json.dumps(edited)}
+        )
+
+        assert response.status_code == 200
+        assert Variable.get(TEST_VARIABLE_KEY5, deserialize_json=True) == {
+            "config": {
+                "password": "new_password",
+                "next": {
+                    "api_key": "some_api_key",
+                    "next_again": {"token": "some_token"},
+                    "added": "new_field",
+                },
+            }
+        }
+
+    @pytest.mark.enable_redact
     def test_patch_with_update_mask_description_only(self, test_client, session):
         """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
         self.create_variables()
@@ -1540,6 +1587,26 @@ class TestBulkVariables(TestVariableEndpoint):
         assert response.status_code == 200
         assert response.json()["update"] == {"success": [TEST_VARIABLE_KEY], "errors": []}
         assert Variable.get(TEST_VARIABLE_KEY, deserialize_json=True) == {"nested": [1, 2, True, None]}
+
+    @pytest.mark.enable_redact
+    def test_bulk_update_with_redacted_value_keeps_stored_secrets(self, test_client):
+        self.create_variables()
+        redacted = test_client.get(f"/variables/{TEST_VARIABLE_KEY5}").json()["value"]
+        actions = {
+            "actions": [
+                {
+                    "action": "update",
+                    "entities": [{"key": TEST_VARIABLE_KEY5, "value": redacted}],
+                    "action_on_non_existence": "fail",
+                }
+            ]
+        }
+
+        response = test_client.patch("/variables", json=actions)
+
+        assert response.status_code == 200
+        assert response.json()["update"] == {"success": [TEST_VARIABLE_KEY5], "errors": []}
+        assert Variable.get(TEST_VARIABLE_KEY5) == TEST_VARIABLE_VALUE5
 
     def test_bulk_variables_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.patch("/variables", json={})
