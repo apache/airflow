@@ -38,7 +38,10 @@ from airflowctl.api.datamodels.generated import (
     ConnectionTestResponse,
     DAGPatchBody,
     DagSchedulingState,
+    PoolBody,
+    PoolCollectionResponse,
     PoolPatchBody,
+    PoolResponse,
 )
 from airflowctl.api.operations import (
     BackfillOperations,
@@ -805,6 +808,59 @@ class TestCliConfigMethods:
         assert "Server response error:" in out
         assert ("does not follow" in out) is hint_expected
 
+    @pytest.mark.parametrize(
+        ("model", "payload", "expected", "unexpected"),
+        [
+            pytest.param(
+                PoolResponse,
+                {},
+                ["Response did not match the airflowctl model PoolResponse", "upgrading airflowctl"],
+                [],
+                id="response",
+            ),
+            pytest.param(
+                PoolCollectionResponse,
+                {"pools": [{}], "total_entries": 1},
+                ["PoolCollectionResponse", "pools.0."],
+                [],
+                id="nested-location",
+            ),
+            pytest.param(
+                PoolBody,
+                {"slots": "abc", "name": "p"},
+                ["Input did not match the airflowctl model PoolBody"],
+                ["upgrading airflowctl"],
+                id="request-body",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_validation_error(
+        self, model, payload, expected, unexpected, capsys
+    ):
+        def raise_validation_error(_args):
+            model.model_validate(payload)
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_validation_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        out = " ".join(capsys.readouterr().out.split())
+        for text in expected:
+            assert text in out
+        for text in unexpected:
+            assert text not in out
+
+    def test_safe_call_command_reports_non_json_response(self, capsys):
+        def raise_validation_error(_args):
+            PoolResponse.model_validate_json(b"<html>login</html>")
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_validation_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server returned a non-JSON response for PoolResponse" in out
+
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
         parser = argparse.ArgumentParser()
@@ -1214,19 +1270,15 @@ class TestCliConfigMethods:
         assert "--port" in message
         assert "required" not in message
 
-    def test_create_command_without_required_option_exits_with_friendly_message(self):
-        """Test ``connections create`` without --conn-type exits cleanly and never calls the API."""
+    def test_create_command_without_required_option_is_rejected_by_parser(self, capsys):
+        """Test argparse rejects ``connections create`` without --conn-type: exit code 2, message on stderr."""
         parser = cli_parser.get_parser()
-        args = parser.parse_args(
-            ["connections", "create", "--api-token", "token", "--connection-id", "my_conn"]
-        )
 
-        with mock.patch.object(ConnectionsOperations, "create") as mock_create:
-            with pytest.raises(SystemExit) as ctx:
-                args.func(args)
+        with pytest.raises(SystemExit) as ctx:
+            parser.parse_args(["connections", "create", "--api-token", "token", "--connection-id", "my_conn"])
 
-        assert "the following arguments are required: --conn-type" in str(ctx.value)
-        mock_create.assert_not_called()
+        assert ctx.value.code == 2
+        assert "the following arguments are required: --conn-type" in capsys.readouterr().err
 
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
