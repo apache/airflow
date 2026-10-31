@@ -155,18 +155,26 @@ JOB_STATE_RANKS = {"failure": 0, "pending": 1, "success": 2}
 # Commit statuses count towards GitHub's limit of 500 content-creating requests per hour, shared by
 # every workflow of the repository. At four runs an hour this keeps job statuses to at most about
 # half of it; the rest follow on the next run, failures first. See "Job statuses" in the design doc.
-MAX_JOB_STATUSES_PER_RUN = 60
+MAX_JOB_STATUSES_PER_RUN = 40
 # `CI run started` statuses of pull requests whose CI runs in apache/airflow come out of that budget
 # first: one write per new head commit, which merging waits for, while job statuses are informational.
 # At most this many, so job statuses keep the rest; the first runs after the check became required
 # catch up on the open pull requests a batch at a time, most recently updated first.
-MAX_CI_RUN_STARTED_PER_RUN = 30
+MAX_CI_RUN_STARTED_PER_RUN = 20
 # The GitHub Actions app, whose check suites are the workflow runs of a commit.
 GITHUB_ACTIONS_APP_ID = 15368
 # A single large fork run can need more writes than one run's budget, which the next run catches up
 # on, so deferring is only reported when it lasts this many consecutive runs: then the budget does
 # not keep up with the pull requests.
 DEFERRED_RUNS_BEFORE_ALERT = 3
+# GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
+# retried, while a persisting one means the repository's shared limits are close to exhausted.
+RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+RATE_LIMITED_NOTE = (
+    f"GitHub rate-limited the fork CI monitor in {RATE_LIMITED_RUNS_BEFORE_ALERT} runs in a row; the "
+    "repository's shared GITHUB_TOKEN limits are close to exhausted. Consider `job_statuses = false` in "
+    ".github/fork-ci-gate.toml (see dev/AGENTS.md)"
+)
 # Fixed text, so the note is posted to Slack once while deferrals persist; the run log lists the pull
 # requests.
 JOB_STATUSES_DEFERRED_NOTE = (
@@ -1284,19 +1292,17 @@ def fetch_fork_observations(
 
 
 def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, str, str]]:
-    """The ``(state, target URL, description)`` to report for each queued or started fork job, by context."""
+    """The ``(state, target URL, description)`` to report for each finished fork job, by context."""
     statuses: dict[str, tuple[str, str, str]] = {}
     # GitHub compares contexts case-insensitively, so differently capitalised names are one context.
     contexts: dict[str, str] = {}
     for job in jobs:
         if job["name"] in UNREPORTED_JOB_NAMES:
             continue
-        if job.get("status") in RUNNING_JOB_STATUSES:
-            outcome = "running"
-        else:
-            outcome = job.get("conclusion") or ""
+        outcome = "" if job.get("status") in RUNNING_JOB_STATUSES else job.get("conclusion") or ""
         if outcome not in JOB_STATUSES:
-            # Skipped and neutral jobs did no work worth a check on the pull request.
+            # Unfinished jobs are left to `Fork CI / Tests (AMD)`; skipped and neutral ones did no work
+            # worth a check on the pull request.
             continue
         state, description = JOB_STATUSES[outcome]
         context = contexts.setdefault(
@@ -2041,6 +2047,7 @@ def drop_reported(
     notes: list[str],
     record: bool = True,
     deferred_runs: int = 0,
+    rate_limited_runs: int = 0,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
     """
     Leave out the items the previous run already reported, and record this run's items.
@@ -2049,12 +2056,14 @@ def drop_reported(
     again. A missing or unreadable file reports everything.
 
     :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
+    :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
     """
     current: dict[str, Any] = {
         "unknown": [list(item) for item in unknown],
         "attention": [list(item) for item in attention],
         "notes": notes,
         "deferred_runs": deferred_runs,
+        "rate_limited_runs": rate_limited_runs,
     }
     try:
         previous = json.loads(reported_file.read_text())
@@ -2072,8 +2081,8 @@ def drop_reported(
     return drop("unknown", unknown), drop("attention", attention), drop("notes", notes)
 
 
-def read_deferred_runs(reported_file: Path | None) -> int | None:
-    """The consecutive runs before this one that deferred job statuses; None without a readable record."""
+def read_run_count(reported_file: Path | None, key: str) -> int | None:
+    """A count of consecutive runs the previous run recorded; None without a readable record."""
     if reported_file is None:
         return None
     try:
@@ -2083,8 +2092,24 @@ def read_deferred_runs(reported_file: Path | None) -> int | None:
     if not isinstance(previous, dict):
         return None
     # A record written before the count was kept has none.
-    count = previous.get("deferred_runs", 0)
+    count = previous.get(key, 0)
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def log_rate_limits(client: GitHubClient) -> None:
+    """Log what is left of the token's REST and GraphQL quotas; reading them does not count against them."""
+    try:
+        resources = client.rest_get("rate_limit")["resources"]
+    # Only logged: failing to read the quotas must not fail a run that did its work.
+    except Exception as e:
+        console_print(f"[warning]Could not read the rate limits: {e}[/]")
+        return
+    left = ", ".join(
+        f"{name} {resources[name]['remaining']}/{resources[name]['limit']}"
+        for name in ("core", "graphql")
+        if name in resources
+    )
+    console_print(f"[info]Rate limits left: {left}; rate-limited calls this run: {client.rate_limited}[/]")
 
 
 def run_reconcile(
@@ -2227,7 +2252,7 @@ def run_reconcile(
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
     if ci_run_started_note:
         notes.append(ci_run_started_note)
-    previous_deferred_runs = read_deferred_runs(reported_file)
+    previous_deferred_runs = read_run_count(reported_file, "deferred_runs")
     deferred_runs = (previous_deferred_runs or 0) + 1 if job_reporter.deferred else 0
     if job_reporter.deferred:
         console_print(
@@ -2242,6 +2267,13 @@ def run_reconcile(
     for number, reason in [*unknown, *attention]:
         console_print(f"[warning]#{number}: {reason}[/]")
     console_print(f"[info]Reconciled {len(prs)} pull requests; GitHub calls: {dict(client.calls)}[/]")
+    log_rate_limits(client)
+    previous_rate_limited_runs = read_run_count(reported_file, "rate_limited_runs")
+    rate_limited_runs = (previous_rate_limited_runs or 0) + 1 if client.rate_limited else 0
+    if client.rate_limited and (
+        previous_rate_limited_runs is None or rate_limited_runs >= RATE_LIMITED_RUNS_BEFORE_ALERT
+    ):
+        notes.append(RATE_LIMITED_NOTE)
     if draft_changes_file is not None:
         draft_changes_file.write_text(json.dumps([asdict(change) for change in draft_changes]))
     if reported_file is not None:
@@ -2252,6 +2284,7 @@ def run_reconcile(
             notes=notes,
             record=not client.dry_run,
             deferred_runs=deferred_runs,
+            rate_limited_runs=rate_limited_runs,
         )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:

@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
     JOB_STATUSES_DEFERRED_NOTE,
+    RATE_LIMITED_NOTE,
     BaseGateConfigs,
     BypassFinder,
     DraftChange,
@@ -71,6 +72,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     is_own_pilot_change,
     jobs_show_project_ci,
     load_workflow_triggers,
+    log_rate_limits,
     mark_older_pilot_pull_request,
     parse_pull_request,
     pull_request_changes_ci_files,
@@ -950,6 +952,7 @@ def client():
     github = mock.create_autospec(GitHubClient, instance=True)
     github.repo = REPO
     github.calls = {}
+    github.rate_limited = 0
     return github
 
 
@@ -2193,6 +2196,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "attention": [],
         "notes": [],
         "deferred_runs": 0,
+        "rate_limited_runs": 0,
     }
 
 
@@ -2320,7 +2324,7 @@ def _fork_job(name, status="completed", conclusion="success", url=None):
     }
 
 
-def test_build_job_statuses_reports_each_started_or_queued_job():
+def test_build_job_statuses_reports_each_finished_job():
     jobs = [
         _fork_job("Static checks"),
         _fork_job("Postgres tests: core / A", conclusion="failure"),
@@ -2340,8 +2344,6 @@ def test_build_job_statuses_reports_each_started_or_queued_job():
     } == {
         "Static checks": "success",
         "Postgres tests: core / A": "failure",
-        "Helm tests": "pending",
-        "Kubernetes tests": "pending",
         "Special tests": "failure",
     }
     assert statuses[f"{JOB_STATUS_CONTEXT_PREFIX}Static checks"][1] == "https://job/Static checks"
@@ -2420,10 +2422,11 @@ def test_job_status_reporter_leaves_what_does_not_fit_in_the_budget_for_the_next
 
 
 def test_job_status_reporter_does_not_record_a_run_in_progress(client):
-    _reporter_client(client, [_fork_job("A", status="in_progress", conclusion=None)])
+    _reporter_client(client, [_fork_job("A"), _fork_job("B", status="in_progress", conclusion=None)])
 
     assert JobStatusReporter(client, repo=REPO).report(_pr(), RUNNING_RUN) is None
     client.set_status.assert_called_once()
+    assert client.set_status.call_args.kwargs["context"] == f"{JOB_STATUS_CONTEXT_PREFIX}A"
 
 
 @pytest.mark.parametrize(
@@ -2499,11 +2502,9 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
 
 
-def test_build_job_statuses_reports_a_queued_job_like_a_running_one():
-    queued = build_job_statuses([_fork_job("A", status="queued", conclusion=None, url="u")])
-    running = build_job_statuses([_fork_job("A", status="in_progress", conclusion=None, url="u")])
-
-    assert queued == running
+@pytest.mark.parametrize("status", ["queued", "in_progress", "waiting"])
+def test_build_job_statuses_leaves_unfinished_jobs_to_the_aggregate_status(status):
+    assert build_job_statuses([_fork_job("A", status=status, conclusion=None, url="u")]) == {}
 
 
 def _stale(state):
@@ -3155,7 +3156,7 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
-    [pytest.param(False, 58, id="reported"), pytest.param(True, 30, id="fails")],
+    [pytest.param(False, 38, id="reported"), pytest.param(True, 20, id="fails")],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
@@ -3232,3 +3233,49 @@ def test_older_pilot_pull_request_stays_checked_for_tampering_after_its_gated_ru
     )
 
     assert find_bypass.called
+
+
+@pytest.mark.parametrize(
+    ("resources", "logged"),
+    [
+        pytest.param(
+            {"core": {"remaining": 900, "limit": 1000}, "graphql": {"remaining": 990, "limit": 1000}},
+            "core 900/1000, graphql 990/1000",
+            id="read",
+        ),
+        pytest.param(
+            GitHubError("gh api failed: HTTP 500"), "Could not read the rate limits", id="unreadable"
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.console_print", autospec=True)
+def test_log_rate_limits(mock_print, client, resources, logged):
+    client.rest_get.side_effect = (
+        [resources] if isinstance(resources, Exception) else [{"resources": resources}]
+    )
+
+    log_rate_limits(client)
+
+    client.rest_get.assert_called_once_with("rate_limit")
+    assert logged in mock_print.call_args.args[0]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = []
+    client.dry_run = False
+    reported_file = tmp_path / "reported.json"
+    reported_file.write_text("{}")
+    alerts = []
+    for rate_limited in (1, 0, 3, 2):
+        client.rate_limited = rate_limited
+        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+
+    assert alerts == [False, False, False, True]
+    assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
+    assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2

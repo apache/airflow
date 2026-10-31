@@ -40,6 +40,7 @@ def test_retries_on_rate_limit(mock_run, mock_sleep):
 
     assert client.graphql("query { ok }") == {"ok": True}
     assert client.calls["graphql"] == 2
+    assert client.rate_limited == 1
     mock_sleep.assert_called_once_with(30)
 
 
@@ -48,9 +49,12 @@ def test_retries_on_rate_limit(mock_run, mock_sleep):
 def test_gives_up_after_the_last_attempt_without_waiting(mock_run, mock_sleep):
     mock_run.return_value = _completed(1, stderr="API rate limit exceeded")
 
+    client = GitHubClient()
+
     with pytest.raises(GitHubError, match="still rate limited after 4 attempts"):
-        GitHubClient().graphql("query { ok }")
+        client.graphql("query { ok }")
     assert [c.args[0] for c in mock_sleep.call_args_list] == [30, 60, 120]
+    assert client.rate_limited == 4
 
 
 @pytest.mark.parametrize(

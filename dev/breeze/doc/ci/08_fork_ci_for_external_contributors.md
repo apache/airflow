@@ -805,15 +805,18 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   the prefix is what keeps a job from posting `Fork CI / Tests (AMD)`, from which the reconciler
   reads its decisions back, or `CI passed`, which the merge ruleset requires. Jobs that share a
   context, which GitHub compares case-insensitively, are reported as the worst of them.
-- A queued or running job is `pending` ("Running in the fork"), a successful one `success`, and a
-  failed, timed-out, cancelled or unstartable one `failure`. Skipped and neutral jobs, and the jobs
-  every run has (`Fork CI gate`, `Check if the run is needed`, `Platform: AMD` and `CI passed`), are
-  not reported. Queued and running share one status so that starting a job costs no write.
+- Only finished jobs are reported: a successful one as `success`, and a failed, timed-out,
+  cancelled or unstartable one as `failure`. Queued and running jobs are not, so each job costs one
+  write instead of two; `Fork CI / Tests (AMD)` shows the run as running, linking it, and with a
+  15-minute cadence a per-job "running" status was behind the fork's own run page anyway. A job of
+  a re-run in the fork keeps the result of the earlier attempt until it finishes. Skipped and
+  neutral jobs, and the jobs every run has (`Fork CI gate`, `Check if the run is needed`,
+  `Platform: AMD` and `CI passed`), are not reported.
 - The desired statuses are compared with the head commit's current ones
   (`GET /repos/apache/airflow/commits/<sha>/status`), and only differences are posted, failures
   first. GraphQL has no mutation for commit statuses (`createCheckRun` exists, but see above for
   why check runs do not fit), so each one is a REST call, and they count towards GitHub's limits on
-  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (60) of
+  content-creating requests: a reconciler run posts at most `MAX_JOB_STATUSES_PER_RUN` (40) of
   them, each write charged as it is made. What does not fit is posted by the next run, and once
   the budget is spent no further pull request's jobs or statuses are read in that run. One fork run
   of the full matrix (about 130 jobs) needs more than a run's budget on its own, which the next
@@ -839,9 +842,14 @@ on `Fork CI / Tests (AMD)`; a job status never changes either.
 
 `job_statuses = false` in `.github/fork-ci-gate.toml` turns them off; the reconciler then posts
 only `Fork CI / Tests (AMD)` and `CI passed`, as before. Statuses already posted stay on their
-commits. Turn them off when the fork CI monitor's runs hit GitHub's rate limits (rate-limit
-retries in the run log, or "still rate limited" errors in Slack); `dev/AGENTS.md` records this for
-agents.
+commits. Turn them off when the fork CI monitor's runs hit GitHub's rate limits; `dev/AGENTS.md`
+records this for agents.
+
+Each run logs what is left of the token's REST and GraphQL quotas (`GET /rate_limit`, which does
+not count against them) and how many of its calls GitHub rate-limited; the client retries those with
+backoff. Rate limiting in two runs in a row adds a note to the Slack message, with fixed wording so
+it is posted once while it persists; the count is kept in the same record as that of deferred job
+statuses.
 
 #### Write budget
 
@@ -857,25 +865,25 @@ jobs whose conclusion is not `skipped`, minus the four jobs that are not reporte
 | CI change (full tests) | [40207881565](https://github.com/apache/airflow/actions/runs/40207881565) | 131 | 127 |
 
 `apache/airflow` had 1898 `Tests (AMD)` pull request runs from 2026-10-18 to 2026-10-24, about 270 a
-day or 11 an hour. Each reported job costs at most two writes (running, then its result) and one
-when it starts and finishes between two reconciler runs; a fork run of 30-60 minutes spans two to
-four of them, so most jobs cost two.
+day or 11 an hour. Each reported job costs one write, its result.
 
 The limits that matter are GitHub's documented ones for the `GITHUB_TOKEN` of `apache/airflow`,
 shared by every workflow of the repository: 1000 REST requests an hour, and 80 content-creating
 requests a minute and 500 an hour. Assuming about 35 reported jobs for an average push:
 
-- **Contributor pilot**, a few gated pushes a day: about 70 writes a push, under 20 an hour, under
-  5% of the content-creating limit.
+- **Contributor pilot**, a few gated pushes a day: about 35 writes a push, under 10 an hour, under
+  2% of the content-creating limit. A single full-matrix run (about 127 jobs) still spans a few
+  monitor runs.
 - **Gate enabled**, assuming about half of the pull request runs come from gated pull requests
-  (about 5-6 pushes an hour): about 400 writes an hour without a cap, 80% of the content-creating
-  limit and more at peaks. The cap of 60 writes a run, four runs an hour, holds job statuses to at
-  most 240 an hour: 48% of the content-creating limit and 24% of the REST limit, plus two reads per
-  pull request with a run in progress. Job statuses then lag behind at busy times, the aggregate
-  status does not. The `CI run started` statuses of pull requests whose CI runs in
-  `apache/airflow` come out of the same 60 writes a run, first and at most 30 of them (see "The
-  `CI run started` check"), so they do not raise the total; at about 11 pull request runs an hour
-  they take about 3 writes a run.
+  (about 5-6 pushes an hour): about 200 writes an hour without a cap, 40% of the content-creating
+  limit and more at peaks. The cap of 40 writes a run, four runs an hour, holds job statuses to at
+  most 160 an hour: 32% of the content-creating limit, leaving the rest to the reconciler's other
+  writes (labels, comments, the aggregate statuses) and to the other workflows that share it. Each
+  run posts at most 40 statuses at about one a second, well under the 80-a-minute limit. Job
+  statuses then lag behind at busy times, the aggregate status does not. The `CI run started`
+  statuses of pull requests whose CI runs in `apache/airflow` come out of the same 40 writes a run,
+  first and at most 20 of them (see "The `CI run started` check"), so they do not raise the total;
+  at about 11 pull request runs an hour they take about 3 writes a run.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -936,7 +944,7 @@ with state `success` linking the run:
 Folding the check into the scheduled monitor costs no runner per push, at the price of a pull
 request waiting for the next monitor run before it can merge, which a CI run takes longer than
 anyway. Each new head commit needs one write, taken first out of the per-run budget of job
-statuses (see "Job statuses"), since merging waits for it; at most 30 such writes per run, so job
+statuses (see "Job statuses"), since merging waits for it; at most 20 such writes per run, so job
 statuses keep at least half of the budget, and after the check became required the open pull
 requests are caught up a batch at a time. A release branch has no monitor of its own, but `main`'s monitor covers pull
 requests to every base branch.
