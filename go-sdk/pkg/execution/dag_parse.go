@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"reflect"
 	"strings"
+	"time"
+	_ "time/tzdata"
 
 	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
@@ -41,9 +44,18 @@ func parseDags(
 		Fileloc:        req.File,
 		SerializedDags: []genmodels.LazyDeserializedDAG{},
 	}
+	timezone, err := parseDefaultTimezone(req.SerializationOptions.DefaultTimezone)
+	if err != nil {
+		result.ImportErrors = &genmodels.ImportErrors{relative: err.Error()}
+		return result
+	}
 	var dagIDs, failures []string
 	if s != nil {
-		for _, dag := range s.SerializeDags(req.File, relative) {
+		options := bundle.DagSerializationOptions{
+			CreateCronDataIntervals: req.SerializationOptions.CreateCronDataIntervals,
+			DefaultTimezone:         timezone,
+		}
+		for _, dag := range s.SerializeDags(req.File, relative, options) {
 			dagIDs = append(dagIDs, dag.DagID)
 			if dag.Err != nil {
 				logger.Error("Dag could not be serialized", "dag_id", dag.DagID, "error", dag.Err)
@@ -65,6 +77,47 @@ func parseDags(
 		"import_errors", len(failures),
 	)
 	return result
+}
+
+// The runtime embeds time/tzdata so validation also works in bundle images without system zoneinfo.
+func parseDefaultTimezone(value any) (bundle.Timezone, error) {
+	if name, ok := value.(string); ok {
+		if name != "" && name != "Local" {
+			if _, err := time.LoadLocation(name); err == nil {
+				return bundle.NamedTimezone(name), nil
+			}
+		}
+		return bundle.Timezone{}, fmt.Errorf(
+			"serialization_options.default_timezone: invalid IANA name %q",
+			name,
+		)
+	}
+	if value != nil {
+		v := reflect.ValueOf(value)
+		var offset int64
+		switch v.Kind() {
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			offset = v.Int()
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			if v.Uint() >= 86400 {
+				return bundle.Timezone{}, fmt.Errorf(
+					"serialization_options.default_timezone: offset out of range",
+				)
+			}
+			offset = int64(v.Uint())
+		default:
+			return bundle.Timezone{}, fmt.Errorf(
+				"serialization_options.default_timezone: expected IANA name or integer offset, got %T",
+				value,
+			)
+		}
+		if offset > -86400 && offset < 86400 {
+			return bundle.FixedTimezone(int(offset)), nil
+		}
+	}
+	return bundle.Timezone{}, fmt.Errorf(
+		"serialization_options.default_timezone: missing or invalid fixed offset",
+	)
 }
 
 // computeRelativeFileloc returns file relative to bundlePath, in the same way that Python's DagBag

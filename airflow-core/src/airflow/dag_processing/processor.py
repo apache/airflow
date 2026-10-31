@@ -117,6 +117,7 @@ class DagFileParseRequest(BaseModel):
     """Bundle name for team-specific executor validation."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
+
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
 
 
@@ -160,9 +161,8 @@ ToManagerMessage = (
 
 ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
 
-ToDagProcessor = Annotated[
-    DagFileParseRequest
-    | ConnectionResult
+ToDagProcessorResponse = (
+    ConnectionResult
     | VariableResult
     | VariableKeysResult
     | TaskStatesResult
@@ -174,7 +174,11 @@ ToDagProcessor = Annotated[
     | XComCountResponse
     | XComResult
     | XComSequenceIndexResult
-    | XComSequenceSliceResult,
+    | XComSequenceSliceResult
+)
+
+ToDagProcessor = Annotated[
+    DagFileParseRequest | ToDagProcessorResponse,
     Field(discriminator="type"),
 ]
 

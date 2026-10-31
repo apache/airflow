@@ -32,6 +32,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/apache/airflow/go-sdk/airflow"
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 )
 
 // TestSerializeConformanceDags builds the Dags of scripts/ci/lang_sdk_serialization/test_dags.yaml
@@ -68,14 +69,16 @@ func TestSerializeConformanceDags(t *testing.T) {
 	}
 	require.NoError(t, doc.Decode(&file))
 
-	bundle := airflow.Bundle()
+	b := airflow.Bundle()
 	serialized := make(map[string]any, len(file.Dags))
 	for _, dagCase := range file.Dags {
 		dag := buildConformanceDag(t, dagCase)
-		bundle.Register(dag)
+		b.Register(dag)
 		// compare.py does not compare fileloc, which names the file that declares a Dag, so any path
 		// works here. Airflow still needs a fileloc to load the Dag.
-		serialized[dagCase.DagID] = airflow.SerializeDag(dag, "/bundles/app/etl", "etl")
+		serialized[dagCase.DagID] = airflow.SerializeDag(
+			dag, "/bundles/app/etl", "etl", bundle.DagSerializationOptions{},
+		)
 	}
 	out, err := json.MarshalIndent(serialized, "", "  ")
 	require.NoError(t, err)

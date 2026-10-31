@@ -827,7 +827,7 @@
       "type": "object"
     },
     "DagFileParseRequest": {
-      "description": "Request for DAG File Parsing.\n\nThis is the request that the manager will send to the DAG parser with the dag file and\nany other necessary metadata.",
+      "description": "Language SDK parse request; retains the existing wire discriminator.",
       "properties": {
         "file": {
           "title": "File",
@@ -872,12 +872,16 @@
           "default": "DagFileParseRequest",
           "title": "Type",
           "type": "string"
+        },
+        "serialization_options": {
+          "$ref": "#/$defs/DagSerializationOptions"
         }
       },
       "required": [
         "file",
         "bundle_path",
-        "bundle_name"
+        "bundle_name",
+        "serialization_options"
       ],
       "title": "DagFileParseRequest",
       "type": "object"
@@ -5176,6 +5180,32 @@
         "value"
       ],
       "title": "VariableResponse",
+      "type": "object"
+    },
+    "DagSerializationOptions": {
+      "description": "Configuration resolved by core, required by language SDK serializers.",
+      "properties": {
+        "create_cron_data_intervals": {
+          "title": "Create Cron Data Intervals",
+          "type": "boolean"
+        },
+        "default_timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "title": "Default Timezone"
+        }
+      },
+      "required": [
+        "create_cron_data_intervals",
+        "default_timezone"
+      ],
+      "title": "DagSerializationOptions",
       "type": "object"
     }
   }

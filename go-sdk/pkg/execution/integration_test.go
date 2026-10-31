@@ -1415,6 +1415,10 @@ func startDagParse(t *testing.T, dags *serializedDags) (frame IncomingFrame, don
 		"file":        "/bundles/go/etl",
 		"bundle_path": "/bundles/go",
 		"bundle_name": "go",
+		"serialization_options": map[string]any{
+			"create_cron_data_intervals": true,
+			"default_timezone":           "Europe/Amsterdam",
+		},
 	})
 	require.NoError(t, err)
 	require.NoError(t, writeFrame(commConn, payload))
@@ -1437,6 +1441,10 @@ func TestServeDagFileParseRequestEndToEnd(t *testing.T) {
 	require.Len(t, result.SerializedDags, 1)
 	assert.Equal(t, "etl", result.SerializedDags[0].Data["dag"].(map[string]any)["dag_id"])
 	assert.Equal(t, "etl", dags.relative)
+	assert.Equal(t, bundle.DagSerializationOptions{
+		CreateCronDataIntervals: true,
+		DefaultTimezone:         bundle.NamedTimezone("Europe/Amsterdam"),
+	}, dags.options)
 
 	select {
 	case err := <-done:

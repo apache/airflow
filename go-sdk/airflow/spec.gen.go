@@ -79,8 +79,8 @@ type DagSpec struct {
 	// when something triggers it.
 	Schedule string
 
-	// StartDate is the start_date of the Dag. The timezone of the Dag is UTC even
-	// when StartDate has another location, so Airflow reads Schedule in UTC.
+	// StartDate is the start_date of the Dag. The Dag takes its timezone from
+	// StartDate, as Python's DAG does, and Airflow reads Schedule in that timezone.
 	StartDate time.Time
 
 	// Tags corresponds to the JSON schema field "tags".

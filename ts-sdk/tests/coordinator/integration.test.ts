@@ -833,12 +833,44 @@ describe("coordinator runtime integration", () => {
       type: "DagFileParseRequest",
       file: "/dags/test.mjs",
       bundle_path: "/dags",
+      bundle_name: "typescript",
+      serialization_options: {
+        create_cron_data_intervals: true,
+        default_timezone: "Europe/Amsterdam",
+      },
     };
 
     async function parse(): Promise<Record<string, unknown>> {
       const result = await driveSupervisor(parseRequest);
       return result.firstResponse!.body as Record<string, unknown>;
     }
+
+    it.each([true, false])(
+      "passes core serialization options to Dags (cron intervals %s)",
+      async (create_cron_data_intervals) => {
+        const scheduled = new Dag("scheduled", { schedule: "@daily" });
+        scheduled.task("t", async () => undefined)();
+        bundle = new Bundle(scheduled);
+        const result = await driveSupervisor({
+          ...parseRequest,
+          serialization_options: {
+            create_cron_data_intervals,
+            default_timezone: "Europe/Amsterdam",
+          },
+        });
+        const body = result.firstResponse!.body as Record<string, unknown>;
+        const dags = body.serialized_dags as { data: { dag: Record<string, unknown> } }[];
+        expect(dags[0]!.data.dag).toMatchObject({
+          timezone: "Europe/Amsterdam",
+          timetable: {
+            __type: create_cron_data_intervals
+              ? "airflow.timetables.interval.CronDataIntervalTimetable"
+              : "airflow.timetables.trigger.CronTriggerTimetable",
+            __var: { expression: "0 0 * * *", timezone: "Europe/Amsterdam" },
+          },
+        });
+      },
+    );
 
     it("answers with the Dags the bundle declared in TypeScript", async () => {
       testDag.task("extract", async () => undefined)();

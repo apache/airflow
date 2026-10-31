@@ -51,6 +51,8 @@ from task_sdk.execution_time.schema._mock_version_bundle import (
     _SupervisorResponse,
 )
 
+from airflow.dag_processing.lang_sdk_processor import DagFileParseRequest, DagSerializationOptions
+from airflow.dag_processing.processor import DagFileParseRequest as PythonDagFileParseRequest
 from airflow.sdk import TaskInstanceState
 from airflow.sdk.api.datamodels._generated import (
     BundleInfo,
@@ -74,8 +76,18 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
+    registered_models_by_name,
     resolve_body_class,
 )
+
+
+def test_language_parse_request_is_registered_instead_of_python_request():
+    assert issubclass(DagFileParseRequest, PythonDagFileParseRequest)
+    assert registered_models_by_name()["DagFileParseRequest"] is DagFileParseRequest
+    assert "serialization_options" not in PythonDagFileParseRequest.model_fields
+    options = DagFileParseRequest.model_fields["serialization_options"]
+    assert options.is_required()
+    assert all(field.is_required() for field in DagSerializationOptions.model_fields.values())
 
 
 class _MockBody(BaseModel):
@@ -85,6 +97,28 @@ class _MockBody(BaseModel):
     ti_id: str
     queue_capacity: int | None = None
     sentry_trace_id: str | None = None
+
+
+@pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+def test_dag_serialization_options_follow_supervisor_version(version):
+    request = DagFileParseRequest(
+        file="/bundles/go/etl",
+        bundle_path="/bundles/go",
+        bundle_name="go",
+        serialization_options=DagSerializationOptions(
+            create_cron_data_intervals=True, default_timezone="Europe/Amsterdam"
+        ),
+    )
+
+    result = get_schema_version_migrator().downgrade(request, version).model_dump()
+
+    if version == "2026-06-16":
+        assert "serialization_options" not in result
+    else:
+        assert result["serialization_options"] == {
+            "create_cron_data_intervals": True,
+            "default_timezone": "Europe/Amsterdam",
+        }
 
 
 @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])

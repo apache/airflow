@@ -33,6 +33,11 @@ Optional components and development tools may have further requirements (see the
 ./gradlew build
 ```
 
+After regenerating the monorepo Supervisor Schema, refresh only the Dag parsing request and its
+serialization options with `node java-sdk/scripts/ci/sync-dag-parse-schema.mjs` from the repository root.
+This scoped sync preserves unrelated definitions in the vendored same-version schema. The next Gradle
+build regenerates the protocol models from that file.
+
 ### Reviewing dependency changes
 
 `gradle/verification-metadata.xml` pins SHA-256 checksums for dependencies, plugins, and their metadata. Gradle enables verification automatically whenever that file exists and defaults to `strict`, so a plain `./gradlew build` already verifies. Strict mode fails both on a checksum mismatch and on an artifact with no entry at all — the latter is what you will usually hit, and it means the build resolved something the metadata does not describe.

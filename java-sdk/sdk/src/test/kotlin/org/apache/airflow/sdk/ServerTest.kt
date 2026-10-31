@@ -129,7 +129,7 @@ class ServerTest {
     val fromServer = ByteChannel(autoFlush = true)
     val comm = CoordinatorComm(toServer, fromServer)
     val server = CoordinatorServer(InetSocketAddress("localhost", 0), InetSocketAddress("localhost", 0))
-    val bundle = Bundle(listOf(DagDef("parsed_dag").addTask(TaskDef("t", ServerNoopTask::class.java))))
+    val bundle = Bundle(listOf(DagDef("parsed_dag").config("schedule", "@daily").addTask(TaskDef("t", ServerNoopTask::class.java))))
 
     val reported = ArrayBlockingQueue<RawFrame>(1)
     val supervisor =
@@ -155,6 +155,8 @@ class ServerTest {
     Assertions.assertEquals(1, dags.size)
     val dag = ((dags[0] as Map<*, *>)["data"] as Map<*, *>)["dag"] as Map<*, *>
     Assertions.assertEquals("parsed_dag", dag["dag_id"])
+    Assertions.assertEquals("Europe/Amsterdam", dag["timezone"])
+    Assertions.assertEquals("airflow.timetables.interval.CronDataIntervalTimetable", (dag["timetable"] as Map<*, *>)["__type"])
     comm.close()
   }
 
@@ -167,10 +169,14 @@ class ServerTest {
     MessagePack.newDefaultPacker(out).use { packer ->
       packer.packArrayHeader(2)
       packer.packInt(id)
-      packer.packMapHeader(3)
+      packer.packMapHeader(5)
       packer.packString("type").packString("DagFileParseRequest")
       packer.packString("file").packString(file)
       packer.packString("bundle_path").packString(bundlePath)
+      packer.packString("bundle_name").packString("java")
+      packer.packString("serialization_options").packMapHeader(2)
+      packer.packString("create_cron_data_intervals").packBoolean(true)
+      packer.packString("default_timezone").packString("Europe/Amsterdam")
     }
     return out.toByteArray()
   }

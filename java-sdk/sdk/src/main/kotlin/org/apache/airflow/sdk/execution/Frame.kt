@@ -130,6 +130,11 @@ object Frame {
 
   private fun decodeMessage(raw: Any?): Any? {
     val body = raw as? Map<*, *> ?: return raw
+    if (body["type"] == "DagFileParseRequest") {
+      val options = body["serialization_options"] as? Map<*, *>
+      requireNotNull(options) { "serialization_options must be an object" }
+      validateSerializationOptions(options["create_cron_data_intervals"], options["default_timezone"])
+    }
     return mapper.convertValue(body, Discriminator.discriminate(body) ?: return raw)
   }
 
