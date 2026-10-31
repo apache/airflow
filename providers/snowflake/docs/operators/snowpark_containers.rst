@@ -81,15 +81,18 @@ Durable execution
 
 By default the operator runs in a *durable* mode that makes the synchronous poll crash-safe.
 Before polling begins the job name is persisted to :doc:`task state store
-<apache-airflow:core-concepts/task-state-store>`, so if the worker crashes or is preempted and the
-task is retried, the operator reconnects to the job already running in Snowflake instead of
-submitting a duplicate.
+<apache-airflow:core-concepts/task-state-store>`, so if the worker crashes and the task is
+retried, the operator reconnects to the job already running in Snowflake instead of submitting
+a duplicate. If the task is killed, ``on_kill`` drops the job service unless
+``cancel_on_kill=False``, so the retry submits a fresh job.
 
 On retry the operator checks the prior job's status:
 
-* still running: reconnect and continue polling
-* already succeeded: return immediately without resubmitting
-* failed or another terminal state: submit a fresh job
+* pending or running: reconnect and continue polling
+* already succeeded: finalize the job (logs and cleanup) without resubmitting
+* any other status, or the service no longer exists without having succeeded: submit a fresh job
+
+``timeout`` applies per try, so a retry that reconnects to a running job gets a full ``timeout`` again.
 
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
 earlier versions the flag is a no-op (setting it only emits a warning) and the operator always
