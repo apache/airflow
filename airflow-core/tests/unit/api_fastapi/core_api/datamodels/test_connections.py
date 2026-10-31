@@ -21,7 +21,12 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from airflow.api_fastapi.core_api.datamodels.connections import ConnectionResponse
+from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionBody,
+    ConnectionBodyPartial,
+    ConnectionResponse,
+    ConnectionTestRequestBody,
+)
 
 
 def _payload(**overrides):
@@ -116,3 +121,18 @@ def test_sensitive_extra_keys_reads_provider_declarations(monkeypatch):
         )
     finally:
         module._sensitive_extra_keys.cache_clear()
+
+
+@pytest.mark.parametrize("model", [ConnectionBody, ConnectionBodyPartial, ConnectionTestRequestBody])
+@pytest.mark.parametrize("port", [0, 65535, None])
+def test_connection_body_allows_valid_port_boundaries(model, port):
+    body = model(connection_id="test_conn", conn_type="http", port=port)
+    assert body.port == port
+
+
+@pytest.mark.parametrize("model", [ConnectionBody, ConnectionBodyPartial, ConnectionTestRequestBody])
+@pytest.mark.parametrize("port", [-1, 65536])
+def test_connection_body_rejects_invalid_port_boundaries(model, port):
+    with pytest.raises(ValidationError) as exc_info:
+        model(connection_id="test_conn", conn_type="http", port=port)
+    assert exc_info.value.errors()[0]["loc"] == ("port",)
