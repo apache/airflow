@@ -59,6 +59,7 @@ from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
+    _CANCEL_REDELIVERY_DELAY,
     _REASSIGNED_CANCEL_MSG,
     _USER_ACTION_CANCEL_MSG,
     ToTriggerRunner,
@@ -1726,6 +1727,111 @@ class TestTriggerRunner:
         reassigned_task.cancel.assert_called_once_with(_REASSIGNED_CANCEL_MSG)
         assert not trigger_runner.to_cancel
         assert not trigger_runner.to_release
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("queue_name", "cancel_msg"),
+        [("to_cancel", _USER_ACTION_CANCEL_MSG), ("to_release", _REASSIGNED_CANCEL_MSG)],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.time", autospec=True)
+    async def test_cancel_triggers_repeats_cancellation_only_after_grace(
+        self, mock_time, queue_name, cancel_msg
+    ) -> None:
+        """A repeat cancel/release is delivered only once _CANCEL_REDELIVERY_DELAY has passed."""
+        trigger_runner = TriggerRunner()
+        task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {1: {"task": task, "is_watcher": False, "name": "t", "events": 0}}
+        queue = getattr(trigger_runner, queue_name)
+
+        for now in (100.0, 101.0, 100.0 + _CANCEL_REDELIVERY_DELAY - 0.5):
+            mock_time.monotonic.return_value = now
+            queue.append(1)
+            await trigger_runner.cancel_triggers()
+        task.cancel.assert_called_once_with(cancel_msg)
+
+        mock_time.monotonic.return_value = 100.0 + _CANCEL_REDELIVERY_DELAY
+        queue.append(1)
+        await trigger_runner.cancel_triggers()
+        assert task.cancel.call_args_list == [mock.call(cancel_msg), mock.call(cancel_msg)]
+
+    @pytest.mark.asyncio
+    async def test_cancel_triggers_retries_cancel_of_not_yet_created_trigger(self) -> None:
+        """A cancel arriving before the trigger task exists does not count as delivered: the
+        supervisor's next re-send cancels the trigger once it is running, and only that one."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+
+        task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {1: {"task": task, "is_watcher": False, "name": "t", "events": 0}}
+        for _ in range(2):
+            trigger_runner.to_cancel.append(1)
+            await trigger_runner.cancel_triggers()
+
+        task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
+
+    @pytest.mark.asyncio
+    async def test_cleanup_finished_triggers_forgets_delivered_cancel(self) -> None:
+        """A trigger reusing a finished trigger's id is cancelled on its first sync."""
+        trigger_runner = TriggerRunner()
+        done_task = MagicMock(spec=asyncio.Task)
+        done_task.done.return_value = True
+        done_task.result.side_effect = asyncio.CancelledError()
+        trigger_runner.triggers = {1: {"task": done_task, "is_watcher": False, "name": "t", "events": 0}}
+        for _ in range(2):
+            trigger_runner.to_cancel.append(1)
+            await trigger_runner.cancel_triggers()
+        done_task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
+
+        assert await trigger_runner.cleanup_finished_triggers() == [1]
+
+        new_task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {1: {"task": new_task, "is_watcher": False, "name": "t2", "events": 0}}
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+
+        new_task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
+
+    @pytest.mark.asyncio
+    @pytest.mark.execution_timeout(15)
+    async def test_repeated_cancel_syncs_do_not_abort_on_kill(self) -> None:
+        """A cancel re-sent while on_kill() runs does not cut on_kill() short."""
+        run_started = asyncio.Event()
+        on_kill_started = asyncio.Event()
+        release_on_kill = asyncio.Event()
+        on_kill_completed = asyncio.Event()
+
+        class _SlowCleanupTrigger(BaseTrigger):
+            def serialize(self):
+                return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+            async def run(self):
+                run_started.set()
+                await asyncio.sleep(3600)
+                yield TriggerEvent(True)  # pragma: no cover
+
+            async def on_kill(self):
+                on_kill_started.set()
+                await release_on_kill.wait()
+                on_kill_completed.set()
+
+        trigger_runner = TriggerRunner()
+        task = asyncio.create_task(trigger_runner.run_trigger(1, _SlowCleanupTrigger()))
+        trigger_runner.triggers = {1: {"task": task, "is_watcher": False, "name": "slow", "events": 0}}
+        await asyncio.wait_for(run_started.wait(), timeout=5)
+
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+        await asyncio.wait_for(on_kill_started.wait(), timeout=5)
+
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+        release_on_kill.set()
+
+        await asyncio.wait([task], timeout=10)
+        assert task.done()
+        assert on_kill_completed.is_set()
+        assert await trigger_runner.cleanup_finished_triggers() == [1]
 
     @pytest.mark.asyncio
     async def test_sync_state_to_supervisor_queues_released_triggers(self) -> None:
