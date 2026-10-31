@@ -1255,7 +1255,9 @@ AUTH_COMMANDS = (
         help="Generate and print a JWT token for the given credentials",
         description=(
             "Authenticate with username and password and print the access token to stdout. "
-            "Username and password are prompted interactively if not provided."
+            "Username and password are prompted interactively if not provided. "
+            "In non-interactive runs, pass --username and either pass --password "
+            "or pipe the password on stdin."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.get_token"),
         args=(

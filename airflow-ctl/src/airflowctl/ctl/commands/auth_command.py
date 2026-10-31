@@ -115,8 +115,36 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
     api_url = args.api_url or get_default_api_url()
-    username = args.username or input("Username: ")
-    password = args.password or getpass.getpass("Password: ")
+    username = args.username
+    password = args.password
+
+    # stdout is reserved for the token (e.g. TOKEN=$(airflowctl auth token)), so prompts
+    # and errors go to stderr.
+    if not username:
+        if not (sys.stdin and sys.stdin.isatty()):
+            rich.print("[red]No username provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--username[/blue] "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        sys.stderr.write("Username: ")
+        sys.stderr.flush()
+        username = input()
+    if not password:
+        # getpass reads from /dev/tty when available and falls back to stdin, so the
+        # password can still be piped in non-interactive runs instead of passed on argv.
+        try:
+            password = getpass.getpass("Password: ")
+        except EOFError:
+            rich.print("[red]No password provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--password[/blue] or pipe the password on stdin "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     try:
         api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
@@ -125,7 +153,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
         )
         print(login_response.access_token)
     except Exception as e:
-        rich.print(f"[red]Token generation failed: {e}[/red]")
+        rich.print(f"[red]Token generation failed: {e}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
