@@ -851,6 +851,56 @@ class DagRun(Base, LoggingMixin):
         result = session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
         return result
 
+    # No @retry_db_transaction: its rollback would release the row locks that
+    # get_running_dag_runs_to_examine took earlier in the same transaction.
+    @classmethod
+    def get_running_dag_runs_with_finished_tis(
+        cls, *, session: Session, exclude_ids: Iterable[int], eagerly_load_dag_tags: bool
+    ) -> ScalarResult[DagRun]:
+        """
+        Return running DagRuns with a task instance that finished since their last scheduling decision.
+
+        Downstream tasks of these DagRuns may now be ready, so the scheduler examines them in the same
+        loop as :meth:`get_running_dag_runs_to_examine` instead of waiting for their turn. Returns up to
+        ``DEFAULT_DAGRUNS_TO_EXAMINE`` rows, row-level-locked the same way.
+
+        :param exclude_ids: ids of DagRuns already locked in this transaction.
+
+        :meta private:
+        """
+        from airflow.models.dag import DagModel
+
+        # OFFSET 0 is a Postgres planner fence: it keeps EXISTS as a per-DagRun subplan instead of
+        # a semi-join that can read every finished task instance in the table.
+        has_finished_ti = (
+            select(TI.id)
+            .where(
+                TI.dag_id == cls.dag_id,
+                TI.run_id == cls.run_id,
+                TI.state.in_(State.finished),
+                TI.updated_at > cls.last_scheduling_decision,
+            )
+            .offset(0)
+            .exists()
+        )
+        query = (
+            select(cls)
+            .with_hint(cls, "USE INDEX (idx_dag_run_running_dags)", dialect_name="mysql")
+            .where(cls.state == DagRunState.RUNNING, cls.id.not_in(exclude_ids), has_finished_ti)
+            .join(DagModel, DagModel.dag_id == cls.dag_id)
+            .where(
+                DagModel.is_paused == false(),
+                DagModel.is_stale == false(),
+            )
+            .where(cls.run_after <= func.now())
+            .order_by(cls.last_scheduling_decision)
+            .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
+        )
+        if eagerly_load_dag_tags:
+            query = query.options(joinedload(cls.dag_model).selectinload(DagModel.tags))
+
+        return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)).unique()
+
     @classmethod
     @retry_db_transaction
     def get_queued_dag_runs_to_set_running(cls, session: Session) -> ScalarResult[DagRun]:

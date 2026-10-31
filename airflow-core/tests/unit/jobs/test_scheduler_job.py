@@ -5692,6 +5692,31 @@ class TestSchedulerJob:
         send.assert_not_called()
         session.rollback()
 
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_examines_run_with_finished_ti_outside_its_turn(
+        self, dag_maker, session, monkeypatch
+    ):
+        monkeypatch.setattr(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", 1)
+        for hours, dag_id in enumerate(["dag_next_in_turn", "dag_with_finished_ti"]):
+            with dag_maker(dag_id, session=session):
+                EmptyOperator(task_id="task")
+            dr = dag_maker.create_dagrun()
+            dr.last_scheduling_decision = DEFAULT_DATE + timedelta(hours=hours)
+            ti = dr.get_task_instance("task", session=session)
+            ti.state = TaskInstanceState.SUCCESS
+            ti.updated_at = DEFAULT_DATE + timedelta(hours=2)
+        session.commit()
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with mock.patch.object(
+            self.job_runner, "_schedule_all_dag_runs", autospec=True, return_value=[]
+        ) as schedule_all:
+            self.job_runner._do_scheduling(session)
+
+        examined = schedule_all.call_args.args[1]
+        assert [r.dag_id for r in examined] == ["dag_next_in_turn", "dag_with_finished_ti"]
+        session.rollback()
+
     @pytest.mark.parametrize(("state", "msg"), [[State.SUCCESS, "success"], [State.FAILED, "task_failure"]])
     @conf_vars({("scheduler", "use_job_schedule"): "False"})
     def test_dagrun_callbacks_are_added_when_callbacks_are_defined(self, state, msg, dag_maker):

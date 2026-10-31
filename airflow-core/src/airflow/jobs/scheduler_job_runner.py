@@ -2204,6 +2204,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
 
+          It also examines up to n more running Dag Runs with a task instance that finished since they
+          were last examined, so their downstream tasks do not wait for their turn.
+
           We don't select all dagruns at once, because the rows are selected with row locks, meaning
           that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
           limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
@@ -2232,6 +2235,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 DagRun.get_running_dag_runs_to_examine(
                     session=session, eagerly_load_dag_tags=self._dag_tags_in_metrics
                 )
+            )
+            dag_runs += DagRun.get_running_dag_runs_with_finished_tis(
+                session=session,
+                exclude_ids=[dag_run.id for dag_run in dag_runs],
+                eagerly_load_dag_tags=self._dag_tags_in_metrics,
             )
 
             # Team name should be added before listeners are called in _schedule_all_dag_runs()
