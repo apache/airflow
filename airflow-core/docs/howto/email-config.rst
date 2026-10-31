@@ -36,6 +36,10 @@ The ``[email]`` section also sets the connection, sender and message templates u
 
 The templates use `Jinja <https://jinja.palletsprojects.com/>`_ and can access the task's information, for
 example ``{{ti.log_url}}``.
+They also receive ``{{task_state}}``, the task instance state as a plain string, because ``{{ti.state}}``
+renders the Python enum name instead. ``{{ti.mark_success_url}}`` is still available for templates carried
+over from Airflow 2, but it now returns the same URL as ``{{ti.log_url}}`` -- Airflow 3 has no dedicated
+mark-success endpoint, so mark a task successful from the task instance page that link opens.
 
 .. note::
 

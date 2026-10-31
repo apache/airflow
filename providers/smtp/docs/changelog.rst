@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+.. warning::
+  The default ``SmtpNotifier`` templates changed. The subject went from
+  ``DAG <dag_id> - Task <task_id> - Run ID <run_id> in State <state>`` to
+  ``<dag_id>.<task_id> <state> - Run <run_id>``, and the body was rebuilt as a dark card that
+  leads with the Dag and task and lists the run, state, attempt, timestamps, host and Dag tags;
+  the ``Mark Success`` link is dropped unless its URL differs from the log URL. Point the
+  ``subject_template`` / ``html_content_template`` connection extras at your own template files
+  to keep the previous wording.
+
+
 3.2.0
 .....
 
