@@ -90,6 +90,21 @@ describe("FilterBar boolean filters", () => {
     expect(screen.getByTestId("needs_review-pill")).not.toHaveTextContent(":");
   });
 
+  it("keeps the remove control out of the pill button", () => {
+    const { container } = render(
+      <FilterBar
+        configs={[booleanConfig]}
+        initialValues={{ needs_review: "true" }}
+        onFiltersChange={vi.fn()}
+      />,
+      { wrapper },
+    );
+
+    // Asked of the whole pill rather than of the inner button, so putting `as="button"` back on the
+    // wrapper fails here too. A button inside a button is invalid HTML and React warns at runtime.
+    expect(container.querySelector("button button")).toBeNull();
+  });
+
   it("clears the filter when the pill is clicked", async () => {
     const onFiltersChange = vi.fn();
 
@@ -129,6 +144,26 @@ describe("FilterBar select filters", () => {
 
     expect(valueText).not.toBeNull();
     expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
+  });
+
+  it("collapses the pill after a selection even when focus stays inside it", async () => {
+    // WebKit hands focus back to the select trigger, so blurring the active element leaves the pill open.
+    const blur = vi.spyOn(HTMLElement.prototype, "blur").mockImplementation(() => undefined);
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: "Failed", value: "failed" }],
+      type: "select",
+    };
+
+    render(<FilterBar configs={[selectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-state"));
+    fireEvent.click(await screen.findByTestId("state-filter-failed"));
+
+    await waitFor(() => expect(screen.getByTestId("state-pill")).toBeInTheDocument());
+    blur.mockRestore();
   });
 });
 

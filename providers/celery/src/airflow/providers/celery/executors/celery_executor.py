@@ -35,9 +35,7 @@ from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from celery import states as celery_states
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
@@ -385,23 +383,6 @@ class CeleryExecutor(BaseExecutor):
             )
 
         return not_adopted_tis
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Remove tasks stuck in queued from executor and fail them.
-
-        This method is deprecated. Use `cleanup_tasks_stuck_in_queued` instead.
-        """
-        reprs = []
-        for ti in tis:
-            reprs.append(repr(ti))
-            self.revoke_task(ti=ti)
-            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
-        return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
         key = self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key

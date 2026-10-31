@@ -888,6 +888,7 @@ class TestGetGridDataEndpoint:
             ti["loop_iterations_count"] = None
             ti["latest_region_id"] = None
             ti["latest_region_index"] = None
+            ti["retry_at"] = None
         for obj in actual, expected:
             tis = obj["task_instances"]
             tis[:] = sorted(tis, key=lambda x: x["task_id"])
@@ -997,6 +998,7 @@ class TestGetGridDataEndpoint:
             ti["loop_iterations_count"] = None
             ti["latest_region_id"] = None
             ti["latest_region_index"] = None
+            ti["retry_at"] = None
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
@@ -1270,6 +1272,29 @@ class TestGetGridDataEndpoint:
         assert by_task_id[TASK_ID]["has_note"] is True
         assert all(not ti["has_note"] for task_id, ti in by_task_id.items() if task_id != TASK_ID)
 
+    def test_grid_ti_summaries_retry_at_only_for_a_single_task_instance(self, session, test_client):
+        retry_at = pendulum.DateTime(2024, 12, 30, 3, 0, 0, tzinfo=pendulum.UTC)
+        waiting = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.run_id == "run_2",
+                (TaskInstance.task_id == TASK_ID)
+                | ((TaskInstance.task_id == "mapped_task_group.subtask") & (TaskInstance.map_index == 2)),
+            )
+        ).all()
+        for ti in waiting:
+            ti.state = TaskInstanceState.UP_FOR_RETRY
+            ti.retry_at = retry_at
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids=run_2")
+        assert response.status_code == 200
+        [data] = self._parse_ndjson(response)
+        by_task_id = {ti["task_id"]: ti for ti in data["task_instances"]}
+
+        assert by_task_id[TASK_ID]["retry_at"] == "2024-12-30T03:00:00Z"
+        assert by_task_id["mapped_task_group.subtask"]["retry_at"] is None
+        assert by_task_id["mapped_task_group"]["retry_at"] is None
+
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:
         """Parse NDJSON streaming response into a list of dicts."""
@@ -1333,11 +1358,11 @@ class TestGetLoopSummaryEndpoint:
         ("until", "expected"),
         [
             (
-                lambda loop: LoopDecision(stop=loop.index >= 1, reason=f"iteration {loop.index} decided"),
-                ["iteration 0 decided", "iteration 1 decided"],
+                lambda loop: LoopDecision(stop=loop.index >= 2, reason=f"iteration {loop.index} decided"),
+                ["iteration 1 decided", "iteration 2 decided"],
             ),
-            (lambda loop: loop.index >= 1, [None, None]),
-            (lambda loop: LoopDecision(stop=loop.index >= 1), [None, None]),
+            (lambda loop: loop.index >= 2, [None, None]),
+            (lambda loop: LoopDecision(stop=loop.index >= 2), [None, None]),
         ],
         ids=["with_reason", "plain_bool", "decision_without_reason"],
     )
@@ -1402,7 +1427,7 @@ class TestGetLoopSummaryEndpoint:
         assert summary["exit_criteria_name"] is None
         assert "exit_task_id" not in summary
         assert summary["iterations_ran"] == 3
-        assert [iteration["index"] for iteration in summary["iterations"]] == [0, 1, 2]
+        assert [iteration["index"] for iteration in summary["iterations"]] == [1, 2, 3]
         family = summary["loop_region_id"]
         assert summary["loop_regions"] == [{"region_id": family}]
         assert test_client.get(path, params={"loop_region_id": str(uuid4())}).status_code == 404
@@ -1412,13 +1437,13 @@ class TestGetLoopSummaryEndpoint:
                 TaskInstance.dag_id == run.dag_id,
                 TaskInstance.run_id == run.run_id,
                 TaskInstance.task_id == self.gate_task_id,
-                TaskInstance.region_index == 1,
+                TaskInstance.region_index == 2,
             )
         )
         clear_loop_task_instances([gate], session=session, later_loop_iterations=True)
         session.commit()
         current = test_client.get(path).json()
-        assert [iteration["index"] for iteration in current["iterations"]] == [0, 1]
+        assert [iteration["index"] for iteration in current["iterations"]] == [1, 2]
         assert current["loop_region_id"] == family
         assert current["status"] == "running"
 
@@ -1434,13 +1459,13 @@ class TestGetLoopSummaryEndpoint:
                 TaskInstance.dag_id == run.dag_id,
                 TaskInstance.run_id == run.run_id,
                 TaskInstance.task_id == self.gate_task_id,
-                TaskInstance.region_index == 0,
+                TaskInstance.region_index == 1,
             )
         )
         clear_loop_task_instances([gate], session=session, later_loop_iterations=True)
         fork = session.scalar(select(DynamicRegion).where(DynamicRegion.forked_from_region_id.is_not(None)))
         dag = DBDagBag().get_dag(run.created_dag_version_id, session=session)
-        for index in (1, 2):
+        for index in (2, 3):
             for task_id in ("body.work", self.gate_task_id):
                 session.add(
                     TaskInstance(
@@ -1458,7 +1483,7 @@ class TestGetLoopSummaryEndpoint:
 
         assert summary["loop_region_id"] == family
         assert summary["loop_regions"] == [{"region_id": family}]
-        assert [iteration["index"] for iteration in summary["iterations"]] == [0, 1, 2]
+        assert [iteration["index"] for iteration in summary["iterations"]] == [1, 2, 3]
         assert test_client.get(path, params={"loop_region_id": str(fork.id)}).status_code == 404
 
     @pytest.mark.parametrize(("gate_state", "expected"), [("skipped", "skipped"), ("failed", "failed")])
@@ -1472,7 +1497,7 @@ class TestGetLoopSummaryEndpoint:
                 TaskInstance.dag_id == run.dag_id,
                 TaskInstance.run_id == run.run_id,
                 TaskInstance.task_id == self.gate_task_id,
-                TaskInstance.region_index == 2,
+                TaskInstance.region_index == 3,
             )
         )
         gate.state = TaskInstanceState(gate_state)
@@ -1576,7 +1601,7 @@ class TestGetLoopSummaryEndpoint:
                 TaskInstance.dag_id == run.dag_id,
                 TaskInstance.run_id == run.run_id,
                 TaskInstance.task_id == "body.work",
-                TaskInstance.region_index == 0,
+                TaskInstance.region_index == 1,
             )
         ):
             ti.state = TaskInstanceState.RUNNING
@@ -1593,7 +1618,7 @@ class TestGetLoopSummaryEndpoint:
         assert by_task_id["body"]["child_states"]["success"] >= 2
         # The coordinate is recorded per row, and a link still has to address one, so it stays
         # on the newest pass even though an earlier one is the thing now running.
-        assert by_task_id["body.work"]["latest_region_index"] == 2
+        assert by_task_id["body.work"]["latest_region_index"] == 3
 
     def test_loop_history_reads_runs_in_a_fixed_number_of_queries(self, test_client, dag_maker, session):
         @task
@@ -1617,13 +1642,13 @@ class TestGetLoopSummaryEndpoint:
             session.add(region)
             session.flush()
             for ti in run.task_instances:
-                ti.region_id, ti.region_index, ti.state = region.id, 0, TaskInstanceState.SUCCESS
+                ti.region_id, ti.region_index, ti.state = region.id, 1, TaskInstanceState.SUCCESS
                 later = TaskInstance(
                     task=dag.get_task(ti.task_id),
                     run_id=run.run_id,
                     dag_version_id=ti.dag_version_id,
                     region_id=region.id,
-                    region_index=1,
+                    region_index=2,
                     state=TaskInstanceState.FAILED
                     if index == 1 and ti.task_id == "body.work"
                     else TaskInstanceState.SUCCESS,
@@ -1743,7 +1768,7 @@ class TestGetLoopSummaryEndpoint:
         response = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body")
         assert response.status_code == 200, response.text
         assert response.json()["iterations_ran"] == 2
-        assert [iteration["index"] for iteration in response.json()["iterations"]] == [0, 1]
+        assert [iteration["index"] for iteration in response.json()["iterations"]] == [1, 2]
         response = test_client.get(f"/grid/ti_summaries/{run.dag_id}", params={"run_ids": [run.run_id]})
         assert response.status_code == 200, response.text
         tasks = json.loads(response.text)["task_instances"]
@@ -1780,6 +1805,32 @@ class TestGetLoopSummaryEndpoint:
         assert response.json()["status"] == "removed"
         assert response.json()["max_iterations"] == 3
         assert [iteration["state"] for iteration in response.json()["iterations"]] == ["removed"] * 3
+
+    def test_summary_separates_stopping_below_the_cap_from_reaching_it(self, test_client, dag_maker):
+        """A loop that converges one pass below its cap stopped early; it did not run to the cap."""
+
+        @task
+        def work():
+            return 1
+
+        @task_group
+        def body():
+            work()
+
+        def converged(*, loop):
+            return loop.index == 2
+
+        with dag_maker(serialized=False) as dag:
+            body.loop(max_iterations=3, until=converged)
+        run = dag.test()
+
+        summary = test_client.get(f"/grid/loop/{run.dag_id}/{run.run_id}/body").json()
+
+        # A zero-based cap check reads the second of three passes as the cap and says ran_to_cap.
+        assert summary["status"] == "stopped_early"
+        assert summary["stopped_at_iteration"] == 2
+        assert summary["reason"] is None
+        assert summary["iterations_ran"] == 2
 
     def test_condition_docstring_reaches_loop_summary_and_structure(self, test_client, dag_maker):
         @task

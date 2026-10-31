@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.cloud.bigquery import Table
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -105,6 +106,7 @@ class TestBigQueryToBigQueryOperator:
                 },
                 "labels": LABELS,
             },
+            job_id=mock_hook.return_value.generate_job_id.return_value,
             project_id=mock_hook.return_value.project_id,
         )
 
@@ -146,8 +148,48 @@ class TestBigQueryToBigQueryOperator:
                 },
                 "labels": LABELS,
             },
+            job_id=mock_hook.return_value.generate_job_id.return_value,
             project_id=mock_hook.return_value.project_id,
         )
+
+    @mock.patch(BQ_HOOK_PATH)
+    def test_execute_generates_new_job_id_for_each_attempt(self, mock_hook):
+        operator = BigQueryToBigQueryOperator(
+            task_id=TASK_ID,
+            source_project_dataset_tables=SOURCE_PROJECT_DATASET_TABLE,
+            destination_project_dataset_table=DESTINATION_PROJECT_DATASET_TABLE,
+        )
+
+        mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
+        operator.execute(context=mock.MagicMock())
+
+        assert mock_hook.return_value.generate_job_id.call_args.kwargs["force_rerun"] is True
+        assert operator.job_id == mock_hook.return_value.generate_job_id.return_value
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch(BQ_HOOK_PATH)
+    def test_on_kill(self, mock_hook, cancel_on_kill):
+        operator = BigQueryToBigQueryOperator(
+            task_id=TASK_ID,
+            source_project_dataset_tables=SOURCE_PROJECT_DATASET_TABLE,
+            destination_project_dataset_table=DESTINATION_PROJECT_DATASET_TABLE,
+            project_id=TEST_GCP_PROJECT_ID,
+            location="US",
+            cancel_on_kill=cancel_on_kill,
+        )
+
+        mock_hook.return_value.split_tablename.side_effect = split_tablename_side_effect
+        mock_hook.return_value.generate_job_id.return_value = "real_job_id"
+        operator.execute(context=mock.MagicMock())
+
+        operator.on_kill()
+
+        if cancel_on_kill:
+            mock_hook.return_value.cancel_job.assert_called_once_with(
+                job_id="real_job_id", project_id=TEST_GCP_PROJECT_ID, location="US"
+            )
+        else:
+            mock_hook.return_value.cancel_job.assert_not_called()
 
     @mock.patch(BQ_HOOK_PATH)
     def test_get_openlineage_facets_on_complete_single_source_table(self, mock_hook):

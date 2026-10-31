@@ -35,6 +35,32 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+
+1.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``DateTimeSensorAsync support start_from_trigger and templated target_time (#73928)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Close SubprocessHook stdout pipe after command completes (#74780)``
+
+Misc
+~~~~
+
+* ``Support SQLAlchemy 2.1 typing in external task sensor queries (#75075)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Clean up unused mypy suppressions in standard provider tests (#75210)``
+   * ``Pass runtime values to example Dag shell commands through env (#73787)``
+
 1.20.1
 ......
 

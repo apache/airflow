@@ -25,7 +25,7 @@ import pytest
 from pydantic_ai import Agent
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
@@ -38,6 +38,8 @@ from airflow.providers.common.ai.managed_agents import (
     ManagedAgentResponse,
 )
 from airflow.providers.common.ai.toolsets.managed_agent import BaseManagedAgentToolset, ManagedAgentToolset
+
+from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 FAKE_REF = ManagedAgentRef(platform="fake.cloud", name="specialist-1")
 
@@ -284,7 +286,7 @@ class TestManagedAgentToolset:
     def test_something_that_is_not_a_client_is_refused_at_construction(self):
         # Passing the hook instead of hook.agent(...) is the likely mistake; it must not wait for the first call.
         with pytest.raises(TypeError, match="Pass hook.agent"):
-            ManagedAgentToolset(object(), tool_name="ask")  # type: ignore[arg-type]
+            ManagedAgentToolset(object(), tool_name="ask")
 
     @pytest.mark.asyncio
     async def test_vendor_options_travel_on_every_request(self):
@@ -337,19 +339,19 @@ class TestManagedAgentToolset:
                     parts=[ToolCallPart(info.function_tools[0].name, {"prompt": "Revenue?"})]
                 )
             parts = messages[-1].parts
-            if any(isinstance(p, RetryPromptPart) for p in parts):
-                seen.extend(p for p in parts if isinstance(p, RetryPromptPart))
+            if any(is_tool_retry(p) for p in parts):
+                seen.extend(p for p in parts if is_tool_retry(p))
                 return ModelResponse(
                     parts=[ToolCallPart(info.function_tools[0].name, {"prompt": "Q3 revenue?"})]
                 )
-            seen.extend(p for p in parts if isinstance(p, ToolReturnPart))
+            seen.extend(p for p in parts if is_tool_result(p))
             return ModelResponse(parts=[TextPart("Done")])
 
         toolset = ManagedAgentToolset(client, tool_name="ask_analyst", max_retries=1)
         result = Agent(FunctionModel(scripted), toolsets=[toolset]).run_sync("go")
 
         assert result.output == "Done"
-        assert [type(p).__name__ for p in seen] == ["RetryPromptPart", "ToolReturnPart"]
+        assert [is_tool_retry(p) for p in seen] == [True, False]
         assert "Which quarter?" in seen[0].content
         assert seen[1].content == "the answer: Q3 revenue?"
         assert [r.prompt for r in client.requests] == ["Revenue?", "Q3 revenue?"]

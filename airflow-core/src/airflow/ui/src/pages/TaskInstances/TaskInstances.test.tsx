@@ -19,7 +19,7 @@
 import type { ReactNode } from "react";
 
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type * as ReactI18Next from "react-i18next";
 import type * as ReactRouterDom from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -37,6 +37,16 @@ let mockParams: Record<string, string | undefined> = {
   taskId: "mapped_task",
 };
 let mockSearchParams = new URLSearchParams();
+
+const { bulkClearMock, bulkDeleteMock, bulkMarkMock } = vi.hoisted(() => ({
+  bulkClearMock: vi.fn(() => null),
+  bulkDeleteMock: vi.fn(() => null),
+  bulkMarkMock: vi.fn(() => null),
+}));
+
+vi.mock("./BulkClearTaskInstancesButton", () => ({ default: bulkClearMock }));
+vi.mock("./BulkDeleteTaskInstancesButton", () => ({ default: bulkDeleteMock }));
+vi.mock("./BulkMarkTaskInstancesAsButton", () => ({ default: bulkMarkMock }));
 
 vi.mock("react-i18next", async (importOriginal) => {
   const actual = await importOriginal<typeof ReactI18Next>();
@@ -91,25 +101,30 @@ vi.mock("src/components/DataTable", () => ({
     readonly columns: ReadonlyArray<{
       accessorKey?: string;
       cell?: (props: { row: { original: TaskInstanceResponse } }) => ReactNode;
-      header?: unknown;
+      header?: (() => ReactNode) | ReactNode;
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
   }) => {
     const renderedColumns = columns.filter(
-      (column) => column.accessorKey === "rendered_map_index" || column.accessorKey === "dag_run_id",
+      (column) =>
+        column.accessorKey === "select" ||
+        column.accessorKey === "rendered_map_index" ||
+        column.accessorKey === "dag_run_id",
     );
+    const selectionColumn = columns.find((column) => column.accessorKey === "select");
     const iterationColumn = columns.find((column) => column.accessorKey === "loop_iteration");
 
     return (
       <table>
         <thead>
           <tr>
+            <th>{typeof selectionColumn?.header === "function" ? selectionColumn.header() : undefined}</th>
             {iterationColumn === undefined ? undefined : <th>{iterationColumn.header as ReactNode}</th>}
           </tr>
         </thead>
         <tbody>
           {data.map((taskInstance) => (
-            <tr key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
+            <tr aria-label={taskInstance.task_id} key={`${taskInstance.task_id}-${taskInstance.map_index}`}>
               {renderedColumns.map((column) => (
                 <td key={column.accessorKey}>{column.cell?.({ row: { original: taskInstance } })}</td>
               ))}
@@ -157,6 +172,33 @@ describe("TaskInstances", () => {
       taskId: "mapped_task",
     };
     mockSearchParams = new URLSearchParams();
+  });
+
+  it.each([
+    { action: "clear", actionMock: bulkClearMock },
+    { action: "mark", actionMock: bulkMarkMock },
+    { action: "delete", actionMock: bulkDeleteMock },
+  ])("passes selections from both pages to the bulk $action action", async ({ actionMock }) => {
+    const firstTask = { ...mappedTaskInstance, id: "first-id", task_id: "first_task" };
+    const secondTask = { ...mappedTaskInstance, id: "second-id", task_id: "second_task" };
+
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([firstTask]));
+    const { rerender } = render(<TaskInstances />, { wrapper: Wrapper });
+
+    fireEvent.click(within(screen.getByRole("row", { name: "first_task" })).getByRole("checkbox"));
+    await screen.findByText("1 selected");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([secondTask]));
+    mockSearchParams = new URLSearchParams("cursor=second-page");
+    rerender(<TaskInstances />);
+    fireEvent.click(within(screen.getByRole("row", { name: "second_task" })).getByRole("checkbox"));
+
+    await screen.findByText("2 selected");
+    await waitFor(() =>
+      expect(actionMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ selectedTaskInstances: [firstTask, secondTask] }),
+        undefined,
+      ),
+    );
   });
 
   it.each([
@@ -281,6 +323,42 @@ describe("TaskInstances", () => {
       expect.objectContaining({ iteration: undefined, loopId: undefined }),
       undefined,
       expect.any(Object),
+    );
+  });
+});
+
+describe("TaskInstances date filters", () => {
+  beforeEach(() => {
+    mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+  });
+
+  it("sends the run_after range from the URL", () => {
+    mockSearchParams = new URLSearchParams(
+      "run_after_gte=2026-06-01T00:00:00Z&run_after_lte=2026-06-30T00:00:00Z",
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runAfterGte: "2026-06-01T00:00:00Z",
+        runAfterLte: "2026-06-30T00:00:00Z",
+      }),
+      undefined,
+      expect.anything(),
+    );
+  });
+
+  it("still honours logical_date links even though the pill is gone", () => {
+    mockSearchParams = new URLSearchParams("logical_date_gte=2026-06-01T00:00:00Z");
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(useTaskInstanceServiceGetTaskInstances).toHaveBeenCalledWith(
+      expect.objectContaining({ logicalDateGte: "2026-06-01T00:00:00Z" }),
+      undefined,
+      expect.anything(),
     );
   });
 });

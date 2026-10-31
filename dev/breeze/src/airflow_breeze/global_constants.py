@@ -38,6 +38,33 @@ from airflow_breeze.utils.path_utils import (
 
 PUBLIC_AMD_RUNNERS = '["ubuntu-22.04"]'
 PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
+# RunsOn (runs-on.com) EC2 runner label templates. Jobs fill in their size class with
+# `format(<label>, cpu, ram)` in the workflow; the same call leaves the public labels unchanged.
+# `spot=co` (capacity-optimized) takes Spot from the pools least likely to run out or be reclaimed
+# instead of RunsOn's default price-capacity-optimized: a capacity miss or an interruption sends the
+# runner to on-demand (and reruns the whole job), which costs more than the higher Spot price.
+# A family matches as a prefix (`m5` also takes m5n, m5d, ...). Left out because their us-east-2 Spot
+# runners were reclaimed far more often than the rest (13-54% vs. 1-4%, Oct 2026): m5, m5a, m6a and,
+# for the in-memory runners, r7a, r6a, r6i; r7i, which AWS Spot Advisor rates >20% there, too.
+RUNS_ON_AMD_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}"
+)
+RUNS_ON_ARM_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={{0}}/ram={{1}}"
+)
+# The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
+# databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
+# ask for memory headroom and also accept the memory-optimized r-family.
+RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i+r8i"
+    "/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
+RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
+    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}/extras=tmpfs"
+)
 
 # Platform the tests of a CI run execute on.
 CI_AMD_PLATFORM = "linux/amd64"
@@ -135,7 +162,12 @@ OPENLINEAGE_INTEGRATION = "openlineage"
 OPENSEARCH_INTEGRATION = "opensearch"
 OTHER_CORE_INTEGRATIONS = [STATSD_INTEGRATION, KEYCLOAK_INTEGRATION]
 OTHER_PROVIDERS_INTEGRATIONS = [OPENLINEAGE_INTEGRATION]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
+# The first one is the default. Only the PROD image can be built on the others - the CI image is
+# always built on the default one.
+ALLOWED_DEBIAN_VERSIONS = ["trixie", "bookworm"]
+# "hardened" images get Python from a Docker Hardened Image base, "legacy" ones compile it from
+# source on a plain debian-slim base - the way all images were built before.
+ALLOWED_IMAGE_FLAVORS = ["hardened", "legacy"]
 ALL_CORE_INTEGRATIONS = sorted(
     [
         *TESTABLE_CORE_INTEGRATIONS,
@@ -294,8 +326,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.2.1"
-UV_VERSION = "0.12.18"
+PIP_VERSION = "26.2.2"
+UV_VERSION = "0.13.6"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -795,6 +827,7 @@ DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "Dockerfile.ci",
+    "dev/breeze/src/airflow_breeze/files/hardened_python_image_digests.json",
     ".dockerignore",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
@@ -903,18 +936,110 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
 ]
 
 ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
-    "3.10": "3.10.21",
-    "3.11": "3.11.16",
-    "3.12": "3.12.14",
-    "3.13": "3.13.15",
-    "3.14": "3.14.7",
+    "3.10": "3.10.22",
+    "3.11": "3.11.18",
+    "3.12": "3.12.16",
+    "3.13": "3.13.18",
+    "3.14": "3.14.10",
 }
+
+# Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
+# apt, a shell and runs as root; the tags encode the Debian release rather than its codename.
+# Pulling from dhi.io requires a Docker Hub login, so the tags Airflow builds against are mirrored
+# to a public ghcr.io repository by the "Mirror hardened base images" workflow - building Airflow
+# images needs no registry credentials at all, which is what the default below points at.
+HARDENED_PYTHON_IMAGE_SOURCE = "dhi.io/python"
+HARDENED_PYTHON_IMAGE_MIRROR = "ghcr.io/apache/airflow/base/python"
+DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO = {"trixie": "debian13", "bookworm": "debian12"}
+
+
+def get_hardened_python_image_tag(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[debian_version]
+    return f"{ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python)}-{distro}-dev"
+
+
+# The mirror refreshes its tags several times a day, so images are built on the digest each tag had
+# when "breeze ci upgrade" last moved it. A new base image therefore reaches the builds only through
+# the upgrade PR, after the full CI has passed on it. The digests live in a file of their own, which
+# scripts/ci/prek/upgrade_important_versions.py rewrites and the CI image rebuild check watches.
+HARDENED_PYTHON_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_python_image_digests.json"
+)
+HARDENED_PYTHON_IMAGE_DIGESTS: dict[str, str] = json.loads(HARDENED_PYTHON_IMAGE_DIGESTS_PATH.read_text())
+
+
+def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    tag = get_hardened_python_image_tag(python, debian_version)
+    image = f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}"
+    digest = HARDENED_PYTHON_IMAGE_DIGESTS.get(tag)
+    return f"{image}@{digest}" if digest else image
+
+
+def get_hardened_python_image_retention_tag(tag: str, digest: str) -> str:
+    """Return the mirror tag that keeps a pinned digest tagged after its moving tag has moved on."""
+    return f"{tag}-{digest.removeprefix('sha256:')[:12]}"
+
+
+def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:
+    return f"debian:{debian_version}-slim"
+
+
+# The legacy flavor compiles Python from python.org sources, which get a patch release days before the
+# hardened images do, so it has patchlevels of its own. "breeze ci upgrade" moves them, which changes
+# the AIRFLOW_PYTHON_VERSION build arg and so rebuilds the legacy images on the new patch release.
+LEGACY_PYTHON_VERSIONS_PATH = (
+    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "files" / "legacy_python_versions.json"
+)
+LEGACY_PYTHON_VERSIONS: dict[str, str] = json.loads(LEGACY_PYTHON_VERSIONS_PATH.read_text())
+
 
 # Number of slices for low dep tests
 NUMBER_OF_LOW_DEP_SLICES = 5
 
 # Number of slices for core test types (splitting reduces memory per xdist collection)
 NUMBER_OF_CORE_SLICES = 2
+
+# Slice counts on the self-hosted RunsOn runners. Jobs using `--run-in-parallel` run one serial pytest per
+# test type, so a job never uses more CPUs than it has test types. The core jobs are bound by their slowest
+# test type and the Non-DB xdist collection gets enough memory on RunsOn, so one slice only removes jobs.
+# Low dep providers run on 32-CPU runners and the heaviest test types start first, so about 40 test types per
+# job keep those CPUs busy while the short ones fill in around the long ones.
+NUMBER_OF_CORE_SLICES_ON_RUNS_ON = 1
+LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON = 40
+
+# On RunsOn the longest-running providers are split further in the individually listed provider test types,
+# so every part runs in its own pytest process: `Providers[<id>:<part>]` runs the listed paths (relative to the
+# provider's `tests` folder), and `Providers[<id>:other]` runs the rest of the provider's tests.
+PROVIDER_TEST_SPLITS: dict[str, dict[str, list[str]]] = {
+    "amazon": {
+        "hooks": ["unit/amazon/aws/hooks"],
+        "operators": ["unit/amazon/aws/operators"],
+    },
+    "google": {
+        "cloud-hooks": ["unit/google/cloud/hooks"],
+        "cloud-operators": ["unit/google/cloud/operators"],
+    },
+    "standard": {
+        "decorators": ["unit/standard/decorators"],
+        "python": ["unit/standard/operators/test_python.py"],
+    },
+}
+PROVIDER_TEST_SPLIT_OTHER_PART = "other"
+
+
+def get_provider_split_test_types(provider_id: str) -> list[str]:
+    """Test types running the tests of a split provider, or the provider's single test type."""
+    parts = PROVIDER_TEST_SPLITS.get(provider_id)
+    if not parts:
+        return [f"Providers[{provider_id}]"]
+    return [f"Providers[{provider_id}:{part}]" for part in [*parts, PROVIDER_TEST_SPLIT_OTHER_PART]]
+
 
 # Milestone Tag Assistant configuration
 # Labels indicating a bug fix PR that should have a milestone

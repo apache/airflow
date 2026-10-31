@@ -54,9 +54,9 @@
     "mermaid": "^12.1.0",
     "monaco-editor": "^0.57.0",
     "next-themes": "^0.4.6",
-    "react": "^19.3.0",
+    "react": "^19.3.1",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.3.0",
+    "react-dom": "^19.3.1",
     "react-hook-form": "^7.90.0",
     "react-hotkeys-hook": "^5.3.3",
     "react-i18next": "^17.0.16",
@@ -94,7 +94,6 @@
     "@typescript-eslint/parser": "^8.71.2",
     "@typescript-eslint/utils": "^8.71.2",
     "@vitejs/plugin-react": "^6.1.2",
-    "@vitejs/plugin-react-swc": "^4.3.3",
     "@vitest/coverage-v8": "^5.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.11.0",
@@ -126,7 +125,6 @@
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
-      "@swc/core",
       "esbuild",
       "msw"
     ],

@@ -19,6 +19,7 @@
 import { useRef, type ChangeEvent } from "react";
 
 import { HStack } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { LuRegex } from "react-icons/lu";
 
 import { InputWithAddon } from "src/system-components";
@@ -34,6 +35,7 @@ import type { FilterPluginProps } from "../types";
 import { isValidFilterValue } from "../utils";
 
 export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginProps) => {
+  const { t: translate } = useTranslation("common");
   const hotkeyInputRef = useRef<HTMLInputElement>(null);
   const advanced = useAdvancedSearch(filter.config.key);
   const showAdvancedToggle = filter.config.supportsAdvancedSearch === true;
@@ -64,7 +66,7 @@ export const TextSearchFilter = ({ filter, onChange, onRemove }: FilterPluginPro
       displayValue={
         isAdvanced && stringValue !== "" ? (
           <HStack as="span" gap={1}>
-            <LuRegex aria-label="match anywhere" />
+            <LuRegex aria-label={translate("search.advanced.title")} />
             {stringValue}
           </HStack>
         ) : (

@@ -25,6 +25,21 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``DbApiHook.get_pandas_df`` and ``DbApiHook.get_pandas_df_by_chunks`` methods have been removed. Use ``DbApiHook.get_df(..., df_type="pandas")`` and ``DbApiHook.get_df_by_chunks(..., df_type="pandas")`` instead.
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support 'abfs://' and 'abfss://' URIs in DataFusion Azure Blob Storage (#74228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+
 2.3.0
 .....
 

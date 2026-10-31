@@ -36,6 +36,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
+from airflow.models.dag_version import DagVersion
 from airflow.models.trigger import handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -690,8 +691,7 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
 def test_submit_event_task_end_callback_includes_version_data(mock_send, session, create_task_instance):
-    """A finished deferred task's callback carries version_data for a pinned run, and its
-    bundle_version is derived from the same dag_version so the two cannot diverge."""
+    """A finished deferred task's callback carries version_data for a pinned run."""
     version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
 
     trigger = Trigger(classpath="does.not.matter", kwargs={})
@@ -713,6 +713,65 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     request = mock_send.call_args.kwargs["callback"]
     assert request.bundle_version == "some_hash"
     assert request.version_data == version_data
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_uses_run_bundle_after_code_only_update(
+    mock_send, session, create_task_instance
+):
+    """A code-only update advances the reused Dag version's bundle while the run stays pinned."""
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.dag_run.bundle_version = "v1-sha"
+    task_instance.dag_version.bundle_version = "v2-sha"
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    assert mock_send.call_args.kwargs["callback"].bundle_version == "v1-sha"
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_callback_uses_run_manifest_when_ti_on_newer_version(
+    mock_send, session, create_task_instance
+):
+    """The callback ships the run's pinned bundle and manifest after the TI moved to a newer Dag version."""
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    run_manifest = {"files": {"dags/my_dag.py": "v1-object-id"}}
+    run_dag_version = task_instance.dag_run.created_dag_version
+    run_dag_version.bundle_version = "v1-sha"
+    run_dag_version.version_data = run_manifest
+    newer_dag_version = DagVersion(
+        dag_id=task_instance.dag_id,
+        version_number=run_dag_version.version_number + 1,
+        bundle_name=run_dag_version.bundle_name,
+        bundle_version="v2-sha",
+        version_data={"files": {"dags/my_dag.py": "v2-object-id"}},
+    )
+    session.add(newer_dag_version)
+    session.flush()
+    task_instance.dag_run.bundle_version = "v1-sha"
+    task_instance.dag_version_id = newer_dag_version.id
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
+    session.flush()
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.bundle_version == "v1-sha"
+    assert request.version_data == run_manifest
 
 
 @pytest.mark.parametrize(
@@ -764,7 +823,6 @@ def test_submit_event_task_end_failed_respects_retries(
 
     assert ti.next_method is None
     assert ti.next_kwargs is None
-    assert ti.end_date is not None
 
     tih = session.scalars(
         select(TaskInstance)
@@ -781,9 +839,12 @@ def test_submit_event_task_end_failed_respects_retries(
         assert ti.id != old_ti_id
         assert tih[0].id == old_ti_id
         assert tih[0].try_number == 1
+        assert tih[0].end_date is not None
         assert ti.try_number == 2
+        assert ti.end_date is None
     else:
         assert tih == []
+        assert ti.end_date is not None
         assert ti.id == old_ti_id
         assert ti.try_number == 1
 

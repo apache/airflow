@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import tarfile
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 import yaml
@@ -74,6 +75,13 @@ def read_outputs(env):
 def run_cache_step(step, env, tmp_path):
     script = step["run"].replace("/tmp/cache-prek.tar.gz", str(tmp_path / "cache-prek.tar.gz"))
     return run_shell(script, env)
+
+
+def _extract_tar_archive(handle: tarfile.TarFile, path: Path) -> None:
+    if hasattr(tarfile, "data_filter"):
+        handle.extractall(path, filter="fully_trusted")
+    else:
+        handle.extractall(path)
 
 
 @pytest.fixture
@@ -325,6 +333,34 @@ def test_repaired_archive_is_reused_without_another_save(sandbox, fake_tools, tm
     assert read_outputs(sandbox) == {"save": "false", "reason": "unchanged"}
 
 
+@pytest.mark.parametrize(
+    ("supports_data_filter", "expected_kwargs"),
+    [
+        (True, {"filter": "fully_trusted"}),
+        (False, {}),
+    ],
+)
+def test_extract_tar_archive_uses_supported_filter(
+    tmp_path, monkeypatch, supports_data_filter, expected_kwargs
+):
+    content = tmp_path / "content"
+    content.mkdir()
+    (content / "payload").write_text("cache data")
+    archive = tmp_path / "cache.tar.gz"
+    with tarfile.open(archive, "w:gz") as handle:
+        handle.add(content, arcname="cache")
+
+    if supports_data_filter:
+        monkeypatch.setattr(tarfile, "data_filter", lambda member, path: member, raising=False)
+    else:
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+
+    with patch.object(tarfile.TarFile, "extractall", autospec=True) as extractall:
+        with tarfile.open(archive, "r:gz") as handle:
+            _extract_tar_archive(handle, tmp_path)
+        extractall.assert_called_once_with(handle, tmp_path, **expected_kwargs)
+
+
 @pytest.mark.skipif(
     os.environ.get("RUN_PREK_INTEGRATION") != "1",
     reason="Set RUN_PREK_INTEGRATION=1 to exercise real prek 0.5.2",
@@ -376,7 +412,7 @@ repos:
         handle.add(cache, arcname="prek-cache")
     shutil.rmtree(cache)
     with tarfile.open(archive, "r:gz") as handle:
-        handle.extractall(tmp_path, filter="fully_trusted")
+        _extract_tar_archive(handle, tmp_path)
     before_reuse = prek_cache_markers.snapshot_markers(cache)
 
     reuse = install()

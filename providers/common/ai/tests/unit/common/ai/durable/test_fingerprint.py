@@ -349,7 +349,7 @@ class TestModelRequestFingerprint:
         assert live == replayed
 
     def test_unserializable_request_returns_none(self):
-        fp = fingerprint_model_request("m", [object()], None, ModelRequestParameters())  # type: ignore[list-item]
+        fp = fingerprint_model_request("m", [object()], None, ModelRequestParameters())
 
         assert fp is None
 
@@ -358,7 +358,7 @@ class TestModelRequestFingerprint:
         process-local reprs that would never match on retry."""
         fp = fingerprint_model_request(
             "m", make_messages(), {"extra_body": object()}, ModelRequestParameters()
-        )  # type: ignore[typeddict-item]
+        )
 
         assert fp is None
 
@@ -1075,7 +1075,7 @@ class TestAliasedAndRootModelSets:
         class Aliased:
             tags: set[str] = pydantic.Field(alias="labels")
 
-        assert _render(Aliased(labels=_MANY)) == {"labels": sorted(_MANY)}  # type: ignore[call-arg]
+        assert _render(Aliased(labels=_MANY)) == {"labels": sorted(_MANY)}
 
 
 def _earlier_tool_fingerprint(name, tool_args, tool_call_id):

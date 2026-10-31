@@ -44,7 +44,7 @@ scheduler:
       mountPath: /opt/airflow/lang_sdk/pod_templates
 
 # Serve the baked-in example Dags (dags-folder), the lang-SDK stub Dag, every
-# coordinator's task-handler bundle, and the two native Dag bundles. This must be
+# coordinator's task-handler bundle, and the three native Dag bundles. This must be
 # additive: the standard KubernetesExecutor tests share this run and trigger
 # example Dags, so dropping dags-folder marks them stale and their runs 404.
 # Configure it here (dagProcessor.dagBundleConfigList) rather than overriding
@@ -55,7 +55,7 @@ scheduler:
 # that excludes every file in them, so the Dag processor never parses the
 # packed Go bundle or the Java/TypeScript handler-only bundles as Dags; a
 # coordinator's own artifact lookup does not read .airflowignore, so stub tasks
-# still find their handlers there. The two lang-sdk-native-* bundles carry no
+# still find their handlers there. The three lang-sdk-native-* bundles carry no
 # such file: that is exactly what the Dag processor is meant to parse.
 dagProcessor:
   dagBundleConfigList:
@@ -81,6 +81,11 @@ dagProcessor:
       classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
       kwargs:
         bucket_name: "ts-task-handlers"
+        aws_conn_id: "aws_localstack"
+    - name: lang-sdk-native-go
+      classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"
+      kwargs:
+        bucket_name: "lang-sdk-native-go"
         aws_conn_id: "aws_localstack"
     - name: lang-sdk-native-java
       classpath: "airflow.providers.amazon.aws.bundles.s3.S3DagBundle"

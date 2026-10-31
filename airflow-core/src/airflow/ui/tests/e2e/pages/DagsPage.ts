@@ -70,10 +70,6 @@ export class DagsPage extends BasePage {
     return `/dags/${dagName}`;
   }
 
-  public static getDagRunDetailsUrl(dagName: string, dagRunId: string): string {
-    return `/dags/${dagName}/runs/${dagRunId}/details`;
-  }
-
   /**
    * Clear the search input and wait for list to reset
    */
@@ -130,8 +126,8 @@ export class DagsPage extends BasePage {
         await this.page.getByTestId("add-filter-run_state").click();
       }
       await this.page.getByTestId(`run_state-filter-${status}`).click();
-      // Selecting blurs the pill, which collapses it ~150ms later. Hand back a settled bar
-      // instead of one mid-transition.
+      // Selecting collapses the pill a tick later. Hand back a settled bar instead of one
+      // mid-transition.
       await expect(this.runStatePill).toBeVisible({ timeout: 5000 });
     }
     await responsePromise;

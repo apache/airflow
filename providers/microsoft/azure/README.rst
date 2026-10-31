@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-microsoft-azure``
 
-Release: ``15.2.1``
+Release: ``15.3.0``
 
 
 `Microsoft Azure <https://azure.microsoft.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``microsoft.azure`` provider. All classes for thi
 are in ``airflow.providers.microsoft.azure`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.3.0/>`_.
 
 Installation
 ------------
@@ -54,16 +54,16 @@ Requirements
 PIP package                                 Version required
 ==========================================  =====================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.21.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``adlfs``                                   ``>=2026.5.0``
 ``aiohttp``                                 ``>=3.14.0``
-``azure-batch``                             ``>=15.0.0``
+``azure-batch``                             ``>=15.1.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
 ``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
-``azure-keyvault-secrets``                  ``>=4.10.0``
+``azure-keyvault-secrets``                  ``>=4.11.0``
 ``azure-mgmt-datalake-store``               ``>=0.5.0``
 ``azure-mgmt-resource``                     ``>=25.0.0``
 ``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
@@ -77,7 +77,7 @@ PIP package                                 Version required
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=10.0.0``
 ``azure-mgmt-containerregistry``            ``>=15.0.0``
-``azure-mgmt-compute``                      ``>=37.2.0``
+``azure-mgmt-compute``                      ``>=38.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``
@@ -128,4 +128,4 @@ Extra                 Dependencies
 ====================  ====================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.2.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure/15.3.0/changelog.html>`_.

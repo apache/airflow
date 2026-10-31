@@ -162,8 +162,8 @@ def test_get_parent_run_metadata():
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
     @patch("importlib.metadata.version", return_value="3.0.0")
     @patch("airflow.providers.openlineage.api.emit")
-    @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_task_instance_run_id")
-    @patch("airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter.build_dag_run_id")
+    @patch("airflow.providers.openlineage.plugins.macros.lineage_run_id")
+    @patch("airflow.providers.openlineage.plugins.macros.lineage_root_run_id")
     @patch.object(DbtCloudHook, "get_job_run")
     @patch.object(DbtCloudHook, "get_project")
     @patch.object(DbtCloudHook, "get_job_run_artifact")

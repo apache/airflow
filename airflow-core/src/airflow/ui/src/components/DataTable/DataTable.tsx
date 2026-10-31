@@ -310,6 +310,7 @@ export const DataTable = <TData extends RowData>({
           data-testid="data-table-header"
           gap={2}
           justifyContent="space-between"
+          mb={2}
           minH={10}
         >
           <VStack alignItems="flex-start" flex="1" gap={2} minW={0} w="100%">
@@ -367,7 +368,7 @@ export const DataTable = <TData extends RowData>({
       {hasCursorPagination && initialState ? (
         <HStack my={2}>
           <IconButton
-            aria-label="Previous page"
+            aria-label={translate("pagination.previousPage")}
             data-testid="prev"
             disabled={!hasPrevious}
             onClick={() => {
@@ -379,7 +380,7 @@ export const DataTable = <TData extends RowData>({
             <HiChevronLeft />
           </IconButton>
           <IconButton
-            aria-label="Next page"
+            aria-label={translate("pagination.nextPage")}
             data-testid="next"
             disabled={!hasNext}
             onClick={() => {

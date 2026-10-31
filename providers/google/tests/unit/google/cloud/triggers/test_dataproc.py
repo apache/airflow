@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from asyncio import CancelledError, Future, sleep
 from types import SimpleNamespace
 from unittest import mock
@@ -726,6 +727,7 @@ class TestDataprocSubmitTrigger:
             "polling_interval_seconds": TEST_POLL_INTERVAL,
             "cancel_on_kill": True,
             "impersonation_chain": None,
+            "execution_deadline": None,
         }
 
     @pytest.mark.asyncio
@@ -760,6 +762,99 @@ class TestDataprocSubmitTrigger:
             {"job_id": TEST_JOB_ID, "job_state": JobStatus.State.ERROR.name, "job": Job.to_dict(mock_job)}
         )
         assert event.payload == expected_event.payload
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_execution_deadline_cancels_job(
+        self, mock_get_async_hook, mock_get_sync_hook
+    ):
+        """Test the trigger cancels a still-running job once the execution deadline passes."""
+        trigger = DataprocSubmitTrigger(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            polling_interval_seconds=TEST_POLL_INTERVAL,
+            execution_deadline=time.time() - 1,
+        )
+        mock_job = Job(status=JobStatus(state=JobStatus.State.RUNNING))
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(return_value=mock_job)
+        mock_get_sync_hook.return_value.cancel_job = mock.MagicMock()
+
+        event = await trigger.run().asend(None)
+
+        mock_get_async_hook.return_value.get_job.assert_not_awaited()
+        mock_get_sync_hook.return_value.cancel_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+        )
+        assert event.payload["job_id"] == TEST_JOB_ID
+        assert event.payload["job_state"] == "TIMED_OUT"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_execution_deadline_respects_cancel_on_kill_false(
+        self, mock_get_async_hook, mock_get_sync_hook
+    ):
+        """Test the deadline event is emitted without cancelling when cancel_on_kill is False."""
+        trigger = DataprocSubmitTrigger(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            polling_interval_seconds=TEST_POLL_INTERVAL,
+            cancel_on_kill=False,
+            execution_deadline=time.time() - 1,
+        )
+        mock_job = Job(status=JobStatus(state=JobStatus.State.RUNNING))
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(return_value=mock_job)
+
+        event = await trigger.run().asend(None)
+
+        mock_get_async_hook.return_value.get_job.assert_not_awaited()
+        mock_get_sync_hook.return_value.cancel_job.assert_not_called()
+        assert event.payload["job_state"] == "TIMED_OUT"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("hanging_call", ["get_job", "sleep"])
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_execution_deadline_bounds_poll_and_sleep(
+        self, mock_get_async_hook, mock_get_sync_hook, hanging_call
+    ):
+        """Test a slow get_job or a long polling sleep cannot run past the execution deadline."""
+        trigger = DataprocSubmitTrigger(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            polling_interval_seconds=60,
+            execution_deadline=time.time() + 0.2,
+        )
+        running_job = Job(status=JobStatus(state=JobStatus.State.RUNNING))
+
+        async def slow_get_job(**kwargs):
+            await asyncio.sleep(60)
+
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(
+            side_effect=slow_get_job if hanging_call == "get_job" else None, return_value=running_job
+        )
+        mock_get_sync_hook.return_value.cancel_job = mock.MagicMock()
+
+        event = await asyncio.wait_for(trigger.run().asend(None), timeout=5)
+
+        mock_get_sync_hook.return_value.cancel_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+        )
+        assert event.payload["job_state"] == "TIMED_OUT"
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")

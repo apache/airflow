@@ -155,7 +155,7 @@ export const AssetStateStore = () => {
   const columns = getColumns({ assetId, translate });
 
   return (
-    <Box px={4}>
+    <Box display="flex" flex={1} flexDirection="column" minH={0} overflow="hidden" px={4}>
       <ErrorAlert error={error} />
       <DataTable
         columns={columns}

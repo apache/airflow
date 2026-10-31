@@ -18,12 +18,18 @@
 from __future__ import annotations
 
 import datetime
+import functools
 import json
-from typing import TYPE_CHECKING, Any, TypeVar, get_args
+import operator
+import sys
+import types
+import typing
+from typing import TYPE_CHECKING, Any, TypeVar, cast, get_args, get_origin
+from urllib.parse import quote
 
 import httpx
-import structlog
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, RootModel, ValidationError, create_model
+from pydantic.fields import FieldInfo
 
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
@@ -70,11 +76,16 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
+    ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskStateStoreBody,
+    TaskStateStoreCollectionResponse,
+    TaskStateStorePatchBody,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -90,9 +101,18 @@ from airflowctl.exceptions import AirflowCtlConnectionException
 if TYPE_CHECKING:
     from airflowctl.api.client import Client
 
-log = structlog.get_logger(logger_name=__name__)
 
 T = TypeVar("T", bound=BaseModel)
+
+
+def _quote_path_param(value: Any) -> str:
+    """
+    Encode a value for one URL path segment, like the UI does with ``encodeURIComponent``.
+
+    ``.`` and ``..`` are encoded too, because httpx removes them from the path as dot-segments.
+    """
+    quoted = quote(str(value), safe="")
+    return quoted.replace(".", "%2E") if quoted in (".", "..") else quoted
 
 
 def _serialize_query_param(value: Any) -> Any:
@@ -106,6 +126,21 @@ def _build_query_params(**values: Any) -> dict[str, Any]:
     return {name: _serialize_query_param(value) for name, value in values.items() if value is not None}
 
 
+def _has_json_body(response: httpx.Response) -> bool:
+    """Check whether a response declares a JSON body."""
+    # Kept in sync with airflow.sdk.api.client._has_json_body.
+    # Media types are case-insensitive and may carry parameters (RFC 9110).
+    media_type = response.headers.get("content-type", "").partition(";")[0].strip().lower()
+    return media_type == "application/json" or media_type.endswith("+json")
+
+
+def _parse_json_or_str(value: str) -> Any:
+    try:
+        return json.loads(value)
+    except (ValueError, TypeError):
+        return value
+
+
 # Generic Server Response Error
 class ServerResponseError(httpx.HTTPStatusError):
     """Server response error (Generic)."""
@@ -115,16 +150,22 @@ class ServerResponseError(httpx.HTTPStatusError):
         if response.status_code < 400:
             return None
 
-        if response.headers.get("content-type") != "application/json":
+        if not _has_json_body(response):
             return None
 
         # httpx runs response event hooks before it reads the body, so the body has to be
         # pulled in explicitly here or ``.json()`` raises ``httpx.ResponseNotRead``.
         response.read()
 
+        try:
+            detail = response.json()
+        except ValueError:
+            # A JSON content-type does not guarantee a JSON body; leave it to raise_for_status().
+            return None
+
         error_kind = "Client" if response.status_code < 500 else "Server"
         return cls(
-            message=f"{error_kind} error message: {response.json()}",
+            message=f"{error_kind} error message: {detail}",
             request=response.request,
             response=response,
         )
@@ -151,41 +192,106 @@ def _check_flag_and_exit_if_server_response_error(func):
     return wrapped
 
 
-TYPE_DEFAULTS = {
-    bool: False,
-    int: 0,
-    float: 0.0,
-    str: "",
-    list: [],
-    dict: {},
-}
+# Cache of tolerant twins, keyed by the strict model they were built from.
+_TOLERANT_MODELS: dict[type[BaseModel], type[BaseModel]] = {}
 
 
-def get_field_default(annotation) -> Any:
+def _is_polymorphic_union(annotation: Any) -> bool:
+    """
+    Return whether ``annotation`` is a union with two or more non-``None`` members.
+
+    E.g. ``AssetExpressionAsset | AssetExpressionAlias``. ``X | None`` (one real member) is a
+    plain optional and must still be rewritten. A union of two or more models is different:
+    pydantic's smart-union picks whichever member the payload merely *fits*, and every field
+    of a tolerant twin fits trivially (they are all optional). Put a twin in such a union and
+    a payload shaped for member B can silently validate as an empty member A instead of
+    raising -- the wrong-shape response is swallowed rather than surfaced. The cost of
+    leaving such a union strict is that a field missing anywhere beneath it is not
+    tolerated: it surfaces as a validation error rather than degrading to ``None``.
+    """
+    if get_origin(annotation) not in (typing.Union, types.UnionType):
+        return False
+    return len([arg for arg in get_args(annotation) if arg is not type(None)]) >= 2
+
+
+def _tolerate_missing(annotation: Any) -> Any:
+    """Rewrite ``annotation``, swapping any nested response model for its tolerant twin."""
+    if _is_polymorphic_union(annotation):
+        return annotation
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return _tolerant_model(annotation)
+    origin = get_origin(annotation)
+    if origin is None:
+        return annotation
     args = get_args(annotation)
-    if args:
-        non_none = [a for a in args if a is not type(None)]
-        if non_none:
-            return get_field_default(non_none[0])
-    return TYPE_DEFAULTS.get(annotation, None)
+    rewritten = [_tolerate_missing(arg) for arg in args]
+    if all(new_arg is old_arg for new_arg, old_arg in zip(rewritten, args)):
+        return annotation
+    if origin in (typing.Union, types.UnionType):
+        return functools.reduce(operator.or_, rewritten)
+    return origin[tuple(rewritten)]
 
 
-def fill_missing_fields(data: dict, model: type[BaseModel]) -> dict:
-    for field_name, field_info in model.model_fields.items():
-        annotation = field_info.annotation
-        args = get_args(annotation)
-        if field_name not in data and field_info.is_required():
-            data[field_name] = get_field_default(annotation)
-        elif field_name in data and isinstance(data[field_name], dict):
-            if isinstance(annotation, type) and issubclass(annotation, BaseModel):
-                data[field_name] = fill_missing_fields(data[field_name], annotation)
-        elif field_name in data and isinstance(data[field_name], list) and args:
-            if isinstance(args[0], type) and issubclass(args[0], BaseModel):
-                data[field_name] = [
-                    fill_missing_fields(item, args[0]) if isinstance(item, dict) else item
-                    for item in data[field_name]
-                ]
-    return data
+def _tolerant_model(model: type[BaseModel]) -> type[BaseModel]:
+    """
+    Build (or fetch the cached) tolerant twin of ``model``.
+
+    The twin is a ``pydantic.create_model`` subclass of ``model`` with every required field
+    -- including ones nested inside it, recursively -- widened to ``X | None`` defaulting to
+    ``None``. A field an older server omits is then left honestly unset instead of being
+    synthesized to a type default that would be indistinguishable from a real value. Because
+    the twin subclasses the original model, ``isinstance(twin_instance, model)`` still holds.
+
+    A ``RootModel`` wraps a single scalar rather than named fields, so "a field is missing"
+    has no meaning for it; it is returned unchanged. Polymorphic unions (see
+    ``_is_polymorphic_union``) are never rewritten. The generated datamodels contain mutually
+    self-referential schemas (``AssetExpressionAll`` <-> ``AssetExpressionAny``), but every
+    path back to a model already being built currently runs through such a union, so the
+    recursion terminates; the smoke test over all generated models guards this.
+    """
+    if model in _TOLERANT_MODELS:
+        return _TOLERANT_MODELS[model]
+    if issubclass(model, RootModel):
+        return model
+    overrides: dict[str, Any] = {}
+    for field_name, field in model.model_fields.items():
+        annotation = _tolerate_missing(field.annotation)
+        if field.is_required():
+            overrides[field_name] = (annotation | None, FieldInfo.merge_field_infos(field, default=None))
+        elif annotation is not field.annotation:
+            overrides[field_name] = (annotation, field)
+    twin = create_model(f"Partial{model.__name__}", __base__=model, **overrides) if overrides else model
+    _TOLERANT_MODELS[model] = twin
+    return twin
+
+
+def validate_response(content: bytes, data_model: type[T]) -> T:
+    """
+    Validate a server response, tolerating fields an older server does not send.
+
+    The datamodels are generated from the newest Airflow API spec, so a server on an
+    older Airflow line can legitimately omit fields the models declare as required. Any
+    such field is left ``None`` -- never synthesized to a type default (``False``, ``0``,
+    ``""``, ...), which would be indistinguishable from a real value the server actually
+    sent. Any other validation error means the response genuinely disagrees with the
+    model, which is a defect on one side or the other and must surface instead of being
+    papered over.
+    """
+    try:
+        return data_model.model_validate_json(content)
+    except ValidationError as validation_error:
+        errors = validation_error.errors()
+        if any(error["type"] != "missing" for error in errors):
+            raise
+        tolerant = cast("T", _tolerant_model(data_model).model_validate_json(content))
+        # stderr, not the logger: structlog is unconfigured here and would write to stdout,
+        # corrupting ``--output json``.
+        fields = [".".join(str(part) for part in error["loc"]) for error in errors]
+        sys.stderr.write(
+            f"Warning: {data_model.__name__} response omitted fields {fields}; leaving them unset (None). "
+            "The server is likely on an older Airflow line than these datamodels.\n"
+        )
+        return tolerant
 
 
 class BaseOperations:
@@ -216,17 +322,12 @@ class BaseOperations:
 
         shared_params = {"limit": limit, **(params or {})}
 
-        def safe_validate(content: bytes) -> BaseModel:
-            try:
-                return data_model.model_validate_json(content)  # type: ignore[union-attr]
-            except ValidationError:
-                raw = fill_missing_fields(json.loads(content), data_model)
-                return data_model.model_validate(raw)  # type: ignore[union-attr]
-
         self.response = self.client.get(path, params={**shared_params, "offset": offset})
-        first_pass = safe_validate(self.response.content)
-        total_entries = first_pass.total_entries  # type: ignore[attr-defined]
-        if total_entries < limit:
+        first_pass = validate_response(self.response.content, data_model)
+        total_entries = first_pass.total_entries
+        # An older server that omits total_entries leaves it None; treat that as "no more
+        # pages" rather than raising on the comparison below.
+        if total_entries is None or total_entries < limit:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
@@ -237,7 +338,7 @@ class BaseOperations:
         offset = offset + limit
         while offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
-            entry = safe_validate(self.response.content)
+            entry = validate_response(self.response.content, data_model)
             offset = offset + limit
             entry_list.extend(getattr(entry, found_key))
         return data_model(**{found_key: entry_list, "total_entries": total_entries})
@@ -263,13 +364,13 @@ class AssetsOperations(BaseOperations):
 
     def get(self, asset_id: str) -> AssetResponse | ServerResponseError:
         """Get an asset from the API server."""
-        self.response = self.client.get(f"assets/{asset_id}")
-        return AssetResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"assets/{_quote_path_param(asset_id)}")
+        return validate_response(self.response.content, AssetResponse)
 
     def get_alias(self, asset_alias_id: str) -> AssetAliasResponse | ServerResponseError:
         """Get an asset alias by its ID from the API server."""
-        self.response = self.client.get(f"assets/aliases/{asset_alias_id}")
-        return AssetAliasResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"assets/aliases/{_quote_path_param(asset_alias_id)}")
+        return validate_response(self.response.content, AssetAliasResponse)
 
     def list(self) -> AssetCollectionResponse | ServerResponseError:
         """List all assets from the API server."""
@@ -289,76 +390,82 @@ class AssetsOperations(BaseOperations):
         self.response = self.client.post(
             "assets/events", json=asset_event_body.model_dump(mode="json", exclude_none=True)
         )
-        return AssetEventResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, AssetEventResponse)
 
     def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
         """Materialize an asset."""
-        self.response = self.client.post(f"assets/{asset_id}/materialize", json={})
-        return DAGRunResponse.model_validate_json(self.response.content)
+        self.response = self.client.post(f"assets/{_quote_path_param(asset_id)}/materialize", json={})
+        return validate_response(self.response.content, DAGRunResponse)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:
         """Get queued events for an asset."""
-        self.response = self.client.get(f"assets/{asset_id}/queuedEvents")
-        return QueuedEventCollectionResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"assets/{_quote_path_param(asset_id)}/queuedEvents")
+        return validate_response(self.response.content, QueuedEventCollectionResponse)
 
     def get_dag_queued_events(
         self, dag_id: str, before: str
     ) -> QueuedEventCollectionResponse | ServerResponseError:
         """Get queued events for a dag."""
-        self.response = self.client.get(f"dags/{dag_id}/assets/queuedEvents", params={"before": before})
-        return QueuedEventCollectionResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/assets/queuedEvents", params={"before": before}
+        )
+        return validate_response(self.response.content, QueuedEventCollectionResponse)
 
     def get_dag_queued_event(self, dag_id: str, asset_id: str) -> QueuedEventResponse | ServerResponseError:
         """Get a queued event for a dag."""
-        self.response = self.client.get(f"dags/{dag_id}/assets/{asset_id}/queuedEvents")
-        return QueuedEventResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/assets/{_quote_path_param(asset_id)}/queuedEvents"
+        )
+        return validate_response(self.response.content, QueuedEventResponse)
 
     def delete_queued_events(self, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for an asset."""
-        self.client.delete(f"assets/{asset_id}/queuedEvents")
+        self.client.delete(f"assets/{_quote_path_param(asset_id)}/queuedEvents")
         return asset_id
 
     def delete_dag_queued_events(self, dag_id: str, before: str) -> str | ServerResponseError:
         """Delete a queued event for a Dag."""
-        self.client.delete(f"dags/{dag_id}/assets/queuedEvents", params={"before": before})
+        self.client.delete(f"dags/{_quote_path_param(dag_id)}/assets/queuedEvents", params={"before": before})
         return dag_id
 
     def delete_queued_event(self, dag_id: str, asset_id: str) -> str | ServerResponseError:
         """Delete a queued event for a Dag."""
-        self.client.delete(f"dags/{dag_id}/assets/{asset_id}/queuedEvents")
+        self.client.delete(
+            f"dags/{_quote_path_param(dag_id)}/assets/{_quote_path_param(asset_id)}/queuedEvents"
+        )
         return asset_id
 
     def list_state_store(self, asset_id: str) -> AssetStateStoreCollectionResponse | ServerResponseError:
         """List all state store entries for an asset."""
         return super().execute_list(
-            path=f"assets/{asset_id}/state-store", data_model=AssetStateStoreCollectionResponse
+            path=f"assets/{_quote_path_param(asset_id)}/state-store",
+            data_model=AssetStateStoreCollectionResponse,
         )
 
     def get_state_store(self, asset_id: str, key: str) -> AssetStateStoreResponse | ServerResponseError:
         """Get a single asset state store entry."""
-        self.response = self.client.get(f"assets/{asset_id}/state-store/{key}")
-        return AssetStateStoreResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(
+            f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}"
+        )
+        return validate_response(self.response.content, AssetStateStoreResponse)
 
     def set_state_store(self, asset_id: str, key: str, value: str) -> str | ServerResponseError:
         """Set an asset state store value. Creates or overwrites the key."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
         self.client.put(
-            f"assets/{asset_id}/state-store/{key}",
+            f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}",
             json=AssetStateStoreBody(value=parsed_value).model_dump(mode="json"),
         )
         return key
 
     def delete_state_store(self, asset_id: str, key: str) -> str | ServerResponseError:
         """Delete a single asset state store key."""
-        self.client.delete(f"assets/{asset_id}/state-store/{key}")
+        self.client.delete(f"assets/{_quote_path_param(asset_id)}/state-store/{_quote_path_param(key)}")
         return key
 
     def clear_state_store(self, asset_id: str) -> str | ServerResponseError:
         """Delete all state store keys for an asset."""
-        self.client.delete(f"assets/{asset_id}/state-store")
+        self.client.delete(f"assets/{_quote_path_param(asset_id)}/state-store")
         return asset_id
 
 
@@ -370,7 +477,7 @@ class BackfillOperations(BaseOperations):
         self.response = self.client.post(
             "backfills", json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True)
         )
-        return BackfillResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, BackfillResponse)
 
     def create_dry_run(self, backfill: BackfillPostBody) -> BackfillResponse | ServerResponseError:
         """Create a dry run backfill."""
@@ -378,12 +485,12 @@ class BackfillOperations(BaseOperations):
             "backfills/dry_run",
             json=backfill.model_dump(mode="json", exclude_none=True, exclude_defaults=True),
         )
-        return BackfillResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, BackfillResponse)
 
     def get(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Get a backfill."""
-        self.response = self.client.get(f"backfills/{backfill_id}")
-        return BackfillResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"backfills/{_quote_path_param(backfill_id)}")
+        return validate_response(self.response.content, BackfillResponse)
 
     def list(self, dag_id: str) -> BackfillCollectionResponse | ServerResponseError:
         """List all backfills."""
@@ -392,18 +499,18 @@ class BackfillOperations(BaseOperations):
 
     def pause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Pause a backfill."""
-        self.response = self.client.put(f"backfills/{backfill_id}/pause")
-        return BackfillResponse.model_validate_json(self.response.content)
+        self.response = self.client.put(f"backfills/{_quote_path_param(backfill_id)}/pause")
+        return validate_response(self.response.content, BackfillResponse)
 
     def unpause(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Unpause a backfill."""
-        self.response = self.client.put(f"backfills/{backfill_id}/unpause")
-        return BackfillResponse.model_validate_json(self.response.content)
+        self.response = self.client.put(f"backfills/{_quote_path_param(backfill_id)}/unpause")
+        return validate_response(self.response.content, BackfillResponse)
 
     def cancel(self, backfill_id: str) -> BackfillResponse | ServerResponseError:
         """Cancel a backfill."""
-        self.response = self.client.put(f"backfills/{backfill_id}/cancel")
-        return BackfillResponse.model_validate_json(self.response.content)
+        self.response = self.client.put(f"backfills/{_quote_path_param(backfill_id)}/cancel")
+        return validate_response(self.response.content, BackfillResponse)
 
 
 class ConfigOperations(BaseOperations):
@@ -411,13 +518,15 @@ class ConfigOperations(BaseOperations):
 
     def get(self, section: str, option: str) -> Config | ServerResponseError:
         """Get a config from the API server."""
-        self.response = self.client.get(f"/config/section/{section}/option/{option}")
-        return Config.model_validate_json(self.response.content)
+        self.response = self.client.get(
+            f"/config/section/{_quote_path_param(section)}/option/{_quote_path_param(option)}"
+        )
+        return validate_response(self.response.content, Config)
 
     def list(self) -> Config | ServerResponseError:
         """List all configs from the API server."""
         self.response = self.client.get("/config")
-        return Config.model_validate_json(self.response.content)
+        return validate_response(self.response.content, Config)
 
 
 class ConnectionsOperations(BaseOperations):
@@ -425,8 +534,8 @@ class ConnectionsOperations(BaseOperations):
 
     def get(self, conn_id: str) -> ConnectionResponse | ServerResponseError:
         """Get a connection from the API server."""
-        self.response = self.client.get(f"connections/{conn_id}")
-        return ConnectionResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"connections/{_quote_path_param(conn_id)}")
+        return validate_response(self.response.content, ConnectionResponse)
 
     def list(self) -> ConnectionCollectionResponse | ServerResponseError:
         """List all connections from the API server."""
@@ -440,14 +549,14 @@ class ConnectionsOperations(BaseOperations):
         self.response = self.client.post(
             "connections", json=connection.model_dump(mode="json", by_alias=True, exclude_none=True)
         )
-        return ConnectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, ConnectionResponse)
 
     def bulk(self, connections: BulkBodyConnectionBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple connections."""
         self.response = self.client.patch(
             "connections", json=connections.model_dump(mode="json", by_alias=True)
         )
-        return BulkResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, BulkResponse)
 
     def create_defaults(self) -> None | ServerResponseError:
         """Create default connections."""
@@ -456,7 +565,7 @@ class ConnectionsOperations(BaseOperations):
 
     def delete(self, conn_id: str) -> str | ServerResponseError:
         """Delete a connection."""
-        self.client.delete(f"connections/{conn_id}")
+        self.client.delete(f"connections/{_quote_path_param(conn_id)}")
         return conn_id
 
     def update(
@@ -465,10 +574,10 @@ class ConnectionsOperations(BaseOperations):
     ) -> ConnectionResponse | ServerResponseError:
         """Update a connection."""
         self.response = self.client.patch(
-            f"connections/{connection.connection_id}",
+            f"connections/{_quote_path_param(connection.connection_id)}",
             json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
-        return ConnectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, ConnectionResponse)
 
     def test(
         self,
@@ -479,7 +588,7 @@ class ConnectionsOperations(BaseOperations):
             "connections/test",
             json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
         )
-        return ConnectionTestResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, ConnectionTestResponse)
 
 
 class DagsOperations(BaseOperations):
@@ -487,13 +596,13 @@ class DagsOperations(BaseOperations):
 
     def get(self, dag_id: str) -> DAGResponse | ServerResponseError:
         """Get a Dag."""
-        self.response = self.client.get(f"dags/{dag_id}")
-        return DAGResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"dags/{_quote_path_param(dag_id)}")
+        return validate_response(self.response.content, DAGResponse)
 
     def get_details(self, dag_id: str) -> DAGDetailsResponse | ServerResponseError:
         """Get a Dag details."""
-        self.response = self.client.get(f"dags/{dag_id}/details")
-        return DAGDetailsResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"dags/{_quote_path_param(dag_id)}/details")
+        return validate_response(self.response.content, DAGDetailsResponse)
 
     def get_tags(self) -> DAGTagCollectionResponse | ServerResponseError:
         """Get all Dag tags."""
@@ -504,31 +613,35 @@ class DagsOperations(BaseOperations):
         return super().execute_list(path="dags", data_model=DAGCollectionResponse)
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
-        self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump(mode="json"))
-        return DAGResponse.model_validate_json(self.response.content)
+        self.response = self.client.patch(
+            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json")
+        )
+        return validate_response(self.response.content, DAGResponse)
 
     def delete(self, dag_id: str) -> str | ServerResponseError:
-        self.client.delete(f"dags/{dag_id}")
+        self.client.delete(f"dags/{_quote_path_param(dag_id)}")
         return dag_id
 
     def get_import_error(self, import_error_id: str) -> ImportErrorResponse | ServerResponseError:
-        self.response = self.client.get(f"importErrors/{import_error_id}")
-        return ImportErrorResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"importErrors/{_quote_path_param(import_error_id)}")
+        return validate_response(self.response.content, ImportErrorResponse)
 
     def list_import_errors(self) -> ImportErrorCollectionResponse | ServerResponseError:
         return super().execute_list(path="importErrors", data_model=ImportErrorCollectionResponse)
 
     def get_stats(self, dag_ids: list) -> DagStatsCollectionResponse | ServerResponseError:  # type: ignore
         self.response = self.client.get("dagStats", params={"dag_ids": dag_ids})
-        return DagStatsCollectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, DagStatsCollectionResponse)
 
     def get_version(self, dag_id: str, version_number: int) -> DagVersionResponse | ServerResponseError:
-        self.response = self.client.get(f"dags/{dag_id}/dagVersions/{version_number}")
-        return DagVersionResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/dagVersions/{_quote_path_param(version_number)}"
+        )
+        return validate_response(self.response.content, DagVersionResponse)
 
     def list_version(self, dag_id: str) -> DAGVersionCollectionResponse | ServerResponseError:
         return super().execute_list(
-            path=f"dags/{dag_id}/dagVersions", data_model=DAGVersionCollectionResponse
+            path=f"dags/{_quote_path_param(dag_id)}/dagVersions", data_model=DAGVersionCollectionResponse
         )
 
     def list_warning(self) -> DAGWarningCollectionResponse | ServerResponseError:
@@ -541,9 +654,10 @@ class DagsOperations(BaseOperations):
         if trigger_dag_run.conf is None:
             trigger_dag_run.conf = {}
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns", json=trigger_dag_run.model_dump(mode="json", exclude_defaults=True)
+            f"dags/{_quote_path_param(dag_id)}/dagRuns",
+            json=trigger_dag_run.model_dump(mode="json", exclude_defaults=True),
         )
-        return DAGRunResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, DAGRunResponse)
 
 
 class DagRunOperations(BaseOperations):
@@ -554,10 +668,10 @@ class DagRunOperations(BaseOperations):
     ) -> DAGRunResponse | ServerResponseError:
         """Get a Dag run."""
         self.response = self.client.get(
-            f"/dags/{dag_id}/dagRuns/{dag_run_id}",
+            f"/dags/{_quote_path_param(dag_id)}/dagRuns/{_quote_path_param(dag_run_id)}",
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
-        return DAGRunResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, DAGRunResponse)
 
     def list(
         self,
@@ -615,15 +729,15 @@ class DagRunOperations(BaseOperations):
         )
 
         self.response = self.client.get(
-            f"/dags/{dag_id}/dagRuns",
+            f"/dags/{_quote_path_param(dag_id)}/dagRuns",
             params=params,
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
-        return DAGRunCollectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, DAGRunCollectionResponse)
 
     def delete(self, dag_id: str, dag_run_id: str) -> str | ServerResponseError:
         """Delete a Dag run."""
-        self.client.delete(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+        self.client.delete(f"/dags/{_quote_path_param(dag_id)}/dagRuns/{_quote_path_param(dag_run_id)}")
         return dag_run_id
 
 
@@ -655,7 +769,7 @@ class JobsOperations(BaseOperations):
 
         if limit is not None or offset is not None:
             self.response = self.client.get("jobs", params=params)
-            return JobCollectionResponse.model_validate_json(self.response.content)
+            return validate_response(self.response.content, JobCollectionResponse)
 
         return super().execute_list(path="jobs", data_model=JobCollectionResponse, params=params)
 
@@ -665,8 +779,8 @@ class PoolsOperations(BaseOperations):
 
     def get(self, pool_name: str) -> PoolResponse | ServerResponseError:
         """Get a pool."""
-        self.response = self.client.get(f"pools/{pool_name}")
-        return PoolResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"pools/{_quote_path_param(pool_name)}")
+        return validate_response(self.response.content, PoolResponse)
 
     def list(self) -> PoolCollectionResponse | ServerResponseError:
         """List all pools."""
@@ -675,28 +789,34 @@ class PoolsOperations(BaseOperations):
     def create(self, pool: PoolBody) -> PoolResponse | ServerResponseError:
         """Create a pool."""
         self.response = self.client.post("pools", json=pool.model_dump(mode="json", exclude_none=True))
-        return PoolResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, PoolResponse)
 
     def bulk(self, pools: BulkBodyPoolBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple pools."""
         self.response = self.client.patch("pools", json=pools.model_dump(mode="json"))
-        return BulkResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, BulkResponse)
 
     def delete(self, pool: str) -> str | ServerResponseError:
         """Delete a pool."""
-        self.client.delete(f"pools/{pool}")
+        self.client.delete(f"pools/{_quote_path_param(pool)}")
         return pool
 
     def update(self, pool_body: PoolPatchBody) -> PoolResponse | ServerResponseError:
         """Update a pool."""
         self.response = self.client.patch(
-            f"pools/{pool_body.pool}", json=pool_body.model_dump(mode="json", exclude_none=True)
+            f"pools/{_quote_path_param(pool_body.pool)}",
+            json=pool_body.model_dump(mode="json", exclude_none=True),
         )
-        return PoolResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, PoolResponse)
 
 
 class ProvidersOperations(BaseOperations):
     """Provider operations."""
+
+    def get(self, provider_name: str) -> ProviderDetailsResponse | ServerResponseError:
+        """Get detailed information for a provider."""
+        self.response = self.client.get(f"providers/{_quote_path_param(provider_name)}")
+        return validate_response(self.response.content, ProviderDetailsResponse)
 
     def list(self) -> ProviderCollectionResponse | ServerResponseError:
         """List all providers."""
@@ -705,9 +825,12 @@ class ProvidersOperations(BaseOperations):
 
 def _build_task_instance_path(dag_id: str, dag_run_id: str, task_id: str, map_index: int | None) -> str:
     """Build the task instance API path, addressing a mapped task instance when map_index is given."""
-    path = f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}"
+    path = (
+        f"dags/{_quote_path_param(dag_id)}/dagRuns/{_quote_path_param(dag_run_id)}"
+        f"/taskInstances/{_quote_path_param(task_id)}"
+    )
     if map_index is not None and map_index >= 0:
-        path = f"{path}/{map_index}"
+        path = f"{path}/{_quote_path_param(map_index)}"
     return path
 
 
@@ -731,7 +854,7 @@ class TaskInstancesOperations(BaseOperations):
             path,
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
-        return TaskInstanceResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, TaskInstanceResponse)
 
     def get_dependencies(
         self,
@@ -750,14 +873,95 @@ class TaskInstancesOperations(BaseOperations):
             f"{path}/dependencies",
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
-        return TaskDependencyCollectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, TaskDependencyCollectionResponse)
 
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""
         return super().execute_list(
-            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances",
+            path=f"dags/{_quote_path_param(dag_id)}/dagRuns/{_quote_path_param(dag_run_id)}/taskInstances",
             data_model=TaskInstanceCollectionResponse,
         )
+
+    def list_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskStateStoreCollectionResponse | ServerResponseError:
+        """List all state store entries for a task instance."""
+        return super().execute_list(
+            path=f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store",
+            data_model=TaskStateStoreCollectionResponse,
+            params=_build_query_params(map_index=map_index),
+        )
+
+    def get_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> TaskStateStoreResponse | ServerResponseError:
+        """Get a single task state store entry."""
+        self.response = self.client.get(
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store/{_quote_path_param(key)}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return validate_response(self.response.content, TaskStateStoreResponse)
+
+    def set_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Set a task state store value. Creates or overwrites the key."""
+        parsed_value = _parse_json_or_str(value)
+        self.client.put(
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store/{_quote_path_param(key)}",
+            json=TaskStateStoreBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def update_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        key: str,
+        value: str,
+        map_index: int | None = None,
+    ) -> str | ServerResponseError:
+        """Update the value of an existing task state store key."""
+        parsed_value = _parse_json_or_str(value)
+        self.client.patch(
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store/{_quote_path_param(key)}",
+            json=TaskStateStorePatchBody(value=parsed_value).model_dump(mode="json"),
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def delete_state_store(
+        self, dag_id: str, dag_run_id: str, task_id: str, key: str, map_index: int | None = None
+    ) -> str | ServerResponseError:
+        """Delete a single task state store key."""
+        self.client.delete(
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store/{_quote_path_param(key)}",
+            params=_build_query_params(map_index=map_index),
+        )
+        return key
+
+    def clear_state_store(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        map_index: int | None = None,
+        all_map_indices: bool = False,
+    ) -> str | ServerResponseError:
+        """Delete all task state store keys for a task instance."""
+        self.client.delete(
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/state-store",
+            params=_build_query_params(map_index=map_index, all_map_indices=all_map_indices or None),
+        )
+        return task_id
 
 
 class TasksOperations(BaseOperations):
@@ -768,10 +972,10 @@ class TasksOperations(BaseOperations):
     ) -> TaskInstanceCollectionResponse | ServerResponseError:
         """Clear task instances of a Dag; with dry_run (the default) only previews the affected task instances."""
         self.response = self.client.post(
-            f"dags/{dag_id}/clearTaskInstances",
+            f"dags/{_quote_path_param(dag_id)}/clearTaskInstances",
             json=clear_task_instances.model_dump(mode="json", exclude_defaults=True),
         )
-        return TaskInstanceCollectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, TaskInstanceCollectionResponse)
 
 
 class VariablesOperations(BaseOperations):
@@ -779,8 +983,8 @@ class VariablesOperations(BaseOperations):
 
     def get(self, variable_key: str) -> VariableResponse | ServerResponseError:
         """Get a variable."""
-        self.response = self.client.get(f"variables/{variable_key}")
-        return VariableResponse.model_validate_json(self.response.content)
+        self.response = self.client.get(f"variables/{_quote_path_param(variable_key)}")
+        return validate_response(self.response.content, VariableResponse)
 
     def list(self) -> VariableCollectionResponse | ServerResponseError:
         """List all variables."""
@@ -791,24 +995,25 @@ class VariablesOperations(BaseOperations):
         self.response = self.client.post(
             "variables", json=variable.model_dump(mode="json", exclude_none=True)
         )
-        return VariableResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, VariableResponse)
 
     def bulk(self, variables: BulkBodyVariableBody) -> BulkResponse | ServerResponseError:
         """CRUD multiple variables."""
         self.response = self.client.patch("variables", json=variables.model_dump(mode="json"))
-        return BulkResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, BulkResponse)
 
     def delete(self, variable_key: str) -> str | ServerResponseError:
         """Delete a variable."""
-        self.client.delete(f"variables/{variable_key}")
+        self.client.delete(f"variables/{_quote_path_param(variable_key)}")
         return variable_key
 
     def update(self, variable: VariableBody) -> VariableResponse | ServerResponseError:
         """Update a variable."""
         self.response = self.client.patch(
-            f"variables/{variable.key}", json=variable.model_dump(mode="json", exclude_none=True)
+            f"variables/{_quote_path_param(variable.key)}",
+            json=variable.model_dump(mode="json", exclude_none=True),
         )
-        return VariableResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, VariableResponse)
 
 
 class VersionOperations(BaseOperations):
@@ -817,7 +1022,7 @@ class VersionOperations(BaseOperations):
     def get(self) -> VersionInfo | ServerResponseError:
         """Get the version."""
         self.response = self.client.get("version")
-        return VersionInfo.model_validate_json(self.response.content)
+        return validate_response(self.response.content, VersionInfo)
 
 
 class XComOperations(BaseOperations):
@@ -836,10 +1041,10 @@ class XComOperations(BaseOperations):
         if map_index is not None:
             params["map_index"] = map_index
         self.response = self.client.get(
-            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/xcomEntries/{_quote_path_param(key)}",
             params=params,
         )
-        return XComResponseNative.model_validate_json(self.response.content)
+        return validate_response(self.response.content, XComResponseNative)
 
     def list(
         self,
@@ -856,7 +1061,7 @@ class XComOperations(BaseOperations):
         if key is not None:
             params["xcom_key"] = key
         return super().execute_list(
-            path=f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+            path=f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/xcomEntries",
             data_model=XComCollectionResponse,
             params=params,
         )
@@ -871,20 +1076,17 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Add an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"key": key, "value": parsed_value}
         if map_index is not None:
             body_dict["map_index"] = map_index
         body = XComCreateBody(**body_dict)
         self.response = self.client.post(
-            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries",
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/xcomEntries",
             json=body.model_dump(mode="json", exclude_unset=True, exclude_none=True),
         )
-        return XComResponseNative.model_validate_json(self.response.content)
+        return validate_response(self.response.content, XComResponseNative)
 
     def edit(
         self,
@@ -896,20 +1098,17 @@ class XComOperations(BaseOperations):
         map_index: int = None,  # type: ignore
     ) -> XComResponseNative | ServerResponseError:
         """Edit an XCom entry."""
-        try:
-            parsed_value = json.loads(value)
-        except (ValueError, TypeError):
-            parsed_value = value
+        parsed_value = _parse_json_or_str(value)
 
         body_dict: dict[str, Any] = {"value": parsed_value}
         if map_index is not None:
             body_dict["map_index"] = map_index
         body = XComUpdateBody(**body_dict)
         self.response = self.client.patch(
-            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/xcomEntries/{_quote_path_param(key)}",
             json=body.model_dump(mode="json", exclude_unset=True, exclude_none=True),
         )
-        return XComResponseNative.model_validate_json(self.response.content)
+        return validate_response(self.response.content, XComResponseNative)
 
     def delete(
         self,
@@ -924,7 +1123,7 @@ class XComOperations(BaseOperations):
         if map_index is not None:
             params["map_index"] = map_index
         self.client.delete(
-            f"dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/xcomEntries/{key}",
+            f"{_build_task_instance_path(dag_id, dag_run_id, task_id, None)}/xcomEntries/{_quote_path_param(key)}",
             params=params,
         )
         return key
@@ -940,4 +1139,4 @@ class PluginsOperations(BaseOperations):
     def list_import_errors(self) -> PluginImportErrorCollectionResponse | ServerResponseError:
         """List plugin import errors from the API server."""
         self.response = self.client.get("plugins/importErrors")
-        return PluginImportErrorCollectionResponse.model_validate_json(self.response.content)
+        return validate_response(self.response.content, PluginImportErrorCollectionResponse)

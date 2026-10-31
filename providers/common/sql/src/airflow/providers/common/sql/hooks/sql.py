@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overloa
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
 
@@ -35,15 +34,16 @@ try:
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+    from sqlalchemy.pool import NullPool
 except ImportError:
     create_engine = None  # type: ignore[assignment]
     inspect = None  # type: ignore[assignment]
     make_url = None  # type: ignore[assignment]
+    NullPool = None  # type: ignore[assignment,misc]
     ArgumentError = Exception  # type: ignore[misc,assignment]
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -378,7 +378,10 @@ class DbApiHook(BaseHook):
                 "SQLAlchemy is required for database inspection. "
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
-        return inspect(self.get_sqlalchemy_engine())
+        # The inspector is cached for the hook's lifetime, so a pooled engine would keep the
+        # connection it reflected with open until the process exits. With NullPool, no
+        # connection outlives the inspection that opened it.
+        return inspect(self.get_sqlalchemy_engine({"poolclass": NullPool}))
 
     def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
         """
@@ -444,41 +447,6 @@ class DbApiHook(BaseHook):
 
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        **kwargs,
-    ) -> PandasDataFrame:
-        """
-        Execute the sql and returns a pandas dataframe.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df_by_chunks`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df_by_chunks(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        **kwargs,
-    ) -> Generator[PandasDataFrame, None, None]:
-        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
 
     @overload
     def get_df(

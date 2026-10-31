@@ -34,7 +34,7 @@ dependencies = [
     "kgb>=7.2.0",
     "requests_mock>=1.11.0",
     "rich>=13.6.0",
-    "ruff==0.16.8",
+    "ruff==0.17.3",
     "semver>=3.0.2",
     "typer>=0.22.0",
     "time-machine[dateutil]>=3.0.0",
@@ -81,7 +81,7 @@ dependencies = [
     "docutils>=0.21",
     "pagefind>=1.5.0",
     "pagefind-bin>=1.5.0",
-    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.14-py3-none-any.whl",
+    "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-0.3.16-py3-none-any.whl",
     "sphinx-argparse>=0.4.0",
     "sphinx-autoapi>=3.8.0",
     "sphinx-autobuild>=2024.10.2",
@@ -110,7 +110,7 @@ dependencies = [
     # Mypy dependencies
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     "apache-airflow-mypy",
-    "mypy==2.3.1",
+    "mypy==2.4.0",
     "types-Deprecated>=1.2.9.20240311",
     "types-Markdown>=3.6.0.20240316",
     "types-PyMySQL>=1.1.0.20240425",
@@ -120,7 +120,8 @@ dependencies = [
     "types-croniter>=2.0.0.20240423",
     "types-docutils>=0.21.0.20240704",
     "types-paramiko>=4.0.0.20260402",
-    "types-protobuf>=5.26.0.20240422",
+    # types-protobuf 5.29.1.20250402 is a partial stub package that makes mypy complain
+    "types-protobuf>=5.26.0.20240422,!=5.29.1.20250402",
     "types-python-dateutil>=2.9.0.20240316",
     "types-python-slugify>=8.0.2.20240310",
     "types-pytz>=2024.1.0.20240417",

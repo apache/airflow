@@ -30,18 +30,89 @@ on:  # yamllint disable-line rule:truthy
         description: "Slack bot token for notifications"
         required: true
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   TARGET_BRANCH: ${{ inputs.target-branch }}
 jobs:
+  # Picks the runner of the upgrade the way CI does: RunsOn in apache/airflow, public runners in forks
+  # or when the repository variable USE_PUBLIC_RUNNERS is "true".
+  build-info:
+    name: >-
+      [${{ inputs.target-branch }}] Build info
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Save github context to file"
+        # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
+        # the single-quoted heredoc disables every shell expansion of the JSON anyway.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+  # A job of its own, so the token that may dispatch workflows never reaches the upgrade job, which
+  # runs the third-party tools and hooks it upgrades. It only dispatches the mirror and waits for it.
+  mirror-base-images:
+    timeout-minutes: 30
+    name: >-
+      [${{ inputs.target-branch }}] Mirror hardened base images
+    runs-on: ["ubuntu-slim"]
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: >-
+          [${{ inputs.target-branch }}] Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: >-
+          [${{ inputs.target-branch }}] Install Breeze
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      # The upgrade for main is the one the mirror would otherwise start a second time.
+      - name: >-
+          [${{ inputs.target-branch }}] Mirror the base images and wait for the run
+        env:
+          TRIGGER_UPGRADE_CHECK_FLAG: >-
+            ${{ inputs.target-branch == 'main' && '--no-trigger-upgrade-check' || '--trigger-upgrade-check' }}
+        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}"
   createupgrade-check:
     timeout-minutes: 45
     name: >-
       [${{ inputs.target-branch }}] Upgrade checks and PR
-    runs-on: ["ubuntu-22.04"]
+    # Builds the CI image for the uv.lock refresh and runs every hook, like the CI image builds.
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    needs: [build-info, mirror-base-images]
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: >-
           [${{ inputs.target-branch }}] Cleanup repo
@@ -84,6 +155,8 @@ jobs:
           --draft
           --switch-to-base
           --no-k8s-schema-sync
+          --latest-package-managers
+          --no-mirror-base-images
           --answer yes
       - name: >-
           [${{ inputs.target-branch }}] Find upgrade PR

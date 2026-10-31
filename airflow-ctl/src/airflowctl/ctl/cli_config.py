@@ -27,6 +27,7 @@ import inspect
 import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -36,11 +37,14 @@ from typing import Any, NamedTuple
 
 import httpx
 import rich
+from pydantic import BaseModel, ValidationError
+from rich.markup import escape
 
 import airflowctl.api.datamodels.generated as generated_datamodels
-from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
+from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
+from airflowctl.ctl.utils.validation import split_validation_errors
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
@@ -64,6 +68,22 @@ def lazy_load_command(import_path: str) -> Callable:
     command.__name__ = name
 
     return command
+
+
+_WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+
+def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
+    """Warn that a failed write is not retried because the server may already have applied it."""
+    if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
+        return
+    method = _request_method(error)
+    if method in _WRITE_METHODS:
+        rich.print(
+            f"[yellow]The {method} request failed, but it may already have been applied on the server. "
+            "Check the server state before retrying.[/yellow]",
+            file=sys.stderr,
+        )
 
 
 def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
@@ -91,11 +111,13 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"[red]Server response error: {e}. "
                 "Please check if the server is running and the API URL is correct.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.ReadTimeout as e:
         rich.print(f"[red]Read timeout error: {e}[/red]")
         if "timed out" in str(e):
             rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
         rich.print(f"Server response error: {e}")
@@ -105,6 +127,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "Please check the command and its parameters. "
                 "If you need help, run the command with --help."
             )
+        _warn_if_write_may_have_applied(e)
         sys.exit(1)
     # Must stay below ``ServerResponseError``, which subclasses it. Responses the client could not
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
@@ -116,6 +139,27 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
                 "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
+        _warn_if_write_may_have_applied(e)
+        sys.exit(1)
+    except ValidationError as e:
+        errors = e.errors()
+        first: dict[str, Any] = dict(errors[0]) if errors else {}
+        title = escape(e.title)
+        location = escape(".".join(str(part) for part in first.get("loc", ())) or "<root>")
+        detail = f"{title} (invalid '{location}': {escape(first.get('msg', ''))})"
+        if first.get("type") == "json_invalid":
+            message = (
+                f"Server returned a non-JSON response for {title}; "
+                "check that the API URL points at the Airflow API server."
+            )
+        elif e.title.endswith("Body"):
+            message = f"Input did not match the airflowctl model {detail}."
+        else:
+            message = (
+                f"Response did not match the airflowctl model {detail}. "
+                "If the server is newer than this client, try upgrading airflowctl."
+            )
+        rich.print(f"[red]{message}[/red]")
         sys.exit(1)
 
 
@@ -196,13 +240,6 @@ def string_list_type(val):
     return [x.strip() for x in val.split(",")]
 
 
-def string_lower_type(val):
-    """Lower arg."""
-    if not val:
-        return
-    return val.strip().lower()
-
-
 def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     """Parse JSON object argument."""
     if isinstance(val, dict):
@@ -214,6 +251,33 @@ def json_dict_type(val: str | dict[str, Any]) -> dict[str, Any]:
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError(f"expected JSON object: {val!r}")
     return parsed
+
+
+def is_iso_datetime_type(val: str | datetime.datetime) -> datetime.datetime:
+    """Parse an ISO-8601 datetime argument."""
+    if isinstance(val, datetime.datetime):
+        return val
+    try:
+        if val.endswith("Z"):
+            val = val[:-1] + "+00:00"
+        return datetime.datetime.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"invalid datetime value: {val!r}") from e
+
+
+def is_iso_date_type(val: str | datetime.date) -> datetime.date:
+    """
+    Parse an ISO-8601 date string into a datetime.date.
+
+    Used as the argparse ``type=`` callable for datetime.date-typed CLI
+    parameters, mirroring is_iso_datetime_type() above.
+    """
+    if isinstance(val, datetime.date):
+        return val
+    try:
+        return datetime.date.fromisoformat(val)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"Invalid ISO-8601 date: {val!r}") from e
 
 
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
@@ -242,11 +306,12 @@ ARG_OUTPUT = Arg(
     type=str,
 )
 
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
     type=str,
-    default="http://localhost:8080",
+    default=None,
     dest="api_url",
     help="The URL of the Airflow API server",
 )
@@ -397,27 +462,27 @@ ARG_JOB_ALLOW_MULTIPLE = Arg(
 # Config arguments
 ARG_CONFIG_SECTION = Arg(
     flags=("--section",),
-    type=str,
+    type=string_list_type,
     dest="section",
-    help="The section of the configuration",
+    help="The section name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_OPTION = Arg(
     flags=("--option",),
-    type=str,
+    type=string_list_type,
     dest="option",
-    help="The option of the configuration",
+    help="The option name(s) of the configuration, comma separated",
 )
 ARG_CONFIG_IGNORE_SECTION = Arg(
     flags=("--ignore-section",),
-    type=str,
+    type=string_list_type,
     dest="ignore_section",
-    help="The configuration section being ignored",
+    help="The configuration section name(s) being ignored, comma separated",
 )
 ARG_CONFIG_IGNORE_OPTION = Arg(
     flags=("--ignore-option",),
-    type=str,
+    type=string_list_type,
     dest="ignore_option",
-    help="The configuration option being ignored",
+    help="The configuration option name(s) being ignored, comma separated",
 )
 ARG_CONFIG_VERBOSE = Arg(
     flags=(
@@ -425,6 +490,19 @@ ARG_CONFIG_VERBOSE = Arg(
         "--verbose",
     ),
     help="Enables detailed output, including the list of ignored sections and options",
+    default=False,
+    action="store_true",
+)
+
+# Provider arguments
+ARG_PROVIDER_NAME = Arg(
+    flags=("provider_name",),
+    type=str,
+    help="The package name of the provider",
+)
+ARG_PROVIDER_FULL = Arg(
+    flags=("-f", "--full"),
+    help="Show the complete provider metadata",
     default=False,
     action="store_true",
 )
@@ -492,7 +570,7 @@ class CommandFactory:
     operations: list[dict]
     args_map: dict[tuple, list[Arg]]
     func_map: dict[tuple, Callable]
-    commands_map: dict[str, list[ActionCommand]]
+    commands_map: dict[str, list[CLICommand]]
     group_commands_list: list[CLICommand]
     auth_environment_command_list: list[str]
     exclude_operation_names: list[str]
@@ -539,6 +617,12 @@ class CommandFactory:
         self.excluded_output_keys = [
             "total_entries",
         ]
+        # Lookup for building nested subcommands. Each entry is the shared method suffix
+        # (hyphenated into the subcommand name).
+        # e.g. list_state_store -> "taskinstances state-store list".
+        self.subgroups: dict[str, set[str]] = {
+            "TaskInstancesOperations": {"state_store"},
+        }
 
     def _inspect_operations(self) -> None:
         """Parse file and return matching Operation Method with details."""
@@ -656,8 +740,8 @@ class CommandFactory:
             "dict": json_dict_type,
             "tuple": tuple,
             "set": set,
-            "datetime.date": datetime.date,
-            "datetime.datetime": datetime.datetime,
+            "datetime.date": is_iso_date_type,
+            "datetime.datetime": is_iso_datetime_type,
             "dict[str, typing.Any]": json_dict_type,
         }
         # Default to ``str`` to preserve previous behaviour for any unrecognised
@@ -674,6 +758,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -682,6 +767,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -703,6 +789,18 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
+
+    def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
+        """Find the subgroup suffix an operation belongs to, if one exists."""
+        for suffix in self.subgroups.get(operation_group_name, set()):
+            if operation_name.endswith(f"_{suffix}"):
+                return suffix
+        return None
 
     def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
         """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
@@ -740,9 +838,16 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
-                    else None,
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
             )
         return commands
@@ -797,8 +902,6 @@ class CommandFactory:
                         )
 
             args.append(ARG_OUTPUT)
-            # ``-e/--env`` is inert here (nothing reads ``args.env``), so widening it would only let more
-            # commands accept it and silently target production: https://github.com/apache/airflow/issues/70519
             if any(operation.get("name").startswith(cmd) for cmd in self.auth_environment_command_list):
                 args.append(ARG_AUTH_ENVIRONMENT)
 
@@ -847,6 +950,25 @@ class CommandFactory:
 
         return params
 
+    def _validate_datamodel(self, datamodel: type[BaseModel], params: dict) -> Any:
+        """
+        Validate CLI input against ``datamodel`` and exit with a readable message when it is invalid.
+
+        Optional CLI flags default to ``None``, so a required datamodel field the user did not pass
+        reaches pydantic as ``None``. Report those as missing flags instead of a raw traceback.
+        """
+        try:
+            return datamodel.model_validate(params)
+        except ValidationError as e:
+            missing, invalid = split_validation_errors(
+                datamodel, e, lambda field: f"--{self._sanitize_arg_parameter_key(field)}"
+            )
+            messages = []
+            if missing:
+                messages.append(f"the following arguments are required: {', '.join(missing)}")
+            messages.extend(invalid)
+            raise SystemExit("Invalid arguments: " + "; ".join(messages))
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -891,11 +1013,11 @@ class CommandFactory:
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
                         datamodel, method_params[datamodel_param_name]
                     )
-                    method_params[datamodel_param_name] = datamodel.model_validate(
-                        method_params[datamodel_param_name]
+                    method_params[datamodel_param_name] = self._validate_datamodel(
+                        datamodel, method_params[datamodel_param_name]
                     )
                 else:
-                    method_params = datamodel.model_validate(method_params)
+                    method_params = self._validate_datamodel(datamodel, method_params)
                 method_output = operation_method_object(**method_params)
             else:
                 method_output = operation_method_object(**method_params)
@@ -907,6 +1029,9 @@ class CommandFactory:
                 # Handle delete operation which returns a string of the deleted entity name
                 if isinstance(obj, str):
                     return {"operation": api_operation_name, "entity": obj}
+                # Handle operations that return None (e.g., create_defaults)
+                if obj is None:
+                    return {"operation": api_operation_name, "status": "success"}
                 return obj
 
             def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
@@ -954,6 +1079,7 @@ class CommandFactory:
 
     def _create_group_commands_from_operation(self):
         """Create GroupCommand from Operation Methods."""
+        subgroup_commands_map: dict[tuple[str, str], list[ActionCommand]] = {}
         for operation in self.operations:
             operation_name = operation["name"]
             operation_group_name = operation["parent"].name
@@ -962,12 +1088,34 @@ class CommandFactory:
             )
             if operation_group_name not in self.commands_map:
                 self.commands_map[operation_group_name] = []
+            subgroup_suffix = self._find_subgroup_suffix(
+                operation_group_name=operation_group_name, operation_name=operation_name
+            )
+            command_name = (
+                operation_name.removesuffix(f"_{subgroup_suffix}") if subgroup_suffix else operation_name
+            )
+            action_command = ActionCommand(
+                name=command_name.replace("_", "-"),
+                help=help_text,
+                func=self.func_map[(operation_name, operation_group_name)],
+                args=self.args_map[(operation_name, operation_group_name)],
+            )
+            if subgroup_suffix:
+                subgroup_commands_map.setdefault((operation_group_name, subgroup_suffix), []).append(
+                    action_command
+                )
+            else:
+                self.commands_map[operation_group_name].append(action_command)
+
+        for (operation_group_name, subgroup_suffix), action_commands in subgroup_commands_map.items():
+            subgroup_name = subgroup_suffix.replace("_", "-")
             self.commands_map[operation_group_name].append(
-                ActionCommand(
-                    name=operation["name"].replace("_", "-"),
-                    help=help_text,
-                    func=self.func_map[(operation_name, operation_group_name)],
-                    args=self.args_map[(operation_name, operation_group_name)],
+                GroupCommand(
+                    name=subgroup_name,
+                    help=self.help_texts.get(operation_group_name.replace("Operations", "").lower(), {}).get(
+                        subgroup_name
+                    ),
+                    subcommands=action_commands,
                 )
             )
 
@@ -1018,7 +1166,9 @@ def merge_commands(
     base_commands: list[CLICommand], commands_will_be_merged: list[CLICommand]
 ) -> list[CLICommand]:
     """
-    Merge group commands with existing commands which extends base_commands with will_be_merged commands.
+    Merge custom commands into generated commands.
+
+    Custom subcommands replace generated subcommands with the same name.
 
     Args:
         base_commands: List of base commands to be extended.
@@ -1040,8 +1190,12 @@ def merge_commands(
         if command.name in merge_command_map.keys():
             merged_command = merge_command_map[command.name]
             if isinstance(command, GroupCommand):
-                # Merge common group command with existing group command
-                current_subcommands = list(command.subcommands)
+                replacement_names = {subcommand.name for subcommand in merged_command.subcommands}
+                current_subcommands = [
+                    subcommand
+                    for subcommand in command.subcommands
+                    if subcommand.name not in replacement_names
+                ]
                 current_subcommands.extend(list(merged_command.subcommands))
                 new_commands.append(
                     GroupCommand(
@@ -1298,6 +1452,19 @@ JOB_COMMANDS = (
     ),
 )
 
+PROVIDER_COMMANDS = (
+    ActionCommand(
+        name="get",
+        help="Retrieve an installed provider by its package name",
+        func=lazy_load_command("airflowctl.ctl.commands.provider_command.get_provider"),
+        args=(
+            ARG_PROVIDER_NAME,
+            ARG_PROVIDER_FULL,
+            ARG_OUTPUT,
+        ),
+    ),
+)
+
 core_commands: list[CLICommand] = [
     GroupCommand(
         name="auth",
@@ -1329,6 +1496,11 @@ core_commands: list[CLICommand] = [
         name="pools",
         help="Manage Airflow pools",
         subcommands=POOL_COMMANDS,
+    ),
+    GroupCommand(
+        name="providers",
+        help="Manage installed Airflow providers",
+        subcommands=PROVIDER_COMMANDS,
     ),
     GroupCommand(
         name="tasks",

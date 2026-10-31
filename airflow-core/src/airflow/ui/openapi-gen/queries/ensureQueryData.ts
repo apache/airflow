@@ -781,7 +781,7 @@ export const ensureUseDagWarningServiceListDagWarningsData = (queryClient: Query
 * @param data.dagRunEndDateLte
 * @param data.dagRunEndDateLt
 * @param data.dagRunState
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
 * @param data.isFavorite
 * @param data.timetableType
 * @returns DAGCollectionResponse Successful Response
@@ -886,7 +886,7 @@ export const ensureUseDagServiceGetDagTagsData = (queryClient: QueryClient, { li
 * @param data.bundleName
 * @param data.bundleVersion
 * @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
 * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1380,7 +1380,7 @@ export const ensureUseTaskInstanceServiceGetMappedTaskInstanceData = (queryClien
 * @param data.regionId
 * @param data.regionIndex
 * @param data.loopId Task group id of a loop; matches every instance it produced.
-* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.taskId
 * @param data.runAfterGte
@@ -1837,6 +1837,17 @@ export const ensureUseProviderServiceGetProvidersData = (queryClient: QueryClien
   offset?: number;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseProviderServiceGetProviderData = (queryClient: QueryClient, { providerName }: {
+  providerName: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }), queryFn: () => ProviderService.getProvider({ providerName }) });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -2152,6 +2163,13 @@ export const ensureUseLoginServiceLoginData = (queryClient: QueryClient, { next 
   next?: string;
 } = {}) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }), queryFn: () => LoginService.login({ next }) });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseLoginServiceGetCliLoginMetadataData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(), queryFn: () => LoginService.getCliLoginMetadata() });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response
@@ -2280,23 +2298,25 @@ export const ensureUseDeadlinesServiceGetDeadlinesData = (queryClient: QueryClie
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
 /**
 * Get Dag Deadline Alerts
-* Get all deadline alerts defined on a Dag.
+* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
 * @param data.limit
+* @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseDeadlinesServiceGetDagDeadlineAlertsData = (queryClient: QueryClient, { dagId, limit, offset, orderBy, versionNumber }: {
+export const ensureUseDeadlinesServiceGetDagDeadlineAlertsData = (queryClient: QueryClient, { dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, namePattern, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, namePattern, offset, orderBy, versionNumber }) });
 /**
 * Get Callback Logs
 * Get the execution logs of a deadline callback.
@@ -2476,13 +2496,29 @@ export const ensureUseGridServiceGetLoopHistoryData = (queryClient: QueryClient,
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runId
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseGanttServiceGetGanttDataData = (queryClient: QueryClient, { dagId, runId }: {
+export const ensureUseGanttServiceGetGanttDataData = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }), queryFn: () => GanttService.getGanttData({ dagId, runId }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GanttService.getGanttData({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

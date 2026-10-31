@@ -67,14 +67,8 @@ _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    import sqlalchemy
-    from packaging.version import Version
-
     is_psycopg3 = find_spec("psycopg") is not None
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
-
-    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
@@ -117,8 +111,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "9cffe90fa0c0",
-    "3.5.0": "c71065a1b14f",
+    "3.4.0": "b4f1a7d2c903",
+    "3.5.0": "38c8df3fcb9c",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1020,7 +1014,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     from airflow.models.tasklog import LogTemplate
 
     metadata = reflect_tables([LogTemplate], session)
-    log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
+    log_template_table: Table | None = metadata.tables.get(LogTemplate.__table__.key)
 
     if log_template_table is None:
         log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
@@ -1105,11 +1099,15 @@ def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, 
     else:
         for tbl in tables:
             try:
-                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
                 tbl_schema: str | None
-                tbl_schema, sep, name = table_name.partition(".")
-                if not sep:
-                    tbl_schema, name = None, table_name
+                if isinstance(tbl, str):
+                    tbl_schema, sep, name = tbl.partition(".")
+                    if not sep:
+                        tbl_schema, name = None, tbl
+                else:
+                    # Preserve the mapped class's own configured schema; see PR #70793.
+                    name = tbl.__tablename__
+                    tbl_schema = inspect(tbl, raiseerr=True).local_table.schema
                 metadata.reflect(
                     bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
                 )
