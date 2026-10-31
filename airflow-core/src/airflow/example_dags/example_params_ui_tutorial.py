@@ -110,7 +110,7 @@ with DAG(
         ),
         # Dates and Times are also supported
         "date_time": Param(
-            f"{datetime.date.today()}T{datetime.time(hour=12, minute=17, second=00)}+00:00",
+            "2024-01-01T12:17:00+00:00",
             type="string",
             format="date-time",
             title="Date-Time Picker",
@@ -127,7 +127,7 @@ with DAG(
             section="Typed parameters with Param object",
         ),
         "date": Param(
-            f"{datetime.date.today()}",
+            "2024-01-01",
             type="string",
             format="date",
             title="Date Picker",
