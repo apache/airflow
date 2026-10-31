@@ -77,8 +77,8 @@ jobs:
               '(constraints(?:-source-providers|-no-providers)?)-(true|false)-([1-9][0-9]*)$');
             const saved = artifacts.map(a => [a, inputName.exec(a.name)]).filter(([, match]) => match);
             // Only RunsOn runners can read RunsOn's S3 cache, where a canary on RunsOn keeps its CI image.
-            const runsOnRunner = `runs-on=${process.env.GITHUB_RUN_ID}/family=m7a+m7i+m6a+m6i` +
-              '/image=ubuntu22-full-x64/volume=150gb/cpu=8/ram=32';
+            const runsOnRunner = `runs-on=${process.env.GITHUB_RUN_ID}/family=m8a+m8i+m7a+m7i+m6i` +
+              '/image=ubuntu22-full-x64/volume=150gb/spot=co/cpu=8/ram=32';
             for (const [input, [, python, mode, useUv, attempt]] of saved) {
               if (attempt !== rawAttempt) continue;
               const entry = `${python}:${mode}`;
