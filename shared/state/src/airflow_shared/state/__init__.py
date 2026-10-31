@@ -167,8 +167,9 @@ class BaseStoreBackend(ABC):
         """
         Return the stored JSON encoded value string, or None if the key does not exist.
 
-        Must handle both ``TaskScope`` and ``AssetScope``. The execution API calls
-        ``json.loads`` on the returned string from here, so it must be a valid JSON document.
+        Must handle both ``TaskScope`` and ``AssetScope``. :meth:`get_value` decodes the
+        returned string with ``json.loads``, so it must be a valid JSON document. It is
+        never the JSON ``null``, since :meth:`set` never receives one.
         """
 
     @abstractmethod
@@ -186,7 +187,8 @@ class BaseStoreBackend(ABC):
 
         Must handle both ``TaskScope`` and ``AssetScope``. ``value`` is always a
         JSON encoded string (the execution API calls ``json.dumps`` before passing it
-        here); store it verbatim so ``get`` can return it unchanged.
+        here); store it verbatim so ``get`` can return it unchanged. It is never the
+        JSON ``null``; callers reject a null value before it reaches the backend.
 
         ``expires_at`` is an absolute UTC datetime after which the row may be deleted.
         Pass ``None`` (default) for a key that should never expire — stored as ``NULL``,
@@ -268,6 +270,27 @@ class BaseStoreBackend(ABC):
         ``session`` is optional. If provided, implementations should use it directly.
         If ``None``, implementations manage their own async session internally.
         """
+
+    def get_value(self, scope: StoreScope, key: str, *, session: Session | None = None) -> JsonValue:
+        """
+        Return the decoded value for the given key, or None if the key does not exist.
+
+        The default implementation decodes what :meth:`get` returns. A stored JSON ``null``
+        breaks the :meth:`set` contract, so it is treated as a missing key. A backend that
+        stores values natively, rather than as JSON strings, can override this to skip
+        the round trip.
+        """
+        if (value := self.get(scope, key, session=session)) is None:
+            return None
+        return json.loads(value)
+
+    async def aget_value(
+        self, scope: StoreScope, key: str, *, session: AsyncSession | None = None
+    ) -> JsonValue:
+        """Async variant of :meth:`get_value`."""
+        if (value := await self.aget(scope, key, session=session)) is None:
+            return None
+        return json.loads(value)
 
     def cleanup(self) -> None:
         """

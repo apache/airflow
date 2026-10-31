@@ -37,6 +37,7 @@ from tests_common.test_utils.mock_operators import MockOperator
 if TYPE_CHECKING:
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
+    from pydantic import JsonValue
     from sqlalchemy.orm import Session
 
     from airflow.models.taskinstance import TaskInstance
@@ -48,7 +49,7 @@ pytestmark = pytest.mark.db_test
 _BY_NAME_VALUE = "/execution/store/asset/by-name/value"
 
 
-def _create_asset_store_row(asset_id: int, key: str, value: str) -> None:
+def _create_asset_store_row(asset_id: int, key: str, value: JsonValue) -> None:
     """Insert an AssetStateStoreModel row directly in the database."""
     with create_session() as s:
         s.add(AssetStateStoreModel(asset_id=asset_id, key=key, value=json.dumps(value)))
@@ -86,6 +87,14 @@ def inactive_asset(session: Session) -> AssetModel:
 
 
 class TestGetAssetStateByName:
+    def test_get_stored_null_returns_404(self, client: TestClient, asset: AssetModel):
+        _create_asset_store_row(asset.id, "watermark", None)
+
+        response = client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"})
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
     def test_get_returns_value(self, client: TestClient, asset: AssetModel):
         _create_asset_store_row(asset.id, "watermark", "2026-04-29")
 
