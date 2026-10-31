@@ -305,11 +305,12 @@ ARG_OUTPUT = Arg(
     type=str,
 )
 
+
 # Authentication arguments
 ARG_AUTH_URL = Arg(
     flags=("--api-url",),
     type=str,
-    default="http://localhost:8080",
+    default=None,
     dest="api_url",
     help="The URL of the Airflow API server",
 )

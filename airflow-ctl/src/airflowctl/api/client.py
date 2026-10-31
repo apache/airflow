@@ -534,6 +534,10 @@ class Client(httpx.Client):
         return PluginsOperations(self)
 
 
+def get_default_api_url() -> str:
+    return os.getenv("AIRFLOW_CLI_API_URL") or "http://localhost:8080"
+
+
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
 def get_client(
@@ -549,7 +553,8 @@ def get_client(
     api_client = None
     api_token = api_token or os.getenv("AIRFLOW_CLI_TOKEN", None)
     try:
-        # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
+        # The stored API URL wins; otherwise AIRFLOW_CLI_API_URL or the localhost default is used.
+        # Save the URL with the credentials if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
             credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
@@ -559,7 +564,7 @@ def get_client(
             ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
-            base_url=credentials.api_url or "http://localhost:8080",
+            base_url=credentials.api_url or get_default_api_url(),
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
             token=resolved_token,
             kind=kind,
