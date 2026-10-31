@@ -39,6 +39,7 @@ from openlineage.client.facet_v2 import (
     sql_job,
     tags_job,
 )
+from openlineage.client.transport.http import OAuth2ClientCredentialsTokenProvider
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
@@ -55,6 +56,7 @@ from airflow.providers.openlineage.plugins.facets import (
 )
 from airflow.providers.openlineage.token_provider import (
     AIRFLOW_CONNECTION_API_KEY_AUTH_TYPE,
+    AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE,
     OpenLineageAirflowConnectionAuthError,
     OpenLineageAirflowConnectionConfigError,
 )
@@ -262,6 +264,34 @@ def test_connection_config_missing_transport_raises_custom_exception(mock_get_co
             match="must contain a `transport` JSON object",
         ):
             OpenLineageAdapter().get_or_create_openlineage_client()
+
+
+@patch.object(BaseHook, "get_connection")
+def test_create_client_from_config_with_oauth2_connection_auth(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id="openlineage_default",
+        conn_type="generic",
+        login="my-client-id",
+        password="my-client-secret",
+        host="https://auth.example.com/token",
+    )
+    transport_config = json.dumps(
+        {
+            "type": "http",
+            "url": "http://ol-api:5000",
+            "auth": {"type": AIRFLOW_CONNECTION_OAUTH2_AUTH_TYPE, "conn_id": "openlineage_default"},
+        }
+    )
+
+    with conf_vars({("openlineage", "transport"): transport_config}):
+        client = OpenLineageAdapter().get_or_create_openlineage_client()
+
+    assert client.transport.kind == "http"
+    auth = client.transport.config.auth
+    assert isinstance(auth, OAuth2ClientCredentialsTokenProvider)
+    assert auth.token_endpoint == "https://auth.example.com/token"
+    assert auth.client_id == "my-client-id"
+    assert auth.client_secret == "my-client-secret"
 
 
 def test_create_client_from_yaml_config():
