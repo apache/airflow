@@ -511,8 +511,13 @@ def _decode_tool_payload(payload: Any) -> Any:
 
 
 def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse:
-    """Decode a model response payload; a streamed request records it with the events it streamed."""
-    raw = payload.get("response") if streaming and isinstance(payload, dict) else payload
+    """
+    Decode a model response payload.
+
+    pydantic-ai before 2.60 records a streamed request as the response together with the events
+    it streamed; 2.60 records the bare response, and still replays journals with the older shape.
+    """
+    raw = payload["response"] if streaming and isinstance(payload, dict) and "events" in payload else payload
     return JSON_CODEC.load(ModelResponse, raw)
 
 

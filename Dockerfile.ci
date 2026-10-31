@@ -29,7 +29,7 @@
 # The FIPS-validated variants require a paid Docker subscription and cannot be mirrored or made the
 # default, but you can build a FIPS-compliant image by pointing the build at one:
 #   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:9ed60ac490ee5038920b1e69ea9adb256f9f95ca285b65800d2ddab73b6e3a1e"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:f21773073cf72f02df2c40142815280514fb0424d6c46326b0f4adb14e7f1370"
 
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
@@ -2048,7 +2048,7 @@ ENV DEV_APT_COMMAND=${DEV_APT_COMMAND} \
 # Empty takes the Python of BASE_IMAGE, breeze passes the patchlevel of the image it builds on.
 ARG AIRFLOW_PYTHON_VERSION=""
 ENV AIRFLOW_PYTHON_VERSION=${AIRFLOW_PYTHON_VERSION}
-ENV GOLANG_MAJOR_MINOR_VERSION="1.27.2"
+ENV GOLANG_MAJOR_MINOR_VERSION="1.27.3"
 ENV TEMURIN_VERSION="11"
 ENV NODEJS_VERSION="22.23.1"
 # keep this in sync with package.json files
@@ -2112,7 +2112,7 @@ RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && chmod +x /usr/local/bin/helm
 
 # Install mprocs - a modern process manager for managing multiple Airflow components
-ARG MPROCS_VERSION="0.10.2"
+ARG MPROCS_VERSION="0.10.3"
 
 RUN SYSTEM=$(uname -s | tr '[:upper:]' '[:lower:]') \
     && PLATFORM="$(uname -m)" \
@@ -2206,10 +2206,10 @@ COPY --from=scripts common.sh install_packaging_tools.sh install_additional_depe
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.2.1
+ARG AIRFLOW_PIP_VERSION=26.2.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.4
-ARG AIRFLOW_PREK_VERSION="0.5.5"
+ARG AIRFLOW_UV_VERSION=0.13.6
+ARG AIRFLOW_PREK_VERSION="0.5.7"
 
 # UV_LINK_MODE=copy is needed since we are using cache mounted from the host
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
