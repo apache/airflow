@@ -67,48 +67,152 @@
         "eventType": "START",
         "job": {
             "name": "openlineage_setup_teardown_dag.create_cluster"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_setup_teardown_dag.create_cluster"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
         "job": {
             "name": "openlineage_setup_teardown_dag.run_query"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_setup_teardown_dag.run_query"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
         "job": {
             "name": "openlineage_setup_teardown_dag.run_query2"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_setup_teardown_dag.run_query2"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "START",
         "job": {
             "name": "openlineage_setup_teardown_dag.delete_cluster"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
             "name": "openlineage_setup_teardown_dag.delete_cluster"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     }
 ]

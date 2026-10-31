@@ -25,7 +25,12 @@
                 "airflow": {
                     "taskInstance": {
                         "dag_bundle_name": "{{ result is string }}",
-                        "dag_bundle_version": "{{ result is string }}"
+                        "dag_bundle_version": "{{ result is string }}",
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -41,7 +46,12 @@
                 "airflow": {
                     "taskInstance": {
                         "dag_bundle_name": "{{ result is string }}",
-                        "dag_bundle_version": "{{ result is string }}"
+                        "dag_bundle_version": "{{ result is string }}",
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }

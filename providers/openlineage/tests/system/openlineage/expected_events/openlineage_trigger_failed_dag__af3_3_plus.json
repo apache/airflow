@@ -45,7 +45,14 @@
                 "parent": {
                     "job": {
                         "namespace": "prod_biz",
-                        "name": "get_files"
+                        "name": "get_files",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "SPARK",
+                                "jobType": "JOB"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
@@ -53,7 +60,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -213,7 +227,14 @@
                 "parent": {
                     "job": {
                         "namespace": "prod_biz",
-                        "name": "get_files"
+                        "name": "get_files",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "SPARK",
+                                "jobType": "JOB"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
@@ -221,7 +242,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -322,7 +350,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -330,6 +365,15 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
@@ -365,7 +409,14 @@
                     "root": {
                         "job": {
                             "name": "generate_report_sales_e2e",
-                            "namespace": "prod_analytics"
+                            "namespace": "prod_analytics",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "STREAMING",
+                                    "integration": "CUSTOM",
+                                    "jobType": "PIPELINE"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
@@ -373,6 +424,15 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "failed",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
@@ -388,6 +448,13 @@
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_failed_dag_child__notrigger",
                         "trigger_run_id": "{{ result.startswith('openlineage_trigger_failed_dag_triggering_child_202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -438,6 +505,13 @@
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_failed_dag_child__notrigger",
                         "trigger_run_id": "{{ result.startswith('openlineage_trigger_failed_dag_triggering_child_202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "failed",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {

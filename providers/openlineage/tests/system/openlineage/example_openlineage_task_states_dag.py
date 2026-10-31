@@ -25,6 +25,7 @@ It checks:
     - a task that raises AirflowFailException with retries left emits START with `state` running, and FAIL
       with `state` failed at `try_number` 1 and `max_tries` 2: it isn't retried although
       `try_number <= max_tries`
+    - a task whose upstream failed emits nothing, as it never runs
     - taskInstance's `dag_version_id` of every event, from Airflow 3.1 on
     - every task event's identity, as `system.openlineage.expected_events` describes it, and each task in the Dag's job facet
 """
@@ -60,13 +61,18 @@ with DAG(
     def fail_without_retry():
         raise AirflowFailException("Intentional failure that skips the retries left")
 
+    @task
+    def after_failure():
+        pass
+
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
         trigger_rule="all_done",
     )
 
-    [skip_itself(), fail_without_retry()] >> check_events
+    # check_events stays the only leaf, so the Dag run succeeds when the events match
+    [skip_itself(), fail_without_retry() >> after_failure()] >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

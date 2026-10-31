@@ -15,6 +15,13 @@
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "['task_0']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -39,6 +46,13 @@
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "['task_0']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -63,6 +77,13 @@
                             "upstream_group_ids": "['tg1']",
                             "upstream_task_ids": "['tg1.task_1']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -87,6 +108,13 @@
                             "upstream_group_ids": "['tg1']",
                             "upstream_task_ids": "['tg1.task_1']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }

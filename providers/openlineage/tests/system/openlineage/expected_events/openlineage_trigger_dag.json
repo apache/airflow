@@ -378,6 +378,15 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
@@ -422,6 +431,15 @@
                     },
                     "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
                     "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
                 }
             }
         },
@@ -437,6 +455,13 @@
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_dag_child__notrigger",
                         "trigger_run_id": "{{ result.startswith('openlineage_trigger_dag_triggering_child_202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -487,6 +512,13 @@
                     "task": {
                         "trigger_dag_id": "openlineage_trigger_dag_child__notrigger",
                         "trigger_run_id": "{{ result.startswith('openlineage_trigger_dag_triggering_child_202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 },
                 "parent": {
@@ -527,6 +559,282 @@
         },
         "job": {
             "name": "openlineage_trigger_dag.trigger_dagrun"
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_trigger_dag.trigger_partial"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "{{ result is string }}",
+                            "name": "openlineage_trigger_dag",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    }
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_trigger_dag.trigger_partial"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "{{ result is string }}",
+                            "name": "openlineage_trigger_dag",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    }
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_trigger_dag_partial_child__notrigger"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "prod_biz",
+                        "name": "get_files",
+                        "facets": {
+                            "$optional": "a job type missing a field is dropped, leaving no facets",
+                            "jobType": null
+                        }
+                    },
+                    "run": {
+                        "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "prod_analytics",
+                            "name": "generate_report_sales_e2e",
+                            "facets": {
+                                "$optional": "a job type missing a field is dropped, leaving no facets",
+                                "jobType": null
+                            }
+                        },
+                        "run": {
+                            "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_trigger_dag_partial_child__notrigger"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "prod_biz",
+                        "name": "get_files",
+                        "facets": {
+                            "$optional": "a job type missing a field is dropped, leaving no facets",
+                            "jobType": null
+                        }
+                    },
+                    "run": {
+                        "runId": "3bb703d1-09c1-4a42-8da5-35a0b3216072"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "prod_analytics",
+                            "name": "generate_report_sales_e2e",
+                            "facets": {
+                                "$optional": "a job type missing a field is dropped, leaving no facets",
+                                "jobType": null
+                            }
+                        },
+                        "run": {
+                            "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_trigger_dag_partial_child__notrigger.check_macros"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_partial_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "prod_analytics",
+                            "name": "generate_report_sales_e2e",
+                            "facets": {
+                                "$optional": "a job type missing a field is dropped, leaving no facets",
+                                "jobType": null
+                            }
+                        },
+                        "run": {
+                            "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+                        }
+                    }
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_trigger_dag_partial_child__notrigger.check_macros"
+        },
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_partial_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "namespace": "prod_analytics",
+                            "name": "generate_report_sales_e2e",
+                            "facets": {
+                                "$optional": "a job type missing a field is dropped, leaving no facets",
+                                "jobType": null
+                            }
+                        },
+                        "run": {
+                            "runId": "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
+                        }
+                    }
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     }
 ]
