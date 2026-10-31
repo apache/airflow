@@ -210,7 +210,8 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
 
         try:
             while True:
-                if self.execution_deadline is not None and time.time() >= self.execution_deadline:
+                remaining = None if self.execution_deadline is None else self.execution_deadline - time.time()
+                if remaining is not None and remaining <= 0:
                     if self.cancel_on_kill:
                         self.log.info("Job %s exceeded execution_timeout; cancelling it.", self.job_id)
                         try:
@@ -228,12 +229,21 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                         }
                     )
                     return
-                job = await hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+                try:
+                    job = await asyncio.wait_for(
+                        hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id),
+                        timeout=remaining,
+                    )
+                except TimeoutError:
+                    continue
                 state = job.status.state
                 self.log.info("Dataproc job: %s is in state: %s", self.job_id, state)
                 if state in (JobStatus.State.DONE, JobStatus.State.CANCELLED, JobStatus.State.ERROR):
                     break
-                await asyncio.sleep(self.polling_interval_seconds)
+                sleep_seconds = self.polling_interval_seconds
+                if self.execution_deadline is not None:
+                    sleep_seconds = min(sleep_seconds, max(self.execution_deadline - time.time(), 0))
+                await asyncio.sleep(sleep_seconds)
             yield TriggerEvent(
                 {"job_id": self.job_id, "job_state": JobStatus.State(state).name, "job": Job.to_dict(job)}
             )

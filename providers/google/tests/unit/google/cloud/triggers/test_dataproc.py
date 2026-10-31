@@ -821,6 +821,42 @@ class TestDataprocSubmitTrigger:
         assert event.payload["job_state"] == "TIMED_OUT"
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("hanging_call", ["get_job", "sleep"])
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
+    @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_async_hook")
+    async def test_submit_trigger_run_execution_deadline_bounds_poll_and_sleep(
+        self, mock_get_async_hook, mock_get_sync_hook, hanging_call
+    ):
+        """Test a slow get_job or a long polling sleep cannot run past the execution deadline."""
+        trigger = DataprocSubmitTrigger(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            polling_interval_seconds=60,
+            execution_deadline=time.time() + 0.2,
+        )
+        running_job = Job(status=JobStatus(state=JobStatus.State.RUNNING))
+
+        async def slow_get_job(**kwargs):
+            await asyncio.sleep(60)
+
+        mock_get_async_hook.return_value.get_job_client = mock.AsyncMock()
+        mock_get_async_hook.return_value.get_job = mock.AsyncMock(
+            side_effect=slow_get_job if hanging_call == "get_job" else None, return_value=running_job
+        )
+        mock_get_sync_hook.return_value.cancel_job = mock.MagicMock()
+
+        event = await asyncio.wait_for(trigger.run().asend(None), timeout=5)
+
+        mock_get_sync_hook.return_value.cancel_job.assert_called_once_with(
+            job_id=TEST_JOB_ID,
+            project_id=TEST_PROJECT_ID,
+            region=TEST_REGION,
+        )
+        assert event.payload["job_state"] == "TIMED_OUT"
+
+    @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger.get_sync_hook")
     async def test_on_kill_cancels_job(self, mock_get_sync_hook, submit_trigger):
         mock_sync_hook = mock_get_sync_hook.return_value
