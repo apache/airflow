@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import base64
+import importlib.metadata
 import json
 import sys
 from copy import deepcopy
@@ -31,7 +32,9 @@ import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from packaging.version import Version
 from requests.exceptions import ConnectionError, HTTPError
+from snowflake.connector import SnowflakeConnection
 from snowflake.connector.cursor import SnowflakeCursor
 
 from airflow.models import Connection
@@ -42,6 +45,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _PASSWORD = "snowflake42"
+# snowflake-sqlalchemy 2.0.0 started percent-encoding "?" in the URL password (SNOW-828206).
+_URI_QUESTION_MARK = (
+    "%3F" if Version(importlib.metadata.version("snowflake-sqlalchemy")) >= Version("2.0.0") else "?"
+)
 
 BASE_CONNECTION_KWARGS: dict = {
     "login": "user",
@@ -311,7 +318,7 @@ class TestPytestSnowflakeHook:
                     "password": ";/?:@&=+$, ",
                 },
                 (
-                    "snowflake://user:;%2F?%3A%40&=+$, @airflow.af_region/db/public?"
+                    f"snowflake://user:;%2F{_URI_QUESTION_MARK}%3A%40&=+$, @airflow.af_region/db/public?"
                     "application=AIRFLOW&authenticator=snowflake&role=af_role&warehouse=af_wh"
                 ),
                 {
@@ -1343,12 +1350,14 @@ class TestPytestSnowflakeHook:
             pytest.param({}, {"session_parameters": {"QUERY_TAG": "airflow"}}, id="connection"),
         ],
     )
-    @mock.patch("snowflake.connector.SnowflakeConnection", autospec=True)
+    # No autospec: before connector 5, connect() is wrapped with SnowflakeConnection.__init__'s
+    # signature, so an autospec would demand a ``self`` argument.
+    @mock.patch("snowflake.connector.connect")
     def test_run_keeps_transaction_when_connect_merges_session_parameters(
-        self, mock_connection_class, hook_kwargs, extra
+        self, mock_connect, hook_kwargs, extra
     ):
         """The connector merges the server's AUTOCOMMIT into the session_parameters dict it receives."""
-        conn = mock_connection_class.return_value
+        conn = mock.MagicMock(spec=SnowflakeConnection)
         cur = mock.MagicMock(spec=SnowflakeCursor, rowcount=0)
         conn.cursor.return_value = cur
         type(cur).sfqid = mock.PropertyMock(return_value="qid")
@@ -1357,7 +1366,7 @@ class TestPytestSnowflakeHook:
             kwargs["session_parameters"].update({"AUTOCOMMIT": True})
             return conn
 
-        mock_connection_class.side_effect = connect
+        mock_connect.side_effect = connect
         connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
         connection_kwargs["extra"].update(extra)
         with mock.patch.dict(

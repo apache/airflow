@@ -304,11 +304,10 @@ _STATUS_DESCRIPTIONS = {
     "gate_modified": "Pull request changes the fork CI gate - see the comment",
 }
 
-# (commit status state, description) of a fork job, by its status and conclusion. A queued job is
-# reported like a running one: each change is one more write, and commit statuses can only be posted
-# one at a time (GraphQL has no mutation for them).
+# (commit status state, description) of a finished fork job, by its conclusion. Queued and running
+# jobs are not reported: each status is one write, commit statuses can only be posted one at a time
+# (GraphQL has no mutation for them), and `Fork CI / Tests (AMD)` already shows the run as running.
 JOB_STATUSES = {
-    "running": ("pending", "Running in the fork - see Details"),
     "success": ("success", "Passed in the fork - see Details"),
     "failure": ("failure", "Failed in the fork - see Details"),
     "timed_out": ("failure", "Timed out in the fork - see Details"),
