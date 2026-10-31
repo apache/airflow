@@ -114,7 +114,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``adlfs``                                   ``>=2026.5.0``
 ``aiohttp``                                 ``>=3.14.0``
-``azure-batch``                             ``>=15.0.0``
+``azure-batch``                             ``>=15.1.0``
 ``azure-ai-projects``                       ``>=2.2.0``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
@@ -134,7 +134,7 @@ PIP package                                 Version required
 ``azure-kusto-data``                        ``>=4.1.0,!=5.0.0``
 ``azure-mgmt-datafactory``                  ``>=10.0.0``
 ``azure-mgmt-containerregistry``            ``>=15.0.0``
-``azure-mgmt-compute``                      ``>=37.2.0``
+``azure-mgmt-compute``                      ``>=38.0.0``
 ``azure-mgmt-containerinstance``            ``>=10.1.0``
 ``msgraph-core``                            ``>=1.3.3``
 ``msgraphfs``                               ``>=0.3.0``

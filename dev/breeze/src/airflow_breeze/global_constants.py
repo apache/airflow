@@ -326,8 +326,8 @@ if MYSQL_INNOVATION_RELEASE:
 
 ALLOWED_INSTALL_MYSQL_CLIENT_TYPES = ["mariadb"]
 
-PIP_VERSION = "26.2.1"
-UV_VERSION = "0.13.4"
+PIP_VERSION = "26.2.2"
+UV_VERSION = "0.13.6"
 
 # packages that providers docs
 REGULAR_DOC_PACKAGES = [
@@ -940,7 +940,7 @@ ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION: dict[str, str] = {
     "3.11": "3.11.18",
     "3.12": "3.12.16",
     "3.13": "3.13.18",
-    "3.14": "3.14.8",
+    "3.14": "3.14.10",
 }
 
 # Airflow images are based on Docker Hardened Images (https://dhi.io). The "-dev" variant carries
