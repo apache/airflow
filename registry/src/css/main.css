@@ -3945,13 +3945,15 @@ main {
   background: rgb(from var(--color-purple-500) r g b / 0.1);
 }
 
-/* Connection Builder Card */
-.provider-detail-page .connections-card {
+/* Connections and External Services cards share padding and heading style. */
+.provider-detail-page .connections-card,
+.provider-detail-page .external-services-card {
   padding: var(--space-5);
   margin-bottom: var(--space-6);
 }
 
-.provider-detail-page .connections-card > h3 {
+.provider-detail-page .connections-card > h3,
+.provider-detail-page .external-services-card > h3 {
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   color: var(--text-primary);
@@ -3961,10 +3963,17 @@ main {
   gap: var(--space-2);
 }
 
-.provider-detail-page .connections-card > h3 svg {
+.provider-detail-page .connections-card > h3 svg,
+.provider-detail-page .external-services-card > h3 svg {
   width: 1rem;
   height: 1rem;
   color: var(--color-green-400);
+}
+
+.provider-detail-page .external-services-card > p {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-3);
 }
 
 .provider-detail-page .connections-card .no-connections {
@@ -4004,14 +4013,14 @@ main {
   border-color: var(--color-green-400);
 }
 
-/* Per-connection external services matrix */
-.provider-detail-page .connections-card .conn-external-services-table {
+/* External services table (one row per connection type). */
+.provider-detail-page .external-services-card .external-services-table {
   width: 100%;
   margin-top: var(--space-4);
   border-collapse: collapse;
 }
 
-.provider-detail-page .connections-card .conn-external-services-header th {
+.provider-detail-page .external-services-card .external-services-header th {
   padding: var(--space-2) var(--space-3);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -4020,20 +4029,25 @@ main {
   background: var(--bg-tertiary);
 }
 
-.provider-detail-page .connections-card .conn-external-services-row {
+.provider-detail-page .external-services-card .external-services-row {
   border-top: 1px solid var(--border-primary);
 }
 
-.provider-detail-page .connections-card .conn-external-services-row td {
+.provider-detail-page .external-services-card .external-services-row td {
   padding: var(--space-2) var(--space-3);
   vertical-align: top;
 }
 
-.provider-detail-page .connections-card .conn-external-services-row td:first-child {
+.provider-detail-page .external-services-card .external-services-name {
   white-space: nowrap;
 }
 
-.provider-detail-page .connections-card .conn-external-services-list {
+.provider-detail-page .external-services-card .external-services-name code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.provider-detail-page .external-services-card .external-services-list {
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
