@@ -437,7 +437,8 @@ class GcpBodyFieldValidator(LoggingMixin):
         all_field_names = {
             spec["name"]
             for spec in self._validation_specs
-            if spec.get("type") != "union" and spec.get("api_version") != self._api_version
+            if spec.get("type") != "union"
+            and (not spec.get("api_version") or spec.get("api_version") == self._api_version)
         }
         all_union_fields = [spec for spec in self._validation_specs if spec.get("type") == "union"]
         for union_field in all_union_fields:
@@ -445,7 +446,10 @@ class GcpBodyFieldValidator(LoggingMixin):
                 nested_union_spec["name"]
                 for nested_union_spec in union_field["fields"]
                 if nested_union_spec.get("type") != "union"
-                and nested_union_spec.get("api_version") != self._api_version
+                and (
+                    not nested_union_spec.get("api_version")
+                    or nested_union_spec.get("api_version") == self._api_version
+                )
             )
         for field_name in body_to_validate:
             if field_name not in all_field_names:
