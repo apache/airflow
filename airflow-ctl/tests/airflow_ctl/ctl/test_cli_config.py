@@ -1203,19 +1203,15 @@ class TestCliConfigMethods:
         assert "--port" in message
         assert "required" not in message
 
-    def test_create_command_without_required_option_exits_with_friendly_message(self):
-        """Test ``connections create`` without --conn-type exits cleanly and never calls the API."""
+    def test_create_command_without_required_option_is_rejected_by_parser(self, capsys):
+        """Test argparse rejects ``connections create`` without --conn-type: exit code 2, message on stderr."""
         parser = cli_parser.get_parser()
-        args = parser.parse_args(
-            ["connections", "create", "--api-token", "token", "--connection-id", "my_conn"]
-        )
 
-        with mock.patch.object(ConnectionsOperations, "create") as mock_create:
-            with pytest.raises(SystemExit) as ctx:
-                args.func(args)
+        with pytest.raises(SystemExit) as ctx:
+            parser.parse_args(["connections", "create", "--api-token", "token", "--connection-id", "my_conn"])
 
-        assert "the following arguments are required: --conn-type" in str(ctx.value)
-        mock_create.assert_not_called()
+        assert ctx.value.code == 2
+        assert "the following arguments are required: --conn-type" in capsys.readouterr().err
 
     @pytest.mark.parametrize(
         ("group_name", "subcommand_name", "expected_help"),
