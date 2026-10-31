@@ -531,7 +531,11 @@ class Trigger(Base):
                 else:
                     filtered_query = filtered_query.filter(cls.team_name.is_(None))
 
-            locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
+            # Without of=cls the joined task_instance/callback rows are locked too, blocking scheduler
+            # writes to them until commit, and SKIP LOCKED skips triggers whose joined rows are locked.
+            locked_query = with_row_locks(
+                filtered_query.limit(remaining_capacity), session, of=cls, skip_locked=True
+            )
             result.extend(session.execute(locked_query).all())
 
         return result
