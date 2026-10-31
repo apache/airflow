@@ -1,0 +1,11 @@
+The unused ``[scheduler] task_instance_heartbeat_sec`` option is removed
+
+Every task in Airflow 3 runs under the task supervisor, which takes its heartbeat interval from
+``[workers] min_heartbeat_interval``. No code reads ``[scheduler] task_instance_heartbeat_sec``, so
+setting it had no effect. The option is removed from the configuration reference.
+
+``airflow config lint`` and ``airflowctl config lint`` now report the option as removed and point at
+``[workers] min_heartbeat_interval``. They report the Airflow 2 name
+``[scheduler] local_task_job_heartbeat_sec`` the same way. That name was previously reported as
+renamed to ``task_instance_heartbeat_sec``. ``airflow config update --fix --all-recommendations``
+rewrote it under that name. The same command now removes both names.
