@@ -1837,10 +1837,36 @@ def run(
                 # a retry policy turned the exception into a reschedule.
                 if error is not None or state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
                     ti._terminal_state_send_failed = True
+            else:
+                if state == TaskInstanceState.SUCCESS:
+                    _clear_task_state_store_on_success(context, log)
 
     # Return the message to make unit tests easier too
     ti.state = state
     return state, msg, error
+
+
+def _clear_task_state_store_on_success(context: Context, log: Logger) -> None:
+    """
+    Clear the custom state store backend once the task is recorded as successful.
+
+    Runs after the terminal state is reported, never before: the backend is remote storage
+    and a failure deleting from it must not turn a task that succeeded into a failed one.
+    Leftover entries are harmless -- retention and the next ``set()`` clean them up.
+    """
+    if not conf.getboolean("state_store", "clear_on_success"):
+        return
+    if _get_worker_state_store_backend() is None:
+        return
+    log.info(
+        "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
+    )
+    try:
+        context["task_state_store"]._clear_backend_only()
+    except Exception:
+        log.exception(
+            "Failed to clear task state from custom backend; the task stays successful and the entries are left for retention to remove."
+        )
 
 
 def _handle_current_task_success(
@@ -1859,12 +1885,6 @@ def _handle_current_task_success(
 
     task_outlets = list(_build_asset_profiles(ti.task.outlets))
     outlet_events = list(_serialize_outlet_events(context["outlet_events"]))
-
-    if conf.getboolean("state_store", "clear_on_success") and _get_worker_state_store_backend() is not None:
-        log.info(
-            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
-        )
-        context["task_state_store"]._clear_backend_only()
 
     msg = SucceedTask(
         end_date=end_date,
