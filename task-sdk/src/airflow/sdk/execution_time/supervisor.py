@@ -2954,7 +2954,7 @@ def process_log_messages_from_subprocess(
                 _log_to_target(target, level, msg, **event)
 
 
-def _log_to_target(target: FilteringBoundLogger, level: int, msg: str, **event) -> None:
+def _log_to_target(target: FilteringBoundLogger, level: int, msg: str, /, **event) -> None:
     try:
         target.log(level, msg, **event)
     except ValueError as e:
