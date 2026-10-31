@@ -1063,7 +1063,7 @@ class TestKubernetesPodOperator:
             assert result == mock_pod_request_obj
 
     def test_xcom_sidecar_container_image_custom(self):
-        image = "private.repo/alpine:3.24.2"
+        image = "private.repo/alpine:3.24.3"
         with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
             k = KubernetesPodOperator(
                 name="test",
@@ -1080,7 +1080,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.2"
+        assert pod.spec.containers[1].image == "alpine:3.24.3"
 
     def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
@@ -2998,6 +2998,140 @@ class TestKubernetesPodOperatorDurableExecution:
         assert KubernetesPodOperator._KubernetesPodOperator__supports_durable_execution is True
 
 
+class TestKubernetesPodOperatorResumableMetrics:
+    PATCH = f"{KPO_MODULE}.Stats.incr"
+
+    @pytest.fixture(autouse=True)
+    def setup_tests(self):
+        self.create_pod_patch = patch(f"{POD_MANAGER_CLASS}.create_pod")
+        self.create_mock = self.create_pod_patch.start()
+        self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
+        self._default_client_patch.start()
+
+        yield
+
+        patch.stopall()
+
+    def make_operator(self):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+        )
+        k.reattach_on_restart = True
+        return k
+
+    def make_pod(self, phase, reason=None):
+        pod = MagicMock()
+        pod.status.phase = phase
+        pod.status.reason = reason
+        return pod
+
+    def make_pod_request(self):
+        request = MagicMock()
+        request.to_dict.return_value = {"metadata": {"name": "test-pod"}}
+        return request
+
+    @pytest.mark.parametrize(
+        ("phase", "reason", "from_store", "expected"),
+        [
+            pytest.param(None, None, False, ["resumable_job.fresh_submit"], id="fresh_submit"),
+            pytest.param(
+                PodPhase.RUNNING,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.reconnect_success"],
+                id="reconnect",
+            ),
+            pytest.param(
+                PodPhase.SUCCEEDED,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.already_succeeded"],
+                id="already_succeeded",
+            ),
+            pytest.param(
+                PodPhase.FAILED,
+                None,
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.terminal_resubmit"],
+                id="terminal_resubmit",
+            ),
+            pytest.param(
+                PodPhase.RUNNING,
+                "Evicted",
+                True,
+                ["resumable_job.reconnect_attempt", "resumable_job.terminal_resubmit"],
+                id="evicted",
+            ),
+            pytest.param(
+                PodPhase.RUNNING,
+                None,
+                False,
+                ["resumable_job.reconnect_attempt", "resumable_job.reconnect_success"],
+                id="found_by_label_search",
+            ),
+        ],
+    )
+    def test_counters_per_branch(self, phase, reason, from_store, expected):
+        k = self.make_operator()
+        context = create_context(k)
+        context["task_state_store"] = MagicMock()
+        pod = self.make_pod(phase, reason) if phase is not None else None
+
+        with (
+            patch(
+                f"{KPO_MODULE}.KubernetesPodOperator._get_pod_from_task_state_store",
+                return_value=pod if from_store else None,
+            ),
+            patch(
+                f"{KPO_MODULE}.KubernetesPodOperator.find_pod",
+                return_value=None if from_store else pod,
+            ),
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion"),
+            patch(self.PATCH) as incr,
+        ):
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        assert [call.args[0] for call in incr.call_args_list] == expected
+
+    def test_counters_carry_task_instance_stats_tags(self):
+        k = self.make_operator()
+        context = create_context(k)
+        context["task_state_store"] = MagicMock()
+        ti = MagicMock()
+        ti.stats_tags = {"dag_id": "dag", "task_id": "task", "run_type": "manual"}
+        context["ti"] = ti
+
+        with (
+            patch(f"{KPO_MODULE}.KubernetesPodOperator._get_pod_from_task_state_store", return_value=None),
+            patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod", return_value=None),
+            patch(self.PATCH) as incr,
+        ):
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        incr.assert_called_once_with(
+            "resumable_job.fresh_submit",
+            tags={
+                "dag_id": "dag",
+                "task_id": "task",
+                "run_type": "manual",
+                "operator": "KubernetesPodOperator",
+            },
+        )
+
+    def test_no_counters_when_not_durable(self):
+        k = self.make_operator()
+        k.reattach_on_restart = False
+        context = create_context(k)
+
+        with patch(self.PATCH) as incr:
+            k.get_or_create_pod(pod_request_obj=self.make_pod_request(), context=context)
+
+        incr.assert_not_called()
+
+
 class TestKubernetesPodOperatorDurableBelow3_3:
     @pytest.mark.parametrize("durable_value", [True, False])
     def test_durable_has_no_effect(self, durable_value):
@@ -3547,7 +3681,7 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "alpine:3.24.2"
+        assert pod.spec.containers[1].image == "alpine:3.24.3"
 
     def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(

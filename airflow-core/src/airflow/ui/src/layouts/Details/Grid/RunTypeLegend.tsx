@@ -46,7 +46,12 @@ export const RunTypeLegend = () => {
           </Text>
           {runTypes.map((runType) => (
             <Flex align="center" gap={2} key={runType}>
-              <RunTypeIcon runType={runType} />
+              {/* Grid bars show no icon for scheduled runs; the spacer keeps the labels aligned. */}
+              {runType === "scheduled" ? (
+                <Box flexShrink={0} width="1em" />
+              ) : (
+                <RunTypeIcon runType={runType} />
+              )}
               <Text fontSize="xs">{translate(`common:runTypes.${runType}`)}</Text>
             </Flex>
           ))}

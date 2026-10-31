@@ -72,7 +72,7 @@ const ConfigForm = <T extends FieldValues = FieldValues>({
 
       return formattedJson;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : translate("common:error.unknown");
+      const errorMessage = error instanceof Error ? error.message : translate("common:error.defaultMessage");
 
       setErrors((prev) => ({
         ...prev,

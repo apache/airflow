@@ -37,14 +37,6 @@ import { FilterPill } from "../FilterPill";
 import type { FilterPluginProps } from "../types";
 import { isLoopFilterValue } from "./loopParams";
 
-const collapsePill = () => {
-  setTimeout(() => {
-    const activeElement = document.activeElement as HTMLElement;
-
-    activeElement.blur();
-  }, 0);
-};
-
 /**
  * One pill, one list: every loop in the run and the passes it ran, as single choices.
  *
@@ -80,7 +72,6 @@ export const LoopFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
     }
     hasJustSelected.current = true;
     onChange(decodeLoopOption(choice));
-    collapsePill();
   };
 
   return (
@@ -130,8 +121,12 @@ export const LoopFilter = ({ filter, onChange, onRemove }: FilterPluginProps) =>
             flex="1"
             h="full"
             onOpenChange={({ open }) => {
-              if (!open && !hasJustSelected.current) {
-                onRequestClose();
+              if (!open) {
+                if (hasJustSelected.current) {
+                  setTimeout(onRequestClose, 0);
+                } else {
+                  onRequestClose();
+                }
               }
               hasJustSelected.current = false;
             }}

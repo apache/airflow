@@ -922,6 +922,12 @@ export const UseProviderServiceGetProvidersKeyFn = ({ limit, offset }: {
   limit?: number;
   offset?: number;
 } = {}, queryKey?: Array<unknown>) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [{ limit, offset }])];
+export type ProviderServiceGetProviderDefaultResponse = Awaited<ReturnType<typeof ProviderService.getProvider>>;
+export type ProviderServiceGetProviderQueryResult<TData = ProviderServiceGetProviderDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useProviderServiceGetProviderKey = "ProviderServiceGetProvider";
+export const UseProviderServiceGetProviderKeyFn = ({ providerName }: {
+  providerName: string;
+}, queryKey?: Array<unknown>) => [useProviderServiceGetProviderKey, ...(queryKey ?? [{ providerName }])];
 export type AssetStateStoreServiceListAssetStateStoreDefaultResponse = Awaited<ReturnType<typeof AssetStateStoreService.listAssetStateStore>>;
 export type AssetStateStoreServiceListAssetStateStoreQueryResult<TData = AssetStateStoreServiceListAssetStateStoreDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useAssetStateStoreServiceListAssetStateStoreKey = "AssetStateStoreServiceListAssetStateStore";
@@ -1083,6 +1089,10 @@ export const useLoginServiceLoginKey = "LoginServiceLogin";
 export const UseLoginServiceLoginKeyFn = ({ next }: {
   next?: string;
 } = {}, queryKey?: Array<unknown>) => [useLoginServiceLoginKey, ...(queryKey ?? [{ next }])];
+export type LoginServiceGetCliLoginMetadataDefaultResponse = Awaited<ReturnType<typeof LoginService.getCliLoginMetadata>>;
+export type LoginServiceGetCliLoginMetadataQueryResult<TData = LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useLoginServiceGetCliLoginMetadataKey = "LoginServiceGetCliLoginMetadata";
+export const UseLoginServiceGetCliLoginMetadataKeyFn = (queryKey?: Array<unknown>) => [useLoginServiceGetCliLoginMetadataKey, ...(queryKey ?? [])];
 export type LoginServiceLogoutDefaultResponse = Awaited<ReturnType<typeof LoginService.logout>>;
 export type LoginServiceLogoutQueryResult<TData = LoginServiceLogoutDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useLoginServiceLogoutKey = "LoginServiceLogout";
@@ -1153,13 +1163,14 @@ export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadline
 export type DeadlinesServiceGetDagDeadlineAlertsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagDeadlineAlerts>>;
 export type DeadlinesServiceGetDagDeadlineAlertsQueryResult<TData = DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDagDeadlineAlertsKey = "DeadlinesServiceGetDagDeadlineAlerts";
-export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, offset, orderBy, versionNumber }: {
+export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, offset, orderBy, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, namePattern, offset, orderBy, versionNumber }])];
 export type DeadlinesServiceGetCallbackLogsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getCallbackLogs>>;
 export type DeadlinesServiceGetCallbackLogsQueryResult<TData = DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetCallbackLogsKey = "DeadlinesServiceGetCallbackLogs";

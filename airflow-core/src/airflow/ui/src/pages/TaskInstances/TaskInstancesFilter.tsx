@@ -38,6 +38,7 @@ const {
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_RANGE: RUN_AFTER_RANGE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_STATE: STATE_PARAM,
   TEAMS: TEAMS_PARAM,
@@ -49,6 +50,7 @@ export const TaskInstancesFilter = () => {
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const paramKeys: Array<FilterableSearchParamsKeys> = [
     NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    RUN_AFTER_RANGE_PARAM as FilterableSearchParamsKeys,
     LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
     ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
     DURATION_GTE_PARAM as FilterableSearchParamsKeys,

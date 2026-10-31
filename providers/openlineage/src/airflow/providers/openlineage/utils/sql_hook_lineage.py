@@ -36,8 +36,10 @@ from airflow.providers.openlineage.plugins.macros import (
     _get_logical_date,
     lineage_job_name,
     lineage_job_namespace,
+    lineage_job_type,
     lineage_root_job_name,
     lineage_root_job_namespace,
+    lineage_root_job_type,
     lineage_root_run_id,
     lineage_run_id,
 )
@@ -45,6 +47,7 @@ from airflow.providers.openlineage.sqlparser import (
     SQLParser,
     from_table_meta,
     get_openlineage_facets_with_sql,
+    get_sql_parser_for_hook,
 )
 from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, get_hook_class_name
 from airflow.providers.openlineage.utils.utils import _get_parent_run_facet
@@ -139,11 +142,20 @@ def emit_lineage_from_sql_extras(
     @cache
     def _get_database_info(hook_id: int):
         hook, conn_id = _hook_info[hook_id]
-        try:
-            return hook.get_openlineage_database_info(_get_connection(hook_id))
-        except Exception as e:
-            log.debug("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+        get_database_info = getattr(hook, "get_openlineage_database_info", None)
+        if get_database_info is None:
             return None
+        try:
+            return get_database_info(_get_connection(hook_id))
+        except Exception as e:
+            log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+            log.debug("OpenLineage failure details:", exc_info=True)
+            return None
+
+    @cache
+    def _get_sql_parser(hook_id: int) -> SQLParser | None:
+        hook, conn_id = _hook_info[hook_id]
+        return get_sql_parser_for_hook(hook, _get_connection(hook_id), conn_id)
 
     @cache
     def _get_namespace(hook_id: int) -> str | None:
@@ -168,7 +180,8 @@ def emit_lineage_from_sql_extras(
         # Parse SQL to obtain lineage (inputs, outputs, facets)
         query_lineage: OperatorLineage | None = None
         database_info = _get_database_info(hook_id) if conn_id else None
-        if sql_text and conn_id and database_info is not None:
+        sql_parser = _get_sql_parser(hook_id) if conn_id and database_info is not None else None
+        if sql_text and conn_id and database_info is not None and sql_parser is not None:
             try:
                 query_lineage = get_openlineage_facets_with_sql(
                     hook=hook,
@@ -178,9 +191,11 @@ def emit_lineage_from_sql_extras(
                     use_connection=False,  # Temporary solution before we figure out timeouts for queries
                     connection=_get_connection(hook_id),
                     database_info=database_info,
+                    sql_parser=sql_parser,
                 )
             except Exception as e:
-                log.debug("Failed to parse SQL for query %s: %s", query_count, e)
+                log.warning("Failed to parse SQL for query %s on %s: %s", query_count, conn_id, e)
+                log.debug("OpenLineage failure details:", exc_info=True)
 
         # If parsing SQL failed, just attach SQL text as a facet
         if query_lineage is None:
@@ -267,6 +282,8 @@ def _create_ol_event_pair(
         root_parent_run_id=lineage_root_run_id(task_instance),
         root_parent_job_name=lineage_root_job_name(task_instance),
         root_parent_job_namespace=lineage_root_job_namespace(task_instance),
+        parent_job_type=lineage_job_type(),
+        root_parent_job_type=lineage_root_job_type(task_instance),
     )
     job_type_facet: dict = {
         "jobType": job_type_job.JobTypeJobFacet(

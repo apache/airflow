@@ -71,6 +71,11 @@ runs:
         else
           ./scripts/tools/free_up_disk_space.sh
         fi
+    - name: "Configure runner for parallel tests"
+      shell: bash
+      run: ./scripts/ci/configure_runner_for_parallel_tests.sh
+      # Only self-hosted runners are large enough to run more test types at once than the default pools fit.
+      if: runner.environment == 'self-hosted'
     - name: "Install Breeze"
       uses: ./.github/actions/breeze
       id: breeze

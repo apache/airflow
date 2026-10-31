@@ -59,7 +59,7 @@ export const AdvancedSearchToggle = ({
         <Box
           alignItems="center"
           alignSelf="stretch"
-          aria-label="Toggle match-anywhere search"
+          aria-label={translate("search.advanced.toggleLabel")}
           aria-pressed={enabled}
           as="button"
           bg={enabled ? "colorPalette.solid" : "gray.muted"}
@@ -78,7 +78,7 @@ export const AdvancedSearchToggle = ({
         </Box>
       ) : (
         <IconButton
-          aria-label="Toggle match-anywhere search"
+          aria-label={translate("search.advanced.toggleLabel")}
           aria-pressed={enabled}
           data-testid="advanced-search-toggle"
           flexShrink={0}

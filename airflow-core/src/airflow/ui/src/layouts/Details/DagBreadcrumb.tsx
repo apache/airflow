@@ -221,7 +221,6 @@ export const DagBreadcrumb = () => {
       hasState: true,
       key: "group",
       state: groupSummary?.state,
-      to: `/dags/${dagId}/groups/${groupId}`,
       value: groupId,
     });
   }

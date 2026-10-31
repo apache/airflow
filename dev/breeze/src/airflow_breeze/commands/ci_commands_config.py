@@ -28,6 +28,7 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "set-milestone",
         "fork-ci-reconcile",
         "audit",
+        "approve-workflow-runs",
     ],
 }
 CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -80,6 +81,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--target-branch",
                 "--create-pr",
+                "--push-to-target-branch",
                 "--draft",
                 "--switch-to-base",
                 "--airflow-site",
@@ -95,6 +97,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--update-chart-dependencies",
                 "--upgrade-important-versions",
                 "--upgrade-dependency-floors",
+                "--mirror-base-images",
                 "--update-uv-lock",
                 "--k8s-schema-sync",
             ],
@@ -125,6 +128,8 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--config",
                 "--output-file",
+                "--reported-file",
+                "--draft-changes-file",
                 "--run-url",
                 "--github-repository",
             ],
@@ -135,6 +140,22 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Audit flags",
             "options": [
                 "--fix",
+            ],
+        },
+    ],
+    "breeze ci approve-workflow-runs": [
+        {
+            "name": "Approval flags",
+            "options": [
+                "--max-run-age-hours",
+                "--report-only",
+            ],
+        },
+        {
+            "name": "GitHub parameters",
+            "options": [
+                "--github-token",
+                "--github-repository",
             ],
         },
     ],

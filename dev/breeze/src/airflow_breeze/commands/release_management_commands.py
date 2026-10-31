@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import glob
 import itertools
+import json
 import operator
 import os
 import random
@@ -56,6 +57,7 @@ from airflow_breeze.commands.common_options import (
     option_commit_sha,
     option_debug_resources,
     option_dry_run,
+    option_fail_on_pending_provider_candidates,
     option_github_repository,
     option_github_token,
     option_include_not_ready_providers,
@@ -90,6 +92,7 @@ from airflow_breeze.commands.common_package_installation_options import (
 )
 from airflow_breeze.commands.release_management_group import release_management_group
 from airflow_breeze.global_constants import (
+    ALL_PYTHON_MAJOR_MINOR_VERSIONS,
     ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_DISTRIBUTION_FORMATS,
@@ -101,6 +104,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
+    HARDENED_PYTHON_IMAGE_DIGESTS,
     HARDENED_PYTHON_IMAGE_MIRROR,
     HARDENED_PYTHON_IMAGE_SOURCE,
     MULTI_PLATFORM,
@@ -110,6 +114,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_airflowctl_version,
     get_hardened_python_base_image,
+    get_hardened_python_image_retention_tag,
     get_hardened_python_image_tag,
     get_task_sdk_version,
     get_ts_sdk_version,
@@ -293,12 +298,12 @@ class VersionedFile(NamedTuple):
     file_name: str
 
 
-AIRFLOW_PIP_VERSION = "26.2.1"
-AIRFLOW_UV_VERSION = "0.13.4"
+AIRFLOW_PIP_VERSION = "26.2.2"
+AIRFLOW_UV_VERSION = "0.13.6"
 AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.2.1"
 RICH_VERSION = "15.0.0"
-PREK_VERSION = "0.5.5"
+PREK_VERSION = "0.5.7"
 HATCH_VERSION = "1.18.1"
 PYYAML_VERSION = "6.0.3"
 
@@ -1590,6 +1595,7 @@ def tag_providers(
 @option_python_versions
 @option_airflow_constraints_mode_ci
 @option_allow_pre_releases
+@option_fail_on_pending_provider_candidates
 @option_github_repository
 @option_use_uv
 @option_verbose
@@ -1599,6 +1605,7 @@ def generate_constraints(
     airflow_constraints_mode: str,
     allow_pre_releases: bool,
     debug_resources: bool,
+    fail_on_pending_provider_candidates: bool,
     github_repository: str,
     parallelism: int,
     python: str,
@@ -1643,6 +1650,7 @@ def generate_constraints(
             ShellParams(
                 airflow_constraints_mode=airflow_constraints_mode,
                 allow_pre_releases=allow_pre_releases,
+                fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
                 github_repository=github_repository,
                 python=python,
                 use_uv=use_uv,
@@ -1662,6 +1670,7 @@ def generate_constraints(
         shell_params = ShellParams(
             airflow_constraints_mode=airflow_constraints_mode,
             allow_pre_releases=allow_pre_releases,
+            fail_on_pending_provider_candidates=fail_on_pending_provider_candidates,
             github_repository=github_repository,
             python=python,
             use_uv=use_uv,
@@ -4823,8 +4832,9 @@ def generate_issue_content(
 @release_management_group.command(name="publish-docs-to-s3", help="Publishes docs to S3.")
 @click.option(
     "--source-dir-path",
-    help="Path to the directory with the generated documentation.",
-    required=True,
+    help="Path to the directory with the generated documentation. Required unless "
+    "--packages-metadata-only is used.",
+    default="",
 )
 @click.option(
     "--exclude-docs",
@@ -4860,6 +4870,17 @@ def generate_issue_content(
     is_flag=True,
     help="Skip writing stable versions folder.",
 )
+@click.option(
+    "--skip-packages-metadata",
+    is_flag=True,
+    help="Skip regenerating manifest/packages-metadata.json after the sync. "
+    "Run the command again with --packages-metadata-only to regenerate it.",
+)
+@click.option(
+    "--packages-metadata-only",
+    is_flag=True,
+    help="Only regenerate manifest/packages-metadata.json from the docs already in the bucket.",
+)
 @option_parallelism
 def publish_docs_to_s3(
     source_dir_path: str,
@@ -4871,11 +4892,22 @@ def publish_docs_to_s3(
     publish_all_docs: bool,
     stable_versions: bool,
     skip_write_to_stable_folder: bool,
+    skip_packages_metadata: bool,
+    packages_metadata_only: bool,
 ):
     from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
 
     if publish_all_docs and stable_versions:
         console_print("[error]You cannot use --publish-all and --stable-versions together[/]")
+        sys.exit(1)
+    if packages_metadata_only and (publish_all_docs or stable_versions or skip_packages_metadata):
+        console_print(
+            "[error]You cannot use --packages-metadata-only with --publish-all-docs, "
+            "--stable-versions or --skip-packages-metadata[/]"
+        )
+        sys.exit(1)
+    if not packages_metadata_only and not source_dir_path:
+        console_print("[error]--source-dir-path is required unless --packages-metadata-only is used[/]")
         sys.exit(1)
 
     destination_location = destination_location.rstrip("/")
@@ -4894,7 +4926,10 @@ def publish_docs_to_s3(
         destination_location=destination_location,
         parallelism=parallelism,
         skip_write_to_stable_folder=skip_write_to_stable_folder,
+        skip_packages_metadata=skip_packages_metadata,
     )
+    if packages_metadata_only:
+        docs_to_s3.generate_packages_metadata()
     if publish_all_docs:
         docs_to_s3.publish_all_docs()
     if stable_versions:
@@ -5230,6 +5265,28 @@ def get_latest_hardened_python_patchlevel(
     return max(versions, key=lambda version: tuple(int(part) for part in version.split(".")))
 
 
+def get_image_digest(image: str) -> str | None:
+    """Return the digest of an image's (multi-platform) manifest in its registry, or None if absent."""
+    result = run_command(
+        ["docker", "buildx", "imagetools", "inspect", image, "--format", "{{json .Manifest}}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or not result.stdout:
+        return None
+    return json.loads(result.stdout)["digest"]
+
+
+def copy_image(source: str, targets: list[str]) -> bool:
+    console_print(f"[info]Mirroring {source} -> {', '.join(targets)}[/]")
+    # imagetools copies the multi-platform manifest registry-to-registry, so the layers never travel
+    # through the machine running this.
+    tag_flags = [flag for target in targets for flag in ("--tag", target)]
+    result = run_command(["docker", "buildx", "imagetools", "create", *tag_flags, source], check=False)
+    return result.returncode == 0
+
+
 @release_management_group.command(
     name="mirror-base-images",
     help="Mirror the hardened Python base images Airflow builds on to Airflow's public registry.",
@@ -5238,41 +5295,65 @@ def get_latest_hardened_python_patchlevel(
 @option_verbose
 @option_dry_run
 def mirror_base_images(python: str | None):
-    python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    # Only main mirrors, so it covers every Python version an active release branch still builds on,
+    # not only the ones main itself uses.
+    python_versions = ALL_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
     failed: list[str] = []
+    # Tags this run moved to an image other than the one the builds are pinned to. Only a move counts:
+    # a pin that was already behind has had its upgrade triggered by the run that moved the tag.
+    moved: list[str] = []
     # Every Debian version is mirrored: the CI image and the default PROD image use the first one, the
     # others are still available to build PROD images on.
     for python_version, debian_version in itertools.product(python_versions, ALLOWED_DEBIAN_VERSIONS):
         tag = get_hardened_python_image_tag(python_version, debian_version)
-        source = f"{HARDENED_PYTHON_IMAGE_SOURCE}:{tag}"
         # The floating major/minor tag is what documentation and ad-hoc builds refer to, so that they
         # do not have to be edited on every Python patch release.
         floating_tag = tag.replace(
             ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version), python_version, 1
         )
-        targets = [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}", f"{HARDENED_PYTHON_IMAGE_MIRROR}:{floating_tag}"]
-        copies = [(source, targets)]
+        copies = [(tag, [floating_tag])]
         pinned = ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python_version, python_version)
         latest = get_latest_hardened_python_patchlevel(python_version, debian_version)
         if latest and latest != pinned:
-            latest_tag = tag.replace(pinned, latest, 1)
-            copies.append(
-                (
-                    f"{HARDENED_PYTHON_IMAGE_SOURCE}:{latest_tag}",
-                    [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{latest_tag}"],
-                )
-            )
-        for copy_source, copy_targets in copies:
-            console_print(f"[info]Mirroring {copy_source} -> {', '.join(copy_targets)}[/]")
-            # imagetools copies the multi-platform manifest registry-to-registry, so the layers never
-            # travel through the machine running this.
-            tag_flags = [flag for target in copy_targets for flag in ("--tag", target)]
-            result = run_command(
-                ["docker", "buildx", "imagetools", "create", *tag_flags, copy_source],
-                check=False,
-            )
-            if result.returncode != 0:
-                failed.append(copy_source)
+            copies.append((tag.replace(pinned, latest, 1), []))
+        for copy_tag, extra_tags in copies:
+            mirrored = f"{HARDENED_PYTHON_IMAGE_MIRROR}:{copy_tag}"
+            targets = [mirrored, *(f"{HARDENED_PYTHON_IMAGE_MIRROR}:{extra}" for extra in extra_tags)]
+            previous_digest = get_image_digest(mirrored)
+            if not copy_image(f"{HARDENED_PYTHON_IMAGE_SOURCE}:{copy_tag}", targets):
+                failed.append(copy_tag)
+                continue
+            digest = get_image_digest(mirrored)
+            if digest is None:
+                continue
+            if digest != previous_digest and digest != HARDENED_PYTHON_IMAGE_DIGESTS.get(copy_tag):
+                moved.append(copy_tag)
+            # The moving tag is replaced by the next refresh, which would leave the digest an upgrade
+            # PR is testing untagged.
+            if not copy_image(
+                f"{mirrored}@{digest}",
+                [
+                    f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_retention_tag(copy_tag, digest)}"
+                ],
+            ):
+                failed.append(f"{copy_tag}@{digest}")
+        # The builds keep using the pinned digest after the moving tag has moved on, so it stays tagged
+        # too - also when it was pinned before this command started tagging digests.
+        pinned_digest = HARDENED_PYTHON_IMAGE_DIGESTS.get(tag)
+        if pinned_digest and not copy_image(
+            f"{HARDENED_PYTHON_IMAGE_MIRROR}:{tag}@{pinned_digest}",
+            [f"{HARDENED_PYTHON_IMAGE_MIRROR}:{get_hardened_python_image_retention_tag(tag, pinned_digest)}"],
+        ):
+            failed.append(f"{tag}@{pinned_digest}")
+    if moved:
+        console_print(
+            f"[warning]The mirror moved past the pinned base images for: {', '.join(moved)}. "
+            "Run 'breeze ci upgrade' to move the pins.[/]"
+        )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as output_file:
+            output_file.write(f"moved-past-pins={'true' if moved else 'false'}\n")
     if failed:
         console_print(f"[error]Failed to mirror: {', '.join(failed)}[/]")
         sys.exit(1)

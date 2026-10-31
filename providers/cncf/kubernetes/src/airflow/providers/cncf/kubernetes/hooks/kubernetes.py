@@ -32,10 +32,9 @@ from kubernetes import client, config, utils, watch
 from kubernetes.client.models import V1Deployment
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config, watch as async_watch
-from urllib3.exceptions import HTTPError
 
 from airflow.models import Connection
-from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError, KubernetesApiPermissionError
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.kube_client import (
     _disable_verify_ssl,
     _TimeoutAsyncK8sApiClient,
@@ -1093,10 +1092,12 @@ class AsyncKubernetesHook(KubernetesHook):
                     namespace=namespace,
                 )
                 return pod
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
+            except async_client.ApiException as e:
+                if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
-                raise KubernetesApiError from e
+                # Other statuses stay ApiException: generic_api_retry owns the decision about which
+                # ones are transient, and wrapping them here would hide the status from its predicate.
+                raise
 
     @generic_api_retry
     async def delete_pod(self, name: str, namespace: str, grace_period_seconds: int | None = None):
@@ -1161,8 +1162,10 @@ class AsyncKubernetesHook(KubernetesHook):
                 raw_bytes = await raw_resp.read()
                 # CPU-bound decode/split, offloaded so it can't block the triggerer event loop.
                 return await asyncio.to_thread(_split_log_bytes, raw_bytes)
-            except HTTPError as e:
-                raise KubernetesApiError from e
+            except async_client.ApiException as e:
+                if e.status == 403:
+                    raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
+                raise
 
     @generic_api_retry
     async def get_pod_events(
@@ -1188,10 +1191,10 @@ class AsyncKubernetesHook(KubernetesHook):
 
                 events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
-            except HTTPError as e:
-                if hasattr(e, "status") and e.status == 403:
+            except async_client.ApiException as e:
+                if e.status == 403:
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
-                raise KubernetesApiError from e
+                raise
 
     @generic_api_retry
     async def watch_pod_events(

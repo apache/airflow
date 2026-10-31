@@ -260,8 +260,8 @@ def test_fork_problems(repo, message):
             frozenset(),
             (0, "active"),
             Role.COMMITTER,
-            CheckStatus.INFO,
-            ("gh workflow disable ci-amd.yml -R someone/airflow",),
+            CheckStatus.OK,
+            (),
             id="committer-enabled-is-not-a-failure",
         ),
         pytest.param(

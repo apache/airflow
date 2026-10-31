@@ -80,7 +80,8 @@ Control flag keys (all optional inside ``controls``; the dict must be non-empty)
   in the ``AirflowRunFacet``.  When ``false`` (default), only a curated subset of
   task attributes is sent.  Only meaningful for task events.  Default: ``false``.
 - ``exclude_datasets``: list of ``re.fullmatch`` patterns (independent of ``match_mode``)
-  matched against ``"<namespace>/<name>"`` of each OpenLineage dataset; matching datasets
+  matched against ``"<namespace>/<name>"`` of each OpenLineage dataset (without a doubled ``/``
+  when the name starts with one); matching datasets
   are dropped from task events and from the SQL hook lineage events of the task.  Applies
   to extractor, hook-collected and manually declared lineage.  Default: ``[]``.
 
@@ -326,7 +327,10 @@ def get_hook_class_name(hook: object | None) -> str | None:
 
 def _get_dataset_identity(dataset: Dataset) -> str:
     """Return the ``"<namespace>/<name>"`` string that ``exclude_datasets`` patterns match."""
-    return f"{dataset.namespace}/{dataset.name}"
+    # File and other path-based datasets have names starting with "/"; joining them with another
+    # "/" would make ``file://host/path`` match as ``file://host//path``.
+    separator = "" if dataset.name.startswith("/") else "/"
+    return f"{dataset.namespace}{separator}{dataset.name}"
 
 
 def _get_rule_exclude_patterns(rule: Rule) -> tuple[str, ...] | None:

@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``HiveServer2Hook.get_pandas_df`` method has been removed. Use ``get_df(..., df_type="pandas")`` instead.
+
 9.7.1
 .....
 

@@ -46,12 +46,14 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
+    from datetime import datetime
 
     from sqlalchemy import Select
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
+    from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.utils.sqlalchemy import UUIDSelect
 
 
@@ -73,14 +75,57 @@ class _ProducerRequest:
 
 
 class TaskCoordinate(Protocol):
-    """Stored task identity shared by live and retained task data."""
+    """
+    Stored task identity shared by live and retained task data.
 
-    dag_id: str
-    run_id: str
-    task_id: str
-    region_id: UUID
-    region_index: int
-    dag_version_id: UUID | None
+    Read-only on purpose: resolvers only ever read coordinates, and declaring them as
+    properties lets immutable views (such as a frozen dataclass) satisfy the protocol.
+    """
+
+    @property
+    def dag_id(self) -> str: ...
+
+    @property
+    def run_id(self) -> str: ...
+
+    @property
+    def task_id(self) -> str: ...
+
+    @property
+    def region_id(self) -> UUID: ...
+
+    @property
+    def region_index(self) -> int: ...
+
+    @property
+    def dag_version_id(self) -> UUID | None: ...
+
+
+class SchedulingTI(TaskCoordinate, Protocol):
+    """
+    Shape of a task instance during scheduling, satisfied by ``TaskInstance`` and the frozen ``FinishedTI``.
+
+    Extends the stored coordinates with the identity, state and timing that scheduling
+    decisions and trigger-rule evaluation read.
+    """
+
+    @property
+    def id(self) -> UUID: ...
+
+    @property
+    def map_index(self) -> int: ...
+
+    @property
+    def state(self) -> str | None: ...
+
+    @property
+    def start_date(self) -> datetime | None: ...
+
+    @property
+    def end_date(self) -> datetime | None: ...
+
+    @property
+    def task(self) -> Operator | None: ...
 
 
 def enclosing_loop(task: SerializedOperator) -> SerializedLoopTaskGroup | None:

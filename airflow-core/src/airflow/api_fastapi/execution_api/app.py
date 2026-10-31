@@ -30,7 +30,7 @@ from cadwyn import (
 )
 from fastapi import Depends, FastAPI, Request, Response
 from fastapi.responses import JSONResponse
-from fastapi.routing import APIRoute
+from fastapi.routing import APIRoute, iter_route_contexts
 from opentelemetry import context as otel_context, propagate as otel_propagate
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -40,8 +40,9 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
-from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY
+from airflow.api_fastapi.execution_api.security import _REQUEST_SCOPE_TOKEN_KEY, require_auth
 
 if TYPE_CHECKING:
     from airflow.models.dagbag import DBDagBag
@@ -265,25 +266,30 @@ async def _extract_w3c_trace_context(
             otel_context.detach(token)
 
 
+def _is_trace_context_dep(dependency) -> bool:
+    return getattr(dependency, "dependency", None) is _extract_w3c_trace_context
+
+
 def _inject_trace_context_dep(routes, mode: str) -> None:
-    dep = Depends(_extract_w3c_trace_context)
-    for route in routes:
+    """
+    Add trace-context extraction to the authenticated routes in ``only-authenticated`` mode.
+
+    ``unsafe-always`` mode is handled with an app-level dependency instead, so extraction runs
+    before authentication declared on any enclosing router.
+    """
+    for context in iter_route_contexts(routes):
+        route = context.original_route
         if not isinstance(route, APIRoute):
             continue
         # Idempotent: create_task_execution_api_app() runs more than once per process
         # (cached_app + InProcessExecutionAPI), and execution_api_router is shared
         # module state, so strip any prior injection first.
-        route.dependencies[:] = [
-            d for d in route.dependencies if getattr(d, "dependency", None) is not _extract_w3c_trace_context
-        ]
-        match mode:
-            case "unsafe-always":
-                route.dependencies.insert(0, dep)
-            case "only-authenticated":
-                from airflow.api_fastapi.execution_api.security import require_auth
-
-                if any(getattr(d, "dependency", None) is require_auth for d in route.dependencies):
-                    route.dependencies.append(dep)
+        route.dependencies[:] = [d for d in route.dependencies if not _is_trace_context_dep(d)]
+        if mode != "only-authenticated":
+            continue
+        # context.dependencies also holds those of the enclosing routers and include_router() calls.
+        if any(getattr(d, "dependency", None) is require_auth for d in context.dependencies):
+            route.dependencies.append(Depends(_extract_w3c_trace_context))
 
 
 def create_task_execution_api_app(
@@ -308,6 +314,7 @@ def create_task_execution_api_app(
         return route.name
 
     # See https://docs.cadwyn.dev/concepts/version_changes/ for info about API versions
+    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     app = CadwynWithOpenAPICustomization(
         title="Airflow Task Execution API",
         description="The private Airflow Task Execution API.",
@@ -316,13 +323,15 @@ def create_task_execution_api_app(
         api_version_parameter_name="Airflow-API-Version",
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,
+        changelog_url=None,
+        dependencies=[Depends(_extract_w3c_trace_context)] if mode == "unsafe-always" else None,
+        telemetry=NATIVE_TELEMETRY_DISABLED,
     )
 
     # Add correlation-id middleware for request tracing
     app.add_middleware(CorrelationIdMiddleware)
     app.add_middleware(JWTReissueMiddleware)
 
-    mode = conf.get("execution_api", "otel_trace_propagation", fallback="only-authenticated")
     _inject_trace_context_dep(execution_api_router.routes, mode)
 
     app.generate_and_include_versioned_routers(execution_api_router)
