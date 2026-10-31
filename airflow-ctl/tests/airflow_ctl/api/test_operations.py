@@ -26,7 +26,7 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.asset_state_store import (
@@ -1377,6 +1377,46 @@ class TestDagOperations:
         response = client.dags.list_warning()
         assert response == self.dag_warning_collection_response
 
+    @pytest.mark.parametrize(
+        "warning_type",
+        ["duplicate dag id", "task group cycle", "yaml:deprecated_field"],
+    )
+    def test_list_warning_accepts_airflow_3_4_warning_types(self, warning_type):
+        payload = json.loads(self.dag_warning_collection_response.model_dump_json())
+        payload["dag_warnings"][0]["warning_type"] = warning_type
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list_warning()
+        assert response.dag_warnings[0].warning_type == warning_type
+
+    @pytest.mark.parametrize(
+        ("warning_type", "accepted"),
+        [
+            ("a:" + "x" * 48, True),
+            ("yaml:some.field-1_x", True),
+            ("a:" + "x" * 49, False),
+            ("yaml:Bad", False),
+            ("YAML:x", False),
+            ("Something Else", False),
+        ],
+    )
+    def test_list_warning_namespaced_warning_type_pattern(self, warning_type, accepted):
+        payload = json.loads(self.dag_warning_collection_response.model_dump_json())
+        payload["dag_warnings"][0]["warning_type"] = warning_type
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        if accepted:
+            assert client.dags.list_warning().dag_warnings[0].warning_type == warning_type
+        else:
+            with pytest.raises(ValidationError):
+                client.dags.list_warning()
+
     def test_trigger(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
@@ -2375,6 +2415,39 @@ class TestPluginsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.plugins.list()
         assert response == self.plugin_collection_response
+
+    @pytest.mark.parametrize(
+        ("view_kind", "destination"),
+        [
+            ("react_apps", "asset"),
+            ("react_apps", "dag_overview"),
+            ("react_apps", "task_overview"),
+            ("external_views", "asset"),
+        ],
+    )
+    def test_list_accepts_airflow_3_4_destinations(self, view_kind, destination):
+        payload = json.loads(self.plugin_collection_response.model_dump_json())
+        view = {"name": "v", "destination": destination}
+        view.update({"bundle_url": "/b.js"} if view_kind == "react_apps" else {"href": "/h"})
+        payload["plugins"][0][view_kind] = [view]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        plugin = client.plugins.list().plugins[0]
+        assert getattr(plugin, view_kind)[0].destination == destination
+
+    def test_list_rejects_react_app_only_destination_on_external_view(self):
+        payload = json.loads(self.plugin_collection_response.model_dump_json())
+        payload["plugins"][0]["external_views"] = [{"name": "v", "href": "/h", "destination": "dag_overview"}]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.plugins.list()
 
     def test_list_import_errors(self):
         """Test listing plugin import errors"""
