@@ -21,11 +21,12 @@ from __future__ import annotations
 
 import inspect
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow4Warning
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 if TYPE_CHECKING:
@@ -152,6 +153,50 @@ def _default_conn_name_from(mod_path, hook_name):
         return None
 
 
+# First provider distribution version whose ``RemoteLogIO`` exposes ``from_config`` *and*
+# registers the scheme in its provider.yaml ``remote-logging:`` block. Named in the deprecation
+# message so a Deployment Manager knows exactly which upgrade retires the legacy branch.
+_PROVIDER_DISPATCH_MIN_VERSIONS: dict[str, tuple[str, str]] = {
+    "s3": ("apache-airflow-providers-amazon", "9.33.0"),
+    "cloudwatch": ("apache-airflow-providers-amazon", "9.33.0"),
+    "gs": ("apache-airflow-providers-google", "22.3.0"),
+    "stackdriver": ("apache-airflow-providers-google", "22.3.0"),
+    "wasb": ("apache-airflow-providers-microsoft-azure", "14.1.0"),
+    "oss": ("apache-airflow-providers-alibaba", "3.4.0"),
+    "hdfs": ("apache-airflow-providers-apache-hdfs", "4.13.0"),
+    "elasticsearch": ("apache-airflow-providers-elasticsearch", "6.9.0"),
+    "opensearch": ("apache-airflow-providers-opensearch", "1.12.0"),
+}
+
+
+def _warn_legacy_remote_logging(remote_log_io: type, scheme: str) -> None:
+    """Warn when this legacy branch, rather than provider dispatch, is what configures remote logging."""
+    distribution, min_version = _PROVIDER_DISPATCH_MIN_VERSIONS[scheme]
+    provider_supports_dispatch = hasattr(remote_log_io, "from_config")
+
+    if provider_supports_dispatch and urlsplit(remote_base_log_folder).scheme == scheme:
+        return
+
+    if not provider_supports_dispatch:
+        remedy = (
+            f"Upgrade {distribution} to {min_version} or newer, which registers the {scheme!r} "
+            f"scheme and builds this handler from {remote_log_io.__name__}.from_config()."
+        )
+    else:
+        remedy = (
+            f"{distribution} {min_version} or newer already registers the {scheme!r} scheme; set "
+            f'[logging] remote_base_log_folder to a "{scheme}://" URL so it is dispatched on. '
+            f"Keep the backend options you already set, as from_config() still reads them."
+        )
+
+    warnings.warn(
+        f"Remote logging for {scheme!r} is using Airflow core's built-in backend discovery, "
+        f"which Airflow 4 removes in favour of provider-based discovery. {remedy}",
+        RemovedInAirflow4Warning,
+        stacklevel=2,
+    )
+
+
 if REMOTE_LOGGING:
     ELASTICSEARCH_HOST: str | None = conf.get("elasticsearch", "HOST")
     OPENSEARCH_HOST: str | None = conf.get("opensearch", "HOST")
@@ -181,6 +226,7 @@ if REMOTE_LOGGING:
     if remote_base_log_folder.startswith("s3://"):
         from airflow.providers.amazon.aws.log.s3_task_handler import S3RemoteLogIO
 
+        _warn_legacy_remote_logging(S3RemoteLogIO, "s3")
         _default_conn_name_from("airflow.providers.amazon.aws.hooks.s3", "S3Hook")
         REMOTE_TASK_LOG = S3RemoteLogIO(
             **cast(
@@ -197,6 +243,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("cloudwatch://"):
         from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudWatchRemoteLogIO
 
+        _warn_legacy_remote_logging(CloudWatchRemoteLogIO, "cloudwatch")
         _default_conn_name_from("airflow.providers.amazon.aws.hooks.logs", "AwsLogsHook")
         url_parts = urlsplit(remote_base_log_folder)
         REMOTE_TASK_LOG = CloudWatchRemoteLogIO(
@@ -215,6 +262,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("gs://"):
         from airflow.providers.google.cloud.log.gcs_task_handler import GCSRemoteLogIO
 
+        _warn_legacy_remote_logging(GCSRemoteLogIO, "gs")
         _default_conn_name_from("airflow.providers.google.cloud.hooks.gcs", "GCSHook")
         key_path = conf.get_mandatory_value("logging", "google_key_path", fallback=None)
 
@@ -234,6 +282,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("wasb"):
         from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbRemoteLogIO
 
+        _warn_legacy_remote_logging(WasbRemoteLogIO, "wasb")
         _default_conn_name_from("airflow.providers.microsoft.azure.hooks.wasb", "WasbHook")
         wasb_log_container = conf.get_mandatory_value(
             "azure_remote_logging", "remote_wasb_log_container", fallback="airflow-logs"
@@ -258,6 +307,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("stackdriver://"):
         from airflow.providers.google.cloud.log.stackdriver_task_handler import StackdriverRemoteLogIO
 
+        _warn_legacy_remote_logging(StackdriverRemoteLogIO, "stackdriver")
         key_path = conf.get_mandatory_value("logging", "GOOGLE_KEY_PATH", fallback=None)
         # stackdriver:///airflow-tasks => airflow-tasks
         log_name = urlsplit(remote_base_log_folder).path[1:]
@@ -278,6 +328,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("oss://"):
         from airflow.providers.alibaba.cloud.log.oss_task_handler import OSSRemoteLogIO
 
+        _warn_legacy_remote_logging(OSSRemoteLogIO, "oss")
         _default_conn_name_from("airflow.providers.alibaba.cloud.hooks.oss", "OSSHook")
 
         REMOTE_TASK_LOG = OSSRemoteLogIO(
@@ -295,6 +346,7 @@ if REMOTE_LOGGING:
     elif remote_base_log_folder.startswith("hdfs://"):
         from airflow.providers.apache.hdfs.log.hdfs_task_handler import HdfsRemoteLogIO
 
+        _warn_legacy_remote_logging(HdfsRemoteLogIO, "hdfs")
         _default_conn_name_from("airflow.providers.apache.hdfs.hooks.webhdfs", "WebHDFSHook")
 
         REMOTE_TASK_LOG = HdfsRemoteLogIO(
@@ -312,6 +364,7 @@ if REMOTE_LOGGING:
     elif ELASTICSEARCH_HOST:
         from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO
 
+        _warn_legacy_remote_logging(ElasticsearchRemoteLogIO, "elasticsearch")
         ELASTICSEARCH_WRITE_STDOUT: bool = conf.getboolean("elasticsearch", "WRITE_STDOUT")
         ELASTICSEARCH_WRITE_TO_ES: bool = conf.getboolean("elasticsearch", "WRITE_TO_ES")
         ELASTICSEARCH_JSON_FORMAT: bool = conf.getboolean("elasticsearch", "JSON_FORMAT")
@@ -357,6 +410,7 @@ if REMOTE_LOGGING:
     elif OPENSEARCH_HOST:
         from airflow.providers.opensearch.log.os_task_handler import OpensearchRemoteLogIO
 
+        _warn_legacy_remote_logging(OpensearchRemoteLogIO, "opensearch")
         # ``[opensearch] port`` declares an empty-string default, so the key is always present and
         # ``conf.getint`` raises on ``int("")`` instead of falling back to 9200.
         _opensearch_port = conf.get("opensearch", "PORT", fallback="")
