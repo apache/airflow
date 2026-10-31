@@ -86,9 +86,171 @@ The possible states for a Task Instance are:
 * ``awaiting_input``: The task is a :doc:`Human-in-the-loop <../tutorial/hitl>` task waiting for a human response. It is managed by the scheduler and uses neither a worker slot nor the triggerer.
 * ``removed``: The task has vanished from the Dag since the run started
 
-.. image:: /img/diagram_task_lifecycle.png
+.. _concepts:task-lifecycle:
+
+How a Task Instance moves between states
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Ideally, a task should flow from ``none``, to ``scheduled``, to ``queued``, to ``running``, and finally to ``success``.
+The scheduler makes every decision before a task runs and hands it to the executor, a worker runs it, and the
+triggerer watches deferred tasks. The diagrams below show the main path, deferred tasks, the other ways a task can
+wait without holding a worker slot, and what clearing a task does. The colours match the task states in the UI.
+
+.. mermaid::
+   :config: {"themeVariables": {"edgeLabelBackground": "#ffffff"}}
+   :alt: Main path. none goes to scheduled when its dependencies are met, then queued, then running. A running task
+         ends in success, failed or skipped, or goes to up_for_retry and back to scheduled. Before it runs, a task
+         can also become upstream_failed, skipped or removed, and a removed task goes back to none when it is added
+         back to the Dag. A running task can also wait without a worker in deferred, awaiting_input or
+         up_for_reschedule; the diagrams below show where each of them goes next.
+
+   stateDiagram-v2
+       direction TB
+       [*] --> none
+       none --> scheduled: dependencies met
+       scheduled --> queued: sent to the executor
+       queued --> running: a worker starts it
+       running --> success: finished
+       running --> failed: error, no retry
+       running --> up_for_retry: error, will retry
+       up_for_retry --> scheduled: retry delay passed
+       running --> skipped: skipped itself
+       none --> skipped: branch or trigger rule
+       none --> upstream_failed: upstream failed
+       none --> removed: removed from the Dag
+       removed --> none: added back
+       state "deferred, awaiting_input<br>or up_for_reschedule<br>(see below)" as waiting
+       running --> waiting: waits
+
+       %% Colours match the task states in the UI.
+       classDef none fill:#f3f4f6,stroke:#6b7280
+       classDef scheduled fill:#f4f4f5,stroke:#52525b
+       classDef queued fill:#f5f5f4,stroke:#78716c
+       classDef running fill:#cffafe,stroke:#0891b2
+       classDef success fill:#dcfce7,stroke:#16a34a
+       classDef failed fill:#fee2e2,stroke:#dc2626
+       classDef up_for_retry fill:#fef9c3,stroke:#ca8a04
+       classDef skipped fill:#fce7f3,stroke:#db2777
+       classDef upstream_failed fill:#fef3c7,stroke:#d97706
+       classDef removed fill:#f1f5f9,stroke:#475569
+       classDef waiting fill:#f3e8ff,stroke:#9333ea,stroke-dasharray:4 3
+       class none none
+       class scheduled scheduled
+       class queued queued
+       class running running
+       class success success
+       class failed failed
+       class up_for_retry up_for_retry
+       class skipped skipped
+       class upstream_failed upstream_failed
+       class removed removed
+       class waiting waiting
+
+``success``, ``failed``, ``skipped``, ``upstream_failed`` and ``removed`` are final states. A task leaves them only when
+it is cleared or marked by hand, or, for ``removed``, when the task is added back to the Dag. A ``scheduled`` task waits
+for a free slot before it is queued. A task with nothing to run, such as a bare ``EmptyOperator``, goes straight from
+``none`` to ``success``. Each time a task comes back to the scheduler, for example after a retry delay, the
+scheduler makes the same decisions as for a new task, so it can still end up ``upstream_failed``, ``skipped`` or
+``removed``.
+
+A :doc:`deferred <../authoring-and-scheduling/deferring>` task waits for a trigger in the triggerer and holds no worker
+slot. When the trigger fires, errors or times out, the task resumes on a worker, unless the trigger
+:ref:`ends the task itself <deferring/exiting_from_trigger>`. A task that starts in the triggerer
+(``start_from_trigger``) is deferred by the scheduler before it runs on a worker, and again after each retry delay or
+reschedule.
+
+.. mermaid::
+   :config: {"state": {"useMaxWidth": false}, "themeVariables": {"edgeLabelBackground": "#ffffff"}}
+   :alt: Deferred tasks. none goes to deferred when the task starts in the triggerer, and running goes to deferred
+         when the task defers. A deferred task goes to scheduled when the trigger fires, errors or times out, or the
+         trigger ends it as success, failed, up_for_retry or skipped.
+
+   stateDiagram-v2
+       direction LR
+       none --> deferred: starts in the triggerer
+       running --> deferred: task defers to a trigger
+       deferred --> scheduled: trigger fired, errored or timed out, resumes on a worker
+       deferred --> success: the trigger ends the task
+       deferred --> failed: the trigger fails the task
+       deferred --> up_for_retry: the trigger fails it, retries left
+       deferred --> skipped: the trigger skips the task
+
+       %% Colours match the task states in the UI.
+       classDef none fill:#f3f4f6,stroke:#6b7280
+       classDef running fill:#cffafe,stroke:#0891b2
+       classDef deferred fill:#f3e8ff,stroke:#9333ea
+       classDef scheduled fill:#f4f4f5,stroke:#52525b
+       classDef success fill:#dcfce7,stroke:#16a34a
+       classDef failed fill:#fee2e2,stroke:#dc2626
+       classDef up_for_retry fill:#fef9c3,stroke:#ca8a04
+       classDef skipped fill:#fce7f3,stroke:#db2777
+       class none none
+       class running running
+       class deferred deferred
+       class scheduled scheduled
+       class success success
+       class failed failed
+       class up_for_retry up_for_retry
+       class skipped skipped
+
+Two other states also wait without holding a worker slot: a :doc:`Human-in-the-loop <../tutorial/hitl>` task waiting
+for a person to answer, and a task that will run again later, such as a :doc:`sensor <sensors>` in ``reschedule``
+mode or a task whose :ref:`retry policy reschedules it <concepts:retry-policies-reschedule>`.
+
+.. mermaid::
+   :config: {"state": {"useMaxWidth": false}, "themeVariables": {"edgeLabelBackground": "#ffffff"}}
+   :alt: Waiting for a person or for later. running goes to awaiting_input when the task asks a person, and back to
+         scheduled when it is answered or times out. running goes to up_for_reschedule when a sensor or retry policy
+         reschedules it, and back to scheduled when the reschedule time is reached.
+
+   stateDiagram-v2
+       direction LR
+       running --> awaiting_input: task asks a person
+       awaiting_input --> scheduled: answered, or timed out
+       running --> up_for_reschedule: rescheduled by a sensor or retry policy
+       up_for_reschedule --> scheduled: reschedule time reached
+
+       %% Colours match the task states in the UI.
+       classDef running fill:#cffafe,stroke:#0891b2
+       classDef awaiting_input fill:#ffedd5,stroke:#ea580c
+       classDef up_for_reschedule fill:#e0f2fe,stroke:#0284c7
+       classDef scheduled fill:#f4f4f5,stroke:#52525b
+       class running running
+       class awaiting_input awaiting_input
+       class up_for_reschedule up_for_reschedule
+       class scheduled scheduled
+
+Clearing a task runs it again as a new try, with its retries reset. The earlier try, with its logs, stays in the
+task's history. A task that is cleared while it runs goes through ``restarting`` until that try is stopped. Clearing
+a task that is waiting, such as a deferred one, also sends it back to ``none``. If the Dag run had already
+finished, clearing one of its tasks puts the run back to ``queued``.
+
+.. mermaid::
+   :config: {"state": {"useMaxWidth": false}, "themeVariables": {"edgeLabelBackground": "#ffffff"}}
+   :alt: Clearing. A finished task in try 1 goes to none as try 2 with its retries reset. A running task in try 1
+         goes to restarting, then to none as try 2 once try 1 is stopped.
+
+   stateDiagram-v2
+       direction LR
+       state "success, failed or skipped<br>(try 1)" as finished
+       state "running<br>(try 1)" as running
+       state "none<br>(try 2, retries reset)" as none
+       finished --> none: cleared
+       running --> restarting: cleared while it runs
+       restarting --> none: try 1 stopped
+
+       %% Colours match the task states in the UI.
+       classDef finished fill:#dcfce7,stroke:#16a34a
+       classDef running fill:#cffafe,stroke:#0891b2
+       classDef restarting fill:#ede9fe,stroke:#7c3aed
+       classDef none fill:#f3f4f6,stroke:#6b7280
+       class finished finished
+       class running running
+       class restarting restarting
+       class none none
+
+You can also mark a task ``success``, ``failed`` or ``skipped`` by hand from the UI; marking a task as
+skipped is described in :ref:`concepts:task-mark-as-skipped`.
 
 .. _concepts:task-mark-as-skipped:
 
