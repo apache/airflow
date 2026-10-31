@@ -93,9 +93,17 @@ Environment Variables
     This is only used if you are using the Airflow API and have not set up
     authentication using a different method. The default value is 10 seconds.
 
+.. envvar:: AIRFLOW_CLI_API_TIMEOUT
+
+    How long, in seconds, to wait for the API server to read or write a request, or for a free
+    connection, before the request fails. Connecting is limited to 5 seconds. Read-only requests
+    that time out are retried (see :envvar:`AIRFLOW_CLI_API_RETRIES`), so the total wait can be up
+    to that many times this value; other requests are not retried. The default value is 30 seconds.
+
 .. note::
 
-    A value for any of the three retry variables above that is not a whole number, or that is
-    out of range (below 1 for :envvar:`AIRFLOW_CLI_API_RETRIES`, negative for the two wait
-    variables), is reported on standard error and the default is used instead. Setting a
-    variable to an empty string is treated the same as leaving it unset.
+    A value for any of the retry variables above or for :envvar:`AIRFLOW_CLI_API_TIMEOUT` that is
+    not a whole number, or that is out of range (below 1 for :envvar:`AIRFLOW_CLI_API_RETRIES` and
+    :envvar:`AIRFLOW_CLI_API_TIMEOUT`, negative for the two wait variables), is reported on
+    standard error and the default is used instead. Setting a variable to an empty string is
+    treated the same as leaving it unset.
