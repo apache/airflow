@@ -897,7 +897,8 @@ def _build_python_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     include_commits: bool,
-    one_pass_only: bool,
+    autobuild: bool = False,
+    one_pass_only: bool = False,
     package_filter: tuple[str, ...],
     distributions_list: str,
     doc_packages: tuple[str, ...],
@@ -948,6 +949,7 @@ def _build_python_docs(
     doc_packages = docs_list_as_tuple or doc_packages
     doc_builder = DocBuildParams(
         package_filter=package_filter,
+        autobuild=autobuild,
         one_pass_only=one_pass_only,
         include_commits=include_commits,
         fail_on_missing_third_party_inventories=fail_on_missing_third_party_inventories,
@@ -1021,6 +1023,11 @@ def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Paramet
 @option_include_not_ready_providers
 @option_include_removed_providers
 @click.option(
+    "--autobuild",
+    help="Build documentation and start a server that rebuilds and refreshes docs when files change.",
+    is_flag=True,
+)
+@click.option(
     "--one-pass-only",
     help="Builds documentation in one pass only. This is useful for debugging sphinx errors.",
     is_flag=True,
@@ -1068,6 +1075,7 @@ def build_docs(
     include_not_ready_providers: bool,
     include_removed_providers: bool,
     include_commits: bool,
+    autobuild: bool,
     one_pass_only: bool,
     package_filter: tuple[str, ...],
     distributions_list: str,
@@ -1102,6 +1110,7 @@ def build_docs(
             include_not_ready_providers=include_not_ready_providers,
             include_removed_providers=include_removed_providers,
             include_commits=include_commits,
+            autobuild=autobuild,
             one_pass_only=one_pass_only,
             package_filter=package_filter,
             distributions_list=distributions_list,
