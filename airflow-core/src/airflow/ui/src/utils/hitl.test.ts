@@ -21,7 +21,7 @@ import { describe, it, expect, vi } from "vitest";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 
-import { getHITLFormData, getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
+import { getHITLFormData, getHITLParamsDict, getHITLState, isHighlightOption, isHITLPending } from "./hitl";
 
 const mockTranslate = vi.fn((key: string) => key) as unknown as TFunction;
 
@@ -63,6 +63,33 @@ describe("isHITLPending", () => {
     expect(isHITLPending("success")).toBe(false);
     expect(isHITLPending(undefined)).toBe(false);
     expect(isHITLPending(null)).toBe(false);
+  });
+});
+
+describe("isHighlightOption", () => {
+  it("styles every option alike before a response, even when one is the default", () => {
+    const hitlDetail = createMockHITLDetail({ defaults: ["Reject"], options: ["Approve", "Reject"] });
+
+    expect(isHighlightOption("Approve", hitlDetail, [])).toBe(true);
+    expect(isHighlightOption("Reject", hitlDetail, [])).toBe(true);
+  });
+
+  it("highlights only the options preloaded through the URL before a response", () => {
+    const hitlDetail = createMockHITLDetail({ defaults: ["Reject"], options: ["Approve", "Reject"] });
+
+    expect(isHighlightOption("Approve", hitlDetail, ["Approve"])).toBe(true);
+    expect(isHighlightOption("Reject", hitlDetail, ["Approve"])).toBe(false);
+  });
+
+  it("highlights only the chosen option after a response", () => {
+    const hitlDetail = createMockHITLDetail({
+      chosen_options: ["Reject"],
+      options: ["Approve", "Reject"],
+      response_received: true,
+    });
+
+    expect(isHighlightOption("Approve", hitlDetail, [])).toBe(false);
+    expect(isHighlightOption("Reject", hitlDetail, [])).toBe(true);
   });
 });
 
