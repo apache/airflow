@@ -26,7 +26,7 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.asset_state_store import (
@@ -164,6 +164,14 @@ class TestBaseOperations:
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    def test_execute_list_raises_validation_error_for_non_json_response(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>login</html>")
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.pools.list()
 
     @pytest.mark.parametrize(
         ("total_entries", "limit", "expected_response"),

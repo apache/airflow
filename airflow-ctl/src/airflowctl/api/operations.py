@@ -232,8 +232,12 @@ class BaseOperations:
         def safe_validate(content: bytes) -> BaseModel:
             try:
                 return data_model.model_validate_json(content)
-            except ValidationError:
-                raw = fill_missing_fields(json.loads(content), data_model)
+            except ValidationError as e:
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError:
+                    raise e from None
+                raw = fill_missing_fields(parsed, data_model)
                 return data_model.model_validate(raw)
 
         self.response = self.client.get(path, params={**shared_params, "offset": offset})

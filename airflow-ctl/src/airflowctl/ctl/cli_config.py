@@ -37,6 +37,7 @@ from typing import Any, NamedTuple
 import httpx
 import rich
 from pydantic import BaseModel, ValidationError
+from rich.markup import escape
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
@@ -137,6 +138,26 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
         _warn_if_write_may_have_applied(e)
+        sys.exit(1)
+    except ValidationError as e:
+        errors = e.errors()
+        first: dict[str, Any] = dict(errors[0]) if errors else {}
+        title = escape(e.title)
+        location = escape(".".join(str(part) for part in first.get("loc", ())) or "<root>")
+        detail = f"{title} (invalid '{location}': {escape(first.get('msg', ''))})"
+        if first.get("type") == "json_invalid":
+            message = (
+                f"Server returned a non-JSON response for {title}; "
+                "check that the API URL points at the Airflow API server."
+            )
+        elif e.title.endswith("Body"):
+            message = f"Input did not match the airflowctl model {detail}."
+        else:
+            message = (
+                f"Response did not match the airflowctl model {detail}. "
+                "If the server is newer than this client, try upgrading airflowctl."
+            )
+        rich.print(f"[red]{message}[/red]")
         sys.exit(1)
 
 
