@@ -35,7 +35,8 @@ from datetime import datetime
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
-# workflow, so the prefix keeps them from posting STATUS_CONTEXT or CI_PASSED_CONTEXT.
+# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CI_PASSED_CONTEXT or
+# CI_RUN_STARTED_CONTEXT.
 JOB_STATUS_CONTEXT_PREFIX = "Fork CI job / "
 JOB_NAME_MAX_LENGTH = 100
 # The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
@@ -44,6 +45,12 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
+# request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
+# request once the fork has a run for the head commit, for any other once project CI has one.
+CI_RUN_STARTED_CONTEXT = "CI run started"
+CI_RUN_STARTED_DESCRIPTION = "CI runs in the contributor's fork - details open the run"
+CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - details open the run"
 # A fork run tests the head commit as it is, not merged with the base branch. Further behind than
 # this, it says little about the result after merge.
 BEHIND_WARNING_COMMITS = 200

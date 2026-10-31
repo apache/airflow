@@ -185,8 +185,9 @@ at 00:00 UTC:
    [pilot]
    "your-login" = YYYY-MM-DDT00:00:00Z
 
-Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
-CI. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
+Every pull request you open after that instant uses fork CI. Your earlier pull requests keep project
+CI until you push to them, rebase them or close and reopen them after that instant, and use fork CI
+from then on. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
 the only part of the fork CI gate a pull request using fork CI may change: one that changes the
 gate's code, the rest of its configuration or the ``gate`` job of ``ci-amd.yml`` is closed with an
 explanation. A pilot entry gates your pull
