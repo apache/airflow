@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-31T17:26:05.475105
+# This constraints file was automatically generated on 2026-10-31T18:59:58.693162
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -263,7 +263,7 @@ cassandra-driver==3.30.1
 cattrs==26.2.1
 cbor2==6.1.5
 celery==5.6.3
-certifi==2026.10.19
+certifi==2026.10.23
 cffi==2.1.1
 chardet==7.7.0
 charset-normalizer==3.5.2
@@ -606,7 +606,7 @@ pyodps==0.13.2
 pyparsing==3.3.3
 pypsrp==0.9.1
 pyroaring==1.2.0
-pyspark-client==4.2.0
+pyspark-client==4.2.1
 pyspnego==0.12.4
 python-arango==8.3.7
 python-daemon==3.1.2
