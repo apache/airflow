@@ -314,6 +314,24 @@ class TestCliAuthCommands:
         )
         mock_keyring.set_password.assert_called_once_with("airflowctl", "api_token_production", "SSO_TOKEN")
 
+    @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
+    @patch("airflowctl.api.client.keyring")
+    def test_login_with_sso_skip_keyring_prints_token(
+        self, mock_keyring, mock_get_authorization_code, capsys
+    ):
+        mock_get_authorization_code.return_value = AUTHORIZATION_CODE
+        mock_keyring.get_password.return_value = None
+
+        auth_command.login(
+            self.parser.parse_args(
+                ["auth", "login", "--api-url", "http://localhost:8080", "--sso", "--skip-keyring"]
+            ),
+            api_client=_make_sso_api_client(SSO_METADATA),
+        )
+
+        assert capsys.readouterr().out == "SSO_TOKEN\n"
+        mock_keyring.set_password.assert_not_called()
+
     @pytest.mark.parametrize(
         "metadata",
         [
@@ -342,7 +360,7 @@ class TestCliAuthCommands:
 
     @pytest.mark.parametrize(
         "extra_args",
-        [["--username", "user"], ["--password", "pass"], ["--api-token", "token"], ["--skip-keyring"]],
+        [["--username", "user"], ["--password", "pass"], ["--api-token", "token"]],
     )
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
     def test_login_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args):

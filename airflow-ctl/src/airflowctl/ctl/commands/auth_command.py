@@ -27,6 +27,7 @@ import sys
 import keyring
 import rich
 from keyring.errors import NoKeyringError
+from rich.console import Console
 from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, Credentials, provide_api_client
@@ -73,10 +74,8 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
 
     if args.sso:
-        if args.api_token or username or password or args.skip_keyring:
-            rich.print(
-                "[red]--sso is not compatible with --api-token, --username, --password or --skip-keyring."
-            )
+        if args.api_token or username or password:
+            rich.print("[red]--sso is not compatible with --api-token, --username or --password.")
             sys.exit(1)
         try:
             api_token = _get_token_with_browser(args, api_client)
@@ -88,7 +87,14 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             api_token=api_token,
             api_environment=args.env,
             client_kind=ClientKind.AUTH,
-        ).save()
+        ).save(args.skip_keyring)
+        if args.skip_keyring:
+            # Nothing stores the token, so this is the only way to use the login that just happened.
+            print(api_token)
+            Console(stderr=True).print(
+                "[yellow]The token was not stored. Set AIRFLOW_CLI_TOKEN to the printed token to use it.[/yellow]"
+            )
+            return
         rich.print(success_message)
         return
 
