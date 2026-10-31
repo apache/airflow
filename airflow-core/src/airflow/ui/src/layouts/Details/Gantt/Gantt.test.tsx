@@ -30,17 +30,9 @@ import { BaseWrapper } from "src/utils/Wrapper";
 
 import { Gantt } from "./Gantt";
 
-const { mockUseGanttServiceGetGanttData } = vi.hoisted(() => ({
+const { mockUseGanttServiceGetGanttData, mockUseGridRuns } = vi.hoisted(() => ({
   mockUseGanttServiceGetGanttData: vi.fn(() => ({ data: undefined, isLoading: false })),
-}));
-
-vi.mock("openapi/queries", async (importOriginal) => ({
-  ...(await importOriginal<typeof OpenapiQueries>()),
-  useGanttServiceGetGanttData: mockUseGanttServiceGetGanttData,
-}));
-
-vi.mock("src/queries/useGridRuns", () => ({
-  useGridRuns: () => ({
+  mockUseGridRuns: vi.fn(() => ({
     data: [
       {
         end_date: "2024-03-14T10:10:00Z",
@@ -51,7 +43,16 @@ vi.mock("src/queries/useGridRuns", () => ({
       },
     ],
     isLoading: false,
-  }),
+  })),
+}));
+
+vi.mock("openapi/queries", async (importOriginal) => ({
+  ...(await importOriginal<typeof OpenapiQueries>()),
+  useGanttServiceGetGanttData: mockUseGanttServiceGetGanttData,
+}));
+
+vi.mock("src/queries/useGridRuns", () => ({
+  useGridRuns: mockUseGridRuns,
 }));
 
 vi.mock("src/queries/useGridStructure", () => ({
@@ -84,11 +85,29 @@ const createWrapper =
 
 beforeEach(() => {
   mockUseGanttServiceGetGanttData.mockClear();
+  mockUseGridRuns.mockClear();
 });
 
 afterEach(cleanup);
 
 describe("Gantt time range filter params", () => {
+  it("shares the Grid's run query in the combined view", () => {
+    render(<Gantt limit={10} offset={0} />, {
+      wrapper: createWrapper(["/dags/test_dag/runs/run_1"]),
+    });
+
+    expect(mockUseGridRuns).toHaveBeenCalledWith({
+      dagRunState: undefined,
+      limit: 11,
+      offset: 0,
+      runAfterGte: undefined,
+      runAfterLte: undefined,
+      runIdPattern: undefined,
+      runType: undefined,
+      triggeringUser: undefined,
+    });
+  });
+
   it("passes the URL date window to the backend query", () => {
     render(<Gantt limit={10} />, {
       wrapper: createWrapper([

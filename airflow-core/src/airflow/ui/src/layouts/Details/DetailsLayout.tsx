@@ -168,15 +168,22 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
 
   const noDateFilters = runAfterGte === undefined && runAfterLte === undefined;
 
-  // Initial grid page (no date ceiling) — loaded first so we can check whether
-  // the selected run is already visible before fetching it individually.
-  const { data: initialGridRuns } = useGridRuns({
-    dagRunState: dagRunStateFilter,
-    limit,
-    runIdPattern: runIdPatternFilter,
-    runType: runTypeFilter,
-    triggeringUser: triggeringUserFilter,
-  });
+  // Match the Grid's first-page query so React Query shares the request. This observer does not
+  // keep polling after the Grid moves to another page; it only positions a selected older run.
+  const { data: initialGridRuns } = useGridRuns(
+    {
+      dagRunState: dagRunStateFilter,
+      limit: limit + 1,
+      offset: 0,
+      runIdPattern: runIdPatternFilter,
+      runType: runTypeFilter,
+      triggeringUser: triggeringUserFilter,
+    },
+    {
+      autoRefresh: false,
+      enabled: Boolean(runId) && noDateFilters,
+    },
+  );
 
   // Whether the selected run is absent from the initial grid page and we don't
   // yet have a ceiling set. Only true once initialGridRuns has loaded.
