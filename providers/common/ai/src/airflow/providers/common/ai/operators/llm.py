@@ -61,7 +61,11 @@ from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.ai.utils.usage_budget import copy_run_usage, subtract_run_usage
 from airflow.providers.common.compat.notifier import BaseNotifier
-from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseOperator
+from airflow.providers.common.compat.sdk import (
+    AirflowOptionalProviderFeatureException,
+    BaseOperator,
+    SkipMixin,
+)
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
@@ -91,7 +95,7 @@ __all__ = ["DecisionPolicy", "LLMOperator"]
 # CancellableAgentRunMixin must precede BaseOperator so its on_kill overrides BaseOperator's
 # no-op. The other mixins only add methods, so they can trail BaseOperator. See the MRO guard
 # test in tests/unit/common/ai/mixins/test_cancellable_run.py.
-class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin):
+class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, UsageBudgetMixin, SkipMixin):
     """
     Call an LLM with a prompt and return the output.
 
@@ -202,6 +206,15 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         user id.  ``None`` (default) lets any user with the permission respond.
         On Airflow 3.1 to 3.3 the list is fixed when the review is first
         created; on 3.4+ a cleared or retried task replaces it.  Needs Airflow 3.1+.
+    :param fail_on_reject: If ``False``, a rejected review skips the direct
+        downstream tasks except teardowns and the task succeeds, as
+        :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`
+        does.  Only takes effect when a review is opened.  Default ``True``:
+        a rejection fails the task.
+    :param ignore_downstream_trigger_rules: If ``True``, a rejected review that
+        does not fail the task skips every downstream task except teardowns
+        rather than only the direct ones.  Only takes effect when a review is opened.
+        Default ``False``.
     :param decision_policy: Experimental. A
         :class:`~airflow.providers.common.ai.policies.decision.DecisionPolicy`
         saying how confident the model has to be for the operator to return its answer by
@@ -228,6 +241,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
     # Subclasses that run their own ``execute`` without the confidence gate set this to False so a
     # ``decision_policy`` is rejected at construction rather than accepted and ignored.
     supports_decision_policy: ClassVar[bool] = True
+
+    # A mapped task reads this from the class, so it stays True there; __init__ narrows it per task.
+    _can_skip_downstream = True
 
     template_fields: Sequence[str] = (
         "prompt",
@@ -257,6 +273,8 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         allow_modifications: bool = False,
         approval_notifiers: BaseNotifier | Iterable[BaseNotifier] | None = None,
         approval_assigned_users: HITLUser | Iterable[HITLUser] | None = None,
+        fail_on_reject: bool = True,
+        ignore_downstream_trigger_rules: bool = False,
         decision_policy: DecisionPolicy | None = None,
         serialize_output: bool = False,
         **kwargs: Any,
@@ -310,6 +328,9 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         self.approval_timeout = approval_timeout
         self.on_approval_timeout = on_approval_timeout
         self.allow_modifications = allow_modifications
+        self.fail_on_reject = fail_on_reject
+        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
+        self._can_skip_downstream = self._may_review and not fail_on_reject
         if approval_notifiers is None:
             approval_notifiers = []
         elif isinstance(approval_notifiers, BaseNotifier):
@@ -447,7 +468,13 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
 
         :raises ReviewedOutputValidationError: If a reviewer's edit does not validate against ``output_type``.
         """
-        output = self._resume_after_review(context, generated_output, event, decision)
+        try:
+            output = self._resume_after_review(context, generated_output, event, decision)
+        except HITLRejectException as e:
+            if self.fail_on_reject:
+                raise
+            self._skip_downstream_on_reject(context, e)
+            return None
         self._finalize_decision(context, event, decision, action=None)
         return rehydrate_pydantic_output(
             self.output_type,
@@ -593,6 +620,19 @@ class LLMOperator(CancellableAgentRunMixin, BaseOperator, LLMApprovalMixin, Usag
         except (KeyError, TypeError):
             return None
         return ti if callable(getattr(ti, "xcom_push", None)) else None
+
+    def _skip_downstream_on_reject(self, context: Context, error: HITLRejectException) -> None:
+        self.log.info("%s Skipping downstream tasks...", error)
+        # The record was finalized before the exception. On an unmapped task skip() hands the skip to
+        # the supervisor by raising; on a mapped one it records the skip in XCom and returns.
+        self._clear_usage_budget(context)
+        task = context["task"]
+        tasks = (
+            task.get_flat_relatives(upstream=False)
+            if self.ignore_downstream_trigger_rules
+            else task.get_direct_relatives(upstream=False)
+        )
+        self.skip(ti=context["ti"], tasks=(t for t in tasks if not t.is_teardown))
 
     def _push_xcom(self, context: Context, key: str, value: Any) -> None:
         """Push ``value`` under ``key`` on XCom, honoring ``do_xcom_push`` and a missing task instance."""

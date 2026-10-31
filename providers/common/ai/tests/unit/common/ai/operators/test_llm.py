@@ -44,6 +44,7 @@ from airflow.providers.common.ai.operators.llm_sql import LLMSQLQueryOperator
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY
 
+from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 
 try:
@@ -53,9 +54,11 @@ except ImportError:
 
 from airflow.providers.common.compat.notifier import BaseNotifier
 from airflow.providers.common.compat.sdk import (
+    DAG,
     AirflowException,
     AirflowOptionalProviderFeatureException,
     TaskDeferred,
+    task,
 )
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
@@ -1531,6 +1534,89 @@ class TestLLMOperatorApproval:
 
         assert resumed == "draft"
         accessor.delete.assert_called_once_with(USAGE_BUDGET_KEY)
+
+    @pytest.mark.parametrize(
+        ("operator_cls", "operator_kwargs"),
+        [
+            pytest.param(LLMOperator, {}, id="llm"),
+            pytest.param(LLMFileAnalysisOperator, {"file_path": "/tmp/app.log"}, id="llm_file_analysis"),
+            pytest.param(
+                LLMSchemaCompareOperator,
+                {"db_conn_ids": ["db_a", "db_b"], "table_names": ["orders"]},
+                id="llm_schema_compare",
+            ),
+        ],
+    )
+    @patch.object(LLMOperator, "skip")
+    def test_execute_complete_reject_skips_downstream_without_fail_on_reject(
+        self, mock_skip, operator_cls, operator_kwargs
+    ):
+        op = operator_cls(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            require_approval=True,
+            fail_on_reject=False,
+            **operator_kwargs,
+        )
+        downstream = MagicMock(is_teardown=False)
+        task = MagicMock()
+        task.get_direct_relatives.return_value = [downstream, MagicMock(is_teardown=True)]
+        ti = MagicMock()
+        ctx = MagicMock(**{"__getitem__": lambda self, key: {"task": task, "ti": ti}[key]})
+
+        result = op.execute_complete(
+            ctx,
+            generated_output="output",
+            event={"chosen_options": ["Reject"], "responded_by_user": {"id": "u1", "name": "admin"}},
+        )
+
+        assert result is None
+        assert mock_skip.call_args.kwargs["ti"] is ti
+        assert list(mock_skip.call_args.kwargs["tasks"]) == [downstream]
+
+    @pytest.mark.parametrize(
+        ("review_kwargs", "fail_on_reject", "expected"),
+        [
+            pytest.param({"require_approval": True}, False, True, id="require-approval"),
+            pytest.param({"require_approval": True}, True, False, id="require-approval-fail-on-reject"),
+            pytest.param({}, False, False, id="no-review"),
+            pytest.param(
+                {"decision_policy": DecisionPolicy(min_confidence=0.7)}, False, True, id="decision-policy"
+            ),
+            pytest.param(
+                {"decision_policy": DecisionPolicy(min_confidence=0.7)},
+                True,
+                False,
+                id="decision-policy-fail-on-reject",
+            ),
+        ],
+    )
+    def test_inherits_from_skipmixin_only_when_a_rejection_skips(
+        self, review_kwargs, fail_on_reject, expected
+    ):
+        op = LLMOperator(
+            task_id="t", prompt="p", llm_conn_id="c", fail_on_reject=fail_on_reject, **review_kwargs
+        )
+
+        assert op.inherits_from_skipmixin is expected
+
+    @pytest.mark.parametrize("form", ["operator", "decorator"])
+    def test_mapped_task_serializes_as_able_to_skip_downstream(self, form):
+        with DAG("d", schedule=None):
+            if form == "operator":
+                mapped = LLMOperator.partial(
+                    task_id="m", llm_conn_id="c", require_approval=True, fail_on_reject=False
+                ).expand(prompt=["a", "b"])
+            else:
+
+                @task.llm(llm_conn_id="c", require_approval=True, fail_on_reject=False)
+                def summarize(text: str) -> str:
+                    return text
+
+                mapped = summarize.expand(text=["a", "b"]).operator
+
+        assert OperatorSerialization.serialize_mapped_operator(mapped)["_can_skip_downstream"] is True
 
     def test_execute_complete_with_error(self):
         """execute_complete raises HITLTriggerEventError on error event."""

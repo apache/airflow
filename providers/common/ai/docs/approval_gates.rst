@@ -157,6 +157,12 @@ earlier output: with ``allow_modifications=True``, Approve returns that earlier 
 unless the reviewer edits it; without it, Approve returns the regenerated output, which
 the reviewer did not see. With ``retries=0``, the default, a rejection is final.
 
+With ``fail_on_reject=False``, a rejection, including a timeout with ``"reject"``, succeeds
+the task instead and **skips the direct downstream tasks except teardowns**, matching
+:class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`. Set
+``ignore_downstream_trigger_rules=True`` to skip every downstream task rather than only the
+direct ones. A timeout with ``"fail"`` still fails the task.
+
 Editing structured output
 -------------------------
 
@@ -191,9 +197,8 @@ Timeouts
 ``[scheduler] trigger_timeout_check_interval`` seconds (15 by default), so a review can
 stay open that long past its deadline. On Airflow 3.1 and 3.2 the triggerer enforces the
 deadline. ``on_approval_timeout="approve"`` returns the generated output when the
-timeout expires. ``"reject"`` still fails this operator; only
-:class:`~airflow.providers.common.ai.operators.llm_branch.LLMBranchOperator` turns a
-rejection into a downstream skip. The chosen option is also pre-highlighted as the
+timeout expires. ``"reject"`` answers the review with a rejection, which fails the task
+unless ``fail_on_reject=False``. The chosen option is also pre-highlighted as the
 default in the review form, so ``"reject"`` makes Reject the primary button.
 
 This example approves the output if nobody answers within 24 hours, and logs each new

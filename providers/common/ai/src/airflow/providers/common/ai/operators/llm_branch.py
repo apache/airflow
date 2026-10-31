@@ -118,11 +118,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     :param fail_on_reject: If ``True``, a rejected review fails the task
         instead of skipping the downstream tasks. Generally discouraged,
         as for :class:`~airflow.providers.standard.operators.hitl.ApprovalOperator`.
-        Only takes effect when a review is opened. Default ``False``.
-    :param ignore_downstream_trigger_rules: If ``True``, a rejected review skips
-        every downstream task rather than only the direct ones, so a task whose
-        trigger rule would still run it is skipped too. Only takes effect when a
-        review is opened. Default ``False``.
+        Only takes effect when a review is opened. Default ``False``, unlike
+        :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param model_settings: Pydantic AI ``ModelSettings`` for the model call, such as
         ``temperature`` or ``max_tokens``. See :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.
     :param output_retries: How many times the model is asked again when its output
@@ -134,7 +131,8 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
     Human-in-the-Loop approval parameters are inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
     (``require_approval``, ``approval_timeout``, ``on_approval_timeout``,
-    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``).
+    ``allow_modifications``, ``approval_notifiers``, ``approval_assigned_users``,
+    ``ignore_downstream_trigger_rules``).
     The task pauses after the LLM chooses the branch(es) and only skips the
     unselected downstream tasks once a reviewer approves. Rejecting the
     review skips the direct downstream tasks except teardowns, matching
@@ -159,7 +157,6 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
         branches: Mapping[str, BranchOption | str] | None = None,
         allow_multiple_branches: bool = False,
         fail_on_reject: bool = False,
-        ignore_downstream_trigger_rules: bool = False,
         **kwargs: Any,
     ) -> None:
         if "output_type" in kwargs:
@@ -167,11 +164,9 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
                 "LLMBranchOperator does not accept 'output_type'; it builds the output type "
                 "itself from the downstream task IDs."
             )
-        super().__init__(**kwargs)
+        super().__init__(fail_on_reject=fail_on_reject, **kwargs)
         self.branches = self._normalize_branches(branches)
         self.allow_multiple_branches = allow_multiple_branches
-        self.fail_on_reject = fail_on_reject
-        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
     def _normalize_branches(
         self, branches: Mapping[str, BranchOption | str] | None
@@ -317,20 +312,10 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             # the branches that ran, and there is no Pydantic output to rehydrate. The helper still
             # finalizes a rejection or timeout before the exception leaves.
             output = self._resume_after_review(context, generated_output, event, decision)
-        except HITLRejectException:
+        except HITLRejectException as e:
             if self.fail_on_reject:
                 raise
-            self.log.info("Rejected by %s. Skipping downstream tasks...", self._describe_responder(event))
-            # The record was finalized before the exception; skip() hands the skip to the supervisor
-            # by raising, so nothing after it runs.
-            self._clear_usage_budget(context)
-            task = context["task"]
-            tasks = (
-                task.get_flat_relatives(upstream=False)
-                if self.ignore_downstream_trigger_rules
-                else task.get_direct_relatives(upstream=False)
-            )
-            self.skip(ti=context["ti"], tasks=(t for t in tasks if not t.is_teardown))
+            self._skip_downstream_on_reject(context, e)
             return None
         branches = self._parse_reviewed_branches(output)
         selected = {branches} if isinstance(branches, str) else set(branches)
