@@ -67,6 +67,7 @@ _pack_index = struct.Struct(">I").pack
 if TYPE_CHECKING:
     from sqlalchemy import Select
     from sqlalchemy.engine import Connection
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Mapper
     from sqlalchemy.orm.session import SessionTransaction
     from sqlalchemy.sql.elements import ColumnElement
@@ -517,6 +518,30 @@ def _forget_region_coordinates(session: Session, transaction: SessionTransaction
     session.info.pop(_COORDINATES_CACHE_KEY, None)
 
 
+def _build_region_batch_query(region_ids: Collection[UUID], *, dag_id: str, run_id: str) -> Select:
+    return select(DynamicRegion).where(
+        DynamicRegion.dag_id == dag_id,
+        DynamicRegion.run_id == run_id,
+        DynamicRegion.id.in_(region_ids),
+    )
+
+
+def _add_region_batch(
+    regions: dict[UUID, DynamicRegion], rows: Iterable[DynamicRegion], pending: set[UUID]
+) -> set[UUID]:
+    """Add one batch of ancestry rows to ``regions`` and return the region ids still to load."""
+    rows = list(rows)
+    if {row.id for row in rows} != pending:
+        raise ValueError("Region context does not belong to the requested DagRun")
+    regions.update((row.id, row) for row in rows)
+    return {
+        ref
+        for row in rows
+        for ref in (row.parent_region_id, row.forked_from_region_id)
+        if ref is not None and ref not in regions
+    }
+
+
 def load_region_ancestry(
     region_ids: Collection[UUID], *, dag_id: str, run_id: str, session: Session
 ) -> dict[UUID, DynamicRegion]:
@@ -524,22 +549,20 @@ def load_region_ancestry(
     regions: dict[UUID, DynamicRegion] = {}
     pending = set(region_ids) - {SENTINEL_REGION_ID}
     while pending:
-        rows = session.scalars(
-            select(DynamicRegion).where(
-                DynamicRegion.dag_id == dag_id,
-                DynamicRegion.run_id == run_id,
-                DynamicRegion.id.in_(pending),
-            )
-        ).all()
-        if {row.id for row in rows} != pending:
-            raise ValueError("Region context does not belong to the requested DagRun")
-        regions.update((row.id, row) for row in rows)
-        pending = {
-            ref
-            for row in rows
-            for ref in (row.parent_region_id, row.forked_from_region_id)
-            if ref is not None and ref not in regions
-        }
+        rows = session.scalars(_build_region_batch_query(pending, dag_id=dag_id, run_id=run_id))
+        pending = _add_region_batch(regions, rows, pending)
+    return regions
+
+
+async def load_region_ancestry_async(
+    region_ids: Collection[UUID], *, dag_id: str, run_id: str, session: AsyncSession
+) -> dict[UUID, DynamicRegion]:
+    """Load parent and fork ancestry in batches within one DagRun, using an async session."""
+    regions: dict[UUID, DynamicRegion] = {}
+    pending = set(region_ids) - {SENTINEL_REGION_ID}
+    while pending:
+        rows = await session.scalars(_build_region_batch_query(pending, dag_id=dag_id, run_id=run_id))
+        pending = _add_region_batch(regions, rows, pending)
     return regions
 
 
