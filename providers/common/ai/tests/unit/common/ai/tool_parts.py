@@ -23,16 +23,16 @@ Before pydantic-ai 2.60 a tool the model must call again answers with a ``RetryP
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, TypeGuard
 
 from pydantic_ai.messages import RetryPromptPart, ToolReturnPart
 
 
-def is_tool_retry(part: Any) -> bool:
+def is_tool_retry(part: Any) -> TypeGuard[RetryPromptPart | ToolReturnPart]:
     return isinstance(part, RetryPromptPart) or (
         isinstance(part, ToolReturnPart) and getattr(part, "outcome", None) == "retried"
     )
 
 
-def is_tool_result(part: Any) -> bool:
+def is_tool_result(part: Any) -> TypeGuard[ToolReturnPart]:
     return isinstance(part, ToolReturnPart) and not is_tool_retry(part)
