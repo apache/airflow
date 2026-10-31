@@ -228,6 +228,100 @@ Starting with Airflow 3.0.2, git is pre-installed in the base image. However, if
   ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
   ENV GIT_PYTHON_REFRESH=quiet
 
+.. _manifest-local-dag-bundles:
+
+Manifest-backed local Dag bundles
+---------------------------------
+
+``ManifestLocalDagBundle`` serves Dag files published from a local directory as immutable, content-addressed
+releases under a shared ``published_root``. Airflow parses and runs only verified, read-only copies of those
+releases, never the source directory.
+
+Automatic publication
+~~~~~~~~~~~~~~~~~~~~~
+
+Instead of running a publisher after every deployment, the bundle can publish the directory that your
+deployment process updates. Set ``source_path`` to that directory:
+
+.. code-block:: ini
+
+    [dag_processor]
+    dag_bundle_config_list = [
+        {
+          "name": "my-dags",
+          "classpath": "airflow.dag_processing.bundles.manifest_local.ManifestLocalDagBundle",
+          "kwargs": {
+            "published_root": "/shared/dag-releases",
+            "source_path": "/shared/dag-source",
+            "refresh_interval": 30,
+            "source_stability_seconds": 60
+          }
+        }
+      ]
+
+On each refresh of the bundle, the Dag processor reads the metadata of every file that a release would include
+-- relative path, size, modification and change times, and mode -- without reading file contents. When the
+metadata changes, it must then stay unchanged for ``source_stability_seconds`` before the Dag processor hashes
+the files and publishes them as a new release. ``source_stability_seconds`` defaults to the bundle's refresh
+interval. The period is measured in elapsed time, not in refreshes, and starts again whenever the metadata
+changes. A process that has published or confirmed the current source then compares only metadata until the
+source changes again; a newly started process hashes the source once.
+
+A metadata check cannot tell whether a deployment that copies files one by one has delivered all of them; the
+stability period only gives it time to finish. Set ``source_stability_seconds`` to ``0`` only when your
+deployment process replaces the whole source directory atomically, for example by building the new tree in a
+staging directory and then replacing a symlink that ``source_path`` points to.
+
+Until the first release is published, such as on first start, the bundle cannot be initialized. The Dag
+processor logs at info level that the source is not ready yet, skips the bundle without delaying the others,
+and retries once the remaining stability period has passed. If the source changes during that time, including
+while the first release is being published, the period starts again. If the first publication fails for
+another reason, the Dag processor logs the error and retries at its next bundle refresh check.
+
+Once a release exists, it stays active when the source is still changing, unreadable or empty, or when
+publication fails. A failure is logged as a warning, and the next refresh tries again. An empty source is
+rejected unless ``allow_empty_source`` is ``true``.
+
+All automatic publishers of a bundle share the source signature they are waiting on, and when it was first
+observed, in ``_state/<bundle>/auto-publish.json`` under ``published_root``, so any of them can complete a
+stability period that another one started. The bundle's publication lock makes concurrent publication of the
+same source safe, and publishing content that is already published only confirms the current release. The
+shared document only coordinates publishers; the release reference alone decides which release Airflow serves.
+
+Automatic publication has these operational requirements:
+
+- ``source_path`` must be one directory on a filesystem shared by every automatic publisher of the bundle, such
+  as the same network filesystem as ``published_root``. Separate copies on each host do not work, even with
+  identical files: their modification and change times differ, so each host keeps restarting the stability
+  period that the others are waiting on and no release is ever published.
+- Configure every automatic publisher of a bundle with the same absolute ``source_path``. A publisher configured
+  with a different source is rejected, also when ``source_stability_seconds`` is ``0``, and keeps serving the
+  current release.
+- Each automatic publisher must be able to read ``source_path`` and write to the bundle's ``refs/<bundle>``,
+  ``versions/<bundle>``, ``_state/<bundle>`` and ``_locks`` directories under ``published_root``. Workers that
+  run pinned versions need only read access to ``published_root``.
+- A publisher creates any of those directories that are missing with mode ``0755``, which only its own OS user
+  can write to. Run every automatic publisher of a bundle as the same OS user, or create the directories in
+  advance, owned by a group the publishers share, with group write access and the set-group-ID bit
+  (``chmod 2775``).
+- Keep the clocks of the publisher hosts synchronized. A host that finds a first-observed time in the future
+  waits instead of publishing early.
+- The source is authoritative: an automatic publisher moves the release back to the content of
+  ``source_path``. Do not change the release reference by hand. ``publish_manifest_local_dag_bundle`` refuses a
+  bundle with ``source_path`` set.
+- ``source_path`` must not overlap ``published_root`` or the bundle's cache directory,
+  ``<dag_bundle_storage_path>/<bundle>/versions`` (see :ref:`config:dag_processor__dag_bundle_storage_path`);
+  such a configuration is rejected.
+
+Retries, reruns that keep their original version, and callbacks of a Dag run with a bundle version use the
+snapshot of that version and never publish; callbacks that the Dag processor runs itself use the bundle it
+already serves. Anything that loads the bundle without a version runs the automatic publication check as well:
+tasks and executor callbacks of a Dag run that has no bundle version, for example because bundle versioning is
+disabled, and CLI commands that parse the bundle on the host they run on, such as ``airflow dags reserialize``
+and ``airflow dags test``. Each such process takes the publication lock when it starts and, once the source is
+stable, hashes it.
+It needs the same access as a Dag processor; without it, it logs a warning and runs the current release.
+
 
 Monitoring Dag bundles
 ----------------------
@@ -442,6 +536,12 @@ In addition to the abstract methods, you may choose to override the following me
     This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
     When a worker starts a task, Airflow sets the Dag parsing context before calling ``initialize()``. See **Parsing context** under Other Considerations.
+
+    If the bundle is configured correctly but has nothing to serve yet, raise
+    ``airflow.dag_processing.bundles.base.BundleNotReadyError`` with a ``retry_after`` hint in seconds instead of
+    waiting inside ``initialize()``. The Dag processor logs it at info level, skips the bundle without delaying
+    the others, and retries initialization at the first bundle refresh check after ``retry_after`` seconds.
+    Other callers, such as workers and CLI commands, treat it as an ordinary initialization error.
 
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
