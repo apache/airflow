@@ -92,6 +92,9 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         job instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
         retry. Requires Airflow 3.3+; ignored on earlier versions.
         With ``wait_for_completion=False`` or ``deferrable=True`` durable has no effect. (default value: True)
+    :param cancel_on_kill: If True (default), drop the job service when the task is killed. This
+        applies both while the operator is running and, for a deferred task, while it waits in the
+        triggerer.
     :param timeout: Maximum seconds to wait for the job to reach a terminal
         state. When it elapses the task fails. (default value: 86400)
     :param database: name of database (will overwrite database defined
@@ -106,6 +109,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
     """
 
     external_id_key = "snowpark_container_job_name"
+    _job_status_key = "snowpark_container_job_status"
     template_fields: Sequence[str] = (
         "compute_pool",
         "spec",
@@ -136,6 +140,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         snowflake_conn_id: str = "snowflake_default",
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         durable: bool | None = None,
+        cancel_on_kill: bool = True,
         timeout: int = 24 * 60 * 60,
         database: str | None = None,
         schema: str | None = None,
@@ -164,6 +169,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         self.poll_interval = poll_interval
         self.snowflake_conn_id = snowflake_conn_id
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.timeout = timeout
         self.database = database
         self.schema = schema
@@ -225,7 +231,10 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         return self.job_name
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        """Return NOT_FOUND when the service no longer exists, otherwise the current status."""
+        """Return DONE if a prior try stored it, NOT_FOUND if the service is gone, else the current status."""
+        if (task_state_store := context.get("task_state_store")) is not None:
+            if task_state_store.get(self._job_status_key) == SnowparkContainerJobStatus.DONE:
+                return SnowparkContainerJobStatus.DONE
         try:
             return self._describe_status(external_id)
         except ProgrammingError as e:
@@ -235,7 +244,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
 
     def is_job_active(self, status: str) -> bool:
         """Return True while the job is still running."""
-        return status in NON_TERMINAL_STATUSES
+        return status in (SnowparkContainerJobStatus.PENDING, SnowparkContainerJobStatus.RUNNING)
 
     def is_job_succeeded(self, status: str) -> bool:
         """Return True when the job has completed successfully."""
@@ -256,6 +265,14 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
                 raise TimeoutError(f"Job {self.job_name} did not reach a terminal status before the timeout.")
             status = self._describe_status(self.job_name)
             if status in TERMINAL_STATUSES:
+                # Persist DONE before _handle_final_status drops the service. Otherwise a retry after
+                # a crash post-drop sees NOT_FOUND and resubmits a job that already succeeded.
+                if (
+                    self.durable
+                    and status == SnowparkContainerJobStatus.DONE
+                    and (task_state_store := context.get("task_state_store")) is not None
+                ):
+                    task_state_store.set(self._job_status_key, SnowparkContainerJobStatus.DONE.value)
                 # get_job_result is skipped when the mixin reconnects to a still-running job, so
                 # finalize here.
                 self._handle_final_status(status=status)
@@ -299,6 +316,8 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
 
     def on_kill(self) -> None:
         """Drop the running service on task kill."""
+        if not self.cancel_on_kill:
+            return
         if self.job_name:
             self._drop_service()
 
@@ -348,6 +367,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
                     schema=self.schema,
                     role=self.role,
                     warehouse=self.warehouse,
+                    cancel_on_kill=self.cancel_on_kill,
                 ),
                 timeout=defer_timeout,
                 method_name="execute_complete",
