@@ -21,7 +21,9 @@ import os
 import sys
 
 import rich
+from pydantic import ValidationError
 from rich.console import Console
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -30,6 +32,7 @@ from airflowctl.api.datamodels.generated import (
     BulkCreateActionVariableBody,
     VariableBody,
 )
+from airflowctl.ctl.utils.validation import split_validation_errors
 
 
 def _print_file_error(message: str, file_path: str) -> None:
@@ -63,13 +66,15 @@ def import_(args, api_client=NEW_API_CLIENT) -> list[str]:
         if isinstance(v, dict) and "value" in v:
             value, description = v["value"], v.get("description")
 
-        vars_to_update.append(
-            VariableBody(
-                key=k,
-                value=value,
-                description=description,
+        try:
+            vars_to_update.append(VariableBody(key=k, value=value, description=description))
+        except ValidationError as e:
+            _, invalid = split_validation_errors(VariableBody, e, str)
+            Console().print(
+                f"[red]Invalid variable {escape(repr(k))} in {escape(args.file)}: {escape('; '.join(invalid))}",
+                soft_wrap=True,
             )
-        )
+            sys.exit(1)
 
     bulk_body = BulkBodyVariableBody(
         actions=[
