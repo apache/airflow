@@ -74,6 +74,7 @@ from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.sdk.log import init_log_file, logging_processors
+from airflow.secrets.cache import SecretCache as ServerSecretCache
 from airflow.typing_compat import assert_never
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
@@ -561,6 +562,10 @@ class DagFileProcessorManager(LoggingMixin):
         # initialize cache to mutualize calls to Variable.get in DAGs
         # needs to be done before this process is forked to create the DAG parsing processes.
         SecretCache.init()
+        # SDK lookups and the in-process API must share the cache inherited by parsing forks.
+        ServerSecretCache._cache = SecretCache._cache
+        if SecretCache._cache is not None:
+            ServerSecretCache._ttl = SecretCache._ttl
 
         poll_time = 0.0
 
