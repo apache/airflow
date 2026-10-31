@@ -1754,7 +1754,7 @@ class TestDagRunOperations:
         )
 
         assert result == ErrorResponse(
-            error=ErrorType.DAGRUN_NOT_FOUND,
+            error=ErrorType.DAGRUN_CLEAR_FAILED,
             detail={
                 "dag_id": "test_trigger_conflict_reset",
                 "run_id": "test_run_id",
@@ -1785,13 +1785,13 @@ class TestDagRunOperations:
             pytest.param(
                 404,
                 {"reason": "not_found", "message": "Dag run with run_id: 'test_run_id' not found"},
-                ErrorType.DAGRUN_NOT_FOUND,
+                ErrorType.DAGRUN_CLEAR_FAILED,
                 id="dag-run-not-found",
             ),
             pytest.param(
                 404,
                 {"reason": "not_found", "message": "Dag with dag_id: 'test_clear' not found"},
-                ErrorType.DAG_NOT_FOUND,
+                ErrorType.DAGRUN_CLEAR_FAILED,
                 id="dag-not-found",
             ),
             pytest.param(
@@ -1809,7 +1809,7 @@ class TestDagRunOperations:
         ],
     )
     def test_clear_error_response(self, status_code, server_detail, expected_error):
-        """Test that clear returns semantic errors for known clear failures."""
+        """Test that clear returns an error response for known clear failures."""
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_clear/test_run_id/clear":
