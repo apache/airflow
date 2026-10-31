@@ -1520,8 +1520,9 @@ class TestCliConfigMethods:
             pytest.param(["--is-paused", "--scheduling-state", "paused"], id="both-states"),
         ],
     )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(DagsOperations, "update", autospec=True)
-    def test_dags_update_requires_exactly_one_state(self, mocked_update, extra_argv):
+    def test_dags_update_requires_exactly_one_state(self, mocked_update, mocked_print_as, extra_argv):
         args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
 
         with pytest.raises(
