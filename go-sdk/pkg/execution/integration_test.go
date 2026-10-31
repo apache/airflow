@@ -523,6 +523,7 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 				LogicalDate:       logical,
 				DataIntervalStart: start,
 				DataIntervalEnd:   end,
+				Conf:              &genmodels.Conf{"target_table": "sales"},
 			},
 		},
 	}
@@ -552,6 +553,39 @@ func TestRunTaskInjectsAirflowContext(t *testing.T) {
 	assert.Equal(t, start, *dagRun.DataIntervalStart)
 	require.NotNil(t, dagRun.DataIntervalEnd)
 	assert.Equal(t, end, *dagRun.DataIntervalEnd)
+	assert.Equal(t, map[string]any{"target_table": "sales"}, dagRun.Conf)
+}
+
+// A run triggered without a conf must reach the task as a nil map rather than
+// as the nil pointer the wire carries.
+func TestRunTaskLeavesAnAbsentConfNil(t *testing.T) {
+	var got contexttest.Context
+	bundle := buildBundle(t, func(r testBundle) {
+		r.AddDag("test_dag").AddTaskWithName("ctxgrab",
+			func(actx contexttest.Context) error {
+				got = actx
+				return nil
+			})
+	})
+
+	details := &genmodels.StartupDetails{
+		TI: genmodels.TaskInstance{
+			ID:       "550e8400-e29b-41d4-a716-446655440000",
+			DagID:    "test_dag",
+			TaskID:   "ctxgrab",
+			RunID:    "run1",
+			MapIndex: ptr(-1),
+		},
+		BundleInfo: genmodels.BundleInfo{Name: "test", Version: "1.0"},
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+	result := RunTask(context.Background(), bundle, details, comm, logger)
+	assertSucceedTask(t, result)
+
+	assert.Nil(t, got.DagRun().Conf)
 }
 
 // Guards against the runtime binding the task state store to an empty task instance id.

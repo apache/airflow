@@ -94,4 +94,10 @@ type DagRun struct {
 	LogicalDate       *time.Time
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
+	// Conf is the conf the run was triggered with, and is nil for a run
+	// triggered without one. Its values arrive as the same Go types as an
+	// XCom value, so an integer's width depends on the value.
+	// [DagRun.UnmarshalConf] reads the conf into a struct with typed fields
+	// instead.
+	Conf map[string]any
 }

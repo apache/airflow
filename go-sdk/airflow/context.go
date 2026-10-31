@@ -30,7 +30,7 @@ type (
 	TaskInstance = sdk.TaskInstance
 
 	// DagRun identifies the Dag run the task instance belongs to,
-	// and carries its scheduling timestamps.
+	// and carries its scheduling timestamps and its conf.
 	DagRun = sdk.DagRun
 )
 
