@@ -22,6 +22,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import structlog
 from git import Repo
@@ -173,8 +174,72 @@ class GitDagBundle(BaseDagBundle):
             if repo is not None:
                 repo.close()
 
+    def _clean_interrupted_versioned_repo(self) -> None:
+        previous_path = self.versions_dir / f".{self.version}.previous"
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+
+    def _publish_versioned_repo(self, temporary_path: Path) -> None:
+        previous_path = self.versions_dir / f".{self.version}.previous"
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+        if self.repo_path.exists():
+            os.replace(self.repo_path, previous_path)
+        try:
+            os.replace(temporary_path, self.repo_path)
+        except OSError:
+            if previous_path.exists() and not self.repo_path.exists():
+                os.replace(previous_path, self.repo_path)
+            raise
+        if previous_path.exists():
+            shutil.rmtree(previous_path)
+
+    def _initialize_versioned_repo(self) -> None:
+        temporary_path = self.versions_dir / f".{self.version}.{uuid4().hex}.tmp"
+        repo = None
+        try:
+            self._clone_repo_if_required(temporary_path)
+            repo = self.repo
+            repo.remotes.origin.fetch(["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"])
+            repo.git.checkout(self.tracking_ref)
+            if not self._has_version(repo, self.version):
+                repo.remotes.origin.fetch()
+            expected_commit = repo.commit(self.version)
+            repo.head.set_reference(str(expected_commit))
+            repo.head.reset(index=True, working_tree=True)
+
+            if isinstance(expected_commit.hexsha, str) and repo.head.commit.hexsha != expected_commit.hexsha:
+                raise RuntimeError(
+                    f"Git checkout resolved to {repo.head.commit.hexsha}, expected {expected_commit.hexsha}"
+                )
+
+            if self.submodules:
+                cm_sub = self.hook.configure_hook_env() if self.hook else nullcontext()
+                with cm_sub:
+                    try:
+                        self._fetch_submodules()
+                    except GitCommandError as e:
+                        raise RuntimeError("Error pulling submodule from repository") from e
+
+            repo.close()
+            repo = None
+            self.repo = None
+            self._publish_versioned_repo(temporary_path)
+
+            if self.prune_dotgit_folder:
+                shutil.rmtree(self.repo_path / ".git")
+            else:
+                self.repo = Repo(self.repo_path)
+        finally:
+            if repo is not None:
+                repo.close()
+            if temporary_path.exists():
+                shutil.rmtree(temporary_path)
+
     def _initialize(self):
         with self.lock():
+            if self.version:
+                self._clean_interrupted_versioned_repo()
             # Avoids re-cloning on every task run when:
             # 1. A versioned worktree already exists on disk without a .git directory
             # 2. The local repo already has the expected version
@@ -231,37 +296,22 @@ class GitDagBundle(BaseDagBundle):
                 self._ensure_version_in_bare_repo()
             self.bare_repo.close()
 
-            try:
-                self._clone_repo_if_required()
-            except GitCommandError as e:
-                raise RuntimeError("Error cloning repository") from e
-            except InvalidGitRepositoryError as e:
-                raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
-            # If tracking_ref was just repointed to a SHA that predates this working clone's
-            # last fetch, this checkout fails until the clone is fetched or storage is cleared;
-            # tracked at https://github.com/apache/airflow/issues/71388
-            self.repo.git.checkout(self.tracking_ref)
-            self._log.debug("bundle initialize", version=self.version)
             if self.version:
-                if not self._has_version(self.repo, self.version):
-                    self.repo.remotes.origin.fetch()
-                self.repo.head.set_reference(str(self.repo.commit(self.version)))
-                self.repo.head.reset(index=True, working_tree=True)
-
-                if self.submodules:
-                    cm_sub = self.hook.configure_hook_env() if self.hook else nullcontext()
-                    with cm_sub:
-                        try:
-                            self._fetch_submodules()
-                        except GitCommandError as e:
-                            raise RuntimeError("Error pulling submodule from repository") from e
-
-                if self.prune_dotgit_folder:
-                    self.repo.close()
-                    shutil.rmtree(self.repo_path / ".git")
-                    self.repo = None
+                self._initialize_versioned_repo()
             else:
+                try:
+                    self._clone_repo_if_required()
+                except GitCommandError as e:
+                    raise RuntimeError("Error cloning repository") from e
+                except InvalidGitRepositoryError as e:
+                    raise RuntimeError(f"Invalid git repository at {self.repo_path}") from e
+                self.repo.remotes.origin.fetch(
+                    ["+refs/heads/*:refs/remotes/origin/*", "+refs/tags/*:refs/tags/*"]
+                )
+                self.repo.git.checkout(self.tracking_ref)
                 self.refresh()
+
+            self._log.debug("bundle initialize", version=self.version)
 
             if self.repo is not None:
                 self.repo.close()
@@ -277,37 +327,36 @@ class GitDagBundle(BaseDagBundle):
         stop=stop_after_attempt(2),
         reraise=True,
     )
-    def _clone_repo_if_required(self) -> None:
+    def _clone_repo_if_required(self, repo_path: Path | None = None) -> None:
+        repo_path = repo_path or self.repo_path
         try:
-            if not os.path.exists(self.repo_path):
-                self._log.info(
-                    "Cloning repository", repo_path=self.repo_path, bare_repo_path=self.bare_repo_path
-                )
+            if not os.path.exists(repo_path):
+                self._log.info("Cloning repository", repo_path=repo_path, bare_repo_path=self.bare_repo_path)
                 Repo.clone_from(
                     url=self.bare_repo_path,
-                    to_path=self.repo_path,
+                    to_path=repo_path,
                     multi_options=["--sparse", "--no-checkout"] if self.sparse_dirs else None,
                 )
                 if self.sparse_dirs:
                     self._log.info("Setting up sparse checkout")
-                    repo = Repo(self.repo_path)
+                    repo = Repo(repo_path)
                     repo.git.sparse_checkout("init", "--cone")
                     repo.git.sparse_checkout("set", *self.sparse_dirs)
                     repo.git.checkout(self.tracking_ref)
             else:
-                self._log.debug("repo exists", repo_path=self.repo_path)
-            self.repo = Repo(self.repo_path)
+                self._log.debug("repo exists", repo_path=repo_path)
+            self.repo = Repo(repo_path)
         except NoSuchPathError as e:
             # Protection should the bare repo be removed manually
             raise FileNotFoundError(f"Repository path: {self.bare_repo_path} not found") from e
         except (InvalidGitRepositoryError, GitCommandError) as e:
             self._log.warning(
                 "Repository clone/open failed, cleaning up and retrying",
-                repo_path=self.repo_path,
+                repo_path=repo_path,
                 exc=e,
             )
-            if os.path.exists(self.repo_path):
-                shutil.rmtree(self.repo_path)
+            if os.path.exists(repo_path):
+                shutil.rmtree(repo_path)
             raise
 
     def _uses_github_app_auth(self) -> bool:
