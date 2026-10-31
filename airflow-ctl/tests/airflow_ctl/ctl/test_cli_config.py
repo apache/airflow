@@ -34,6 +34,9 @@ from airflowctl.api.datamodels.generated import (
     ClearTaskInstancesBody,
     ConnectionBody,
     ConnectionTestResponse,
+    PoolBody,
+    PoolCollectionResponse,
+    PoolResponse,
 )
 from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
 from airflowctl.ctl import cli_parser
@@ -740,6 +743,59 @@ class TestCliConfigMethods:
         out = " ".join(capsys.readouterr().out.split())
         assert "Server response error:" in out
         assert ("does not follow" in out) is hint_expected
+
+    @pytest.mark.parametrize(
+        ("model", "payload", "expected", "unexpected"),
+        [
+            pytest.param(
+                PoolResponse,
+                {},
+                ["Response did not match the airflowctl model PoolResponse", "upgrading airflowctl"],
+                [],
+                id="response",
+            ),
+            pytest.param(
+                PoolCollectionResponse,
+                {"pools": [{}], "total_entries": 1},
+                ["PoolCollectionResponse", "pools.0."],
+                [],
+                id="nested-location",
+            ),
+            pytest.param(
+                PoolBody,
+                {"slots": "abc", "name": "p"},
+                ["Input did not match the airflowctl model PoolBody"],
+                ["upgrading airflowctl"],
+                id="request-body",
+            ),
+        ],
+    )
+    def test_safe_call_command_exits_non_zero_for_validation_error(
+        self, model, payload, expected, unexpected, capsys
+    ):
+        def raise_validation_error(_args):
+            model.model_validate(payload)
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_validation_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        out = " ".join(capsys.readouterr().out.split())
+        for text in expected:
+            assert text in out
+        for text in unexpected:
+            assert text not in out
+
+    def test_safe_call_command_reports_non_json_response(self, capsys):
+        def raise_validation_error(_args):
+            PoolResponse.model_validate_json(b"<html>login</html>")
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_validation_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        out = " ".join(capsys.readouterr().out.split())
+        assert "Server returned a non-JSON response for PoolResponse" in out
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""

@@ -165,6 +165,14 @@ class TestBaseOperations:
         ):
             client.connections.get("1")
 
+    def test_execute_list_raises_validation_error_for_non_json_response(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>login</html>")
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.pools.list()
+
     @pytest.mark.parametrize(
         ("total_entries", "limit", "expected_response"),
         [
