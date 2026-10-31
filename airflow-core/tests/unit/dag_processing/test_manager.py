@@ -286,13 +286,14 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 # content is unchanged; once the hash has moved and [core] min_serialized_dag_update_interval has
 # lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
 # per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
-# of them are already recorded.
-FIXED_PER_CALL = 9
+# of them are already recorded. File-scoped parse-failure warnings add one DELETE on dag_warning per call.
+FIXED_PER_CALL = 10
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 # A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the
-# bounded lookup, and the listener re-reading the row the update beside it already had.
-IMPORT_ERROR_PER_CALL = 5
+# bounded lookup, and the listener re-reading the row the update beside it already had. Plus one
+# DELETE on dag_warning for the parsed file
+IMPORT_ERROR_PER_CALL = 6
 
 SWEEP_FILES = 4
 # Calls the manager takes for that sweep: one per file today, 1 if a sweep is ever batched.
