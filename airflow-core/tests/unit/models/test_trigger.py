@@ -51,8 +51,9 @@ from airflow.triggers.base import (
     TaskSuccessEvent,
     TriggerEvent,
 )
+from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
 from airflow.utils.session import create_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import CallbackState, State, TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -440,7 +441,30 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
-@pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])
+def test_submit_event_terminal_callback_event_detaches_trigger(session):
+    """A terminal callback event detaches the trigger when the callback is loaded on its own."""
+    callback = TriggererCallback(AsyncCallback("classpath.callback"))
+    callback.queue(session=session)
+    session.add(callback)
+    session.commit()
+    trigger_id = callback.trigger.id
+    callback_id = callback.id
+    session.expunge_all()
+
+    Trigger.submit_event(
+        trigger_id,
+        TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.SUCCESS, PAYLOAD_BODY_KEY: "done"}),
+        session=session,
+    )
+    session.commit()
+
+    callback = session.get(Callback, callback_id)
+    assert callback.state == CallbackState.SUCCESS
+    assert callback.trigger_id is None
+    assert callback.output == "done"
+
+
+@pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 3), (5, 3)])
 @patch("airflow.models.trigger.AssetManager.register_asset_change")
 def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected_query_count):
     """Ensure asset notifications do not trigger per-asset lazy-load queries."""
@@ -459,6 +483,52 @@ def test_submit_event_no_n_plus_one_for_assets(_, session, asset_count, expected
 
     with assert_queries_count(expected_query_count, session=session):
         Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+
+def test_submit_event_query_budget_for_deferred_task(session, create_task_instance):
+    """
+    The common case - a trigger resuming a deferred task, with no assets and no callback - must
+    stay at 4 statements: the deferred-TI select, its flushed UPDATE, and one probe each for asset
+    watchers and callback.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    session.commit()
+    trigger_id = trigger.id
+    session.expire_all()
+
+    with assert_queries_count(4):
+        Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+    session.refresh(task_instance)
+    assert task_instance.state == State.SCHEDULED
+
+
+def test_submit_event_trigger_already_deleted(session):
+    """An event for a trigger row that is already gone must be dropped without an error."""
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    asset = AssetModel("test_submit_event_trigger_already_deleted")
+    asset.add_trigger(trigger, "test_asset_watcher")
+    session.add(asset)
+    session.commit()
+    trigger_id = trigger.id
+
+    # Bulk delete so the database's ON DELETE CASCADE, not the ORM, removes the asset_watcher rows.
+    session.execute(
+        delete(Trigger).where(Trigger.id == trigger_id).execution_options(synchronize_session=False)
+    )
+    session.commit()
+    session.expunge_all()
+
+    Trigger.submit_event(trigger_id, TriggerEvent("payload"), session=session)
+
+    assert session.scalar(select(func.count()).select_from(AssetEvent)) == 0
 
 
 @pytest.mark.parametrize(
