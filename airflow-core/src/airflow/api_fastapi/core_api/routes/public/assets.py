@@ -165,37 +165,37 @@ def get_assets(
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
-    # Build a query that will be used to retrieve the ID and timestamp of the latest AssetEvent
-    last_asset_events = (
-        select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
-    # First, we're pulling the Asset ID, AssetEvent ID, and AssetEvent timestamp for the latest (last)
-    # AssetEvent. We'll eventually OUTER JOIN this to the AssetModel
-    asset_event_query = (
-        select(
-            AssetEvent.asset_id,  # The ID of the Asset, which we'll need to JOIN to the AssetModel
-            func.max(AssetEvent.id).label("last_asset_event_id"),  # The ID of the last AssetEvent
-            func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
+    is_mysql = session.get_bind().dialect.name == "mysql"
+    assets_select_statement: Select = select(AssetModel)
+    if is_mysql:
+        # MySQL can use a loose index scan for this aggregation, but can sort each asset's
+        # history for the correlated timestamp lookup used by the other backends.
+        last_asset_events = (
+            select(AssetEvent.asset_id, func.max(AssetEvent.timestamp).label("last_timestamp"))
+            .group_by(AssetEvent.asset_id)
+            .subquery()
         )
-        .join(
-            last_asset_events,
-            and_(
-                AssetEvent.asset_id == last_asset_events.c.asset_id,
-                AssetEvent.timestamp == last_asset_events.c.last_timestamp,
-            ),
+        asset_event_query = (
+            select(
+                AssetEvent.asset_id,
+                func.max(AssetEvent.id).label("last_asset_event_id"),
+                func.max(AssetEvent.timestamp).label("last_asset_event_timestamp"),
+            )
+            .join(
+                last_asset_events,
+                and_(
+                    AssetEvent.asset_id == last_asset_events.c.asset_id,
+                    AssetEvent.timestamp == last_asset_events.c.last_timestamp,
+                ),
+            )
+            .group_by(AssetEvent.asset_id)
+            .subquery()
         )
-        .group_by(AssetEvent.asset_id)
-        .subquery()
-    )
-
-    assets_select_statement = select(
-        AssetModel,
-        asset_event_query.c.last_asset_event_id,  # This should be the AssetEvent.id
-        asset_event_query.c.last_asset_event_timestamp,
-    ).outerjoin(asset_event_query, AssetModel.id == asset_event_query.c.asset_id)
+        assets_select_statement = select(
+            AssetModel,
+            asset_event_query.c.last_asset_event_id,
+            asset_event_query.c.last_asset_event_timestamp,
+        ).outerjoin(asset_event_query, AssetModel.id == asset_event_query.c.asset_id)
 
     assets_select, total_entries = paginated_select(
         statement=assets_select_statement,
@@ -214,6 +214,26 @@ def get_assets(
         limit=limit,
         session=session,
     )
+
+    if not is_mysql:
+        asset_page = assets_select.with_only_columns(AssetModel.id).subquery()
+        latest_asset_event_id = (
+            select(AssetEvent.id)
+            .where(AssetEvent.asset_id == AssetModel.id)
+            .order_by(AssetEvent.timestamp.desc(), AssetEvent.id.desc())
+            .limit(1)
+            .correlate(AssetModel)
+            .scalar_subquery()
+        )
+        assets_select = order_by.to_orm(
+            select(
+                AssetModel,
+                AssetEvent.id.label("last_asset_event_id"),
+                AssetEvent.timestamp.label("last_asset_event_timestamp"),
+            )
+            .join(asset_page, AssetModel.id == asset_page.c.id)
+            .outerjoin(AssetEvent, AssetEvent.id == latest_asset_event_id)
+        )
 
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
     assets_rows: Result[*tuple[AssetModel, int, datetime]] = session.execute(  # type: ignore[type-arg]
