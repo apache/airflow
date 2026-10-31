@@ -29,11 +29,32 @@ export type HITLResponseParams = {
   request_created_at?: string;
 };
 
-// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
-// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
-// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
-export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
-  state === "deferred" || state === "awaiting_input";
+// A HITL task waits for a response in one of these states: pre-3.3 it parks in "deferred", from 3.3
+// it parks in "awaiting_input", and with response_poll_window it is still "running" while it checks
+// for the response before parking. An unanswered task in one of them is "response required", not
+// "no response received" (which is reserved for tasks no longer waiting, e.g. cleared/finished).
+export const HITL_PENDING_STATES: Array<TaskInstanceState> = ["deferred", "awaiting_input", "running"];
+
+type HITLPendingCandidate = {
+  readonly created_at: string;
+  readonly task_instance: {
+    readonly start_date?: string | null;
+    readonly state?: TaskInstanceState | null;
+  };
+};
+
+export const isHITLPending = ({
+  created_at: createdAt,
+  task_instance: { start_date: startDate, state },
+}: HITLPendingCandidate): boolean => {
+  if (state === "running") {
+    // Only once the running attempt has written this request: an older request belongs to an earlier
+    // attempt. A resumed run also counts here; the server refuses answers to it.
+    return startDate !== null && startDate !== undefined && Date.parse(createdAt) >= Date.parse(startDate);
+  }
+
+  return state !== undefined && state !== null && HITL_PENDING_STATES.includes(state);
+};
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
@@ -207,17 +228,11 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
 };
 
 export const getHITLState = (translate: TFunction, hitlDetail: HITLDetail) => {
-  const {
-    chosen_options: chosenOptions,
-    options,
-    params,
-    response_received: responseReceived,
-    task_instance: { state: taskInstanceState },
-  } = hitlDetail;
+  const { chosen_options: chosenOptions, options, params, response_received: responseReceived } = hitlDetail;
 
   let stateType: [string, string] = ["responseRequired", "responseReceived"];
 
-  if (!responseReceived && !isHITLPending(taskInstanceState)) {
+  if (!responseReceived && !isHITLPending(hitlDetail)) {
     return translate("state.noResponseReceived");
   }
 

@@ -235,6 +235,15 @@ def update_hitl_detail(
             "The Human-in-the-loop request was replaced after it was loaded. Reload it and answer "
             "the request that is waiting now.",
         )
+    if locked_ti.state == TaskInstanceState.RUNNING and not hitl_detail_model.is_awaited_by_running_task(
+        locked_ti
+    ):
+        # Running, but not checking for this answer: a new attempt that has not written its request
+        # yet, or a resumed run (e.g. a timeout without defaults) that has stopped waiting.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The Task Instance is running but is not waiting for a response to this request.",
+        )
 
     user_id = user.get_id()
     user_name = user.get_name()

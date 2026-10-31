@@ -78,6 +78,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
+    HITLDetailResponse,
     InactiveAssetsResponse,
     LoopDecisionPayload,
     PreviousTIResponse,
@@ -840,6 +841,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """Add the discriminator field the tagged union needs to the HITLDetailResponse API response."""
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
+
+
 class DagResult(DagResponse):
     type: Literal["DagResult"] = "DagResult"
 
@@ -884,6 +896,7 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
+    | HITLDetailResponseResult
     | OKResponse
     | PreviousDagRunResult,
     Field(discriminator="type"),

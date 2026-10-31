@@ -77,7 +77,7 @@ export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }
   const shouldRenderOptionButton =
     hitlDetail.options.length <= 4 && !hitlDetail.multiple && preloadedHITLOptions.length === 0;
 
-  const isPending = isHITLPending(hitlDetail.task_instance.state);
+  const isPending = isHITLPending(hitlDetail);
 
   const chosenOptionsValue = paramsDict.chosen_options?.value;
   const isChosenOptionsEmpty = Array.isArray(chosenOptionsValue)
