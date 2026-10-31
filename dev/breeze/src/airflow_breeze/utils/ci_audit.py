@@ -320,27 +320,33 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
         state = _out(workflow) if _ok(workflow) else "missing" if _is_not_found(workflow) else None
         # Only the fork's owner can read these settings, and the audit runs as the owner.
         actions = run(["gh", "api", f"repos/{fork}/actions/permissions"]) if required is True else None
+        actions_problem = (
+            get_actions_problem(_out(actions), fork) if actions is not None and _ok(actions) else None
+        )
+        # An enabled workflow still never runs while Actions is off or limited, so this fix goes first.
+        allow_actions: tuple[str, ...] = (
+            (f"gh api -X PUT repos/{fork}/actions/permissions -F enabled=true -f allowed_actions=all",)
+            if actions_problem
+            else ()
+        )
         if state is None:
+            not_checked = f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}"
             results.append(
                 CheckResult(
-                    5,
-                    "fork workflows",
-                    CheckStatus.INFO,
-                    f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}",
+                    5, "fork workflows", CheckStatus.FAIL, f"{actions_problem}; {not_checked}", allow_actions
                 )
+                if actions_problem
+                else CheckResult(5, "fork workflows", CheckStatus.INFO, not_checked)
             )
         elif required is True and state != "active":
             enable: tuple[str, ...] = (f"gh workflow enable {CI_WORKFLOW_FILE} -R {fork}",)
             if state == "missing":
                 enable = (f"gh repo sync {fork} --branch main", *enable)
+            finding = f"`Tests (AMD)` is {state} in {fork}; enable it"
+            if actions_problem:
+                finding += f"; also, {actions_problem}"
             results.append(
-                CheckResult(
-                    5,
-                    "fork workflows",
-                    CheckStatus.FAIL,
-                    f"`Tests (AMD)` is {state} in {fork}; enable it",
-                    enable,
-                )
+                CheckResult(5, "fork workflows", CheckStatus.FAIL, finding, (*allow_actions, *enable))
             )
         elif actions is not None and not _ok(actions):
             results.append(
@@ -352,16 +358,14 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                     f"{(actions.stderr or '').strip() or 'gh api failed'}",
                 )
             )
-        elif actions is not None and (actions_problem := get_actions_problem(_out(actions), fork)):
+        elif actions_problem:
             results.append(
                 CheckResult(
                     5,
                     "fork workflows",
                     CheckStatus.FAIL,
                     actions_problem,
-                    (
-                        f"gh api -X PUT repos/{fork}/actions/permissions -F enabled=true -f allowed_actions=all",
-                    ),
+                    allow_actions,
                 )
             )
         elif required is None:

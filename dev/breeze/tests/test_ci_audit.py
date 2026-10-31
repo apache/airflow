@@ -388,6 +388,42 @@ def test_fork_actions_settings(membership, actions, status, finding, fix):
 
 
 @pytest.mark.parametrize(
+    ("workflow", "finding", "fix"),
+    [
+        pytest.param(
+            (0, "disabled_manually"),
+            "`Tests (AMD)` is disabled_manually in someone/airflow; enable it; also, "
+            "GitHub Actions is disabled in someone/airflow, so `Tests (AMD)` never runs",
+            (*ENABLE_ALL_ACTIONS, "gh workflow enable ci-amd.yml -R someone/airflow"),
+            id="workflow-disabled",
+        ),
+        pytest.param(
+            (1, "", "gh: Not Found (HTTP 404)"),
+            "`Tests (AMD)` is missing in someone/airflow; enable it; also, "
+            "GitHub Actions is disabled in someone/airflow, so `Tests (AMD)` never runs",
+            (
+                *ENABLE_ALL_ACTIONS,
+                "gh repo sync someone/airflow --branch main",
+                "gh workflow enable ci-amd.yml -R someone/airflow",
+            ),
+            id="workflow-missing",
+        ),
+        pytest.param(
+            (1, "", "HTTP 502: Bad Gateway"),
+            "GitHub Actions is disabled in someone/airflow, so `Tests (AMD)` never runs; "
+            "could not check `Tests (AMD)` in someone/airflow: HTTP 502: Bad Gateway",
+            ENABLE_ALL_ACTIONS,
+            id="workflow-not-read",
+        ),
+    ],
+)
+def test_actions_disabled_reported_whatever_the_workflow_state(workflow, finding, fix):
+    results = _audit(_machine(workflow=workflow, actions=(0, json.dumps({"enabled": False}))))
+
+    assert (results[5].status, results[5].finding, results[5].fix) == (CheckStatus.FAIL, finding, fix)
+
+
+@pytest.mark.parametrize(
     ("behind", "status"),
     [
         pytest.param((0, "200"), CheckStatus.OK, id="at-threshold"),
