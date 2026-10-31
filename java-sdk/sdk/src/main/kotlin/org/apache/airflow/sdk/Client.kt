@@ -109,7 +109,7 @@ class Client internal constructor(
    * @return The variable value, or `null` if the variable is not set.
    * @throws ApiError if the API call fails.
    */
-  fun getVariable(key: String): Any? = impl.getVariable(key).value
+  fun getVariable(key: String): Any? = impl.getVariable(key)?.value
 
   /**
    * Stores an Airflow variable, replacing any existing value.
