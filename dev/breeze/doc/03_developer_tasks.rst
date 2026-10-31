@@ -254,6 +254,16 @@ Results of the build can be found in the ``generated/_build`` folder.
 Spelling is checked while the documentation is built, so a single build reports both build and
 spelling errors.
 
+Multi-package Python documentation builds use one worker per CPU core by default. Use ``--jobs``
+to limit how many packages build at the same time and reduce peak memory use:
+
+.. code-block:: bash
+
+     breeze build-docs --jobs 2 amazon google
+
+The value must be positive. A single package always uses one worker. This option does not apply
+to the Java or TypeScript SDK documentation and cannot be used with ``--sdk-docs-only``.
+
 This process can take some time, so in order to make it shorter you can filter by package, using package
 short ``provider id`` (might be multiple of them).
 
