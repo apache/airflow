@@ -79,42 +79,127 @@ class TestSageMakerTrainingOperator:
             check_interval=5,
         )
 
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_integer_fields(self, _, mock_training, mock_desc):
+    def test_integer_fields(self, _, mock_training, mock_desc, __):
         mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
-        self.sagemaker.execute(None)
+        self.sagemaker.execute({})
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for key1, key2 in EXPECTED_INTEGER_FIELDS:
             assert self.sagemaker.config[key1][key2] == int(self.sagemaker.config[key1][key2])
 
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     @mock.patch.object(sagemaker, "serialize", return_value="")
-    def test_execute_without_check_if_job_exists(self, _, mock_training, mock_desc):
+    def test_execute_without_check_if_job_exists(self, _, mock_training, mock_desc, __):
         mock_training.return_value = {
             "TrainingJobArn": "test_arn",
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         self.sagemaker.check_if_job_exists = False
         self.sagemaker._check_if_job_exists = mock.MagicMock()
-        self.sagemaker.execute(None)
+        self.sagemaker.execute({})
         self.sagemaker._check_if_job_exists.assert_not_called()
         mock_training.assert_called_once_with(
             CREATE_TRAINING_PARAMS,
             wait_for_completion=False,
-            print_log=True,
+            print_log=False,
             check_interval=5,
             max_ingestion_time=None,
         )
 
-        a = []
-        a.sort()
+    @staticmethod
+    def _task_state_store(stored_job_name=None):
+        store = mock.MagicMock()
+        store.get.return_value = stored_job_name
+        return store
+
+    @pytest.mark.parametrize(
+        ("status", "active", "succeeded"),
+        [
+            ("InProgress", True, False),
+            ("Stopping", True, False),
+            ("Completed", False, True),
+            ("Failed", False, False),
+            ("Stopped", False, False),
+        ],
+    )
+    def test_job_status_mapping(self, status, active, succeeded):
+        assert self.sagemaker.is_job_active(status) is active
+        assert self.sagemaker.is_job_succeeded(status) is succeeded
+
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_durable_disabled_ignores_the_stored_job(self, _, mock_training, mock_desc, __):
+        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.durable = False
+        store = self._task_state_store("previously_running_job")
+
+        self.sagemaker.execute({"task_state_store": store})
+
+        mock_training.assert_called_once()
+        store.get.assert_not_called()
+        store.set.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_durable_persists_the_submitted_job_name(self, _, mock_training, mock_desc, __):
+        mock_desc.side_effect = [ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        store = self._task_state_store()
+
+        self.sagemaker.execute({"task_state_store": store})
+
+        store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
+
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_durable_reconnects_to_a_running_job(self, _, mock_training, mock_desc, mock_poll):
+        mock_desc.return_value = {"TrainingJobStatus": "InProgress"}
+        store = self._task_state_store("previously_running_job")
+
+        self.sagemaker.execute({"task_state_store": store})
+
+        mock_training.assert_not_called()
+        assert mock_poll.call_args.args[0] == "previously_running_job"
+
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_durable_resubmits_after_a_terminal_job(self, _, mock_training, mock_desc, __):
+        mock_desc.return_value = {"TrainingJobStatus": "Failed"}
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.check_if_job_exists = False
+        store = self._task_state_store("previously_failed_job")
+
+        self.sagemaker.execute({"task_state_store": store})
+
+        mock_training.assert_called_once()
+        store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
 
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
@@ -125,7 +210,7 @@ class TestSageMakerTrainingOperator:
             "ResponseMetadata": {"HTTPStatusCode": 404},
         }
         with pytest.raises(AirflowException):
-            self.sagemaker.execute(None)
+            self.sagemaker.execute({})
 
     @mock.patch("airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator.defer")
     @mock.patch.object(
@@ -267,8 +352,9 @@ class TestSageMakerTrainingOperator:
         },
     )
     @mock.patch.object(SageMakerBaseOperator, "_check_if_job_exists", return_value=False)
-    def test_execute_openlineage_data(self, mock_exists, mock_training, mock_desc):
-        self.sagemaker.execute(None)
+    @mock.patch.object(SageMakerHook, "check_training_status_with_log")
+    def test_execute_openlineage_data(self, _, mock_exists, mock_training, mock_desc):
+        self.sagemaker.execute({})
         assert self.sagemaker.get_openlineage_facets_on_complete(None) == OperatorLineage(
             inputs=[Dataset(namespace="s3://input-bucket", name="input-path")],
             outputs=[Dataset(namespace="s3://model-bucket", name="model-path")],
