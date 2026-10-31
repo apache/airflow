@@ -230,6 +230,31 @@ describe("RunBackfillForm", () => {
     expect(screen.queryByText("Date Range")).not.toBeInTheDocument();
   });
 
+  it("offers task-level reprocess options for non-partitioned Dags", () => {
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: { ...baseDag, timetable_partitioned: false },
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+
+    render(<RunBackfillForm dag={baseDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("components:backfill.failedTasksOnly")).toBeInTheDocument();
+    expect(screen.getByText("components:backfill.newTasksOnly")).toBeInTheDocument();
+  });
+
+  it("hides task-level reprocess options for partitioned Dags", () => {
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: { ...baseDag, timetable_partitioned: true },
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+
+    render(<RunBackfillForm dag={{ ...baseDag, timetable_partitioned: true } as never} onClose={vi.fn()} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByText("components:backfill.missingRuns")).toBeInTheDocument();
+    expect(screen.queryByText("components:backfill.failedTasksOnly")).not.toBeInTheDocument();
+    expect(screen.queryByText("components:backfill.newTasksOnly")).not.toBeInTheDocument();
+  });
+
   it("disables Run button when dry-run returns 0 entries", () => {
     vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
       data: { ...baseDag, timetable_partitioned: true },
