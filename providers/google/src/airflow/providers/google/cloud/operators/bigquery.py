@@ -65,7 +65,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -1018,8 +1017,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         Mutually exclusive with table_id. (templated)
     :param job_project_id: (Optional) Google Cloud Project where the job is running.
         If None, it will be derived from the hook's project ID. (templated)
-    :param project_id: (Deprecated) (Optional) The name of the project where the data
-        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -1055,7 +1052,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         "table_project_id",
         "job_id",
         "job_project_id",
-        "project_id",
         "max_results",
         "selected_fields",
         "gcp_conn_id",
@@ -1071,7 +1067,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         table_project_id: str | None = None,
         job_id: str | None = None,
         job_project_id: str | None = None,
-        project_id: str = PROVIDE_PROJECT_ID,
         max_results: int = 100,
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1097,7 +1092,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.encryption_configuration = encryption_configuration
-        self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
@@ -1134,21 +1128,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         )
         return query
 
-    """Deprecated method to assign project_id to table_project_id."""
-
-    @deprecated(
-        planned_removal_date="June 30, 2026",
-        use_instead="table_project_id",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def _assign_project_id(self, project_id: str) -> str:
-        return project_id
-
     def execute(self, context: Context):
-        if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
-            self.table_project_id = self._assign_project_id(self.project_id)
-        elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
-            self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
                 "'job_id' and 'table_id' parameters are mutually exclusive, "
