@@ -1484,7 +1484,11 @@ override-dependencies = ["openai>=2.47.0,<3"]
 # in the image build catches it. Cap each such package here at its last openai 2.x release, which
 # is what the resolver would pick without the override. azure-ai-projects 2.5.0 moved to
 # openai>=3.0.0; the Azure provider needs >=2.2.0.
-constraint-dependencies = ["azure-ai-projects<2.5"]
+constraint-dependencies = [
+    "azure-ai-projects<2.5",
+    # Mitigate emSign/eMudhra CA certificate invalidation security issue (GHSA-6q48-6c7w-9gw2, fixes #75858)
+    "virtualenv>=21.14.12",
+]
 # Synchroonize with scripts/ci/prek/upgrade_important_versions.py
 exclude-newer = "4 days"
 
