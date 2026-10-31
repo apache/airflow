@@ -84,23 +84,10 @@ runs:
       run: |
         echo "Checking free space!"
         df -H
-    - name: >
-        Restore ${{ inputs.image-type }} docker image ${{ inputs.platform }}:${{ inputs.python }}
-        ${{ inputs.image-stash-ref != '' && format('built for ref {0}', inputs.image-stash-ref) || '' }}
-      uses: ./.github/actions/stash-restore
-      with:
-        key: "${{ inputs.image-type }}-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}\
-          ${{ inputs.image-stash-ref != '' && format('-{0}', inputs.image-stash-ref) || '' }}"
-        path: "/mnt/"
-        # Must stay true: runs on RunsOn (canaries and release-branch pushes) save these image
-        # stashes as S3 digests only.
-        only-current-branch: 'true'
-        fail-on-download: 'true'
     - name: "Load ${{ inputs.image-type }} image ${{ inputs.platform }}:${{ inputs.python }}"
-      env:
-        PLATFORM: ${{ inputs.platform }}
-        PYTHON: ${{ inputs.python }}
-        IMAGE_TYPE: ${{ inputs.image-type }}
-      run: >
-        breeze ${IMAGE_TYPE}-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt"
-      shell: bash
+      uses: ./.github/actions/load_image
+      with:
+        python: ${{ inputs.python }}
+        platform: ${{ inputs.platform }}
+        image-type: ${{ inputs.image-type }}
+        image-stash-ref: ${{ inputs.image-stash-ref }}
