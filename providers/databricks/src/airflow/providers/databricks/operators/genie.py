@@ -181,7 +181,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             store.delete(self._submission_key)
         return self.poll_until_complete(ref, context)
 
-    def submit_job(self, context: Context) -> GenieMessageRef:
+    def submit_job(self, context: Context) -> Any:
         store = self._task_state_store(context)
         if store is not None:
             if store.get(self._submission_key) and not self.resubmit_unconfirmed:
