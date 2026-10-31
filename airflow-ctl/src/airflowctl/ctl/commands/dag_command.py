@@ -48,12 +48,13 @@ def update_dag_state(
             dag_id=dag_id, dag_body=DAGPatchBody(is_paused=operation == "pause")
         )
     except ServerResponseError as e:
-        rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]")
+        rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]", file=sys.stderr)
         sys.exit(1)
 
     response_dict = response.model_dump()
-    rich.print(f"[green]Dag {operation} successful {dag_id}[/green]")
-    rich.print("[green]Further Dag details:[/green]")
+    # Status lines go to stderr so stdout carries only the --output data (e.g. JSON for jq).
+    rich.print(f"[green]Dag {operation} successful {dag_id}[/green]", file=sys.stderr)
+    rich.print("[green]Further Dag details:[/green]", file=sys.stderr)
     AirflowConsole().print_as(
         data=[response_dict],
         output=output,
