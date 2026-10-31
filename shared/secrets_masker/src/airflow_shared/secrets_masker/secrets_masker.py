@@ -76,6 +76,26 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
 
+DEFAULT_SENSITIVE_FIELD_NAMES = frozenset(
+    {
+        "app_key",
+        "certificate",
+        "credential",
+        "keytab",
+        "kube_config",
+        "oauth",
+        "routing_key",
+        "thumbprint",
+        "write_key",
+    }
+)
+"""
+Names of fields (Connection extra, Variable key name etc.) that are sensitive only as a whole name.
+
+Matching these as substrings would also hide non-secret fields such as ``kube_config_path`` or
+``credential_config_file``. The ``extra__<conn_type>__<name>`` form of each name matches too.
+"""
+
 SECRETS_TO_SKIP_MASKING = {"airflow"}
 """Common terms that should be excluded from masking in both production and tests"""
 
@@ -596,6 +616,8 @@ class SecretsMasker(logging.Filter):
             normalized = _NON_WORD_RE.sub("_", name.lower())
             split = _CAMEL_ACRONYM_RE.sub(r"\1_\2", _CAMEL_LOWER_UPPER_RE.sub(r"\1_\2", name))
             split = _NON_WORD_RE.sub("_", split.lower())
+            if any(form.rsplit("__", 1)[-1] in DEFAULT_SENSITIVE_FIELD_NAMES for form in (normalized, split)):
+                return True
             # Check both forms so fields configured without separators (e.g. ``mysensitivekey``)
             # keep matching camelCase keys such as ``mySensitiveKey``.
             return any(s in normalized or s in split for s in self.sensitive_variables_fields)
