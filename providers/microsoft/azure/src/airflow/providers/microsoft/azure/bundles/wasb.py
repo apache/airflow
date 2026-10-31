@@ -17,14 +17,32 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tarfile
+import tempfile
 from functools import cached_property
 from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 import structlog
+from azure.core import MatchConditions
+from azure.core.exceptions import ResourceNotFoundError
 
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+
+def _require_tar_data_filter() -> None:
+    if hasattr(tarfile, "data_filter"):
+        return
+    raise RuntimeError("Archive Dag bundles require Python 3.11.4 or later (tarfile filter='data').")
+
+
+def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
+    """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    _require_tar_data_filter()
+    with tarfile.open(archive_path, "r:*") as tar:
+        tar.extractall(unpack_dir, filter="data")
 
 
 class WasbDagBundle(BaseDagBundle):
@@ -36,7 +54,16 @@ class WasbDagBundle(BaseDagBundle):
     :param wasb_conn_id: Airflow connection ID for Azure Blob Storage. Defaults to WasbHook.default_conn_name.
     :param container_name: The name of the blob container containing the Dag files.
     :param prefix: Optional subdirectory within the container where the Dags are stored.
-        If empty, Dags are assumed to be at the root of the container.
+        If empty, Dags are assumed to be at the root of the container. Mutually exclusive
+        with ``archive_blob``.
+    :param archive_blob: Optional blob name of a ``.tar.gz`` archive holding the Dag files.
+        When set, the bundle is staged by downloading this single blob and unpacking it
+        locally, instead of downloading every blob under a prefix one at a time.
+        The archive is then the only source of the Dags: ``archive_blob`` is mutually
+        exclusive with ``prefix``, so there is no second copy to keep in sync and no
+        fallback to a per-blob sync. Members are extracted relative to the bundle
+        root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``.
+        Requires Python 3.11.4 or later.
     """
 
     supports_versioning = False
@@ -47,12 +74,21 @@ class WasbDagBundle(BaseDagBundle):
         wasb_conn_id: str = WasbHook.default_conn_name,
         container_name: str,
         prefix: str = "",
+        archive_blob: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if prefix and archive_blob:
+            raise ValueError(
+                "WasbDagBundle accepts either 'prefix' or 'archive_blob', not both. When "
+                "'archive_blob' is set the archive is the only staging source."
+            )
+        if archive_blob:
+            _require_tar_data_filter()
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.prefix = prefix
+        self.archive_blob = archive_blob
         self.wasb_dags_dir: Path = self.base_dir
 
         log = structlog.get_logger(__name__)
@@ -61,6 +97,7 @@ class WasbDagBundle(BaseDagBundle):
             version=self.version,
             container_name=self.container_name,
             prefix=self.prefix,
+            archive_blob=self.archive_blob,
             wasb_conn_id=self.wasb_conn_id,
         )
 
@@ -99,6 +136,7 @@ class WasbDagBundle(BaseDagBundle):
             f"name={self.name!r}, "
             f"container_name={self.container_name!r}, "
             f"prefix={self.prefix!r}, "
+            f"archive_blob={self.archive_blob!r}, "
             f"version={self.version!r}"
             f")>"
         )
@@ -118,6 +156,9 @@ class WasbDagBundle(BaseDagBundle):
             raise ValueError("Refreshing a specific version is not supported")
 
         with self.lock():
+            if self.archive_blob:
+                self._refresh_from_archive(self.archive_blob)
+                return
             self._log.debug(
                 "Downloading Dags from wasb://%s/%s to %s",
                 self.container_name,
@@ -130,6 +171,80 @@ class WasbDagBundle(BaseDagBundle):
                 local_dir=self.wasb_dags_dir,
                 delete_stale=True,
             )
+
+    def _archive_state_dir(self) -> Path:
+        return self.wasb_dags_dir.parent / f".{self.name}"
+
+    def _archive_etag_path(self) -> Path:
+        return self._archive_state_dir() / "etag"
+
+    def _remove_stale_archive_staging_dirs(self) -> None:
+        state_dir = self._archive_state_dir()
+        if not state_dir.is_dir():
+            return
+        for leftover in state_dir.iterdir():
+            if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
+                shutil.rmtree(leftover, ignore_errors=True)
+
+    def _refresh_from_archive(self, archive_blob: str) -> None:
+        """Stage the Dag bundle by downloading and unpacking the single archive blob."""
+        self._remove_stale_archive_staging_dirs()
+        blob = self.wasb_hook.get_conn().get_blob_client(self.container_name, archive_blob)
+        try:
+            props = blob.get_blob_properties()
+        except ResourceNotFoundError:
+            raise ValueError(f"WASB archive 'wasb://{self.container_name}/{archive_blob}' does not exist.")
+        etag = props.etag or ""
+
+        marker = self._archive_etag_path()
+        if etag and marker.is_file() and marker.read_text() == etag:
+            self._log.debug(
+                "Dag bundle archive 'wasb://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.container_name,
+                archive_blob,
+                etag,
+            )
+            return
+
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            download_kwargs = {}
+            if etag:
+                download_kwargs["etag"] = etag
+                download_kwargs["match_condition"] = MatchConditions.IfNotModified
+            payload = blob.download_blob(**download_kwargs).readall()
+            archive_path.write_bytes(payload)
+
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            _extract_archive(archive_path, unpack_dir)
+            archive_path.unlink()
+
+            backup_dir = staging_dir / "previous"
+            if self.wasb_dags_dir.exists():
+                self.wasb_dags_dir.rename(backup_dir)
+            try:
+                unpack_dir.rename(self.wasb_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.wasb_dags_dir)
+                raise
+
+            if etag:
+                self._archive_etag_path().write_text(etag)
+
+            self._log.debug(
+                "Staged Dag bundle from archive 'wasb://%s/%s' (%s bytes) to %s",
+                self.container_name,
+                archive_blob,
+                len(payload),
+                self.wasb_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
     def view_url(self, version: str | None = None) -> str | None:
         """
@@ -149,6 +264,8 @@ class WasbDagBundle(BaseDagBundle):
         account_url = self.wasb_hook.blob_service_client.url
         scheme, netloc, path, _, _ = urlsplit(account_url)
         path = f"{path.rstrip('/')}/{self.container_name}"
-        if self.prefix:
+        if self.archive_blob:
+            path = f"{path}/{self.archive_blob}"
+        elif self.prefix:
             path = f"{path}/{self.prefix}"
         return urlunsplit((scheme, netloc, path, "", ""))

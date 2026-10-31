@@ -47,6 +47,43 @@ Example of using the WasbDagBundle:
      }
     ]'
 
+Staging from a single archive blob
+----------------------------------
+
+By default the bundle is staged by downloading every blob under ``prefix`` one at a time. Each blob
+costs a full request round-trip, so bundles made of many small files can take a long time to stage — a cost
+paid by every component that stages the bundle, which with ephemeral workers (e.g. KubernetesExecutor task
+pods) means on every task start.
+
+Setting ``archive_blob`` instead of ``prefix`` stages the bundle from a single ``.tar.gz`` blob: one
+metadata read to detect changes (unchanged archives are not re-downloaded), one download to fetch it, then
+a local unpack and a swap into place. The two options are mutually exclusive — configuring both
+raises when the bundle is constructed, which is when the bundle config is loaded — so the archive
+is the only source of the Dags, with no second copy to keep in sync.
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
+     {
+         "name": "my-wasb-dags",
+         "classpath": "airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle",
+         "kwargs": {
+             "wasb_conn_id": "wasb_default",
+             "container_name": "airflow-dags",
+             "archive_blob": "bundle-archives/dags.tar.gz",
+             "refresh_interval": 60
+         }
+     }
+    ]'
+
+Publishing the archive is the responsibility of your deployment process. Members are extracted relative to
+the bundle root, so pack the contents of the Dags directory rather than the directory itself — for example:
+
+.. code-block:: bash
+
+    tar -C ./dags -czf dags.tar.gz .
+    az storage blob upload --container-name airflow-dags --name bundle-archives/dags.tar.gz --file dags.tar.gz --overwrite
+
 Authentication
 --------------
 
