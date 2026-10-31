@@ -1273,6 +1273,7 @@ class TestCliConfigMethods:
         ("group_name", "subcommand_name", "expected_help"),
         [
             ("assets", "get", "Retrieve an asset by its ID"),
+            ("assets", "state-store", "Manage the state store of an asset"),
             ("connections", "get", "Retrieve a connection by its ID"),
             ("taskinstances", "list", "List all task instances for a given Dag run"),
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
