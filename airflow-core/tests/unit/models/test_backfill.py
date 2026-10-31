@@ -834,6 +834,45 @@ def test_active_dag_run(dag_maker, session):
         )
 
 
+def test_concurrent_create_backfill_race(dag_maker, session):
+    """Concurrent _create_backfill calls for the same Dag must not create multiple active backfills."""
+    import concurrent.futures
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    results = []
+    errors = []
+
+    def try_create():
+        try:
+            b = _create_backfill(
+                dag_id=dag.dag_id,
+                from_date=pendulum.parse("2021-01-01"),
+                to_date=pendulum.parse("2021-01-05"),
+                max_active_runs=10,
+                reverse=False,
+                triggering_user_name="pytest",
+                dag_run_conf={"this": "param"},
+            )
+            results.append(b)
+        except AlreadyRunningBackfill as e:
+            errors.append(e)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(try_create) for _ in range(5)]
+        concurrent.futures.wait(futures)
+
+    assert len(results) == 1
+    assert len(errors) == 4
+
+    active_backfills = session.scalars(
+        select(Backfill).where(Backfill.dag_id == dag.dag_id, Backfill.completed_at.is_(None))
+    ).all()
+    assert len(active_backfills) == 1
+
+
 def create_next_run(
     *, is_backfill: bool, next_date: datetime, dag_id: str, dag_maker, reprocess=None, session: Session
 ):
