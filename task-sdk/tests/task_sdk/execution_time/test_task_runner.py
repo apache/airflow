@@ -108,7 +108,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskDeferred,
 )
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import context as context_module, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -178,6 +178,7 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _wrap_external_ref,
+    set_current_team_name,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
@@ -197,6 +198,7 @@ from airflow.sdk.execution_time.task_runner import (
     finalize,
     get_startup_details,
     parse,
+    reinit_supervisor_comms,
     run,
     startup,
 )
@@ -2277,6 +2279,45 @@ def test_startup_and_run_dag_with_rtif(
         ),
     ]
     mock_supervisor_comms.assert_has_calls(expected_calls)
+
+
+@mock.patch("airflow.sdk.execution_time.task_runner.set_current_team_name", autospec=True)
+def test_startup_sets_the_current_team(mock_set_current_team_name, mocked_parse, make_ti_context):
+    ti_context = make_ti_context()
+    ti_context.dag_run.team_name = "team_a"
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=ti_context,
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mocked_parse(what, "basic_dag", CustomOperator(task_id="my_task"))
+
+    startup(what)
+
+    mock_set_current_team_name.assert_called_once_with("team_a")
+
+
+@mock.patch.dict(os.environ)
+def test_reinit_supervisor_comms_restores_the_current_team(monkeypatch, mock_supervisor_comms):
+    monkeypatch.setattr(context_module, "_current_team_name", None)
+    set_current_team_name("team_a")
+    # A child interpreter starts with only the environment it inherited.
+    monkeypatch.setattr(context_module, "_current_team_name", None)
+
+    reinit_supervisor_comms()
+
+    assert context_module._current_team_name == "team_a"
 
 
 @patch("os.execvp")

@@ -79,7 +79,7 @@ class TestConnectionCacheIntegration:
         result = _get_connection(conn_id)
         assert result.conn_id == conn_id
         assert result.conn_type == "mysql"
-        mock_backend.get_connection.assert_called_once_with(conn_id=conn_id)
+        mock_backend.get_connection.assert_called_once_with(conn_id=conn_id, team_name=None)
 
         cached_uri = SecretCache.get_connection_uri(conn_id)
         cached_conn = Connection.from_uri(cached_uri, conn_id=conn_id)
@@ -180,9 +180,21 @@ class TestVariableCacheIntegration:
 
         result = _get_variable(key, deserialize_json=False)
         assert result == value
-        mock_backend.get_variable.assert_called_once_with(key=key)
+        mock_backend.get_variable.assert_called_once_with(key=key, team_name=None)
         cached_value = SecretCache.get_variable(key)
         assert cached_value == value
+
+    @patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded")
+    def test_get_variable_cache_is_keyed_by_team(self, mock_ensure_backends, monkeypatch):
+        monkeypatch.setattr("airflow.sdk.execution_time.context._current_team_name", "team_a")
+        SecretCache.save_variable("my_var", "global_value")
+
+        mock_backend = MagicMock(spec=["get_variable"])
+        mock_backend.get_variable.return_value = "team_a_value"
+        mock_ensure_backends.return_value = [mock_backend]
+
+        assert _get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert SecretCache.get_variable("my_var", team_name="team_a") == "team_a_value"
 
     @patch("airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded")
     def test_get_variable_from_api_saves_to_cache(self, mock_ensure_backends, mock_supervisor_comms):

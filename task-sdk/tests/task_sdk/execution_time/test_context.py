@@ -109,7 +109,9 @@ from airflow.sdk.execution_time.context import (
     _async_get_variable_keys,
     _async_set_variable,
     _get_connection,
+    _get_variable,
     _process_connection_result_conn,
+    _set_variable,
     _wrap_external_ref,
     context_to_airflow_vars,
     set_current_context,
@@ -1777,6 +1779,62 @@ class TestSecretsBackend:
 
             with pytest.raises(AirflowNotFoundException, match="isn't defined"):
                 _get_connection("nonexistent_conn")
+
+
+class TestTeamSecretLookups:
+    """Lookups pass the current team, so a team's env var wins over a global one of the same name."""
+
+    @pytest.fixture(autouse=True)
+    def _team_a_and_global_env_vars(self, monkeypatch):
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setenv("AIRFLOW_VAR_MY_VAR", "global_value")
+        monkeypatch.setenv("AIRFLOW_VAR__TEAM_A___MY_VAR", "team_a_value")
+        monkeypatch.setenv("AIRFLOW_CONN_MY_CONN", "http://global.example.com")
+        monkeypatch.setenv("AIRFLOW_CONN__TEAM_A___MY_CONN", "http://team-a.example.com")
+        monkeypatch.setattr("airflow.sdk.execution_time.context._current_team_name", "team_a")
+
+        backend = EnvironmentVariablesBackend()
+        backend._set_connection_class(Connection)
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: [backend]
+        )
+
+    def test_sync_lookups(self):
+        assert _get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert _get_connection("my_conn").host == "team-a.example.com"
+
+    @pytest.mark.asyncio
+    async def test_async_lookups(self):
+        assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert (await _async_get_connection("my_conn")).host == "team-a.example.com"
+
+    @pytest.mark.asyncio
+    async def test_async_backend_methods(self, monkeypatch):
+        class AsyncBackend:
+            async def aget_variable(self, key, team_name=None):
+                return f"{team_name}_value"
+
+            async def aget_connection(self, conn_id, team_name=None):
+                return Connection(conn_id=conn_id, conn_type="http", host=f"{team_name}.example.com")
+
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", lambda: [AsyncBackend()]
+        )
+
+        assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
+        assert (await _async_get_connection("my_conn")).host == "team_a.example.com"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.log")
+    async def test_set_variable_warns_about_team_env_var(self, mock_log, monkeypatch, mock_supervisor_comms):
+        monkeypatch.delenv("AIRFLOW_VAR_MY_VAR")
+        mock_supervisor_comms.asend.return_value = None
+
+        _set_variable("my_var", "new_value")
+        await _async_set_variable("my_var", "new_value")
+
+        assert mock_log.warning.call_count == 2
 
 
 class TestTaskStateStoreAccessor:
