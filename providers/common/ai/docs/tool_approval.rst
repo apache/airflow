@@ -20,6 +20,14 @@
 Approve an agent's tool calls
 =============================
 
+.. meta::
+    :description: Pause an agent before it runs a tool you marked for approval, such as one that refunds an order or writes to a table, and let a person approve or reject that call from the Required Actions page.
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
 .. seealso::
     To approve, edit or reject an LLM operator's output instead, see :doc:`approval_gates`;
     to review an agent's final answer over several rounds, see :doc:`hitl_review`.
