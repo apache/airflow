@@ -738,6 +738,7 @@ class TestRetryConfigurationEnvVars:
             "AIRFLOW_CLI_API_RETRIES",
             "AIRFLOW_CLI_API_RETRY_WAIT_MIN",
             "AIRFLOW_CLI_API_RETRY_WAIT_MAX",
+            "AIRFLOW_CLI_API_TIMEOUT",
         ):
             monkeypatch.delenv(name, raising=False)
 
@@ -769,6 +770,29 @@ class TestRetryConfigurationEnvVars:
         assert result.stdout.strip() == expected
         assert ("AIRFLOW_CLI_API_RETRIES" in result.stderr) is warns
 
+    @pytest.mark.parametrize(
+        ("value", "expected", "warns"),
+        [
+            pytest.param("120", "120", False, id="integer-is-used"),
+            pytest.param("", "30", False, id="empty-means-unset"),
+            pytest.param("0", "30", True, id="zero-falls-back"),
+            pytest.param("-5", "30", True, id="negative-falls-back"),
+            pytest.param("abc", "30", True, id="typo-falls-back"),
+        ],
+    )
+    def test_timeout_env_var(self, value, expected, warns):
+        result = subprocess.run(
+            [sys.executable, "-c", "import airflowctl.api.client as c; print(c.API_TIMEOUT)"],
+            env={**os.environ, "AIRFLOW_CLI_API_TIMEOUT": value},
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stdout.strip() == expected
+        assert ("AIRFLOW_CLI_API_TIMEOUT" in result.stderr) is warns
+
     def test_zero_wait_is_allowed(self):
         """Only the retry count needs a floor of 1; waiting 0 seconds between retries is valid."""
         result = subprocess.run(
@@ -782,6 +806,19 @@ class TestRetryConfigurationEnvVars:
         assert result.returncode == 0, result.stderr
         assert result.stdout.strip() == "0"
         assert result.stderr == ""
+
+
+class TestClientTimeout:
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            pytest.param({}, httpx.Timeout(45, connect=5.0), id="default"),
+            pytest.param({"timeout": 2}, httpx.Timeout(2), id="explicit"),
+        ],
+    )
+    @patch("airflowctl.api.client.API_TIMEOUT", new=45)
+    def test_timeout(self, kwargs, expected):
+        assert Client(base_url="http://localhost:8080", **kwargs).timeout == expected
 
 
 class TestGetClientEnvironment:
