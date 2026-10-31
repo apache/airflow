@@ -31,6 +31,7 @@ from uuid import UUID
 import pendulum
 import pytest
 import time_machine
+import uuid6
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -54,6 +55,7 @@ from airflow._shared.observability.traces import (
     OverrideableRandomIdGenerator,
 )
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.dag_processing.dagbag import DagBag
@@ -1741,7 +1743,7 @@ class TestDagRun:
         assert dag_run.version_number == dag_v.version_number
 
     def test_dag_run_dag_versions_with_null_created_dag_version(self, dag_maker, session):
-        """Test that dag_versions returns empty list when created_dag_version is None and bundle_version is populated."""
+        """bundle_version alone must not hide TI versions when created_dag_version is None."""
         with dag_maker(
             "test_dag_run_null_created_dag_version",
             schedule=datetime.timedelta(days=1),
@@ -1750,16 +1752,169 @@ class TestDagRun:
             EmptyOperator(task_id="empty")
         dag_run = dag_maker.create_dagrun()
 
+        ti_version_ids = {ti.dag_version_id for ti in dag_run.task_instances if ti.dag_version_id is not None}
+        assert ti_version_ids
+
         dag_run.bundle_version = "some_bundle_version"
         dag_run.created_dag_version_id = None
         dag_run.created_dag_version = None
         session.merge(dag_run)
         session.flush()
 
-        # This should return empty list, not [None]
-        assert dag_run.dag_versions == []
-        assert isinstance(dag_run.dag_versions, list)
-        assert len(dag_run.dag_versions) == 0
+        # Derive from TI versions; never return [None] from a null created_dag_version shortcut.
+        versions = dag_run.dag_versions
+        assert isinstance(versions, list)
+        assert {dv.id for dv in versions} == ti_version_ids
+        assert None not in versions
+
+    def test_bundled_dag_run_dag_versions_after_partial_run_on_latest_version(self, dag_maker, session):
+        """Bundled dag_versions include uncleared TI versions after a partial run_on_latest_version clear.
+
+        Clearing a subset with run_on_latest_version=True bumps created_dag_version_id
+        and bundle_version to latest while uncleared TIs stay on the old version.
+        The property must report both.
+        """
+        with dag_maker(
+            "test_dag_run_dag_versions_partial_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v1",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+
+        old_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        ti0, ti1 = sorted(dag_run.task_instances, key=lambda ti: ti.task_id)
+        for ti in (ti0, ti1):
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        dag_run.state = DagRunState.SUCCESS
+        session.merge(dag_run)
+        session.flush()
+
+        with dag_maker(
+            "test_dag_run_dag_versions_partial_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances([ti0], session, run_on_latest_version=True)
+        session.commit()
+
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run is not None
+        assert dag_run.created_dag_version_id == new_dag_version.id
+        assert dag_run.bundle_version == new_dag_version.bundle_version
+
+        tis = {ti.task_id: ti for ti in dag_run.task_instances}
+        assert tis["0"].dag_version_id == new_dag_version.id
+        assert tis["1"].dag_version_id == old_dag_version.id
+
+        session.expire(dag_run, ["task_instances", "historical_task_instances"])
+        dag_run._prefetched_dag_version_ids = None
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "historical_task_instances" in unloaded
+        version_ids = {dv.id for dv in dag_run.dag_versions}
+        assert version_ids == {old_dag_version.id, new_dag_version.id}
+        assert "task_instances" in sa_inspect(dag_run).unloaded
+        assert "historical_task_instances" in sa_inspect(dag_run).unloaded
+
+        attach_dag_versions_to_runs([dag_run], session=session)
+        assert dag_run._prefetched_dag_version_ids is not None
+        assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
+        assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+    def test_bundled_dag_run_dag_versions_after_full_run_on_latest_version(self, dag_maker, session):
+        """Bundled dag_versions still include archived-attempt versions after a full clear.
+
+        Clearing every TI with run_on_latest_version=True bumps created_dag_version_id
+        and bundle_version to latest, and all current TIs move to that version. The
+        previous version remains on archived attempts, so the property must still report both.
+        """
+        with dag_maker(
+            "test_dag_run_dag_versions_full_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v1",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dag_run = dag_maker.create_dagrun(state=State.RUNNING, run_type=DagRunType.SCHEDULED)
+
+        old_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        for ti in dag_run.task_instances:
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+        dag_run.state = DagRunState.SUCCESS
+        session.merge(dag_run)
+        session.flush()
+
+        with dag_maker(
+            "test_dag_run_dag_versions_full_latest",
+            schedule=datetime.timedelta(days=1),
+            start_date=DEFAULT_DATE,
+            bundle_version="v2",
+        ):
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        new_dag_version = DagVersion.get_latest_version(dag_run.dag_id)
+        assert old_dag_version.id != new_dag_version.id
+
+        clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+        session.commit()
+
+        dag_run = session.get(DagRun, dag_run.id)
+        assert dag_run is not None
+        assert dag_run.created_dag_version_id == new_dag_version.id
+        assert dag_run.bundle_version == new_dag_version.bundle_version
+        assert {ti.dag_version_id for ti in dag_run.task_instances} == {new_dag_version.id}
+
+        archived_version_ids = set(
+            session.scalars(
+                select(TaskInstance.dag_version_id)
+                .where(
+                    TaskInstance.dag_id == dag_run.dag_id,
+                    TaskInstance.run_id == dag_run.run_id,
+                    TaskInstance.dag_version_id.is_not(None),
+                )
+                .execution_options(include_all_attempts=True)
+            )
+        )
+        assert old_dag_version.id in archived_version_ids
+
+        session.expire(dag_run, ["task_instances", "historical_task_instances"])
+        dag_run._prefetched_dag_version_ids = None
+        unloaded = sa_inspect(dag_run).unloaded
+        assert "task_instances" in unloaded
+        assert "historical_task_instances" in unloaded
+        version_ids = {dv.id for dv in dag_run.dag_versions}
+        assert version_ids == {old_dag_version.id, new_dag_version.id}
+        assert "task_instances" in sa_inspect(dag_run).unloaded
+        assert "historical_task_instances" in sa_inspect(dag_run).unloaded
+
+        attach_dag_versions_to_runs([dag_run], session=session)
+        assert dag_run._prefetched_dag_version_ids is not None
+        assert set(dag_run._prefetched_dag_version_ids) == {old_dag_version.id, new_dag_version.id}
+        assert {dv.id for dv in dag_run.dag_versions} == {old_dag_version.id, new_dag_version.id}
+
+    def test_dag_run_dag_versions_transient_run_uses_relationships(self):
+        """A DagRun not attached to a session reads versions from in-memory relationships."""
+        dag_id = "test_transient_dag_versions"
+        with DAG(dag_id=dag_id, schedule=None, start_date=DEFAULT_DATE):
+            task = EmptyOperator(task_id="empty")
+        v1 = DagVersion(id=uuid6.uuid7(), dag_id=dag_id, version_number=1, bundle_name="testing")
+        dag_run = DagRun(dag_id=dag_id, run_id="manual", run_type=DagRunType.MANUAL)
+        ti = TaskInstance(task=task, run_id=dag_run.run_id, dag_version_id=v1.id)
+        ti.dag_version = v1
+        dag_run.task_instances.append(ti)
+        assert {dv.id for dv in dag_run.dag_versions} == {v1.id}
 
     @pytest.mark.parametrize(
         "interval",
