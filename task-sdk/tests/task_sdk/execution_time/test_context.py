@@ -214,6 +214,16 @@ class TestAirflowContextHelpers:
             assert context_vars["AIRFLOW_CTX_AIRFLOW_CLUSTER"] == airflow_cluster
 
         with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
+            # Keys already carrying the prefix of the requested format are kept as-is.
+            mock_method.return_value = {"AIRFLOW_CTX_CLUSTER": airflow_cluster}
+            assert context_to_airflow_vars({}, in_env_var_format=True) == {
+                "AIRFLOW_CTX_CLUSTER": airflow_cluster
+            }
+
+            mock_method.return_value = {"airflow.ctx.cluster": airflow_cluster}
+            assert context_to_airflow_vars({}) == {"airflow.ctx.cluster": airflow_cluster}
+
+        with mock.patch("airflow.settings.get_airflow_context_vars") as mock_method:
             mock_method.return_value = {"airflow_cluster": [1, 2]}
             with pytest.raises(TypeError) as error:
                 context_to_airflow_vars({})

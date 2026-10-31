@@ -1707,12 +1707,15 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         if not isinstance(value, str):
             raise TypeError(f"value of key <{key_raw}> must be string, not {type(value)}")
 
-        if in_env_var_format and not key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
-            key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
-        elif not key_raw.startswith(DEFAULT_FORMAT_PREFIX):
-            key = DEFAULT_FORMAT_PREFIX + key_raw
-        else:
+        if in_env_var_format:
+            if key_raw.startswith(ENV_VAR_FORMAT_PREFIX):
+                key = key_raw
+            else:
+                key = ENV_VAR_FORMAT_PREFIX + key_raw.upper()
+        elif key_raw.startswith(DEFAULT_FORMAT_PREFIX):
             key = key_raw
+        else:
+            key = DEFAULT_FORMAT_PREFIX + key_raw
         params[key] = value
 
     for subject, attr, mapping_key in ops:
