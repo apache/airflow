@@ -51,7 +51,6 @@ __deprecated_classes = {
     },
     "time_delta": {
         "TimeDeltaSensor": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensor",
-        "TimeDeltaSensorAsync": "airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAsync",
     },
     "filesystem": {
         "FileSensor": "airflow.providers.standard.sensors.filesystem.FileSensor",
