@@ -38,6 +38,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/task.rst",
                     "/docs/apache-airflow-providers-databricks/operators/agent.rst",
                     "/docs/apache-airflow-providers-databricks/operators/genie.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/genie_operator.rst",
                 ],
                 "logo": "/docs/integration-logos/Databricks.png",
                 "tags": ["service"],
@@ -76,6 +77,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks",
                     "airflow.providers.databricks.operators.agent",
+                    "airflow.providers.databricks.operators.genie",
                 ],
             },
             {
@@ -131,6 +133,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.triggers.databricks",
                     "airflow.providers.databricks.triggers.agent",
+                    "airflow.providers.databricks.triggers.genie",
                 ],
             }
         ],
