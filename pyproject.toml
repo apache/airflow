@@ -20,8 +20,8 @@ requires = [
     "hatchling==1.32.4",
     "packaging==26.3",
     "pathspec==1.1.1",
-    "pluggy==1.6.0",
-    "tomlkit==0.15.1",
+    "pluggy==1.7.0",
+    "tomlkit==0.15.2",
     "trove-classifiers==2026.9.21.13",
 ]
 build-backend = "hatchling.build"
@@ -585,7 +585,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.4",
+    "uv>=0.13.6",
 ]
 
 [project.urls]
@@ -1647,9 +1647,9 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 pip = false
 uv = false
 
-# certifi 2026.10.19 removes the compromised "emSign ECC Root CA - G3" root. Remove this
-# `exclude-newer-package` after 2026-10-25, when that release has been out for 4 days.
-certifi = "2026-10-21T00:00:00Z"
+# pypdf 6.21.4 fixes GHSA-mfr5-77xh-9j7h, GHSA-cggf-277g-3q54 and GHSA-5849-834g-hvw5 (high).
+# Remove this `exclude-newer-package` after 2026-11-02, when that release has been out for 4 days.
+pypdf = "2026-10-29T00:00:00Z"
 
 [tool.airflow.dependency-floors]
 # Floors of these dependencies are raised by `breeze ci upgrade` (scripts/ci/prek/upgrade_dependency_floors.py),
@@ -1838,8 +1838,8 @@ google-cloud-aiplatform = "2026-08-13T00:00:00Z"
 # Package managers bypass the cooldown — see `[tool.uv.exclude-newer-package]`.
 pip = false
 uv = false
-# Temporary: see the certifi note in `[tool.uv.exclude-newer-package]`.
-certifi = "2026-10-21T00:00:00Z"
+# Temporary: see the pypdf note in `[tool.uv.exclude-newer-package]`.
+pypdf = "2026-10-29T00:00:00Z"
 
 [tool.uv.sources]
 # These names must match the names as defined in the pyproject.toml of the workspace items,

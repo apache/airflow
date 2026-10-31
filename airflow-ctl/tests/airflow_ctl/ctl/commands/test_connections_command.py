@@ -218,6 +218,69 @@ class TestCliConnectionCommands:
         )
 
     @pytest.mark.parametrize(
+        ("file_content", "expected_message"),
+        [
+            ([{"conn_type": "postgres"}], "expected a JSON object mapping connection ids"),
+            ("not-an-object", "expected a JSON object mapping connection ids"),
+            ({"my_conn": "postgres://host"}, "Invalid connection 'my_conn'"),
+            ({"my_conn": None}, "Invalid connection 'my_conn'"),
+        ],
+        ids=["list", "string", "string-entry", "null-entry"],
+    )
+    def test_import_rejects_malformed_file_structure(
+        self, tmp_path, monkeypatch, file_content, expected_message
+    ):
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        json_path.write_text(json.dumps(file_content))
+        mock_client = mock.MagicMock(spec=Client)
+
+        with pytest.raises(SystemExit) as exc_info:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=mock_client,
+            )
+
+        message = str(exc_info.value)
+        assert expected_message in message
+        assert json_path.as_posix() in message
+        assert "has no attribute" not in message
+        mock_client.connections.bulk.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("details", "expected_reason"),
+        [
+            ({"host": "h"}, "missing required field(s): conn_type"),
+            (
+                {"conn_type": "postgres", "port": "not-a-port"},
+                "port: Input should be a valid integer, unable to parse string as an integer",
+            ),
+            (
+                {"port": "not-a-port"},
+                "missing required field(s): conn_type; "
+                "port: Input should be a valid integer, unable to parse string as an integer",
+            ),
+        ],
+        ids=["missing-conn-type", "invalid-port", "missing-and-invalid"],
+    )
+    def test_import_reports_invalid_connection(self, tmp_path, monkeypatch, details, expected_reason):
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        json_path.write_text(json.dumps({"my_conn": details}))
+        mock_client = mock.MagicMock(spec=Client)
+
+        with pytest.raises(SystemExit) as exc_info:
+            connection_command.import_(
+                self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+                api_client=mock_client,
+            )
+
+        assert str(exc_info.value) == (
+            f"Invalid connection 'my_conn' in {json_path.as_posix()}: {expected_reason}"
+        )
+        mock_client.connections.bulk.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("action_on_existing_key", "expected_enum"),
         [
             ("overwrite", BulkActionOnExistence.OVERWRITE),

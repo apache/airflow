@@ -70,6 +70,31 @@ class TestTokenService:
 
     @conf_vars(
         {
+            ("api_auth", "jwt_expiration_time"): "10",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_without_refresh_token(self, mock_get_keycloak_client, mock_get_auth_manager):
+        mock_keycloak_client = Mock()
+        mock_keycloak_client.token.return_value = {
+            "access_token": self.test_access_token,
+            # no refresh_token key, simulates Keycloak with "Use Refresh Tokens" disabled
+        }
+        mock_keycloak_client.userinfo.return_value = {"sub": "sub", "preferred_username": "username"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_auth_manager = Mock()
+        mock_get_auth_manager.return_value = mock_auth_manager
+        mock_auth_manager.generate_api_jwt.return_value = self.token
+
+        assert create_token_for(username=self.test_username, password=self.test_password) == self.token
+        mock_auth_manager.generate_api_jwt.assert_called_once()
+        user = mock_auth_manager.generate_api_jwt.call_args[0][0]
+        assert user.access_token == self.test_access_token
+        assert user.refresh_token is None
+
+    @conf_vars(
+        {
             ("api_auth", "jwt_cli_expiration_time"): "10",
             ("api_auth", "jwt_expiration_time"): "10",
         }

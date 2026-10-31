@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Active Runs",
+    "bundleVersion": "Bundle Version",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run Timeout",
     "defaultArgs": "Default Args",
@@ -220,6 +221,10 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "pagination": {
+    "nextPage": "Next page",
+    "previousPage": "Previous page"
+  },
   "partition_one": "Partition",
   "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
@@ -266,7 +271,8 @@
   "search": {
     "advanced": {
       "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
-      "title": "Match anywhere"
+      "title": "Match anywhere",
+      "toggleLabel": "Toggle match-anywhere search"
     }
   },
   "security": {
@@ -380,10 +386,12 @@
       "scrollBottom": "Scroll to bottom",
       "scrollTop": "Scroll to top",
       "searchDags": "Search $t(dag_other)",
+      "selectGridCellRange": "Select a range of $t(taskInstance_other) or $t(taskGroup_other) (not loop tasks)",
       "showHelp": "Show $t(shortcuts.title)",
       "toggleExpand": "Expand or collapse all groups",
       "toggleFullscreen": "Toggle fullscreen",
       "toggleGraphGrid": "Toggle graph / grid view",
+      "toggleGridCellSelection": "Add or remove a $t(taskInstance_one) or $t(taskGroup_one) from the selection (not loop tasks)",
       "toggleLogLevel": "Toggle log levels",
       "toggleSource": "Toggle source",
       "toggleTaskGroup": "Expand or collapse $t(taskGroup_one)",
@@ -486,6 +494,7 @@
     "queue": "Queue",
     "queuedWhen": "Queued At",
     "renderedMapIndex": "Rendered Map Index",
+    "retryAt": "Retry At",
     "scheduledWhen": "Scheduled At",
     "stateReason": "Reason for state",
     "stateReasonSummary": {

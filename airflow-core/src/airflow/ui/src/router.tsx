@@ -48,7 +48,7 @@ import { Deadlines } from "src/pages/Deadlines";
 import { ErrorPage } from "src/pages/Error";
 import { Events } from "src/pages/Events";
 import { ExternalView } from "src/pages/ExternalView";
-import { GroupTaskInstance, GroupTaskInstances } from "src/pages/GroupTaskInstance";
+import { GroupTaskInstance, GroupTaskInstances, LoopIterations } from "src/pages/GroupTaskInstance";
 import { HITLTaskInstances } from "src/pages/HITLTaskInstances";
 import { Jobs } from "src/pages/Jobs";
 import { LandingPage } from "src/pages/LandingPage";
@@ -271,7 +271,10 @@ export const routerConfig = [
         path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
       },
       {
-        children: [{ element: <GroupTaskInstances />, index: true }],
+        children: [
+          { element: <GroupTaskInstances />, index: true },
+          { element: <LoopIterations />, path: "iterations" },
+        ],
         element: <GroupTaskInstance />,
         path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
       },

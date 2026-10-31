@@ -25,7 +25,12 @@
 Changelog
 ---------
 
+1.1.0
+.....
+
 .. note::
+  **Significant change: AgentOperator output serialization**
+
   The worker cannot register a model class for XCom deserialization when ``output_type`` is a
   list of output types such as ``[Summary, int]``, an output marker such as
   ``ToolOutput(Summary)``, an output function, a ``TypeAliasType`` or a ``NewType``. For these
@@ -36,8 +41,8 @@ Changelog
   model is still dumped with plain ``model_dump()`` when ``serialize_output=True`` is set or on
   Airflow < 3.3.
 
-  The new behaviour changes the type that a downstream task receives after an upgrade. Versions
-  1.0.0 and 1.1.0 pushed these models as model instances. They dumped a top-level model with
+  The new behaviour changes the type that a downstream task receives after an upgrade.
+  Version 1.0.0 pushed these models as model instances. It dumped a top-level model with
   plain ``model_dump()`` only in HITL review, with ``serialize_output=True`` or on
   Airflow < 3.3. A downstream task loaded a model instance when the model's class was listed in
   ``[core] allowed_deserialization_classes``, or on Airflow >= 3.3 when another task in the
@@ -48,28 +53,90 @@ Changelog
   ``"PT1M30S"`` for a ``timedelta``. Tuples and sets in that model now arrive as lists. See
   :doc:`structured_output`.
 
-1.1.0
-.....
+.. warning::
+  The following changes affect code written against 1.0.0:
+
+  * ``PydanticAIHook``: when a connection supplies credentials (password or host) and the provider class
+    rejects the resulting keyword arguments (``TypeError``), the hook now raises ``ValueError``. In 1.0.0
+    it logged a warning and fell back to environment-variable authentication, which could authenticate
+    as a different identity than the connection. Fix the connection fields for that provider, or remove
+    the credentials from the connection if environment-variable authentication is what you want.
+  * ``MCPHook.get_conn()`` when optional MCP dependencies are missing, and
+    ``airflow.providers.common.ai.policies.retry`` when imported without the Airflow ``RetryPolicy``
+    support (Airflow older than 3.3) now raise ``AirflowOptionalProviderFeatureException`` instead of
+    ``ImportError``. It is not an ``ImportError`` subclass (it derives from ``AirflowException``), so a
+    Dag that guards the import with ``except ImportError:`` as in the 1.0.0 example Dag now fails to
+    parse on those versions. Catch both, importing the exception from
+    ``airflow.providers.common.compat.sdk`` (works on Airflow 2.11 and 3.x)::
+
+      from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+
+      try:
+          from airflow.providers.common.ai.policies.retry import LLMRetryPolicy
+      except (ImportError, AirflowOptionalProviderFeatureException):
+          LLMRetryPolicy = None
+
+.. note::
+  ``LlamaIndexHook`` and ``LangChainHook`` (both experimental, see :doc:`stability`):
+  passing ``embed_model`` and ``llm_model`` positionally is deprecated. In 1.0.0 they were the third and
+  fourth positional parameters (after ``llm_conn_id`` and ``embed_conn_id``), and the two hooks listed
+  them in opposite order (``embed_model`` then ``llm_model`` for ``LlamaIndexHook``, ``llm_model`` then
+  ``embed_model`` for ``LangChainHook``). Positional calls still work and emit an
+  ``AirflowProviderDeprecationWarning``, but support will be removed in a future release. Pass them by
+  keyword, e.g. ``LlamaIndexHook(llm_model="gpt-5")``, which also avoids the meanings swapping between
+  the two hooks.
+
+.. note::
+  The experimental ``LoggingToolset`` is removed from the public API. Importing it from either
+  ``airflow.providers.common.ai.toolsets.LoggingToolset`` (exported from the package since
+  1.0.0, see #74449 under 1.0.0 Features below) or
+  ``airflow.providers.common.ai.toolsets.logging.LoggingToolset`` (public since 0.1.0) now
+  raises ``ImportError``. ``AgentOperator``
+  still logs tool calls through ``enable_tool_logging``. To log tool calls of an agent you
+  build yourself, pass ``capabilities=[ToolLoggingCapability()]`` to the pydantic-ai ``Agent``
+  (import it from ``airflow.providers.common.ai.toolsets.logging``); its ``logger`` argument
+  sets the logger. See :doc:`stability`.
 
 Features
 ~~~~~~~~
 
+* ``Publish usage, run id and model name from LLMOperator's subclasses (#75208)``
+* ``Let a generic pydanticai connection set a default model provider (#75909)``
+* ``Add async aget_conn and acreate_agent to PydanticAIHook (#74150)``
+* ``Use Common AI toolsets with the Claude Agent SDK through AirflowTools (#74026)``
+* ``Support multimodal prompts with require_approval in LLM operators (#74388)``
 * ``Add emit_message_history to record an agent transcript without seeding it (#74811)``
 * ``Push LLMOperator's token usage and cost to XCom (#74355)``
 
 Bug Fixes
 ~~~~~~~~~
 
+* ``Report invalid Common AI hook configuration instead of silently changing authentication (#74451)``
+* ``Load Common AI plugin tabs when the browser reaches Airflow on another origin (#75522)``
+* ``Fix Common AI's AI Model tab for tasks inside a task loop (#75518)``
+* ``Serialize unregistered AgentOperator output models as JSON-compatible dictionaries (#74729)``
 * ``Use common.compat mask_secret in MCPHook (#75064)``
 * ``Preserve SQL table allowlist validation with newer sqlglot and add OpenAI Decisions and System One to the connection vendor list (#73822)``
 
 Misc
 ~~~~
 
+* ``Keep the Anthropic SDK below 2 until pydantic-ai supports it (#75640)``
+* ``List Meta among Common AI external services and recognize pydantic-ai 2.59 providers (#75641)``
+* ``Replace the experimental LoggingToolset API with ToolLoggingCapability (#74694)``
+* ``Bump Vite to 8.1.6 (#75357)``
 * ``Remove unused mypy suppressions in common providers (#75257)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rewrite the Common AI sandbox configuration page around what users set up (#75826)``
+* ``Add an LLM task loop example that stops on a dollar or token budget (#75516)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky OpenShell background-child wrapper test (#75823)``
+   * ``Prepare providers release 2026-10-20 (#75209)``
    * ``Number task loop iterations from one instead of zero (#74773)``
    * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
    * ``Fix Modal contract test importing a private class from its old location (#75188)``
@@ -88,6 +155,7 @@ Misc
   ``capabilities`` or ``spec_file`` move to ``AgentOperator`` or ``@task.agent``. See
   :ref:`howto/operator:llm`.
 
+.. note::
   On Airflow >= 3.3, the ``usage_limits`` of the ``LLM*`` operators (``LLMOperator``,
   ``LLMBranchOperator``, ``LLMSQLQueryOperator``, ``LLMSchemaCompareOperator``,
   ``LLMFileAnalysisOperator``) counts usage across every attempt of the task instance

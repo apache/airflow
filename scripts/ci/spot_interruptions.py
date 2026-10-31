@@ -51,6 +51,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from urllib.parse import quote
@@ -78,6 +79,13 @@ UPDATED_WINDOW = timedelta(hours=2)
 COMMENT_AUTHOR = "github-actions[bot]"
 # A job cancelled while its run was not, e.g. by its timeout, is a failure too.
 FAILED_CONCLUSIONS = ("failure", "cancelled", "timed_out")
+# GitHub answers with a server error while overloaded, and the same request often succeeds later.
+# Server errors, and connections GitHub dropped mid-request (an HTTP/2 stream reset, for one).
+TRANSIENT_ERROR = re.compile(
+    r"\(HTTP 5\d\d\)|stream error|connection reset by peer|unexpected EOF|TLS handshake timeout|i/o timeout"
+)
+GH_API_ATTEMPTS = 3
+GH_API_RETRY_DELAY_SECONDS = 5
 
 
 @dataclass(frozen=True)
@@ -89,8 +97,22 @@ class FailedJob:
     conclusion: str = "failure"
 
 
+def is_transient(error: subprocess.CalledProcessError) -> bool:
+    return bool(TRANSIENT_ERROR.search(error.stderr or ""))
+
+
 def gh_api(*args: str) -> str:
-    return subprocess.run(["gh", "api", *args], check=True, capture_output=True, text=True).stdout
+    command = ["gh", "api", *args]
+    # A POST that failed with a server error may still have created the comment.
+    attempts = 1 if "POST" in args else GH_API_ATTEMPTS
+    for attempt in range(1, attempts):
+        try:
+            return subprocess.run(command, check=True, capture_output=True, text=True).stdout
+        except subprocess.CalledProcessError as e:
+            if not is_transient(e):
+                raise
+            time.sleep(GH_API_RETRY_DELAY_SECONDS * attempt)
+    return subprocess.run(command, check=True, capture_output=True, text=True).stdout
 
 
 def is_spot_interrupted(repo: str, job_id: int) -> bool:
@@ -362,15 +384,34 @@ def update_notice_on(repo: str, pr_number: int, run: dict, jobs: list[FailedJob]
     write_comment(repo, pr_number, existing, body)
 
 
+def describe_error(error: subprocess.CalledProcessError) -> str:
+    return " ".join((error.stderr or str(error)).split())
+
+
 def run_pr_comments(repo: str, now: datetime) -> bool:
-    """Update the notices; return whether every run could be handled."""
+    """
+    Update the notices; return False when a run could not be handled for a lasting reason.
+
+    Server errors that outlast the retries only skip the work they hit: the next scheduled run does
+    it again.
+    """
+    try:
+        runs = list_pull_request_runs(repo, now)
+    except subprocess.CalledProcessError as e:
+        if not is_transient(e):
+            raise
+        print(f"::warning::Could not list the CI runs, GitHub keeps failing: {describe_error(e)}")
+        return True
     ok = True
-    for run in list_pull_request_runs(repo, now):
+    for run in runs:
         try:
             update_notice(repo, run)
         except subprocess.CalledProcessError as e:
-            print(f"Could not handle run {run['html_url']}: {e.stderr or e}", file=sys.stderr)
-            ok = False
+            if is_transient(e):
+                print(f"::warning::Skipped run {run['html_url']}, GitHub keeps failing: {describe_error(e)}")
+            else:
+                print(f"Could not handle run {run['html_url']}: {describe_error(e)}", file=sys.stderr)
+                ok = False
     return ok
 
 

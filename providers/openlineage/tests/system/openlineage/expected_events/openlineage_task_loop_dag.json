@@ -1,0 +1,4406 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_task_loop_dag",
+            "facets": {
+                "airflow": {
+                    "taskGroups": {
+                        "accumulate": {
+                            "is_mapped": false,
+                            "is_loop": true,
+                            "parse_time_mapped_count": null,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 3,
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "process_batch": {
+                            "is_mapped": false,
+                            "is_loop": true,
+                            "parse_time_mapped_count": null,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "has_until": false,
+                            "max_iterations": 2,
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "poll": {
+                            "is_mapped": false,
+                            "is_loop": true,
+                            "parse_time_mapped_count": null,
+                            "gate_task_id": "poll.ready",
+                            "has_until": true,
+                            "max_iterations": 3,
+                            "terminal_task_id": "poll.check"
+                        },
+                        "process_batch.fetch": {
+                            "is_mapped": true,
+                            "is_loop": false,
+                            "parse_time_mapped_count": 2,
+                            "parent_group": "process_batch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        }
+                    },
+                    "tasks": {
+                        "plain_task": {
+                            "task_group": null,
+                            "loop_group": null,
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "trigger_rule": "all_success",
+                            "retries": 0,
+                            "depends_on_past": false
+                        },
+                        "accumulate.increment": {
+                            "task_group": "accumulate",
+                            "loop_group": "accumulate",
+                            "is_mapped": false,
+                            "parse_time_mapped_count": null,
+                            "retries": 2,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "process_batch.process": {
+                            "task_group": "process_batch",
+                            "loop_group": "process_batch",
+                            "is_mapped": true,
+                            "parse_time_mapped_count": null,
+                            "retries": 3,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "process_batch.fetch.download": {
+                            "task_group": "process_batch.fetch",
+                            "loop_group": "process_batch",
+                            "is_mapped": true,
+                            "parse_time_mapped_count": 2,
+                            "retries": 0,
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "accumulate.report": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "process_batch.choose_items": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "poll.check": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success",
+                            "retries": 0
+                        },
+                        "accumulate.__loop_gate": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "process_batch.__loop_gate": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        },
+                        "poll.ready": {
+                            "depends_on_past": false,
+                            "trigger_rule": "all_success"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": null,
+                        "region_index": null,
+                        "max_tries": 0,
+                        "loop": null,
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "loop": null,
+                        "task_id": "plain_task",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.plain_task"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": null,
+                        "region_index": null,
+                        "max_tries": 0,
+                        "loop": null,
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "loop": null,
+                        "task_id": "plain_task",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds",
+                        "task_group": null
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.plain_task"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "up_for_retry",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.increment",
+                        "trigger_rule": "all_success",
+                        "retries": 2,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.increment"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.report",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.report"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": false
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": false
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 3,
+                        "loop": {
+                            "index": 3,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": true
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "accumulate",
+                            "unique_group_id": "accumulate",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "accumulate",
+                            "max_iterations": 3,
+                            "has_until": false,
+                            "gate_task_id": "accumulate.__loop_gate",
+                            "terminal_task_id": "accumulate.report"
+                        },
+                        "task_id": "accumulate.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.accumulate.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.choose_items",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.choose_items"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "state": "running",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "state": "success",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 3,
+                        "state": "success",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "up_for_retry",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "up_for_retry",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "up_for_retry",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "FAIL",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 2,
+                        "state": "up_for_retry",
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 3,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.process",
+                        "trigger_rule": "all_success",
+                        "retries": 3,
+                        "retry_delay": "1.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.process"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": false
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": true
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "process_batch",
+                            "unique_group_id": "process_batch",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.__loop_gate",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.__loop_gate"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "max_tries": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.check",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.check"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": null
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": false,
+                                "reason": "check returned 1"
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 2,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null,
+                            "decision": {
+                                "stop": true,
+                                "reason": "check returned 2"
+                            }
+                        },
+                        "expanded_ti_count": null,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "map_index": null,
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "poll",
+                            "unique_group_id": "poll",
+                            "gate_task_id": null,
+                            "has_until": null,
+                            "max_iterations": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "poll",
+                            "max_iterations": 3,
+                            "has_until": true,
+                            "gate_task_id": "poll.ready",
+                            "terminal_task_id": "poll.check"
+                        },
+                        "task_id": "poll.ready",
+                        "trigger_rule": "all_success"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.poll.ready"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "running",
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 1,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "max_tries": 0,
+                        "map_index": 0,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 0,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "state": "success",
+                        "max_tries": 0,
+                        "map_index": 1,
+                        "id": "{{ is_uuid(result) }}",
+                        "region_id": "{{ is_uuid(result) }}",
+                        "region_index": 1,
+                        "loop": {
+                            "index": 2,
+                            "region_id": "{{ is_uuid(result) }}",
+                            "trajectory": 1,
+                            "forked_from_region_id": null,
+                            "resumes_from_index": null
+                        },
+                        "expanded_ti_count": 2,
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "rendered_map_index": null,
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}"
+                    },
+                    "task": {
+                        "task_group": {
+                            "group_id": "fetch",
+                            "unique_group_id": "process_batch.fetch",
+                            "max_iterations": null,
+                            "has_until": null,
+                            "gate_task_id": null,
+                            "terminal_task_id": null
+                        },
+                        "loop": {
+                            "group_id": "process_batch",
+                            "max_iterations": 2,
+                            "has_until": false,
+                            "gate_task_id": "process_batch.__loop_gate",
+                            "terminal_task_id": "process_batch.process"
+                        },
+                        "task_id": "process_batch.fetch.download",
+                        "trigger_rule": "all_success",
+                        "retries": 0,
+                        "retry_delay": "300.0 seconds"
+                    },
+                    "dag": {
+                        "dag_id": "openlineage_task_loop_dag"
+                    },
+                    "dagRun": {
+                        "run_id": "{{ result is string }}",
+                        "clear_number": 0
+                    }
+                },
+                "parent": {
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "job": {
+                        "name": "openlineage_task_loop_dag"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_task_loop_dag.process_batch.fetch.download"
+        }
+    }
+]

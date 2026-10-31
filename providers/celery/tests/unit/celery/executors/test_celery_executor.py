@@ -35,7 +35,6 @@ from celery import Celery
 from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
@@ -417,43 +416,6 @@ class TestCeleryExecutor:
         with _prepare_app() as app:
             app.control.revoke = mock.MagicMock()
             yield app.control.revoke
-
-    @pytest.mark.backend("mysql", "postgres")
-    def test_cleanup_stuck_queued_tasks(self, mocker, clean_dags_dagruns_and_dagbundles, testing_dag_bundle):
-        start_date = timezone.utcnow() - timedelta(days=2)
-
-        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None) as dag:
-            task = BaseOperator(task_id="task_1", start_date=start_date)
-
-        if AIRFLOW_V_3_0_PLUS:
-            sync_dag_to_db(dag)
-            dag_version = DagVersion.get_latest_version(task.dag.dag_id)
-            ti = create_task_instance(task=task, run_id=None, dag_version_id=dag_version.id)
-        else:
-            ti = TaskInstance(task=task, run_id=None)
-        ti.external_executor_id = "231"
-        ti.state = State.QUEUED
-        ti.queued_dttm = timezone.utcnow() - timedelta(minutes=30)
-        ti.queued_by_job_id = 1
-        tis = [ti]
-        with _prepare_app() as app:
-            app.control.revoke = mock.MagicMock()
-            executor = celery_executor.CeleryExecutor()
-            mock_fail = mocker.patch.object(executor, "fail", autospec=True)
-            executor.job_id = 1
-            if hasattr(executor, "_register_task"):
-                executor._register_task(ti)
-            key = executor.get_task_key(ti) if executor.supports_task_instance_uuid else ti.key
-            executor.running = {key}
-            executor.workloads = {key: AsyncResult("231")}
-            assert executor.has_task(ti)
-            with pytest.warns(AirflowProviderDeprecationWarning, match="cleanup_stuck_queued_tasks"):
-                executor.cleanup_stuck_queued_tasks(tis=tis)
-            executor.sync()
-        assert executor.workloads == {}
-        app.control.revoke.assert_called_once_with("231")
-        mock_fail.assert_called_once_with(key)
-        assert not executor.has_task(ti)
 
     @pytest.mark.backend("mysql", "postgres")
     @mock.patch("airflow.providers.celery.executors.celery_executor.CeleryExecutor.fail")
