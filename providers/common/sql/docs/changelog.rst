@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``DbApiHook.get_pandas_df`` and ``DbApiHook.get_pandas_df_by_chunks`` methods have been removed. Use ``DbApiHook.get_df(..., df_type="pandas")`` and ``DbApiHook.get_df_by_chunks(..., df_type="pandas")`` instead.
+
 2.4.0
 .....
 
