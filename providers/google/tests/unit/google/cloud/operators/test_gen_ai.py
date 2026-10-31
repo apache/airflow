@@ -335,12 +335,87 @@ class TestGenAIGeminiCreateBatchJobOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
+            vertexai=False,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
         )
         mock_hook.return_value.create_batch_job.assert_called_once_with(
             source=TEST_BATCH_JOB_INLINED_REQUESTS,
             model=TEST_GEMINI_MODEL,
             create_batch_job_config=None,
         )
+
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_with_vertexai(self, mock_hook):
+        input_source = "gs://test-bucket/input.jsonl"
+        create_config = {"dest": "gs://test-bucket/output/"}
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location="global",
+            model=TEST_GEMINI_MODEL,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            input_source=input_source,
+            create_batch_job_config=create_config,
+            vertexai=True,
+        )
+
+        op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=None,
+            vertexai=True,
+            project_id=GCP_PROJECT,
+            location="global",
+        )
+        mock_hook.return_value.create_batch_job.assert_called_once_with(
+            source=input_source,
+            model=TEST_GEMINI_MODEL,
+            create_batch_job_config=create_config,
+        )
+
+    @pytest.mark.parametrize(
+        ("op_kwargs", "error_match"),
+        [
+            pytest.param(
+                {"input_source": TEST_BATCH_JOB_INLINED_REQUESTS},
+                "gemini_api_key is required",
+                id="developer-api-without-key",
+            ),
+            pytest.param(
+                {"input_source": TEST_BATCH_JOB_INLINED_REQUESTS, "vertexai": True},
+                "must be a Cloud Storage",
+                id="vertexai-inline-requests",
+            ),
+            pytest.param(
+                {"input_source": "/tmp/requests.jsonl", "vertexai": True},
+                "must be a Cloud Storage",
+                id="vertexai-local-file",
+            ),
+            pytest.param(
+                {"input_source": "gs://test-bucket/input.jsonl", "vertexai": True, "results_folder": "/tmp"},
+                "results_folder is not supported",
+                id="vertexai-results-folder",
+            ),
+        ],
+    )
+    @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
+    def test_execute_rejects_invalid_input(self, mock_hook, op_kwargs, error_match):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location="global",
+            model=TEST_GEMINI_MODEL,
+            **op_kwargs,
+        )
+
+        with pytest.raises(ValueError, match=error_match):
+            op.execute(context={"ti": mock.MagicMock()})
+
+        mock_hook.return_value.create_batch_job.assert_not_called()
 
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_execute_return_value(self, mock_hook):
@@ -508,6 +583,30 @@ class TestGenAIGeminiCreateBatchJobOperator:
         assert results == str(results_folder.resolve() / "ok.jsonl")
         assert (results_folder / "ok.jsonl").read_text() == "data"
 
+    @pytest.mark.parametrize(
+        ("destination_field", "destination_uri"),
+        [
+            ("gcs_uri", "gs://test-bucket/output/predictions.jsonl"),
+            ("bigquery_uri", "bq://test-project.test_dataset.predictions"),
+        ],
+    )
+    def test_prepare_results_for_xcom_returns_vertexai_destination(self, destination_field, destination_uri):
+        op = GenAIGeminiCreateBatchJobOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location="global",
+            model=TEST_GEMINI_MODEL,
+            input_source="gs://test-bucket/input.jsonl",
+            vertexai=True,
+        )
+        mock_job = mock.MagicMock()
+        mock_job.dest.inlined_responses = None
+        mock_job.dest.file_name = None
+        mock_job.dest.gcs_uri = destination_uri if destination_field == "gcs_uri" else None
+        mock_job.dest.bigquery_uri = destination_uri if destination_field == "bigquery_uri" else None
+
+        assert op._prepare_results_for_xcom(mock_job) == destination_uri
+
     @mock.patch(GEN_AI_PATH.format("GenAIGeminiAPIHook"))
     def test_prepare_results_for_xcom_rejects_display_name_path_traversal(self, mock_hook, tmp_path):
         op = GenAIGeminiCreateBatchJobOperator(
@@ -603,6 +702,9 @@ class TestGenAIGeminiCreateBatchJobOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
             gemini_api_key=TEST_GEMINI_API_KEY,
+            vertexai=False,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
         )
 
         mock_hook.return_value.create_batch_job.assert_called_once_with(

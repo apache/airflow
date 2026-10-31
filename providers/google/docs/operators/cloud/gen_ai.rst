@@ -142,6 +142,21 @@ If you use file take a look at this example:
     :start-after: [START how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
     :end-before: [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
 
+To use Cloud Storage or BigQuery for batch input and output, set ``vertexai=True``. In this mode
+the operator authenticates with ``gcp_conn_id`` instead of ``gemini_api_key``, and ``location``
+selects the Vertex AI endpoint: ``global``, a multi-region such as ``us`` or ``eu``, or a region
+such as ``us-central1``. ``input_source`` must be a ``gs://`` or ``bq://`` URI; inline requests,
+Gemini Files API file names and ``results_folder`` are not supported in this mode.
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_gemini_batch_api.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_gen_ai_batch_api_create_batch_job_vertex_ai_task]
+    :end-before: [END how_to_cloud_gen_ai_batch_api_create_batch_job_vertex_ai_task]
+
+When ``retrieve_result`` is enabled for a Vertex AI batch job, the Cloud Storage or BigQuery
+destination URI is pushed to XCom under the ``job_results`` key.
+
 Operator could run in deferrable mode:
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/gen_ai/example_gen_ai_gemini_batch_api.py

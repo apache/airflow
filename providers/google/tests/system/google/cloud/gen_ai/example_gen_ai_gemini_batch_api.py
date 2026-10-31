@@ -40,6 +40,7 @@ except ImportError:
 from pathlib import Path
 
 from airflow.models.dag import DAG
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.gen_ai import (
     GenAIGeminiCancelBatchJobOperator,
     GenAIGeminiCreateBatchJobOperator,
@@ -102,6 +103,11 @@ EMBEDDINGS_BATCH_JOB_WITH_INLINED_REQUESTS_NAME = "{{ task_instance.xcom_pull(ta
 EMBEDDINGS_BATCH_JOB_WITH_FILE_NAME = (
     "{{ task_instance.xcom_pull(task_ids='create_embeddings_job_using_file_task', key='job_name') }}"
 )
+
+# Cloud Storage input and output require Gemini on Vertex AI (vertexai=True).
+VERTEX_AI_LOCATION = "global"
+VERTEX_AI_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
+VERTEX_AI_GCS_SOURCE = "gs://cloud-samples-data/batch/prompt_for_batch_gemini_predict.jsonl"
 
 
 with DAG(
@@ -225,6 +231,35 @@ with DAG(
         results_folder=PATH_TO_SAVE_RESULTS,
     )
     # [END how_to_cloud_gen_ai_batch_api_create_batch_job_with_file_task]
+
+    create_bucket_for_vertex_ai = GCSCreateBucketOperator(
+        task_id="create_bucket_for_vertex_ai_task",
+        bucket_name=VERTEX_AI_BUCKET_NAME,
+        project_id=PROJECT_ID,
+    )
+
+    # [START how_to_cloud_gen_ai_batch_api_create_batch_job_vertex_ai_task]
+    create_batch_job_vertex_ai = GenAIGeminiCreateBatchJobOperator(
+        task_id="create_batch_job_vertex_ai_task",
+        project_id=PROJECT_ID,
+        location=VERTEX_AI_LOCATION,
+        model=DEFAULT_MODEL,
+        vertexai=True,
+        input_source=VERTEX_AI_GCS_SOURCE,
+        create_batch_job_config={
+            "display_name": "vertex-ai-gcs-batch-job",
+            "dest": f"gs://{VERTEX_AI_BUCKET_NAME}/results/",
+        },
+        wait_until_complete=True,
+        retrieve_result=True,
+    )
+    # [END how_to_cloud_gen_ai_batch_api_create_batch_job_vertex_ai_task]
+
+    delete_bucket_for_vertex_ai = GCSDeleteBucketOperator(
+        task_id="delete_bucket_for_vertex_ai_task",
+        bucket_name=VERTEX_AI_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START how_to_cloud_gen_ai_batch_api_create_embeddings_with_inlined_requests_task]
     create_embeddings_job_using_inlined_requests = GenAIGeminiCreateEmbeddingsBatchJobOperator(
@@ -368,6 +403,7 @@ with DAG(
         >> delete_embeddings_batch_job_2
         >> [delete_file, delete_embeddings_file, delete_result_file]
     )
+    create_bucket_for_vertex_ai >> create_batch_job_vertex_ai >> delete_bucket_for_vertex_ai
 
     from tests_common.test_utils.watcher import watcher
 

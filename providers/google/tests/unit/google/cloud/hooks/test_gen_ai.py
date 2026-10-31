@@ -247,6 +247,23 @@ class TestGenAIGeminiAPIHook:
             vertexai=False,
         )
 
+    @mock.patch("google.genai.Client")
+    def test_get_genai_client_with_vertexai(self, mock_client):
+        mock_credentials = mock.Mock()
+        self.hook.vertexai = True
+        self.hook._project_id = GCP_PROJECT
+        self.hook.location = "global"
+        self.hook.get_credentials = mock.Mock(return_value=mock_credentials)
+
+        self.hook.get_genai_client()
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location="global",
+            credentials=mock_credentials,
+        )
+
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIHook.get_genai_client"))
     def test_get_batch_job(self, mock_get_client):
         client_mock = mock_get_client.return_value
@@ -402,6 +419,26 @@ class TestGenAIGeminiAPIAsyncHook:
     def setup_method(self, method):
         with mock.patch(BASE_STRING.format("GoogleBaseAsyncHook.__init__"), new=mock_init):
             self.hook = GenAIGeminiAPIAsyncHook(gemini_api_key=TEST_API_KEY)
+
+    @pytest.mark.asyncio
+    @mock.patch("google.genai.Client")
+    async def test_get_async_client_with_vertexai(self, mock_client):
+        mock_credentials = mock.Mock()
+        mock_sync_hook = mock.Mock()
+        mock_sync_hook.get_credentials.return_value = mock_credentials
+        self.hook.vertexai = True
+        self.hook.project_id = GCP_PROJECT
+        self.hook.location = "eu"
+        self.hook.get_sync_hook = AsyncMock(return_value=mock_sync_hook)
+
+        await self.hook.get_async_client()
+
+        mock_client.assert_called_once_with(
+            vertexai=True,
+            project=GCP_PROJECT,
+            location="eu",
+            credentials=mock_credentials,
+        )
 
     @pytest.mark.asyncio
     @mock.patch(GENERATIVE_MODEL_STRING.format("GenAIGeminiAPIAsyncHook.get_async_client"))

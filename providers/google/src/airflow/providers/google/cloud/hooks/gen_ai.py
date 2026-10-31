@@ -221,13 +221,30 @@ class GenAIGenerativeModelHook(GoogleBaseHook):
 
 
 class GenAIGeminiAPIHook(GoogleBaseHook):
-    """Class for Google Cloud Generative AI Gemini Developer API hook."""
+    """Hook for the Gemini Developer API and Gemini on Vertex AI."""
 
-    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+    def __init__(
+        self,
+        gemini_api_key: str | None = None,
+        vertexai: bool = False,
+        project_id: str | None = None,
+        location: str | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
+        self._project_id = project_id
+        self.location = location
 
     def get_genai_client(self):
+        if self.vertexai:
+            return genai.Client(
+                vertexai=True,
+                project=self._project_id or self.project_id,
+                location=self.location,
+                credentials=self.get_credentials(),
+            )
         return genai.Client(
             api_key=self.gemini_api_key,
             vertexai=False,
@@ -402,15 +419,33 @@ class GenAIGeminiAPIHook(GoogleBaseHook):
 
 
 class GenAIGeminiAPIAsyncHook(GoogleBaseAsyncHook):
-    """Class for Google Cloud Generative AI Gemini Developer Async API hook."""
+    """Async hook for the Gemini Developer API and Gemini on Vertex AI."""
 
     sync_hook_class = GenAIGeminiAPIHook
 
-    def __init__(self, gemini_api_key: str, **kwargs) -> None:
+    def __init__(
+        self,
+        gemini_api_key: str | None = None,
+        vertexai: bool = False,
+        project_id: str | None = None,
+        location: str | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.gemini_api_key = gemini_api_key
+        self.vertexai = vertexai
+        self.project_id = project_id
+        self.location = location
 
     async def get_async_client(self):
+        if self.vertexai:
+            sync_hook = await self.get_sync_hook()
+            return genai.Client(
+                vertexai=True,
+                project=self.project_id or sync_hook.project_id,
+                location=self.location,
+                credentials=sync_hook.get_credentials(),
+            ).aio
         return genai.Client(
             api_key=self.gemini_api_key,
             vertexai=False,

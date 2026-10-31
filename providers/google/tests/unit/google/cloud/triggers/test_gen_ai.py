@@ -112,9 +112,34 @@ class TestGenAIGeminiCreateBatchJobTrigger:
                 "retrieve_result": True,
                 "polling_interval": 30,
                 "results_folder": RESULTS_FOLDER,
+                "vertexai": False,
             },
         )
         assert actual_data == expected_data
+
+    @mock.patch("airflow.providers.google.cloud.triggers.gen_ai.GenAIGeminiAPIAsyncHook")
+    def test_get_async_hook_with_vertexai(self, mock_async_hook):
+        trigger = GenAIGeminiCreateBatchJobTrigger(
+            project_id=GCP_PROJECT,
+            location="us",
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            model=GEMINI_MODEL,
+            input_source="gs://test-bucket/input.jsonl",
+            create_batch_job_config={"dest": "gs://test-bucket/output/"},
+            vertexai=True,
+        )
+
+        trigger._get_async_hook()
+
+        mock_async_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            gemini_api_key=None,
+            vertexai=True,
+            project_id=GCP_PROJECT,
+            location="us",
+        )
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.gen_ai.GenAIGeminiAPIAsyncHook.create_batch_job")

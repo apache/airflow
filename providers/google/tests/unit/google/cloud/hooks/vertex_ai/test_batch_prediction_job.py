@@ -86,9 +86,12 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
         ):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("aiplatform.init"))
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.create"))
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
-    def test_create_create_batch_prediction_job(self, mock_get_credentials, mock_create):
+    def test_create_create_batch_prediction_job(
+        self, mock_get_credentials, mock_create, mock_aiplatform_init
+    ):
         expected_job = mock_create.return_value
         invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
         invoke_params["sync"] = True
@@ -103,6 +106,53 @@ class TestBatchPredictionJobWithDefaultProjectIdHook:
         mock_get_credentials.assert_called_once()
         mock_create.assert_called_once_with(**expected_params)
         assert actual_job == expected_job
+
+    @pytest.mark.parametrize("method_name", ["create", "submit"])
+    @mock.patch.object(BatchPredictionJobHook, "is_default_universe", return_value=True)
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("aiplatform.init"))
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.submit"))
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.create"))
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
+    def test_create_and_submit_pin_aiplatform_endpoint(
+        self,
+        mock_get_credentials,
+        mock_create,
+        mock_submit,
+        mock_aiplatform_init,
+        mock_is_default_universe,
+        method_name,
+    ):
+        invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
+        invoke_params["region"] = "global"
+
+        actual_job = getattr(self.hook, f"{method_name}_batch_prediction_job")(**invoke_params)
+
+        mock_aiplatform_init.assert_called_once_with(
+            project=TEST_PROJECT_ID,
+            location="global",
+            credentials=mock_get_credentials.return_value,
+            api_endpoint="aiplatform.googleapis.com:443",
+        )
+        expected_call = mock_create if method_name == "create" else mock_submit
+        assert actual_job == expected_call.return_value
+
+    @pytest.mark.parametrize(
+        ("region", "expected_endpoint"),
+        [
+            ("global", "aiplatform.googleapis.com:443"),
+            ("us", "aiplatform.us.rep.googleapis.com:443"),
+            ("eu", "aiplatform.eu.rep.googleapis.com:443"),
+            ("us-central1", "us-central1-aiplatform.googleapis.com:443"),
+            (None, None),
+        ],
+    )
+    @mock.patch.object(BatchPredictionJobHook, "is_default_universe", return_value=True)
+    def test_get_api_endpoint(self, mock_is_default_universe, region, expected_endpoint):
+        assert self.hook._get_api_endpoint(region=region) == expected_endpoint
+
+    @mock.patch.object(BatchPredictionJobHook, "is_default_universe", return_value=False)
+    def test_get_api_endpoint_non_default_universe(self, mock_is_default_universe):
+        assert self.hook._get_api_endpoint(region="global") is None
 
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_job_service_client"))
     def test_delete_batch_prediction_job(self, mock_client) -> None:
@@ -177,9 +227,12 @@ class TestBatchPredictionJobWithoutDefaultProjectIdHook:
         ):
             self.hook = BatchPredictionJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
+    @mock.patch(BATCH_PREDICTION_JOB_STRING.format("aiplatform.init"))
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJob.create"))
     @mock.patch(BATCH_PREDICTION_JOB_STRING.format("BatchPredictionJobHook.get_credentials"))
-    def test_create_create_batch_prediction_job(self, mock_get_credentials, mock_create):
+    def test_create_create_batch_prediction_job(
+        self, mock_get_credentials, mock_create, mock_aiplatform_init
+    ):
         expected_job = mock_create.return_value
         invoke_params = deepcopy(TEST_CREATE_BATCH_PREDICTION_JOB_PARAMETERS)
         invoke_params["sync"] = True
