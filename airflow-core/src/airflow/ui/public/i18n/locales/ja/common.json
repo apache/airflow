@@ -175,6 +175,7 @@
     "manual": "手動",
     "scheduled": "スケジュール済"
   },
+  "runs": "実行",
   "scroll": {
     "direction": {
       "bottom": "下",

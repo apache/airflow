@@ -247,6 +247,7 @@
     "manual": "Χειροκίνητο",
     "scheduled": "Προγραμματισμένο"
   },
+  "runs": "Εκτελέσεις",
   "scroll": {
     "direction": {
       "bottom": "κάτω",

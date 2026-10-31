@@ -257,6 +257,7 @@
     "manual": "수동",
     "scheduled": "예정됨"
   },
+  "runs": "실행",
   "scroll": {
     "direction": {
       "bottom": "아래",

@@ -257,6 +257,7 @@
     "manual": "Manuell",
     "scheduled": "Geplant"
   },
+  "runs": "Läufe",
   "scroll": {
     "direction": {
       "bottom": "unten",

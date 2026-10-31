@@ -43,14 +43,6 @@ const links = [
     title: "Dag Bundles",
   },
   {
-    href: "/dag_runs",
-    key: "dagRuns",
-    // Reuses the label the Dags pages already show on their tabs.
-    labelKey: "dagRun_other",
-    // There is no menu item of its own for Dag runs: they follow the Dags permission.
-    title: "Dags",
-  },
-  {
     href: "/deadlines",
     key: "deadlines",
     title: "Deadlines",

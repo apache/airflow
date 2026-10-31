@@ -181,6 +181,7 @@
     "manual": "Manuale",
     "scheduled": "Programmato"
   },
+  "runs": "Run",
   "scroll": {
     "direction": {
       "bottom": "In basso",

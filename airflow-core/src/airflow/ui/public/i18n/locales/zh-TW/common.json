@@ -256,6 +256,7 @@
     "manual": "手動觸發",
     "scheduled": "已排程"
   },
+  "runs": "執行紀錄",
   "scroll": {
     "direction": {
       "bottom": "最下方",

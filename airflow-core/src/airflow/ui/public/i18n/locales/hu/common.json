@@ -195,6 +195,7 @@
     "manual": "Kézi",
     "scheduled": "Ütemezett"
   },
+  "runs": "Futások",
   "scroll": {
     "direction": {
       "bottom": "aljára",

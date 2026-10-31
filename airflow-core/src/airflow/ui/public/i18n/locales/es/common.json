@@ -238,6 +238,7 @@
     "manual": "Manual",
     "scheduled": "Programado"
   },
+  "runs": "Ejecuciones",
   "scroll": {
     "direction": {
       "bottom": "abajo",

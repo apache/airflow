@@ -261,6 +261,7 @@
     "manual": "Manual",
     "scheduled": "Scheduled"
   },
+  "runs": "Runs",
   "scroll": {
     "direction": {
       "bottom": "bottom",

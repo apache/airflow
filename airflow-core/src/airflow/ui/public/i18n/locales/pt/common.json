@@ -197,6 +197,7 @@
     "manual": "Manual",
     "scheduled": "Agendado"
   },
+  "runs": "Execuções",
   "scroll": {
     "direction": {
       "bottom": "Inferior",

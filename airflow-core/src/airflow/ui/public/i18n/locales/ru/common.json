@@ -236,6 +236,7 @@
     "manual": "Вручную",
     "scheduled": "Запланировано"
   },
+  "runs": "Запуски",
   "scroll": {
     "direction": {
       "bottom": "вниз",

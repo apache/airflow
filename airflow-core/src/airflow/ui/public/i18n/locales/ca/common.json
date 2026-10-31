@@ -247,6 +247,7 @@
     "manual": "Manual",
     "scheduled": "Programat"
   },
+  "runs": "Execucions",
   "scroll": {
     "direction": {
       "bottom": "Avall",

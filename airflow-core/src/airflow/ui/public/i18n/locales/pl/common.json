@@ -270,6 +270,7 @@
     "manual": "Ręcznie",
     "scheduled": "Według harmonogramu"
   },
+  "runs": "Wykonania",
   "scroll": {
     "direction": {
       "bottom": "dół",
