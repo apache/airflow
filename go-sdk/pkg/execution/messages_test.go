@@ -127,9 +127,9 @@ func TestDecodeStartupDetails(t *testing.T) {
 	// msgpack decodes the timestamp extension into the local zone; compare the
 	// instant in UTC rather than the zoned representation.
 	assert.Equal(t, startDate, details.StartDate.UTC())
-	assert.Equal(t, logical, ifaceTimePtr(details.TIContext.DagRun.LogicalDate).UTC())
-	assert.Equal(t, intervalStart, ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart).UTC())
-	assert.Equal(t, intervalEnd, ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd).UTC())
+	assert.Equal(t, logical, *ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
+	assert.Equal(t, intervalStart, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
+	assert.Equal(t, intervalEnd, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
 	// max_tries / should_retry drive the retry decision and live at the top
 	// level of ti_context, not under dag_run.
 	assert.Equal(t, 3, details.TIContext.MaxTries)
@@ -572,6 +572,12 @@ func TestIfaceTimePtr(t *testing.T) {
 	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	if p := ifaceTimePtr(now); assert.NotNil(t, p) {
 		assert.Equal(t, now, *p)
+	}
+	// 2024-01-15 04:00 at UTC+8 is still 2024-01-14 in UTC.
+	zoned := time.Date(2024, 1, 15, 4, 0, 0, 0, time.FixedZone("UTC+8", 8*60*60))
+	if p := ifaceTimePtr(zoned); assert.NotNil(t, p) {
+		assert.Equal(t, time.Date(2024, 1, 14, 20, 0, 0, 0, time.UTC), *p)
+		assert.Equal(t, "2024-01-14", p.Format(time.DateOnly))
 	}
 }
 
