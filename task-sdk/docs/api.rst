@@ -150,6 +150,8 @@ Tasks & Operators
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
+.. autoapifunction:: airflow.sdk.emit_dag_warning
+
 Retry Policies
 --------------
 Retry policies let you configure per-exception retry behaviour as a parameter on any
