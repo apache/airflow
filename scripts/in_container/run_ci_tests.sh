@@ -35,6 +35,10 @@ for arg in "${@}"; do
         RESULT_LOG_FILE="${arg#--junitxml=}"
     fi
 done
+# A report left by an earlier run would let a segfault pass the check below.
+if [[ -n ${RESULT_LOG_FILE} ]]; then
+    rm -f "${RESULT_LOG_FILE}"
+fi
 
 pytest "${@}"
 RES=$?
