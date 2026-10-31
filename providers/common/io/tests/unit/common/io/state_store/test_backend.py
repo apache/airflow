@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import errno
 import threading
+from concurrent.futures import Future
+from types import SimpleNamespace
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -39,6 +43,83 @@ from airflow.sdk import ObjectStoragePath
 from airflow.sdk.state import AssetScope, TaskScope
 
 from tests_common.test_utils.config import conf_vars
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("kind", ["task", "asset"])
+async def test_sync_deserializer_override_retains_owner_thread(kind):
+    class CustomBackend(StateStoreObjectStorageBackend):
+        def __init__(self, owner):
+            self.owner = owner
+
+    instance = CustomBackend(threading.get_ident())
+
+    def deserialize(self, stored):
+        assert threading.get_ident() == self.owner
+        return {"value": stored}
+
+    setattr(CustomBackend, f"deserialize_{kind}_state_store_from_ref", deserialize)
+    assert await getattr(instance, f"adeserialize_{kind}_state_store_from_ref")("custom-ref") == {
+        "value": "custom-ref"
+    }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "outcome", ["value", "denied", "replaced"], ids=["success", "get-denied", "object-replaced"]
+)
+async def test_s3_ref_read_awaits_io_and_preserves_read_conditions(monkeypatch, outcome):
+    s3fs = pytest.importorskip("s3fs")
+    from s3fs import core
+
+    fs = s3fs.S3FileSystem(anon=True, skip_instance_cache=True)
+    if not hasattr(fs, "local_expiry_check"):
+        pytest.skip("S3 native reader requires the local_expiry_check read contract")
+    loop = asyncio.get_running_loop()
+    arrived = asyncio.Event()
+    release = Future()
+    details = {"type": "file", "name": "bucket/key", "size": 16, "ETag": '"etag"'}
+    inputs = []
+    path = SimpleNamespace(fs=fs, path="bucket/key")
+
+    async def info(path):
+        return details
+
+    async def fetch(actual_fs, bucket, key, version, start, end, read_kw, actual_details):
+        assert actual_fs is fs
+        assert (bucket, key, version, start, end) == ("bucket", "key", None, 0, 16)
+        assert read_kw == {"RequestPayer": None, "IfMatch": '"etag"'}
+        assert actual_details is details
+        loop.call_soon_threadsafe(arrived.set)
+        return await asyncio.wrap_future(release)
+
+    monkeypatch.setattr(fs, "_info", info)
+    monkeypatch.setattr(core, "_inner_fetch", fetch)
+    collector = mock.Mock(spec=["add_input_asset"])
+    collector.add_input_asset.side_effect = lambda **kwargs: inputs.append(kwargs)
+    monkeypatch.setattr(backend, "get_hook_lineage_collector", lambda: collector)
+    pending = asyncio.create_task(backend._aread_from_object_storage(path))
+    try:
+        await asyncio.wait_for(arrived.wait(), 2)
+        assert not pending.done()
+        assert inputs == [{"context": path, "uri": str(path)}]
+        if outcome == "value":
+            release.set_result(b'"COPY_PROBE_123"')
+            assert await pending == '"COPY_PROBE_123"'
+        else:
+            error = (
+                PermissionError("denied")
+                if outcome == "denied"
+                else OSError(errno.EINVAL, "pre-conditions failed")
+            )
+            release.set_exception(error)
+            expected = PermissionError if outcome == "denied" else core.FileExpired
+            with pytest.raises(expected):
+                await pending
+    finally:
+        if not release.done():
+            release.set_result(b'"COPY_PROBE_123"')
+        await asyncio.gather(pending, return_exceptions=True)
 
 
 @pytest.fixture(autouse=True)

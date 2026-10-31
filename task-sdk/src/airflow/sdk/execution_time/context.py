@@ -737,10 +737,15 @@ class TaskStateStoreAccessor:
         return self._extract_get_response(resp, key, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
-        """Async version of :meth:`get` that awaits instead of blocking the event loop."""
+        """Async version of :meth:`get` that awaits backend reads; sync-only backends may still block."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = await SUPERVISOR_COMMS.asend(GetTaskStateStore(ti_id=self._ti_id, key=key))
+        if isinstance(resp, TaskStateStoreResult):
+            stored = resp.value
+            backend = _get_worker_state_store_backend()
+            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+                return await backend.adeserialize_task_state_store_from_ref(ref)
         return self._extract_get_response(resp, key, default)
 
     def _extract_get_response(self, resp: Any, key: str, default: JsonValue) -> JsonValue:
@@ -929,10 +934,15 @@ class AssetStateStoreAccessor:
         return self._extract_get_response(resp, key, default)
 
     async def aget(self, key: str, default: JsonValue = None) -> JsonValue:
-        """Async version of `get` that awaits instead of blocking the event loop."""
+        """Async version of `get` that awaits backend reads; sync-only backends may still block."""
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
         resp = await SUPERVISOR_COMMS.asend(self._build_get_message(key))
+        if isinstance(resp, AssetStateStoreResult):
+            stored = resp.value
+            backend = _get_worker_state_store_backend()
+            if backend is not None and isinstance(stored, dict) and (ref := _unwrap_external_ref(stored)):
+                return await backend.adeserialize_asset_state_store_from_ref(ref)
         return self._extract_get_response(resp, key, default)
 
     def _build_get_message(self, key: str) -> ToSupervisor:

@@ -184,6 +184,35 @@ Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBacke
 * ``serialize_asset_state_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
 * ``deserialize_asset_state_store_from_ref``: called by ``AssetStateStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
+Async worker-side reads
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Async accessors await ``adeserialize_task_state_store_from_ref`` and
+``adeserialize_asset_state_store_from_ref``. These hooks are non-abstract.
+Their defaults call the corresponding synchronous hook on the same backend
+instance in the caller's thread. Existing synchronous backends therefore retain
+that execution context, but may still block the event loop.
+
+Override the async read hooks to provide non-blocking I/O. Implementing ``aget``
+alone does not change worker-side ref deserialization. Keep the synchronous hooks
+for synchronous callers and preserve the reference format and value semantics.
+If a parent backend already implements an async hook, subclasses must account for
+that implementation when changing deserialization behavior.
+
+The object-storage backend provides non-blocking network reads for the standard
+s3fs filesystem, with plain objects or ``gzip`` compression. Custom filesystems,
+version-aware S3 reads, S3 local-expiry checking, and other compression formats
+retain the synchronous path. Older s3fs versions without the required read
+contract also retain that path. A subclass that overrides a synchronous read
+hook retains its override unless it explicitly supplies an async hook.
+
+Cancellation requests cancellation of the native network read; it does not close
+the shared filesystem client or roll back remote operations. Compression and JSON
+decoding still run synchronously. Synchronous reads and all write paths retain
+their existing behavior. In particular, this does not make object-storage writes
+non-blocking or change their cancellation semantics. Filesystem discovery and
+credential initialization are not made asynchronous by these read hooks.
+
 .. important::
 
    **References must be deterministic.**  Given the same inputs (``scope`` + ``key``), the serialization method must always return the same reference string. Do not embed timestamps, random UUIDs, or any other non-deterministic component in the reference path.
