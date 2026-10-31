@@ -168,29 +168,11 @@ func (c *CoordinatorClient) GetVariable(ctx context.Context, key string) (string
 		return "", fmt.Errorf("decoding variable result: %w", err)
 	}
 
-	if result.Value == nil {
-		return "", fmt.Errorf("%w: %q", sdk.VariableNotFound, key)
-	}
-
 	// TODO: register secret-named variables with a SecretsMasker so the
 	// returned value is automatically redacted from subsequent task logs,
 	// matching Python's airflow.models.variable.Variable.get behaviour.
 
-	switch v := result.Value.(type) {
-	case string:
-		return v, nil
-	default:
-		// Airflow Variables are stored as strings, but the supervisor
-		// decodes msgpack into native Go types — a supervisor that
-		// returns a list/map/number means the caller stored JSON.
-		// Re-encode it so UnmarshalJSONVariable still works uniformly
-		// across HTTP and coordinator modes.
-		b, err := json.Marshal(v)
-		if err != nil {
-			return "", fmt.Errorf("marshaling variable value: %w", err)
-		}
-		return string(b), nil
-	}
+	return result.Value, nil
 }
 
 // UnmarshalJSONVariable gets a variable and unmarshals its JSON value.

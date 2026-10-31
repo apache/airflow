@@ -17,11 +17,11 @@
 ---
 sdk: go
 
-min_airflow_version: "3.4.0"
+min_airflow_version: "3.5.0"
 
 # Keep in sync with SupervisorSchemaVersion in pkg/execution/messages.go, which is embedded in
 # bundle metadata. The render hook fails if the two disagree.
-supervisor_schema_version: "2026-10-30"
+supervisor_schema_version: "2027-02-28"
 
 # The task runner terminates a task with SucceedTask, RetryTask, or TaskState (failed/removed); only
 # an airflow.TriggerDagRun task emits TaskState skipped or DeferTask. It does not emit RescheduleTask

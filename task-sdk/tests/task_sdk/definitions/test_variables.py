@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from unittest import mock
 from unittest.mock import patch
 
@@ -25,7 +26,7 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, RemovedInAirflow4Warning
 from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     ErrorResponse,
@@ -97,6 +98,23 @@ class TestVariables:
             msg=PutVariable(
                 key=key, value=expected_value, description=description, serialize_json=serialize_json
             ),
+        )
+
+    def test_var_set_none_warns_and_stores_none_string(self, mock_supervisor_comms):
+        with pytest.warns(RemovedInAirflow4Warning, match="Setting a Variable to None is deprecated"):
+            Variable.set(key="key", value=None)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=PutVariable(key="key", value="None", description=None),
+        )
+
+    def test_var_set_none_with_serialize_json_does_not_warn(self, mock_supervisor_comms):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RemovedInAirflow4Warning)
+            Variable.set(key="key", value=None, serialize_json=True)
+
+        mock_supervisor_comms.send.assert_called_once_with(
+            msg=PutVariable(key="key", value="null", description=None),
         )
 
     def test_var_delete(self, mock_supervisor_comms):
@@ -274,6 +292,17 @@ class TestAsyncVariables:
 
         mock_supervisor_comms.asend.assert_called_once_with(
             PutVariable(key=key, value=expected_value, description=description)
+        )
+
+    @pytest.mark.asyncio
+    async def test_avar_set_none_warns_and_stores_none_string(self, mock_supervisor_comms):
+        mock_supervisor_comms.asend.return_value = None
+
+        with pytest.warns(RemovedInAirflow4Warning, match="Setting a Variable to None is deprecated"):
+            await Variable.aset(key="key", value=None)
+
+        mock_supervisor_comms.asend.assert_called_once_with(
+            PutVariable(key="key", value="None", description=None)
         )
 
     @pytest.mark.asyncio
