@@ -45,7 +45,9 @@ from airflow.utils.helpers import merge_dicts, prune_dict
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
-    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+    _SUPPORTED_WORKLOAD_TYPES = frozenset(
+        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
+    )
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -106,6 +108,7 @@ class AwsBatchExecutor(BaseExecutor):
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     elif AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
+        supports_connection_test: bool = True
 
     # AWS only allows a maximum number of JOBs in the describe_jobs function
     DESCRIBE_JOBS_BATCH_SIZE = 99
@@ -185,6 +188,20 @@ class AwsBatchExecutor(BaseExecutor):
                     del self.queued_callbacks[callback_key]
                 self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
                 self.running.add(callback_key)
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.TestConnection):
+                connection_test_command = [workload]
+                connection_test_key = workload.key
+
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.TEST_CONNECTION][connection_test_key]
+                else:
+                    del self.queued_connection_tests[connection_test_key]  # type: ignore[attr-defined]
+                self.execute_async(
+                    key=connection_test_key,
+                    command=connection_test_command,  # type: ignore[arg-type]
+                    queue=workload.queue,
+                )
+                self.running.add(connection_test_key)
             else:
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
@@ -456,7 +473,8 @@ class AwsBatchExecutor(BaseExecutor):
             from airflow.executors import workloads
 
             if isinstance(command[0], workloads.ExecuteTask) or (
-                AIRFLOW_V_3_3_PLUS and isinstance(command[0], workloads.ExecuteCallback)
+                AIRFLOW_V_3_3_PLUS
+                and isinstance(command[0], (workloads.ExecuteCallback, workloads.TestConnection))
             ):
                 command = self._serialize_workload_to_command(command[0])
             else:

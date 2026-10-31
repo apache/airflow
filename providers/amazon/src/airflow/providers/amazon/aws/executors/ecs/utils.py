@@ -42,9 +42,11 @@ if TYPE_CHECKING:
         from airflow.models.taskinstance import TaskInstanceKey as WorkloadKey  # type: ignore[assignment]
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+    from airflow.executors.workloads import ExecuteCallback, ExecuteTask, TestConnection
 
-    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback]
+    CommandType: TypeAlias = (
+        Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback] | Sequence[TestConnection]
+    )
 else:
     CommandType: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
