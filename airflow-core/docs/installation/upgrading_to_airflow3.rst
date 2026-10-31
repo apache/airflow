@@ -225,6 +225,76 @@ TaskInstances, Variables, Connections, XComs, and more.
 .. note::
    If you need functionality that is not available via the Airflow Python Client, consider requesting new API endpoints or Task SDK features. The Airflow community prioritizes adding missing API capabilities over enabling direct database access.
 
+Recommended Approach: Use Built-in Local REST Client (In-Process)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For code running inside trusted Airflow processes that have direct access to
+the metadata database — the scheduler, Dag processor, triggerer, or plugins —
+Airflow provides a built-in local REST client that calls the Core REST API
+in-process with no network overhead and zero credential configuration.
+
+.. warning::
+   This client grants full, system-level access to the Core API and is intended only for
+   **trusted component and plugin code**. Because it is importable from anywhere in the Airflow
+   environment, Dag files could also import it during parsing — the Dag processor is not currently
+   a hard security boundary, so treat Dag-parse-time code as trusted. Do not use it from task code;
+   tasks run in isolated worker processes (where it raises) and must use the Task SDK / Execution API.
+
+.. code-block:: python
+
+   from airflow.api.client import get_local_rest_client
+
+   client = get_local_rest_client()
+
+   # Pools
+   client.pools.create(name="my_pool", slots=5)
+   pools = client.pools.list()
+
+   # Dags
+   dags = client.dags.list()
+   client.dags.pause("my_dag")
+
+   # Connections
+   client.connections.create(connection_id="my_conn", conn_type="http", host="example.com")
+
+   # Variables
+   client.variables.create(key="my_var", value="my_value")
+
+   # Dag Runs
+   run = client.dag_runs.trigger("my_dag")
+
+   # Task Instances
+   tis = client.task_instances.list("my_dag", "my_run_id")
+
+   # Config (read-only)
+   config = client.config.get()
+
+   # Assets
+   assets = client.assets.list()
+
+**Pros:**
+
+- **Zero configuration** — no tokens, credentials, or API server URL needed
+- Runs in-process with no network overhead
+- Full access to all Core API endpoints (pools, Dags, Dag runs, connections, variables,
+  task instances, config, assets)
+- Feels as simple as the old direct DB helpers in Airflow 2
+
+**Cons:**
+
+- Only works inside trusted Airflow processes that have metadata database access
+  (not from workers, tasks, or external scripts)
+- The calling process must be able to connect to the Airflow metadata database
+  (it runs the Core API in-process, which queries the DB via SQLAlchemy)
+- Goes through the public Core API, so it is **not** a byte-for-byte replacement for direct ORM
+  reads: connection ``password``/``extra`` and variable values for sensitive keys are redacted in
+  responses, and ``client.config`` obeys the ``[api] expose_config`` setting (returns ``403`` when
+  it is ``False``). Use it for managing/reading metadata, not for retrieving secret values.
+
+.. note::
+   This is the recommended replacement for code that previously used ``Pool.create_or_update_pool()``,
+   ``Variable.get()``, or similar direct-DB helpers in Airflow 2, subject to the redaction caveat above.
+
 Known Workaround: Use DbApiHook (PostgresHook or MySqlHook)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
