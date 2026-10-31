@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 from unittest import mock
 
 import httpx
@@ -186,6 +187,52 @@ class TestDagCommands:
                 self.parser.parse_args(["dags", "unpause", self.dag_id]),
                 api_client=api_client,
             )
+
+    @pytest.mark.parametrize(
+        ("operation", "response_attr"),
+        [
+            ("pause", "dag_response_paused"),
+            ("unpause", "dag_response_unpaused"),
+        ],
+    )
+    def test_update_dag_state_json_output_is_parseable(
+        self, operation, response_attr, api_client_maker, capsys
+    ):
+        dag_response = getattr(self, response_attr)
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=dag_response.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        getattr(dag_command, operation)(
+            self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+            api_client=api_client,
+        )
+        captured = capsys.readouterr()
+        assert json.loads(captured.out)[0]["dag_id"] == self.dag_id
+        assert _normalize_rich_output(captured.err) == (
+            f"Dag {operation} successful {self.dag_id} Further Dag details:"
+        )
+
+    @pytest.mark.parametrize("operation", ["pause", "unpause"])
+    def test_update_dag_state_error_goes_to_stderr(self, operation, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            getattr(dag_command, operation)(
+                self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+                api_client=api_client,
+            )
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        error_message = f"Error while trying to {operation} Dag {self.dag_id}"
+        assert error_message in _normalize_rich_output(captured.err)
+        assert error_message not in _normalize_rich_output(captured.out)
 
     def test_next_execution(self, api_client_maker):
         api_client = api_client_maker(
