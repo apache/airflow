@@ -231,6 +231,16 @@ The language runtime must produce a `DagFileParsingResult` that matches Python A
 | `@continuous` | `airflow.timetables.simple.ContinuousTimetable` | `{}` |
 | cron expr | `airflow.timetables.trigger.CronTriggerTimetable` | `{expression, timezone, interval, run_immediately}` |
 
+**Task config defaults:** A language runtime writes every task field the author set and leaves out
+the ones it did not; a value equal to the schema default is still written. A missing task field is
+filled from the optional `client_defaults.tasks` table, which core supplies from its own config
+because a language runtime cannot read it. Only config-backed task fields are supplied (`owner`,
+`queue`, `retries`, `retry_delay`, `weight_rule`, `execution_timeout`, `email_on_failure` and
+`email_on_retry`). A field present in the serialized task wins over the table, so an explicit
+`retries=0` is not replaced by a non-zero `[core] default_task_retries`. In Go a non-pointer
+scalar at its zero value counts as unset and takes the configured default; a pointer field
+expresses an explicit zero.
+
 **Task encoding:**
 
 ```

@@ -89,6 +89,20 @@ def test_accepts_the_differences_an_sdk_is_allowed():
     assert compare(PYTHON, SDK, DEFAULTS) == []
 
 
+def test_accepts_an_explicit_task_field_at_its_schema_default():
+    sdk = copy.deepcopy(SDK)
+    get_task(sdk, index=1)["owner"] = get_task_defaults()["owner"]
+
+    assert compare(PYTHON, sdk, get_task_defaults()) == []
+
+
+def test_accepts_an_explicit_dag_field_at_its_schema_default():
+    sdk = copy.deepcopy(SDK)
+    sdk["d"]["dag"]["fail_fast"] = False
+
+    assert compare(PYTHON, sdk, get_task_defaults()) == []
+
+
 @pytest.mark.parametrize(
     ("change", "expected"),
     [
