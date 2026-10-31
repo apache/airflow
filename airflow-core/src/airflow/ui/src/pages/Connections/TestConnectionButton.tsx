@@ -66,7 +66,7 @@ const TestConnectionButton = ({ connection }: Props) => {
   const { isPending, mutate } = useTestConnection((result) => {
     if (result === undefined) {
       setIcon(defaultIcon);
-    } else if (result === true) {
+    } else if (result) {
       setIcon(connectedIcon);
     } else {
       setIcon(disconnectedIcon);
@@ -82,7 +82,7 @@ const TestConnectionButton = ({ connection }: Props) => {
       label={label}
       loading={isPending}
       onClick={() => {
-        mutate({ requestBody: connectionBody });
+        mutate(connectionBody);
       }}
     >
       {icon}
