@@ -26,6 +26,7 @@ from subprocess import PIPE, STDOUT, Popen
 
 import pytest
 import requests
+from packaging.version import Version
 from python_on_whales import DockerClient, docker
 
 from airflowctl_tests import console
@@ -171,6 +172,13 @@ def wait_for_dag_run():
 def api_token():
     """Fixture that provides the API token shared by the whole test session."""
     return _get_access_token()
+
+
+@pytest.fixture(scope="session")
+def airflow_version() -> Version:
+    """Fixture that provides the Airflow version of the API server under test."""
+    # A pre-release such as 3.4.0b2 already serves the 3.4.0 API, so compare release numbers only.
+    return Version(Version(_request_api("version")["version"]).base_version)
 
 
 @pytest.fixture
