@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import TYPE_CHECKING, Any
+import weakref
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import to_jsonable_python
@@ -58,6 +59,7 @@ try:
         resolve_function_tool_failure_error_function,
         set_function_tool_failure_error_function,
     )
+    from openai.types.responses import ResponseFunctionToolCall
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
@@ -102,6 +104,13 @@ _DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
+
+# Tool steps a model response claimed, by tool call id, until the tool takes its own. The tools of
+# one response start in model order but reach their wrapper after guardrails and hooks of varying
+# duration, so claiming there would number them by completion order.
+_RESERVED_TOOL_STEPS: weakref.WeakKeyDictionary[DurableRun, dict[str, JournalStep]] = (
+    weakref.WeakKeyDictionary()
+)
 
 
 async def run_durably(
@@ -215,7 +224,7 @@ def _get_durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[in
 def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     # A tool whose approval depends on its arguments is left as it is: the SDK checks that the
     # arguments it approved are the ones the tool runs with only through its own invoker.
-    if not isinstance(tool, FunctionTool) or callable(tool.needs_approval):
+    if not _is_durable_tool(tool):
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
@@ -236,17 +245,11 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
-        try:
-            parsed = json.loads(arguments) if arguments else {}
-        except json.JSONDecodeError:
-            parsed = arguments
-        fingerprint = fingerprint_tool_call(
-            tool.name,
-            # As recorded model answers are masked, so a replayed call's arguments can be too.
-            mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
-            ctx.tool_call_id,
+        step = _RESERVED_TOOL_STEPS.get(durable_run, {}).pop(ctx.tool_call_id, None) or durable_run.claim(
+            f"tool:{tool.name}",
+            kind="tool",
+            fingerprint=_build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id),
         )
-        step = durable_run.claim(f"tool:{tool.name}", kind="tool", fingerprint=fingerprint)
         if step.replayed:
             return step.payload
         try:
@@ -266,6 +269,23 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
 
     durable_tool.on_invoke_tool = on_invoke_tool
     return durable_tool
+
+
+def _is_durable_tool(tool: Tool) -> TypeGuard[FunctionTool]:
+    return isinstance(tool, FunctionTool) and not callable(tool.needs_approval)
+
+
+def _build_tool_fingerprint(name: str, arguments: str, call_id: str) -> str | None:
+    try:
+        parsed = json.loads(arguments) if arguments else {}
+    except json.JSONDecodeError:
+        parsed = arguments
+    return fingerprint_tool_call(
+        name,
+        # As recorded model answers are masked, so a replayed call's arguments can be too.
+        mask_secrets(parsed if isinstance(parsed, dict) else {"arguments": parsed}),
+        call_id,
+    )
 
 
 def _as_sent(output: Any) -> Any:
@@ -345,13 +365,16 @@ class _DurableModel(Model):
         )
         if step.replayed:
             try:
-                return ModelResponse(
+                replayed = ModelResponse(
                     output=_OUTPUT_ITEMS.validate_python(step.payload["output"]),
                     usage=Usage(),
                     response_id=step.payload.get("response_id"),
                 )
             except (ValidationError, KeyError, TypeError) as error:
                 self.durable_run.reject(step, reason=f"the recorded model response cannot be read: {error}")
+            else:
+                self._reserve_tool_steps(replayed, tools)
+                return replayed
 
         async def call() -> ModelResponse:
             return await self.wrapped.get_response(
@@ -359,10 +382,31 @@ class _DurableModel(Model):
             )
 
         try:
-            return await step.run(call, to_record=_record_response)
+            response = await step.run(call, to_record=_record_response)
         except Exception:
             self.failed_step = step
             raise
+        self._reserve_tool_steps(response, tools)
+        return response
+
+    def _reserve_tool_steps(self, response: ModelResponse, tools: list[Tool]) -> None:
+        """
+        Claim a position for each of the response's tool calls, in the order the model made them.
+
+        A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
+        empty, which a retry runs live without disturbing the positions after it. A position
+        that replays is counted in ``stats.replayed`` when reserved, so one whose tool never runs
+        is over-counted.
+        """
+        durable_names = {tool.name for tool in tools if _is_durable_tool(tool)}
+        reserved = _RESERVED_TOOL_STEPS.setdefault(self.durable_run, {})
+        for item in response.output:
+            if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names:
+                reserved[item.call_id] = self.durable_run.claim(
+                    f"tool:{item.name}",
+                    kind="tool",
+                    fingerprint=_build_tool_fingerprint(item.name, item.arguments, item.call_id),
+                )
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
         """
