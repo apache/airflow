@@ -314,6 +314,39 @@ class TestBranchDateTimeOperator:
                 }
             )
 
+    @pytest.mark.parametrize(
+        "logical_date",
+        [
+            timezone.datetime(2020, 7, 7, 23, 0, 0),
+            timezone.datetime(2020, 7, 7, 1, 0, 0),
+            timezone.datetime(2020, 7, 7, 2, 0, 0),
+        ],
+    )
+    def test_branch_datetime_operator_window_spans_midnight(self, logical_date):
+        """Check a time window crossing midnight matches times on both sides of midnight"""
+        self.branch_op.target_lower = datetime.time(22, 0, 0)
+        self.branch_op.target_upper = datetime.time(2, 0, 0)
+        self.branch_op.use_task_logical_date = True
+
+        assert self.branch_op.choose_branch(context={"logical_date": logical_date}) == "branch_1"
+
+    @pytest.mark.parametrize(
+        ("logical_date", "expected_branch"),
+        [
+            (timezone.datetime(2020, 7, 7, 1, 0, 0), "branch_2"),
+            (timezone.datetime(2020, 7, 8, 1, 0, 0), "branch_1"),
+        ],
+    )
+    def test_branch_datetime_operator_window_spans_midnight_keeps_datetime_lower(
+        self, logical_date, expected_branch
+    ):
+        """Check a datetime target_lower is not shifted when the window crosses midnight"""
+        self.branch_op.target_lower = datetime.datetime(2020, 7, 7, 22, 0, 0)
+        self.branch_op.target_upper = datetime.time(2, 0, 0)
+        self.branch_op.use_task_logical_date = True
+
+        assert self.branch_op.choose_branch(context={"logical_date": logical_date}) == expected_branch
+
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Skip on Airflow < 3.0")
     @time_machine.travel("2020-12-01 09:00:00")
     def test_choose_branch_should_use_run_after_when_logical_date_none(self, dag_maker):
