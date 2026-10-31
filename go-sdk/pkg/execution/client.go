@@ -316,6 +316,11 @@ func (c *CoordinatorClient) PushXCom(
 	key string,
 	value any,
 ) error {
+	// Unlike a task state value, nil is allowed: it is pushed as JSON null.
+	if _, err := validateJSONRepresentable(value); err != nil {
+		return fmt.Errorf("cannot push XCom %q: %w", key, err)
+	}
+
 	msg := genmodels.SetXCom{
 		Key:    key,
 		Value:  value,
@@ -469,8 +474,14 @@ func (s taskStateStore) Set(
 
 	// The caller's value is checked first so a misconfigured deployment cannot
 	// mask a programming error in the task.
-	if err := validateJSONRepresentable(value); err != nil {
+	decoded, err := validateJSONRepresentable(value)
+	if err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
+	}
+	// Checked after decoding: a typed nil such as a nil *string is not == nil,
+	// yet it still encodes to null, which the Execution API rejects.
+	if decoded == nil {
+		return fmt.Errorf("cannot set task state key %q: value must not be nil", key)
 	}
 
 	expiry, err := resolveExpiry(options.Retention, time.Now())
@@ -530,26 +541,47 @@ func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
 // validateJSONRepresentable checks what the frame encoder actually emits, not
 // the Go value: a reflection walk has to mirror the encoder's field rules (tags,
 // "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
-func validateJSONRepresentable(value any) error {
+// On success it also returns the decoded value, which is nil when value encodes
+// to null.
+func validateJSONRepresentable(value any) (any, error) {
 	var buf bytes.Buffer
 	if err := newFrameEncoder(&buf).Encode(value); err != nil {
-		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	dec := msgpack.NewDecoder(&buf)
-	// The default map decoder fails opaquely on non-string keys.
-	dec.SetMapDecoder(func(d *msgpack.Decoder) (any, error) {
-		return d.DecodeUntypedMap()
-	})
+	dec.SetMapDecoder(decodeStringKeyedMap)
 	decoded, err := dec.DecodeInterface()
 	if err != nil {
-		return fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	// Checked after decoding: a typed nil such as a nil *string is not == nil,
-	// yet it still encodes to null, which the Execution API rejects.
-	if decoded == nil {
-		return errors.New("value must not be nil")
+	if err := validateDecodedValue(decoded); err != nil {
+		return nil, err
 	}
-	return validateDecodedValue(decoded)
+	return decoded, nil
+}
+
+// decodeStringKeyedMap replaces msgpack's default map decoder, which panics on
+// a uuid.UUID key.
+func decodeStringKeyedMap(d *msgpack.Decoder) (any, error) {
+	n, err := d.DecodeMapLen()
+	if err != nil || n == -1 {
+		return nil, err
+	}
+	m := make(map[string]any, n)
+	for range n {
+		k, err := d.DecodeInterface()
+		if err != nil {
+			return nil, err
+		}
+		key, ok := k.(string)
+		if !ok {
+			return nil, fmt.Errorf("map keys must be strings, got %T", k)
+		}
+		if m[key], err = d.DecodeInterface(); err != nil {
+			return nil, err
+		}
+	}
+	return m, nil
 }
 
 func validateDecodedValue(v any) error {
@@ -578,11 +610,8 @@ func validateDecodedValue(v any) error {
 			}
 		}
 		return nil
-	case map[any]any:
-		for k, elem := range v {
-			if _, ok := k.(string); !ok {
-				return fmt.Errorf("map keys must be strings, got %T", k)
-			}
+	case map[string]any:
+		for _, elem := range v {
 			if err := validateDecodedValue(elem); err != nil {
 				return err
 			}
