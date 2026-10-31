@@ -90,7 +90,40 @@ permissions:
   packages: read
 
 jobs:
+  # Picks the runner the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true". Runs the workflow's own breeze, as the registry job checks
+  # out a ref whose breeze may predate RunsOn.
+  runner-info:
+    timeout-minutes: 10
+    name: "Runner info"
+    runs-on: ["ubuntu-slim"]
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          # Only what the runner choice reads: the full context would carry the dispatch inputs,
+          # and this job runs before the committer allowlist of the registry job.
+          GITHUB_CONTEXT: '{"run_id": "${{ github.run_id }}", "ref_name": "${{ github.ref_name }}"}'
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   build-and-publish-registry:
+    needs: [runner-info]
     timeout-minutes: 45
     name: "Build & Publish Registry"
     # An incremental build downloads the bucket's providers.json and modules.json, merges its own
@@ -122,7 +155,7 @@ jobs:
         "utkarsharma2",
         "vincbeck"
         ]'), github.event.sender.login)
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '8+16', '32+64') }}
     env:
       SCARF_ANALYTICS: "false"
       DO_NOT_TRACK: "1"
@@ -162,10 +195,12 @@ jobs:
           persist-credentials: false
           path: workflow-version
 
+      # From the workflow's version, not the checked-out ref: an older make_mnt_writeable.sh empties
+      # /mnt, which on RunsOn holds the runner's own disks.
       - name: "Make /mnt writeable and cleanup"
-        run: ./scripts/ci/make_mnt_writeable.sh
+        run: ./workflow-version/scripts/ci/make_mnt_writeable.sh
       - name: "Free up disk space"
-        run: ./scripts/tools/free_up_disk_space.sh
+        run: ./workflow-version/scripts/tools/free_up_disk_space.sh
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
         with:
