@@ -24,10 +24,11 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import type { JsonValue } from "./client-types.js";
 import type { TaskClient } from "./client.js";
 
 /** Runtime metadata for the current task invocation. */
-export interface TaskContext {
+export interface TaskContext<TConf = Readonly<Record<string, JsonValue>>> {
   /** Identifier of the Dag containing this task. */
   readonly dagId: string;
   /** Task ID for this handler invocation, including any TaskGroup prefix. */
@@ -38,6 +39,8 @@ export interface TaskContext {
   readonly tryNumber: number;
   /** -1 for non-mapped tasks, 0..N-1 for mapped instances. */
   readonly mapIndex: number;
+  /** `conf` of the Dag run, or `{}` when the run has none. */
+  readonly conf: TConf;
   /**
    * AbortSignal that fires when Airflow terminates the task subprocess
    * with SIGTERM or SIGINT.
@@ -100,10 +103,17 @@ function currentScope(accessor: ScopeAccessor): TaskScope {
  * }
  * ```
  *
+ * The generic `TConf` lets callers narrow `conf` when the shape is known:
+ *
+ * ```ts
+ * const { conf } = getContext<{ date: string }>();
+ * // conf is { date: string }
+ * ```
+ *
  * @throws when called outside a task handler.
  */
-export function getContext(): TaskContext {
-  return currentScope("getContext").ctx;
+export function getContext<TConf = TaskContext["conf"]>(): TaskContext<TConf> {
+  return currentScope("getContext").ctx as TaskContext<TConf>;
 }
 
 /**

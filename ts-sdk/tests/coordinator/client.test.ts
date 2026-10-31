@@ -40,6 +40,7 @@ const FAKE_CTX: TaskContext = {
   runId: "r",
   tryNumber: 1,
   mapIndex: -1,
+  conf: {},
   signal: new AbortController().signal,
 };
 

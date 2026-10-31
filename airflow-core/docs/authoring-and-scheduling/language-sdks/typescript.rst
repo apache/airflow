@@ -520,9 +520,10 @@ Two functions give it what it needs while it runs:
      - Returns
    * - ``getContext()``
      - The task's context (a ``TaskContext``): ``dagId``, ``taskId`` (including any task group prefix),
-       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal``
-       that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
-       accepts one, so the task can stop cleanly.
+       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), ``conf`` (the Dag run's
+       conf, ``{}`` when the run has none), and ``signal``, an ``AbortSignal`` that fires when Airflow stops the task.
+       Pass ``signal`` to ``fetch()``, timers, or any other API that accepts one, so the task can stop cleanly.
+       ``getContext<T>()`` types ``conf`` as ``T``, as ``getXCom<T>`` does for an XCom value.
    * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
