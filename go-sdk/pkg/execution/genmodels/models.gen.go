@@ -416,6 +416,9 @@ type DagFileParsingResult struct {
 	// ImportErrors corresponds to the JSON schema field "import_errors".
 	ImportErrors *ImportErrors `msgpack:"import_errors,omitempty"`
 
+	// ParseWarnings corresponds to the JSON schema field "parse_warnings".
+	ParseWarnings []DagFileParsingResultParseWarningsElem `msgpack:"parse_warnings,omitempty"`
+
 	// ParsedDefinitions corresponds to the JSON schema field "parsed_definitions".
 	ParsedDefinitions []string `msgpack:"parsed_definitions,omitempty"`
 
@@ -428,6 +431,8 @@ type DagFileParsingResult struct {
 	// Warnings corresponds to the JSON schema field "warnings".
 	Warnings *Warnings `msgpack:"warnings,omitempty"`
 }
+
+type DagFileParsingResultParseWarningsElem map[string]interface{}
 
 type DagResult struct {
 	// BundleName corresponds to the JSON schema field "bundle_name".

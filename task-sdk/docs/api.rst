@@ -150,6 +150,8 @@ Tasks & Operators
 
 .. autoapifunction:: airflow.sdk.get_parsing_context
 
+.. autoapifunction:: airflow.sdk.emit_dag_warning
+
 Retry Policies
 --------------
 Retry policies let you configure per-exception retry behaviour as a parameter on any
@@ -382,7 +384,7 @@ Everything else
 .. autoapimodule:: airflow.sdk
   :members:
   :special-members: __version__
-  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context
+  :exclude-members: BaseAsyncOperator, BaseOperator, DAG, dag, asset, Asset, AssetAccessControl, AssetAlias, AssetAll, AssetAny, AssetWatcher, TaskGroup, TaskInstance, XComArg, get_current_context, get_parsing_context, emit_dag_warning
   :undoc-members:
   :imported-members:
   :no-index:

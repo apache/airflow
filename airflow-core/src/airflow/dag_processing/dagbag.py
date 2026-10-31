@@ -214,6 +214,7 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self._import_warnings: dict[str, list[DagImportWarning]] = {}
+        self.parse_warnings: dict[str, list] = {}
         self.task_group_cycle_warnings: dict[str, str] = {}
         # The source code of each definition that produced Dags, keyed by its fileloc
         self.dag_source_codes: dict[str, DagSourceCode] = {}
@@ -329,6 +330,8 @@ class DagBag(LoggingMixin):
 
         self.captured_warnings.pop(fileloc, None)
         self._import_warnings.pop(fileloc, None)
+        rel_path = self._get_relative_fileloc(fileloc)
+        self.parse_warnings.pop(rel_path, None)
         # Keyed by dag_id, not fileloc: a bundle can embed several Dags' own source under one
         # fileloc, so a stale entry is found by which dag_ids this fileloc previously bagged.
         for dag_id, dag in list(self.dags.items()):
@@ -355,6 +358,12 @@ class DagBag(LoggingMixin):
 
         for error in result.errors:
             self._record_import_error(error, root=self._bundle.path)
+
+        rel_path = self._get_relative_fileloc(fileloc)
+        if result.parse_warnings:
+            self.parse_warnings[rel_path] = result.parse_warnings
+        else:
+            self.parse_warnings.pop(rel_path, None)
 
         if result.warnings:
             self._import_warnings[fileloc] = result.warnings
@@ -698,6 +707,10 @@ def sync_bag_to_db(
             if enclosing_file := find_enclosing_file(Path(dagbag.bundle_path, rel_path)):
                 files_parsed.add((bundle_name, dagbag._get_relative_fileloc(os.fspath(enclosing_file))))
 
+    from airflow.dag_processing.collection import dag_parse_failure_warnings
+
+    parse_failure_warnings = dag_parse_failure_warnings(bundle_name, dagbag.parse_warnings)
+
     update_dag_parsing_results_in_db(
         bundle_name,
         bundle_version,
@@ -713,4 +726,5 @@ def sync_bag_to_db(
         version_data=version_data,
         files_parsed=files_parsed,
         dag_source_codes=dagbag.dag_source_codes,
+        parse_failure_warnings=parse_failure_warnings,
     )

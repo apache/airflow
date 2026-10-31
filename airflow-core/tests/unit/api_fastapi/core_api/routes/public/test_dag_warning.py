@@ -21,7 +21,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from airflow.models.dag import DagModel
-from airflow.models.dagwarning import DagWarning
+from airflow.models.dagwarning import PARSE_FAILURE_WARNING_TYPE, DagWarning
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -138,3 +138,22 @@ class TestGetDagWarnings:
         assert response_json["total_entries"] == 1
         assert response_json["dag_warnings"][0]["warning_type"] == "yaml:schema_violation"
         assert response_json["dag_warnings"][0]["message"] == "importer message"
+
+    def test_get_parse_failure_warning_without_dag_row(self, test_client, session):
+        dag1 = session.get(DagModel, DAG1_ID)
+        dag1.relative_fileloc = "dynamic.py"
+        session.add(
+            DagWarning(
+                "orphan_dag",
+                PARSE_FAILURE_WARNING_TYPE,
+                "factory failed",
+                bundle_name="testing",
+                filename="dynamic.py",
+            )
+        )
+        session.commit()
+        response = test_client.get("/dagWarnings", params={"warning_type": PARSE_FAILURE_WARNING_TYPE})
+        assert response.status_code == 200
+        row = response.json()["dag_warnings"][0]
+        assert row["dag_id"] == "orphan_dag"
+        assert row["dag_display_name"] == "orphan_dag"

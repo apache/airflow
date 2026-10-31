@@ -322,6 +322,7 @@ def clear_db_dags():
             session.execute(delete(DagFavorite))
         session.execute(delete(DagTag))
         session.execute(delete(DagOwnerAttributes))
+        session.execute(delete(DagWarning))
         session.execute(
             delete(DagRun)
         )  # todo: this should not be necessary because the fk to DagVersion should be ON DELETE SET NULL

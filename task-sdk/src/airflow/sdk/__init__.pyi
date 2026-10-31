@@ -72,6 +72,7 @@ from airflow.sdk.definitions.decorators.task_group import task_group as task_gro
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
 from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
+from airflow.sdk.definitions.parse_warning import emit_dag_warning as emit_dag_warning
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.chain import ChainMapper
@@ -176,6 +177,7 @@ __all__ = [
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
+    "emit_dag_warning",
     "EventsTimetable",
     "ExceptionRetryPolicy",
     "FanOutMapper",

@@ -119,6 +119,7 @@ Why use ``airflow.sdk``?
 - :func:`airflow.sdk.cross_downstream`
 - :func:`airflow.sdk.get_current_context`
 - :func:`airflow.sdk.get_parsing_context`
+- :func:`airflow.sdk.emit_dag_warning`
 
 All Dags must update their imports to refer to ``airflow.sdk`` instead of using internal Airflow modules directly. Deprecated legacy import paths, such as ``airflow.models.dag.DAG`` and ``airflow.decorator.task``, will be removed in a future version of Airflow. Some utilities and helper functions currently used from ``airflow.utils.*`` and other modules will gradually be migrated to the Task SDK over the next minor releases. These upcoming updates aim to completely separate Dag creation from internal Airflow services. Dag authors can look forward to continuous improvements to airflow.sdk, with no backwards-incompatible changes to their existing code.
 

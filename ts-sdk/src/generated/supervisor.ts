@@ -292,6 +292,9 @@ export type ImportErrors = {
   [k: string]: string;
 } | null;
 export type ParsedDefinitions = string[];
+export type ParseWarnings = {
+  [k: string]: unknown;
+}[];
 export type SourceCode = string;
 export type Language = string;
 export type Type16 = "DagFileParsingResult";
@@ -1162,6 +1165,7 @@ export interface DagFileParsingResult {
   warnings?: Warnings;
   import_errors?: ImportErrors;
   parsed_definitions?: ParsedDefinitions;
+  parse_warnings?: ParseWarnings;
   dag_source_codes?: DagSourceCodes;
   type?: Type16;
 }

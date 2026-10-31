@@ -24,8 +24,17 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
+from airflow.dag_processing.collection import (
+    _update_file_scoped_parse_failure_warnings,
+    clear_orphaned_file_scoped_parse_failure_warnings,
+)
 from airflow.models import DagModel
-from airflow.models.dagwarning import DagWarning, DagWarningType, get_warning_type_value
+from airflow.models.dagwarning import (
+    PARSE_FAILURE_WARNING_TYPE,
+    DagWarning,
+    DagWarningType,
+    get_warning_type_value,
+)
 
 from tests_common.test_utils.db import clear_db_dags
 
@@ -92,6 +101,61 @@ class TestDagWarning:
         assert len(remaining_dag_warnings) == 1
         assert remaining_dag_warnings[0].dag_id == "dag_2"
 
+    def test_purge_inactive_dag_warnings_skips_file_scoped_parse_failures(self, session, testing_dag_bundle):
+        session.add(
+            DagModel(dag_id="stale_dag", bundle_name="testing", is_stale=True, relative_fileloc="factory.py")
+        )
+        session.commit()
+
+        session.add_all(
+            [
+                DagWarning("stale_dag", DagWarningType.NONEXISTENT_POOL, "pool missing"),
+                DagWarning(
+                    "stale_dag",
+                    PARSE_FAILURE_WARNING_TYPE,
+                    "partial factory failure",
+                    bundle_name="testing",
+                    filename="factory.py",
+                ),
+            ]
+        )
+        session.commit()
+
+        DagWarning.purge_inactive_dag_warnings(session=session)
+
+        remaining = session.scalars(select(DagWarning)).all()
+        assert len(remaining) == 1
+        assert remaining[0].warning_type == PARSE_FAILURE_WARNING_TYPE
+
+    def test_clear_orphaned_file_scoped_parse_failure_warnings(self, session):
+        session.add_all(
+            [
+                DagWarning(
+                    "failed_a",
+                    PARSE_FAILURE_WARNING_TYPE,
+                    "boom",
+                    bundle_name="testing",
+                    filename="removed.py",
+                ),
+                DagWarning(
+                    "failed_b",
+                    PARSE_FAILURE_WARNING_TYPE,
+                    "still relevant",
+                    bundle_name="testing",
+                    filename="still_here.py",
+                ),
+            ]
+        )
+        session.commit()
+
+        clear_orphaned_file_scoped_parse_failure_warnings("testing", {"still_here.py"}, session=session)
+
+        session.commit()
+
+        remaining = session.scalars(select(DagWarning)).all()
+        assert len(remaining) == 1
+        assert remaining[0].filename == "still_here.py"
+
     @mock.patch("airflow.models.dagwarning.delete")
     def test_retry_purge_inactive_dag_warnings(self, delete_mock):
         """
@@ -107,3 +171,19 @@ class TestDagWarning:
         # Assert that the delete method was called twice
         assert delete_mock.call_count == 2
         assert self.session_mock.execute.call_count == 2
+
+    def test_file_scoped_parse_failure_warnings_replace_per_file(self, session):
+        files = {("testing", "dynamic.py")}
+        warning = DagWarning(
+            "failed_dag",
+            PARSE_FAILURE_WARNING_TYPE,
+            "boom",
+            bundle_name="testing",
+            filename="dynamic.py",
+        )
+        _update_file_scoped_parse_failure_warnings(files, [warning], session)
+        session.commit()
+        assert len(session.scalars(select(DagWarning)).all()) == 1
+        _update_file_scoped_parse_failure_warnings(files, [], session)
+        session.commit()
+        assert session.scalars(select(DagWarning)).all() == []
