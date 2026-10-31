@@ -547,7 +547,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             sentry_integration=sentry_integration,
         )
         # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
-        self._arm_execution_timeout()
+        # They have no timer of their own and stop on SIGTERM, so send it as soon as the timeout elapses.
+        self._arm_execution_timeout(grace_period=0)
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
         """

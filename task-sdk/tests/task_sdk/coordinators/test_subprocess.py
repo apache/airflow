@@ -1359,7 +1359,12 @@ class TestPopenActivitySubprocessExecutionTimeout:
             sentry_integration="",
         )
 
-        mock_monotonic.return_value += 35
+        # No grace period: the runtime has no timer of its own, so it is signaled at the deadline.
+        mock_monotonic.return_value += 29
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+        mock_monotonic.return_value += 1
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
 
