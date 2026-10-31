@@ -130,4 +130,8 @@ def test_rebuilds_when_sources_change(harness):
     (harness.www_directory / "src" / "main.ts").write_text("export const main = 2;\n")
     harness.run_script()
 
-    assert harness.read_pnpm_calls() == [*calls_after_first_build, "install --frozen-lockfile", "build"]
+    assert harness.read_pnpm_calls() == [
+        *calls_after_first_build,
+        "install --frozen-lockfile --config.confirmModulesPurge=false",
+        "build",
+    ]
