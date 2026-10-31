@@ -17,16 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from collections.abc import Sequence
 from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from deprecated.classic import deprecated
 from packaging.version import Version
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, conf, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
@@ -154,26 +151,6 @@ class TimeDeltaSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""
         return None
-
-
-# TODO: Remove in the next major release
-@deprecated(
-    "Use `TimeDeltaSensor` with `deferrable=True` instead", category=AirflowProviderDeprecationWarning
-)
-class TimeDeltaSensorAsync(TimeDeltaSensor):
-    """
-    Deprecated. Use TimeDeltaSensor with deferrable=True instead.
-
-    :sphinx-autoapi-skip:
-    """
-
-    def __init__(self, *, end_from_trigger: bool = False, delta, **kwargs) -> None:
-        warnings.warn(
-            "TimeDeltaSensorAsync is deprecated and will be removed in a future version. Use `TimeDeltaSensor` with `deferrable=True` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(delta=delta, deferrable=True, end_from_trigger=end_from_trigger, **kwargs)
 
 
 class WaitSensor(BaseSensorOperator):

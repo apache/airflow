@@ -375,6 +375,7 @@ def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
 API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
 API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
 API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
+API_TIMEOUT = _get_int_env("AIRFLOW_CLI_API_TIMEOUT", 30, minimum=1)
 
 
 class Client(httpx.Client):
@@ -392,6 +393,9 @@ class Client(httpx.Client):
         if kind != ClientKind.NO_AUTH:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
+        # Connect stays short so an unreachable host fails fast; the rest is generous because
+        # write requests are not retried after a timeout.
+        kwargs.setdefault("timeout", httpx.Timeout(API_TIMEOUT, connect=5.0))
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -534,6 +538,10 @@ class Client(httpx.Client):
         return PluginsOperations(self)
 
 
+def get_default_api_url() -> str:
+    return os.getenv("AIRFLOW_CLI_API_URL") or "http://localhost:8080"
+
+
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
 def get_client(
@@ -549,7 +557,8 @@ def get_client(
     api_client = None
     api_token = api_token or os.getenv("AIRFLOW_CLI_TOKEN", None)
     try:
-        # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
+        # The stored API URL wins; otherwise AIRFLOW_CLI_API_URL or the localhost default is used.
+        # Save the URL with the credentials if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
             credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
@@ -559,7 +568,7 @@ def get_client(
             ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
-            base_url=credentials.api_url or "http://localhost:8080",
+            base_url=credentials.api_url or get_default_api_url(),
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
             token=resolved_token,
             kind=kind,
