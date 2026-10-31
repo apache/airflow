@@ -29,6 +29,7 @@ import selectors
 import signal
 import sys
 import time
+import warnings
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -63,6 +64,7 @@ from airflow.dag_processing.processor import (
     DagFileParsingResult,
     DagFileProcessorProcess,
 )
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -1609,6 +1611,15 @@ class DagFileProcessorManager(LoggingMixin):
         return file_infos, changed_recently
 
     def processed_recently(self, now, file):
+        """
+        Return whether ``file`` finished parsing within ``min_file_process_interval``.
+
+        .. deprecated:: 3.5.0
+            The Dag processor no longer uses this method. It will be removed in Airflow 4.
+        """
+        message = "DagFileProcessorManager.processed_recently is deprecated and will be removed in Airflow 4."
+        warnings.warn(message, RemovedInAirflow4Warning, stacklevel=2)
+        self.log.warning(message)
         stat = next(
             (
                 stat

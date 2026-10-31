@@ -65,6 +65,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     _parse_file,
 )
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
@@ -2207,7 +2208,18 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].run_count == 1
         assert manager._file_stats[file].last_finish_time is not None
         assert manager._file_stats[file].last_duration is not None
-        assert manager.processed_recently(timezone.utcnow(), file) is True
+
+    def test_processed_recently_warns_and_logs(self, caplog):
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        parsed_at = timezone.datetime(2020, 1, 5)
+        manager._file_stats[file] = DagFileStat(last_finish_time=parsed_at)
+        manager._file_process_interval = 60
+
+        with pytest.warns(RemovedInAirflow4Warning, match="processed_recently"):
+            assert manager.processed_recently(parsed_at + timedelta(seconds=10), file) is True
+
+        assert "processed_recently is deprecated" in caplog.text
 
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
