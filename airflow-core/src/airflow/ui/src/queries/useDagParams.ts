@@ -33,6 +33,7 @@ export type ParamSpec = {
 export type ParamSchema = {
   // TODO define the structure on API as generated code
   const: string | undefined;
+  depends_on: string | undefined;
   description_md: string | undefined;
   enum: Array<boolean | number | string | null> | undefined;
   examples: Array<string> | undefined;
@@ -42,6 +43,7 @@ export type ParamSchema = {
   maxLength: number | undefined;
   minimum: number | undefined;
   minLength: number | undefined;
+  options_map: Record<string, Array<boolean | number | string | null>> | undefined;
   section: string | undefined;
   title: string | undefined;
   type: Array<string> | string | undefined;
