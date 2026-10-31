@@ -29,16 +29,20 @@ import selectors
 import signal
 import sys
 import time
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter, OrderedDict, defaultdict, deque
+from contextlib import AbstractContextManager, nullcontext
 from copy import deepcopy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, cast
+from uuid import UUID
 
 import attrs
+import httpx2
 import structlog
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
@@ -48,6 +52,14 @@ from uuid6 import uuid7
 from airflow._shared.observability.metrics import stats
 from airflow._shared.observability.metrics.stats import normalize_name_for_stats
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    MAX_PUBLICATION_BYTES,
+    DagBundleInventoryBody,
+    DagParseResultBody,
+    ParseSourceCode,
+    ParseWarning,
+)
+from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
 from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf
@@ -67,6 +79,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     DagParseSource,
 )
+from airflow.dag_processing.requested_work import DatabaseRequestedWorkSource, RequestedWorkSource
 from airflow.models.asset import remove_references_to_deleted_dags
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagPriorityParsingRequest
@@ -76,6 +89,7 @@ from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ParseImportError
 from airflow.observability.metrics import stats_utils
 from airflow.sdk import SecretCache
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.sdk.log import init_log_file, logging_processors
 from airflow.typing_compat import assert_never
@@ -103,8 +117,38 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
 
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
+
+# The budget limits when another send starts; an in-flight request retains its read/write timeout.
+_API_SEND_BUDGET_SECONDS = 1.0
+_MAX_REJECTION_REASON_LENGTH = 1024
+_REJECTED_CONTENT_REASONS = frozenset({"dag_owned_by_another_bundle", "plugin_not_granted"})
+
+
+def _is_rejected_content(status_code: int, reason: str | None) -> bool:
+    """Whether the API refused a result for what it contains, so sending it again cannot succeed."""
+    return status_code in (413, 422) or (status_code in (403, 409) and reason in _REJECTED_CONTENT_REASONS)
+
+
+def _compute_retry_delay(attempts: int) -> float:
+    """Seconds to wait after the given number of failed sends, using the Execution API retry bounds."""
+    return min(
+        conf.getfloat("workers", "execution_api_retry_wait_max"),
+        max(conf.getfloat("workers", "execution_api_retry_wait_min"), 2 ** (attempts - 1)),
+    )
+
+
+def _get_api_path_error(path: str) -> str | None:
+    """Return why the API cannot accept ``path`` as a bundle-relative location, or ``None`` if it can."""
+    if len(path) > FILELOC_MAX_LENGTH:
+        return f"Definition location exceeds {FILELOC_MAX_LENGTH} characters"
+    try:
+        DagParseTokenBody.validate_relative_fileloc(path)
+    except ValueError as error:
+        return str(error)
+    return None
 
 
 class BundleState(NamedTuple):
@@ -112,6 +156,7 @@ class BundleState(NamedTuple):
 
     last_refreshed: datetime | None
     version: str | None
+    revision: UUID | None = None
 
 
 @attrs.define
@@ -124,6 +169,31 @@ class DagFileStat:
     last_duration: float | None = None
     run_count: int = 0
     last_num_of_db_queries: int = 0
+    last_attempt_time: datetime | None = None
+
+
+@attrs.define
+class PendingDagPublication:
+    """A completed import retained until publication succeeds or exhausts its retries."""
+
+    body: DagParseResultBody
+    stat: DagFileStat
+    refresh_generation: int
+    attempts: int = 0
+    next_attempt_time: float = 0.0
+    is_rejection_report: bool = False
+    """Whether this replaces a result the API refused, so a further refusal is final."""
+
+
+@attrs.define
+class PendingBundleInventory:
+    """A bundle listing retained until the API accepts it; the bundle's files wait for its revision."""
+
+    body: DagBundleInventoryBody
+    found_files: set[DagFileInfo]
+    source: DagParseSource
+    attempts: int = 0
+    next_attempt_time: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -268,6 +338,7 @@ class DagFileProcessorManager(LoggingMixin):
     _bundle_parse_sources: dict[str, DagParseSource] = attrs.field(factory=dict, init=False)
     _bundle_refresh_generations: dict[str, int] = attrs.field(factory=lambda: defaultdict(int), init=False)
     _bundles_waiting_for_refresh: set[str] = attrs.field(factory=set, init=False)
+    _dispatch_sequence: int = attrs.field(default=0, init=False)
     _bundles_needing_refresh: set[str] = attrs.field(factory=set, init=False)
     _bundle_refresh_retry_at: dict[str, float] = attrs.field(factory=dict, init=False)
     """Monotonic retry deadlines for bundles whose failed refresh or listing left a usable source."""
@@ -276,8 +347,14 @@ class DagFileProcessorManager(LoggingMixin):
     _bundle_name_to_team_name: dict[str, str | None] = attrs.field(factory=dict, init=False)
 
     _processors: dict[DagFileInfo, BaseDagFileProcessorProcess] = attrs.field(factory=dict, init=False)
+    _pending_publications: dict[DagFileInfo, PendingDagPublication] = attrs.field(factory=dict, init=False)
+    _pending_inventories: dict[str, PendingBundleInventory] = attrs.field(factory=dict, init=False)
+    _bundle_inventory_retry_times: dict[str, float] = attrs.field(factory=dict, init=False)
+    _bundles_missing_from_catalog: set[str] = attrs.field(factory=set, init=False)
+    _catalog_retry_at: float = attrs.field(default=0.0, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
+    _started_at: datetime = attrs.field(factory=timezone.utcnow, init=False)
     _num_run: int = attrs.field(default=0, init=False)
 
     _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
@@ -310,8 +387,19 @@ class DagFileProcessorManager(LoggingMixin):
     )
     """Resolved once per process so file discovery and the deactivation scan use the same value."""
 
-    _api_server: InProcessExecutionAPI = attrs.field(init=False, factory=InProcessExecutionAPI)
-    """API server to interact with Metadata DB"""
+    api_client: DagProcessorAPIClient | None = None
+    """
+    Registered HTTP client for this manager's API requests, used instead of the in-process API.
+
+    Bundle credentials and parse-time requests then go through it, on behalf of the bundle they are for.
+    """
+
+    work_source: RequestedWorkSource = attrs.field(
+        default=attrs.Factory(lambda self: self._create_requested_work_source(), takes_self=True)
+    )
+
+    _api_server: InProcessExecutionAPI | None = attrs.field(init=False, default=None)
+    """In-process API server, created only when there is no :attr:`api_client`."""
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -325,9 +413,17 @@ class DagFileProcessorManager(LoggingMixin):
             return {}
         missing = [name for name in bundle_names if name not in self._bundle_name_to_team_name]
         if missing:
-            queried = DagBundleModel.get_team_names(missing)
-            for name in missing:
-                self._bundle_name_to_team_name[name] = queried.get(name)
+            try:
+                if self.api_client is not None:
+                    queried = {bundle.name: bundle.team_name for bundle in self.api_client.get_bundles()}
+                else:
+                    queried = DagBundleModel.get_team_names(missing)
+            except httpx2.HTTPError:
+                # Team names only tag metrics, so parsing continues and the lookup is retried later.
+                self.log.warning("Unable to look up the teams of bundles %s; retrying later", missing)
+            else:
+                for name in missing:
+                    self._bundle_name_to_team_name[name] = queried.get(name)
         return {name: self._bundle_name_to_team_name.get(name) for name in bundle_names}
 
     def _get_team_name(self, bundle_name: str) -> str | None:
@@ -342,11 +438,34 @@ class DagFileProcessorManager(LoggingMixin):
         self.log.debug("Finished terminating DAG processors.")
         sys.exit(os.EX_OK)
 
+    def _create_bundle_manager(self) -> DagBundlesManager:
+        if self.api_client is None:
+            return DagBundlesManager()
+        return DagBundlesManager(
+            bundle_names=self.bundle_names_to_parse,
+            bundle_context=self.api_client.use_bundle,
+        )
+
+    def _create_requested_work_source(self) -> RequestedWorkSource:
+        if self.api_client is not None:
+            return RequestedWorkSource()
+        return DatabaseRequestedWorkSource(self._claim_priority_files, self._fetch_callbacks_from_db)
+
     def sync_bundles(self) -> None:
         """Sync configured DAG bundles to the metadata database."""
+        if self.api_client is not None:
+            provisioned = {bundle.name for bundle in self.api_client.get_bundles(retry=True)}
+            configured = set(
+                self.bundle_names_to_parse or self._create_bundle_manager().get_all_bundle_names()
+            )
+            if missing := configured - provisioned:
+                raise ValueError(
+                    f"Bundles must be provisioned before starting the processor: {sorted(missing)}"
+                )
+            return
         # When this processor only parses a subset of bundles, it does not see the full
         # bundle configuration and must not deactivate bundles owned by other processors.
-        dag_bundle_manager = DagBundlesManager()
+        dag_bundle_manager = self._create_bundle_manager()
         dag_bundle_manager.sync_bundles_to_db(deactivate_missing=not self.bundle_names_to_parse)
         # Best-effort legacy repair: a failure here must not crash DFP startup.
         # Affected Dags self-heal on the next successful parse.
@@ -357,7 +476,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def get_all_bundles(self) -> list[BaseDagBundle]:
         """Return configured DAG bundles filtered by ``bundle_names_to_parse`` if provided."""
-        return list(DagBundlesManager().get_all_dag_bundles())
+        return list(self._create_bundle_manager().get_all_dag_bundles())
 
     def run(self):
         """
@@ -366,15 +485,20 @@ class DagFileProcessorManager(LoggingMixin):
         By processing them in separate processes, we can get parallelism and isolation
         from potentially harmful user code.
         """
-        self.before_run()
         try:
-            return self._run_parsing_loop()
+            self.before_run()
+            # Startup may wait for the API to come back; the parsing loop must not sleep between retries.
+            with nullcontext() if self.api_client is None else self.api_client.use_immediate_retries():
+                return self._run_parsing_loop()
         finally:
             self.after_run()
 
     def before_run(self) -> None:
         """Set up state required before the parsing loop starts. Default implementation; override to customize."""
-        self.prepare_server_process_context()
+        if self.api_client is None:
+            self.prepare_server_process_context()
+        else:
+            self.prepare_api_secrets_context(self.api_client)
         self.prepare_process_context()
         self.register_exit_signals()
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
@@ -386,13 +510,21 @@ class DagFileProcessorManager(LoggingMixin):
         gc.freeze()
 
     def after_run(self) -> None:
-        """Tear down state after the parsing loop exits. Default no-op; override to customize."""
+        """Tear down state after the parsing loop exits. Default implementation; override to customize."""
+        if self.api_client is None:
+            return
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
+        from airflow.dag_processing.api_client import DagProcessorSecretsComms
+
+        if isinstance(getattr(task_runner, "SUPERVISOR_COMMS", None), DagProcessorSecretsComms):
+            del task_runner.SUPERVISOR_COMMS
 
     def warm_importers(self) -> None:
         """Build each bundle's Dag importers, so parse processes forked later share them."""
         for bundle in self._dag_bundles:
             try:
-                get_importer_registry(bundle.name).warm_importers()
+                with self._use_bundle(bundle.name):
+                    get_importer_registry(bundle.name).warm_importers()
             except Exception:
                 # The importer fails again when the bundle is listed, which reports it per refresh.
                 self.log.exception("Error loading Dag importers for bundle %s", bundle.name)
@@ -401,8 +533,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         Mark this process as running in "server" context so MetastoreBackend is available.
 
-        Override to a no-op in subclasses that do not require direct DB access (e.g. API-backed
-        deployments under AIP-92).
+        Called only without an HTTP client; API mode uses ``prepare_api_secrets_context`` instead.
         """
         # TODO: Temporary until AIP-92 removes DB access from DagProcessorManager.
         # The manager needs MetastoreBackend to retrieve connections from the database
@@ -413,6 +544,27 @@ class DagFileProcessorManager(LoggingMixin):
         # in _parse_file_entrypoint() to prevent inheriting server privileges.
         # Related: https://github.com/apache/airflow/pull/57459
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
+
+    def prepare_api_secrets_context(self, api_client: DagProcessorAPIClient) -> None:
+        """
+        Resolve this process's own connection and variable lookups through ``api_client``.
+
+        Bundle code runs in this process, for example a Git bundle reading its connection. Its secret
+        lookups use the API. Python parse processes replace
+        ``SUPERVISOR_COMMS`` with their own channel before running any Dag code.
+        """
+        from airflow.dag_processing.api_client import DagProcessorSecretsComms
+
+        # SDK cache keys do not carry the bundle identity used to authorize these requests.
+        SecretCache.reset()
+        os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
+        task_runner.SUPERVISOR_COMMS = DagProcessorSecretsComms(api_client)  # type: ignore[assignment]
+
+    def _use_bundle(self, bundle_name: str) -> AbstractContextManager[object]:
+        """Make API requests on behalf of the bundle; a no-op with the in-process API."""
+        if self.api_client is None:
+            return nullcontext()
+        return self.api_client.use_bundle(bundle_name)
 
     def prepare_process_context(self) -> None:
         """Initialize transport-neutral process state (selector, stats) before the parsing loop starts."""
@@ -444,6 +596,8 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _scan_stale_dags(self):
         """Scan and deactivate DAGs which are no longer present in files."""
+        if self.api_client is not None:
+            return
         now = time.monotonic()
         elapsed_time_since_refresh = now - self._last_deactivate_stale_dags_time
         if elapsed_time_since_refresh > self.parsing_cleanup_interval:
@@ -471,6 +625,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     def cleanup_stale_bundle_versions(self) -> None:
         """Clean up stale DAG bundle version usage records."""
+        if self.api_client is not None:
+            manager = BundleUsageTrackingManager()
+            for bundle in self._dag_bundles:
+                if bundle.supports_versioning:
+                    manager.remove_stale_bundle_versions_for_bundle(bundle.name)
+            return
         BundleUsageTrackingManager().remove_stale_bundle_versions()
 
     @provide_session
@@ -566,7 +726,8 @@ class DagFileProcessorManager(LoggingMixin):
     def _run_parsing_loop(self):
         # initialize cache to mutualize calls to Variable.get in DAGs
         # needs to be done before this process is forked to create the DAG parsing processes.
-        SecretCache.init()
+        if self.api_client is None:
+            SecretCache.init()
 
         poll_time = 0.0
 
@@ -597,6 +758,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             self._collect_results()
 
+            self._publish_pending_results()
             for callback in self.fetch_callbacks():
                 self._add_callback_to_queue(callback)
             self._scan_stale_dags()
@@ -652,12 +814,17 @@ class DagFileProcessorManager(LoggingMixin):
             self.log.info("Bundles being force refreshed: %s", ", ".join(self._force_refresh_bundles))
 
     def claim_priority_files(self) -> list[DagFileInfo]:
-        """
-        Fetch and claim files requested for priority parsing.
-
-        Default implementation reads from the metadata DB; override to source requests from an API.
-        """
-        return self._claim_priority_files()
+        """Fetch and claim files requested for priority parsing."""
+        active_attempts = {process.id for process in self._processors.values()}
+        active_attempts.update(pending.body.attempt_id for pending in self._pending_publications.values())
+        return self.work_source.claim_priority_files(
+            self._dag_bundles,
+            capacity=self._parallelism,
+            unavailable_bundles=self._bundles_needing_refresh
+            | {bundle.name for bundle in self._dag_bundles if not bundle.is_initialized},
+            active_attempts=active_attempts,
+            inventory_sequence=self._dispatch_sequence + 1,
+        )
 
     def request_bundle_refresh(self, bundle_names: str | Iterable[str]) -> None:
         """
@@ -709,12 +876,8 @@ class DagFileProcessorManager(LoggingMixin):
         return files
 
     def fetch_callbacks(self) -> list[CallbackRequest]:
-        """
-        Fetch and claim callbacks for this manager's bundles.
-
-        Default implementation reads from the metadata DB; override to source callbacks from an API.
-        """
-        return self._fetch_callbacks_from_db()
+        """Fetch and claim callbacks for this manager's bundles."""
+        return self.work_source.fetch_callbacks(self._dag_bundles, limit=self.max_callbacks_per_loop)
 
     @provide_session
     @retry_db_transaction
@@ -783,21 +946,18 @@ class DagFileProcessorManager(LoggingMixin):
                 self.log.error("Bundle %s is not initialized, skipping callback", request.bundle_name)
                 return None
             return loaded
-        try:
-            bundle = DagBundlesManager().get_bundle(
-                name=request.bundle_name,
-                version=request.bundle_version,
-                version_data=request.version_data,
-            )
-        except ValueError:
-            self.log.error("Bundle %s no longer configured, skipping callback", request.bundle_name)
-            return None
-        if bundle.supports_versioning:
+        with self._use_bundle(request.bundle_name):
             try:
-                bundle.initialize()
+                bundle = self._create_bundle_manager().get_bundle(
+                    name=request.bundle_name,
+                    version=request.bundle_version,
+                    version_data=request.version_data,
+                )
+                if bundle.supports_versioning:
+                    bundle.initialize()
             except Exception:
                 self.log.exception(
-                    "Error initializing bundle %s version %s for callback, skipping",
+                    "Error preparing bundle %s version %s for callback, skipping",
                     request.bundle_name,
                     request.bundle_version,
                 )
@@ -874,6 +1034,85 @@ class DagFileProcessorManager(LoggingMixin):
             values["version"] = version
         session.execute(update(DagBundleModel).where(DagBundleModel.name == bundle_name).values(**values))
 
+    def _publish_bundle_inventory(self, bundle_name: str, known_files: dict[str, set[DagFileInfo]]) -> None:
+        if self.api_client is None:
+            raise ValueError("Inventory publication requires an API client")
+        pending = self._pending_inventories[bundle_name]
+        if len(pending.body.model_dump_json().encode()) > MAX_PUBLICATION_BYTES:
+            self.log.error(
+                "Bundle %s inventory exceeds the %s-byte publication limit; retaining the previous inventory",
+                bundle_name,
+                MAX_PUBLICATION_BYTES,
+            )
+            self._defer_unusable_bundle_inventory(bundle_name)
+            return
+        try:
+            receipt = self.api_client.publish_inventory(bundle_name, pending.body)
+        except httpx2.HTTPError as error:
+            status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+            if status_code is None or status_code in (408, 429) or status_code >= 500:
+                pending.attempts += 1
+                pending.next_attempt_time = time.monotonic() + _compute_retry_delay(pending.attempts)
+                self.log.warning(
+                    "Unable to publish inventory for %s; retrying on a later refresh", bundle_name
+                )
+                return
+            if status_code == 409:
+                del self._pending_inventories[bundle_name]
+                self.request_bundle_refresh(bundle_name)
+            elif status_code == 413:
+                self._defer_unusable_bundle_inventory(bundle_name)
+            else:
+                # The Job, its bundle grants or the API contract no longer match this processor, so a
+                # resend cannot succeed; restarting registers again and reads the catalog again.
+                raise
+            self.log.warning(
+                "Inventory publication was rejected for %s", bundle_name, status_code=status_code
+            )
+            return
+        del self._pending_inventories[bundle_name]
+        self._bundle_inventory_retry_times.pop(bundle_name, None)
+        self._bundle_parse_sources[bundle_name] = attrs.evolve(
+            pending.source, bundle_revision=receipt.revision
+        )
+        self._bundle_versions[bundle_name] = pending.source.bundle_version
+        self._bundle_failed_sources[bundle_name] = frozenset(pending.body.failed_sources)
+        known_files[bundle_name] = pending.found_files
+
+    def _discard_unusable_bundle_source(self, bundle_name: str) -> None:
+        self._pending_inventories.pop(bundle_name, None)
+        self._bundle_inventory_retry_times.pop(bundle_name, None)
+        self._bundle_refresh_retry_at.pop(bundle_name, None)
+        self._bundle_parse_sources.pop(bundle_name, None)
+        self._force_refresh_bundles.discard(bundle_name)
+        self._bundles_waiting_for_refresh.discard(bundle_name)
+
+    def _defer_unusable_bundle_inventory(self, bundle_name: str) -> None:
+        refresh_interval = next(
+            (bundle.refresh_interval for bundle in self._dag_bundles if bundle.name == bundle_name),
+            self.bundle_refresh_check_interval,
+        )
+        self._discard_unusable_bundle_source(bundle_name)
+        self._bundle_inventory_retry_times[bundle_name] = time.monotonic() + max(
+            refresh_interval, self.bundle_refresh_check_interval, _compute_retry_delay(1)
+        )
+
+    def _publish_pending_inventories(self, known_files: dict[str, set[DagFileInfo]]) -> bool:
+        deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
+        attempted = False
+        for bundle_name in list(self._pending_inventories):
+            now = time.monotonic()
+            if now >= deadline:
+                break
+            if now < self._pending_inventories[bundle_name].next_attempt_time:
+                continue
+            with self._use_bundle(bundle_name):
+                self._publish_bundle_inventory(bundle_name, known_files)
+            attempted = True
+            if bundle_name in self._pending_inventories:
+                self._pending_inventories[bundle_name] = self._pending_inventories.pop(bundle_name)
+        return attempted
+
     def _invalidate_bundle_parse_source(self, bundle_name: str) -> None:
         # Initialization or refresh may change files even when the provider raises afterwards.
         self._bundle_refresh_generations[bundle_name] += 1
@@ -895,7 +1134,19 @@ class DagFileProcessorManager(LoggingMixin):
         next_check = self._bundles_last_refreshed + self.bundle_refresh_check_interval
         now_seconds = time.monotonic()
         periodic_check_due = now_seconds >= next_check
-        urgent_bundles = self._force_refresh_bundles | self._bundles_waiting_for_refresh
+        due_inventories = {
+            name
+            for name, pending in self._pending_inventories.items()
+            if now_seconds >= pending.next_attempt_time
+        }
+        requested_bundles = self._force_refresh_bundles | self._bundles_waiting_for_refresh
+        if now_seconds < self._catalog_retry_at:
+            # A requested refresh needs the catalog; wait for the next periodic read instead of every loop.
+            requested_bundles = set()
+        unrefreshable_bundles = self._pending_inventories.keys() | {
+            name for name, retry_at in self._bundle_inventory_retry_times.items() if now_seconds < retry_at
+        }
+        urgent_bundles = (requested_bundles - unrefreshable_bundles) | due_inventories
         if not periodic_check_due and not urgent_bundles:
             self.log.debug(
                 "Not time to check if DAG Bundles need refreshed yet - skipping. Next check in %.2f seconds",
@@ -906,167 +1157,249 @@ class DagFileProcessorManager(LoggingMixin):
         if periodic_check_due:
             self._bundles_last_refreshed = now_seconds
 
+        catalog: dict[str, BundleState] | None = None
+        if self.api_client is not None and self._dag_bundles:
+            try:
+                bundles = self.api_client.get_bundles()
+                catalog = {
+                    bundle.name: BundleState(bundle.last_refreshed, bundle.version, bundle.revision)
+                    for bundle in bundles
+                }
+                self._bundle_name_to_team_name = {bundle.name: bundle.team_name for bundle in bundles}
+                missing_bundles = {bundle.name for bundle in self._dag_bundles} - catalog.keys()
+                for bundle_name in sorted(missing_bundles - self._bundles_missing_from_catalog):
+                    self.log.warning(
+                        "Bundle missing from API catalog; parsing paused", bundle_name=bundle_name
+                    )
+                self._bundles_missing_from_catalog = missing_bundles
+                self._catalog_retry_at = 0.0
+            except httpx2.HTTPError:
+                self.log.warning("Unable to read the bundle catalog; retrying on a later refresh")
+                self._catalog_retry_at = now_seconds + self.bundle_refresh_check_interval
+
         any_refreshed = False
-        active_bundles = {file.bundle_name for file in self._processors if file.bundle_version is None}
+        active_bundles = {
+            file.bundle_name
+            for file in self._processors.keys() | self._pending_publications.keys()
+            if file.bundle_version is None
+        }
         for bundle in self._dag_bundles:
             if not periodic_check_due and bundle.name not in urgent_bundles:
                 continue
-            if bundle.name not in urgent_bundles and now_seconds < self._bundle_refresh_retry_at.get(
-                bundle.name, 0
-            ):
-                continue
-            # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
-            #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
-            if not bundle.is_initialized:
-                self._invalidate_bundle_parse_source(bundle.name)
+            with self._use_bundle(bundle.name):
+                if catalog is not None and bundle.name not in catalog:
+                    self._discard_unusable_bundle_source(bundle.name)
+                    continue
+                if now_seconds < self._bundle_inventory_retry_times.get(bundle.name, 0):
+                    continue
+                if bundle.name in self._pending_inventories:
+                    # A listing still waiting for the API must be published before the bundle is listed again.
+                    continue
+                if self.api_client is not None and catalog is None:
+                    continue
+                if bundle.name not in urgent_bundles and now_seconds < self._bundle_refresh_retry_at.get(
+                    bundle.name, 0
+                ):
+                    continue
+                # TODO: AIP-66 handle errors in the case of incomplete cloning? And test this.
+                #  What if the cloning/refreshing took too long(longer than the dag processor timeout)
+                if not bundle.is_initialized:
+                    self._invalidate_bundle_parse_source(bundle.name)
+                    try:
+                        bundle.initialize()
+                        any_refreshed = True
+                    except Exception as e:
+                        self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                        self._bundles_needing_refresh.add(bundle.name)
+                        continue
                 try:
-                    bundle.initialize()
+                    bundle_state = (
+                        catalog.get(bundle.name)
+                        if catalog is not None
+                        else self.get_bundle_state(bundle.name)
+                    )
+                except Exception:
+                    self.log.exception("Error fetching state for bundle %s", bundle.name)
+                    continue
+                if bundle_state is None:
+                    self.log.warning("Bundle model not found for %s", bundle.name)
+                    continue
+                elapsed_time_since_refresh = (
+                    now - (bundle_state.last_refreshed or utc_epoch())
+                ).total_seconds()
+                if bundle.supports_versioning:
+                    # we will also check the version of the bundle to see if another DAG processor has seen
+                    # a new version
+                    pre_refresh_version = self._bundle_versions.get(bundle.name)
+                    # Use `is None` (not falsy) so an empty-string version is treated as a valid cached value.
+                    if pre_refresh_version is None:
+                        pre_refresh_version, _ = unpack_bundle_version(bundle.get_current_version(), bundle)
+                    current_version_matches_db = pre_refresh_version == bundle_state.version
+                else:
+                    # With no versioning, it always "matches"
+                    current_version_matches_db = True
+
+                previously_seen = bundle.name in self._bundle_versions
+                if (
+                    bundle.name not in self._bundles_waiting_for_refresh
+                    and bundle.name not in self._bundles_needing_refresh
+                    and bundle.name in self._bundle_parse_sources
+                    and self.should_skip_refresh(
+                        bundle=bundle,
+                        elapsed_time_since_refresh=elapsed_time_since_refresh,
+                        current_version_matches_db=current_version_matches_db,
+                        previously_seen=previously_seen,
+                    )
+                ):
+                    self.log.debug("Not time to refresh bundle %s", bundle.name)
+                    continue
+
+                if bundle.refresh_changes_source and bundle.name in active_bundles:
+                    # Forced refreshes wait too: refreshing under an import would discard its result.
+                    self._bundles_waiting_for_refresh.add(bundle.name)
+                    continue
+
+                self._bundles_waiting_for_refresh.discard(bundle.name)
+                self._bundle_refresh_retry_at.pop(bundle.name, None)
+                self.log.info("Refreshing bundle %s", bundle.name)
+
+                previous_source = self._bundle_parse_sources.get(bundle.name)
+                if bundle.refresh_changes_source:
+                    self._invalidate_bundle_parse_source(bundle.name)
+                try:
+                    bundle.refresh()
                     any_refreshed = True
-                except Exception as e:
-                    self.log.exception("Error initializing bundle %s: %s", bundle.name, e)
+                except Exception as error:
+                    self.log.exception("Error refreshing bundle %s", bundle.name)
+                    source_unchanged = not bundle.refresh_changes_source or (
+                        isinstance(error, DagBundleRefreshError) and error.source_unchanged
+                    )
+                    if source_unchanged and previous_source is not None:
+                        self._bundle_parse_sources[bundle.name] = attrs.evolve(
+                            previous_source,
+                            refresh_generation=self._bundle_refresh_generations[bundle.name],
+                        )
+                        self._force_refresh_bundles.discard(bundle.name)
+                        self._bundle_refresh_retry_at[bundle.name] = (
+                            time.monotonic() + bundle.refresh_interval
+                        )
+                        if bundle.name not in self._bundles_needing_refresh:
+                            self.log.warning(
+                                "Refresh failed without changing the source; continuing to parse bundle",
+                                bundle_name=bundle.name,
+                            )
+                    elif previous_source is not None or bundle.name not in self._bundles_needing_refresh:
+                        self.log.warning(
+                            "Parsing paused until bundle refresh succeeds", bundle_name=bundle.name
+                        )
                     self._bundles_needing_refresh.add(bundle.name)
                     continue
-            try:
-                bundle_state = self.get_bundle_state(bundle.name)
-            except Exception:
-                self.log.exception("Error fetching state for bundle %s", bundle.name)
-                continue
-            if bundle_state is None:
-                self.log.warning("Bundle model not found for %s", bundle.name)
-                continue
-            elapsed_time_since_refresh = (now - (bundle_state.last_refreshed or utc_epoch())).total_seconds()
-            if bundle.supports_versioning:
-                # we will also check the version of the bundle to see if another DAG processor has seen
-                # a new version
-                pre_refresh_version = self._bundle_versions.get(bundle.name)
-                # Use `is None` (not falsy) so an empty-string version is treated as a valid cached value.
-                if pre_refresh_version is None:
-                    pre_refresh_version, _ = unpack_bundle_version(bundle.get_current_version(), bundle)
-                current_version_matches_db = pre_refresh_version == bundle_state.version
-            else:
-                # With no versioning, it always "matches"
-                current_version_matches_db = True
 
-            previously_seen = bundle.name in self._bundle_versions
-            if (
-                bundle.name not in self._bundles_waiting_for_refresh
-                and bundle.name not in self._bundles_needing_refresh
-                and bundle.name in self._bundle_parse_sources
-                and self.should_skip_refresh(
-                    bundle=bundle,
-                    elapsed_time_since_refresh=elapsed_time_since_refresh,
-                    current_version_matches_db=current_version_matches_db,
-                    previously_seen=previously_seen,
-                )
-            ):
-                self.log.debug("Not time to refresh bundle %s", bundle.name)
-                continue
+                self._bundles_needing_refresh.discard(bundle.name)
+                self._force_refresh_bundles.discard(bundle.name)
 
-            if bundle.refresh_changes_source and bundle.name in active_bundles:
-                # Forced refreshes wait too: refreshing under an import would discard its result.
-                self._bundles_waiting_for_refresh.add(bundle.name)
-                continue
-
-            self._bundles_waiting_for_refresh.discard(bundle.name)
-            self._bundle_refresh_retry_at.pop(bundle.name, None)
-            self.log.info("Refreshing bundle %s", bundle.name)
-
-            previous_source = self._bundle_parse_sources.get(bundle.name)
-            if bundle.refresh_changes_source:
-                self._invalidate_bundle_parse_source(bundle.name)
-            try:
-                bundle.refresh()
-                any_refreshed = True
-            except Exception as error:
-                self.log.exception("Error refreshing bundle %s", bundle.name)
-                source_unchanged = not bundle.refresh_changes_source or (
-                    isinstance(error, DagBundleRefreshError) and error.source_unchanged
-                )
-                if source_unchanged and previous_source is not None:
-                    self._bundle_parse_sources[bundle.name] = attrs.evolve(
-                        previous_source,
-                        refresh_generation=self._bundle_refresh_generations[bundle.name],
+                if bundle.supports_versioning:
+                    version_after_refresh, version_data_after_refresh = unpack_bundle_version(
+                        bundle.get_current_version(), bundle
                     )
-                    self._force_refresh_bundles.discard(bundle.name)
-                    self._bundle_refresh_retry_at[bundle.name] = time.monotonic() + bundle.refresh_interval
-                    if bundle.name not in self._bundles_needing_refresh:
-                        self.log.warning(
-                            "Refresh failed without changing the source; continuing to parse bundle",
-                            bundle_name=bundle.name,
+                else:
+                    version_after_refresh = None
+                    version_data_after_refresh = None
+
+                self._bundle_parse_sources[bundle.name] = DagParseSource(
+                    bundle_version=version_after_refresh,
+                    version_data=deepcopy(version_data_after_refresh),
+                    refresh_generation=self._bundle_refresh_generations[bundle.name],
+                )
+
+                if bundle.supports_versioning:
+                    # We can short-circuit the rest of this if (1) bundle was seen before by
+                    # this dag processor and (2) the version of the bundle did not change
+                    # after refreshing it
+                    if (
+                        self.api_client is None
+                        and previously_seen
+                        and pre_refresh_version == version_after_refresh
+                    ):
+                        self.log.debug(
+                            "Bundle %s version not changed after refresh: %s",
+                            bundle.name,
+                            version_after_refresh,
                         )
-                elif previous_source is not None or bundle.name not in self._bundles_needing_refresh:
-                    self.log.warning("Parsing paused until bundle refresh succeeds", bundle_name=bundle.name)
-                self._bundles_needing_refresh.add(bundle.name)
-                continue
+                        try:
+                            self.update_bundle_state(bundle.name, last_refreshed=now, version=None)
+                        except Exception:
+                            self.log.exception("Error persisting state for bundle %s", bundle.name)
+                            self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
+                        continue
 
-            self._bundles_needing_refresh.discard(bundle.name)
-            self._force_refresh_bundles.discard(bundle.name)
-
-            if bundle.supports_versioning:
-                version_after_refresh, version_data_after_refresh = unpack_bundle_version(
-                    bundle.get_current_version(), bundle
-                )
-            else:
-                version_after_refresh = None
-                version_data_after_refresh = None
-
-            self._bundle_parse_sources[bundle.name] = DagParseSource(
-                bundle_version=version_after_refresh,
-                version_data=deepcopy(version_data_after_refresh),
-                refresh_generation=self._bundle_refresh_generations[bundle.name],
-            )
-
-            if bundle.supports_versioning:
-                # We can short-circuit the rest of this if (1) bundle was seen before by
-                # this dag processor and (2) the version of the bundle did not change
-                # after refreshing it
-                if previously_seen and pre_refresh_version == version_after_refresh:
-                    self.log.debug(
-                        "Bundle %s version not changed after refresh: %s",
-                        bundle.name,
-                        version_after_refresh,
+                    self.log.info(
+                        "Version changed for %s, new version: %s", bundle.name, version_after_refresh
                     )
-                    try:
-                        self.update_bundle_state(bundle.name, last_refreshed=now, version=None)
-                    except Exception:
-                        self.log.exception("Error persisting state for bundle %s", bundle.name)
+                try:
+                    discovery = self._find_files_in_bundle(bundle)
+                except Exception:
+                    # Keep the bundle's known files and Dags, and leave its version unadvanced so the
+                    # next refresh lists it again.
+                    self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
+                    if self.api_client is not None:
+                        self._bundle_parse_sources.pop(bundle.name, None)
+                    else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
 
-                self.log.info("Version changed for %s, new version: %s", bundle.name, version_after_refresh)
-            try:
-                discovery = self._find_files_in_bundle(bundle)
-            except Exception:
-                # Keep the bundle's known files and Dags, and leave its version unadvanced so the
-                # next refresh lists it again.
-                self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
-                self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
-                continue
+                if self.api_client is not None:
+                    discovery = self._filter_api_discovery_result(bundle.name, discovery)
+                found_files = discovery.files
+                if self.api_client is not None:
+                    self._dispatch_sequence += 1
+                    try:
+                        inventory = DagBundleInventoryBody(
+                            attempt_id=uuid7(),
+                            dispatch_sequence=self._dispatch_sequence,
+                            expected_revision=bundle_state.revision,
+                            version=version_after_refresh,
+                            files=sorted(self._get_observed_filelocs(found_files)),
+                            failed_sources=sorted(discovery.failed_sources),
+                        )
+                    except ValidationError:
+                        # Handled like a failed listing, so the API never sees a partial inventory.
+                        self.log.exception("Bundle %s has a listing the API cannot accept", bundle.name)
+                        self._defer_unusable_bundle_inventory(bundle.name)
+                        continue
+                    self._pending_inventories[bundle.name] = PendingBundleInventory(
+                        body=inventory,
+                        found_files=found_files,
+                        source=self._bundle_parse_sources.pop(bundle.name),
+                    )
+                    continue
 
-            # Persistence failure must not skip file scanning (bundle is already refreshed locally).
-            # _bundle_versions is only advanced on success to stay consistent with the DB.
-            try:
-                self.update_bundle_state(bundle.name, last_refreshed=now, version=version_after_refresh)
-            except Exception:
-                self.log.exception("Error persisting state for bundle %s", bundle.name)
-                self._delay_draining_refresh_retry(bundle, discovery.files)
-            else:
-                self._bundle_versions[bundle.name] = version_after_refresh
+                # Persistence failure must not skip file scanning (bundle is already refreshed locally).
+                # _bundle_versions is only advanced on success to stay consistent with the DB.
+                try:
+                    self.update_bundle_state(bundle.name, last_refreshed=now, version=version_after_refresh)
+                except Exception:
+                    self.log.exception("Error persisting state for bundle %s", bundle.name)
+                    self._delay_draining_refresh_retry(bundle, discovery.files)
+                else:
+                    self._bundle_versions[bundle.name] = version_after_refresh
 
-            found_files = discovery.files
-            self._bundle_failed_sources[bundle.name] = discovery.failed_sources
-            known_files[bundle.name] = found_files
+                self._bundle_failed_sources[bundle.name] = discovery.failed_sources
+                known_files[bundle.name] = found_files
 
-            # Subclass overrides may keep the original signatures, so failed sources go through instance state.
-            self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
-            self.clear_orphaned_import_errors(
-                bundle_name=bundle.name,
-                observed_filelocs=self._get_observed_filelocs(found_files),
-            )
+                # Subclass overrides may keep the original signatures, so failed sources go through instance state.
+                self.deactivate_deleted_dags(bundle_name=bundle.name, present=found_files)
+                self.clear_orphaned_import_errors(
+                    bundle_name=bundle.name,
+                    observed_filelocs=self._get_observed_filelocs(found_files),
+                )
 
+        if self.api_client is not None:
+            any_refreshed = self._publish_pending_inventories(known_files) or any_refreshed
         if any_refreshed:
             # Bundle-to-team assignments can only change on bundle refresh, so clear the cache.
-            self._bundle_name_to_team_name = {}
+            if self.api_client is None:
+                self._bundle_name_to_team_name = {}
             self.handle_removed_files(known_files=known_files)
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
@@ -1117,6 +1450,26 @@ class DagFileProcessorManager(LoggingMixin):
             for rel_path, locs in definition_locs.items()
         }
         return DagBundleDiscoveryResult(files=files, failed_sources=frozenset(failed_sources))
+
+    def _filter_api_discovery_result(
+        self, bundle_name: str, discovery: DagBundleDiscoveryResult
+    ) -> DagBundleDiscoveryResult:
+        invalid_paths = set()
+        for path in sorted(self._get_observed_filelocs(discovery.files) | discovery.failed_sources):
+            if (error := _get_api_path_error(path)) is not None:
+                invalid_paths.add(path)
+                self.log.warning(
+                    "Skipping source with an unrepresentable API path",
+                    bundle_name=bundle_name,
+                    relative_fileloc=path,
+                    error=error,
+                )
+        files = {
+            replace(file, definition_locs=file.definition_locs - invalid_paths)
+            for file in discovery.files
+            if str(file.rel_path) not in invalid_paths
+        }
+        return DagBundleDiscoveryResult(files=files, failed_sources=discovery.failed_sources - invalid_paths)
 
     @staticmethod
     def _get_observed_filelocs(present: set[DagFileInfo]) -> set[str]:
@@ -1354,6 +1707,9 @@ class DagFileProcessorManager(LoggingMixin):
         stats_to_remove = {file for file in self._file_stats if file.presence_key not in present_keys}
         for file in stats_to_remove:
             del self._file_stats[file]
+        for file in list(self._pending_publications):
+            if file.presence_key not in present_keys:
+                del self._pending_publications[file]
 
     def terminate_orphan_processes(self, present: set[DagFileInfo]):
         """Stop processors that are working on deleted files."""
@@ -1383,13 +1739,12 @@ class DagFileProcessorManager(LoggingMixin):
                 processor.close()
                 self._file_stats.pop(file, None)
 
-    @provide_session
     def handle_parsing_result(
         self,
         file: DagFileInfo,
         proc: BaseDagFileProcessorProcess,
         *,
-        session: Session = NEW_SESSION,
+        session: Session | None = None,
     ) -> None:
         """
         Post-process a single finished parse result.
@@ -1399,10 +1754,8 @@ class DagFileProcessorManager(LoggingMixin):
         Extracted from ``_collect_results`` to keep result handling and
         persistence separate.
 
-        Owns its own DB session via ``@provide_session`` so subclasses that
-        forward results without touching the metadata DB (e.g. AIP-92 API-backed
-        deployments) can override this method without inheriting a session
-        created by the caller.
+        API mode queues results without opening a database session. DB mode
+        creates a session only for persistence unless the caller supplies one.
 
         If persistence fails, the error is logged and the previous persisted
         DAG/import-error counts are preserved while a minimal timestamp update
@@ -1442,41 +1795,317 @@ class DagFileProcessorManager(LoggingMixin):
             team_name=team_name,
         )
 
-        if proc.parsing_result is not None:
-            try:
-                self.persist_parsing_result(
-                    bundle_name=file.bundle_name,
-                    bundle_version=proc.parse_source.bundle_version,
-                    version_data=(
-                        dict(proc.parse_source.version_data)
-                        if proc.parse_source.version_data is not None
-                        else None
-                    ),
-                    parsing_result=proc.parsing_result,
-                    run_duration=run_duration,
-                    relative_fileloc=str(file.rel_path),
-                    session=session,
-                )
-            except Exception:
-                self.log.exception(
-                    "Failed to persist parsing result for %s in bundle %s; "
-                    "keeping previous persisted stats while throttling retries. "
-                    "Other files in this cycle are still processed.",
-                    str(file.rel_path),
-                    file.bundle_name,
-                )
-                current_stat = self._file_stats[file]
-                self._file_stats[file] = DagFileStat(
-                    num_dags=current_stat.num_dags,
-                    import_errors=current_stat.import_errors,
-                    last_finish_time=finish_time,
-                    last_duration=run_duration,
-                    run_count=current_stat.run_count + 1,
-                    last_num_of_db_queries=current_stat.last_num_of_db_queries,
-                )
+        try:
+            if self.api_client is not None and not is_callback_only:
+                if proc.parsing_result is not None and proc.api_request_error is None:
+                    self._pending_publications[file] = self._build_pending_publication(
+                        file, proc, run_duration, next_stat
+                    )
+                else:
+                    self._queue_failed_parse_result(
+                        file,
+                        proc,
+                        run_duration,
+                        next_stat,
+                        reason="the parsing process exited without a result",
+                    )
                 return
+            if proc.parsing_result is not None:
+                with create_session() if session is None else nullcontext(session) as session:
+                    self.persist_parsing_result(
+                        bundle_name=file.bundle_name,
+                        bundle_version=proc.parse_source.bundle_version,
+                        version_data=(
+                            dict(proc.parse_source.version_data)
+                            if proc.parse_source.version_data is not None
+                            else None
+                        ),
+                        parsing_result=proc.parsing_result,
+                        run_duration=run_duration,
+                        relative_fileloc=str(file.rel_path),
+                        session=session,
+                    )
+        except Exception:
+            self.log.exception(
+                "Failed to persist parsing result for %s in bundle %s; "
+                "keeping previous persisted stats while throttling retries. "
+                "Other files in this cycle are still processed.",
+                str(file.rel_path),
+                file.bundle_name,
+            )
+            self._record_failed_publication(file, next_stat)
+            return
 
         self._file_stats[file] = next_stat
+
+    def _queue_failed_parse_result(
+        self,
+        file: DagFileInfo,
+        proc: BaseDagFileProcessorProcess,
+        run_duration: float,
+        stat: DagFileStat,
+        *,
+        reason: str,
+    ) -> None:
+        source = proc.parse_source
+        if source.refresh_generation != self._bundle_refresh_generations.get(file.bundle_name, 0):
+            self._add_files_to_queue([file], mode="front")
+            return
+        if proc.api_request_error is not None:
+            # The Task SDK answers a failed request as a missing value, so the Dags may hold a fallback.
+            reason = f"an Execution API request failed while parsing: {proc.api_request_error}"
+        # A restarted manager cannot see when the file's Dags were last parsed, so it waits from its start.
+        last_published = self._file_stats[file].last_finish_time or self._started_at
+        if timezone.utcnow() - last_published <= timedelta(seconds=self.stale_dag_threshold):
+            # The API deactivates a file's Dags on its import error; DB mode waits for stale_dag_threshold.
+            self.log.warning(
+                "Not reporting the failed parse of %s before it outlasts stale_dag_threshold: %s",
+                file.rel_path,
+                reason,
+            )
+            self._record_failed_publication(file, stat)
+            return
+        try:
+            self._pending_publications[file] = self._build_rejection_report(
+                file,
+                bundle_version=source.bundle_version,
+                bundle_revision=source.bundle_revision,
+                parse_duration=run_duration,
+                stat=stat,
+                refresh_generation=source.refresh_generation,
+                reason=reason,
+                attempt_id=proc.id,
+                dispatch_sequence=proc.dispatch_sequence,
+            )
+        except ValidationError:
+            self.log.exception("Unable to report failed parse for %s; preserving previous result", file)
+            self._record_failed_publication(file, stat)
+
+    def _record_failed_publication(self, file: DagFileInfo, stat: DagFileStat) -> None:
+        self._file_stats[file] = attrs.evolve(
+            self._file_stats[file],
+            last_attempt_time=timezone.utcnow(),
+            last_duration=stat.last_duration,
+            run_count=stat.run_count,
+        )
+
+    def _publish_pending_results(self, *, deadline: float | None = None) -> None:
+        """Publish queued results until the deadline, stopping early while the API is unavailable."""
+        if self.api_client is None:
+            return
+        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired, get_error_reason
+
+        if deadline is None:
+            deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
+        files = deque(self._pending_publications)
+        while files and time.monotonic() < deadline:
+            file = files.popleft()
+            pending = self._pending_publications[file]
+            if pending.refresh_generation != self._bundle_refresh_generations.get(file.bundle_name, 0):
+                del self._pending_publications[file]
+                self._add_files_to_queue([file], mode="front")
+                continue
+            if time.monotonic() < pending.next_attempt_time:
+                continue
+            pending.attempts += 1
+            try:
+                self.api_client.publish_parse_result(pending.body)
+            except DagProcessorRegistrationRetired:
+                # Every later send would be refused too; the results stay pending until the manager stops.
+                raise
+            except Exception as error:
+                status_error = error if isinstance(error, httpx2.HTTPStatusError) else None
+                reason = get_error_reason(status_error) if status_error is not None else None
+                if reason == "source_changed":
+                    # Another processor's inventory moved the revision; refreshing fetches it.
+                    self.log.info(
+                        "Bundle %s changed before %s was published; reparsing", file.bundle_name, file
+                    )
+                    del self._pending_publications[file]
+                    self.request_bundle_refresh(file.bundle_name)
+                    self._add_files_to_queue([file], mode="front")
+                    return
+                retryable = isinstance(error, httpx2.RequestError) or (
+                    status_error is not None
+                    and (
+                        status_error.response.status_code in (408, 429)
+                        or status_error.response.status_code >= 500
+                    )
+                )
+                if retryable and pending.attempts < conf.getint("workers", "execution_api_retries"):
+                    pending.next_attempt_time = time.monotonic() + _compute_retry_delay(pending.attempts)
+                    self.log.warning("Unable to publish %s; retrying on a later loop", file)
+                    del self._pending_publications[file]
+                    self._pending_publications[file] = pending
+                    return
+                if (
+                    status_error is not None
+                    and not pending.is_rejection_report
+                    and _is_rejected_content(status_error.response.status_code, reason)
+                ):
+                    self.log.warning("The API server rejected the parsing result for %s", file)
+                    status_code = status_error.response.status_code
+                    detail = f"HTTP {status_code}: {reason}" if reason else f"HTTP {status_code}"
+                    if reason == "invalid_dag":
+                        message = status_error.response.json()["detail"].get("message")
+                        if isinstance(message, str):
+                            detail += f": {message}"
+                    try:
+                        self._pending_publications[file] = self._build_rejection_report(
+                            file,
+                            bundle_version=pending.body.bundle_version,
+                            bundle_revision=pending.body.bundle_revision,
+                            parse_duration=pending.body.parse_duration,
+                            stat=pending.stat,
+                            refresh_generation=pending.refresh_generation,
+                            reason=f"the API server rejected it ({detail})",
+                        )
+                    except ValidationError:
+                        self.log.exception("Unable to report rejected parsing result for %s", file)
+                        self._record_failed_publication(file, pending.stat)
+                        del self._pending_publications[file]
+                        continue
+                    files.append(file)
+                    continue
+                self.log.exception("Failed to publish parsing result for %s", file)
+                self._record_failed_publication(file, pending.stat)
+            else:
+                self._file_stats[file] = pending.stat
+            del self._pending_publications[file]
+
+    def _build_pending_publication(
+        self, file: DagFileInfo, proc: BaseDagFileProcessorProcess, run_duration: float, stat: DagFileStat
+    ) -> PendingDagPublication:
+        source = proc.parse_source
+        try:
+            body = self._build_parse_result(file, proc, run_duration)
+        except ValidationError as error:
+            # The API validates with the same model, so sending the result could only be refused.
+            details = "; ".join(
+                f"{'.'.join(map(str, item['loc']))}: {item['msg']}" if item["loc"] else item["msg"]
+                for item in error.errors(include_url=False, include_input=False)
+            )
+            reason = f"it is not a valid Dag publication ({details})"
+        else:
+            if len(body.model_dump_json().encode()) <= MAX_PUBLICATION_BYTES:
+                return PendingDagPublication(
+                    body=body, stat=stat, refresh_generation=source.refresh_generation
+                )
+            reason = f"it exceeds the {MAX_PUBLICATION_BYTES // (1024 * 1024)} MiB publication limit"
+        return self._build_rejection_report(
+            file,
+            bundle_version=source.bundle_version,
+            bundle_revision=source.bundle_revision,
+            parse_duration=run_duration,
+            stat=stat,
+            refresh_generation=source.refresh_generation,
+            reason=reason,
+        )
+
+    def _build_rejection_report(
+        self,
+        file: DagFileInfo,
+        *,
+        bundle_version: str | None,
+        bundle_revision: UUID | None,
+        parse_duration: float,
+        stat: DagFileStat,
+        refresh_generation: int,
+        reason: str,
+        attempt_id: UUID | None = None,
+        dispatch_sequence: int | None = None,
+    ) -> PendingDagPublication:
+        """Report a failed parse or an unpublishable result as an import error users can see."""
+        if dispatch_sequence is None:
+            self._dispatch_sequence += 1
+            dispatch_sequence = self._dispatch_sequence
+        if len(reason) > _MAX_REJECTION_REASON_LENGTH:
+            reason = reason[:_MAX_REJECTION_REASON_LENGTH] + "..."
+        relative_fileloc = str(file.rel_path)
+        import_errors = {relative_fileloc: f"The parsing result was not published: {reason}."}
+        return PendingDagPublication(
+            body=DagParseResultBody(
+                attempt_id=attempt_id if attempt_id is not None else uuid7(),
+                dispatch_sequence=dispatch_sequence,
+                bundle_name=file.bundle_name,
+                relative_fileloc=relative_fileloc,
+                bundle_version=bundle_version,
+                bundle_revision=bundle_revision,
+                parse_duration=parse_duration,
+                serialized_dags=[],
+                source_codes=[],
+                dag_source_indexes={},
+                import_errors=import_errors,
+            ),
+            stat=attrs.evolve(stat, num_dags=0, import_errors=len(import_errors)),
+            refresh_generation=refresh_generation,
+            is_rejection_report=True,
+        )
+
+    def _build_parse_result(
+        self, file: DagFileInfo, proc: BaseDagFileProcessorProcess, run_duration: float
+    ) -> DagParseResultBody:
+        result = proc.parsing_result
+        if result is None or self.api_client is None:
+            raise ValueError("API publication requires a client and completed parse result")
+        import_errors = result.import_errors or {}
+        # The inventory skipped these container members, and the API refuses a result that names them.
+        dropped_paths = {
+            path
+            for path in (
+                *import_errors,
+                *result.parsed_definitions,
+                *(dag.relative_fileloc for dag in result.serialized_dags),
+            )
+            if isinstance(path, str) and _get_api_path_error(path) is not None
+        }
+        if dropped_paths:
+            self.log.warning(
+                "Not publishing definitions with an unrepresentable API path",
+                relative_fileloc=str(file.rel_path),
+                locations=sorted(dropped_paths),
+            )
+        serialized_dags = [dag for dag in result.serialized_dags if dag.relative_fileloc not in dropped_paths]
+        published_dag_ids = {dag.dag_id for dag in serialized_dags}
+        warnings = [
+            ParseWarning(
+                **{
+                    key: warning[key] if isinstance(warning, dict) else getattr(warning, key)
+                    for key in ("dag_id", "warning_type", "message")
+                }
+            )
+            for warning in result.warnings or []
+        ]
+        # The API accepts warnings only for published Dags; a Dag that failed to serialize has an import error.
+        warnings = [warning for warning in warnings if warning.dag_id in published_dag_ids]
+        source_codes: list[ParseSourceCode] = []
+        source_indexes: dict[tuple[str | None, str], int] = {}
+        dag_source_indexes = {}
+        for dag in serialized_dags:
+            source = result.dag_source_codes.get(dag.dag_id)
+            source_key = (source.source_code, source.language) if source else (None, "python")
+            if source_key not in source_indexes:
+                source_indexes[source_key] = len(source_codes)
+                source_codes.append(ParseSourceCode(source_code=source_key[0], language=source_key[1]))
+            dag_source_indexes[dag.dag_id] = source_indexes[source_key]
+        return DagParseResultBody(
+            attempt_id=proc.id,
+            dispatch_sequence=proc.dispatch_sequence,
+            bundle_name=file.bundle_name,
+            relative_fileloc=str(file.rel_path),
+            bundle_version=proc.parse_source.bundle_version,
+            bundle_revision=proc.parse_source.bundle_revision,
+            version_data=(
+                dict(proc.parse_source.version_data) if proc.parse_source.version_data is not None else None
+            ),
+            parse_duration=run_duration,
+            serialized_dags=[dag.data for dag in serialized_dags],
+            import_errors={path: error for path, error in import_errors.items() if path not in dropped_paths},
+            parsed_definitions=[path for path in result.parsed_definitions if path not in dropped_paths],
+            warnings=warnings,
+            source_codes=source_codes,
+            dag_source_indexes=dag_source_indexes,
+        )
 
     def persist_parsing_result(
         self,
@@ -1583,8 +2212,12 @@ class DagFileProcessorManager(LoggingMixin):
 
     @functools.cached_property
     def client(self) -> Client:
+        if self.api_client is not None:
+            return self.api_client
+
         from airflow.sdk.api.client import Client
 
+        self._api_server = InProcessExecutionAPI()
         client = Client(base_url=None, token="", dry_run=True, transport=self._api_server.transport)
         # Mypy is wrong -- the setter accepts a string on the property setter! `URLType = URL | str`
         client.base_url = "http://in-process.invalid./"
@@ -1671,10 +2304,12 @@ class DagFileProcessorManager(LoggingMixin):
         self._readmit_files_with_source()
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._file_queue})
 
-        while self._parallelism > len(self._processors) and self._file_queue:
+        while (
+            self._parallelism > len(self._processors) + len(self._pending_publications) and self._file_queue
+        ):
             file, _ = self._file_queue.popitem(last=False)
             # Stop creating duplicate processor i.e. processor with the same filepath
-            if file in self._processors:
+            if file in self._processors or file in self._pending_publications:
                 if file in self._priority_files:
                     self._files_awaiting_source[file] = None
                 continue
@@ -1690,6 +2325,8 @@ class DagFileProcessorManager(LoggingMixin):
                 self._files_awaiting_source[file] = None
             else:
                 self._priority_files.discard(file)
+            self._dispatch_sequence += 1
+            processor.dispatch_sequence = self._dispatch_sequence
             stats.incr(
                 "dag_processing.processes",
                 tags=prune_dict(
@@ -1734,6 +2371,7 @@ class DagFileProcessorManager(LoggingMixin):
         tracked_presence_keys = {file.presence_key for file in self._file_queue}
         tracked_presence_keys.update(file.presence_key for file in self._file_stats)
         tracked_presence_keys.update(file.presence_key for file in self._processors)
+        tracked_presence_keys.update(file.presence_key for file in self._pending_publications)
         tracked_presence_keys.update(file.presence_key for file in self._files_awaiting_source)
         for files in known_files.values():
             for file in files:
@@ -1786,7 +2424,7 @@ class DagFileProcessorManager(LoggingMixin):
                 modified_datetime = datetime.fromtimestamp(modified_timestamp, tz=timezone.utc)
                 files_with_mtime[file] = modified_timestamp
                 stat = file_stats_by_presence_key.get(file.presence_key)
-                last_time = stat.last_finish_time if stat else None
+                last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
                 if not last_time:
                     continue
                 if modified_datetime > last_time:
@@ -1814,7 +2452,7 @@ class DagFileProcessorManager(LoggingMixin):
             ),
             None,
         )
-        last_time = stat.last_finish_time if stat else None
+        last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
         if not last_time:
             return False
         elapsed_ss = (now - last_time).total_seconds()
@@ -1847,6 +2485,7 @@ class DagFileProcessorManager(LoggingMixin):
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
+        in_progress_keys.update(file.presence_key for file in self._pending_publications)
         in_progress_keys.update(file.presence_key for file in self._files_awaiting_source)
         now = timezone.utcnow()
 
@@ -1858,7 +2497,7 @@ class DagFileProcessorManager(LoggingMixin):
             for file in bundle_files:
                 files.append(file)
                 stat = file_stats_by_presence_key.get(file.presence_key)
-                last_time = stat.last_finish_time if stat else None
+                last_time = (stat.last_attempt_time or stat.last_finish_time) if stat else None
                 if last_time and (now - last_time).total_seconds() < self._file_process_interval:
                     recently_processed.add(file)
 
@@ -1955,7 +2594,16 @@ class DagFileProcessorManager(LoggingMixin):
                     run_count=self._file_stats[file].run_count + 1,
                     last_num_of_db_queries=0,
                 )
-                self._file_stats[file] = stat
+                if self.api_client is not None and not processor.had_callbacks:
+                    self._queue_failed_parse_result(
+                        file,
+                        processor,
+                        duration,
+                        stat,
+                        reason=f"the parsing process exceeded its timeout of {self.processor_timeout} seconds",
+                    )
+                else:
+                    self._file_stats[file] = stat
 
         # Clean up `self._processors` after iterating over it
         for proc in processors_to_remove:
@@ -2007,6 +2655,10 @@ class DagFileProcessorManager(LoggingMixin):
         if self._num_run < self.max_runs:
             return False
         if self._priority_files:
+            return False
+        if self._pending_publications:
+            return False
+        if self._pending_inventories:
             return False
         if any(
             file not in self._callback_to_execute

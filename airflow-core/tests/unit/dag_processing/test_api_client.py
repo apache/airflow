@@ -16,16 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import runpy
 from contextvars import Context
 from unittest import mock
 
 import httpx2
-import jwt
 import pytest
 from tenacity import wait_none
+from uuid6 import uuid7
 
+from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
+    DagBundleInventoryBody,
+    DagParseResultBody,
+)
 from airflow.api_fastapi.execution_api.datamodels.job import DagParseTokenBody, JobState, TerminalJobState
 from airflow.dag_processing import api_client
 from airflow.dag_processing.api_client import (
@@ -37,24 +42,9 @@ from airflow.dag_processing.api_client import (
 )
 from airflow.sdk.api.client import API_RETRIES, Client
 from airflow.sdk.api.datamodels import _generated
+from airflow.sdk.execution_time import task_runner
 from airflow.sdk.execution_time.comms import GetVariable, GetXCom, MaskSecret, VariableResult
-
-SECRET = "processor-client-unit-test-signing-key"
-
-
-def make_job_token(**claims):
-    return jwt.encode(
-        {"iat": 0, "exp": 300, "scope": "dag_processor", "job_id": 1, **claims},
-        SECRET,
-    )
-
-
-def make_registration_response(*, job_id=1, token=None, expires_in=300, **kwargs):
-    return httpx2.Response(
-        201,
-        json={"job_id": job_id, "token": token or make_job_token(job_id=job_id), "expires_in": expires_in},
-        **kwargs,
-    )
+from airflow.sdk.execution_time.secrets.execution_api import ExecutionAPISecretsBackend
 
 
 @pytest.fixture
@@ -105,7 +95,9 @@ def make_client(token_file, clock):
         client.close()
 
 
-def test_registration_and_runtime_use_distinct_credentials(make_client):
+def test_registration_and_runtime_use_distinct_credentials(
+    make_client, make_job_token, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(headers={"Refreshed-API-Token": "wrong-token"}),
         httpx2.Response(200, json={"state": "restarting"}, headers={"Refreshed-API-Token": "wrong-token"}),
@@ -142,7 +134,9 @@ def test_unread_non_json_error_body_is_a_plain_status_error(make_client):
         client.register_job(retry=False)
 
 
-def test_registration_identity_survives_response_loss_but_not_a_process_restart(make_client):
+def test_registration_identity_survives_response_loss_but_not_a_process_restart(
+    make_client, make_registration_response
+):
     first, requests = make_client(httpx2.ReadError("Lost acknowledgment"), make_registration_response())
     second, _ = make_client()
 
@@ -156,7 +150,7 @@ def test_registration_identity_survives_response_loss_but_not_a_process_restart(
 @pytest.mark.parametrize("succeeds", [False, True])
 @pytest.mark.parametrize("status", [401, 403])
 def test_registration_reloads_a_rotated_credential_after_authentication_failure(
-    make_client, token_file, status, succeeds
+    make_client, token_file, status, succeeds, make_registration_response
 ):
     def rotate(request):
         token_file.write_text("session-2")
@@ -193,7 +187,7 @@ def test_registration_errors_do_not_start_another_job(make_client, status):
     assert len(requests) == 1
 
 
-def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client):
+def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client, make_registration_response):
     client, requests = make_client(
         httpx2.Response(409, json={"detail": {"reason": "job_running"}}),
         make_registration_response(),
@@ -209,7 +203,9 @@ def test_registration_retry_after_a_crashed_job_keeps_its_identity(make_client):
     assert requests[0].content == requests[1].content
 
 
-def test_rotation_is_detected_within_the_cache_interval(make_client, token_file, clock):
+def test_rotation_is_detected_within_the_cache_interval(
+    make_client, token_file, clock, make_job_token, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(204),
@@ -233,7 +229,7 @@ def test_rotation_is_detected_within_the_cache_interval(make_client, token_file,
     assert requests[3].headers["Authorization"] == f"Bearer {make_job_token(iat=30, exp=330)}"
 
 
-def test_job_token_renewal_uses_monotonic_time(make_client, clock, time_machine):
+def test_job_token_renewal_uses_monotonic_time(make_client, clock, time_machine, make_registration_response):
     client, requests = make_client(
         make_registration_response(), httpx2.Response(204), make_registration_response(), httpx2.Response(204)
     )
@@ -250,7 +246,7 @@ def test_job_token_renewal_uses_monotonic_time(make_client, clock, time_machine)
 
 
 @pytest.mark.parametrize("status", [401, 403, 404, 409])
-def test_runtime_errors_do_not_renew_credentials(make_client, status):
+def test_runtime_errors_do_not_renew_credentials(make_client, status, make_registration_response):
     client, requests = make_client(make_registration_response(), httpx2.Response(status))
     client.register_job()
 
@@ -263,7 +259,9 @@ def test_runtime_errors_do_not_renew_credentials(make_client, status):
 
 @pytest.mark.parametrize("expired", [False, True])
 @pytest.mark.parametrize("failure", [httpx2.ReadError("Unavailable"), httpx2.Response(503)])
-def test_heartbeat_does_not_retry_transport_failures(make_client, clock, expired, failure):
+def test_heartbeat_does_not_retry_transport_failures(
+    make_client, clock, expired, failure, make_registration_response
+):
     client, requests = make_client(make_registration_response(), failure)
     client.register_job()
     if expired:
@@ -277,7 +275,9 @@ def test_heartbeat_does_not_retry_transport_failures(make_client, clock, expired
 
 @pytest.mark.parametrize("registered", [False, True])
 @pytest.mark.parametrize("missing", [False, True])
-def test_unreadable_credentials_fail_closed(make_client, token_file, clock, registered, missing):
+def test_unreadable_credentials_fail_closed(
+    make_client, token_file, clock, registered, missing, make_registration_response
+):
     client, requests = make_client(make_registration_response())
     if registered:
         client.register_job()
@@ -293,7 +293,7 @@ def test_unreadable_credentials_fail_closed(make_client, token_file, clock, regi
     assert len(requests) == int(registered)
 
 
-def test_renewal_cannot_replace_the_job(make_client):
+def test_renewal_cannot_replace_the_job(make_client, make_job_token, make_registration_response):
     client, _ = make_client(make_registration_response(), make_registration_response(job_id=2))
     client.register_job()
 
@@ -305,7 +305,7 @@ def test_renewal_cannot_replace_the_job(make_client):
 
 
 @pytest.mark.parametrize("expires_in", [0, -1, "soon"])
-def test_invalid_job_token_lifetimes_are_not_adopted(make_client, expires_in):
+def test_invalid_job_token_lifetimes_are_not_adopted(make_client, expires_in, make_registration_response):
     client, _ = make_client(make_registration_response(expires_in=expires_in))
 
     with pytest.raises(ValueError, match="expires_in"):
@@ -332,7 +332,9 @@ def test_runtime_operations_require_registration(make_client, operation):
     assert requests == []
 
 
-def test_completion_recovers_a_lost_acknowledgment_with_the_same_token_and_outcome(make_client):
+def test_completion_recovers_a_lost_acknowledgment_with_the_same_token_and_outcome(
+    make_client, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(), httpx2.ReadError("Lost acknowledgment"), httpx2.Response(204)
     )
@@ -348,7 +350,7 @@ def test_completion_recovers_a_lost_acknowledgment_with_the_same_token_and_outco
 
 
 def test_completion_retries_remain_possible_after_transport_retries_are_exhausted(
-    make_client, token_file, clock
+    make_client, token_file, clock, make_job_token, make_registration_response
 ):
     client, requests = make_client(
         make_registration_response(),
@@ -369,7 +371,9 @@ def test_completion_retries_remain_possible_after_transport_retries_are_exhauste
 
 
 @pytest.mark.parametrize("status", [204, 401, 403, 404])
-def test_completion_stops_normal_work_even_when_acknowledgment_is_uncertain(make_client, status):
+def test_completion_stops_normal_work_even_when_acknowledgment_is_uncertain(
+    make_client, status, make_registration_response
+):
     client, requests = make_client(make_registration_response(), httpx2.Response(status))
     client.register_job()
     if status == 204:
@@ -397,7 +401,9 @@ def test_invalid_reload_interval_is_rejected(make_client, interval):
 @pytest.mark.parametrize(
     "failure", [httpx2.ReadTimeout("Unavailable"), httpx2.Response(503), httpx2.Response(403)]
 )
-def test_failed_early_renewal_keeps_using_the_valid_token(make_client, clock, operation, failure):
+def test_failed_early_renewal_keeps_using_the_valid_token(
+    make_client, clock, operation, failure, make_job_token, make_registration_response
+):
     response_body = {"state": "running"} if operation == "heartbeat" else {"key": "key", "value": "value"}
     client, requests = make_client(
         make_registration_response(),
@@ -427,7 +433,9 @@ def test_failed_early_renewal_keeps_using_the_valid_token(make_client, clock, op
 
 
 @pytest.mark.parametrize("missing", [False, True])
-def test_unreadable_rotated_file_does_not_discard_a_valid_token(make_client, token_file, clock, missing):
+def test_unreadable_rotated_file_does_not_discard_a_valid_token(
+    make_client, token_file, clock, missing, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(), httpx2.Response(200, json={"state": "running"})
     )
@@ -439,7 +447,9 @@ def test_unreadable_rotated_file_does_not_discard_a_valid_token(make_client, tok
     assert len(requests) == 2
 
 
-def test_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_client, clock):
+def test_renewal_that_outlasts_the_token_requires_synchronous_recovery(
+    make_client, clock, make_registration_response
+):
     def time_out(request):
         clock.return_value = 300
         raise httpx2.ReadTimeout("Outlasted the token")
@@ -456,7 +466,9 @@ def test_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_clie
 
 
 @pytest.mark.parametrize("complete", [False, True])
-def test_retired_registration_signals_restart_without_blocking_valid_requests(make_client, clock, complete):
+def test_retired_registration_signals_restart_without_blocking_valid_requests(
+    make_client, clock, complete, make_job_token, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(409, json={"detail": {"reason": "registration_retired"}}),
@@ -490,7 +502,7 @@ def test_other_conflicts_are_not_mistaken_for_retirement(make_client, payload):
     assert not client.restart_required
 
 
-def test_closed_job_signals_restart(make_client):
+def test_closed_job_signals_restart(make_client, make_registration_response):
     client, _ = make_client(
         make_registration_response(),
         httpx2.Response(403, json={"detail": {"reason": "job_closed", "message": "replaced"}}),
@@ -506,7 +518,9 @@ def test_closed_job_signals_restart(make_client):
 @pytest.mark.parametrize(
     "payload", [{"detail": "Invalid auth token"}, {"detail": {"reason": "bundle_not_granted"}}]
 )
-def test_other_authorization_failures_are_not_mistaken_for_a_closed_job(make_client, payload):
+def test_other_authorization_failures_are_not_mistaken_for_a_closed_job(
+    make_client, payload, make_registration_response
+):
     client, _ = make_client(make_registration_response(), httpx2.Response(403, json=payload))
     client.register_job()
 
@@ -516,7 +530,7 @@ def test_other_authorization_failures_are_not_mistaken_for_a_closed_job(make_cli
     assert not client.restart_required
 
 
-def test_sdk_helpers_keep_bundle_context_for_reads_and_writes(make_client):
+def test_sdk_helpers_keep_bundle_context_for_reads_and_writes(make_client, make_registration_response):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(200, json={"key": "key", "value": "value"}),
@@ -546,7 +560,9 @@ def test_sdk_helpers_keep_bundle_context_for_reads_and_writes(make_client):
     assert json.loads(requests[2].content)["val"] == "new"
 
 
-def test_bundle_context_preserves_headers_and_restores_context_on_error(make_client):
+def test_bundle_context_preserves_headers_and_restores_context_on_error(
+    make_client, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(204),
@@ -588,7 +604,9 @@ def test_empty_bundle_context_is_rejected(make_client):
 
 
 @pytest.mark.parametrize("lost_acknowledgment", [False, True])
-def test_completion_renews_an_expired_token_if_the_job_is_still_open(make_client, clock, lost_acknowledgment):
+def test_completion_renews_an_expired_token_if_the_job_is_still_open(
+    make_client, clock, lost_acknowledgment, make_job_token, make_registration_response
+):
     failures = (
         [httpx2.ReadError("Lost acknowledgment") for _ in range(API_RETRIES)] if lost_acknowledgment else []
     )
@@ -614,7 +632,9 @@ def test_completion_renews_an_expired_token_if_the_job_is_still_open(make_client
     }
 
 
-def test_completion_does_not_claim_success_when_expired_registration_is_retired(make_client, clock):
+def test_completion_does_not_claim_success_when_expired_registration_is_retired(
+    make_client, clock, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(409, json={"detail": {"reason": "registration_retired"}}),
@@ -632,7 +652,9 @@ def test_completion_does_not_claim_success_when_expired_registration_is_retired(
 
 @pytest.mark.parametrize("succeeds", [False, True])
 @pytest.mark.parametrize("status", [401, 403])
-def test_completion_recovers_if_the_token_expires_during_the_request(make_client, clock, status, succeeds):
+def test_completion_recovers_if_the_token_expires_during_the_request(
+    make_client, clock, status, succeeds, make_registration_response
+):
     def expire(request):
         clock.return_value += 300
         return httpx2.Response(status)
@@ -673,7 +695,7 @@ def test_control_contracts_do_not_require_new_sdk_models(monkeypatch, token_file
         assert isinstance(client._registration, api_client.JobRegisterBody)
 
 
-def test_secrets_comms_answers_lookups_for_the_selected_bundle(make_client):
+def test_secrets_comms_answers_lookups_for_the_selected_bundle(make_client, make_registration_response):
     client, requests = make_client(
         make_registration_response(), httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
     )
@@ -698,6 +720,72 @@ def test_secrets_comms_ignores_masking_and_rejects_other_messages(make_client):
     assert requests == []
 
 
+def test_secrets_comms_answers_async_lookups(make_client, make_registration_response, monkeypatch):
+    client, _ = make_client(
+        make_registration_response(), httpx2.Response(200, json={"key": "my_key", "value": "my_value"})
+    )
+    client.register_job()
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", DagProcessorSecretsComms(client), raising=False)
+
+    with client.use_bundle("bundle-a"):
+        value = asyncio.run(ExecutionAPISecretsBackend().aget_variable("my_key"))
+
+    assert value == "my_value"
+
+
+@pytest.mark.parametrize(
+    ("failures", "recovers"),
+    [
+        pytest.param([httpx2.ReadError("Connection reset")], True, id="reset"),
+        pytest.param([httpx2.Response(503)], True, id="unavailable"),
+        pytest.param([httpx2.Response(503), httpx2.Response(503)], False, id="still-unavailable"),
+        pytest.param([httpx2.ReadTimeout("No response")], False, id="timeout"),
+        pytest.param([httpx2.Response(429)], False, id="throttled"),
+        pytest.param([httpx2.Response(400, json={"detail": "Bad request"})], False, id="rejected"),
+    ],
+)
+def test_immediate_retries_replace_waiting_retries(
+    make_client, failures, recovers, make_registration_response
+):
+    client, requests = make_client(
+        make_registration_response(),
+        *failures,
+        httpx2.Response(200, json={"key": "my_key", "value": "my_value"}),
+    )
+    client.register_job()
+
+    with client.use_immediate_retries():
+        if recovers:
+            assert client.get("variables/my_key").json()["value"] == "my_value"
+        else:
+            with pytest.raises(httpx2.HTTPError):
+                client.get("variables/my_key")
+
+    retried = recovers or len(failures) > 1
+    assert len(requests) == (3 if retried else 2)
+
+
+def test_parse_requests_keep_one_attempt_with_immediate_retries(
+    make_client, make_registration_response, make_parse_token_response
+):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx2.Response(503),
+        httpx2.Response(200, json={"key": "key", "value": "value"}),
+    )
+    client.register_job()
+
+    with (
+        client.use_immediate_retries(),
+        client.use_parse(make_parse_context()),
+        pytest.raises(httpx2.HTTPStatusError),
+    ):
+        client.get("variables/key")
+
+    assert len(requests) == 3
+
+
 def make_parse_context(**kwargs):
     return DagParseContext(
         request=DagParseTokenBody(
@@ -711,25 +799,9 @@ def make_parse_context(**kwargs):
     )
 
 
-def make_parse_token_response(*, expires_in=60, **claims):
-    token = jwt.encode(
-        {
-            "scope": "dag_parse",
-            "sub": "00000000-0000-0000-0000-000000000001",
-            "session_id": "00000000-0000-0000-0000-000000000002",
-            "job_id": 1,
-            "dag_bundles": ["bundle-a"],
-            "relative_fileloc": "dag.py",
-            "iat": 0,
-            "exp": 60,
-            **claims,
-        },
-        SECRET,
-    )
-    return httpx2.Response(200, json={"token": token, "expires_in": expires_in})
-
-
-def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_client):
+def test_parse_requests_exchange_once_and_restore_the_manager_credential(
+    make_client, make_job_token, make_registration_response, make_parse_token_response
+):
     exchanged = make_parse_token_response()
     client, requests = make_client(
         make_registration_response(),
@@ -758,7 +830,9 @@ def test_parse_requests_exchange_once_and_restore_the_manager_credential(make_cl
     assert requests[2].headers["Airflow-Dag-Bundle"] == "bundle-a"
 
 
-def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_client):
+def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(
+    make_client, make_registration_response, make_parse_token_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.ReadError("exchange acknowledgment lost"),
@@ -767,13 +841,74 @@ def test_parse_exchange_recovers_a_lost_response_without_changing_attempt(make_c
     )
     client.register_job()
     with client.use_parse(make_parse_context()):
+        with pytest.raises(httpx2.ReadError):
+            client.get("variables/key")
         client.get("variables/key")
 
     assert requests[1].content == requests[2].content
     assert len(requests) == 4
 
 
-def test_interleaved_parses_keep_distinct_file_credentials(make_client):
+@pytest.mark.parametrize(
+    ("request_kwargs", "expected_timeout"),
+    [
+        pytest.param({}, httpx2.Timeout(5), id="client-default"),
+        pytest.param({"timeout": 2.5}, httpx2.Timeout(2.5), id="explicit-timeout"),
+        pytest.param({"timeout": None}, httpx2.Timeout(None), id="disabled-timeout"),
+        pytest.param(
+            {"timeout": httpx2.Timeout(4, connect=2)},
+            httpx2.Timeout(4, connect=2),
+            id="per-phase-timeout",
+        ),
+    ],
+)
+def test_parse_requests_make_one_attempt_with_the_request_timeout(
+    make_client, request_kwargs, expected_timeout, make_registration_response, make_parse_token_response
+):
+    client, requests = make_client(
+        make_registration_response(), make_parse_token_response(), httpx2.Response(503), timeout=5
+    )
+    client.register_job()
+
+    with client.use_parse(make_parse_context()), pytest.raises(httpx2.HTTPStatusError):
+        client.get("variables/key", **request_kwargs)
+
+    assert len(requests) == 3
+    assert requests[1].extensions["timeout"] == expected_timeout.as_dict()
+    assert requests[2].extensions["timeout"] == expected_timeout.as_dict()
+
+
+@pytest.mark.parametrize(("expired", "tick"), [("parse", 60), ("job", 300)])
+def test_required_token_renewals_use_the_runtime_request_timeout(
+    make_client, clock, expired, tick, make_registration_response, make_parse_token_response
+):
+    client, requests = make_client(
+        make_registration_response(),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        *([make_registration_response()] if expired == "job" else []),
+        make_parse_token_response(),
+        httpx2.Response(200),
+        timeout=5,
+    )
+    client.register_job()
+
+    with client.use_parse(make_parse_context()):
+        client.get("variables/key")
+        clock.return_value = tick
+        client.get("variables/key", timeout=2.5)
+
+    assert [request.url.path for request in requests[3:]] == [
+        *(["/execution/jobs"] if expired == "job" else []),
+        "/execution/jobs/1/parse-token",
+        "/execution/variables/key",
+    ]
+    assert all(request.extensions["timeout"] == httpx2.Timeout(2.5).as_dict() for request in requests[3:])
+
+
+def test_interleaved_parses_keep_distinct_file_credentials(
+    make_client, make_registration_response, make_parse_token_response
+):
     first_response = make_parse_token_response()
     second_response = make_parse_token_response(
         sub="00000000-0000-0000-0000-000000000003",
@@ -809,7 +944,9 @@ def test_interleaved_parses_keep_distinct_file_credentials(make_client):
 
 
 @pytest.mark.parametrize("renew_at", [48, 61])
-def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clock, renew_at):
+def test_parse_credential_renews_with_the_same_file_and_attempt(
+    make_client, clock, renew_at, make_registration_response, make_parse_token_response
+):
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
@@ -833,11 +970,17 @@ def test_parse_credential_renews_with_the_same_file_and_attempt(make_client, clo
 
 @pytest.mark.parametrize(
     "failure",
-    [httpx2.ReadError("unavailable"), httpx2.Response(503), httpx2.Response(200, json={"token": "invalid"})],
+    [
+        httpx2.ReadError("unavailable"),
+        httpx2.Response(408),
+        httpx2.Response(429),
+        httpx2.Response(503),
+        httpx2.Response(200, json={"token": "invalid"}),
+    ],
 )
 @pytest.mark.parametrize("recovers_at_expiry", [False, True])
 def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
-    make_client, clock, failure, recovers_at_expiry
+    make_client, clock, failure, recovers_at_expiry, make_registration_response, make_parse_token_response
 ):
     token = make_parse_token_response()
     client, requests = make_client(
@@ -879,7 +1022,9 @@ def test_failed_early_parse_renewal_keeps_the_valid_token_until_expiry(
         assert len(requests) == 7
 
 
-def test_parse_renewal_that_outlasts_the_token_requires_synchronous_recovery(make_client, clock):
+def test_parse_renewal_that_outlasts_the_token_requires_synchronous_recovery(
+    make_client, clock, make_registration_response, make_parse_token_response
+):
     def expire(request):
         clock.return_value = 60
         return httpx2.Response(503)
@@ -903,7 +1048,9 @@ def test_parse_renewal_that_outlasts_the_token_requires_synchronous_recovery(mak
 
 
 @pytest.mark.parametrize("reason", ["job_closed", "bundle_not_granted"])
-def test_early_parse_renewal_does_not_hide_authorization_errors(make_client, clock, reason):
+def test_early_parse_renewal_does_not_hide_authorization_errors(
+    make_client, clock, reason, make_registration_response, make_parse_token_response
+):
     client, requests = make_client(
         make_registration_response(),
         make_parse_token_response(),
@@ -924,7 +1071,9 @@ def test_early_parse_renewal_does_not_hide_authorization_errors(make_client, clo
 
 
 @pytest.mark.parametrize("expires_in", [0, -1, "soon"])
-def test_invalid_exchanged_lifetimes_never_reach_a_runtime_endpoint(make_client, expires_in):
+def test_invalid_exchanged_lifetimes_never_reach_a_runtime_endpoint(
+    make_client, expires_in, make_registration_response, make_parse_token_response
+):
     client, requests = make_client(
         make_registration_response(), make_parse_token_response(expires_in=expires_in)
     )
@@ -938,7 +1087,9 @@ def test_invalid_exchanged_lifetimes_never_reach_a_runtime_endpoint(make_client,
     assert context.token is None
 
 
-def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client):
+def test_exchange_failure_restores_context_and_signals_a_closed_job(
+    make_client, make_job_token, make_registration_response
+):
     client, requests = make_client(
         make_registration_response(),
         httpx2.Response(403, json={"detail": {"reason": "job_closed"}}),
@@ -951,3 +1102,97 @@ def test_exchange_failure_restores_context_and_signals_a_closed_job(make_client)
     assert client.restart_required
     assert client.heartbeat() == JobState.RESTARTING
     assert requests[-1].headers["Authorization"] == f"Bearer {make_job_token()}"
+
+
+@pytest.mark.parametrize("expired", [False, True])
+@pytest.mark.parametrize("failure", [httpx2.ReadTimeout("Lost response"), httpx2.Response(503)])
+def test_publication_attempt_does_not_sleep_through_heartbeats(
+    make_client, clock, expired, failure, make_registration_response
+):
+    body = DagParseResultBody(
+        attempt_id=uuid7(),
+        dispatch_sequence=1,
+        bundle_name="bundle-a",
+        relative_fileloc="dag.py",
+        parse_duration=0.1,
+        serialized_dags=[],
+        source_codes=[],
+        dag_source_indexes={},
+    )
+    responses = [make_registration_response()]
+    if expired:
+        responses.append(make_registration_response())
+    responses.extend(
+        [
+            failure,
+            httpx2.Response(200, json={"state": "running"}),
+            httpx2.Response(
+                200, json={"attempt_id": str(body.attempt_id), "accepted_at": "2026-10-05T12:00:00Z"}
+            ),
+        ]
+    )
+    client, requests = make_client(*responses)
+    client.register_job()
+    if expired:
+        clock.return_value = 300
+    with pytest.raises(httpx2.HTTPError):
+        client.publish_parse_result(body)
+    assert len(requests) == (3 if expired else 2)
+    publication_timeout = requests[-1].extensions["timeout"]
+    assert publication_timeout["connect"] <= 1
+    assert publication_timeout["pool"] <= 1
+    assert publication_timeout["read"] == client.timeout.read > 1
+    if expired:
+        assert all(value <= 1 for value in requests[1].extensions["timeout"].values())
+    assert client.heartbeat() == JobState.RUNNING
+    assert client.publish_parse_result(body).attempt_id == body.attempt_id
+    assert requests[-1].content == requests[-3].content
+
+
+def test_inventory_waits_for_a_slow_write_but_connects_quickly(make_client, make_registration_response):
+    client, requests = make_client(
+        make_registration_response(),
+        httpx2.Response(
+            200,
+            json={
+                "attempt_id": str(uuid7()),
+                "accepted_at": "2026-10-05T12:00:00Z",
+                "revision": str(uuid7()),
+            },
+        ),
+    )
+    client.register_job()
+
+    client.publish_inventory(
+        "bundle-a",
+        DagBundleInventoryBody(attempt_id=uuid7(), dispatch_sequence=1, expected_revision=None, files=[]),
+    )
+
+    timeout = requests[-1].extensions["timeout"]
+    assert timeout["connect"] <= 1
+    assert timeout["read"] == client.timeout.read > 1
+
+
+@pytest.mark.parametrize("retry", [False, True])
+def test_catalog_read_waits_for_a_slow_response_and_retries_only_when_asked(
+    make_client, retry, make_registration_response
+):
+    catalog = [
+        {"name": "bundle-a", "version": None, "last_refreshed": None, "revision": None, "team_name": None}
+    ]
+    client, requests = make_client(
+        make_registration_response(), httpx2.Response(503), httpx2.Response(200, json=catalog)
+    )
+    client.register_job()
+
+    if retry:
+        assert [bundle.name for bundle in client.get_bundles(retry=True)] == ["bundle-a"]
+    else:
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.get_bundles()
+
+    assert len(requests) == (3 if retry else 2)
+    timeout = requests[-1].extensions["timeout"]
+    assert timeout["connect"] <= 1
+    assert timeout["pool"] <= 1
+    assert timeout["read"] == client.timeout.read > 1
