@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import re
 import sys
@@ -27,10 +29,12 @@ import click
 
 from airflow_breeze.commands.common_options import option_dry_run, option_verbose
 from airflow_breeze.utils.click_utils import BreezeGroup
-from airflow_breeze.utils.console import console_print, get_console
+from airflow_breeze.utils.console import console_print, get_console, get_stderr_console
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.reproduce_ci import SKIP_LOCAL_REPRODUCTION
 from airflow_breeze.utils.run_utils import assert_prek_installed, run_compile_ui_assets
+from airflow_breeze.utils.shared_options import get_verbose
 
 LOCALES_DIR = AIRFLOW_ROOT_PATH / "airflow-core" / "src" / "airflow" / "ui" / "public" / "i18n" / "locales"
 
@@ -313,6 +317,15 @@ def print_locale_file_table(locale_files: list[LocaleFiles], language: str | Non
     console.print(table)
 
 
+def locale_file_sets_differ(locale_files: list[LocaleFiles], language: str | None = None) -> bool:
+    """Return True when the compared locales do not all have the same set of translation files."""
+    filtered = (
+        locale_files if language is None else [lf for lf in locale_files if lf.locale in (language, "en")]
+    )
+    file_sets = [set(lf.files) for lf in filtered]
+    return len(file_sets) > 1 and any(file_sets[0] != fs for fs in file_sets[1:])
+
+
 def print_file_set_differences(locale_files: list[LocaleFiles], language: str | None = None) -> bool:
     if language and language == "en":
         return False
@@ -321,12 +334,10 @@ def print_file_set_differences(locale_files: list[LocaleFiles], language: str | 
         locale_files if language is None else [lf for lf in locale_files if lf.locale in (language, "en")]
     )
     all_file_sets = {lf.locale: set(lf.files) for lf in filtered}
-    file_sets: list[set[str]] = list(all_file_sets.values())
-    found_difference = False
-    en_files = set(all_file_sets["en"])
-    if len(file_sets) > 1 and any(file_sets[0] != fs for fs in file_sets[1:]):
-        found_difference = True
+    found_difference = locale_file_sets_differ(locale_files, language)
+    if found_difference:
         console.print("[bold red]Error: Locales have different set of translation files![/bold red]")
+        en_files = set(all_file_sets["en"])
         all_locales_sorted = sorted(all_file_sets.keys())
         for locale in all_locales_sorted:
             files_missing = sorted(en_files - all_file_sets[locale])
@@ -392,33 +403,38 @@ def count_todos(obj) -> int:
     return 0
 
 
-def print_translation_progress(locale_files, summary):
-    console = get_console()
-    from rich.table import Table
+def build_completeness_report(
+    locale_files: list[LocaleFiles],
+    summary: dict[str, LocaleSummary],
+    language: str | None = None,
+    found_difference: bool = False,
+    include_internal_details: bool = False,
+) -> dict[str, Any]:
+    """
+    Build a structured completeness report for the UI translations.
 
-    tables = defaultdict(lambda: Table(show_lines=True))
+    :param locale_files: list of LocaleFiles for all or filtered locales
+    :param summary: summary dictionary returned by compare_keys()
+    :param language: optional language code to filter by
+    :param found_difference: boolean indicating whether file set differences or missing keys were detected
+    :param include_internal_details: whether to include internal breakdown fields for table rendering
+    :return: dictionary with "languages" and "complete"
+    """
     all_files = set()
-    coverage_per_language = {}
     for lf in locale_files:
         all_files.update(lf.files)
 
-    has_todos = False
+    target_locales = [
+        lf for lf in locale_files if (language is None or lf.locale == language) and lf.locale != "en"
+    ]
 
-    for lf in sorted(locale_files):
+    languages: dict[str, Any] = {}
+    has_todos = False
+    has_missing = False
+
+    for lf in sorted(target_locales):
         lang = lf.locale
-        if lang == "en":
-            continue
-        table = tables[lang]
-        table.title = f"Translation Progress: {lang}"
-        table.add_column("File", style="bold cyan")
-        table.add_column("Required (base EN)", style="dim")
-        table.add_column("Required (plural)", style="dim")
-        table.add_column("Total required", style="bold")
-        table.add_column("Translated", style="green")
-        table.add_column("Missing", style="red")
-        table.add_column("Coverage", style="bold")
-        table.add_column("TODOs", style="magenta")
-        table.add_column("Unused", style="yellow")
+        files_data: dict[str, Any] = {}
         total_required_base = 0
         total_required_plural = 0
         total_required = 0
@@ -426,6 +442,7 @@ def print_translation_progress(locale_files, summary):
         total_missing = 0
         total_todos = 0
         total_unused = 0
+
         for filename in sorted(all_files):
             en_path = Path(LOCALES_DIR / "en" / filename)
             file_path = Path(LOCALES_DIR / lang / filename)
@@ -440,8 +457,11 @@ def print_translation_progress(locale_files, summary):
             required_base_en = len(en_keys)
             required_plural = len(required_keys) - required_base_en
             total_req = len(required_keys)
-            file_missing = len(diff.missing_keys.get(lang, []))
-            file_unused = len(diff.unused_keys.get(lang, []))
+            missing_keys = sorted(diff.missing_keys.get(lang, []))
+            unused_keys = sorted(diff.unused_keys.get(lang, []))
+            file_missing = len(missing_keys)
+            file_unused = len(unused_keys)
+
             if file_path.exists():
                 with open(file_path) as f:
                     lang_data = json.load(f)
@@ -459,25 +479,27 @@ def print_translation_progress(locale_files, summary):
             else:
                 file_translated = 0
                 file_todos = 0
-            file_coverage = 100 * file_translated / total_req if total_req else 100.0
+
             if file_missing > 0:
-                style = "red"
-            elif file_todos > 0 or file_unused > 0:
-                style = "yellow"
-            else:
-                style = "bold green"
-            table.add_row(
-                f"[bold reverse]{filename}[/bold reverse]",
-                str(required_base_en),
-                str(required_plural),
-                str(total_req),
-                str(file_translated),
-                str(file_missing),
-                f"{file_coverage:.1f}%",
-                str(file_todos),
-                str(file_unused),
-                style=style,
-            )
+                has_missing = True
+
+            file_coverage = round(100 * file_translated / total_req, 1) if total_req else 100.0
+
+            file_info: dict[str, Any] = {
+                "required": total_req,
+                "translated": file_translated,
+                "missing": file_missing,
+                "todos": file_todos,
+                "unused": file_unused,
+                "coverage": file_coverage,
+                "missing_keys": missing_keys,
+                "unused_keys": unused_keys,
+            }
+            if include_internal_details:
+                file_info["_required_base_en"] = required_base_en
+                file_info["_required_plural"] = required_plural
+
+            files_data[filename] = file_info
             total_required_base += required_base_en
             total_required_plural += required_plural
             total_required += total_req
@@ -486,16 +508,95 @@ def print_translation_progress(locale_files, summary):
             total_todos += file_todos
             total_unused += file_unused
 
-        total_coverage = 100 * total_translated / total_required if total_required else 100.0
-        coverage_per_language[lang] = total_coverage
+        total_coverage = round(100 * total_translated / total_required, 1) if total_required else 100.0
+
+        totals_info: dict[str, Any] = {
+            "required": total_required,
+            "translated": total_translated,
+            "missing": total_missing,
+            "todos": total_todos,
+            "unused": total_unused,
+            "coverage": total_coverage,
+        }
+        if include_internal_details:
+            totals_info["_required_base_en"] = total_required_base
+            totals_info["_required_plural"] = total_required_plural
+
+        languages[lang] = {
+            "files": files_data,
+            "totals": totals_info,
+        }
+
+    is_complete = not found_difference and not has_missing and not has_todos
+    return {
+        "languages": languages,
+        "complete": is_complete,
+    }
+
+
+def print_translation_progress(locale_files, summary):
+    console = get_console()
+    from rich.table import Table
+
+    report = build_completeness_report(locale_files, summary, include_internal_details=True)
+    tables = defaultdict(lambda: Table(show_lines=True))
+    coverage_per_language = {}
+    has_todos = False
+
+    for lang, lang_data in sorted(report["languages"].items()):
+        table = tables[lang]
+        table.title = f"Translation Progress: {lang}"
+        table.add_column("File", style="bold cyan")
+        table.add_column("Required (base EN)", style="dim")
+        table.add_column("Required (plural)", style="dim")
+        table.add_column("Total required", style="bold")
+        table.add_column("Translated", style="green")
+        table.add_column("Missing", style="red")
+        table.add_column("Coverage", style="bold")
+        table.add_column("TODOs", style="magenta")
+        table.add_column("Unused", style="yellow")
+
+        for filename, file_info in sorted(lang_data["files"].items()):
+            file_missing = file_info["missing"]
+            file_todos = file_info["todos"]
+            file_unused = file_info["unused"]
+            if file_todos > 0:
+                has_todos = True
+
+            if file_missing > 0:
+                style = "red"
+            elif file_todos > 0 or file_unused > 0:
+                style = "yellow"
+            else:
+                style = "bold green"
+
+            table.add_row(
+                f"[bold reverse]{filename}[/bold reverse]",
+                str(file_info["_required_base_en"]),
+                str(file_info["_required_plural"]),
+                str(file_info["required"]),
+                str(file_info["translated"]),
+                str(file_missing),
+                f"{file_info['coverage']:.1f}%",
+                str(file_todos),
+                str(file_unused),
+                style=style,
+            )
+
+        totals = lang_data["totals"]
+        coverage_per_language[lang] = totals["coverage"]
+        total_missing = totals["missing"]
+        total_todos = totals["todos"]
+        total_unused = totals["unused"]
+
         table.add_row(
             "All files",
-            str(total_required_base),
-            str(total_required_plural),
-            str(total_required),
-            str(total_translated),
+            str(totals["_required_base_en"]),
+            str(totals["_required_plural"]),
+            str(totals["required"]),
+            str(totals["translated"]),
             str(total_missing),
-            f"{total_coverage:.1f}%",
+            f"{totals['coverage']:.1f}%",
             str(total_todos),
             str(total_unused),
             style="red" if total_missing > 0 or total_todos > 0 or total_unused > 0 else "bold green",
@@ -618,44 +719,14 @@ def remove_unused_translations(language: str, summary: dict[str, LocaleSummary])
         console.print(f"[green]Removed {len(unused_keys)} unused translations from {lang_path}[/green]")
 
 
-@click.group(cls=BreezeGroup, name="ui", help="Tools for UI development and maintenance")
-def ui_group():
-    pass
-
-
-@ui_group.command(
-    name="check-translation-completeness",
-    help="Check completeness of UI translations.",
-)
-@click.option(
-    "--language",
-    "-l",
-    default=None,
-    help="Show summary for a single language (e.g. en, de, pl, etc.)",
-)
-@click.option(
-    "--add-missing",
-    is_flag=True,
-    default=False,
-    help="Add missing translations for all languages except English, prefixed with 'TODO: translate:'.",
-)
-@click.option(
-    "--remove-unused",
-    is_flag=True,
-    default=False,
-    help="Remove unused translations (keys present in the language but not required).",
-)
-@option_verbose
-@option_dry_run
-def check_translation_completeness(
-    language: str | None = None, add_missing: bool = False, remove_unused: bool = False
-):
-    locale_files = get_locale_files()
-    console = get_console()
-    print_locale_file_table(locale_files, language)
-    found_difference = print_file_set_differences(locale_files, language)
-    summary, missing_counts = compare_keys(locale_files)
-    console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
+def apply_translation_modifications(
+    locale_files: list[LocaleFiles],
+    summary: dict[str, LocaleSummary],
+    missing_counts: dict[str, int],
+    language: str | None = None,
+    add_missing: bool = False,
+    remove_unused: bool = False,
+) -> tuple[dict[str, LocaleSummary], dict[str, int]]:
     if add_missing and language != "en":
         # Loop through all languages except 'en' and add missing translations
         if language:
@@ -688,6 +759,117 @@ def check_translation_completeness(
             remove_unused_translations(lf.locale, filtered_summary)
         # After removing, re-run the summary for all languages
         summary, missing_counts = compare_keys(get_locale_files())
+    return summary, missing_counts
+
+
+def print_completeness_json(
+    language: str | None = None,
+    add_missing: bool = False,
+    remove_unused: bool = False,
+) -> None:
+    locale_files = get_locale_files()
+    if language:
+        locales = [lf.locale for lf in locale_files]
+        if language not in locales:
+            get_stderr_console().print(
+                f"[red]Language '{language}' not found among locales: {', '.join(locales)}[/red]"
+            )
+            sys.exit(2)
+        if language == "en":
+            get_stderr_console().print("[bold red]Cannot check completeness for English language![/bold red]")
+            sys.exit(2)
+
+    buffer = None if get_verbose() else io.StringIO()
+    completed = False
+    try:
+        with contextlib.redirect_stdout(buffer if buffer is not None else sys.stderr):
+            summary, missing_counts = compare_keys(locale_files)
+            summary, missing_counts = apply_translation_modifications(
+                locale_files,
+                summary,
+                missing_counts,
+                language=language,
+                add_missing=add_missing,
+                remove_unused=remove_unused,
+            )
+            file_set_differs = locale_file_sets_differ(locale_files, language)
+            report = build_completeness_report(
+                locale_files=locale_files,
+                summary=summary,
+                language=language,
+                found_difference=file_set_differs,
+            )
+        completed = True
+    finally:
+        if not completed and buffer is not None:
+            sys.stderr.write(buffer.getvalue())
+
+    print(json.dumps(report, indent=2))
+
+
+@click.group(cls=BreezeGroup, name="ui", help="Tools for UI development and maintenance")
+def ui_group():
+    pass
+
+
+@ui_group.command(
+    name="check-translation-completeness",
+    help="Check completeness of UI translations.",
+)
+@click.option(
+    "--language",
+    "-l",
+    default=None,
+    help="Show summary for a single language (e.g. en, de, pl, etc.)",
+)
+@click.option(
+    "--add-missing",
+    is_flag=True,
+    default=False,
+    help="Add missing translations for all languages except English, prefixed with 'TODO: translate:'.",
+)
+@click.option(
+    "--remove-unused",
+    is_flag=True,
+    default=False,
+    help="Remove unused translations (keys present in the language but not required).",
+)
+@click.option(
+    "--json",
+    "as_json",
+    is_flag=True,
+    default=False,
+    help="Print machine-readable JSON instead of tables.",
+)
+@option_verbose
+@option_dry_run
+@click.pass_context
+def check_translation_completeness(
+    ctx: click.Context,
+    language: str | None = None,
+    add_missing: bool = False,
+    remove_unused: bool = False,
+    as_json: bool = False,
+):
+    if as_json:
+        ctx.meta[SKIP_LOCAL_REPRODUCTION] = True
+        print_completeness_json(language, add_missing, remove_unused)
+        return
+
+    locale_files = get_locale_files()
+    console = get_console()
+    print_locale_file_table(locale_files, language)
+    found_difference = print_file_set_differences(locale_files, language)
+    summary, missing_counts = compare_keys(locale_files)
+    console.print("\n[bold underline]Summary of differences by language:[/bold underline]", style="cyan")
+    summary, missing_counts = apply_translation_modifications(
+        locale_files,
+        summary,
+        missing_counts,
+        language=language,
+        add_missing=add_missing,
+        remove_unused=remove_unused,
+    )
     if language:
         locales = [lf.locale for lf in locale_files]
         if language not in locales:
