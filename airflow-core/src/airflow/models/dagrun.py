@@ -1795,8 +1795,8 @@ class DagRun(Base, LoggingMixin):
         """Only needed for `dag.test` where `execute_callbacks=True` is passed to `update_state`."""
         from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
         from airflow.models.dag import DagModel
-        from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+        from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
+        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance  # noqa: SDK001
 
         if relevant_ti and (last_ti_model := self._build_callback_last_ti(relevant_ti, session=session)):
             task = dag.get_task(relevant_ti.task_id)
