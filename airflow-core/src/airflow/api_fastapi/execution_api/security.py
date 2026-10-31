@@ -511,7 +511,8 @@ async def get_team_name_dep(
     async with create_session_async() as session:
         if isinstance(token, (DagProcessorToken, DagParseToken)):
             return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+        result = await session.execute(_team_name_for_execution_identity_stmt(token.id))
+        return _team_name_from_execution_identity_rows(result.all())
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:
@@ -526,6 +527,41 @@ def get_team_name_for_ti(ti_id, session) -> str | None:
     if not conf.getboolean("core", "multi_team"):
         return None
     return session.scalar(_team_name_for_ti_stmt(ti_id))
+
+
+def get_team_name_for_execution_identity(identity_id, *, session) -> str | None:
+    """Return the team of a task or callback execution token subject."""
+    rows = session.execute(_team_name_for_execution_identity_stmt(identity_id)).all()
+    return _team_name_from_execution_identity_rows(rows)
+
+
+def _team_name_from_execution_identity_rows(rows) -> str | None:
+    if len(rows) > 1:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Execution token subject matches multiple workload identities",
+        )
+    return rows[0][0] if rows else None
+
+
+def _team_name_for_execution_identity_stmt(identity_id):
+    """Build a lookup from task or callback IDs to their owning bundle's team."""
+    task_team = (
+        select(Team.name.label("team_name"))
+        .select_from(TaskInstance)
+        .outerjoin(DagModel, DagModel.dag_id == TaskInstance.dag_id)
+        .outerjoin(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
+        .outerjoin(DagBundleModel.teams)
+        .where(TaskInstance.id == identity_id)
+    )
+    callback_team = (
+        select(Team.name.label("team_name"))
+        .select_from(Callback)
+        .outerjoin(DagBundleModel, DagBundleModel.name == Callback.bundle_name)
+        .outerjoin(DagBundleModel.teams)
+        .where(Callback.id == identity_id)
+    )
+    return task_team.union_all(callback_team).limit(2)
 
 
 def _team_name_for_ti_stmt(ti_id):

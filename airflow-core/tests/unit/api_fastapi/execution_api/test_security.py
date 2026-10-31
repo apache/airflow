@@ -28,7 +28,7 @@ import anyio
 import jwt
 import pytest
 import svcs
-from fastapi import APIRouter, FastAPI, Request, Security
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Security
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 from sqlalchemy import select, update
@@ -604,6 +604,75 @@ class TestGetTeamNameDep:
 
         assert result == "team_a"
 
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("async_db_engine")
+    @pytest.mark.parametrize("has_team", [True, False], ids=["with_team", "teamless"])
+    async def test_callback_execution_token_resolves_team_from_its_bundle(self, session, has_team):
+        team = Team(name=f"team_{uuid4().hex}")
+        bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        if has_team:
+            bundle.teams.append(team)
+        callback = Callback()
+        callback.bundle_name = bundle.name if has_team else None
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        session.add_all([bundle, callback] if has_team else [callback])
+        session.commit()
+        token = TIToken(id=callback.id, claims=TIClaims(scope="execution"))
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                result = await get_team_name_dep(token=token)
+        finally:
+            session.delete(callback)
+            if has_team:
+                session.delete(bundle)
+                session.delete(team)
+            session.commit()
+
+        assert result == (team.name if has_team else None)
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.usefixtures("async_db_engine")
+    async def test_ambiguous_execution_identity_is_rejected(self, session, create_task_instance):
+        ti = create_task_instance()
+        previous_bundle_name = session.scalar(
+            select(DagModel.bundle_name).where(DagModel.dag_id == ti.dag_id)
+        )
+        teams = [Team(name=f"team_{uuid4().hex}"), Team(name=f"team_{uuid4().hex}")]
+        bundles = [DagBundleModel(name=f"bundle_{uuid4().hex}"), DagBundleModel(name=f"bundle_{uuid4().hex}")]
+        for bundle, team in zip(bundles, teams):
+            bundle.teams.append(team)
+        session.add_all(bundles)
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=bundles[0].name)
+        )
+        callback = Callback()
+        callback.id = ti.id
+        callback.bundle_name = bundles[1].name
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        session.add(callback)
+        session.commit()
+        token = TIToken(id=ti.id, claims=TIClaims(scope="execution"))
+
+        try:
+            with conf_vars({("core", "multi_team"): "True"}), pytest.raises(HTTPException) as exc_info:
+                await get_team_name_dep(token=token)
+            assert exc_info.value.status_code == 403
+            assert "multiple workload identities" in exc_info.value.detail
+        finally:
+            session.execute(
+                update(DagModel).where(DagModel.dag_id == ti.dag_id).values(bundle_name=previous_bundle_name)
+            )
+            session.delete(callback)
+            for bundle in bundles:
+                session.delete(bundle)
+            for team in teams:
+                session.delete(team)
+            session.commit()
+
 
 _TOKEN_TYPES: dict[type, type[ExecutionToken]] = {
     TIClaims: TIToken,
@@ -1168,6 +1237,43 @@ class TestAttemptLiveness:
         finally:
             Variable.delete(key)
             session.delete(callback)
+            session.commit()
+
+    def test_callback_execution_token_uses_its_bundle_team_for_variables(self, client, caller, session):
+        _, token = caller
+        team = Team(name=f"team_{uuid4().hex}")
+        bundle = DagBundleModel(name=f"bundle_{uuid4().hex}")
+        bundle.teams.append(team)
+        callback = Callback()
+        callback.bundle_name = bundle.name
+        callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
+        callback.state = CallbackState.QUEUED
+        key = f"callback-team-{uuid4().hex}"
+        session.add_all([bundle, callback])
+        session.commit()
+        token.id = callback.id
+        token.claims.scope = "callback"
+
+        try:
+            exchange = client.patch(f"/execution/callbacks/{callback.id}/run")
+            assert exchange.status_code == 204
+            claims = jwt.decode(exchange.headers["Refreshed-API-Token"], options={"verify_signature": False})
+            token.id = UUID(claims["sub"])
+            token.claims = TIClaims(**claims)
+
+            with (
+                conf_vars({("core", "multi_team"): "True"}),
+                patch("airflow.models.variable.Variable.get", autospec=True, return_value="team") as mock_get,
+            ):
+                response = client.get(f"/execution/variables/{key}")
+
+            assert response.status_code == 200, response.text
+            assert response.json() == {"key": key, "value": "team"}
+            mock_get.assert_called_once_with(key, team_name=team.name)
+        finally:
+            session.delete(callback)
+            session.delete(bundle)
+            session.delete(team)
             session.commit()
 
     def test_connection_test_workload_keeps_its_own_lifecycle(self, client, caller, session):

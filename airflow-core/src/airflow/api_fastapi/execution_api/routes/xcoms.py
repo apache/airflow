@@ -125,10 +125,10 @@ def has_xcom_access(
 
     from airflow.api_fastapi.execution_api.security import (
         _team_name_for_dag_stmt,
-        _team_name_for_ti_stmt,
+        get_team_name_for_execution_identity,
     )
 
-    requester_team = session.scalar(_team_name_for_ti_stmt(token.id))
+    requester_team = get_team_name_for_execution_identity(token.id, session=session)
     target_team = session.scalar(_team_name_for_dag_stmt(dag_id))
 
     # Same team (including a teamless task accessing a global, teamless dag) is always allowed.
