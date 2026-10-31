@@ -19,11 +19,13 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any
 
 import google.api_core.exceptions
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import (
@@ -463,7 +465,8 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
     :param table_id: The ID of the table to be deleted.
     :param project_id: Optional, the ID of the Google Cloud project. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :param app_profile_id: Application profile.
+    :param app_profile_id: Application profile. This parameter is deprecated because the
+        Bigtable table deletion API does not accept an application profile.
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -499,6 +502,13 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
         self.instance_id = instance_id
         self.table_id = table_id
         self.app_profile_id = app_profile_id
+        if app_profile_id is not None:
+            warnings.warn(
+                "The `app_profile_id` parameter is deprecated and will be removed in a future version. "
+                "The Bigtable table deletion API does not accept an application profile.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         self._validate_inputs()
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain

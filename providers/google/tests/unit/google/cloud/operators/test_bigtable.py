@@ -25,6 +25,7 @@ from google.cloud.bigtable import enums
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud.operators.bigtable import (
     BigtableCreateInstanceOperator,
@@ -619,6 +620,21 @@ class TestBigtableTableDelete:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
+        mock_hook.return_value.delete_table.assert_called_once_with(
+            project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigtable.BigtableHook")
+    def test_app_profile_id_deprecation_warning(self, mock_hook):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="app_profile_id"):
+            op = BigtableDeleteTableOperator(
+                project_id=PROJECT_ID,
+                instance_id=INSTANCE_ID,
+                table_id=TABLE_ID,
+                app_profile_id="test-app-profile",
+                task_id="id",
+            )
+        op.execute(None)
         mock_hook.return_value.delete_table.assert_called_once_with(
             project_id=PROJECT_ID, instance_id=INSTANCE_ID, table_id=TABLE_ID
         )
