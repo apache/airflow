@@ -348,7 +348,7 @@ class TestBundleFind:
         second.mkdir()
         corrupt = write_bundle(first, "sales")
         layout = read_layout(corrupt)
-        mutate_byte(corrupt, int(layout["code"]["start"], 16))  # type: ignore[index, call-overload]
+        mutate_byte(corrupt, int(layout["code"]["start"], 16))
         expected = write_bundle(second, "sales")
 
         found = _Bundle.find([first, second], "sales")

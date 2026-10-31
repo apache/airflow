@@ -30,7 +30,7 @@ class TestNullFernet:
         """Should raise ValueError for non-string/bytes input."""
         null_fernet = _NullFernet()
         with pytest.raises(ValueError, match="Expected bytes or str, got <class 'int'>"):
-            null_fernet.decrypt(123)  # type: ignore[arg-type]
+            null_fernet.decrypt(123)
 
     def test_encrypt_decrypt_roundtrip(self):
         """Should preserve data through encrypt/decrypt cycle."""

@@ -232,7 +232,7 @@ def _get_connection(conn_id: str) -> Connection:
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
+            conn = secrets_backend.get_connection(conn_id=conn_id)
             if conn:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri())
                 _mask_connection_secrets(conn)
@@ -288,7 +288,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 maybe_awaitable = async_method(conn_id)
                 conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
-                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)
 
             if conn:
                 # Use aget_uri if the returned connection object supports it (the SDK's own

@@ -6348,7 +6348,7 @@ def test_ipc_trace_context_propagation(mocker):
 
     # Task-runner side: _make_frame injects the active span via the real propagator.
     with tracer.start_as_current_span("task_span") as span:
-        frame = CommsDecoder(socket=None)._make_frame(GetVariable(key="k"))  # type: ignore[arg-type]
+        frame = CommsDecoder(socket=None)._make_frame(GetVariable(key="k"))
         expected_span_id = span.get_span_context().span_id
 
     assert frame.context_carrier is not None

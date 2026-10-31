@@ -1340,79 +1340,79 @@ class Client(httpx2.Client):
     # methods on one object prefixed with the object type (`.task_instances.update` rather than
     # `task_instance_update` etc.)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def task_instances(self) -> TaskInstanceOperations:
         """Operations related to TaskInstances."""
         return TaskInstanceOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dag_runs(self) -> DagRunOperations:
         """Operations related to DagRuns."""
         return DagRunOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def connections(self) -> ConnectionOperations:
         """Operations related to Connections."""
         return ConnectionOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def variables(self) -> VariableOperations:
         """Operations related to Variables."""
         return VariableOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def xcoms(self) -> XComOperations:
         """Operations related to XComs."""
         return XComOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def assets(self) -> AssetOperations:
         """Operations related to Assets."""
         return AssetOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def asset_events(self) -> AssetEventOperations:
         """Operations related to Asset Events."""
         return AssetEventOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def task_state_store(self) -> TaskStateStoreOperations:
         """Operations related to task store."""
         return TaskStateStoreOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def asset_state_store(self) -> AssetStateStoreOperations:
         """Operations related to asset store."""
         return AssetStateStoreOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def hitl(self):
         """Operations related to HITL Responses."""
         return HITLOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def connection_tests(self) -> ConnectionTestOperations:
         """Operations related to Connection Tests."""
         return ConnectionTestOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def callbacks(self) -> CallbackOperations:
         """Operations related to Callbacks."""
         return CallbackOperations(self)
 
-    @lru_cache()  # type: ignore[misc]
+    @lru_cache()  # type: ignore[prop-decorator]
     @property
     def dags(self) -> DagsOperations:
         """Operations related to DAGs."""
