@@ -443,8 +443,10 @@ class DagWarningType(str, Enum):
     """
 
     ASSET_CONFLICT = "asset conflict"
+    DUPLICATE_DAG_ID = "duplicate dag id"
     NON_EXISTENT_POOL = "non-existent pool"
     RUNTIME_VARYING_VALUE = "runtime varying value"
+    TASK_GROUP_CYCLE = "task group cycle"
 
 
 class DryRunBackfillResponse(BaseModel):
@@ -491,6 +493,7 @@ class Destination(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    ASSET = "asset"
     BASE = "base"
 
 
@@ -716,8 +719,11 @@ class Destination1(str, Enum):
     DAG_RUN = "dag_run"
     TASK = "task"
     TASK_INSTANCE = "task_instance"
+    ASSET = "asset"
     BASE = "base"
     DASHBOARD = "dashboard"
+    DAG_OVERVIEW = "dag_overview"
+    TASK_OVERVIEW = "task_overview"
 
 
 class ReactAppResponse(BaseModel):
@@ -1532,7 +1538,10 @@ class DAGWarningResponse(BaseModel):
     """
 
     dag_id: Annotated[str, Field(title="Dag Id")]
-    warning_type: DagWarningType
+    warning_type: Annotated[
+        DagWarningType | Annotated[str, Field(max_length=50, pattern="^[a-z][a-z0-9_]*:[a-z0-9_.\\-]+$")],
+        Field(title="Warning Type"),
+    ]
     message: Annotated[str, Field(title="Message")]
     timestamp: Annotated[datetime, Field(title="Timestamp")]
     dag_display_name: Annotated[str, Field(title="Dag Display Name")]
