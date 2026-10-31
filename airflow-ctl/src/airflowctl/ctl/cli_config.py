@@ -44,6 +44,7 @@ import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
 from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
+from airflowctl.ctl.utils.validation import split_validation_errors
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
@@ -959,17 +960,9 @@ class CommandFactory:
         try:
             return datamodel.model_validate(params)
         except ValidationError as e:
-            missing: list[str] = []
-            invalid: list[str] = []
-            for error in e.errors():
-                field = str(error["loc"][0]) if error["loc"] else ""
-                field_info = datamodel.model_fields.get(field)
-                flag = f"--{self._sanitize_arg_parameter_key(field)}" if field else "input"
-                if field_info is not None and field_info.is_required() and error.get("input") is None:
-                    if flag not in missing:
-                        missing.append(flag)
-                else:
-                    invalid.append(f"{flag}: {error['msg']}")
+            missing, invalid = split_validation_errors(
+                datamodel, e, lambda field: f"--{self._sanitize_arg_parameter_key(field)}"
+            )
             messages = []
             if missing:
                 messages.append(f"the following arguments are required: {', '.join(missing)}")
