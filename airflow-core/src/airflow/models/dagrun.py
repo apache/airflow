@@ -1275,17 +1275,34 @@ class DagRun(Base, LoggingMixin):
         users may enable such consideration with on_failure_fail_dagrun.
         """
 
-        def is_effective_leaf(task):
-            for down_task_id in task.downstream_task_ids:
-                down_task = dag.get_task(down_task_id)
-                if not down_task.is_teardown or down_task.on_failure_fail_dagrun:
-                    # we found a down task that is not ignorable; not a leaf
-                    return False
-            # we found no ignorable downstreams
-            # evaluate whether task is itself ignorable
+        def counts_for_state(task):
             return not task.is_teardown or task.on_failure_fail_dagrun
 
-        leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
+        def effective_leaf_ids(is_counted):
+            def is_effective_leaf(task):
+                for down_task_id in task.downstream_task_ids:
+                    if is_counted(dag.get_task(down_task_id)):
+                        # we found a down task that is not ignorable; not a leaf
+                        return False
+                # we found no ignorable downstreams
+                # evaluate whether task is itself ignorable
+                return is_counted(task)
+
+            return {x.task_id for x in dag.tasks if is_effective_leaf(x)}
+
+        leaf_task_ids = effective_leaf_ids(counts_for_state)
+
+        # A teardown with on_failure_fail_dagrun=True and on_success_succeed_dagrun=False must not
+        # hide failures of the tasks before it, so those tasks count too (as if it were ignorable).
+        strict_teardowns = {
+            x.task_id
+            for x in dag.tasks
+            if x.is_teardown and x.on_failure_fail_dagrun and not x.on_success_succeed_dagrun
+        }
+        if strict_teardowns:
+            leaf_task_ids |= effective_leaf_ids(
+                lambda t: counts_for_state(t) and t.task_id not in strict_teardowns
+            )
         if not leaf_task_ids:
             # can happen if dag is exclusively teardown tasks
             leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}

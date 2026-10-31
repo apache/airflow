@@ -4915,6 +4915,47 @@ def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
     assert dr.state == dag_run_state
 
 
+@pytest.mark.parametrize(
+    ("on_success_succeed_dagrun", "work_state", "teardown_state", "expected"),
+    [
+        (True, State.FAILED, State.SUCCESS, DagRunState.SUCCESS),
+        (True, State.SUCCESS, State.FAILED, DagRunState.FAILED),
+        (True, State.SUCCESS, State.SUCCESS, DagRunState.SUCCESS),
+        (False, State.FAILED, State.SUCCESS, DagRunState.FAILED),
+        (False, State.SUCCESS, State.FAILED, DagRunState.FAILED),
+        (False, State.SUCCESS, State.SUCCESS, DagRunState.SUCCESS),
+    ],
+)
+def test_teardown_on_success_succeed_dagrun(
+    dag_maker, session, on_success_succeed_dagrun, work_state, teardown_state, expected
+):
+    with dag_maker():
+
+        @setup
+        def create():
+            print(1)
+
+        @task
+        def work():
+            print(1)
+
+        @teardown(on_failure_fail_dagrun=True, on_success_succeed_dagrun=on_success_succeed_dagrun)
+        def cleanup():
+            print(1)
+
+        create() >> work() >> cleanup()
+
+    dr = dag_maker.create_dagrun()
+    for task_id, state in (("create", State.SUCCESS), ("work", work_state), ("cleanup", teardown_state)):
+        ti = dr.get_task_instance(task_id=task_id)
+        ti.state = state
+        session.merge(ti)
+    session.flush()
+    dr.update_state()
+    session.flush()
+    assert session.scalar(select(DagRun)).state == expected
+
+
 def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session):
     with dag_maker():
 
