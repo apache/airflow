@@ -176,6 +176,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class PrevSuccessfulDagRunResponse(BaseModel):
@@ -341,6 +342,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
 
 class TaskStatesResponse(BaseModel):
