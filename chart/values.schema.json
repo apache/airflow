@@ -4638,6 +4638,40 @@
                         }
                     }
                 },
+                "enableDefault": {
+                    "description": "Enable the default dag processor defined by the `dagProcessor` configuration. If false, only the dag processors defined in `sets` will be created. When not set, the default dag processor is created only if `sets` is empty. Set it to true explicitly to run it next to the sets; it parses all bundles unless `bundleNames` is set.",
+                    "type": [
+                        "boolean",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "bundleNames": {
+                    "description": "Names of the bundles from `dagBundleConfigList` this dag processor parses. If empty, the dag processor parses all the bundles.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "sets": {
+                    "description": "List of dag processor sets. Each item requires a `name` and can overwrite values from the parent `dagProcessor` section, except `dagBundleConfigList`.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "name"
+                        ],
+                        "properties": {
+                            "name": {
+                                "description": "Name of the dag processor set, used as suffix of the created resources.",
+                                "type": "string"
+                            }
+                        },
+                        "additionalProperties": {}
+                    }
+                },
                 "replicas": {
                     "description": "Number of dag processors to run.",
                     "type": "integer",
