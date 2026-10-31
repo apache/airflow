@@ -30,6 +30,8 @@ log = get_task_logger()
 
 SECTION = "common.ai"
 
+_MISSING = object()
+
 
 @lru_cache(maxsize=1)
 def _get_base_path():
@@ -57,6 +59,11 @@ class DurableStorage:
     XCom system. :meth:`delete_steps` removes the steps of a run that succeeded, and
     the file once nothing is left in it.
 
+    Storage failures never fail the task. A write that fails skips that step, which
+    runs again on retry. A journal file that exists but cannot be read is left as it
+    is for the next attempt, and this attempt runs without recording its steps; one that is
+    not a valid journal is replaced.
+
     :param dag_id: DAG ID of the running task.
     :param task_id: Task ID of the running task.
     :param run_id: DAG run ID.
@@ -80,6 +87,9 @@ class DurableStorage:
         identity = "\x00".join([dag_id, task_id, run_id, str(map_index)])
         self._cache_id = hashlib.sha256(identity.encode()).hexdigest()
         self._cache: dict[str, Any] | None = None
+        # Set when the journal file exists but could not be read: writing would replace
+        # the previous attempt's journal with this attempt's steps alone.
+        self._unreadable = False
 
     def _get_path(self):
         return _get_base_path() / f"{self._cache_id}.json"
@@ -91,10 +101,32 @@ class DurableStorage:
 
         path = self._get_path()
         try:
-            self._cache = json.loads(path.read_text())
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+            text = path.read_text()
+        except FileNotFoundError:
             self._cache = {}
+            return self._cache
+        except UnicodeDecodeError:
+            # Bytes that are not text cannot hold a journal; treat them like any other invalid file.
+            text = ""
+        except Exception:
+            log.warning(
+                "Durable: could not read the journal file; this attempt runs without it "
+                "and leaves it in place for the next one",
+                exc_info=True,
+            )
+            self._unreadable = True
+            self._cache = {}
+            return self._cache
 
+        try:
+            cache = json.loads(text)
+        except ValueError:
+            cache = None
+        if not isinstance(cache, dict):
+            # Nothing in it can be replayed (a write cut off part way, say), so start over.
+            log.warning("Durable: the journal file is not a valid journal; starting a new one")
+            cache = {}
+        self._cache = cache
         return self._cache
 
     def _write(self, text: str) -> None:
@@ -107,19 +139,38 @@ class DurableStorage:
         """
         Store one journal step and rewrite the journal file.
 
-        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
+        :return: ``True`` if the entry was written, ``False`` if it was skipped: it could
+            not be encoded, the write failed, or the journal file could not be read.
         """
         cache = self._load_cache()
+        if self._unreadable:
+            return False
+        previous = cache.get(key, _MISSING)
         cache[key] = entry
         try:
             text = json.dumps(cache)
         except (TypeError, ValueError):
             # Only this entry is skipped; the rest of the journal is still written.
-            del cache[key]
+            self._restore(key, previous)
             log.warning("Durable: could not store step", key=key, exc_info=True)
             return False
-        self._write(text)
+        try:
+            self._write(text)
+        except Exception:
+            # The step already ran, so a failed write must not fail it; it runs again on retry.
+            self._restore(key, previous)
+            log.warning("Durable: could not write the journal file", key=key, exc_info=True)
+            return False
         return True
+
+    def _restore(self, key: str, previous: Any) -> None:
+        """Put back what ``key`` held before a save that was skipped."""
+        if self._cache is None:
+            return
+        if previous is _MISSING:
+            self._cache.pop(key, None)
+        else:
+            self._cache[key] = previous
 
     def load_step(self, key: str) -> dict[str, Any] | None:
         """Load one journal step, or ``None`` when there is none or it is not a journal entry."""
@@ -129,6 +180,9 @@ class DurableStorage:
     def delete_steps(self, keys: Iterable[str]) -> None:
         """Remove these steps, and the journal file once nothing is left in it."""
         cache = self._load_cache()
+        if self._unreadable:
+            # What the file holds is unknown, so it is left alone rather than rewritten or deleted.
+            return
         for key in keys:
             cache.pop(key, None)
         # Runs after the run has already succeeded, so it must never raise; a file left
