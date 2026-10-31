@@ -1445,6 +1445,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             task_defaults = cls.generate_client_defaults()
 
             # Check if this field is in client_defaults and values match
+            if isinstance(var, datetime.timedelta):
+                var = var.total_seconds()
             if attrname in task_defaults and var == task_defaults[attrname]:
                 return True
 
@@ -1476,6 +1478,12 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             return True
 
         schema_defaults = cls.get_schema_defaults("operator")
+        if isinstance(var, datetime.timedelta):
+            # A differing client default must not replace the task's effective value.
+            return (
+                schema_defaults.get(attrname) == var.total_seconds()
+                and attrname not in cls.generate_client_defaults()
+            )
         if attrname in schema_defaults:
             if schema_defaults[attrname] == var:
                 # If it also matches client_defaults, exclude (optimization)
