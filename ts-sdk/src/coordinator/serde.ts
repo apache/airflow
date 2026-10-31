@@ -230,7 +230,7 @@ export function serializeDag(
  * field is.
  */
 function withDagQueue(spec: object, dagQueue: string | undefined): object {
-  if (dagQueue === undefined || "queue" in spec) return spec;
+  if (dagQueue === undefined || ("queue" in spec && spec.queue !== undefined)) return spec;
   return { ...spec, queue: dagQueue };
 }
 
