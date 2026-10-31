@@ -16,7 +16,7 @@ airflow-core/src/airflow/models/__init__.py::5
 airflow-core/src/airflow/models/asset.py::2
 airflow-core/src/airflow/models/connection.py::5
 airflow-core/src/airflow/models/dag.py::1
-airflow-core/src/airflow/models/dagrun.py::2
+airflow-core/src/airflow/models/dagrun.py::1
 airflow-core/src/airflow/models/taskinstance.py::1
 airflow-core/src/airflow/models/trigger.py::3
 airflow-core/src/airflow/models/variable.py::8
