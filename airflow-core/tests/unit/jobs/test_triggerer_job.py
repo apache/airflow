@@ -1067,6 +1067,173 @@ def test_run_trigger_workload_watched_assets_defaults_to_none():
     assert workload.watched_assets is None
 
 
+class TestCreateWorkloadCallbackContext:
+    """_create_workload() for deadline callback triggers that carry the ids of their Dag run."""
+
+    @pytest.fixture
+    def callback_trigger(self, mocker):
+        trigger = mocker.Mock()
+        trigger.id = 77
+        trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+        trigger.encrypted_kwargs = "encrypted"
+        trigger.task_instance = None
+        trigger.assets = []
+        return trigger
+
+    def _make_dagrun(self, session, dag_maker):
+        with dag_maker(dag_id="deadline_dag", session=session):
+            EmptyOperator(task_id="empty")
+        dr = dag_maker.create_dagrun(run_id="deadline_run")
+        session.flush()
+        return dr
+
+    def test_workload_includes_dag_run_data_for_callback_trigger(
+        self, jobless_supervisor, callback_trigger, session, dag_maker
+    ):
+        dr = self._make_dagrun(session, dag_maker)
+        callback_trigger.callback.data = {
+            "dag_id": dr.dag_id,
+            "run_id": dr.run_id,
+            "deadline_id": "abc-123",
+            "deadline_time": "2024-01-01T01:00:00+00:00",
+        }
+
+        workload = jobless_supervisor._create_workload(
+            trigger=callback_trigger,
+            dag_bag=mock.Mock(),
+            render_log_fname=mock.Mock(),
+            session=session,
+        )
+
+        assert workload is not None
+        assert workload.dag_run_data is not None
+        assert workload.dag_run_data["dag_id"] == dr.dag_id
+        assert workload.dag_run_data["run_id"] == dr.run_id
+        assert workload.dag_run_data["_deadline"] == {
+            "id": "abc-123",
+            "deadline_time": "2024-01-01T01:00:00+00:00",
+        }
+        log_path = jobless_supervisor.logger_cache[callback_trigger.id].log_path
+        assert (
+            log_path
+            == f"triggerer_callbacks/{dr.dag_id}/{dr.run_id}/{callback_trigger.callback.id}/callback.log"
+        )
+
+    def test_workload_skipped_when_dagrun_missing(self, jobless_supervisor, callback_trigger, session):
+        """The Dag run is not found: skip so the trigger is retried on the next loop."""
+        callback_trigger.callback.data = {"dag_id": "no_such_dag", "run_id": "no_such_run"}
+
+        workload = jobless_supervisor._create_workload(
+            trigger=callback_trigger,
+            dag_bag=mock.Mock(),
+            render_log_fname=mock.Mock(),
+            session=session,
+        )
+
+        assert workload is None
+
+    def test_workload_without_routing_data_has_no_dag_run_data(
+        self, jobless_supervisor, callback_trigger, session
+    ):
+        """Callbacks queued before the upgrade have no run_id and run with their stored context."""
+        callback_trigger.callback.data = {"path": "some.callback", "kwargs": {}}
+
+        workload = jobless_supervisor._create_workload(
+            trigger=callback_trigger,
+            dag_bag=mock.Mock(),
+            render_log_fname=mock.Mock(),
+            session=session,
+        )
+
+        assert workload is not None
+        assert workload.dag_run_data is None
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_sets_callback_context_from_dag_run_data(mock_get_classpath, session):
+    """dag_run_data on the workload becomes _callback_context on CallbackTrigger instances."""
+    from airflow.triggers.callback import CallbackTrigger
+
+    injected_instances: list[CallbackTrigger] = []
+
+    class RecordingCallbackTrigger(CallbackTrigger):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            injected_instances.append(self)
+
+        async def run(self):
+            yield TriggerEvent("done")
+
+    mock_get_classpath.return_value = RecordingCallbackTrigger
+
+    dag_run_data = {
+        "dag_id": "ctx_dag",
+        "run_id": "ctx_run",
+        "logical_date": "2024-06-15T12:30:00+00:00",
+        "data_interval_start": None,
+        "data_interval_end": None,
+        "run_after": "2024-06-16T00:00:00+00:00",
+        "start_date": None,
+        "end_date": None,
+        "run_type": "scheduled",
+        "state": "running",
+        "conf": {},
+        "consumed_asset_events": [],
+        "partition_key": None,
+        "_deadline": {"id": "abc", "deadline_time": "2024-06-15T13:00:00+00:00"},
+    }
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=20,
+            ti=None,
+            classpath="fake.CallbackTrigger",
+            encrypted_kwargs=Trigger.encrypt_kwargs({"callback_path": "x.y", "callback_kwargs": {}}),
+            dag_run_data=dag_run_data,
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert 20 in runner.triggers
+    assert len(injected_instances) == 1
+    context = injected_instances[0]._callback_context
+    assert context is not None
+    assert context["run_id"] == "ctx_run"
+    assert context["ds"] == "2024-06-15"
+    assert context["deadline"] == {"id": "abc", "deadline_time": "2024-06-15T13:00:00+00:00"}
+
+    runner.triggers[20]["task"].cancel()
+    await runner.cleanup_finished_triggers()
+
+
+@pytest.mark.asyncio
+@patch("airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath")
+async def test_create_triggers_fails_trigger_on_malformed_dag_run_data(mock_get_classpath, session):
+    """A version-skewed dag_run_data fails just this trigger, not the whole runner."""
+    from airflow.triggers.callback import CallbackTrigger
+
+    mock_get_classpath.return_value = CallbackTrigger
+
+    runner = TriggerRunner()
+    runner.to_create.append(
+        workloads.RunTrigger.model_construct(
+            id=21,
+            ti=None,
+            classpath="fake.CallbackTrigger",
+            encrypted_kwargs=Trigger.encrypt_kwargs({"callback_path": "x.y", "callback_kwargs": {}}),
+            dag_run_data={"unexpected_field": "boom"},
+        )
+    )
+
+    await runner.create_triggers()
+
+    assert 21 not in runner.triggers
+    assert [trigger_id for trigger_id, _ in runner.failed_triggers] == [21]
+
+
 @pytest.fixture
 def make_watcher_trigger():
     """Factory fixture: call with a list to get a BaseEventTrigger subclass that appends each new instance."""
