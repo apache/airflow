@@ -1761,6 +1761,20 @@ class TestDagRun:
         assert isinstance(dag_run.dag_versions, list)
         assert len(dag_run.dag_versions) == 0
 
+    def test_dag_run_dag_versions_sorted_by_version_number(self):
+        """dag_versions must order by version_number, not by row id."""
+        # Version 2 gets the lower id, so id order would put it before version 1.
+        version_1 = DagVersion(
+            id=UUID("ffffffff-ffff-ffff-ffff-ffffffffffff"), dag_id="dag", version_number=1
+        )
+        version_2 = DagVersion(
+            id=UUID("00000000-0000-0000-0000-000000000001"), dag_id="dag", version_number=2
+        )
+        dag_run = DagRun(dag_id="dag", run_id="run", run_type=DagRunType.MANUAL)
+        dag_run._prefetched_dag_version_ids = {version_1.id: version_1, version_2.id: version_2}
+
+        assert [dv.version_number for dv in dag_run.dag_versions] == [1, 2]
+
     @pytest.mark.parametrize(
         "interval",
         [

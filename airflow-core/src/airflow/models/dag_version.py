@@ -26,7 +26,7 @@ from uuid import UUID
 
 import sqlalchemy as sa
 import uuid6
-from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
+from sqlalchemy import ForeignKey, Integer, UniqueConstraint, func, select
 from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
 
 from airflow._shared.timezones import timezone
@@ -38,7 +38,7 @@ from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import Select, Subquery
 
     from airflow.models.serialized_dag import SerializedDagModel
     from airflow.models.taskinstance import TaskInstance
@@ -158,6 +158,23 @@ class DagVersion(Base):
         session.add(dag_version)
         log.debug("DagVersion %s written to the DB", dag_version)
         return dag_version
+
+    @classmethod
+    def latest_version_subquery(cls, dag_ids: list[str] | None = None) -> Subquery:
+        """
+        Select the highest ``version_number`` per Dag.
+
+        This is the single definition of a Dag's current version: ``version_number`` is
+        monotonic and unique per ``dag_id``, so unlike a timestamp it stays deterministic
+        when rows share one, and a row written for an older bundle version cannot become
+        current just by being inserted later.
+
+        :param dag_ids: If given, restrict to these Dag ids; otherwise cover all Dags.
+        """
+        query = select(cls.dag_id, func.max(cls.version_number).label("version_number")).group_by(cls.dag_id)
+        if dag_ids is not None:
+            query = query.where(cls.dag_id.in_(dag_ids))
+        return query.subquery()
 
     @classmethod
     def _latest_version_select(

@@ -38,6 +38,7 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.dag import sync_dag_to_db
 
 pytestmark = pytest.mark.db_test
 
@@ -502,6 +503,24 @@ class TestDBDagBagCache:
 
         # Cache should be empty -- iter doesn't cache to prevent thrashing
         assert len(dag_bag._dags) == 0
+
+    def test_iter_all_latest_version_dags_yields_only_the_latest(self, dag_maker, session):
+        """Only the highest-version serialized Dag per dag_id is returned."""
+        dag_id = "iter_latest_versions"
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+        sync_dag_to_db(dag, session=session)
+        dag_maker.create_dagrun()
+
+        with dag_maker(dag_id) as dag:
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+        sync_dag_to_db(dag, session=session)
+
+        dags = [d for d in DBDagBag().iter_all_latest_version_dags(session=session) if d.dag_id == dag_id]
+
+        assert len(dags) == 1
+        assert set(dags[0].task_ids) == {"task1", "task2"}
 
     @patch("airflow.models.dagbag.stats")
     def test_cache_hit_metric_emitted(self, mock_stats):
