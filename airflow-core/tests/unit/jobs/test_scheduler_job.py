@@ -10617,6 +10617,100 @@ class TestSchedulerJob:
         self.job_runner._remove_unreferenced_triggers(session=session)
         assert session.scalar(select(func.count()).select_from(Trigger)) == 0
 
+    @pytest.mark.need_serialized_dag(False)
+    @conf_vars({("scheduler", "unreferenced_triggers_cleanup_batch_size"): "2"})
+    def test_remove_unreferenced_triggers_drains_in_batches_per_call(self, session):
+        """One scheduler tick removes at most one batch (5 triggers, batch=2 → 3 stay).
+
+        Mirrors the triggerer's cadence (``Trigger.clean_unused`` does one batch per call;
+        later scheduler ticks drain the remainder). Holding locks across unbounded DELETEs
+        would block the triggerer's writers — see #75141.
+        """
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        for _ in range(5):
+            session.add(
+                Trigger(
+                    classpath="airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                    kwargs={},
+                )
+            )
+        session.commit()
+
+        self.job_runner._remove_unreferenced_triggers(session=session)
+
+        # batch_size=2 ⇒ exactly 2 rows deleted; 3 remain to be drained next tick.
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 3
+
+        # Second tick drains the remaining batch.
+        self.job_runner._remove_unreferenced_triggers(session=session)
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 1
+
+        # Third tick removes the final row.
+        self.job_runner._remove_unreferenced_triggers(session=session)
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+    @pytest.mark.need_serialized_dag(False)
+    @pytest.mark.parametrize("batch_size", ["0", "-1"])
+    def test_remove_unreferenced_triggers_rejects_non_positive_batch_size(self, session, batch_size):
+        """A non-positive batch size must raise before any DELETE is issued."""
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        session.add(
+            Trigger(
+                classpath="airflow.providers.standard.triggers.file.FileDeleteTrigger",
+                kwargs={},
+            )
+        )
+        session.commit()
+
+        with conf_vars({("scheduler", "unreferenced_triggers_cleanup_batch_size"): batch_size}):
+            with pytest.raises(
+                ValueError,
+                match=r"\[scheduler\] unreferenced_triggers_cleanup_batch_size must be at least 1",
+            ):
+                self.job_runner._remove_unreferenced_triggers(session=session)
+
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 1
+
+    @pytest.mark.need_serialized_dag(False)
+    def test_remove_unreferenced_triggers_preserves_referenced_triggers(self, session, dag_maker):
+        """Cleanup must skip triggers still referenced by a deferred TaskInstance.
+
+        Asset-watcher and Callback preservation are covered by the model's own
+        tests in ``tests/unit/models/test_trigger.py``; here we just verify the
+        scheduler delegates the same preservation contract.
+        """
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with dag_maker(dag_id="dag", schedule=None, session=session):
+            EmptyOperator(task_id="fake0")
+
+        dr = dag_maker.create_dagrun()
+
+        referenced = Trigger(
+            classpath="airflow.providers.standard.triggers.file.FileDeleteTrigger", kwargs={}
+        )
+        unreferenced = Trigger(
+            classpath="airflow.providers.standard.triggers.file.FileDeleteTrigger", kwargs={}
+        )
+        session.add_all([referenced, unreferenced])
+        session.flush()
+
+        ti = next(iter(dr.task_instances))
+        ti.state = TaskInstanceState.DEFERRED
+        ti.trigger_id = referenced.id
+        session.commit()
+
+        unreferenced_id = unreferenced.id
+        referenced_id = referenced.id
+        self.job_runner._remove_unreferenced_triggers(session=session)
+        session.expire_all()
+
+        remaining_ids = set(session.scalars(select(Trigger.id)).all())
+        assert unreferenced_id not in remaining_ids
+        assert referenced_id in remaining_ids
+
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
     def test_misconfigured_dags_doesnt_crash_scheduler(self, mock_create, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

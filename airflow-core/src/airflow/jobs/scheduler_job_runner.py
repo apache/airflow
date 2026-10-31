@@ -84,7 +84,6 @@ from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     AssetPartitionDagRun,
-    AssetWatcherModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
@@ -4274,18 +4273,22 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     @provide_session
     def _remove_unreferenced_triggers(self, *, session: Session = NEW_SESSION) -> None:
-        """Remove triggers that are no longer used by anything."""
-        session.execute(
-            delete(Trigger)
-            .where(
-                ~exists(
-                    select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.trigger_id == Trigger.id)
-                ),
-                ~exists(select(Callback.trigger_id).where(Callback.trigger_id == Trigger.id)),
-                ~exists(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id == Trigger.id)),
-            )
-            .execution_options(synchronize_session="fetch")
-        )
+        """
+        Remove triggers that are no longer used by anything.
+
+        Delegates to ``Trigger._delete_unused_batch`` so the same LIMIT/row-lock/commit
+        pattern the triggerer uses (#70961) applies here too — holding row locks on
+        ``trigger`` for the duration of an unbounded DELETE stalls the triggerer's
+        writers and the scheduler main loop on installs with large trigger tables.
+
+        Batch size is controlled by ``[scheduler] unreferenced_triggers_cleanup_batch_size``
+        (default 500). One batch is removed per call; later scheduler ticks drain the
+        remainder, matching the triggerer's per-tick cadence.
+        """
+        batch_size = conf.getint("scheduler", "unreferenced_triggers_cleanup_batch_size", fallback=500)
+        if batch_size <= 0:
+            raise ValueError("[scheduler] unreferenced_triggers_cleanup_batch_size must be at least 1")
+        Trigger._delete_unused_batch(batch_size, session=session)
 
     @provide_session
     def _update_asset_orphanage(self, *, session: Session = NEW_SESSION) -> None:
