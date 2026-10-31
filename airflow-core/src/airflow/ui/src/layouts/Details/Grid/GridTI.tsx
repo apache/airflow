@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Badge, Box, Flex } from "@chakra-ui/react";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
@@ -42,9 +44,11 @@ type Props = {
   readonly instance: LightGridTaskInstanceSummary;
   readonly isGroup?: boolean;
   readonly isMapped?: boolean | null;
+  // Set only while cells are multi-selected, and then it alone decides which cells are outlined.
+  readonly isMultiSelected?: boolean;
   readonly label: string;
   readonly loopMaxIterations?: number | null;
-  readonly onClick?: () => void;
+  readonly onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   readonly runId: string;
   readonly taskId: string;
 };
@@ -55,6 +59,7 @@ export const GridTI = ({
   instance,
   isGroup,
   isMapped,
+  isMultiSelected,
   loopMaxIterations,
   onClick,
   runId,
@@ -85,7 +90,7 @@ export const GridTI = ({
   ).toString();
 
   const isSelectedRow = selectedTaskId === taskId || selectedGroupId === taskId;
-  const isSelectedTaskInstance = selectedRunId === runId && isSelectedRow;
+  const isSelectedTaskInstance = isMultiSelected ?? (selectedRunId === runId && isSelectedRow);
   const selectedOutlineColor = SELECTED_TASK_OUTLINE_COLOR[colorMode];
   const isStacked = Boolean(isMapped) || Boolean(isGroup);
   const frontCardState = instance.state ?? "none";

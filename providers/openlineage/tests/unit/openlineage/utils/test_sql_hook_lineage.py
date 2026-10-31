@@ -25,6 +25,7 @@ from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import external_query_run, sql_job
 
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.openlineage.extractors.base import OperatorLineage
 from airflow.providers.openlineage.sqlparser import SQLParser
 from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, Rule
@@ -76,12 +77,14 @@ class TestEmitLineageFromSqlExtras:
             mock.patch(f"{_MODULE}._get_hook_conn_id", return_value="my_conn") as mock_conn_id,
             mock.patch(f"{_MODULE}.SQLParser.create_namespace") as mock_ns,
             mock.patch(f"{_MODULE}.get_openlineage_facets_with_sql") as mock_facets_fn,
+            mock.patch(f"{_MODULE}.get_sql_parser_for_hook") as mock_get_parser,
             mock.patch(f"{_MODULE}._create_ol_event_pair") as mock_build,
             mock.patch(f"{_MODULE}.get_openlineage_listener") as mock_listener,
         ):
             self.mock_conn_id = mock_conn_id
             self.mock_ns = mock_ns
             self.mock_facets_fn = mock_facets_fn
+            self.mock_get_parser = mock_get_parser
             self.mock_build = mock_build
             self.mock_listener = mock_listener
             mock_build.return_value = (mock.sentinel.start_event, mock.sentinel.end_event)
@@ -220,6 +223,87 @@ class TestEmitLineageFromSqlExtras:
         assert call.kwargs["outputs"] == []
         assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT broken(")
         assert call.kwargs["run_facets"]["externalQuery"].externalQueryId == "qid-1"
+
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_sql_parsing_failure_is_logged_as_warning(self, mock_log):
+        self.mock_ns.return_value = "ns"
+        self.mock_facets_fn.side_effect = Exception("parse error")
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT broken(", job_id="qid-1")],
+        )
+
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1:] == (1, "my_conn", self.mock_facets_fn.side_effect)
+
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_database_info_failure_is_logged_as_warning_and_event_still_emitted(self, mock_log):
+        hook = mock.MagicMock(spec=DbApiHook)
+        hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
+        )
+
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args.args[1] == "my_conn"
+        assert str(mock_log.warning.call_args.args[2]) == "broken import"
+        # Without database info SQL is not parsed, but the query event is still built and emitted
+        # with just the SQL facet (and no externalQuery facet, as namespace is unknown).
+        self.mock_facets_fn.assert_not_called()
+        self.mock_build.assert_called_once()
+        call = self.mock_build.call_args
+        assert call.kwargs["inputs"] == []
+        assert call.kwargs["outputs"] == []
+        assert call.kwargs["job_facets"]["sql"].query == SQLParser.normalize_sql("SELECT 1")
+        assert "externalQuery" not in call.kwargs["run_facets"]
+
+    def test_sql_parser_is_built_once_per_hook(self):
+        hook = mock.MagicMock(spec=DbApiHook)
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql=f"SELECT {i}", hook=hook) for i in range(3)],
+        )
+
+        self.mock_get_parser.assert_called_once()
+        assert self.mock_facets_fn.call_count == 3
+        for call in self.mock_facets_fn.call_args_list:
+            assert call.kwargs["sql_parser"] is self.mock_get_parser.return_value
+
+    def test_sql_parsing_is_skipped_when_sql_parser_is_unavailable(self):
+        self.mock_get_parser.return_value = None
+        self.mock_ns.return_value = "ns"
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1"), _make_extra(sql="SELECT 2")],
+        )
+
+        self.mock_facets_fn.assert_not_called()
+        assert self.mock_build.call_count == 2
+
+    @mock.patch(f"{_MODULE}.log", autospec=True)
+    def test_hook_without_database_info_method_is_not_a_failure(self, mock_log):
+        hook = mock.MagicMock(spec=["get_connection"])
+        self.mock_ns.return_value = None
+        mock_ti = mock.MagicMock(dag_id="dag_id", task_id="task_id")
+
+        emit_lineage_from_sql_extras(
+            task_instance=mock_ti,
+            sql_extras=[_make_extra(sql="SELECT 1", job_id="qid-1", hook=hook)],
+        )
+
+        mock_log.warning.assert_not_called()
+        self.mock_build.assert_called_once()
 
     def test_no_namespace_skips_external_query_facet(self):
         """When namespace cannot be resolved, no externalQuery facet is added."""

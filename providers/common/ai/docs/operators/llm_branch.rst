@@ -158,10 +158,6 @@ skipped too. Letting ``approval_timeout`` expire fails the task
 (``HITLTimeoutError``) unless ``on_approval_timeout`` answers the review for
 you; a timeout-driven rejection then skips downstream like any other rejection.
 
-``require_approval=True`` requires a string prompt: a decorated callable
-returning a ``Sequence[UserContent]`` raises ``TypeError`` before the LLM
-call.
-
 Apart from ``fail_on_reject`` and ``ignore_downstream_trigger_rules``, which
 are specific to this operator, ``approval_timeout``, ``on_approval_timeout``,
 ``approval_notifiers``, ``approval_assigned_users``, and the rest of the approval
@@ -235,7 +231,8 @@ The decision record
 ^^^^^^^^^^^^^^^^^^^
 
 Whether or not a bar is set, the operator pushes a ``decision`` XCom next to
-its return value (suppressed by ``do_xcom_push=False`` like any other):
+its return value and the run XComs listed under `Logging`_ (suppressed by
+``do_xcom_push=False`` like any other):
 
 .. code-block:: json
 
@@ -354,3 +351,6 @@ Logging
 After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+Like :doc:`llm`, the operator also pushes ``usage``, ``run_id`` and the model name to
+XCom, on a failed run too. See :doc:`../observability`.

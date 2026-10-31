@@ -273,6 +273,7 @@ class TestPowerBIDatasetRefreshOperator:
 
         assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The worker starts the refresh only from Airflow 3.3")
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_starts_refresh_on_worker_and_defers_to_poll(self, mock_trigger_dataset_refresh):
         operator = PowerBIDatasetRefreshOperator(**CONFIG)
@@ -292,10 +293,10 @@ class TestPowerBIDatasetRefreshOperator:
         context["ti"].xcom_push.assert_called_once_with(
             key=f"{TASK_ID}.powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID
         )
-        if AIRFLOW_V_3_3_PLUS:
-            assert task_state_store.values == {REFRESH_ID_KEY: NEW_REFRESH_REQUEST_ID}
-            assert exc.value.trigger.cancel_on_error is False
+        assert task_state_store.values == {REFRESH_ID_KEY: NEW_REFRESH_REQUEST_ID}
+        assert exc.value.trigger.cancel_on_error is False
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The worker starts the refresh only from Airflow 3.3")
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_fire_and_forget_mode(self, mock_trigger_dataset_refresh):
         """Fire-and-forget starts the refresh and returns without deferring."""
@@ -305,10 +306,34 @@ class TestPowerBIDatasetRefreshOperator:
         assert operator.execute(context) is None
 
         mock_trigger_dataset_refresh.assert_called_once()
-        context["ti"].xcom_push.assert_called_with(
+        context["ti"].xcom_push.assert_called_once_with(
             key=f"{TASK_ID}.powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID
         )
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The task state store arrived in Airflow 3.3")
+    @pytest.mark.parametrize(
+        "status", [PowerBIDatasetRefreshStatus.IN_PROGRESS, PowerBIDatasetRefreshStatus.COMPLETED]
+    )
+    @mock.patch.object(PowerBIHook, "get_refresh_history")
+    @mock.patch.object(PowerBIHook, "trigger_dataset_refresh")
+    def test_execute_fire_and_forget_does_not_refresh_again_once_started(
+        self, mock_trigger_dataset_refresh, mock_get_refresh_history, status
+    ):
+        mock_get_refresh_history.return_value = [previous_refresh(status)]
+        operator = PowerBIDatasetRefreshOperator(**CONFIG, wait_for_completion=False)
+        context = {
+            "ti": MagicMock(),
+            "task_state_store": TaskStateStore(**{REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}),
+        }
+
+        assert operator.execute(context) is None
+
+        mock_trigger_dataset_refresh.assert_not_called()
+        context["ti"].xcom_push.assert_called_once_with(
+            key=f"{TASK_ID}.powerbi_dataset_refresh_id", value=PREVIOUS_REFRESH_REQUEST_ID
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The worker starts the refresh only from Airflow 3.3")
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=None)
     def test_execute_raises_when_refresh_has_no_id(self, mock_trigger_dataset_refresh):
         operator = PowerBIDatasetRefreshOperator(**CONFIG)
@@ -485,7 +510,10 @@ class TestPowerBIDatasetRefreshOperator:
         assert task_state_store.values == {REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}
 
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
-    def test_execute_not_durable_starts_new_refresh_and_cancels_on_error(self, mock_trigger_dataset_refresh):
+    def test_execute_not_durable_defers_to_the_trigger_that_starts_the_refresh(
+        self, mock_trigger_dataset_refresh
+    ):
+        """Without durable execution the worker never talks to Power BI, as before the operator was durable."""
         operator = PowerBIDatasetRefreshOperator(**CONFIG, durable=False)
         task_state_store = TaskStateStore(**{REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID})
         context = {"ti": MagicMock(), "task_state_store": task_state_store}
@@ -493,11 +521,56 @@ class TestPowerBIDatasetRefreshOperator:
         with pytest.raises(TaskDeferred) as exc:
             operator.execute(context)
 
-        mock_trigger_dataset_refresh.assert_called_once()
-        assert exc.value.trigger.dataset_refresh_id == NEW_REFRESH_REQUEST_ID
+        mock_trigger_dataset_refresh.assert_not_called()
+        context["ti"].xcom_push.assert_not_called()
+        assert isinstance(exc.value.trigger, PowerBITrigger)
+        assert exc.value.trigger.dataset_refresh_id is None
+        assert exc.value.trigger.request_body == REQUEST_BODY
+        assert exc.value.trigger.wait_for_termination is False
         assert exc.value.trigger.cancel_on_error is True
+        assert exc.value.method_name == "handle_refresh"
         assert task_state_store.values == {REFRESH_ID_KEY: PREVIOUS_REFRESH_REQUEST_ID}
 
+    @mock.patch.object(PowerBIHook, "get_refresh_details_by_refresh_id")
+    @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
+    def test_execute_not_durable_full_lifecycle(
+        self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id
+    ):
+        """Assert the full lifecycle: start in the trigger, defer again to poll, complete on the worker."""
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            PowerBIDatasetRefreshFields.STATUS.value: PowerBIDatasetRefreshStatus.COMPLETED,
+            PowerBIDatasetRefreshFields.ERROR.value: None,
+        }
+        operator = PowerBIDatasetRefreshOperator(**CONFIG, durable=False)
+        context = {"ti": MagicMock(), "task_state_store": TaskStateStore()}
+
+        with pytest.raises(TaskDeferred) as started:
+            operator.execute(context)
+        [started_event] = run_trigger(started.value.trigger)
+        with pytest.raises(TaskDeferred) as polled:
+            getattr(operator, started.value.method_name)(context=context, event=started_event.payload)
+        [completed_event] = run_trigger(polled.value.trigger)
+        assert (
+            getattr(operator, polled.value.method_name)(context=context, event=completed_event.payload)
+            is None
+        )
+
+        mock_trigger_dataset_refresh.assert_called_once_with(
+            dataset_id=DATASET_ID, group_id=GROUP_ID, request_body=REQUEST_BODY
+        )
+        assert started_event.payload["dataset_refresh_id"] == NEW_REFRESH_REQUEST_ID
+        assert polled.value.trigger.dataset_refresh_id == NEW_REFRESH_REQUEST_ID
+        assert completed_event.payload["dataset_refresh_status"] == PowerBIDatasetRefreshStatus.COMPLETED
+        assert context["ti"].xcom_push.call_args_list == [
+            mock.call(key=f"{TASK_ID}.powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID),
+            mock.call(key=f"{TASK_ID}.powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID),
+            mock.call(
+                key=f"{TASK_ID}.powerbi_dataset_refresh_status", value=PowerBIDatasetRefreshStatus.COMPLETED
+            ),
+        ]
+        assert context["task_state_store"].values == {}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The worker starts the refresh only from Airflow 3.3")
     @mock.patch.object(PowerBIHook, "get_refresh_details_by_refresh_id")
     @mock.patch.object(PowerBIHook, "trigger_dataset_refresh", return_value=NEW_REFRESH_REQUEST_ID)
     def test_execute_operator_wait_for_completion_full_lifecycle(

@@ -168,8 +168,8 @@ Pull requests from external contributors can run their CI in the contributor's f
 ``breeze ci audit`` checks, read-only, whether your checkout and fork are set up for that: ``gh``
 installed and authenticated, the ``upstream`` remote pointing at ``apache/airflow`` and ``origin`` at your
 fork, whether you are a committer, collaborator, member of an exempted organisation, pilot participant or
-external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled (or disabled, for those
-whose pull requests run project CI), how far your fork's ``main`` is behind, and the branch you are on.
+external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled (when your pull requests
+use fork CI), how far your fork's ``main`` is behind, and the branch you are on.
 Each failing check prints the command that fixes it; ``--fix`` runs those commands after asking.
 
 These are all available flags of ``audit`` command:
@@ -204,13 +204,17 @@ Approving workflow runs of external contributors
 
 The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 15 minutes. It approves
 the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
-than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``. PRs whose CI runs in
+than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``, with a pending
+``Workflow approval`` commit status on their head commit that gives the reason. Once a maintainer
+approves the runs and they start, the ``mark-workflow-runs-approved`` workflow removes the label and
+turns the status green. PRs whose CI runs in
 the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
 approved whatever their size unless they change CI definition files; such a PR also gets a comment
 explaining that its CI change needs a maintainer. The runs of PRs from the repositories of trusted
 stakeholders (Amazon, Google, Astronomer) are always approved. For every PR it also
 estimates the CI jobs selective checks will run and how long they take, and writes them to the job
-summary. Use ``--report-only`` to see the decisions without approving runs or changing labels. The rules
+summary. Use ``--report-only`` to see the decisions without approving runs or changing labels or
+statuses. The rules
 are described in `CI workflows <ci/05_workflows.md>`_.
 
 These are all available flags of ``approve-workflow-runs`` command:

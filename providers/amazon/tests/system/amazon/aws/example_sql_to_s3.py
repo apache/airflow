@@ -186,6 +186,18 @@ with DAG(
     )
     # [END howto_transfer_sql_to_s3_with_groupby_param]
 
+    # [START howto_transfer_sql_to_s3_with_page_size]
+    sql_to_s3_task_with_page_size = SqlToS3Operator(
+        task_id="sql_to_s3_with_page_size_task",
+        sql_conn_id=conn_id_name,
+        query=SQL_QUERY,
+        s3_bucket=bucket_name,
+        s3_key=key,
+        replace=True,
+        page_size=2,
+    )
+    # [END howto_transfer_sql_to_s3_with_page_size]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -213,6 +225,7 @@ with DAG(
         wait_cluster_available_before_transfer,
         sql_to_s3_task,
         sql_to_s3_task_with_groupby,
+        sql_to_s3_task_with_page_size,
         # TEST TEARDOWN
         delete_bucket,
         delete_cluster,

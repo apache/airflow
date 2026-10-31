@@ -2565,6 +2565,13 @@ class TestExcludeDatasetsResolution:
             pytest.param(
                 ["gs://bucket/staging/.*"], Dataset("gs://bucket", "final/out"), False, id="no-match"
             ),
+            pytest.param(
+                ["file://host1/staging/.*"],
+                Dataset("file://host1", "/staging/part_1"),
+                True,
+                id="absolute-name",
+            ),
+            pytest.param(["file/tmp/.*"], Dataset("file", "/tmp/part_1"), True, id="absolute-name-no-host"),
         ],
     )
     def test_is_excluded_matches_namespace_and_name(self, patterns, dataset, excluded):

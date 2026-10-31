@@ -46,6 +46,7 @@
 - [Verify the release candidate by Contributors](#verify-the-release-candidate-by-contributors)
   - [Installing release candidate in your local virtual environment](#installing-release-candidate-in-your-local-virtual-environment)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
+  - [Release or yank the outstanding provider candidates](#release-or-yank-the-outstanding-provider-candidates)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
@@ -128,6 +129,42 @@ introduced have it already. An older release branch only behaves this way once t
 `ci-amd.yml` / `ci-arm.yml` that introduced it has been backported to it; until then it keeps
 running the full CI on every push.
 
+### Before cutting a beta or an RC: refresh the base images and the important CI versions
+
+The images are built on hardened Python base images pinned to digests, and the legacy images compile
+a pinned Python patch release. Only the "Upgrade important CI environment" upgrade moves those pins,
+so a release ships with the latest base images, Python patch releases and their security fixes only
+when the upgrade ran right before it. It is one command, which first mirrors the latest hardened base
+images (a workflow run on `main`, as the mirror is shared by all branches) and waits for it. It needs
+`gh` credentials that may dispatch `apache/airflow` workflows, and checks that first.
+
+- **Beta** - before you fast-forward `vX-Y-test` to `main` for the beta (see
+  [Beta releases](#beta-releases-fast-forwarding-vx-y-test-to-main)), as during the beta phase
+  `vX-Y-test` takes its changes only from `main`:
+
+  ```shell script
+  breeze workflow-run upgrade-check --branch main
+  ```
+
+  It runs the upgrade check workflow for `main` and waits for it. When anything moved, the workflow
+  opens (or updates) the `[main] Upgrade important CI environment` PR as a draft. Mark it ready for
+  review, which starts its CI, and merge it once the CI has passed.
+
+- **RC** - before you open the PR syncing `vX-Y-test` into `vX-Y-stable`, and before the full-run
+  check in the next section:
+
+  ```shell script
+  git switch vX-Y-test
+  git pull --ff-only upstream vX-Y-test
+  breeze workflow-run upgrade-check --branch vX-Y-test
+  ```
+
+  It runs the upgrade in your checkout and pushes the `[vX-Y-test] CI: Upgrade important CI
+  environment` commit straight to `vX-Y-test`, the head of the test-to-stable PR, so the PR's CI tests
+  it. This runs locally because the release branch rules let only committers push to `vX-Y-test`
+  without CI having passed. It never switches, resets or cleans your checkout: it fails and tells you
+  what to do when you are not on `vX-Y-test` at the tip of `apache/airflow`, or have local changes.
+
 ### Before cutting an RC: check the full run of the branch HEAD
 
 The incremental push runs do not replace the full run. Before you cut an RC (or open the PR syncing
@@ -170,9 +207,12 @@ released from `vX-Y-test` only: there is no `vX-Y-stable` branch yet and therefo
 PR exists only to carry changes from `vX-Y-test` into `vX-Y-stable` for an `rc`/final), and there is
 no vote.
 
-1. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
+1. Run the upgrade check for `main` and merge its PR, as described in
+   [Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions),
+   then fast-forward `vX-Y-test` to `main`.
+2. Push the version-bump and release-notes commits to `vX-Y-test` through normal PRs, so the tip of
    `vX-Y-test` is exactly what the beta should ship.
-2. Run:
+3. Run:
 
    ```shell script
    breeze release-management start-beta-process \
@@ -467,6 +507,9 @@ Before cutting an RC, we should look at the milestone and merge anything ready, 
 
 The Release Candidate artifacts we vote upon should be the exact ones we vote against, without any modification other than renaming – i.e. the contents of the files must be the same between voted release candidate and final release. Because of this the version in the built artifacts that will become the official Apache releases must not include the rcN suffix.
 
+**Before you build the artifacts**, run the upgrade check, as described in
+[Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions).
+
 > [!IMPORTANT]
 > When you start the release candidates of a major/minor release that went through beta releases
 > (`X.Y.0rc1`), `vX-Y-test` stops being fast-forwarded to `main` and changes reach it only by
@@ -634,6 +677,11 @@ still works but is no longer recommended.
 
 - PR from the 'test' branch to the 'stable' branch
 
+  Before you open it, run `breeze workflow-run upgrade-check --branch vX-Y-test`, which pushes the
+  upgrade onto `vX-Y-test`, as described in
+  [Before cutting a beta or an RC](#before-cutting-a-beta-or-an-rc-refresh-the-base-images-and-the-important-ci-versions),
+  so the release is built on the latest base images.
+
   Cherry-picked commits often include provider dependency bumps (changes to `>=` constraints on
   `apache-airflow-providers-*` packages in `pyproject.toml`). CI blocks such changes by default —
   only Release Managers should perform them. To allow the PR to pass, add the
@@ -725,6 +773,11 @@ still works but is no longer recommended.
    The result is committed onto the shared `constraints-X-Y` branch and tagged
    `constraints-${VERSION_RC}`. There is no `constraints-${VERSION_RC}` branch — a branch with the
    same name as the tag would make the name ambiguous, so the workflow fails if it finds one.
+
+   The regular constraints generation for the `vX-Y-test` branch, which runs without
+   pre-releases, keeps the `rcN` provider pins it finds on `constraints-X-Y` for as long as PyPI
+   serves them, so it does not undo the candidate's constraints while the vote is on. A pinned
+   candidate gives way once its final is published, and is dropped if it is yanked.
 
    **Testing the start-rc-process command:**
    Before running the actual release command, you can safely test it using:
@@ -1448,6 +1501,28 @@ simple instructions described in
 
 # Publish the final Apache Airflow release
 
+## Release or yank the outstanding provider candidates
+
+The constraints of the final release cannot pin a provider release candidate, and they will not
+silently pass over one either. If the candidate's constraints pinned providers at `rcN` versions
+(see the `start-rc-process` note above), every one of them must be cleared before `start-release`
+reaches its constraints step:
+
+* **release it** - the provider vote passed and its final version is published on PyPI, or
+* **yank it** on PyPI - it is not going to be released; yanked versions are skipped.
+
+Until then, the `Release constraints` workflow for the final version fails, listing every
+provider whose newest version on PyPI is a candidate that is neither released nor yanked. To see
+which providers the candidate pinned:
+
+```shell script
+curl -s "https://raw.githubusercontent.com/apache/airflow/constraints-${VERSION_RC}/constraints-3.13.txt" \
+  | grep -E '^apache-airflow-providers-.*(a|b|rc)[0-9]+$'
+```
+
+Agree with the providers' release manager on the decision early in the vote, so the final
+release does not wait on it.
+
 ## Summarize the voting for the Apache Airflow release
 
 Once the vote has been passed, you will need to send a result vote to dev@airflow.apache.org:
@@ -1564,9 +1639,12 @@ The providers are pinned rather than resolved: every `apache-airflow-providers-*
 `==` at the newest version PyPI can install, so the constraints record what is actually published
 instead of whatever the resolver settles on. A candidate takes the wave's `rcN` versions along with
 it - a pre-release only wins by sorting above every final release, so a provider without a
-candidate in the wave keeps its release. A final ignores candidates entirely, which is what makes
-it impossible for a released constraints file to carry an `rc` pin. Nothing else in the dependency
-graph can resolve to a pre-release, since no other requirement mentions one.
+candidate in the wave keeps its release. A final never pins a candidate, which is what makes it
+impossible for a released constraints file to carry an `rc` pin - and it fails instead of passing
+one over: a provider whose newest version on PyPI is a candidate must be released or yanked first
+(see [Release or yank the outstanding provider candidates](#release-or-yank-the-outstanding-provider-candidates)).
+Yanked versions are skipped. Nothing else in the dependency graph can resolve to a pre-release,
+since no other requirement mentions one.
 
 Re-running the workflow for the same candidate adds another commit onto `constraints-X-Y` and
 re-creates the candidate's tag on it, so redoing a candidate's constraints just works. If a

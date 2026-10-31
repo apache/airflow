@@ -93,6 +93,15 @@ jobs:
   build-and-publish-registry:
     timeout-minutes: 45
     name: "Build & Publish Registry"
+    # An incremental build downloads the bucket's providers.json and modules.json, merges its own
+    # providers in and syncs them back, so two publishes to one bucket at once lose whichever
+    # finishes first. Shared with registry-backfill.yml's publish job; set on the job because this
+    # workflow is also called from publish-docs-to-s3.yml. GitHub keeps one pending run per group,
+    # so a third publish cancels the waiting one: that run shows as cancelled and is re-run, which
+    # beats the silent loss this replaces.
+    concurrency:
+      group: registry-publish-${{ inputs.destination }}
+      cancel-in-progress: false
     # On a dispatch this enforces the committer allowlist below; on the `workflow_call` path the
     # caller has already gated on its own allowlist, so this must not re-check it against a
     # second, separately-maintained copy.
