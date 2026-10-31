@@ -1522,6 +1522,21 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
 
 
 class TestTriggerRunner:
+    @pytest.mark.asyncio
+    @mock.patch("airflow.jobs.triggerer_job_runner.set_current_team_name", autospec=True)
+    @mock.patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.TriggerCommsDecoder", autospec=True)
+    @mock.patch("asyncio.open_connection", autospec=True, return_value=(None, None))
+    @mock.patch("airflow.jobs.triggerer_job_runner.socket", autospec=True)
+    async def test_init_comms_sets_the_current_team(
+        self, _socket, _open_connection, mock_decoder_cls, _supervisor_comms, mock_set_current_team_name
+    ) -> None:
+        mock_decoder_cls.return_value._from_frame.return_value = messages.StartTriggerer(team_name="team_a")
+
+        await TriggerRunner().init_comms()
+
+        mock_set_current_team_name.assert_called_once_with("team_a")
+
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
             trigger_runner = TriggerRunner()
