@@ -384,6 +384,19 @@ def test_snapshot_artifacts_replace_earlier_attempts():
     assert metadata["with"]["path"].endswith(".tar.zst.meta")
 
 
+def test_failed_archive_upload_retires_metadata_before_its_upload():
+    workflow_steps = steps(WORKFLOW, "jobs", "build-ci-images", "steps")
+    by_name = {step["name"].split(" ${{")[0]: i for i, step in enumerate(workflow_steps)}
+    retire = workflow_steps[by_name["Retire CI image snapshot metadata"]]
+    assert by_name["Upload CI image snapshot"] < by_name["Retire CI image snapshot metadata"]
+    assert by_name["Retire CI image snapshot metadata"] < by_name["Upload CI image snapshot metadata"]
+    assert workflow_steps[by_name["Upload CI image snapshot"]]["id"] == "snapshot-upload"
+    assert retire["if"] == (
+        "steps.snapshot-export.outcome == 'success' && steps.snapshot-upload.outcome != 'success'"
+    )
+    assert 'echo "unavailable" > "${meta}"' in retire["run"]
+
+
 def test_snapshot_artifact_names_match_between_upload_and_restore():
     uploads = [
         step["with"]["name"].replace("env.PYTHON_MAJOR_MINOR_VERSION", "inputs.python")

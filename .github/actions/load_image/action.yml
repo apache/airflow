@@ -43,7 +43,7 @@ runs:
     - name: "Download CI image snapshot metadata ${{ inputs.platform }}:${{ inputs.python }}"
       id: snapshot-meta
       continue-on-error: true
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
       with:
         pattern: >-
           ci-image-snapshot-v1-${{ inputs.python }}-${{
@@ -70,7 +70,7 @@ runs:
     - name: "Download CI image snapshot ${{ inputs.platform }}:${{ inputs.python }}"
       id: snapshot-download
       continue-on-error: true
-      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
       with:
         name: >-
           ci-image-snapshot-v1-${{ inputs.python }}-${{

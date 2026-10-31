@@ -93,7 +93,7 @@ function image_fingerprint() {
     local image_id tree
     image_id="$(docker image inspect --format '{{.Id}}' "${image}")" || return 1
     tree="$(timeout "${DAEMON_TIMEOUT_SECONDS}" docker run --rm --pull never --network none \
-        --entrypoint find "${image}" / -xdev -printf '%p %y %m\n' | LC_ALL=C sort | sha256sum)" \
+        --entrypoint find "${image}" / -xdev -printf '%p %y %m %U %G %s\n' | LC_ALL=C sort | sha256sum)" \
         || return 1
     echo "${image_id} ${tree%% *}"
 }
