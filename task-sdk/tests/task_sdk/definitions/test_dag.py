@@ -582,6 +582,8 @@ def test__tags_duplicates(input_tags: str | list[str], expected_result: set[str]
     ("schedule", "input_val", "expected"),
     [
         pytest.param("@daily", None, None, id="none"),
+        pytest.param("@daily", "", None, id="empty_str"),
+        pytest.param("@daily", [], None, id="empty_list"),
         pytest.param(
             "@daily",
             [DagRunType.SCHEDULED],
