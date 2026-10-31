@@ -111,6 +111,7 @@ from airflow.sdk.execution_time.context import (
     _get_connection,
     _get_variable,
     _process_connection_result_conn,
+    _set_variable,
     _wrap_external_ref,
     context_to_airflow_vars,
     set_current_context,
@@ -1823,6 +1824,17 @@ class TestTeamSecretLookups:
 
         assert await _async_get_variable("my_var", deserialize_json=False) == "team_a_value"
         assert (await _async_get_connection("my_conn")).host == "team_a.example.com"
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.sdk.execution_time.context.log")
+    async def test_set_variable_warns_about_team_env_var(self, mock_log, monkeypatch, mock_supervisor_comms):
+        monkeypatch.delenv("AIRFLOW_VAR_MY_VAR")
+        mock_supervisor_comms.asend.return_value = None
+
+        _set_variable("my_var", "new_value")
+        await _async_set_variable("my_var", "new_value")
+
+        assert mock_log.warning.call_count == 2
 
 
 class TestTaskStateStoreAccessor:

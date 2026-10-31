@@ -22,6 +22,7 @@ import contextlib
 import functools
 import inspect
 import json
+import os
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
@@ -207,13 +208,20 @@ _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
 )
 
 # A plain global rather than a ContextVar, so threads started by task code see it too.
+# Also exported to the environment, so child interpreters such as virtualenv tasks can
+# restore it in reinit_supervisor_comms.
 _current_team_name: str | None = None
+_CURRENT_TEAM_NAME_ENV_VAR = "_AIRFLOW__CURRENT_TEAM_NAME"
 
 
 def set_current_team_name(team_name: str | None) -> None:
-    """Set the team that Connection and Variable lookups in this process belong to."""
+    """Set the team that Connection and Variable lookups in this process and its children belong to."""
     global _current_team_name
     _current_team_name = team_name
+    if team_name:
+        os.environ[_CURRENT_TEAM_NAME_ENV_VAR] = team_name
+    else:
+        os.environ.pop(_CURRENT_TEAM_NAME_ENV_VAR, None)
 
 
 def _get_connection(conn_id: str) -> Connection:
@@ -527,7 +535,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
@@ -580,7 +590,12 @@ async def _async_set_variable(
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            var_val = await asyncio.to_thread(
+                call_secrets_backend_method,
+                secrets_backend.get_variable,
+                team_name=_current_team_name,
+                key=key,
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
