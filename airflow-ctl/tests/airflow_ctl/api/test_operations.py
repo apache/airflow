@@ -1809,6 +1809,18 @@ class TestTaskInstancesOperations:
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
         assert response == self.task_instance_collection_response
 
+    def test_list_accepts_awaiting_input_state(self):
+        """Servers on Airflow 3.3+ report Human-in-the-loop task instances as ``awaiting_input``."""
+        payload = json.loads(self.task_instance_collection_response.model_dump_json())
+        payload["task_instances"][0]["state"] = "awaiting_input"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
+        assert response.task_instances[0].state == TaskInstanceState.AWAITING_INPUT
+
 
 class TestTasksOperations:
     dag_id = "dag_id"
