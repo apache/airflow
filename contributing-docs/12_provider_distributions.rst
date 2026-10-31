@@ -344,6 +344,9 @@ The rules are as follows:
           * transfers -> transfer operators are stored here
   * docs
   * tests
+    * testing_dags -> Dags that exercise Airflow itself rather than teach Dag authoring. They are not
+      shipped in the provider distribution; ``breeze shell`` / ``breeze start-airflow --load-testing-dags``
+      and the ``load_provider_testing_dags`` pytest fixture add them as Dag bundles
     * unit
        * PROVIDER
     * integration

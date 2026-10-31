@@ -239,6 +239,11 @@ SSH_CONFIG
         export PYTHONPATH=${PYTHONPATH=}:/opt/airflow/providers/standard/tests
     fi
 
+    if [[ ${LOAD_TESTING_DAGS=} == "true" || ${LOAD_TESTING_DAGS=} == "True" ]]; then
+        AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST=$(python -m tests_common.test_utils.testing_dags)
+        export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST
+    fi
+
     if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         if [[ ${BREEZE_DEBUG_CELERY_WORKER=} == "true" ]]; then
             export AIRFLOW__CELERY__POOL=${AIRFLOW__CELERY__POOL:-solo}
