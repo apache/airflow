@@ -162,3 +162,16 @@ def test_simple_table_add_column_smoke():
     table.add_column("column_1")
 
     assert table.columns[0].header == "column_1"
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+def test_print_as_keeps_square_brackets_in_values(output):
+    """Values that look like Rich markup are shown as-is instead of being dropped or raising."""
+    console = console_formatting.AirflowConsole(record=True)
+    values = ["s3://[bucket]/path", "[red]not styled[/red]", "a[0-9]+ [/b]"]
+
+    console.print_as([{"name": value} for value in values], output=output)
+
+    text = console.export_text()
+    for value in values:
+        assert value in text
