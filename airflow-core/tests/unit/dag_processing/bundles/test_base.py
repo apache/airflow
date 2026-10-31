@@ -73,6 +73,10 @@ class BasicBundle(BaseDagBundle):
         pass
 
 
+def test_refresh_may_change_source_by_default():
+    assert BasicBundle.refresh_changes_source is True
+
+
 def test_dag_bundle_root_storage_path():
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): None}):
         assert get_bundle_storage_root_path() == Path(tempfile.gettempdir(), "airflow", "dag_bundles")

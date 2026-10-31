@@ -21,8 +21,11 @@ import json
 import os
 import re
 import shlex
+import subprocess
+import sys
 import types
 from pathlib import Path
+from textwrap import dedent
 from unittest import mock
 from unittest.mock import patch
 
@@ -30,6 +33,7 @@ import pytest
 from git import RemoteReference, Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError, NoSuchPathError
 
+from airflow.dag_processing.bundles import base as bundle_base
 from airflow.dag_processing.bundles.base import get_bundle_storage_root_path
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
@@ -38,6 +42,8 @@ from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+
+DagBundleRefreshError = getattr(bundle_base, "DagBundleRefreshError", None)
 
 
 def _version_str(version_result):
@@ -91,6 +97,34 @@ def assert_repo_is_closed(bundle: GitDagBundle):
     assert bundle.bare_repo.git.cat_file_all is None
     assert bundle.repo.git.cat_file_header is None
     assert bundle.bare_repo.git.cat_file_header is None
+
+
+def test_import_without_refresh_error_contract():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            dedent(
+                """
+                import sys
+
+                from airflow.dag_processing.bundles import base
+
+                base.__dict__.pop("DagBundleRefreshError", None)
+                assert "airflow.providers.git.bundles.git" not in sys.modules
+
+                from airflow.providers.git.bundles.git import GitDagBundle
+
+                assert issubclass(GitDagBundle, base.BaseDagBundle)
+                """
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 
 class TestGitDagBundle:
@@ -1780,11 +1814,19 @@ class TestGitDagBundle:
         files_in_repo = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert {"test_dag.py"} == files_in_repo
 
-    @mock.patch("airflow.providers.git.bundles.git.GitHook")
-    def test_refresh_failure_preserves_previous_checkout(self, mock_githook, git_repo):
+    @pytest.mark.parametrize(
+        "fetch_method",
+        ["airflow.providers.git.bundles.git.GitDagBundle._fetch_bare_repo", "git.remote.Remote.fetch"],
+    )
+    @pytest.mark.parametrize("expose_refresh_contract", [True, False])
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_failure_preserves_previous_checkout(
+        self, mock_githook, git_repo, fetch_method, expose_refresh_contract, monkeypatch
+    ):
         """A failed refresh must not corrupt the previous working tree."""
         repo_path, repo = git_repo
         mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
 
         bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
         bundle.initialize()
@@ -1798,15 +1840,110 @@ class TestGitDagBundle:
         repo.index.add([new_file])
         repo.index.commit("New commit")
 
-        # Make the bare repo fetch fail — this is the first step in refresh()
-        with mock.patch.object(bundle, "_fetch_bare_repo", side_effect=GitCommandError("fetch", "simulated")):
-            with pytest.raises(GitCommandError):
+        fetch_error = GitCommandError("fetch", "simulated")
+
+        def fail_fetch(remote, *args, **kwargs):
+            if fetch_method.endswith("Remote.fetch") and remote.repo.bare:
+                return []
+            raise fetch_error
+
+        supports_contract = DagBundleRefreshError is not None and expose_refresh_contract
+        if not expose_refresh_contract:
+            monkeypatch.delattr(bundle_base, "DagBundleRefreshError", raising=False)
+        with mock.patch(fetch_method, autospec=True, side_effect=fail_fetch):
+            with pytest.raises(DagBundleRefreshError if supports_contract else GitCommandError) as exc_info:
                 bundle.refresh()
 
+        if supports_contract:
+            assert exc_info.value.source_unchanged is True
+            assert exc_info.value.__cause__ is fetch_error
+        else:
+            assert exc_info.value is fetch_error
         # Working tree should be unchanged from before the failed refresh
         files_after = {f.name for f in bundle.path.iterdir() if f.is_file()}
         assert files_before == files_after
         assert bundle.get_current_version() == version_before
+
+    @pytest.mark.parametrize("failure_stage", ["configure", "enter"])
+    @pytest.mark.parametrize("expose_refresh_contract", [True, False])
+    @mock.patch.object(GitDagBundle, "_fetch_bare_repo", autospec=True)
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_credential_failure_preserves_source(
+        self, mock_githook, mock_fetch, failure_stage, expose_refresh_contract, monkeypatch
+    ):
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.repo = mock.MagicMock(spec=Repo)
+        error = RuntimeError("Unable to acquire GitHub App credentials")
+        configure = bundle.hook.configure_hook_env
+        if failure_stage == "configure":
+            configure.side_effect = error
+        else:
+            configure.return_value.__enter__.side_effect = error
+
+        supports_contract = DagBundleRefreshError is not None and expose_refresh_contract
+        if not expose_refresh_contract:
+            monkeypatch.delattr(bundle_base, "DagBundleRefreshError", raising=False)
+
+        with pytest.raises(DagBundleRefreshError if supports_contract else RuntimeError) as exc_info:
+            bundle.refresh()
+
+        if supports_contract:
+            assert exc_info.value.source_unchanged is True
+            assert exc_info.value.__cause__ is error
+        else:
+            assert exc_info.value is error
+        mock_fetch.assert_not_called()
+        bundle.repo.remotes.origin.fetch.assert_not_called()
+        bundle.repo.head.reset.assert_not_called()
+
+    @pytest.mark.parametrize("fetch_stage", ["bare", "working_tree"])
+    @mock.patch.object(GitDagBundle, "_fetch_bare_repo", autospec=True)
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_unexpected_fetch_failure_propagates(self, mock_githook, mock_fetch, fetch_stage):
+        mock_githook.return_value.repo_url = AIRFLOW_HTTPS_URL
+        bundle = GitDagBundle(name="test", git_conn_id=CONN_HTTPS, tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.repo = mock.MagicMock(spec=Repo)
+        error = RuntimeError("Unexpected fetch failure")
+        fetch = mock_fetch if fetch_stage == "bare" else bundle.repo.remotes.origin.fetch
+        fetch.side_effect = error
+
+        with pytest.raises(RuntimeError) as exc_info:
+            bundle.refresh()
+
+        assert exc_info.value is error
+        bundle.repo.head.reset.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "mutation_method",
+        ["git.refs.head.HEAD.reset", "airflow.providers.git.bundles.git.GitDagBundle._fetch_submodules"],
+    )
+    @mock.patch("airflow.providers.git.bundles.git.GitHook", autospec=True)
+    def test_refresh_failure_does_not_guarantee_unchanged_source_after_mutation(
+        self, mock_githook, git_repo, mutation_method
+    ):
+        repo_path, _ = git_repo
+        mock_githook.return_value.repo_url = repo_path
+        mock_githook.return_value.env = {}
+        bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
+        bundle.initialize()
+        bundle.submodules = True
+        version_before = bundle.get_current_version()
+        error = GitCommandError("reset or submodule update", "simulated partial failure")
+
+        def mutate_then_fail(*args, **kwargs):
+            (bundle.path / "test_dag.py").write_text("partially changed content")
+            raise error
+
+        with mock.patch(mutation_method, autospec=True, side_effect=mutate_then_fail):
+            with pytest.raises((GitCommandError, RuntimeError)) as exc_info:
+                bundle.refresh()
+
+        assert bundle.get_current_version() == version_before
+        assert (bundle.path / "test_dag.py").read_text() == "partially changed content"
+        if DagBundleRefreshError is not None:
+            assert not isinstance(exc_info.value, DagBundleRefreshError)
+        assert exc_info.value is error or exc_info.value.__cause__ is error
 
     @mock.patch("airflow.providers.git.bundles.git.GitHook")
     def test_refresh_versioned_bundle_raises(self, mock_githook, git_repo):
