@@ -2945,7 +2945,8 @@ def process_log_messages_from_subprocess(
                 event["invalid_timestamp"] = event.pop("timestamp")
 
         if exc := event.pop("exception", None):
-            # TODO: convert the dict back to a pretty stack trace
+            # Left structured: the loop below hands this one event to every target logger, and
+            # the task log view in the UI renders the frames itself.
             event["error_detail"] = exc
 
         if level := NAME_TO_LEVEL.get(event.pop("level")):
