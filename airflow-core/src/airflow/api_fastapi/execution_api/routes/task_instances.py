@@ -263,6 +263,26 @@ def ti_run(
             previous_state=previous_state,
         )
 
+        if previous_state == TaskInstanceState.SUCCESS:
+            # A worker was handed a task instance that already succeeded. The SDK does not retry a
+            # 409, so each refused start is counted once. Tags mirror TaskInstance.stats_tags.
+            dag_tag_options = (
+                (joinedload(DR.dag_model).selectinload(DagModel.tags),)
+                if conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
+                else ()
+            )
+            succeeded_dr = (
+                session.scalars(
+                    select(DR)
+                    .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
+                    .options(*eager_load_teams(DR.dag_model), *dag_tag_options)
+                )
+                .unique()
+                .one()
+            )
+            succeeded_dr._team_name = succeeded_dr.team_name
+            stats.incr("previously_succeeded", tags={**succeeded_dr.stats_tags, "task_id": ti.task_id})
+
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail={
