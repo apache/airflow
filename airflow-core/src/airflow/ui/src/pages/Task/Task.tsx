@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -25,7 +24,7 @@ import { useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
@@ -81,11 +80,9 @@ export const Task = () => {
     groupId === undefined ? processedTabs : processedTabs.filter((tab) => tab.value !== "events");
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
-        {task === undefined ? undefined : <Header task={task} />}
-        {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel error={error} isLoading={isLoading} tabs={displayTabs}>
+      {task === undefined ? undefined : <Header task={task} />}
+      {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
+    </DetailsPanel>
   );
 };

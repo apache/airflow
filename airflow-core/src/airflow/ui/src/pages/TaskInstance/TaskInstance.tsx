@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Heading } from "@chakra-ui/react";
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import {
@@ -31,7 +30,7 @@ import {
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 import type { NavTab } from "src/layouts/Details/NavTabs";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
@@ -175,24 +174,22 @@ export const TaskInstance = () => {
   }
 
   return (
-    <ReactFlowProvider>
-      {/* Held rather than rendered empty: a looped task instance cannot be asked for without a
-          coordinate, so the children must not run their queries until the pass resolves. */}
-      <DetailsLayout error={error} isLoading={isLoading || isResolvingCoordinate} tabs={displayTabs}>
-        {taskInstance === undefined ? (
-          isLoading ? undefined : (
-            <Heading p={2} size="lg">
-              {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
-            </Heading>
-          )
-        ) : historicalTaskInstance === undefined ? (
-          liveTaskInstance === undefined ? undefined : (
-            <Header taskInstance={liveTaskInstance} />
-          )
-        ) : (
-          <HistoryHeader taskInstance={historicalTaskInstance} />
-        )}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    /* Held rather than rendered empty: a looped task instance cannot be asked for without a
+       coordinate, so the children must not run their queries until the pass resolves. */
+    <DetailsPanel error={error} isLoading={isLoading || isResolvingCoordinate} tabs={displayTabs}>
+      {taskInstance === undefined ? (
+        isLoading ? undefined : (
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        )
+      ) : historicalTaskInstance === undefined ? (
+        liveTaskInstance === undefined ? undefined : (
+          <Header taskInstance={liveTaskInstance} />
+        )
+      ) : (
+        <HistoryHeader taskInstance={historicalTaskInstance} />
+      )}
+    </DetailsPanel>
   );
 };

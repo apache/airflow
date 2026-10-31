@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren, ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { Box, Flex, HStack } from "@chakra-ui/react";
@@ -30,7 +30,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
-import { IconButton, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Toaster } from "src/system-components";
 
 import { DagStatusChip } from "src/components/DagStatusChip";
 import { TogglePause } from "src/components/TogglePause";
@@ -50,7 +50,6 @@ import { Gantt } from "./Gantt/Gantt";
 import { Graph } from "./Graph";
 import { Grid } from "./Grid";
 import { useGridCrosshairHover } from "./Grid/useGridCrosshairHover";
-import { NavTabs, type NavTab } from "./NavTabs";
 import { PanelButtons } from "./PanelButtons";
 import { getEffectiveLimit } from "./runLimitConfig";
 
@@ -77,14 +76,19 @@ const SharedScrollBox = ({
 );
 
 type Props = {
+  /** Load error of the level currently open, which `DagDetailsRoute` collects from its panel. */
   readonly error?: unknown;
-  readonly isLoading?: boolean;
-  /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
-  readonly outletContext?: unknown;
-  readonly tabs: Array<NavTab>;
-} & PropsWithChildren;
+};
 
-export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
+/**
+ * Everything a Dag's detail screen keeps across its levels: the breadcrumb, the Grid and the
+ * resizable panel the levels render their own header, tabs and tab content into.
+ *
+ * It sits on the `dags/:dagId` route, so it outlives a click from a run to a task instance — the
+ * Grid's scroll offset, its expanded groups and the panel sizes all belong to this component and
+ * survive because nothing here unmounts. `DetailsPanel` is the other half, one level down.
+ */
+export const DetailsLayout = ({ error }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -442,12 +446,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
                     position="relative"
                   >
-                    {children}
-                    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                    <NavTabs tabs={tabs} />
-                    <Box flexGrow={1} overflow="auto" pb={3} px={2}>
-                      <Outlet context={outletContext} />
-                    </Box>
+                    <Outlet />
                   </Box>
                 </Panel>
               </>

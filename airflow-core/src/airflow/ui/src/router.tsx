@@ -24,6 +24,7 @@ import { ConfigService } from "openapi/requests/services.gen";
 
 import { BaseLayout } from "src/layouts/BaseLayout";
 import { DagsLayout } from "src/layouts/DagsLayout";
+import { DagDetailsRoute } from "src/layouts/Details/DagDetailsRoute";
 
 import { Asset } from "src/pages/Asset";
 import { AssetEvents } from "src/pages/Asset/AssetEvents";
@@ -206,103 +207,115 @@ export const routerConfig = [
       },
       pluginRoute,
       {
+        // One mount of the Dag detail screen for every level below it: the Grid, its scroll
+        // position and the panel sizes belong to this route, so clicking from a run to a task
+        // instance swaps only what the level's own route renders into the outlet.
         children: [
-          { element: <Overview />, handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true },
-          { element: <DagRuns />, handle: { entity: TabEntity.Dag, tab: TabName.Runs }, path: "runs" },
-          { element: <Tasks />, handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, path: "tasks" },
           {
-            element: <Calendar />,
-            handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
-            path: "calendar",
+            children: [
+              {
+                element: <Overview />,
+                handle: { entity: TabEntity.Dag, tab: TabName.Overview },
+                index: true,
+              },
+              { element: <DagRuns />, handle: { entity: TabEntity.Dag, tab: TabName.Runs }, path: "runs" },
+              { element: <Tasks />, handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, path: "tasks" },
+              {
+                element: <Calendar />,
+                handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
+                path: "calendar",
+              },
+              // The Required Actions tab is now a button + modal; this keeps old /required_actions
+              // deep links alive by rendering the overview, where the route sync opens the modal.
+              { element: <Overview />, path: "required_actions" },
+              {
+                element: <Backfills />,
+                handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
+                path: "backfills",
+              },
+              { element: <Backfills />, path: "backfills/:backfillId" },
+              { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
+              { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
+              {
+                element: <Versions />,
+                handle: { entity: TabEntity.Dag, tab: TabName.Versions },
+                path: "versions",
+              },
+              {
+                element: <DagDetails />,
+                handle: { entity: TabEntity.Dag, tab: TabName.Details },
+                path: "details",
+              },
+              pluginRoute,
+            ],
+            element: <Dag />,
           },
-          // The Required Actions tab is now a button + modal; this keeps old /required_actions
-          // deep links alive by rendering the overview, where the route sync opens the modal.
-          { element: <Overview />, path: "required_actions" },
           {
-            element: <Backfills />,
-            handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
-            path: "backfills",
+            children: [
+              { element: <TaskInstances />, index: true },
+              // The Required Actions tab is now a button + modal; this keeps old /required_actions
+              // deep links alive by rendering the task instances, where the route sync opens the modal.
+              { element: <TaskInstances />, path: "required_actions" },
+              { element: <Events />, path: "events" },
+              { element: <Code />, path: "code" },
+              { element: <DagRunDetails />, path: "details" },
+              { element: <DagRunAssetEvents />, path: "asset_events" },
+              { element: <DagRunCallbacks />, path: "callbacks" },
+              pluginRoute,
+            ],
+            element: <Run />,
+            path: "runs/:runId",
           },
-          { element: <Backfills />, path: "backfills/:backfillId" },
-          { element: <Events />, handle: { entity: TabEntity.Dag, tab: TabName.Events }, path: "events" },
-          { element: <Code />, handle: { entity: TabEntity.Dag, tab: TabName.Code }, path: "code" },
           {
-            element: <Versions />,
-            handle: { entity: TabEntity.Dag, tab: TabName.Versions },
-            path: "versions",
+            children: taskInstanceRoutes,
+            element: <TaskInstance />,
+            path: "runs/:runId/tasks/:taskId",
           },
           {
-            element: <DagDetails />,
-            handle: { entity: TabEntity.Dag, tab: TabName.Details },
-            path: "details",
+            children: [
+              { element: <TaskInstances />, index: true },
+              { element: <MappedTaskInstanceDetails />, path: "details" },
+            ],
+            element: <MappedTaskInstance />,
+            path: "runs/:runId/tasks/:taskId/mapped",
           },
-          pluginRoute,
+          {
+            children: [
+              { element: <GroupTaskInstances />, index: true },
+              { element: <LoopIterations />, path: "iterations" },
+            ],
+            element: <GroupTaskInstance />,
+            path: "runs/:runId/tasks/group/:groupId",
+          },
+          {
+            children: [
+              { element: <TaskOverview />, index: true },
+              { element: <TaskInstances />, path: "task_instances" },
+              { element: <HITLTaskInstances />, path: "required_actions" },
+              pluginRoute,
+            ],
+            element: <Task />,
+            path: "tasks/group/:groupId",
+          },
+          {
+            children: taskInstanceRoutes,
+            element: <TaskInstance />,
+            path: "runs/:runId/tasks/:taskId/mapped/:mapIndex",
+          },
+          {
+            children: [
+              { element: <TaskOverview />, index: true },
+              { element: <TaskInstances />, path: "task_instances" },
+              { element: <HITLTaskInstances />, path: "required_actions" },
+              { element: <Events />, path: "events" },
+              pluginRoute,
+            ],
+            element: <Task />,
+            path: "tasks/:taskId",
+          },
         ],
-        element: <Dag />,
+        element: <DagDetailsRoute />,
         path: "dags/:dagId",
-      },
-      {
-        children: [
-          { element: <TaskInstances />, index: true },
-          // The Required Actions tab is now a button + modal; this keeps old /required_actions
-          // deep links alive by rendering the task instances, where the route sync opens the modal.
-          { element: <TaskInstances />, path: "required_actions" },
-          { element: <Events />, path: "events" },
-          { element: <Code />, path: "code" },
-          { element: <DagRunDetails />, path: "details" },
-          { element: <DagRunAssetEvents />, path: "asset_events" },
-          { element: <DagRunCallbacks />, path: "callbacks" },
-          pluginRoute,
-        ],
-        element: <Run />,
-        path: "dags/:dagId/runs/:runId",
-      },
-      {
-        children: taskInstanceRoutes,
-        element: <TaskInstance />,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId",
-      },
-      {
-        children: [
-          { element: <TaskInstances />, index: true },
-          { element: <MappedTaskInstanceDetails />, path: "details" },
-        ],
-        element: <MappedTaskInstance />,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
-      },
-      {
-        children: [
-          { element: <GroupTaskInstances />, index: true },
-          { element: <LoopIterations />, path: "iterations" },
-        ],
-        element: <GroupTaskInstance />,
-        path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
-      },
-      {
-        children: [
-          { element: <TaskOverview />, index: true },
-          { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
-          pluginRoute,
-        ],
-        element: <Task />,
-        path: "dags/:dagId/tasks/group/:groupId",
-      },
-      {
-        children: taskInstanceRoutes,
-        element: <TaskInstance />,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
-      },
-      {
-        children: [
-          { element: <TaskOverview />, index: true },
-          { element: <TaskInstances />, path: "task_instances" },
-          { element: <HITLTaskInstances />, path: "required_actions" },
-          { element: <Events />, path: "events" },
-          pluginRoute,
-        ],
-        element: <Task />,
-        path: "dags/:dagId/tasks/:taskId",
       },
       {
         element: <ErrorPage />,
