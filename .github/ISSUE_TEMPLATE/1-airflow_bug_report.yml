@@ -128,6 +128,7 @@ body:
         - apache-kafka
         - apache-kylin
         - apache-livy
+        - apache-ozone
         - apache-pig
         - apache-pinot
         - apache-spark

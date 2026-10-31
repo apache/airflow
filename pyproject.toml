@@ -1167,6 +1167,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/kylin/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/livy/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/livy/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/ozone/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/ozone/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/src",
@@ -1522,6 +1524,7 @@ apache-airflow-providers-apache-impala = false
 apache-airflow-providers-apache-kafka = false
 apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
+apache-airflow-providers-apache-ozone = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
 apache-airflow-providers-apache-spark = false
@@ -1721,6 +1724,7 @@ apache-airflow-providers-apache-impala = false
 apache-airflow-providers-apache-kafka = false
 apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
+apache-airflow-providers-apache-ozone = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
 apache-airflow-providers-apache-spark = false
@@ -1894,6 +1898,7 @@ apache-airflow-providers-apache-impala = { workspace = true }
 apache-airflow-providers-apache-kafka = { workspace = true }
 apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
+apache-airflow-providers-apache-ozone = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
@@ -2040,6 +2045,7 @@ members = [
     "providers/apache/kafka",
     "providers/apache/kylin",
     "providers/apache/livy",
+    "providers/apache/ozone",
     "providers/apache/pig",
     "providers/apache/pinot",
     "providers/apache/spark",

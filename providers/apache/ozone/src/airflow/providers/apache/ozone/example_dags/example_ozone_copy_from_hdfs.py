@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+"""
+Ozone Copy From HDFS Example DAG.
+
+This DAG demonstrates a small HDFS -> Ozone copy workflow:
+1. Waits for an Ozone trigger file to appear (using OzoneKeySensor).
+2. Creates the same trigger file after a short delay for standalone demos.
+3. Sets storage quota for the destination bucket.
+4. Copies data from HDFS to Ozone using HdfsToOzoneOperator (DistCp).
+
+This example is import-safe even when the HDFS provider is not installed.
+HdfsToOzoneOperator relies on Hadoop DistCp runtime, and runtime validation
+happens only when task `copy_hdfs_to_ozone` executes.
+
+Runtime values can be overridden from the Trigger UI or via `dag_run.conf`.
+The `OZONE_EXAMPLE_COPY_FROM_HDFS_*` environment variables are used as
+process-level defaults.
+"""
+
+from __future__ import annotations
+
+import os
+from datetime import timedelta
+from pathlib import PurePosixPath
+
+from airflow.providers.apache.ozone.operators.ozone import (
+    OzoneSetQuotaOperator,
+    OzoneUploadContentOperator,
+)
+from airflow.providers.apache.ozone.sensors.ozone import OzoneKeySensor
+from airflow.providers.apache.ozone.transfers.hdfs_to_ozone import HdfsToOzoneOperator
+from airflow.providers.apache.ozone.version_compat import AIRFLOW_V_3_0_PLUS, timezone
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.sdk import DAG
+    from airflow.sdk.definitions.param import Param
+else:
+    from airflow import DAG  # type: ignore[attr-defined,no-redef]
+    from airflow.models.param import Param  # type: ignore[no-redef]
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef]
+
+DEFAULT_OM_HOST = os.getenv("OZONE_EXAMPLE_OM_HOST") or "om"
+DEFAULT_CONN_ID = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_CONN_ID") or "ozone_admin_default"
+DEFAULT_HDFS_CONN_ID = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_HDFS_CONN_ID") or "hdfs_admin_default"
+DEFAULT_VOLUME = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_VOLUME") or "vol1"
+DEFAULT_BUCKET = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_BUCKET") or "bucket1"
+DEFAULT_TRIGGER_FILE = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_TRIGGER_FILE") or "trigger.lck"
+DEFAULT_QUOTA = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_QUOTA") or "5GB"
+DEFAULT_SOURCE_PATH = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_SOURCE_PATH") or "hdfs:///user/data/legacy/"
+DEFAULT_DEST_SUBPATH = os.getenv("OZONE_EXAMPLE_COPY_FROM_HDFS_DEST_SUBPATH") or "migrated/"
+
+with DAG(
+    "example_ozone_copy_from_hdfs",
+    start_date=timezone.datetime(2025, 1, 1),
+    schedule=None,
+    catchup=False,
+    tags=["ozone", "hdfs", "example"],
+    params={
+        "om_host": Param(DEFAULT_OM_HOST, type="string", title="OM host / Ozone authority"),
+        "pipeline_conn_id": Param(DEFAULT_CONN_ID, type="string", title="Ozone connection ID"),
+        "hdfs_conn_id": Param(DEFAULT_HDFS_CONN_ID, type="string", title="HDFS connection ID"),
+        "volume": Param(DEFAULT_VOLUME, type="string", title="Destination volume"),
+        "bucket": Param(DEFAULT_BUCKET, type="string", title="Destination bucket"),
+        "trigger_file": Param(DEFAULT_TRIGGER_FILE, type="string", title="Trigger file name"),
+        "quota": Param(DEFAULT_QUOTA, type="string", title="Destination bucket quota"),
+        "source_path": Param(DEFAULT_SOURCE_PATH, type="string", title="HDFS source path"),
+        "dest_subpath": Param(DEFAULT_DEST_SUBPATH, type="string", title="Destination subpath in bucket"),
+    },
+) as dag:
+    PIPELINE_TRIGGER_PATH = (
+        f"ofs://{{{{ params.om_host }}}}/"
+        f"{PurePosixPath('{{ params.volume }}', '{{ params.bucket }}', '{{ params.trigger_file }}')}"
+    )
+    PIPELINE_DEST_PATH = (
+        f"ofs://{{{{ params.om_host }}}}/"
+        f"{PurePosixPath('{{ params.volume }}', '{{ params.bucket }}', '{{ params.dest_subpath }}')}"
+    )
+
+    delay_trigger_file_creation = BashOperator(
+        task_id="delay_trigger_file_creation",
+        bash_command="sleep 10",
+        execution_timeout=timedelta(seconds=30),
+    )
+
+    create_trigger_file = OzoneUploadContentOperator(
+        task_id="create_trigger_file",
+        content="HDFS to Ozone trigger generated by Airflow at {{ ts }}\n",
+        remote_path=PIPELINE_TRIGGER_PATH,
+        ozone_conn_id="{{ params.pipeline_conn_id }}",
+        retry_attempts=1,
+        timeout=60,
+        if_exists="ignore",
+        execution_timeout=timedelta(minutes=2),
+    )
+
+    check_trigger = OzoneKeySensor(
+        task_id="wait_for_trigger_file",
+        path=PIPELINE_TRIGGER_PATH,
+        ozone_conn_id="{{ params.pipeline_conn_id }}",
+        mode="reschedule",
+        execution_timeout=timedelta(minutes=1),
+    )
+
+    set_bucket_quota = OzoneSetQuotaOperator(
+        task_id="prepare_bucket_quota",
+        volume="{{ params.volume }}",
+        bucket="{{ params.bucket }}",
+        quota="{{ params.quota }}",
+        ozone_conn_id="{{ params.pipeline_conn_id }}",
+        execution_timeout=timedelta(minutes=1),
+    )
+
+    copy_hdfs_to_ozone = HdfsToOzoneOperator(
+        task_id="copy_hdfs_to_ozone",
+        source_path="{{ params.source_path }}",
+        dest_path=PIPELINE_DEST_PATH,
+        hdfs_conn_id="{{ params.hdfs_conn_id }}",
+        execution_timeout=timedelta(minutes=5),
+    )
+
+    delay_trigger_file_creation >> create_trigger_file
+    [check_trigger, create_trigger_file] >> set_bucket_quota >> copy_hdfs_to_ozone
