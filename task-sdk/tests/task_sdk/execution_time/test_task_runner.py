@@ -6002,7 +6002,7 @@ class TestTaskRunnerCallsCallbacks:
             def execute(self, context):
                 if succeeds:
                     return "ok"
-                raise AirflowException("boom")
+                raise RuntimeError("boom")
 
         task = CustomOperator(task_id="cb_task", **{callback_kind: capture_callback})
         runtime_ti = create_runtime_ti(dag_id="dag", task=task)
