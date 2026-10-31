@@ -25,6 +25,7 @@ from pydantic import Field, model_validator
 
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 from airflow.api_fastapi.execution_api.datamodels.job import FILELOC_MAX_LENGTH, DagParseTokenBody
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.models.dag import TAG_MAX_LEN
 from airflow.models.dagwarning import DagWarningTypeValue
 from airflow.models.errors import IMPORT_ERROR_FILENAME_MAX_LENGTH
@@ -155,3 +156,32 @@ class DagBundleInventoryResponse(DagParseResultResponse):
     """The source revision to attach to imports dispatched from this inventory."""
 
     revision: UUID
+
+
+class ProcessorWorkClaimBody(StrictBaseModel):
+    """
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
+    """
+
+    claim_id: UUID
+    claim_sequence: int = Field(ge=1, le=2**53 - 1)
+    bundle_names: list[str] = Field(min_length=1, max_length=1000)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class ProcessorWorkItem(StrictBaseModel):
+    """A claimed callback or priority parse request."""
+
+    id: str
+    claim_id: UUID
+    bundle_name: str
+    relative_fileloc: str
+    callback: CallbackRequest | None = None
+
+
+class ProcessorWorkAckBody(StrictBaseModel):
+    """Acknowledge delivery, retaining the claim identity across retries."""
+
+    claim_id: UUID

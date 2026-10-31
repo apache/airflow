@@ -29,7 +29,8 @@ import signal
 import textwrap
 import time
 import zipfile
-from collections import Counter, OrderedDict, defaultdict, namedtuple
+from collections import Counter, OrderedDict, defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -56,6 +57,7 @@ from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
+from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.dag_processing.manager import (
     BundleState,
     DagBundleDiscoveryResult,
@@ -70,9 +72,11 @@ from airflow.dag_processing.processor import (
     DagParseSource,
     _parse_file,
 )
+from airflow.jobs.job import Job, JobState
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
@@ -91,8 +95,10 @@ from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_callbacks,
     clear_db_dag_bundles,
+    clear_db_dag_parsing_requests,
     clear_db_dags,
     clear_db_import_errors,
+    clear_db_jobs,
     clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
@@ -1572,8 +1578,8 @@ class TestDagFileProcessorManager:
         assert serialized_dag_count == 1
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_in_inactive_bundles(self, session):
-        """Dags whose bundle is no longer active should be marked stale even without a parse signal."""
+    def test_deactivate_stale_dags_leaves_inactive_bundles_to_scheduler(self, session):
+        """Only scheduler maintenance deactivates Dags whose bundle is no longer active."""
         session.add(DagBundleModel(name="gone-bundle"))
         session.flush()
         session.execute(
@@ -1609,7 +1615,7 @@ class TestDagFileProcessorManager:
                 )
             ).all()
         )
-        assert is_stale_by_dag == {"dag_in_inactive_bundle": True, "dag_in_active_bundle": False}
+        assert is_stale_by_dag == {"dag_in_inactive_bundle": False, "dag_in_active_bundle": False}
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_matches_dags_nested_in_a_container(self, session):
@@ -1633,46 +1639,6 @@ class TestDagFileProcessorManager:
         )
 
         assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "nested_dag"))
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_deactivate_stale_dags_marks_dags_with_null_bundle_name(self, session):
-        """Dags carried over from Airflow 2.x keep a NULL bundle_name and must still be deactivated.
-
-        Their files were removed during the upgrade, so nothing will ever parse them and fill the
-        column in, and the time-based check cannot reach them either (see #60763).
-
-        Migration ``0082_3_1_0_make_bundle_name_not_nullable`` backfills the column and makes it NOT
-        NULL, so the row can no longer be stored as NULL; the scan is fed the row the way a database
-        upgraded from 2.x to 3.0.x still holds it.
-        """
-        session.add(
-            DagModel(
-                dag_id="legacy_dag",
-                bundle_name="testing",
-                relative_fileloc="legacy_file.py",
-                last_parsed_time=timezone.utcnow(),
-                is_stale=False,
-            )
-        )
-        session.flush()
-
-        LegacyRow = namedtuple("LegacyRow", "dag_id bundle_name fileloc last_parsed_time relative_fileloc")
-        original_execute = session.execute
-
-        def execute_with_null_bundle_name(statement, *args, **kwargs):
-            result = original_execute(statement, *args, **kwargs)
-            if getattr(statement, "is_select", False) and "relative_fileloc" in str(statement):
-                return [
-                    LegacyRow(r.dag_id, None, r.fileloc, r.last_parsed_time, r.relative_fileloc)
-                    for r in result
-                ]
-            return result
-
-        manager = DagFileProcessorManager(max_runs=1, processor_timeout=10 * 60)
-        with mock.patch.object(session, "execute", side_effect=execute_with_null_bundle_name):
-            manager.deactivate_stale_dags(last_parsed={}, session=session)
-
-        assert session.scalar(select(DagModel.is_stale).where(DagModel.dag_id == "legacy_dag"))
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_deactivate_stale_dags_tolerates_null_relative_fileloc(self, session):
@@ -1742,15 +1708,12 @@ class TestDagFileProcessorManager:
         """Dags deactivation should gracefully handle database lock timeouts."""
         from sqlalchemy.exc import OperationalError
 
-        session.add(DagBundleModel(name="gone-bundle"))
+        session.add(DagBundleModel(name="dag-bundle"))
         session.flush()
-        session.execute(
-            DagBundleModel.__table__.update().where(DagBundleModel.name == "gone-bundle").values(active=False)
-        )
         session.add(
             DagModel(
-                dag_id="dag_in_inactive_bundle",
-                bundle_name="gone-bundle",
+                dag_id="stale_dag",
+                bundle_name="dag-bundle",
                 relative_fileloc="some_file.py",
                 last_parsed_time=timezone.utcnow(),
                 is_stale=False,
@@ -1771,9 +1734,20 @@ class TestDagFileProcessorManager:
         mock_is_lock_not_available.return_value = True
 
         with mock.patch.object(session, "execute", side_effect=mock_execute):
-            manager.deactivate_stale_dags(last_parsed={})
+            manager.deactivate_stale_dags(
+                last_parsed={
+                    DagFileInfo(rel_path=Path("some_file.py"), bundle_name="dag-bundle"): timezone.utcnow()
+                    + timedelta(hours=1)
+                }
+            )
 
-        assert "Lock not available when deactivating stale DAGs" in caplog.text
+        assert {
+            "event": (
+                "Lock not available when deactivating stale DAGs. "
+                "Skipping this iteration to prevent processor hang."
+            ),
+            "log_level": "warning",
+        } in caplog
 
     @mock.patch("airflow.dag_processing.manager.is_lock_not_available_error")
     @mock.patch("airflow.models.dag.DagModel.deactivate_deleted_dags")
@@ -4390,6 +4364,63 @@ class TestDagFileProcessorManager:
             for entry in caplog.entries
         )
 
+    @pytest.fixture
+    def api_job(self, session):
+        job = Job(job_type="DagProcessorJob", state=JobState.RUNNING, session_id=uuid7())
+        session.add_all([job, DagBundleModel(name="bundle")])
+        session.commit()
+        yield job
+        clear_db_dag_parsing_requests()
+        clear_db_jobs()
+
+    @pytest.mark.parametrize("kind", ["callbacks", "priority"])
+    @pytest.mark.parametrize("retired", [False, True])
+    def test_direct_mode_recovers_retired_api_claims_only(self, session, api_job, tmp_path, kind, retired):
+        if kind == "callbacks":
+            work = DbCallbackRequest(
+                priority_weight=1,
+                callback=DagCallbackRequest(
+                    filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
+                ),
+            )
+        else:
+            work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+        work.processor_job_id = api_job.id
+        work.processor_claim_id = uuid7()
+        if retired:
+            api_job.end_date = timezone.utcnow()
+        session.add(work)
+        session.commit()
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [LocalDagBundle(name="bundle", path=tmp_path)]
+        result = manager.fetch_callbacks() if kind == "callbacks" else manager.claim_priority_files()
+        assert len(result) == int(retired)
+
+    @pytest.mark.backend("postgres", "mysql")
+    def test_direct_priority_claim_skips_request_locked_by_api(self, session, api_job, tmp_path):
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+        session.add(work)
+        session.commit()
+        key, job_id = work.id, api_job.id
+        manager = DagFileProcessorManager(max_runs=1)
+        manager._dag_bundles = [LocalDagBundle(name="bundle", path=tmp_path)]
+
+        with create_session() as claim_session, ThreadPoolExecutor(max_workers=1) as pool:
+            claimed = claim_session.scalar(
+                select(DagPriorityParsingRequest).where(DagPriorityParsingRequest.id == key).with_for_update()
+            )
+            claimed.processor_job_id = job_id
+            claimed.processor_claim_id = uuid7()
+            claim_session.flush()
+            direct_claim = pool.submit(manager.claim_priority_files)
+            try:
+                assert direct_claim.result(timeout=10) == []
+            finally:
+                claim_session.commit()
+
+        session.expire_all()
+        assert session.get(DagPriorityParsingRequest, key).processor_job_id == job_id
+
     @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file")
     def test_callback_queue(self, mock_get_logger, configure_testing_dag_bundle):
         mock_logger = MagicMock()
@@ -4861,6 +4892,65 @@ class TestDagFileProcessorManager:
         manager._log.exception.assert_called_once_with(
             "Failed to reassign Dags with unconfigured bundles during startup"
         )
+
+    @conf_vars({("dag_processor", "bundle_refresh_check_interval"): "0"})
+    @pytest.mark.parametrize("bundle_name", ["dags-folder", "custom"])
+    @pytest.mark.parametrize("relocate_bundle", [False, True], ids=["same-directory", "moved-directory"])
+    def test_removed_legacy_dags_are_deactivated_after_bundle_name_backfill(
+        self, session, tmp_path, configure_dag_bundles, bundle_name, relocate_bundle
+    ):
+        """Removed 2.x files become stale after 0082 assigns a non-null bundle name."""
+        old_folder = tmp_path / "old_dags"
+        old_folder.mkdir()
+        bundle_folder = tmp_path / "new_dags" if relocate_bundle else old_folder
+        bundle_folder.mkdir(exist_ok=True)
+        removed_file = old_folder / "removed.py"
+        removed_file.write_text("from airflow.sdk import DAG\n")
+        present_file = bundle_folder / "present.py"
+        present_file.write_text("from airflow.sdk import DAG\n")
+        removed_file.unlink()
+
+        session.add(DagBundleModel(name="dags-folder"))
+        session.flush()
+        # 0082 backfills bundle_name; these rows have never been parsed in 3.x.
+        session.add_all(
+            [
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="dags-folder",
+                    fileloc=str(file),
+                    relative_fileloc=None,
+                    last_parsed_time=DEFAULT_DATE,
+                    is_stale=False,
+                )
+                for dag_id, file in [("removed_legacy", removed_file), ("present_legacy", present_file)]
+            ]
+        )
+        session.commit()
+        assert session.scalar(select(DagVersion.id).limit(1)) is None
+
+        with configure_dag_bundles({bundle_name: bundle_folder}):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager.prepare_bundles()
+            session.expire_all()
+            removed = session.get(DagModel, "removed_legacy")
+            assert removed.bundle_name == ("dags-folder" if relocate_bundle else bundle_name)
+            assert removed.relative_fileloc == (None if relocate_bundle else "removed.py")
+            assert not removed.is_stale
+
+            known_files = {}
+            manager._refresh_dag_bundles(known_files)
+            cleanup_processor_metadata()
+
+        session.expire_all()
+        assert {file.rel_path for file in known_files[bundle_name]} == {Path("present.py")}
+        assert session.get(DagModel, "removed_legacy").is_stale
+        present = session.get(DagModel, "present_legacy")
+        assert not present.is_stale
+        assert present.bundle_name == bundle_name
+        assert present.relative_fileloc == "present.py"
+        assert session.get(DagBundleModel, bundle_name).active
+        assert session.scalar(select(DagVersion.id).limit(1)) is None
 
     @pytest.mark.parametrize(
         "apply_patch",
@@ -5421,29 +5511,6 @@ class TestDagFileProcessorManager:
                 manager.run()
             sync_mock.assert_not_called()
             assert [b.name for b in manager._dag_bundles] == ["testing"]
-
-    def test_purge_inactive_dag_warnings_delegates_to_dagwarning(self):
-        """Default `purge_inactive_dag_warnings` calls `DagWarning.purge_inactive_dag_warnings`."""
-        manager = DagFileProcessorManager(max_runs=1)
-        with mock.patch(
-            "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-        ) as purge_mock:
-            manager.purge_inactive_dag_warnings()
-        purge_mock.assert_called_once_with()
-
-    def test_run_parsing_loop_uses_overridable_purge(self, tmp_path, configure_testing_dag_bundle):
-        """`_run_parsing_loop` calls the overridable `purge_inactive_dag_warnings` seam."""
-        with configure_testing_dag_bundle(tmp_path):
-            manager = DagFileProcessorManager(max_runs=1)
-            with (
-                mock.patch.object(manager, "purge_inactive_dag_warnings") as purge_mock,
-                mock.patch(
-                    "airflow.dag_processing.manager.DagWarning.purge_inactive_dag_warnings"
-                ) as direct_mock,
-            ):
-                manager.run()
-            purge_mock.assert_called()
-            direct_mock.assert_not_called()
 
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):

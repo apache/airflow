@@ -306,6 +306,11 @@ class DagWarningType(str, Enum):
     TASK_GROUP_CYCLE = "task group cycle"
 
 
+class EmailType(str, Enum):
+    FAILURE = "failure"
+    RETRY = "retry"
+
+
 class HITLUser(BaseModel):
     """
     Schema for a Human-in-the-loop users.
@@ -506,6 +511,33 @@ class PreviousTIResponse(BaseModel):
     duration: Annotated[float | None, Field(title="Duration")] = None
 
 
+class ProcessorWorkAckBody(BaseModel):
+    """
+    Acknowledge delivery, retaining the claim identity across retries.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+
+
+class ProcessorWorkClaimBody(BaseModel):
+    """
+    A bounded claim whose sequence increases per Job and work kind.
+
+    Retry the same payload until its response arrives before sending a newer sequence for that kind.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    claim_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Claim Sequence")]
+    bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
+    limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
+
+
 class TIAwaitingInputStatePayload(BaseModel):
     """
     Schema for parking a TaskInstance in an awaiting_input state (Human-in-the-loop, no trigger).
@@ -638,6 +670,25 @@ class TaskBreadcrumbsResponse(BaseModel):
     """
 
     breadcrumbs: Annotated[list[dict[str, Any]], Field(title="Breadcrumbs")]
+
+
+class TaskInstance(BaseModel):
+    """
+    Schema for TaskInstance model with minimal required fields needed for Runtime.
+    """
+
+    id: Annotated[UUID, Field(title="Id")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    try_number: Annotated[int, Field(title="Try Number")]
+    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
+    region_index: Annotated[int | None, Field(title="Region Index")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
+    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class TaskInstanceState(str, Enum):
@@ -815,25 +866,6 @@ class XComSequenceSliceResponse(RootModel[list[JsonValue | None]]):
             title="XComSequenceSliceResponse",
         ),
     ]
-
-
-class TaskInstance(BaseModel):
-    """
-    Schema for TaskInstance model with minimal required fields needed for Runtime.
-    """
-
-    id: Annotated[UUID, Field(title="Id")]
-    task_id: Annotated[str, Field(title="Task Id")]
-    dag_id: Annotated[str, Field(title="Dag Id")]
-    run_id: Annotated[str, Field(title="Run Id")]
-    try_number: Annotated[int, Field(title="Try Number")]
-    dag_version_id: Annotated[UUID, Field(title="Dag Version Id")]
-    map_index: Annotated[int | None, Field(title="Map Index")] = -1
-    region_id: Annotated[UUID | None, Field(title="Region Id")] = None
-    region_index: Annotated[int | None, Field(title="Region Index")] = None
-    hostname: Annotated[str | None, Field(title="Hostname")] = None
-    context_carrier: Annotated[dict[str, Any] | None, Field(title="Context Carrier")] = None
-    queue: Annotated[str | None, Field(title="Queue")] = "default"
 
 
 class BundleInfo(BaseModel):
@@ -1143,8 +1175,34 @@ class DagRun(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
+class DagRunContext(BaseModel):
+    """
+    Class to pass context info from the server to build a Execution context object.
+    """
+
+    dag_run: DagRun | None = None
+    last_ti: TaskInstance | None = None
+
+
 class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
     root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
+
+
+class DagCallbackRequest(BaseModel):
+    """
+    A Class with information about the success/failure DAG callback to be executed.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    context_from_server: DagRunContext | None = None
+    is_failure_callback: Annotated[bool | None, Field(title="Is Failure Callback")] = True
+    type: Annotated[Literal["DagCallbackRequest"] | None, Field(title="Type")] = "DagCallbackRequest"
 
 
 class TIRunContext(BaseModel):
@@ -1170,3 +1228,55 @@ class TIRunContext(BaseModel):
     arg_bindings: Annotated[list[TaskArgBinding] | None, Field(title="Arg Bindings")] = None
     execution_timeout: Annotated[float | None, Field(title="Execution Timeout")] = None
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
+
+
+class TaskCallbackRequest(BaseModel):
+    """
+    Task callback status information.
+
+    A Class with information about the success/failure TI callback to be executed. Currently, only failure
+    callbacks when tasks are externally killed or experience heartbeat timeouts are run via DagFileProcessorProcess.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti: TaskInstance
+    task_callback_type: TaskInstanceState | None = None
+    context_from_server: TIRunContext | None = None
+    type: Annotated[Literal["TaskCallbackRequest"] | None, Field(title="Type")] = "TaskCallbackRequest"
+
+
+class EmailRequest(BaseModel):
+    """
+    Email notification request for task failures/retries.
+    """
+
+    filepath: Annotated[str, Field(title="Filepath")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    bundle_version: Annotated[str | None, Field(title="Bundle Version")]
+    version_data: Annotated[dict[str, Any] | None, Field(title="Version Data")] = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti: TaskInstance
+    email_type: Annotated[EmailType | None, Field(title="Email Type")] = EmailType.FAILURE
+    context_from_server: TIRunContext
+    type: Annotated[Literal["EmailRequest"] | None, Field(title="Type")] = "EmailRequest"
+
+
+class ProcessorWorkItem(BaseModel):
+    """
+    A claimed callback or priority parse request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    id: Annotated[str, Field(title="Id")]
+    claim_id: Annotated[UUID, Field(title="Claim Id")]
+    bundle_name: Annotated[str, Field(title="Bundle Name")]
+    relative_fileloc: Annotated[str, Field(title="Relative Fileloc")]
+    callback: Annotated[
+        DagCallbackRequest | TaskCallbackRequest | EmailRequest | None, Field(title="Callback")
+    ] = None

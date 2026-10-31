@@ -38,30 +38,46 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     MAX_PUBLICATION_BYTES,
     DagParseResultBody,
+    ProcessorWorkItem,
 )
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
 from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
 from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute, get_bundles
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    EmailRequest,
+    TaskCallbackRequest,
+)
 from airflow.dag_processing.collection import DagModelOperation, update_dag_parsing_results_in_db
 from airflow.jobs.job import Job, JobState
 from airflow.models.asset import DagScheduleAssetReference
+from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
+from airflow.models.dag_processor_work_claim import DagProcessorWorkClaim
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.sdk import DAG, Asset
+from airflow.sdk.api.datamodels._generated import ProcessorWorkItem as SDKProcessorWorkItem
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.utils.db_cleanup import run_cleanup
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
+    clear_db_callbacks,
     clear_db_dag_bundles,
+    clear_db_dag_parsing_requests,
     clear_db_dags,
     clear_db_import_errors,
     clear_db_jobs,
@@ -72,14 +88,18 @@ SESSION_ID = UUID("00000000-0000-0000-0000-0000000000aa")
 
 
 @pytest.fixture(autouse=True)
-def clean_db(time_machine, session):
+def clean_db(time_machine):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clear_db_jobs()
+    clear_db_callbacks()
+    clear_db_dag_parsing_requests()
     clear_db_dags()
     clear_db_import_errors()
     clear_db_dag_bundles()
     yield
     clear_db_jobs()
+    clear_db_callbacks()
+    clear_db_dag_parsing_requests()
     clear_db_dags()
     clear_db_import_errors()
     clear_db_dag_bundles()
@@ -1528,3 +1548,437 @@ def test_inventory_cleanup_does_not_load_import_error_stacktraces(client, sessio
     assert len(statements) == 1
     assert "stacktrace" not in statements[0]
     assert session.scalars(select(ParseImportError.filename)).all() == ["a.py"]
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_requested_work_claim_survives_response_loss_and_ack_replay(client, session, job, kind):
+    if kind == "callbacks":
+        work = DagProcessorCallback(
+            priority_weight=5,
+            callback=DagCallbackRequest(
+                filepath="a.py",
+                bundle_name="bundle",
+                bundle_version="v1",
+                dag_id="published",
+                run_id="run",
+            ),
+        )
+    else:
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+    session.add(work)
+    session.commit()
+    base = f"/execution/jobs/{job.id}/requested-work/{kind}"
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
+    first = client.post(f"{base}/claim", json=claim)
+    assert first.status_code == 200, first.json()
+    assert len(first.json()) == 1
+    assert client.post(f"{base}/claim", json=claim).json() == first.json()
+    assert (
+        client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2}).json()
+        == []
+    )
+    ack = {"claim_id": claim["claim_id"]}
+    key = work.id
+    url = f"{base}/{key}/ack"
+    assert client.post(url, json={**ack, "claim_id": str(uuid7())}).status_code == 409
+    assert client.post(url, json=ack).status_code == 204
+    assert client.post(url, json=ack).status_code == 204
+    session.expire_all()
+    model = DagProcessorCallback if kind == "callbacks" else DagPriorityParsingRequest
+    assert session.get(model, key) is None
+
+
+@pytest.mark.parametrize("retired", [False, True])
+def test_priority_claim_preserves_live_owner_and_recovers_retired_owner(client, session, job, retired):
+    owner = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+    session.add(owner)
+    session.flush()
+    work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="recover.py")
+    work.processor_job_id = owner.id
+    work.processor_claim_id = uuid7()
+    if retired:
+        owner.end_date = timezone.utcnow()
+    session.add(work)
+    session.commit()
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/priority/claim",
+        json={
+            "claim_id": str(uuid7()),
+            "claim_sequence": 1,
+            "bundle_names": ["bundle"],
+            "limit": 1,
+        },
+    )
+    assert response.status_code == 200, response.json()
+    assert len(response.json()) == int(retired)
+    session.delete(work)
+    session.commit()
+
+
+@pytest.mark.backend("postgres", "mysql")
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_competing_jobs_claim_requested_work_once(client, exec_app, session, job, kind):
+    second = Job(job_type="DagProcessorJob", state=JobState.RUNNING)
+    second.session_id = uuid7()
+    second.registration_id = uuid7()
+    second.bundle_names = ["bundle"]
+    session.add(second)
+    if kind == "callbacks":
+        work = DagProcessorCallback(
+            priority_weight=1,
+            callback=DagCallbackRequest(
+                filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
+            ),
+        )
+    else:
+        work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="a.py")
+    session.add(work)
+    session.commit()
+    identities = {job.id: job.session_id, second.id: second.session_id}
+
+    async def authenticate(request: Request):
+        job_id = int(request.path_params["job_id"])
+        return DagProcessorToken(
+            id=identities[job_id],
+            claims=DagProcessorClaims(exp=1, job_id=job_id, dag_bundles=frozenset({"bundle"})),
+        )
+
+    exec_app.dependency_overrides[require_auth] = authenticate
+    ready = Barrier(2)
+
+    def claim(job_id):
+        ready.wait(timeout=10)
+        return client.post(
+            f"/execution/jobs/{job_id}/requested-work/{kind}/claim",
+            json={"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]},
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(claim, job_id) for job_id in identities]
+        responses = [future.result(timeout=30) for future in futures]
+    assert [response.status_code for response in responses] == [200, 200]
+    assert sorted(len(response.json()) for response in responses) == [0, 1]
+
+
+@pytest.fixture
+def create_requested_work(session):
+    def create(kind, *, filename="a.py", priority=1):
+        if kind == "callbacks":
+            work = DagProcessorCallback(
+                priority_weight=priority,
+                callback=DagCallbackRequest(
+                    filepath=filename,
+                    bundle_name="bundle",
+                    bundle_version=None,
+                    dag_id="dag",
+                    run_id="run",
+                ),
+            )
+        else:
+            work = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc=filename)
+        session.add(work)
+        session.commit()
+        return work
+
+    return create
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("active", [False, True])
+def test_requested_work_claim_respects_limit_and_active_bundle(
+    client, session, job, create_requested_work, kind, active
+):
+    work = [create_requested_work(kind, filename=f"file_{index}.py") for index in range(3)]
+    session.get(DagBundleModel, "bundle").active = active
+    session.commit()
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 2}
+    url = f"/execution/jobs/{job.id}/requested-work/{kind}/claim"
+
+    response = client.post(url, json=claim)
+
+    assert response.status_code == 200, response.json()
+    assert len(response.json()) == (2 if active else 0)
+    claimed_ids = {item["id"] for item in response.json()}
+    session.expire_all()
+    for item in work:
+        assert item.processor_job_id == (job.id if str(item.id) in claimed_ids else None)
+    assert client.post(url, json=claim).json() == response.json()
+
+    remaining = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2})
+    assert remaining.status_code == 200, remaining.json()
+    assert {item["id"] for item in remaining.json()} == (
+        {str(item.id) for item in work} - claimed_ids if active else set()
+    )
+
+
+@pytest.mark.parametrize("callback_class", [DagCallbackRequest, TaskCallbackRequest, EmailRequest])
+def test_callback_claim_returns_typed_request(client, session, job, callback_class):
+    ti = TaskInstance(
+        id=uuid7(), task_id="task", dag_id="dag", run_id="run", try_number=1, dag_version_id=uuid7()
+    )
+    dag_run = DagRun(
+        dag_id="dag",
+        run_id="run",
+        logical_date=None,
+        data_interval_start=None,
+        data_interval_end=None,
+        run_after=timezone.utcnow(),
+        start_date=timezone.utcnow(),
+        end_date=None,
+        run_type="manual",
+        state="running",
+        consumed_asset_events=[],
+        partition_key=None,
+    )
+    if callback_class is DagCallbackRequest:
+        kwargs = {
+            "dag_id": "dag",
+            "run_id": "run",
+            "context_from_server": DagRunContext(dag_run=dag_run, last_ti=ti),
+        }
+    else:
+        kwargs = {"ti": ti, "context_from_server": TIRunContext(dag_run=dag_run, max_tries=2)}
+    request = callback_class(
+        filepath="a.py", bundle_name="bundle", bundle_version="v1", version_data={"ref": "v1"}, **kwargs
+    )
+    work = DagProcessorCallback(priority_weight=1, callback=request)
+    session.add(work)
+    session.commit()
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
+
+    response = client.post(url, json=claim)
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == [
+        {
+            "id": str(work.id),
+            "claim_id": claim["claim_id"],
+            "bundle_name": "bundle",
+            "relative_fileloc": "a.py",
+            "callback": request.model_dump(mode="json"),
+        }
+    ]
+    for model in (ProcessorWorkItem, SDKProcessorWorkItem):
+        decoded = model.model_validate(response.json()[0])
+        assert decoded.callback is not None
+        assert type(decoded.callback).__name__ == callback_class.__name__
+        assert callback_class.model_validate(decoded.callback.model_dump()) == request
+    assert client.post(url, json=claim).json() == response.json()
+
+
+def test_callback_claim_openapi_exposes_nested_request_models(client):
+    response = client.get(f"/execution/openapi.json?version={bundle.version_values[0]}")
+    assert response.status_code == 200
+    schemas = response.json()["components"]["schemas"]
+    variants = schemas["ProcessorWorkItem"]["properties"]["callback"]["oneOf"]
+    callback_schema = next(variant for variant in variants if "discriminator" in variant)
+    assert callback_schema["discriminator"]["propertyName"] == "type"
+    mapping = callback_schema["discriminator"]["mapping"]
+    assert set(mapping) == {"DagCallbackRequest", "TaskCallbackRequest", "EmailRequest"}
+    assert {variant["$ref"] for variant in callback_schema["oneOf"]} == set(mapping.values())
+    task_callback = schemas[mapping["TaskCallbackRequest"].rsplit("/", 1)[1]]
+    task_instance = schemas[task_callback["properties"]["ti"]["$ref"].rsplit("/", 1)[1]]
+    assert "dag_version_id" in task_instance["properties"]
+    email_callback = schemas[mapping["EmailRequest"].rsplit("/", 1)[1]]
+    context = schemas[email_callback["properties"]["context_from_server"]["$ref"].rsplit("/", 1)[1]]
+    assert "dag_run" in context["properties"]
+
+
+def test_retired_callback_claim_in_inactive_bundle_remains_eligible_for_cleanup(
+    client, session, job, create_requested_work, time_machine
+):
+    work = create_requested_work("callbacks")
+    key = work.id
+    claim_id = uuid7()
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/callbacks/claim",
+        json={"claim_id": str(claim_id), "claim_sequence": 1, "bundle_names": ["bundle"]},
+    )
+    assert response.status_code == 200, response.json()
+    session.refresh(work)
+    assert work.state is None
+    assert (work.processor_job_id, work.processor_claim_id) == (job.id, claim_id)
+    job.end_date = timezone.utcnow()
+    job.state = JobState.FAILED
+    session.get(DagBundleModel, "bundle").active = False
+    session.commit()
+    time_machine.shift(86400)
+
+    run_cleanup(
+        clean_before_timestamp=timezone.utcnow(),
+        table_names=["callback"],
+        confirm=False,
+        skip_archive=True,
+        error_on_cleanup_failure=True,
+    )
+
+    session.expire_all()
+    assert session.get(DagProcessorCallback, key) is None
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("initially_empty", [False, True])
+@pytest.mark.parametrize("superseded", [False, True])
+def test_completed_claim_replay_cannot_take_new_work(
+    client, session, job, create_requested_work, kind, initially_empty, superseded
+):
+    base = f"/execution/jobs/{job.id}/requested-work/{kind}"
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    if not initially_empty:
+        create_requested_work(kind)
+    first = client.post(f"{base}/claim", json=claim)
+    assert first.status_code == 200, first.json()
+    for item in first.json():
+        response = client.post(f"{base}/{item['id']}/ack", json={"claim_id": claim["claim_id"]})
+        assert response.status_code == 204, response.text
+    if superseded:
+        response = client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2})
+        assert response.status_code == 200, response.json()
+        assert response.json() == []
+
+    later = create_requested_work(kind)
+    delayed = client.post(f"{base}/claim", json=claim)
+    assert delayed.status_code == 200, delayed.json()
+    assert delayed.json() == []
+    fresh = client.post(f"{base}/claim", json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
+    assert fresh.status_code == 200, fresh.json()
+    assert [item["id"] for item in fresh.json()] == [str(later.id)]
+    receipts = session.scalars(
+        select(DagProcessorWorkClaim).where(DagProcessorWorkClaim.job_id == job.id)
+    ).all()
+    assert len(receipts) == 1
+    assert receipts[0].claim_sequence == 3
+
+
+@pytest.mark.parametrize("changed_field", ["claim_id", "bundle_names", "limit"])
+def test_claim_replay_rejects_different_payload(client, job, changed_field):
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
+    url = f"/execution/jobs/{job.id}/requested-work/priority/claim"
+    assert client.post(url, json=claim).status_code == 200
+    replacement = {"claim_id": str(uuid7()), "bundle_names": ["bundle", "bundle"], "limit": 2}[changed_field]
+    response = client.post(url, json={**claim, changed_field: replacement})
+    assert response.status_code == 409
+    assert response.json()["detail"]["reason"] == "claim_conflict"
+
+
+def test_claim_sequences_are_tracked_per_kind(client, job, create_requested_work):
+    work = {kind: create_requested_work(kind) for kind in ("callbacks", "priority")}
+    claims = {
+        "callbacks": {"claim_id": str(uuid7()), "claim_sequence": 5, "bundle_names": ["bundle"]},
+        "priority": {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]},
+    }
+    base = f"/execution/jobs/{job.id}/requested-work"
+
+    responses = {kind: client.post(f"{base}/{kind}/claim", json=claim) for kind, claim in claims.items()}
+
+    for kind, response in responses.items():
+        assert response.status_code == 200, response.json()
+        assert [item["id"] for item in response.json()] == [str(work[kind].id)]
+        assert client.post(f"{base}/{kind}/claim", json=claims[kind]).json() == response.json()
+
+
+def test_callback_claim_replay_preserves_priority_order(client, session, job, create_requested_work):
+    low = create_requested_work("callbacks", priority=1)
+    high = create_requested_work("callbacks", priority=100)
+    low.id, high.id = UUID(int=1), UUID(int=2)
+    session.commit()
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
+    first = client.post(url, json=claim)
+    replay = client.post(url, json=claim)
+    assert first.status_code == replay.status_code == 200
+    assert [item["id"] for item in first.json()] == [str(high.id), str(low.id)]
+    assert replay.json() == first.json()
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("replay", [False, True])
+def test_claim_rejects_ungranted_bundle(client, session, job, create_requested_work, kind, replay):
+    work = create_requested_work(kind)
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    url = f"/execution/jobs/{job.id}/requested-work/{kind}/claim"
+    if replay:
+        assert client.post(url, json=claim).status_code == 200
+        work.bundle_name = "other"
+        session.commit()
+    else:
+        claim["bundle_names"] = ["other"]
+    response = client.post(url, json=claim)
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "bundle_not_granted"
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_acknowledgment_rejects_ungranted_bundle(client, session, job, create_requested_work, kind):
+    work = create_requested_work(kind)
+    work.bundle_name = "other"
+    work.processor_job_id = job.id
+    work.processor_claim_id = uuid7()
+    session.commit()
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/{kind}/{work.id}/ack",
+        json={"claim_id": str(work.processor_claim_id)},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "bundle_not_granted"
+    session.expire_all()
+    assert session.get(type(work), work.id) is not None
+
+
+def test_acknowledgment_rejects_invalid_callback_uuid(client, job):
+    response = client.post(
+        f"/execution/jobs/{job.id}/requested-work/callbacks/not-a-uuid/ack",
+        json={"claim_id": str(uuid7())},
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Invalid callback ID"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("claim_sequence", 0),
+        ("claim_sequence", 2**53),
+        ("bundle_names", []),
+        ("bundle_names", [f"bundle_{index}" for index in range(1001)]),
+        ("limit", 0),
+        ("limit", 101),
+    ],
+)
+def test_claim_rejects_out_of_range_body(client, session, job, create_requested_work, field, value):
+    work = create_requested_work("priority")
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], field: value}
+
+    response = client.post(f"/execution/jobs/{job.id}/requested-work/priority/claim", json=claim)
+
+    assert response.status_code == 422, response.json()
+    assert [error["loc"][-1] for error in response.json()["detail"]] == [field]
+    session.expire_all()
+    assert session.get(DagPriorityParsingRequest, work.id).processor_job_id is None
+
+
+@pytest.mark.parametrize("action", ["claim", "ack"])
+def test_requested_work_rejects_job_closed_after_admission(
+    client, session, job, create_requested_work, action
+):
+    work = create_requested_work("priority")
+    claim_id = uuid7()
+    owner = (job.id, claim_id) if action == "ack" else (None, None)
+    work.processor_job_id, work.processor_claim_id = owner
+    # The job fixture bypasses require_auth, which leaves the route's own check to see the closed Job.
+    job.end_date = timezone.utcnow()
+    session.commit()
+    base = f"/execution/jobs/{job.id}/requested-work/priority"
+
+    if action == "claim":
+        claim = {"claim_id": str(claim_id), "claim_sequence": 1, "bundle_names": ["bundle"]}
+        response = client.post(f"{base}/claim", json=claim)
+    else:
+        response = client.post(f"{base}/{work.id}/ack", json={"claim_id": str(claim_id)})
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["reason"] == "job_closed"
+    session.expire_all()
+    stored = session.get(DagPriorityParsingRequest, work.id)
+    assert (stored.processor_job_id, stored.processor_claim_id) == owner

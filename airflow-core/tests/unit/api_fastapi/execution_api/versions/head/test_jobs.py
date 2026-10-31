@@ -329,6 +329,38 @@ class TestRegisterJob:
         session.refresh(running)
         assert running.session_id == SESSION_ID
 
+    @pytest.mark.parametrize("timeout", [29, 30, 31])
+    def test_rejects_expiry_before_health_threshold_without_replacing_the_job(self, client, session, timeout):
+        previous = _create_job(session, latest_heartbeat=NOW - timedelta(seconds=60))
+        _add_receipt(session, previous)
+        with conf_vars(
+            {
+                ("dag_processor", "health_check_threshold"): "30",
+                ("dag_processor", "job_heartbeat_timeout"): str(timeout),
+            }
+        ):
+            response = _register(client, registration_id=OTHER_REGISTRATION_ID)
+
+        session.refresh(previous)
+        if timeout < 30:
+            assert response.status_code == 503
+            assert response.json()["detail"] == {
+                "reason": "invalid_configuration",
+                "message": (
+                    "[dag_processor] job_heartbeat_timeout must be greater than or equal to "
+                    "health_check_threshold"
+                ),
+            }
+            assert previous.end_date is None
+            assert previous.session_id == SESSION_ID
+            assert session.scalars(select(Job.id)).all() == [previous.id]
+            assert session.scalars(select(DagProcessorPublicationReceipt.job_id)).all() == [previous.id]
+        else:
+            assert response.status_code == 201, response.json()
+            assert previous.end_date == NOW
+            assert previous.session_id is None
+            assert session.scalar(select(DagProcessorPublicationReceipt)) is None
+
     @pytest.mark.parametrize(
         ("previous_job", "outcome"),
         [

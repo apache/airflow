@@ -53,6 +53,8 @@ from airflow.api_fastapi.execution_api.security import (
 )
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
+from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
+from airflow.exceptions import AirflowConfigException
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
@@ -158,6 +160,7 @@ def _resume_registration(
                 status.HTTP_409_CONFLICT,
                 "The registration has ended, conflicts with an earlier one, or another process's Job is running",
             ),
+            (status.HTTP_503_SERVICE_UNAVAILABLE, "The processor heartbeat timeouts are misconfigured"),
         ]
     ),
 )
@@ -173,8 +176,15 @@ def register_job(
     A registration creates one Job. Repeating it while that Job is open returns the Job with a fresh token;
     once the Job completes or is replaced, the registration is refused for good. A new registration is
     refused while the session's Job is alive, and otherwise ends and replaces it, which ends every token
-    issued for the replaced Job.
+    issued for the replaced Job and releases its claims.
     """
+    try:
+        get_job_heartbeat_timeout()
+    except AirflowConfigException as error:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"reason": "invalid_configuration", "message": str(error)},
+        ) from error
     requested = token.claims.dag_bundles if body.bundle_names is None else set(body.bundle_names)
     if ungranted := requested - token.claims.dag_bundles:
         raise HTTPException(
@@ -196,6 +206,7 @@ def register_job(
                 detail={"reason": "job_running", "message": f"Session already has running Job {previous.id}"},
             )
         if previous.end_date is None:
+            # Its claims are released only once it ends, and maintenance skips Jobs without a session.
             previous.state = JobState.FAILED
             previous.end_date = now
         previous.session_id = None
