@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import io
 import json
 import logging
 from unittest.mock import MagicMock, patch
@@ -289,11 +290,37 @@ def _make_mock_pypdf_module(mock_reader):
     return mock_module
 
 
-def _make_mock_docx_module(mock_doc):
-    """Create a fake docx module with a Document that returns mock_doc."""
-    mock_module = MagicMock()
-    mock_module.Document = MagicMock(return_value=mock_doc)
-    return mock_module
+def _create_docx():
+    return pytest.importorskip("docx", reason="needs the 'docx' extra").Document()
+
+
+def _get_docx_bytes(doc) -> bytes:
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+
+def _fill_docx_table(table, rows: list[list[str]]) -> None:
+    for r, values in enumerate(rows):
+        for c, value in enumerate(values):
+            table.cell(r, c).text = value
+
+
+def _build_docx_bytes(*blocks: str | list[list[str]]) -> bytes:
+    """Build a DOCX in memory: a ``str`` adds a paragraph, a list of rows adds a table."""
+    doc = _create_docx()
+    for block in blocks:
+        if isinstance(block, str):
+            doc.add_paragraph(block)
+        else:
+            _fill_docx_table(doc.add_table(rows=len(block), cols=len(block[0])), block)
+    return _get_docx_bytes(doc)
+
+
+def _load_docx_text(raw: bytes) -> str:
+    op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".docx")
+    (document,) = op.execute(context=MagicMock())
+    return document["text"]
 
 
 class TestPdfParser:
@@ -371,45 +398,28 @@ class TestPdfParser:
 
 class TestDocxParser:
     def test_docx_parsing(self, tmp_path):
-        mock_para_1 = MagicMock()
-        mock_para_1.text = "First paragraph"
-        mock_para_2 = MagicMock()
-        mock_para_2.text = "Second paragraph"
-        mock_para_empty = MagicMock()
-        mock_para_empty.text = "   "
-
-        mock_doc_obj = MagicMock()
-        mock_doc_obj.paragraphs = [mock_para_1, mock_para_empty, mock_para_2]
-
         f = tmp_path / "doc.docx"
-        f.write_bytes(b"fake docx")
+        f.write_bytes(_build_docx_bytes("First paragraph", "    ", "Second paragraph"))
 
-        mock_docx = _make_mock_docx_module(mock_doc_obj)
-        with patch.dict("sys.modules", {"docx": mock_docx}):
-            op = DocumentLoaderOperator(task_id="test", source_path=str(f))
-            result = op.execute(context=MagicMock())
+        op = DocumentLoaderOperator(task_id="test", source_path=str(f))
+        result = op.execute(context=MagicMock())
 
         assert len(result) == 1
         assert "First paragraph" in result[0]["text"]
         assert "Second paragraph" in result[0]["text"]
 
     def test_docx_from_bytes_uses_stream_no_tempfile(self):
-        mock_para = MagicMock()
-        mock_para.text = "Stream paragraph"
-        mock_doc_obj = MagicMock()
-        mock_doc_obj.paragraphs = [mock_para]
+        docx = pytest.importorskip("docx", reason="needs the 'docx' extra")
+        raw = _build_docx_bytes("Stream paragraph")
 
-        mock_docx = _make_mock_docx_module(mock_doc_obj)
-        with patch.dict("sys.modules", {"docx": mock_docx}):
-            op = DocumentLoaderOperator(task_id="test", source_bytes=b"fake docx", file_type=".docx")
+        with patch("docx.Document", autospec=True, side_effect=docx.Document) as mock_document:
+            op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".docx")
             result = op.execute(context=MagicMock())
 
         assert "Stream paragraph" in result[0]["text"]
-        mock_docx.Document.assert_called_once()
-        (call_arg,) = mock_docx.Document.call_args.args
-        import io as _io
-
-        assert isinstance(call_arg, _io.BytesIO)
+        mock_document.assert_called_once()
+        (call_arg,) = mock_document.call_args.args
+        assert isinstance(call_arg, io.BytesIO)
 
     def test_docx_missing_raises_optional_feature_exception(self, tmp_path):
         from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
@@ -421,6 +431,333 @@ class TestDocxParser:
             op = DocumentLoaderOperator(task_id="test", source_path=str(f))
             with pytest.raises(AirflowOptionalProviderFeatureException):
                 op.execute(context=MagicMock())
+
+    @pytest.mark.parametrize(
+        ("blocks", "expected"),
+        [
+            pytest.param(
+                ("Intro", "   ", [["Name", "Qty"], ["Apple", "3"]], "Outro"),
+                "Intro\n\n| Name | Qty |\n| Apple | 3 |\n\nOutro",
+                id="tables-in-document-order",
+            ),
+            pytest.param(([["a", "", "c"]],), "| a |  | c |", id="empty-cell-keeps-its-column"),
+            pytest.param(
+                ([["h1", "h2"], ["", ""], ["x", "y"]],),
+                "| h1 | h2 |\n| x | y |",
+                id="empty-row-skipped",
+            ),
+            pytest.param(
+                ("Before", [["", ""]], "After", [["Name", "Qty"]]),
+                "Before\n\nAfter\n\n| Name | Qty |",
+                id="empty-table-skipped",
+            ),
+            pytest.param(
+                ([["line1\nline2", "b"]],),
+                "| line1 line2 | b |",
+                id="cell-line-break-stays-on-row",
+            ),
+            pytest.param(
+                ([["0", "0"], ["x", "x"]],),
+                "| 0 | 0 |\n| x | x |",
+                id="equal-adjacent-unmerged-cells-kept",
+            ),
+        ],
+    )
+    def test_docx_tables(self, blocks, expected):
+        assert _load_docx_text(_build_docx_bytes(*blocks)) == expected
+
+    def test_docx_merged_cells_horizontal_once_vertical_repeated(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=3)
+        _fill_docx_table(table, [["", "", "Note"], ["a", "", "c"], ["d", "", "f"]])
+        table.cell(0, 0).merge(table.cell(0, 1)).text = "Title"
+        table.cell(1, 1).merge(table.cell(2, 1)).text = "Shared"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == (
+            "| Title |  | Note |\n| a | Shared | c |\n| d | Shared | f |"
+        )
+
+    def test_docx_long_vertical_merge_read_in_full(self):
+        # python-docx's row.cells recurses once per merged row above, so it fails before 1000 rows.
+        # The merge starts in an empty row, which is left out, and the rows below still continue it.
+        row_count = 1100
+        doc = _create_docx()
+        table = doc.add_table(rows=row_count, cols=2)
+        for index, row in enumerate(table.rows):
+            if index:
+                row.cells[1].text = f"r{index}"
+            row._tr.tc_lst[0].vMerge = "continue" if index else "restart"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "\n".join(
+            f"|  | r{index} |" for index in range(1, row_count)
+        )
+
+    @patch.object(
+        DocumentLoaderOperator,
+        "_get_docx_cell_text",
+        autospec=True,
+        side_effect=DocumentLoaderOperator._get_docx_cell_text,
+    )
+    def test_docx_vertical_merge_text_extracted_once(self, mock_get_cell_text):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=2)
+        _fill_docx_table(table, [["", "r0"], ["", "r1"], ["", "r2"]])
+        table.cell(0, 0).merge(table.cell(2, 0)).text = "Dept"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| Dept | r0 |\n| Dept | r1 |\n| Dept | r2 |"
+        assert [call.args[1].text for call in mock_get_cell_text.call_args_list] == ["Dept", "r0", "r1", "r2"]
+
+    def test_docx_grid_before_and_after_keep_columns(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=3, cols=3)
+        _fill_docx_table(table, [["Product", "Revenue", "Cost"], ["", "100", "80"], ["Widget", "5", ""]])
+        starts_late, ends_early = table.rows[1]._tr, table.rows[2]._tr
+        starts_late.remove(starts_late.tc_lst[0])
+        starts_late.get_or_add_trPr().get_or_add_gridBefore().val = 1
+        ends_early.remove(ends_early.tc_lst[-1])
+        ends_early.get_or_add_trPr().get_or_add_gridAfter().val = 1
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == (
+            "| Product | Revenue | Cost |\n|  | 100 | 80 |\n| Widget | 5 |  |"
+        )
+
+    @pytest.mark.parametrize(
+        ("grid_before", "grid_after", "expected_row"),
+        [
+            pytest.param(1000, 0, "|  | x |", id="grid-before"),
+            pytest.param(0, 1000, "| x |  |", id="grid-after"),
+            pytest.param(1000, 1000, "|  | x |", id="grid-before-and-after"),
+            pytest.param(-5, 1000, "| x |  |", id="negative-grid-before"),
+        ],
+    )
+    def test_docx_grid_values_capped_at_column_count(self, grid_before, grid_after, expected_row):
+        doc = _create_docx()
+        table = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(table, [["a", "b"], ["x", ""]])
+        row = table.rows[1]._tr
+        row.remove(row.tc_lst[1])
+        tr_pr = row.get_or_add_trPr()
+        tr_pr.get_or_add_gridBefore().val = grid_before
+        tr_pr.get_or_add_gridAfter().val = grid_after
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == f"| a | b |\n{expected_row}"
+
+    @pytest.mark.parametrize(
+        ("grid_before", "grid_after", "expected_row"),
+        [
+            pytest.param(1, 0, "|  | c | d |", id="grid-before"),
+            pytest.param(0, 1, "| c | d |  |", id="grid-after"),
+        ],
+    )
+    def test_docx_table_without_grid_sized_by_widest_row(self, grid_before, grid_after, expected_row):
+        doc = _create_docx()
+        table = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(table, [["a", "b"], ["c", "d"]])
+        tr_pr = table.rows[1]._tr.get_or_add_trPr()
+        tr_pr.get_or_add_gridBefore().val = grid_before
+        tr_pr.get_or_add_gridAfter().val = grid_after
+        table._tbl.remove(table._tbl.tblGrid)
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == f"| a | b |\n{expected_row}"
+
+    @pytest.mark.parametrize(
+        ("grid_before", "grid_after"),
+        [
+            pytest.param(-1, 0, id="negative-grid-before"),
+            pytest.param(0, -1, id="negative-grid-after"),
+        ],
+    )
+    def test_docx_table_without_grid_ignores_negative_grid_values(self, grid_before, grid_after):
+        doc = _create_docx()
+        table = doc.add_table(rows=1, cols=2)
+        _fill_docx_table(table, [["c", "d"]])
+        tr_pr = table.rows[0]._tr.get_or_add_trPr()
+        tr_pr.get_or_add_gridBefore().val = grid_before
+        tr_pr.get_or_add_gridAfter().val = grid_after
+        table._tbl.remove(table._tbl.tblGrid)
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| c | d |"
+
+    def test_docx_table_without_grid_or_rows_left_out_without_warning(self, caplog):
+        doc = _create_docx()
+        tbl = doc.add_table(rows=1, cols=2)._tbl
+        tbl.remove(tbl.tr_lst[0])
+        tbl.remove(tbl.tblGrid)
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == ""
+        assert not [message for message in caplog.messages if message.startswith("Skipping a table")]
+
+    @pytest.mark.parametrize(
+        "remove_grid",
+        [
+            pytest.param(False, id="with-grid"),
+            pytest.param(True, id="without-grid"),
+        ],
+    )
+    def test_docx_table_wider_than_limit_skipped_with_warning(self, remove_grid, caplog):
+        doc = _create_docx()
+        for column_count in (1000, 1001):
+            table = doc.add_table(rows=1, cols=column_count)
+            table.cell(0, 0).text = "x"
+            if remove_grid:
+                table._tbl.remove(table._tbl.tblGrid)
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == f"| {' | '.join(['x'] + [''] * 999)} |"
+        assert (
+            "Skipping a table in <bytes:.docx>: "
+            "ValueError('the table has 1001 columns, which exceeds the maximum of 1000')"
+        ) in caplog.messages
+
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_TABLE_MAX_CHARS", 12)
+    def test_docx_table_text_over_limit_skipped_with_warning(self, caplog):
+        # A row counts its text plus 3 characters per cell, so 6 + 6 fits the limit and 6 + 7 does not.
+        raw = _build_docx_bytes([["abc"], ["abc"]], [["abc"], ["abcd"]])
+
+        assert _load_docx_text(raw) == "| abc |\n| abc |"
+        assert (
+            "Skipping a table in <bytes:.docx>: "
+            "ValueError('the table text exceeds the maximum of 12 characters')"
+        ) in caplog.messages
+
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_TABLE_MAX_CHARS", 12)
+    def test_docx_padding_and_repeated_merge_text_count_toward_text_limit(self, caplog):
+        doc = _create_docx()
+        # "x" padded with w:gridAfter to 4 columns counts 1 + 4 * 3.
+        padded = doc.add_table(rows=1, cols=4)
+        padded.cell(0, 0).text = "x"
+        tr = padded.rows[0]._tr
+        for tc in tr.tc_lst[1:]:
+            tr.remove(tc)
+        tr.get_or_add_trPr().get_or_add_gridAfter().val = 3
+        # A vertical merge repeats its text on each row it spans: 7 + 7.
+        merged = doc.add_table(rows=2, cols=1)
+        merged.cell(0, 0).merge(merged.cell(1, 0)).text = "abcd"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == ""
+        assert (
+            caplog.messages.count(
+                "Skipping a table in <bytes:.docx>: "
+                "ValueError('the table text exceeds the maximum of 12 characters')"
+            )
+            == 2
+        )
+
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_TABLE_MAX_CHARS", 20)
+    def test_docx_nested_table_text_counts_toward_parent_table_limit(self, caplog):
+        doc = _create_docx()
+        outer = doc.add_table(rows=1, cols=2)
+        outer.cell(0, 0).text = "keep"
+        # The inner table fits (8 + 3), but its parent repeats it on both merged rows: 11 + 11.
+        parent = outer.cell(0, 1).add_table(rows=2, cols=1)
+        parent.cell(0, 0).merge(parent.cell(1, 0)).add_table(rows=1, cols=1).cell(0, 0).text = "aaaaaaaa"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| keep |  |"
+        assert (
+            "Skipping a table in <bytes:.docx>: "
+            "ValueError('the table text exceeds the maximum of 20 characters')"
+        ) in caplog.messages
+
+    def test_docx_vmerge_continuation_lines_up_after_capped_grid_before(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(table, [["a", "b"], ["", ""]])
+        row = table.rows[1]._tr
+        row.remove(row.tc_lst[0])
+        row.get_or_add_trPr().get_or_add_gridBefore().val = 1000
+        table.rows[0]._tr.tc_lst[1].vMerge = "restart"
+        row.tc_lst[0].vMerge = "continue"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| a | b |\n|  | b |"
+
+    @pytest.mark.parametrize(
+        ("break_first_cell", "error"),
+        [
+            pytest.param(
+                # A vMerge continuation in the first row has no cell above it to continue.
+                lambda tc_pr: tc_pr.get_or_add_vMerge(),
+                "ValueError('w:vMerge continuation of cell 1 does not line up with a cell above it')",
+                id="first-row-vmerge-continuation",
+            ),
+            pytest.param(
+                lambda tc_pr: tc_pr.get_or_add_gridSpan(),
+                "InvalidXmlError(\"required 'w:val' attribute not present on element "
+                '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}gridSpan")',
+                id="gridspan-without-val",
+            ),
+            pytest.param(
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 100_000_000),
+                "ValueError('w:gridSpan 100000000 of cell 1 does not fit the 2 table columns')",
+                id="gridspan-wider-than-table",
+            ),
+            pytest.param(
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 0),
+                "ValueError('w:gridSpan 0 of cell 1 does not fit the 2 table columns')",
+                id="gridspan-zero",
+            ),
+            pytest.param(
+                # The first cell spans both columns on its own, so the second cell is one too many.
+                lambda tc_pr: setattr(tc_pr.get_or_add_gridSpan(), "val", 2),
+                "ValueError('w:gridSpan 1 of cell 2 does not fit the 2 table columns')",
+                id="gridspans-together-wider-than-table",
+            ),
+        ],
+    )
+    def test_docx_unreadable_table_skipped_with_warning(self, break_first_cell, error, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        unreadable = doc.add_table(rows=2, cols=2)
+        break_first_cell(unreadable.cell(0, 0)._tc.get_or_add_tcPr())
+        doc.add_paragraph("After")
+        _fill_docx_table(doc.add_table(rows=1, cols=2), [["Name", "Qty"]])
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter\n\n| Name | Qty |"
+        assert f"Skipping a table in <bytes:.docx>: {error}" in caplog.messages
+
+    @pytest.mark.parametrize(
+        "merged_row",
+        [
+            pytest.param(0, id="continuation-narrower-than-cell-above"),
+            pytest.param(1, id="continuation-wider-than-cell-above"),
+        ],
+    )
+    def test_docx_vmerge_continuation_not_lining_up_skipped_with_warning(self, merged_row, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        unreadable = doc.add_table(rows=2, cols=3)
+        _fill_docx_table(unreadable, [["a", "b", "c"], ["d", "e", "f"]])
+        # The merged row's first cell spans 2 columns while the other row's first cell spans 1.
+        unreadable.cell(merged_row, 0).merge(unreadable.cell(merged_row, 1))
+        unreadable.rows[1]._tr.tc_lst[0].vMerge = "continue"
+        doc.add_paragraph("After")
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\nAfter"
+        assert (
+            "Skipping a table in <bytes:.docx>: "
+            "ValueError('w:vMerge continuation of cell 1 does not line up with a cell above it')"
+        ) in caplog.messages
+
+    def test_docx_unreadable_nested_table_skipped_with_warning(self, caplog):
+        doc = _create_docx()
+        doc.add_paragraph("Before")
+        outer = doc.add_table(rows=2, cols=2)
+        _fill_docx_table(outer, [["Name", "Qty"], ["Apple", ""]])
+        nested = outer.cell(1, 1).add_table(rows=2, cols=2)
+        nested.cell(0, 0)._tc.get_or_add_tcPr().get_or_add_vMerge()
+        doc.add_paragraph("After")
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "Before\n\n| Name | Qty |\n| Apple |  |\n\nAfter"
+        assert (
+            "Skipping a table in <bytes:.docx>: "
+            "ValueError('w:vMerge continuation of cell 1 does not line up with a cell above it')"
+        ) in caplog.messages
+
+    def test_docx_nested_table_flattened_into_its_cell(self):
+        doc = _create_docx()
+        table = doc.add_table(rows=1, cols=2)
+        _fill_docx_table(table, [["Outer", "Right"]])
+        _fill_docx_table(table.cell(0, 0).add_table(rows=2, cols=2), [["n1", "n2"], ["n3", "n4"]])
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "| Outer n1 / n2; n3 / n4 | Right |"
 
 
 class TestFileDiscovery:
