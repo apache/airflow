@@ -30,6 +30,7 @@ MOCK_URL1 = "http://mock-idp/token1"
 MOCK_URL2 = "http://mock-idp/token2"
 MOCK_URL3 = "http://mock-idp/token3"
 MOCK_URL4 = "http://mock-idp/token4"
+MOCK_URL5 = "http://mock-idp/token5"
 CLIENT_ID = "test-client-id"
 CLIENT_ID2 = "test-client-id2"
 CLIENT_ID3 = "test-client-id3"
@@ -99,6 +100,34 @@ class TestClientCredentialsGrantFlowTokenSupplier:
 
         with requests_mock.Mocker() as m2:
             m2.post(MOCK_URL3, json={"access_token": "mock-token2", "expires_in": 3600})
+            token = token_supplier2.get_subject_token(ANY, ANY)
+
+        assert token == "mock-token2"
+
+    def test_cache_token_decorator_diff_extra_params(self):
+        token_supplier = ClientCredentialsGrantFlowTokenSupplier(
+            oidc_issuer_url=MOCK_URL5,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            audience="audience-1",
+        )
+
+        with requests_mock.Mocker() as m:
+            m.post(MOCK_URL5, json={"access_token": "mock-token", "expires_in": 3600})
+            token = token_supplier.get_subject_token(ANY, ANY)
+
+        assert token == "mock-token"
+
+        # instances that only differ in the value of an extra parameter should get different tokens
+        token_supplier2 = ClientCredentialsGrantFlowTokenSupplier(
+            oidc_issuer_url=MOCK_URL5,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            audience="audience-2",
+        )
+
+        with requests_mock.Mocker() as m2:
+            m2.post(MOCK_URL5, json={"access_token": "mock-token2", "expires_in": 3600})
             token = token_supplier2.get_subject_token(ANY, ANY)
 
         assert token == "mock-token2"

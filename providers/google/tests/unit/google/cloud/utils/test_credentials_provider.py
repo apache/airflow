@@ -457,6 +457,20 @@ class TestGetGcpCredentialsAndProjectId:
             )
 
     @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_idp_passes_extra_params_to_token_supplier(
+        self, mock_load_credentials_from_dict
+    ):
+        get_credentials_and_project_id(
+            credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+            idp_issuer_url=IDP_LINK,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            idp_extra_params_dict={"audience": "AUDIENCE"},
+        )
+        token_supplier = mock_load_credentials_from_dict.call_args.kwargs["info"]["subject_token_supplier"]
+        assert token_supplier.extra_params_kwargs == {"audience": "AUDIENCE"}
+
+    @mock.patch("google.auth.load_credentials_from_dict", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_using_idp_dict_config_file(self, mock_load_credentials_from_file, caplog):
         with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()

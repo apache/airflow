@@ -172,6 +172,6 @@ class ClientCredentialsGrantFlowTokenSupplier(CacheTokenSupplier):
             self.oidc_issuer_url
             + self.client_id
             + self.client_secret
-            + ",".join(sorted(self.extra_params_kwargs))
+            + ",".join(f"{key}={value}" for key, value in sorted(self.extra_params_kwargs.items()))
         )
         return cache_key
