@@ -17,17 +17,32 @@
 
 from __future__ import annotations
 
+from time import monotonic, sleep
 from typing import TYPE_CHECKING
 
+import httpx2
+
 from airflow._shared.observability.metrics import stats
+from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.job import TerminalJobState
+from airflow.configuration import conf
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.health import write_processor_health
+from airflow.dag_processing.timeouts import get_job_heartbeat_timeout
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, perform_heartbeat
+from airflow.jobs.job import Job, JobState, execute_job, perform_heartbeat
+from airflow.listeners.listener import get_listener_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.manager import DagFileProcessorManager
+
+
+class DagProcessorHeartbeatTimeout(RuntimeError):
+    """The processor could not confirm its Job heartbeat before the scheduler may end the Job."""
 
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
@@ -49,11 +64,135 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
     ):
         super().__init__(job)
         self.processor = processor
+        self._last_api_heartbeat = 0.0
+        self._next_api_heartbeat = 0.0
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,
             heartbeat_callback=self.heartbeat_callback,
             only_if_necessary=True,
         )
+
+    def run_with_api(self, client: DagProcessorAPIClient) -> int | None:
+        """Mirror ``run_job`` metrics and listener ordering while the API owns Job persistence."""
+        get_job_heartbeat_timeout()
+        self.processor.api_client = client
+        self.processor.work_source = ExecutionAPIWorkSource(client)
+        self.job.id = self._register_api_job(client)
+        self.job.state = JobState.RUNNING
+        self.job.start_date = self.job.latest_heartbeat = timezone.utcnow()
+        self._last_api_heartbeat = monotonic()
+        self._next_api_heartbeat = self._last_api_heartbeat + self.job.heartrate
+        self.processor.heartbeat = lambda: self._heartbeat_api(client)
+        stats.incr("job_start", 1, 1)
+        failed = True
+        try:
+            result = execute_job(self.job, execute_callable=self._execute)
+            failed = False
+            return result
+        finally:
+            self.job.state = JobState.FAILED if failed else JobState.SUCCESS
+            try:
+                get_listener_manager().hook.before_stopping(component=self.job)
+            except Exception:
+                self.log.exception("Error calling Dag processor shutdown listener")
+            self.job.end_date = timezone.utcnow()
+            try:
+                # A retired registration can still leave its Job open, for example after the token file was
+                # provisioned again under a new session. Completing it releases the Job's claimed work now
+                # instead of after scheduler cleanup.
+                client.complete_job(TerminalJobState(self.job.state))
+            except Exception as error:
+                if not failed:
+                    raise
+                # An ended or replaced Job is expected to refuse completion after its registration retires.
+                if client.restart_required:
+                    self.log.warning(
+                        "Unable to record the end of the retired Dag processor Job",
+                        error_type=type(error).__name__,
+                        error=str(error),
+                    )
+                else:
+                    self.log.exception("Unable to record the failed Dag processor Job")
+            finally:
+                stats.incr("job_end", 1, 1)
+
+    def _register_api_job(self, client: DagProcessorAPIClient) -> int:
+        # Client imports stay local: its versioned routes import this runner.
+        from airflow.dag_processing.api_client import DagProcessorJobAlreadyRunning
+
+        deadline = monotonic() + conf.getint("dag_processor", "health_check_threshold") + self.job.heartrate
+        delay = 1.0
+        while True:
+            try:
+                return client.register_job()
+            except DagProcessorJobAlreadyRunning:
+                remaining = deadline - monotonic()
+                if remaining <= 0:
+                    raise
+                self.log.info("Waiting for the previous Dag processor Job heartbeat to expire")
+                sleep(min(delay, remaining))
+                delay = min(delay * 2, 5.0)
+
+    def _get_heartbeat_delay_message(self) -> str:
+        elapsed = monotonic() - self._last_api_heartbeat
+        timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
+        return (
+            f"Last successful API heartbeat was {elapsed:.1f}s ago "
+            f"([dag_processor] job_heartbeat_timeout={timeout}s)."
+        )
+
+    def _heartbeat_api(self, client: DagProcessorAPIClient) -> None:
+        # Client imports stay local: its versioned routes import this runner.
+        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
+
+        write_processor_health(self._last_api_heartbeat)
+        if client.restart_required:
+            raise DagProcessorRegistrationRetired(
+                f"The Dag processor registration requires a restart. {self._get_heartbeat_delay_message()}"
+            )
+        now = monotonic()
+        if now < self._next_api_heartbeat:
+            return
+        self._next_api_heartbeat = now + self.job.heartrate
+        try:
+            state = client.heartbeat()
+        except DagProcessorRegistrationRetired as error:
+            raise DagProcessorRegistrationRetired(
+                f"{error}. {self._get_heartbeat_delay_message()}"
+            ) from error
+        except httpx2.HTTPError as error:
+            if (
+                isinstance(error, httpx2.HTTPStatusError)
+                and error.response.status_code < 500
+                and error.response.status_code not in (408, 429)
+            ):
+                raise
+            stats.incr("job_heartbeat_failure", 1, 1)
+            elapsed = monotonic() - self._last_api_heartbeat
+            timeout = conf.getint("dag_processor", "job_heartbeat_timeout")
+            error_type = type(error).__name__
+            status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+            if elapsed >= timeout:
+                reason = f"{error_type} (HTTP {status_code})" if status_code is not None else error_type
+                raise DagProcessorHeartbeatTimeout(
+                    f"Dag processor API heartbeat timed out after {elapsed:.1f}s without a successful heartbeat "
+                    f"([dag_processor] job_heartbeat_timeout={timeout}s; {reason})"
+                ) from error
+            self.log.warning(
+                "Unable to heartbeat the Dag processor Job; retrying on the next interval",
+                error_type=error_type,
+                status_code=status_code,
+                elapsed_seconds=elapsed,
+                timeout_seconds=timeout,
+            )
+            return
+        if client.restart_required or state != JobState.RUNNING:
+            raise DagProcessorRegistrationRetired(
+                f"The API requested a Dag processor restart. {self._get_heartbeat_delay_message()}"
+            )
+        self._last_api_heartbeat = monotonic()
+        self.job.latest_heartbeat = timezone.utcnow()
+        self.heartbeat_callback()
 
     def _execute(self) -> int | None:
         self.log.info("Starting the Dag Processor Job")
@@ -63,8 +202,11 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             self.log.exception("Exception when executing DagProcessorJob")
             raise
         finally:
-            self.processor.terminate()
-            self.processor.end()
+            try:
+                self.processor.terminate()
+            finally:
+                # A second signal can interrupt terminate(); end() must still kill children and send acks.
+                self.processor.end()
         return None
 
     def heartbeat_callback(self, session: Session | None = None) -> None:
