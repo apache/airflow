@@ -177,6 +177,8 @@ def _check_flag_and_exit_if_server_response_error(func):
             if "Connection refused" in str(e):
                 raise AirflowCtlConnectionException("Connection refused. Is the API server running?")
             raise AirflowCtlConnectionException(f"Connection error: {e}")
+        except httpx.ConnectTimeout:
+            raise AirflowCtlConnectionException("Connection timed out. Is the API server running?")
 
     return wrapped
 
