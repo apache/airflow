@@ -101,7 +101,7 @@ def test_get_authorization_code(mock_open, capsys):
     assert challenge.rstrip(b"=").decode() == seen_params["code_challenge"]
     status, page = pages.get(timeout=5)
     assert status == 200
-    assert b"Login complete" in page
+    assert b"return to the terminal to see the result" in page
 
 
 @pytest.mark.parametrize(
@@ -148,7 +148,6 @@ def test_get_authorization_code_rejects_callback(mock_open, build_callback_query
     status, page = pages.get(timeout=5)
     assert status == 400
     assert b"Login failed" in page
-    assert b"Login complete" not in page
 
 
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
