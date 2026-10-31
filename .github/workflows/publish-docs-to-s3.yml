@@ -505,14 +505,22 @@ jobs:
           # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
           # automatically — a providers-only publish should not suddenly refresh the
           # java-sdk docs as a side effect.
+          #
+          # Between Java SDK releases java-sdk/gradle.properties carries a -SNAPSHOT development
+          # version. Its Javadoc must not be published: it would become a versioned folder and the
+          # stable docs of the Java SDK, for example when an Airflow release publishes all docs.
           if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
-          elif [[ -f "java-sdk/gradlew" ]]; then
-            echo "exists=true" >> "${GITHUB_OUTPUT}"
-          else
+          elif [[ ! -f "java-sdk/gradlew" ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
+          elif grep -Eq '^[[:space:]]*projectVersion[[:space:]]*=[[:space:]]*[^[:space:]]+-SNAPSHOT[[:space:]]*$' \
+              java-sdk/gradle.properties; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "The Java SDK at ref ${REF} has a -SNAPSHOT development version — skipping Javadoc build."
+          else
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
           fi
       - name: "Install Breeze"
         if: steps.sdk-present.outputs.exists == 'true'
