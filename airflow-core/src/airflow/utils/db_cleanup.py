@@ -115,6 +115,9 @@ class _TableConfig:
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
     :param recency_column_name: date column to filter by
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
+    :param keep_last_column_name: column that identifies the record "keep last" preserves; defaults
+        to ``recency_column_name``. Use it when the newest record is defined by another column than
+        the one rows are aged out by (e.g. ``dag_version.version_number``).
     :param keep_last_filters: the "keep last" functionality will preserve the most recent record
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
@@ -138,6 +141,7 @@ class _TableConfig:
     dag_id_column_name: str | None = None
     dag_id_scope: _IndirectDagScope | None = None
     keep_last: bool = False
+    keep_last_column_name: str | None = None
     keep_last_filters: Any | None = None
     keep_last_group_by: Any | None = None
     # We explicitly list these tables instead of detecting foreign keys automatically,
@@ -155,22 +159,19 @@ class _TableConfig:
     def __post_init__(self):
         self.schema_name, self.bare_table_name = _split_schema_table(self.table_name)
         self.recency_column = column(self.recency_column_name)
+        self.keep_last_column = (
+            self.recency_column if self.keep_last_column_name is None else column(self.keep_last_column_name)
+        )
+        columns = [*(column(x) for x in self.extra_columns or []), self.recency_column]
+        if self.keep_last_column is not self.recency_column:
+            columns.append(self.keep_last_column)
         if self.dag_id_column_name is None:
             self.dag_id_column = None
-            self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.recency_column,
-                schema=self.schema_name,
-            )
+            self.orm_model: Base = table(self.bare_table_name, *columns, schema=self.schema_name)
         else:
             self.dag_id_column = column(self.dag_id_column_name)
             self.orm_model: Base = table(
-                self.bare_table_name,
-                *[column(x) for x in self.extra_columns or []],
-                self.dag_id_column,
-                self.recency_column,
-                schema=self.schema_name,
+                self.bare_table_name, *columns, self.dag_id_column, schema=self.schema_name
             )
 
         if self.dag_id_scope is not None:
@@ -319,6 +320,9 @@ config_list: list[_TableConfig] = [
         dependent_tables=["task_instance", "dag_run"],
         dag_id_column_name="dag_id",
         keep_last=True,
+        # The Dag's current version is the highest version_number, not the newest row: a version
+        # inserted later can belong to an older bundle version and must never become "last".
+        keep_last_column_name="version_number",
         keep_last_group_by=["dag_id"],
         # task_instance.dag_version_id is ON DELETE RESTRICT, so a version still referenced by any
         # task instance cannot be deleted. Skip those rows instead of issuing a delete that would
@@ -645,12 +649,12 @@ def _do_delete(
 
 def _subquery_keep_last(
     *,
-    recency_column,
+    keep_last_column,
     keep_last_filters,
     group_by_columns,
-    max_date_colname,
+    max_column_name,
 ):
-    subquery = select(*group_by_columns, func.max(recency_column).label(max_date_colname))
+    subquery = select(*group_by_columns, func.max(keep_last_column).label(max_column_name))
 
     if keep_last_filters is not None:
         for entry in keep_last_filters:
@@ -686,6 +690,7 @@ def _build_query(
     keep_last_group_by,
     clean_before_timestamp: DateTime,
     session: Session,
+    keep_last_column=None,
     dag_id_column=None,
     dag_id_scope: _IndirectDagScope | None = None,
     dag_ids: list[str] | None = None,
@@ -752,22 +757,24 @@ def _build_query(
             conditions.append(or_(fk_col.is_(None), fk_col.not_in(_rows_for(exclude_dag_ids))))
 
     if keep_last:
-        max_date_col_name = "max_date_per_group"
+        if keep_last_column is None:
+            keep_last_column = recency_column
+        max_column_name = "max_keep_last_per_group"
         group_by_columns: list[Any] = [column(x) for x in keep_last_group_by]
         subquery = _subquery_keep_last(
-            recency_column=recency_column,
+            keep_last_column=keep_last_column,
             keep_last_filters=keep_last_filters,
             group_by_columns=group_by_columns,
-            max_date_colname=max_date_col_name,
+            max_column_name=max_column_name,
         )
         query = query.outerjoin(
             subquery,
             and_(
                 *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
-                base_table_recency_col == column(max_date_col_name),
+                base_table.c[keep_last_column.name] == column(max_column_name),
             ),
         )
-        conditions.append(column(max_date_col_name).is_(None))
+        conditions.append(column(max_column_name).is_(None))
     query = query.where(and_(*conditions))
     return query
 
@@ -790,6 +797,7 @@ def _cleanup_table(
     session: Session,
     batch_size: int | None = None,
     extra_filters: list[Any] | None = None,
+    keep_last_column=None,
     skip_if_referenced: list[tuple[str, str]] | None = None,
     referenced_pk_column: str = "id",
     **kwargs,
@@ -805,6 +813,7 @@ def _cleanup_table(
         dag_ids=dag_ids,
         exclude_dag_ids=exclude_dag_ids,
         keep_last=keep_last,
+        keep_last_column=keep_last_column,
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,

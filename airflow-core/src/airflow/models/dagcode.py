@@ -161,9 +161,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def _get_code_from_db(cls, dag_id, *, session: Session = NEW_SESSION) -> str:
-        dag_code = session.scalar(
-            select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
-        )
+        dag_code = session.scalar(cls._latest_dagcode_select(dag_id))
         if not dag_code:
             raise DagCodeNotFound()
         code = dag_code.source_code
@@ -186,7 +184,15 @@ class DagCode(Base):
         :param dag_id: The DAG ID.
         :return: The select object.
         """
-        return select(cls).where(cls.dag_id == dag_id).order_by(cls.last_updated.desc()).limit(1)
+        from airflow.models.dag_version import DagVersion
+
+        return (
+            select(cls)
+            .join(DagVersion, cls.dag_version_id == DagVersion.id)
+            .where(cls.dag_id == dag_id)
+            .order_by(DagVersion.version_number.desc())
+            .limit(1)
+        )
 
     @classmethod
     @provide_session

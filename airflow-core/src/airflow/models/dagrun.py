@@ -613,7 +613,7 @@ class DagRun(Base, LoggingMixin):
                 for dv in dict.fromkeys(list(self._historical_dag_versions) + list(self._ti_dag_versions))
                 if dv is not None
             ]
-        return sorted(dag_version_objects, key=lambda dv: dv.id)
+        return sorted(dag_version_objects, key=lambda dv: dv.version_number)
 
     @property
     def version_number(self) -> int | None:

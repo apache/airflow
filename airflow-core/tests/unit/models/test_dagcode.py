@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 import airflow.example_dags as example_dags_module
@@ -183,6 +183,39 @@ class TestDagCode:
         assert new_result.source_code != result.source_code
         assert new_result.last_updated > result.last_updated
         assert session.scalar(select(func.count()).select_from(DagCode)) == 2
+
+    def test_latest_code_uses_highest_version_when_last_updated_disagrees(self, dag_maker, session):
+        """The latest source is the highest Dag version's, not the most recently updated row."""
+        with dag_maker("dag_latest_code") as dag:
+            pass
+        sync_dag_to_db(dag)
+
+        version_1 = DagVersion.get_version(dag.dag_id, 1, session=session)
+        version_2 = DagVersion(dag_id=dag.dag_id, version_number=2)
+        session.add(version_2)
+        session.flush()
+        DagCode.write_code(
+            version_2,
+            dag.fileloc,
+            dag_source_code=DagSourceCode(source_code="# version 2", language="python"),
+            session=session,
+        )
+        session.commit()
+
+        # Make the older version's code look most recently updated.
+        session.execute(
+            update(DagCode)
+            .where(DagCode.dag_version_id == version_1.id)
+            .values(last_updated=pendulum.datetime(2025, 1, 2, tz="UTC"))
+        )
+        session.execute(
+            update(DagCode)
+            .where(DagCode.dag_version_id == version_2.id)
+            .values(last_updated=pendulum.datetime(2025, 1, 1, tz="UTC"))
+        )
+        session.commit()
+
+        assert DagCode.code(dag.dag_id, session=session) == "# version 2"
 
     def test_has_dag(self, dag_maker):
         """Test has_dag method."""

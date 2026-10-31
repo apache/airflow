@@ -532,6 +532,41 @@ class TestSerializedDagModel:
         dependencies = SDM.get_dag_dependencies(session=session)
         assert dag_id not in dependencies
 
+    def test_get_dependencies_uses_latest_version_when_created_at_ordering_disagrees(
+        self, dag_maker, session
+    ):
+        """The dependency graph comes from the highest version, not the newest row by time."""
+        dag_id = "latest_deps_dag"
+        with dag_maker(dag_id=dag_id, schedule=[Asset.ref(uri="test://old")]) as dag:
+            BashOperator(task_id="any", bash_command="sleep 5")
+        sync_dag_to_db(dag, session=session)
+        dag_maker.create_dagrun()
+
+        with dag_maker(dag_id=dag_id, schedule=[Asset.ref(uri="test://new")]) as dag:
+            BashOperator(task_id="any", bash_command="sleep 5")
+        sync_dag_to_db(dag, session=session)
+
+        version_1 = DagVersion.get_version(dag_id, 1, session=session)
+        version_2 = DagVersion.get_version(dag_id, 2, session=session)
+        # Make version 1 look newest by time, so a created_at ordering picks the wrong row.
+        session.execute(
+            update(SDM)
+            .where(SDM.dag_version_id == version_1.id)
+            .values(created_at=pendulum.datetime(2025, 1, 2))
+        )
+        session.execute(
+            update(SDM)
+            .where(SDM.dag_version_id == version_2.id)
+            .values(created_at=pendulum.datetime(2025, 1, 1))
+        )
+        session.commit()
+
+        dependencies = SDM.get_dag_dependencies(session=session)[dag_id]
+
+        assert [(dep.dependency_type, dep.dependency_id) for dep in dependencies] == [
+            ("asset-uri-ref", "test://new")
+        ]
+
     def test_get_dependencies_with_asset_ref(self, dag_maker, session):
         asset_name = "name"
         asset_uri = "test://asset1"
@@ -1341,6 +1376,57 @@ class TestSerializedDagModel:
         alert = session.scalar(select(DAM).where(DAM.serialized_dag_id == orig_serdag.id))
         assert alert is not None
         assert alert.id == orig_alert.id
+
+    def test_deadline_reuse_uses_latest_version_when_created_at_ordering_disagrees(
+        self, testing_dag_bundle, session
+    ):
+        """Deadline ids are reused from the highest version even if an older row is newer by time."""
+        dag_id = "test_deadline_latest_version"
+        dag = DAG(
+            dag_id=dag_id,
+            deadline=DeadlineAlert(
+                reference=DeadlineReference.DAGRUN_QUEUED_AT,
+                interval=timedelta(minutes=5),
+                callback=AsyncCallback(empty_callback_for_deadline),
+            ),
+        )
+        EmptyOperator(task_id="task1", dag=dag)
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        scheduler_dag.create_dagrun(
+            run_id="test1",
+            run_after=DEFAULT_DATE,
+            state=DagRunState.QUEUED,
+            logical_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            triggered_by=DagRunTriggeredByType.TEST,
+            run_type=DagRunType.MANUAL,
+        )
+        session.commit()
+
+        # A changed deadline gives version 2 its own ids.
+        dag.deadline = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=10),
+            callback=AsyncCallback(empty_callback_for_deadline),
+        )
+        assert SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session)
+        session.commit()
+
+        version_1 = DagVersion.get_version(dag_id, 1, session=session)
+        version_2 = DagVersion.get_version(dag_id, 2, session=session)
+        # Make version 1 look newest by time, so a created_at ordering picks the wrong row.
+        session.execute(
+            update(SDM)
+            .where(SDM.dag_version_id == version_1.id)
+            .values(created_at=DEFAULT_DATE + timedelta(days=1))
+        )
+        session.execute(update(SDM).where(SDM.dag_version_id == version_2.id).values(created_at=DEFAULT_DATE))
+        session.commit()
+
+        # Re-serializing the unchanged Dag must reuse version 2's deadline ids and write nothing.
+        assert (
+            SDM.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing", session=session) is False
+        )
 
     def test_write_dag_with_deadline_passes_schema_validation(self, testing_dag_bundle, session):
         """The persisted serialized Dag for a deadline-bearing Dag must satisfy the JSON schema.

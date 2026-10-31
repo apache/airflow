@@ -663,9 +663,7 @@ class SerializedDagModel(Base):
             dag = dag.model_copy(update={"data": copy.deepcopy(dag.data)})
             # Try to reuse existing deadline UUIDs if the deadline definitions haven't changed.
             # This preserves the hash and avoids unnecessary SerializedDagModel recreations.
-            existing_serialized_dag = session.scalar(
-                select(cls).where(cls.dag_id == dag.dag_id).order_by(cls.created_at.desc()).limit(1)
-            )
+            existing_serialized_dag = session.scalar(cls.latest_item_select_object(dag.dag_id))
 
             if (
                 existing_serialized_dag
@@ -857,12 +855,7 @@ class SerializedDagModel(Base):
 
         :param dag_ids: If given, restrict to these dag_ids; otherwise cover all dags.
         """
-        max_version_query = select(
-            DagVersion.dag_id, func.max(DagVersion.version_number).label("max_version")
-        ).join(cls, cls.dag_version_id == DagVersion.id)
-        if dag_ids is not None:
-            max_version_query = max_version_query.where(DagVersion.dag_id.in_(dag_ids))
-        max_version_subquery = max_version_query.group_by(DagVersion.dag_id).subquery()
+        max_version_subquery = DagVersion.latest_version_subquery(dag_ids)
 
         return (
             select(cls)
@@ -870,7 +863,7 @@ class SerializedDagModel(Base):
             .join(
                 max_version_subquery,
                 (DagVersion.dag_id == max_version_subquery.c.dag_id)
-                & (DagVersion.version_number == max_version_subquery.c.max_version),
+                & (DagVersion.version_number == max_version_subquery.c.version_number),
             )
         )
 
@@ -1004,16 +997,9 @@ class SerializedDagModel(Base):
             def load_json(deps_data):
                 return json.loads(zlib.decompress(deps_data))["dag"]["dag_dependencies"] if deps_data else []
 
-        latest_sdag_subquery = (
-            select(cls.dag_id, func.max(cls.created_at).label("max_created")).group_by(cls.dag_id).subquery()
-        )
         query = session.execute(
-            select(cls.dag_id, data_col_to_select)
-            .join(
-                latest_sdag_subquery,
-                (cls.dag_id == latest_sdag_subquery.c.dag_id)
-                & (cls.created_at == latest_sdag_subquery.c.max_created),
-            )
+            cls._latest_by_version_select()
+            .with_only_columns(cls.dag_id, data_col_to_select)
             .join(cls.dag_model)
             .where(~DagModel.is_stale)
         )

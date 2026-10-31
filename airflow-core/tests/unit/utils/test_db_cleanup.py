@@ -760,6 +760,51 @@ class TestDBCleanup:
         assert latest_id in remaining  # kept by keep_last
         assert orphan_id not in remaining  # old and unreferenced -> pruned
 
+    def test_dag_version_cleanup_keeps_highest_version_number_not_newest_row(self):
+        """keep_last must preserve the highest version_number, not the newest created_at row."""
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        bundle_name = f"testing-{uuid4()}"
+        dag_id = f"test_dag_{uuid4()}"
+
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name))
+            session.flush()
+
+            # The Dag's current version is written first; a lower version is inserted later.
+            current = DagVersion(
+                dag_id=dag_id,
+                version_number=2,
+                bundle_name=bundle_name,
+                created_at=base_date,
+                last_updated=base_date,
+            )
+            inserted_later = DagVersion(
+                dag_id=dag_id,
+                version_number=1,
+                bundle_name=bundle_name,
+                created_at=base_date.add(minutes=1),
+                last_updated=base_date.add(minutes=1),
+            )
+            session.add_all([current, inserted_later])
+            session.commit()
+            current_id, inserted_later_id = current.id, inserted_later.id
+
+            _cleanup_table(
+                **config_dict["dag_version"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                session=session,
+                table_names=["dag_version"],
+                skip_archive=True,
+            )
+
+            remaining = set(session.scalars(select(DagVersion.id).where(DagVersion.dag_id == dag_id)).all())
+
+        assert current_id in remaining
+        assert inserted_later_id not in remaining
+
     @pytest.mark.parametrize(
         ("extra_unreferenced", "expected_count"),
         [
