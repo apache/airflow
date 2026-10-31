@@ -1324,6 +1324,14 @@ class DagFileProcessorManager(LoggingMixin):
             team_name=team_name,
         )
 
+        if is_callback_only and file.bundle_version is None:
+            # Unversioned callbacks share the scan's key, so preserve its parse stats.
+            current_stat = self._file_stats[file]
+            next_stat.num_dags = current_stat.num_dags
+            next_stat.import_errors = current_stat.import_errors
+            next_stat.last_finish_time = current_stat.last_finish_time
+            next_stat.last_num_of_db_queries = current_stat.last_num_of_db_queries
+
         if proc.parsing_result is not None:
             try:
                 self.persist_parsing_result(
