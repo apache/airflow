@@ -33,7 +33,7 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
-PYTHON_IMAGE = "python:3.9-slim"
+PYTHON_IMAGE = "python:3.11-slim"
 
 
 @pytest.fixture(scope="module")
