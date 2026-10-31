@@ -519,6 +519,133 @@ API without holding its signing key. The standard ``airflow dag-processor`` comm
 not yet use this client. Provisioning a token file alone does not switch that command to
 HTTP or remove its need for database access.
 
+In-memory sessions from workload identity
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Processor integrations can use ``WorkloadIdentitySessionTokenProvider`` to obtain and renew
+``dag_processor_session`` credentials through ``POST /execution/dag-processor/session-token``.
+The provider retains these credentials only in memory. It requires a renewable, signed workload
+identity from the deployment platform; Airflow does not create that identity or require the
+processor to hold an Airflow signing key.
+
+Configure the API server's ``[execution_api] dag_processor_workload_identity`` option with JSON::
+
+    {
+      "issuer": "https://identity.example/",
+      "jwks_url": "https://identity.example/openid/v1/jwks",
+      "audience": "airflow-dag-processor-bootstrap",
+      "algorithm": "RS256",
+      "instance_id_claim": ["kubernetes.io", "pod", "uid"],
+      "grants": {
+        "system:serviceaccount:airflow:processor": ["dags-folder"]
+      }
+    }
+
+Use your identity provider's exact issuer, HTTPS JWKS URL, and signing algorithm (``RS256``,
+``ES256``, or ``EdDSA``). Use a dedicated audience, distinct from ``[execution_api] jwt_audience``.
+The API server verifies the signature, issuer, audience, issued-at time, expiry, and any not-before
+claim, using ``[api_auth] jwt_leeway`` for clock skew. Only exact subjects listed in ``grants`` can
+obtain a session. If a grant names a Dag bundle that the API server does not have configured, the
+API server logs an error at startup and refuses that subject's exchanges with HTTP 403. This option
+is empty by default, disabling the exchange.
+Apply the same trust configuration to all API-server replicas and restart them after changes.
+
+The option trusts a single issuer. Dag processors whose identities come from different issuers, such
+as separate Kubernetes clusters, cannot all obtain sessions from the same API server.
+
+The JWKS endpoint must accept unauthenticated HTTPS GET requests from the Airflow API server.
+The fetcher sends no authentication credentials and uses HTTPX's default certificate trust.
+``SSL_CERT_FILE`` or ``SSL_CERT_DIR``, when set, replace the default CA bundle rather than adding
+to it, and they apply to every HTTPX client in the API-server process. A bundle that holds only a
+private CA cuts those clients off from public roots, so include the roots they still need. There is
+no per-issuer CA or authentication option.
+Authenticated JWKS endpoints, including Kubernetes API-server discovery protected by service-account
+authentication, are not supported by this implementation. For those clusters, serve the public JWKS
+through a suitable HTTPS endpoint before enabling the exchange. See Kubernetes'
+`service account issuer discovery documentation <https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#service-account-issuer-discovery>`_.
+The processor-to-Airflow TLS settings described below do not configure this outbound JWKS connection.
+
+``instance_id_claim`` is a path through signed claims to a nonempty string identifying one
+processor replica. A shared service-account subject alone is insufficient: replicas must have
+different instance identities. Run one processor per identity. The session ID stays stable across
+identity-token renewal and API-server restarts. Changes to the issuer, audience, subject, instance
+claim, instance value, or bundle grants produce a different session. Request bodies and caller
+hostnames cannot select the session or its grants.
+
+Changing grants while API-server replicas serve different configurations can repeatedly retire
+processor registrations, because those replicas issue different session IDs for the same identity.
+Stop the affected processors, finish deploying identical trust configuration to every API-server
+replica, and then restart the processors.
+
+For Kubernetes, the example uses the Pod UID in a
+`bound service-account token <https://kubernetes.io/docs/reference/access-authn-authz/service-accounts-admin/#bound-service-account-token-volume-mechanism>`_.
+Project a token with the dedicated audience and mount the projection directory read-only in the
+processor container. Configure the projection's ``expirationSeconds`` and allow Kubernetes to
+rotate it. See `serviceAccountToken projected volumes
+<https://kubernetes.io/docs/concepts/storage/projected-volumes/#serviceaccounttoken>`_.
+
+A container restart within the same Pod keeps the Pod UID and therefore the session ID.
+A replacement process cannot register while the previous Job is still alive. The client raises
+``DagProcessorJobAlreadyRunning``; the integration must retry registration with backoff until the
+previous Job completes or its heartbeat becomes stale under ``[dag_processor] health_check_threshold``.
+The client does not wait automatically. This prevents two processes sharing an identity from owning
+active Jobs at the same time.
+
+The processor integration supplies a callable that reads the current platform identity on each
+exchange. Any exception the callable raises is re-raised as ``WorkloadIdentityUnavailableError``, an
+``OSError``, so a failed optional renewal leaves the valid Job credential in use. For example:
+
+.. code-block:: python
+
+    from pathlib import Path
+
+    from airflow.dag_processing.api_client import DagProcessorAPIClient
+    from airflow.dag_processing.credentials import WorkloadIdentitySessionTokenProvider
+
+    identity_path = Path("/var/run/airflow-identity/token")
+    provider = WorkloadIdentitySessionTokenProvider(
+        base_url="https://airflow.example/execution/",
+        identity_token=identity_path.read_text,
+    )
+    processor = DagProcessorAPIClient(
+        base_url="https://airflow.example/execution/",
+        token_provider=provider,
+        hostname="processor-1",
+    )
+
+Use this client for the integration's Job lifecycle and close it during shutdown; closing it also
+closes the provider and clears its session cache. The file in this example contains the platform's
+projected identity, not an Airflow session credential. The provider never writes the exchanged
+session JWT to disk and does not fall back to a session-token file. ``token_provider`` and
+``token_file`` are mutually exclusive. HTTPS is required for the exchange, and redirects are rejected.
+The exchange uses the same API TLS configuration and request timeout as the Task SDK client,
+including private certificate authorities and client certificates. Registration retries transient
+exchange failures using the configured Execution API retry policy, waiting at least the
+``Retry-After`` interval of an HTTP 503 before the next attempt. Optional early renewal makes one
+bounded attempt so it does not delay requests using a valid Job credential.
+
+Session expiry is capped by both the external identity's remaining lifetime and
+``[execution_api] jwt_expiration_time``. Clock-skew leeway never extends this cap, and an identity
+with less than one second remaining cannot obtain a session. Renewal rereads the platform identity
+and retains the same session and Job. During an identity-provider or API outage, the client can continue using
+an already-issued Job credential until it expires; it cannot renew without a valid identity.
+Removing a grant stops future exchanges once the API servers restart with the new configuration. Credentials
+already issued remain subject to their expiry and Job ownership checks.
+
+Verification uses the issuer's JWKS and does not perform online token introspection. In particular,
+it does not check whether a Kubernetes Pod still exists. A previously issued identity may remain
+usable until expiry. The JWKS cache refreshes hourly and also refreshes when an identity names an
+unknown signing key. Fetches, including failed attempts, are limited to one per ten seconds per
+API-server process. Publish new keys before signing with them and retain old keys while their tokens
+remain valid.
+
+If a required signing key cannot be fetched, the exchange returns HTTP 503 with ``Retry-After``, and
+registration waits at least that long before retrying. A cached matching key remains usable during
+an outage. Invalid identities and keys absent from a successfully fetched key set return HTTP 401.
+
+File-based provisioning
+^^^^^^^^^^^^^^^^^^^^^^^
+
 On a trusted host with the API signing key, provision a session token for the bundles
 the client may access::
 
@@ -532,9 +659,12 @@ token replacement stays visible. Each processor process needs its own session. R
 provisioner with the same token file and bundles keeps that session, so running processors keep
 their Jobs.
 
+Credential permissions and renewal
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 The three credentials have different issuers and permissions:
 
-- ``dag_processor_session`` is issued by trusted provisioning. It can only register a
+- ``dag_processor_session`` is issued by the identity exchange or trusted file provisioning. It can only register a
   Job or renew that Job's credential through ``POST /jobs``.
 - ``dag_processor`` is returned by Job registration. It can heartbeat and complete that
   Job, read Connections and Variables for a granted bundle, and exchange a parsing
@@ -625,6 +755,9 @@ All JWT-related configuration parameters:
    * - ``[execution_api] jwt_audience``
      - ``urn:airflow.apache.org:task``
      - Audience claim for Execution API tokens.
+   * - ``[execution_api] dag_processor_workload_identity``
+     - Empty (disabled)
+     - JSON trust settings and subject-to-bundle grants for workload identity session provisioning.
 
 .. important::
 
