@@ -44,6 +44,10 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 
+class BatchPredictionJobAllRowsFailedError(AirflowException):
+    """Raised when a batch prediction job succeeds but every input row failed prediction."""
+
+
 class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
     Creates a BatchPredictionJob. A BatchPredictionJob once created will right away be attempted to start.
@@ -157,6 +161,10 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param deferrable: Optional. Run operator in the deferrable mode.
     :param poll_interval: Interval size which defines how often job status is checked in deferrable mode.
+    :param fail_on_empty_predictions: Optional. Fail the task when the job finishes with
+        ``JOB_STATE_SUCCEEDED`` but every input row failed prediction (no successful predictions and
+        at least one failed row). Vertex AI reports such jobs as succeeded, writes all rows to the
+        errors output and creates no predictions output. Defaults to True.
     """
 
     template_fields: Sequence[str] = (
@@ -203,6 +211,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: int = 10,
+        fail_on_empty_predictions: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -233,6 +242,7 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.fail_on_empty_predictions = fail_on_empty_predictions
 
     @cached_property
     def hook(self) -> BatchPredictionJobHook:
@@ -300,7 +310,28 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
         batch_prediction_job.wait_for_completion()
         self.log.info("Batch prediction job was completed. Job id: %s", batch_prediction_job_id)
+        completion_stats = batch_prediction_job.completion_stats
+        self._check_completion_stats(
+            job_name=batch_prediction_job_id,
+            successful_count=completion_stats.successful_count,
+            failed_count=completion_stats.failed_count,
+        )
         return batch_prediction_job.to_dict()
+
+    def _check_completion_stats(self, *, job_name: str, successful_count: int, failed_count: int) -> None:
+        self.log.info(
+            "Batch prediction job %s completion stats: %s successful, %s failed rows",
+            job_name,
+            successful_count,
+            failed_count,
+        )
+        if self.fail_on_empty_predictions and successful_count == 0 and failed_count > 0:
+            raise BatchPredictionJobAllRowsFailedError(
+                f"Batch prediction job {job_name} finished with state JOB_STATE_SUCCEEDED, but all "
+                f"{failed_count} rows failed prediction and no predictions output was created. "
+                "Check the errors output of the job for details, or set fail_on_empty_predictions=False "
+                "to ignore this."
+            )
 
     def on_kill(self) -> None:
         """Act as a callback called when the operator is killed; cancel any running job."""
@@ -312,6 +343,13 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             raise AirflowException(event["message"])
         job: dict[str, Any] = event["job"]
         self.log.info("Batch prediction job %s created and completed successfully.", job["name"])
+        # The trigger serializes the job with proto-plus to_dict, which renders int64 counters as strings.
+        completion_stats = job.get("completion_stats") or {}
+        self._check_completion_stats(
+            job_name=job["name"],
+            successful_count=int(completion_stats.get("successful_count", 0)),
+            failed_count=int(completion_stats.get("failed_count", 0)),
+        )
         job_id = self.hook.extract_batch_prediction_job_id(job)
         context["ti"].xcom_push(
             key="batch_prediction_job_id",

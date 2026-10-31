@@ -39,6 +39,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     ListAutoMLTrainingJobOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job import (
+    BatchPredictionJobAllRowsFailedError,
     CreateBatchPredictionJobOperator,
     DeleteBatchPredictionJobOperator,
     ListBatchPredictionJobsOperator,
@@ -2132,6 +2133,84 @@ class TestVertexAICreateBatchPredictionJobOperator:
             ]
         )
         assert execute_complete_result == mock_job
+
+    @pytest.mark.parametrize(
+        ("successful_count", "failed_count", "fail_on_empty_predictions", "should_fail"),
+        [
+            pytest.param(0, 5, True, True, id="all-rows-failed"),
+            pytest.param(0, 5, False, False, id="all-rows-failed-check-disabled"),
+            pytest.param(3, 2, True, False, id="partial-failure"),
+            pytest.param(0, 0, True, False, id="no-rows"),
+        ],
+    )
+    @mock.patch(VERTEX_AI_LINKS_PATH.format("VertexAIBatchPredictionJobLink.persist"))
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute_checks_completion_stats(
+        self,
+        mock_hook,
+        mock_link_persist,
+        successful_count,
+        failed_count,
+        fail_on_empty_predictions,
+        should_fail,
+    ):
+        mock_job = mock_hook.return_value.submit_batch_prediction_job.return_value
+        mock_job.name = TEST_BATCH_PREDICTION_JOB_ID
+        mock_job.completion_stats.successful_count = successful_count
+        mock_job.completion_stats.failed_count = failed_count
+        op = CreateBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            fail_on_empty_predictions=fail_on_empty_predictions,
+        )
+        context = {"ti": mock.MagicMock(), "task": mock.MagicMock()}
+
+        if should_fail:
+            with pytest.raises(BatchPredictionJobAllRowsFailedError, match="all 5 rows failed"):
+                op.execute(context=context)
+            mock_job.to_dict.assert_not_called()
+        else:
+            assert op.execute(context=context) == mock_job.to_dict.return_value
+
+    @pytest.mark.parametrize(
+        ("completion_stats", "fail_on_empty_predictions", "should_fail"),
+        [
+            pytest.param({"successful_count": "0", "failed_count": "5"}, True, True, id="all-rows-failed"),
+            pytest.param(
+                {"successful_count": "0", "failed_count": "5"},
+                False,
+                False,
+                id="all-rows-failed-check-disabled",
+            ),
+            pytest.param({"successful_count": "3", "failed_count": "2"}, True, False, id="partial-failure"),
+            pytest.param(None, True, False, id="no-completion-stats"),
+        ],
+    )
+    @mock.patch(VERTEX_AI_PATH.format("batch_prediction_job.BatchPredictionJobHook"))
+    def test_execute_complete_checks_completion_stats(
+        self, mock_hook, completion_stats, fail_on_empty_predictions, should_fail
+    ):
+        job = {"name": TEST_JOB_DISPLAY_NAME, "completion_stats": completion_stats}
+        event = {"status": "success", "job": job}
+        op = CreateBatchPredictionJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job_display_name=TEST_JOB_DISPLAY_NAME,
+            model_name=TEST_MODEL_NAME,
+            fail_on_empty_predictions=fail_on_empty_predictions,
+        )
+        mock_ti = mock.MagicMock()
+
+        if should_fail:
+            with pytest.raises(BatchPredictionJobAllRowsFailedError, match="all 5 rows failed"):
+                op.execute_complete(context={"ti": mock_ti}, event=event)
+            mock_ti.xcom_push.assert_not_called()
+        else:
+            assert op.execute_complete(context={"ti": mock_ti}, event=event) == job
 
 
 class TestVertexAIDeleteBatchPredictionJobOperator:
