@@ -441,7 +441,7 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
-    if not request.is_failure_callback:
+    if (not request.is_failure_callback and request.task_callback_type != TaskInstanceState.SUCCESS):
         log.warning(
             "Task callback requested but is not a failure callback",
             dag_id=request.ti.dag_id,
@@ -456,7 +456,9 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
     if TYPE_CHECKING:
         assert task is not None
 
-    if request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
+    if request.task_callback_type is TaskInstanceState.SUCCESS:
+        callbacks = task.on_success_callback
+    elif request.task_callback_type is TaskInstanceState.UP_FOR_RETRY:
         callbacks = task.on_retry_callback
     else:
         callbacks = task.on_failure_callback
