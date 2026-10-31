@@ -39,6 +39,7 @@ from snowflake.connector.cursor import SnowflakeCursor
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, timezone
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook, _is_connector_5_or_later
 
 if TYPE_CHECKING:
@@ -1172,6 +1173,31 @@ class TestPytestSnowflakeHook:
         cur.execute.assert_has_calls([mock.call(query, mock_params) for query in expected_sql])
         assert hook.query_ids == expected_query_ids
         cur.close.assert_called()
+
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake.SnowflakeHook._has_autocommit_session_parameter",
+        return_value=False,
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.get_conn")
+    def test_run_resets_descriptions_between_calls(self, mock_conn, mock_has_autocommit):
+        hook = SnowflakeHook()
+        conn = mock_conn.return_value
+        cur = mock.MagicMock(rowcount=0)
+        conn.cursor.return_value = cur
+        cur.fetchall.return_value = [(1,)]
+
+        first_description = [("first_column", None, None, None, None, None, None)]
+        second_description = [("second_column", None, None, None, None, None, None)]
+
+        cur.description = first_description
+        hook.run(["SELECT 1 AS first_column"], handler=fetch_all_handler)
+
+        assert hook.descriptions == [first_description]
+
+        cur.description = second_description
+        hook.run(["SELECT 1 AS second_column"], handler=fetch_all_handler)
+
+        assert hook.descriptions == [second_description]
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.get_first")
     def test_connection_success(self, mock_get_first):
