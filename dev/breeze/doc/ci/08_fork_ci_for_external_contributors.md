@@ -521,7 +521,7 @@ pull requests without a fork run for their head commit, not by the total.
 |---|---|---|---|---|
 | **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | draft | remove | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | draft | remove | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
-| **running**: run in progress | draft | remove | `pending` (yellow), link to the run | update state and run link |
+| **running**: run in progress | unchanged (a rebase of an approved pull request does not draft it; a failed run does) | remove | `pending` (yellow), link to the run | update state and run link |
 | **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
@@ -541,9 +541,10 @@ Rules that sit under the table:
   loses the review label and is closed on the same run.
 
 - **A new push resets the row.** The head SHA is recorded in the state comment. A push to a
-  green pull request is observed as `running` or `awaiting_push` on the next run, which drafts
-  it again and removes the review label, so maintainers never see an unverified push in the
-  queue.
+  green pull request is observed as `running` or `awaiting_push` on the next run, which removes
+  the review label, so maintainers never see an unverified push in the queue. `awaiting_push`
+  also drafts it; `running` leaves the draft state alone, so rebasing an approved pull request
+  drafts it only if the new run fails.
 - **Author drafts are respected.** "draft" in the table means the reconciler converts to draft
   if the pull request is not already one. On `green` it undrafts only when GitHub's timeline
   shows the last convert-to-draft actor was `github-actions[bot]`. A pull request the author

@@ -225,12 +225,24 @@ def test_setup_required_comment_gives_the_command():
     assert "gh workflow enable ci-amd.yml -R someone/airflow" in plan.marker_comment
 
 
-def test_non_green_drafts_and_removes_review_label():
+@pytest.mark.parametrize(
+    ("fork", "draft"),
+    [
+        pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),
+        pytest.param(
+            ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
+            True,
+            id="failed",
+        ),
+        pytest.param(ForkObservation(workflow_state="disabled_fork"), True, id="setup-required"),
+    ],
+)
+def test_non_green_removes_review_label_and_drafts_only_when_the_author_must_act(fork, draft):
     pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
 
-    plan, _, _ = _classify(pr, ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL))
+    plan, _, _ = _classify(pr, fork)
 
-    assert plan.draft is True
+    assert plan.draft is draft
     assert plan.remove_labels == ["ready for maintainer review"]
 
 

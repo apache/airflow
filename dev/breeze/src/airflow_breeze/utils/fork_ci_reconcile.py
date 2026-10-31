@@ -737,7 +737,9 @@ def classify(
         if ready and LABEL_READY_FOR_REVIEW not in labels:
             plan.add_labels.append(LABEL_READY_FOR_REVIEW)
     else:
-        if not pr.is_draft:
+        # A run in progress needs nothing from the author, and drafting on it would draft every
+        # approved pull request the moment it is rebased; it is drafted only if the run then fails.
+        if not pr.is_draft and state != ForkState.RUNNING:
             plan.draft = True
         if LABEL_READY_FOR_REVIEW in labels:
             plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
