@@ -49,6 +49,7 @@ from airflowctl.api.client import (
 )
 from airflowctl.api.operations import ServerResponseError
 from airflowctl.exceptions import (
+    AirflowCtlCredentialInvalidException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
     AirflowCtlKeyringException,
@@ -506,6 +507,52 @@ class TestCredentials:
 
         credentials = Credentials(client_kind=cli_client, api_token="TEST_TOKEN").load()
         assert credentials.api_token == "TEST_TOKEN"
+
+    @pytest.mark.parametrize(
+        ("contents", "mode", "expected"),
+        [
+            pytest.param(b"\xff\xfe", None, "could not be read.*Log in again", id="not-utf8"),
+            pytest.param(
+                b'{"api_url": "http://x"}', 0o000, "could not be read.*Check its permissions", id="unreadable"
+            ),
+            pytest.param(json.dumps(["a"]).encode(), None, "is not a JSON object", id="not-an-object"),
+            pytest.param(
+                json.dumps({"other": 1}).encode(), None, "does not contain an api_url", id="no-api-url"
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("client_kind", [ClientKind.CLI, ClientKind.NO_AUTH])
+    def test_load_unusable_credentials_file_reports_an_error(
+        self, monkeypatch, tmp_path, contents, mode, expected, client_kind
+    ):
+        """A file airflowctl cannot use must reach the user as a message, not a traceback."""
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_BAD_CONFIG")
+        config = tmp_path / "TEST_BAD_CONFIG.json"
+        config.write_bytes(contents)
+        if mode is not None:
+            config.chmod(mode)
+
+        with pytest.raises(AirflowCtlCredentialInvalidException, match=expected):
+            Credentials(client_kind=client_kind).load()
+
+    def test_load_unusable_debug_credentials_file_reports_an_error(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_BAD_CONFIG")
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        (tmp_path / "TEST_BAD_CONFIG.json").write_text(json.dumps({"api_url": "http://x"}), encoding="utf-8")
+        (tmp_path / "debug_creds_TEST_BAD_CONFIG.json").write_text(json.dumps(["a"]), encoding="utf-8")
+
+        with pytest.raises(AirflowCtlCredentialInvalidException, match="is not a JSON object"):
+            Credentials(client_kind=ClientKind.CLI).load()
+
+    def test_load_tolerates_an_unusable_file_for_auth_login(self, monkeypatch, tmp_path):
+        """`auth login` is the recovery the error recommends, so it must survive an unusable file."""
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_ENVIRONMENT", "TEST_BAD_CONFIG")
+        (tmp_path / "TEST_BAD_CONFIG.json").write_text(json.dumps({"other": 1}), encoding="utf-8")
+
+        assert Credentials(client_kind=ClientKind.AUTH).load().api_url is None
 
 
 class TestBoundedGetNewPassword:
