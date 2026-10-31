@@ -38,6 +38,7 @@ from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
+    BUILD_CACHE_VOLUME,
     SCRIPTS_DOCKER_PATH,
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
@@ -1076,9 +1077,26 @@ def _get_compose_resources(
     ], result.returncode != 0
 
 
+def _is_volume_removable(
+    labels: dict[str, str], *, preserve_volumes: bool, cleanup_build_cache: bool
+) -> bool:
+    if labels.get("com.docker.compose.volume") != BUILD_CACHE_VOLUME:
+        return not preserve_volumes
+    # The build cache holds no state, so it outlives the project until it is asked for explicitly.
+    # A deleted worktree will never use its cache again.
+    return cleanup_build_cache or (
+        not preserve_volumes
+        and _belongs_to_deleted_worktree(
+            labels.get("org.apache.airflow.breeze.worktree", ""),
+            labels.get("org.apache.airflow.breeze.host", ""),
+        )
+    )
+
+
 def bring_compose_projects_down(
     *,
     preserve_volumes: bool = False,
+    cleanup_build_cache: bool = False,
     all_worktrees: bool = False,
     only_project: str | None = None,
     current_worktree: str = "",
@@ -1088,8 +1106,6 @@ def bring_compose_projects_down(
     projects: set[str] = set()
     failed = False
     for kind in targets:
-        if kind == "volume" and preserve_volumes:
-            continue
         resources, discovery_failed = _get_compose_resources(kind, stale_only=stale_only)
         failed |= discovery_failed
         for identifier, labels in resources:
@@ -1117,6 +1133,10 @@ def bring_compose_projects_down(
                 )
                 if not stale_only and legacy:
                     selected = True
+            if selected and kind == "volume":
+                selected = _is_volume_removable(
+                    labels, preserve_volumes=preserve_volumes, cleanup_build_cache=cleanup_build_cache
+                )
             if selected:
                 targets[kind].append(identifier)
                 projects.add(project)
