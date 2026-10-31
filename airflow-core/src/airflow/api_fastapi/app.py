@@ -87,6 +87,9 @@ def request_cookie_is_secure(request: Request) -> bool:
 # Fast API apps mounted under these prefixes are not allowed
 RESERVED_URL_PREFIXES = ["/api/v2", "/ui", "/execution", "/auth", "/pluginsv2"]
 
+# Keep in sync with the ARG_API_SERVER_APPS help text in cli/cli_config.py
+API_APPS = ("core", "execution", "all")
+
 log = logging.getLogger(__name__)
 
 
@@ -132,9 +135,21 @@ async def lifespan(app: FastAPI):
         yield
 
 
+def validate_apps(apps: str) -> list[str]:
+    """Return the app names in an ``--apps`` value; raise ``ValueError`` if any name is unknown."""
+    apps_list = apps.split(",") if apps else ["all"]
+    unknown_apps = [name for name in apps_list if name not in API_APPS]
+    if unknown_apps:
+        raise ValueError(
+            f"Unknown API apps {unknown_apps} in --apps / AIRFLOW_API_APPS; "
+            f"valid values are: {', '.join(API_APPS)}"
+        )
+    return apps_list
+
+
 @providers_configuration_loaded
 def create_app(apps: str = "all") -> FastAPI:
-    apps_list = apps.split(",") if apps else ["all"]
+    apps_list = validate_apps(apps)
 
     app = FastAPI(
         title="Airflow API",
