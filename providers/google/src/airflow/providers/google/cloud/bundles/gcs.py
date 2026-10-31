@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tarfile
+import tempfile
 from pathlib import Path
 
 import structlog
@@ -28,6 +31,19 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
+def _require_tar_data_filter() -> None:
+    if hasattr(tarfile, "data_filter"):
+        return
+    raise RuntimeError("Archive Dag bundles require Python 3.11.4 or later (tarfile filter='data').")
+
+
+def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
+    """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    _require_tar_data_filter()
+    with tarfile.open(archive_path, "r:*") as tar:
+        tar.extractall(unpack_dir, filter="data")
+
+
 class GCSDagBundle(BaseDagBundle):
     """
     GCS Dag bundle - exposes a directory in GCS as a Dag bundle.
@@ -37,7 +53,16 @@ class GCSDagBundle(BaseDagBundle):
     :param gcp_conn_id: Airflow connection ID for GCS.  Defaults to GoogleBaseHook.default_conn_name.
     :param bucket_name: The name of the GCS bucket containing the Dag files.
     :param prefix:  Optional subdirectory within the GCS bucket where the Dags are stored.
-                    If None, Dags are assumed to be at the root of the bucket (Optional).
+                    If None, Dags are assumed to be at the root of the bucket. Mutually exclusive
+                    with ``archive_object`` (Optional).
+    :param archive_object: Optional GCS object name of a ``.tar.gz`` archive holding the Dag files.
+                    When set, the bundle is staged by downloading this single object and unpacking it
+                    locally, instead of downloading every object under a prefix one at a time.
+                    The archive is then the only source of the Dags: ``archive_object`` is mutually
+                    exclusive with ``prefix``, so there is no second copy to keep in sync and no
+                    fallback to a per-object sync. Members are extracted relative to the bundle
+                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``.
+                    Requires Python 3.11.4 or later (Optional).
     """
 
     supports_versioning = False
@@ -48,12 +73,21 @@ class GCSDagBundle(BaseDagBundle):
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
         bucket_name: str,
         prefix: str = "",
+        archive_object: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if prefix and archive_object:
+            raise ValueError(
+                "GCSDagBundle accepts either 'prefix' or 'archive_object', not both. When "
+                "'archive_object' is set the archive is the only staging source."
+            )
+        if archive_object:
+            _require_tar_data_filter()
         self.gcp_conn_id = gcp_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
+        self.archive_object = archive_object
         # Local path where GCS Dags are downloaded
         self.gcs_dags_dir: Path = self.base_dir
 
@@ -63,6 +97,7 @@ class GCSDagBundle(BaseDagBundle):
             version=self.version,
             bucket_name=self.bucket_name,
             prefix=self.prefix,
+            archive_object=self.archive_object,
             gcp_conn_id=self.gcp_conn_id,
         )
         self._gcs_hook: GCSHook | None = None
@@ -106,6 +141,7 @@ class GCSDagBundle(BaseDagBundle):
             f"name={self.name!r}, "
             f"bucket_name={self.bucket_name!r}, "
             f"prefix={self.prefix!r}, "
+            f"archive_object={self.archive_object!r}, "
             f"version={self.version!r}"
             f")>"
         )
@@ -125,6 +161,9 @@ class GCSDagBundle(BaseDagBundle):
             raise ValueError("Refreshing a specific version is not supported")
 
         with self.lock():
+            if self.archive_object:
+                self._refresh_from_archive(self.archive_object)
+                return
             self._log.debug(
                 "Downloading Dags from gs://%s/%s to %s", self.bucket_name, self.prefix, self.gcs_dags_dir
             )
@@ -134,6 +173,78 @@ class GCSDagBundle(BaseDagBundle):
                 local_dir=self.gcs_dags_dir,
                 delete_stale=True,
             )
+
+    def _archive_state_dir(self) -> Path:
+        return self.gcs_dags_dir.parent / f".{self.name}"
+
+    def _archive_etag_path(self) -> Path:
+        return self._archive_state_dir() / "etag"
+
+    def _remove_stale_archive_staging_dirs(self) -> None:
+        state_dir = self._archive_state_dir()
+        if not state_dir.is_dir():
+            return
+        for leftover in state_dir.iterdir():
+            if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
+                shutil.rmtree(leftover, ignore_errors=True)
+
+    def _refresh_from_archive(self, archive_object: str) -> None:
+        """Stage the Dag bundle by downloading and unpacking the single archive object."""
+        self._remove_stale_archive_staging_dirs()
+        blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(archive_object)
+        try:
+            blob.reload()
+        except NotFound:
+            raise ValueError(f"GCS archive 'gs://{self.bucket_name}/{archive_object}' does not exist.")
+        etag = blob.etag or ""
+
+        marker = self._archive_etag_path()
+        if etag and marker.is_file() and marker.read_text() == etag:
+            self._log.debug(
+                "Dag bundle archive 'gs://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.bucket_name,
+                archive_object,
+                etag,
+            )
+            return
+
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            download_kwargs = {}
+            if blob.generation is not None:
+                download_kwargs["if_generation_match"] = blob.generation
+            blob.download_to_filename(os.fspath(archive_path), **download_kwargs)
+
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            _extract_archive(archive_path, unpack_dir)
+            archive_path.unlink()
+
+            backup_dir = staging_dir / "previous"
+            if self.gcs_dags_dir.exists():
+                self.gcs_dags_dir.rename(backup_dir)
+            try:
+                unpack_dir.rename(self.gcs_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.gcs_dags_dir)
+                raise
+
+            if etag:
+                self._archive_etag_path().write_text(etag)
+
+            self._log.debug(
+                "Staged Dag bundle from archive 'gs://%s/%s' (%s bytes) to %s",
+                self.bucket_name,
+                archive_object,
+                blob.size,
+                self.gcs_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
     def view_url(self, version: str | None = None) -> str | None:
         """
@@ -153,8 +264,15 @@ class GCSDagBundle(BaseDagBundle):
             # backward compatibility for Airflow versions that doesn't have the
             # _view_url_template attribute. Should be removed when we drop support for Airflow 3.0
             return self._view_url_template
+        domain = GoogleBaseHook.get_high_value_cookie_domain()
+        if self.archive_object:
+            # https://console.cloud.google.com/storage/browser/_details/<bucket>/<object>
+            return (
+                f"https://console.cloud.{domain}/storage/browser/_details/"
+                f"{self.bucket_name}/{self.archive_object}"
+            )
         # https://console.cloud.google.com/storage/browser/<bucket-name>/<prefix>
-        url = f"https://console.cloud.{GoogleBaseHook.get_high_value_cookie_domain()}/storage/browser/{self.bucket_name}"
+        url = f"https://console.cloud.{domain}/storage/browser/{self.bucket_name}"
         if self.prefix:
             url += f"/{self.prefix}"
 
