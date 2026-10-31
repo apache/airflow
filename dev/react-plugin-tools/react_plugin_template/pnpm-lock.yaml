@@ -124,8 +124,8 @@ importers:
         specifier: ^17.13.0
         version: 17.13.0
       happy-dom:
-        specifier: ^20.14.6
-        version: 20.14.6
+        specifier: ^21.0.4
+        version: 21.0.4
       prettier:
         specifier: ^3.9.10
         version: 3.9.10
@@ -146,7 +146,7 @@ importers:
         version: 4.5.4(@types/node@25.9.9)(rollup@4.59.0)(typescript@5.9.3)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
       vitest:
         specifier: ^4.1.12
-        version: 4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@20.14.6)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
+        version: 4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@21.0.4)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
 
 packages:
 
@@ -1877,8 +1877,8 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
-  happy-dom@20.14.6:
-    resolution: {integrity: sha512-5DDsf4QmEIlRL6NkCv/fxSjYHHkZceL/IaYQdJc2h3G7DRTEai++VTjbfL0LB9geW2VrA3+vrjF3Efx+OTtX0Q==}
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -3894,7 +3894,7 @@ snapshots:
       std-env: 3.10.0
       test-exclude: 7.0.2
       tinyrainbow: 2.0.0
-      vitest: 4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@20.14.6)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
+      vitest: 4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@21.0.4)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
     transitivePeerDependencies:
       - supports-color
 
@@ -5272,7 +5272,7 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
-  happy-dom@20.14.6:
+  happy-dom@21.0.4:
     dependencies:
       '@types/node': 25.9.9
       '@types/whatwg-mimetype': 3.0.2
@@ -6360,7 +6360,7 @@ snapshots:
       fsevents: 2.3.3
       yaml: 2.8.3
 
-  vitest@4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@20.14.6)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3)):
+  vitest@4.1.12(@types/node@25.9.9)(@vitest/coverage-v8@3.2.7)(happy-dom@21.0.4)(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.12
       '@vitest/mocker': 4.1.12(vite@8.3.4(@types/node@25.9.9)(yaml@2.8.3))
@@ -6385,7 +6385,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 25.9.9
       '@vitest/coverage-v8': 3.2.7(vitest@4.1.12)
-      happy-dom: 20.14.6
+      happy-dom: 21.0.4
     transitivePeerDependencies:
       - msw
 
