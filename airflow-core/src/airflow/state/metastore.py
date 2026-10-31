@@ -321,13 +321,19 @@ class MetastoreBackend(BaseStoreBackend):
         session.execute(delete(TaskStateStoreModel).where(*conditions))
 
     def _get_asset_state_store(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
-        row = session.scalar(
+        row = self.get_asset_state_store_row(scope, key, session=session)
+        return row.value if row is not None else None
+
+    def get_asset_state_store_row(
+        self, scope: AssetScope, key: str, *, session: Session
+    ) -> AssetStateStoreModel | None:
+        """Return the asset state store row for ``key``, including when it was last written."""
+        return session.scalar(
             select(AssetStateStoreModel).where(
                 AssetStateStoreModel.asset_id == scope.asset_id,
                 AssetStateStoreModel.key == key,
             )
         )
-        return row.value if row is not None else None
 
     def _store_asset_state(
         self,

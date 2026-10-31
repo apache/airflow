@@ -17,7 +17,9 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
 from fastapi import Request
@@ -30,6 +32,7 @@ from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.sdk import task_group
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.state import BaseStoreBackend
 from airflow.utils.session import create_session
 
 from tests_common.test_utils.mock_operators import MockOperator
@@ -86,13 +89,28 @@ def inactive_asset(session: Session) -> AssetModel:
 
 
 class TestGetAssetStateByName:
-    def test_get_returns_value(self, client: TestClient, asset: AssetModel):
+    def test_get_returns_value(self, client: TestClient, asset: AssetModel, time_machine):
+        time_machine.move_to(datetime(2026, 4, 29, 12, 0, tzinfo=UTC), tick=False)
         _create_asset_store_row(asset.id, "watermark", "2026-04-29")
 
         response = client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"})
 
         assert response.status_code == 200
-        assert response.json() == {"value": "2026-04-29"}
+        assert response.json() == {"value": "2026-04-29", "updated_at": "2026-04-29T12:00:00Z"}
+
+    @mock.patch(
+        "airflow.api_fastapi.execution_api.routes.asset_state_store.get_state_backend",
+        return_value=mock.create_autospec(BaseStoreBackend, instance=True),
+    )
+    def test_get_from_backend_without_write_times(
+        self, mock_get_backend, client: TestClient, asset: AssetModel
+    ):
+        mock_get_backend.return_value.get.return_value = json.dumps("2026-04-29")
+
+        response = client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"})
+
+        assert response.status_code == 200
+        assert response.json() == {"value": "2026-04-29", "updated_at": None}
 
     def test_get_missing_key_returns_404(self, client: TestClient, asset: AssetModel):
         response = client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "never_set"})
@@ -111,7 +129,7 @@ class TestGetAssetStateByName:
         response = client.get(_BY_NAME_VALUE, params={"name": slashed.name, "key": "wm"})
 
         assert response.status_code == 200
-        assert response.json() == {"value": "x"}
+        assert response.json()["value"] == "x"
 
     def test_get_unknown_asset_returns_404(self, client: TestClient):
         response = client.get(_BY_NAME_VALUE, params={"name": "nonexistent", "key": "wm"})
@@ -175,9 +193,9 @@ class TestPutAssetStateByName:
             _BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}, json={"value": 5}
         )
         assert response.status_code == 204
-        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}).json() == {
-            "value": 5
-        }
+        assert (
+            client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "total_runs"}).json()["value"] == 5
+        )
 
     @pytest.mark.parametrize("mapped", [False, True])
     def test_loop_writer_uses_public_map_index(self, client, asset, session, dag_maker, mapped):
@@ -233,8 +251,9 @@ class TestPutAssetStateByName:
             json={"value": {"rows": 1234, "status": "ok"}},
         )
         assert response.status_code == 204
-        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "last_run"}).json() == {
-            "value": {"rows": 1234, "status": "ok"}
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "last_run"}).json()["value"] == {
+            "rows": 1234,
+            "status": "ok",
         }
 
     def test_put_list_value_roundtrip(self, client: TestClient, asset: AssetModel):
@@ -242,22 +261,27 @@ class TestPutAssetStateByName:
             _BY_NAME_VALUE, params={"name": asset.name, "key": "ids"}, json={"value": [1, 2, 3]}
         )
         assert response.status_code == 204
-        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "ids"}).json() == {
-            "value": [1, 2, 3]
-        }
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "ids"}).json()["value"] == [
+            1,
+            2,
+            3,
+        ]
 
-    def test_put_overwrites_existing(self, client: TestClient, asset: AssetModel):
+    def test_put_overwrites_existing(self, client: TestClient, asset: AssetModel, time_machine):
+        time_machine.move_to(datetime(2026, 4, 28, tzinfo=UTC), tick=False)
         client.put(
             _BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-28"}
         )
 
+        time_machine.move_to(datetime(2026, 4, 29, tzinfo=UTC), tick=False)
         response = client.put(
             _BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}, json={"value": "2026-04-29"}
         )
 
         assert response.status_code == 204
         assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}).json() == {
-            "value": "2026-04-29"
+            "value": "2026-04-29",
+            "updated_at": "2026-04-29T00:00:00Z",
         }
 
     def test_put_empty_body_returns_422(self, client: TestClient, asset: AssetModel):
@@ -320,13 +344,14 @@ class TestClearAssetStateByName:
 
 
 class TestGetAssetStateByUri:
-    def test_get_returns_value(self, client: TestClient, asset: AssetModel):
+    def test_get_returns_value(self, client: TestClient, asset: AssetModel, time_machine):
+        time_machine.move_to(datetime(2026, 4, 29, 12, 0, tzinfo=UTC), tick=False)
         _create_asset_store_row(asset.id, "watermark", "2026-04-29")
 
         response = client.get(_BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"})
 
         assert response.status_code == 200
-        assert response.json() == {"value": "2026-04-29"}
+        assert response.json() == {"value": "2026-04-29", "updated_at": "2026-04-29T12:00:00Z"}
 
     def test_get_missing_key_returns_404(self, client: TestClient, asset: AssetModel):
         response = client.get(_BY_URI_VALUE, params={"uri": asset.uri, "key": "never_set"})

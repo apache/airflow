@@ -17,7 +17,9 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
+
+from airflow.api_fastapi.execution_api.datamodels.asset_state_store import AssetStateStoreResponse
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
@@ -31,3 +33,16 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
     )
+
+
+class AddAssetStateStoreUpdatedAtField(VersionChange):
+    """Return when an asset state store value was last written."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(AssetStateStoreResponse).field("updated_at").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(AssetStateStoreResponse)  # type: ignore[arg-type]
+    def remove_updated_at(response: ResponseInfo) -> None:
+        response.body.pop("updated_at", None)

@@ -100,6 +100,7 @@ from airflow.sdk.execution_time.context import (
     OutletEventAccessor,
     OutletEventAccessors,
     TaskStateStoreAccessor,
+    TriggerAssetStateStoreAccessors,
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _AssetRefResolutionMixin,
@@ -2750,6 +2751,112 @@ class TestAssetStateStoreAccessors:
 
         with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
             await AssetStateStoreAccessors([a1, a2]).aget("watermark")
+
+
+class TestTriggerAssetStateStoreAccessors:
+    A1 = Asset(name="asset_one", uri="s3://bucket/one")
+    A2 = Asset(name="asset_two", uri="s3://bucket/two")
+    NOT_FOUND = ErrorResponse(error=ErrorType.ASSET_STORE_NOT_FOUND)
+    OLDER = datetime(2026, 1, 1, tzinfo=UTC)
+    NEWER = datetime(2026, 1, 2, tzinfo=UTC)
+
+    def test_single_asset(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="etag-1")
+        store = TriggerAssetStateStoreAccessors([self.A1])
+
+        assert store.get("etag") == "etag-1"
+        store.set("etag", "etag-2")
+        store.delete("etag")
+
+        assert mock_supervisor_comms.send.call_args_list == [
+            mock.call(GetAssetStateStoreByName(name="asset_one", key="etag")),
+            mock.call(SetAssetStateStoreByName(name="asset_one", key="etag", value="etag-2")),
+            mock.call(DeleteAssetStateStoreByName(name="asset_one", key="etag")),
+        ]
+
+    @pytest.mark.parametrize(
+        ("stored", "expected"),
+        [
+            pytest.param(
+                {"asset_one": ("etag-stale", OLDER), "asset_two": ("etag-new", NEWER)},
+                "etag-new",
+                id="stale-first-loses",
+            ),
+            pytest.param(
+                {"asset_one": ("etag-one", NEWER), "asset_two": ("etag-two", NEWER)},
+                "etag-one",
+                id="tie-uses-name-order",
+            ),
+            pytest.param(
+                {"asset_one": ("etag-one", None), "asset_two": ("etag-two", None)},
+                "etag-one",
+                id="no-write-times-use-name-order",
+            ),
+            pytest.param({"asset_two": ("etag-two", NEWER)}, "etag-two", id="first-empty"),
+            pytest.param({}, "seed", id="none-hold-key"),
+        ],
+    )
+    def test_get_multiple_assets(self, mock_supervisor_comms, stored, expected):
+        mock_supervisor_comms.send.side_effect = lambda msg: (
+            AssetStateStoreResult(value=stored[msg.name][0], updated_at=stored[msg.name][1])
+            if msg.name in stored
+            else self.NOT_FOUND
+        )
+
+        # Assets passed out of order: ties still resolve to the first by name.
+        assert TriggerAssetStateStoreAccessors([self.A2, self.A1]).get("etag", "seed") == expected
+        assert mock_supervisor_comms.send.call_args_list == [
+            mock.call(GetAssetStateStoreByName(name=name, key="etag")) for name in ["asset_one", "asset_two"]
+        ]
+
+    def test_get_multiple_assets_raises_on_error(self, mock_supervisor_comms):
+        error = ErrorResponse(error=ErrorType.API_SERVER_ERROR)
+        mock_supervisor_comms.send.side_effect = [AssetStateStoreResult(value="etag-one"), error]
+
+        with pytest.raises(AirflowRuntimeError):
+            TriggerAssetStateStoreAccessors([self.A1, self.A2]).get("etag")
+
+    def test_set_delete_multiple_assets(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = OKResponse(ok=True)
+        store = TriggerAssetStateStoreAccessors([self.A1, AssetUriRef(uri="s3://other"), self.A2])
+
+        store.set("etag", "etag-2")
+        store.delete("etag")
+        with pytest.raises(ValueError, match="3 concrete inlets and outlets"):
+            store.clear()
+
+        assert mock_supervisor_comms.send.call_args_list == [
+            mock.call(SetAssetStateStoreByName(name="asset_one", key="etag", value="etag-2")),
+            mock.call(SetAssetStateStoreByName(name="asset_two", key="etag", value="etag-2")),
+            mock.call(SetAssetStateStoreByUri(uri="s3://other", key="etag", value="etag-2")),
+            mock.call(DeleteAssetStateStoreByName(name="asset_one", key="etag")),
+            mock.call(DeleteAssetStateStoreByName(name="asset_two", key="etag")),
+            mock.call(DeleteAssetStateStoreByUri(uri="s3://other", key="etag")),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_async_multiple_assets(self, mock_supervisor_comms):
+        store = TriggerAssetStateStoreAccessors([self.A1, self.A2])
+        mock_supervisor_comms.asend.side_effect = [
+            AssetStateStoreResult(value="etag-stale", updated_at=self.OLDER),
+            AssetStateStoreResult(value="etag-two", updated_at=self.NEWER),
+            *[OKResponse(ok=True)] * 4,
+        ]
+
+        assert await store.aget("etag") == "etag-two"
+        await store.aset("etag", "etag-2")
+        await store.adelete("etag")
+        with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
+            await store.aclear()
+
+        assert mock_supervisor_comms.asend.call_args_list == [
+            mock.call(GetAssetStateStoreByName(name="asset_one", key="etag")),
+            mock.call(GetAssetStateStoreByName(name="asset_two", key="etag")),
+            mock.call(SetAssetStateStoreByName(name="asset_one", key="etag", value="etag-2")),
+            mock.call(SetAssetStateStoreByName(name="asset_two", key="etag", value="etag-2")),
+            mock.call(DeleteAssetStateStoreByName(name="asset_one", key="etag")),
+            mock.call(DeleteAssetStateStoreByName(name="asset_two", key="etag")),
+        ]
 
 
 class InMemoryStoreBackend(BaseStoreBackend):
