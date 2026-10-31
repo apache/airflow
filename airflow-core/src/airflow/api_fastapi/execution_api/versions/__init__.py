@@ -56,7 +56,6 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddArgBindingsToTIRunContext,
     AddCallbackRunEndpoint,
     AddDagRunNoteUpdateEndpoint,
-    AddExecutionTimeoutToTIRunContext,
     AddExpandedTICountToTIRunContext,
     AddFirstTaskRescheduleStartDateField,
     AddLoopContext,
@@ -70,17 +69,19 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
     AddPreviousIterationToXComFilterParams,
 )
-from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddDagProcessorJobEndpoints
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
+    AddDagProcessorJobEndpoints,
+    AddExecutionTimeoutToTIRunContext,
+)
 
 bundle = VersionBundle(
     HeadVersion(),
-    Version("2027-02-28", AddDagProcessorJobEndpoints),
+    Version("2027-02-28", AddDagProcessorJobEndpoints, AddExecutionTimeoutToTIRunContext),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
         AddCallbackRunEndpoint,
         AddDagRunNoteUpdateEndpoint,
-        AddExecutionTimeoutToTIRunContext,
         AddExpandedTICountToTIRunContext,
         AddLoopContext,
         AddLoopDecisionField,

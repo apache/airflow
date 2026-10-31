@@ -1324,10 +1324,13 @@ class TestPopenActivitySubprocessProcessGroup:
 
 class TestPopenActivitySubprocessExecutionTimeout:
     @pytest.mark.parametrize(
-        ("execution_timeout", "killed"),
+        ("execution_timeout", "elapsed", "killed"),
         [
-            pytest.param(30.0, True, id="with-timeout"),
-            pytest.param(None, False, id="without-timeout"),
+            pytest.param(30.0, 35, True, id="with-timeout"),
+            pytest.param(None, 35, False, id="without-timeout"),
+            pytest.param(0.0, 35, False, id="zero-means-no-timeout"),
+            pytest.param(-30.0, 3, False, id="negative-keeps-grace-period"),
+            pytest.param(-30.0, 6, True, id="negative-has-elapsed"),
         ],
     )
     @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
@@ -1335,7 +1338,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
     @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
     @patch("time.monotonic", autospec=True, return_value=1.0)
     def test_arms_execution_timeout_from_run_context(
-        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, killed
+        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, elapsed, killed
     ):
         client = MagicMock()
         client.task_instances.start.return_value = TIRunContext.model_construct(
@@ -1359,7 +1362,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
             sentry_integration="",
         )
 
-        mock_monotonic.return_value += 35
+        mock_monotonic.return_value += elapsed
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
 
