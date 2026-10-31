@@ -54,11 +54,17 @@ class TestChainMapper:
                 "2024-03-15",
                 datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
             ),
-            # Last mapper non-temporal → no anchor.
+            # A trailing identity preserves the prior mapper's temporal key and anchor.
+            (
+                ChainMapper(StartOfDayMapper(), IdentityMapper()),
+                "2024-03-15",
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
+            ),
+            # A trailing identity with a non-temporal key still has no anchor.
             (ChainMapper(StartOfDayMapper(), IdentityMapper()), "anything", None),
         ],
     )
-    def test_to_partition_date_delegates_to_last_mapper(self, chain, downstream_key, expected):
+    def test_to_partition_date_uses_effective_mapper(self, chain, downstream_key, expected):
         assert chain.to_partition_date(downstream_key) == expected
 
     def test_to_downstream_invalid_non_iterable_return(self):
