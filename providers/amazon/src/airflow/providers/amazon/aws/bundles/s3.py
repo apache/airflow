@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tarfile
+import tempfile
 from pathlib import Path
 
 import structlog
@@ -25,6 +28,19 @@ from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.compat.sdk import AirflowException
+
+
+def _require_tar_data_filter() -> None:
+    if hasattr(tarfile, "data_filter"):
+        return
+    raise RuntimeError("Archive Dag bundles require Python 3.11.4 or later (tarfile filter='data').")
+
+
+def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
+    """Unpack a bundle archive without writing outside ``unpack_dir``."""
+    _require_tar_data_filter()
+    with tarfile.open(archive_path, "r:*") as tar:
+        tar.extractall(unpack_dir, filter="data")
 
 
 class S3DagBundle(BaseDagBundle):
@@ -37,7 +53,16 @@ class S3DagBundle(BaseDagBundle):
     :param bucket_name: The name of the S3 bucket containing the Dag files.
     :param prefix:  Optional subdirectory within the S3 bucket where the Dags are stored.
                     A trailing slash is optional.
-                    If None, Dags are assumed to be at the root of the bucket (Optional).
+                    If None, Dags are assumed to be at the root of the bucket. Mutually exclusive
+                    with ``archive_key`` (Optional).
+    :param archive_key: Optional S3 key of a ``.tar.gz`` archive holding the Dag files. When set,
+                    the bundle is staged by downloading this single object and unpacking it
+                    locally, instead of downloading every object under a prefix one at a time.
+                    The archive is then the only source of the Dags: ``archive_key`` is mutually
+                    exclusive with ``prefix``, so there is no second copy to keep in sync and no
+                    fallback to a per-object sync. Members are extracted relative to the bundle
+                    root, e.g. created with ``tar -C <dags_dir> -czf dags.tar.gz .``.
+                    Requires Python 3.11.4 or later (Optional).
     """
 
     supports_versioning = False
@@ -48,12 +73,21 @@ class S3DagBundle(BaseDagBundle):
         aws_conn_id: str = AwsBaseHook.default_conn_name,
         bucket_name: str,
         prefix: str = "",
+        archive_key: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if prefix and archive_key:
+            raise ValueError(
+                "S3DagBundle accepts either 'prefix' or 'archive_key', not both. When "
+                "'archive_key' is set the archive is the only staging source."
+            )
+        if archive_key:
+            _require_tar_data_filter()
         self.aws_conn_id = aws_conn_id
         self.bucket_name = bucket_name
         self.prefix = prefix
+        self.archive_key = archive_key
         # Local path where S3 Dags are downloaded
         self.s3_dags_dir: Path = self.base_dir
 
@@ -63,6 +97,7 @@ class S3DagBundle(BaseDagBundle):
             version=self.version,
             bucket_name=self.bucket_name,
             prefix=self.prefix,
+            archive_key=self.archive_key,
             aws_conn_id=self.aws_conn_id,
         )
         self._s3_hook: S3Hook | None = None
@@ -79,7 +114,7 @@ class S3DagBundle(BaseDagBundle):
             if not self.s3_hook.check_for_bucket(bucket_name=self.bucket_name):
                 raise AirflowException(f"S3 bucket '{self.bucket_name}' does not exist.")
 
-            if self.prefix:
+            if self.prefix and not self.archive_key:
                 # don't check when prefix is ""
                 if not self.s3_hook.check_for_prefix(
                     bucket_name=self.bucket_name, prefix=self.prefix, delimiter="/"
@@ -108,6 +143,7 @@ class S3DagBundle(BaseDagBundle):
             f"name={self.name!r}, "
             f"bucket_name={self.bucket_name!r}, "
             f"prefix={self.prefix!r}, "
+            f"archive_key={self.archive_key!r}, "
             f"version={self.version!r}"
             f")>"
         )
@@ -127,6 +163,9 @@ class S3DagBundle(BaseDagBundle):
             raise AirflowException("Refreshing a specific version is not supported")
 
         with self.lock():
+            if self.archive_key:
+                self._refresh_from_archive()
+                return
             self._log.debug(
                 "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
@@ -139,6 +178,88 @@ class S3DagBundle(BaseDagBundle):
                 local_dir=self.s3_dags_dir,
                 delete_stale=True,
             )
+
+    def _archive_state_dir(self) -> Path:
+        return self.s3_dags_dir.parent / f".{self.name}"
+
+    def _archive_etag_path(self) -> Path:
+        return self._archive_state_dir() / "etag"
+
+    def _remove_stale_archive_staging_dirs(self) -> None:
+        state_dir = self._archive_state_dir()
+        if not state_dir.is_dir():
+            return
+        for leftover in state_dir.iterdir():
+            if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
+                shutil.rmtree(leftover, ignore_errors=True)
+
+    def _download_archive(self, client, archive_path: Path, etag: str) -> str:
+        """Download the archive object named by ``etag``."""
+        request = {"Bucket": self.bucket_name, "Key": self.archive_key}
+        if etag:
+            request["IfMatch"] = etag
+        response = client.get_object(**request)
+        body = response["Body"]
+        try:
+            with archive_path.open("wb") as handle:
+                for chunk in body.iter_chunks():
+                    handle.write(chunk)
+        finally:
+            body.close()
+        return response.get("ETag", "")
+
+    def _refresh_from_archive(self) -> None:
+        """Stage the Dag bundle by downloading and unpacking the single archive object."""
+        self._remove_stale_archive_staging_dirs()
+        client = self.s3_hook.get_conn()
+        head = client.head_object(Bucket=self.bucket_name, Key=self.archive_key)
+        etag: str = head.get("ETag", "")
+
+        marker = self._archive_etag_path()
+        if etag and marker.is_file() and marker.read_text() == etag:
+            self._log.debug(
+                "Dag bundle archive 's3://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.bucket_name,
+                self.archive_key,
+                etag,
+            )
+            return
+
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            downloaded_etag = self._download_archive(client, archive_path, etag)
+
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            _extract_archive(archive_path, unpack_dir)
+            archive_path.unlink()
+
+            backup_dir = staging_dir / "previous"
+            if self.s3_dags_dir.exists():
+                self.s3_dags_dir.rename(backup_dir)
+            try:
+                unpack_dir.rename(self.s3_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.s3_dags_dir)
+                raise
+
+            marker_etag = downloaded_etag or etag
+            if marker_etag:
+                self._archive_etag_path().write_text(marker_etag)
+
+            self._log.debug(
+                "Staged Dag bundle from archive 's3://%s/%s' (%s bytes) to %s",
+                self.bucket_name,
+                self.archive_key,
+                head.get("ContentLength"),
+                self.s3_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
 
     def view_url(self, version: str | None = None) -> str | None:
         """
@@ -163,7 +284,9 @@ class S3DagBundle(BaseDagBundle):
         if self.s3_hook.region_name:
             url += f".{self.s3_hook.region_name}"
         url += ".amazonaws.com"
-        if self.prefix:
+        if self.archive_key:
+            url += f"/{self.archive_key}"
+        elif self.prefix:
             url += f"/{self.prefix}"
 
         return url

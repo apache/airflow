@@ -16,10 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import io
+import tarfile
+from pathlib import Path
+from unittest import mock
 from unittest.mock import MagicMock, call
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
 import airflow.version
@@ -34,6 +39,19 @@ AWS_CONN_ID_REGION = "eu-central-1"
 AWS_CONN_ID_DEFAULT = "aws_default"
 S3_BUCKET_NAME = "my-airflow-dags-bucket"
 S3_BUCKET_PREFIX = "project1/dags"
+S3_ARCHIVE_KEY = "bundle-archives/dags.tar.gz"
+
+
+def _make_archive(files: dict[str, bytes]) -> bytes:
+    """Build an in-memory .tar.gz with the given member name -> content mapping."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        for name, data in files.items():
+            tar_info = tarfile.TarInfo(name=name)
+            tar_info.size = len(data)
+            tar.addfile(tar_info, io.BytesIO(data))
+    return buffer.getvalue()
+
 
 if airflow.version.version.strip().startswith("3"):
     from airflow.providers.amazon.aws.bundles.s3 import S3DagBundle
@@ -111,6 +129,13 @@ class TestS3DagBundle:
         )
         url: str = bundle.view_url_template()
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
+
+    def test_view_url_template_points_at_archive(self):
+        bundle = self._archive_bundle()
+        assert (
+            bundle.view_url_template()
+            == f"https://{S3_BUCKET_NAME}.s3.{AWS_CONN_ID_REGION}.amazonaws.com/{S3_ARCHIVE_KEY}"
+        )
 
     def test_supports_versioning(self):
         bundle = S3DagBundle(
@@ -262,3 +287,200 @@ class TestS3DagBundle:
         assert repr(bundle) == original_repr
         assert bundle.view_url_template() == original_url
         assert s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=extra_key)["Body"].read() == b"outside"
+
+    def _archive_bundle(self) -> S3DagBundle:
+        return S3DagBundle(
+            name="test",
+            aws_conn_id=AWS_CONN_ID_WITH_REGION,
+            archive_key=S3_ARCHIVE_KEY,
+            bucket_name=S3_BUCKET_NAME,
+        )
+
+    def test_archive_key_and_prefix_are_mutually_exclusive(self):
+        with pytest.raises(ValueError, match="either 'prefix' or 'archive_key'"):
+            S3DagBundle(
+                name="test",
+                aws_conn_id=AWS_CONN_ID_DEFAULT,
+                bucket_name=S3_BUCKET_NAME,
+                prefix=S3_BUCKET_PREFIX,
+                archive_key=S3_ARCHIVE_KEY,
+            )
+
+    def test_refresh_from_archive(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data", "subproject1/dag_a.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        assert (bundle.path / "dag_01.py").is_file()
+        assert (bundle.path / "subproject1" / "dag_a.py").is_file()
+        assert bundle._archive_etag_path().is_file()
+        assert sorted(path.relative_to(bundle.path).as_posix() for path in bundle.path.rglob("*")) == [
+            "dag_01.py",
+            "subproject1",
+            "subproject1/dag_a.py",
+        ]
+        assert not (bundle.path / S3_BUCKET_PREFIX / "dag_02.py").exists()
+        assert not (bundle.path / "dag_02.py").exists()
+
+    def test_refresh_from_archive_skips_staging_when_etag_unchanged(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        sentinel = bundle.path / "sentinel.txt"
+        sentinel.write_text("still here")
+        bundle.refresh()
+        assert sentinel.is_file()
+
+        updated = _make_archive({"dag_new.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=updated)
+        bundle.refresh()
+        assert (bundle.path / "dag_new.py").is_file()
+        assert not (bundle.path / "dag_01.py").exists()
+        assert not sentinel.exists()
+
+    def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
+        bundle = self._archive_bundle()
+        with pytest.raises(ClientError) as exc_info:
+            bundle.initialize()
+        assert exc_info.value.response["Error"]["Code"] == "404"
+
+    def test_refresh_raises_and_keeps_bundle_when_archive_is_corrupt(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").is_file()
+
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=b"this is not a tarball")
+        with pytest.raises(tarfile.ReadError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").is_file()
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+
+    def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"old"})
+        )
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"new"})
+        )
+
+        real_rename = Path.rename
+
+        def fail_swap_into_place(self: Path, target):
+            if self.name == "unpacked" and Path(target) == bundle.path:
+                raise OSError("swap failed")
+            return real_rename(self, target)
+
+        with (
+            mock.patch.object(Path, "rename", fail_swap_into_place),
+            pytest.raises(OSError, match="swap failed"),
+        ):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_text() == "old"
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+
+    def test_refresh_removes_only_this_bundles_stale_staging_dir(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        storage_root = bundle.path.parent
+        state_dir = bundle._archive_state_dir()
+        stale = state_dir / "archive-staging-dead"
+        stale.mkdir()
+        (stale / "orphan.txt").write_text("left by a killed process")
+        collided = storage_root / f".{bundle.name}-archive-staging-dead"
+        collided.mkdir()
+        other = storage_root / ".other" / "archive-staging-dead"
+        other.mkdir(parents=True)
+
+        bundle.refresh()
+
+        assert not stale.exists()
+        assert collided.is_dir()
+        assert other.is_dir()
+
+    def test_refresh_get_object_uses_head_etag(self, s3_bucket, s3_client):
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        marker = bundle._archive_etag_path()
+        etag = marker.read_text()
+        marker.unlink()
+
+        recorded: list[dict] = []
+        client = bundle.s3_hook.get_conn()
+        original = client.get_object
+
+        def record_get_object(**kwargs):
+            recorded.append(kwargs)
+            return original(**kwargs)
+
+        with mock.patch.object(client, "get_object", record_get_object):
+            bundle.refresh()
+
+        assert recorded[0]["IfMatch"] == etag
+        assert (bundle.path / "dag_01.py").is_file()
+
+    def test_refresh_keeps_bundle_when_archive_etag_no_longer_matches(self, s3_bucket, s3_client):
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"test data"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        bundle._archive_etag_path().unlink()
+
+        error = ClientError(
+            {"Error": {"Code": "PreconditionFailed", "Message": "precondition failed"}},
+            "GetObject",
+        )
+        client = bundle.s3_hook.get_conn()
+        with mock.patch.object(client, "get_object", side_effect=error), pytest.raises(ClientError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").is_file()
+        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+
+    def test_refresh_rejects_archive_member_that_escapes_bundle(self, mocked_s3_resource, s3_client):
+        mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=_make_archive({"dag_01.py": b"kept"})
+        )
+        bundle = self._archive_bundle()
+        bundle.initialize()
+
+        s3_client.put_object(
+            Bucket=S3_BUCKET_NAME,
+            Key=S3_ARCHIVE_KEY,
+            Body=_make_archive({"../escape.py": b"nope"}),
+        )
+        with pytest.raises(tarfile.TarError):
+            bundle.refresh()
+
+        assert (bundle.path / "dag_01.py").read_bytes() == b"kept"
+        assert not (bundle.path.parent / "escape.py").exists()
+
+    def test_archive_key_requires_tar_data_filter(self, monkeypatch):
+        monkeypatch.delattr(tarfile, "data_filter", raising=False)
+        with pytest.raises(RuntimeError, match="3.11.4"):
+            self._archive_bundle()
