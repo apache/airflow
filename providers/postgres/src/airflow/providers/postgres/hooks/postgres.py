@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterable, Mapping
-from contextlib import closing
+import threading
+from collections.abc import Callable, Generator, Iterable, Mapping
+from contextlib import closing, contextmanager
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, cast, overload
 
@@ -90,6 +91,23 @@ if TYPE_CHECKING:
 
     CursorType: TypeAlias = _DictCursorType | _RealDictCursorType | _NamedTupleCursorType
     CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
+
+
+def _wait_select_cancel_on_interrupt(conn) -> None:
+    """
+    Wait for a psycopg2 statement in ``select()``, where Python can run signal handlers.
+
+    Without a wait callback psycopg2 waits in libpq until the statement completes, so neither the
+    ``SIGTERM`` handler (``on_kill``) nor the ``SIGALRM`` handler of ``execution_timeout`` can run while
+    a statement is running. psycopg2 closes the connection when the callback raises, so a statement
+    interrupted by an exception raised from a signal handler (``AirflowTaskTimeout``) is cancelled here,
+    while the connection is still open.
+    """
+    try:
+        _psycopg2_extras.wait_select(conn)
+    except BaseException:
+        conn.cancel()
+        raise
 
 
 class CompatConnection(Protocol):
@@ -289,6 +307,44 @@ class PostgresHook(DbApiHook):
             _require_psycopg2()
 
         return ppg2_connect(**conn_args)
+
+    @contextmanager
+    def _track_running_cursor(self, cur) -> Generator[None, None, None]:
+        """
+        Make ``cur`` the cursor that ``cancel_query`` cancels, and keep a psycopg2 statement interruptible.
+
+        With psycopg2, :func:`_wait_select_cancel_on_interrupt` is installed as the wait callback while the
+        statement runs, so that ``on_kill`` and ``execution_timeout`` can cancel it. The wait callback is a
+        process wide psycopg2 setting, and ``copy_expert`` refuses to run while one is set, so it is only
+        installed for the duration of the statement, and only in the main thread, where Python runs signal
+        handlers. A wait callback installed by someone else (e.g. for gevent) is left in place.
+        """
+        if (
+            USE_PSYCOPG3
+            or _psycopg2 is None
+            or not self.cancel_on_interrupt
+            or self._running_cursor is cur
+            or threading.current_thread() is not threading.main_thread()
+            or _psycopg2.extensions.get_wait_callback() is not None
+        ):
+            with super()._track_running_cursor(cur):
+                yield
+            return
+        _psycopg2.extensions.set_wait_callback(_wait_select_cancel_on_interrupt)
+        try:
+            with super()._track_running_cursor(cur):
+                yield
+        finally:
+            _psycopg2.extensions.set_wait_callback(None)
+
+    def cancel_query(self) -> bool:
+        cur = self._running_cursor
+        if not USE_PSYCOPG3 and getattr(getattr(cur, "connection", None), "closed", False):
+            # The wait callback cancelled the statement when it was interrupted, then psycopg2 closed the
+            # connection, so there is nothing left to cancel
+            self.log.info("The running SQL statement was cancelled when it was interrupted")
+            return True
+        return super().cancel_query()
 
     def get_conn(self) -> CompatConnection:
         """Establish a connection to a postgres database."""
