@@ -155,6 +155,9 @@ Set up your checkout and fork once:
       gh repo sync <you>/airflow --branch main
       gh workflow enable ci-amd.yml -R <you>/airflow
 
+   GitHub Actions must also be enabled in your fork and allow all actions: ``Tests (AMD)`` uses
+   actions from other repositories.
+
    Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
    your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
    monitor comments on your pull requests with the commands to turn it back on.

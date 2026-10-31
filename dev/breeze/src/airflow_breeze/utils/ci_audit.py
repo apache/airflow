@@ -138,6 +138,19 @@ def fork_ci_required(role: Role, config: GateConfig) -> bool | None:
     return False
 
 
+def get_actions_problem(permissions_json: str, fork: str) -> str | None:
+    """Why the fork's GitHub Actions settings keep `Tests (AMD)` from running, or None."""
+    permissions = json.loads(permissions_json)
+    if not permissions.get("enabled"):
+        return f"GitHub Actions is disabled in {fork}, so `Tests (AMD)` never runs"
+    if permissions.get("allowed_actions") != "all":
+        return (
+            f"{fork} limits the actions workflows may use (`{permissions.get('allowed_actions')}`); "
+            "`Tests (AMD)` uses actions from other repositories, so it fails to start"
+        )
+    return None
+
+
 def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str]) -> list[CheckResult]:
     results: list[CheckResult] = []
 
@@ -305,26 +318,54 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
     if fork_ok and fork is not None:
         workflow = run(["gh", "api", f"repos/{fork}/actions/workflows/{CI_WORKFLOW_FILE}", "--jq", ".state"])
         state = _out(workflow) if _ok(workflow) else "missing" if _is_not_found(workflow) else None
+        # Only the fork's owner can read these settings, and the audit runs as the owner.
+        actions = run(["gh", "api", f"repos/{fork}/actions/permissions"]) if required is True else None
+        actions_problem = (
+            get_actions_problem(_out(actions), fork) if actions is not None and _ok(actions) else None
+        )
+        # An enabled workflow still never runs while Actions is off or limited, so this fix goes first.
+        allow_actions: tuple[str, ...] = (
+            (f"gh api -X PUT repos/{fork}/actions/permissions -F enabled=true -f allowed_actions=all",)
+            if actions_problem
+            else ()
+        )
         if state is None:
+            not_checked = f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}"
             results.append(
                 CheckResult(
-                    5,
-                    "fork workflows",
-                    CheckStatus.INFO,
-                    f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}",
+                    5, "fork workflows", CheckStatus.FAIL, f"{actions_problem}; {not_checked}", allow_actions
                 )
+                if actions_problem
+                else CheckResult(5, "fork workflows", CheckStatus.INFO, not_checked)
             )
         elif required is True and state != "active":
             enable: tuple[str, ...] = (f"gh workflow enable {CI_WORKFLOW_FILE} -R {fork}",)
             if state == "missing":
                 enable = (f"gh repo sync {fork} --branch main", *enable)
+            finding = f"`Tests (AMD)` is {state} in {fork}; enable it"
+            if actions_problem:
+                finding += f"; also, {actions_problem}"
+            results.append(
+                CheckResult(5, "fork workflows", CheckStatus.FAIL, finding, (*allow_actions, *enable))
+            )
+        elif actions is not None and not _ok(actions):
+            results.append(
+                CheckResult(
+                    5,
+                    "fork workflows",
+                    CheckStatus.INFO,
+                    f"could not check the GitHub Actions settings of {fork}: "
+                    f"{(actions.stderr or '').strip() or 'gh api failed'}",
+                )
+            )
+        elif actions_problem:
             results.append(
                 CheckResult(
                     5,
                     "fork workflows",
                     CheckStatus.FAIL,
-                    f"`Tests (AMD)` is {state} in {fork}; enable it",
-                    enable,
+                    actions_problem,
+                    allow_actions,
                 )
             )
         elif required is None:
