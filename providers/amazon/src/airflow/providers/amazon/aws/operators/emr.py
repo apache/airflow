@@ -1506,12 +1506,22 @@ class EmrServerlessStartJobOperator(AwsBaseOperator[EmrServerlessHook]):
         if validated_event["status"] == "success":
             self.log.info("Serverless job completed")
             return validated_event["job_details"]["job_id"]
-        self.log.info("Cancelling EMR Serverless job %s", self.job_id)
-        self.hook.conn.cancel_job_run(
+
+        job_state = self.hook.conn.get_job_run(
             applicationId=validated_event["job_details"]["application_id"],
             jobRunId=validated_event["job_details"]["job_id"],
+        )["jobRun"]["state"]
+        if job_state in EmrServerlessHook.JOB_TERMINAL_STATES:
+            self.log.info("EMR Serverless job canceled/terminated with status %s", job_state)
+        else:
+            self.log.info("Cancelling EMR Serverless job %s", self.job_id)
+            self.hook.conn.cancel_job_run(
+                applicationId=validated_event["job_details"]["application_id"],
+                jobRunId=validated_event["job_details"]["job_id"],
+            )
+        raise AirflowException(
+            validated_event.get("message", "EMR Serverless job failed or timed out in deferrable mode")
         )
-        raise AirflowException("EMR Serverless job failed or timed out in deferrable mode")
 
     def on_kill(self) -> None:
         """

@@ -552,6 +552,37 @@ class TestEmrServerlessStartJobTrigger:
         mock_hook.conn.cancel_job_run.assert_not_called()
 
     @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
+    async def test_run_failure_event_includes_job_details(self, mock_async_wait):
+        """Test that a failed job run yields an event with job_details so execute_complete can cancel it."""
+        mock_async_wait.side_effect = Exception("Job failed")
+
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app",
+            job_id="test_job",
+            waiter_delay=30,
+            waiter_max_attempts=60,
+            aws_conn_id="aws_default",
+        )
+
+        mock_hook = mock.MagicMock()
+        mock_hook.get_waiter.return_value = mock.MagicMock()
+        mock_async_cm = mock.MagicMock()
+        mock_async_cm.__aenter__ = mock.AsyncMock(return_value=mock.MagicMock())
+        mock_async_cm.__aexit__ = mock.AsyncMock(return_value=None)
+        mock_hook.get_async_conn = mock.AsyncMock(return_value=mock_async_cm)
+
+        events = []
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            async for event in trigger.run():
+                events.append(event)
+
+        assert len(events) == 1
+        payload = events[0].payload
+        assert payload["status"] == "failure"
+        assert payload["job_details"] == {"application_id": "test_app", "job_id": "test_job"}
+
+    @pytest.mark.asyncio
     async def test_on_kill_cancels_job(self):
         """Test that on_kill() cancels the EMR Serverless job via the hook."""
         trigger = EmrServerlessStartJobTrigger(
