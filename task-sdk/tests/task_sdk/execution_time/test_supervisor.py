@@ -1022,13 +1022,27 @@ class TestWatchedSubprocess:
         spy_agency.assert_spy_not_called(heartbeat_spy)
 
     @pytest.mark.parametrize("log_to_file", [False, True])
+    @pytest.mark.parametrize(
+        "conf_value",
+        [-(2**63), 2**64 - 1, -(2**63) - 1, 2**64, str(2**64)],
+        ids=["min-int64", "max-uint64", "below-int64", "above-uint64", "large-number-string"],
+    )
     def test_run_simple_dag(
-        self, test_dags_dir, captured_logs, time_machine, mocker, client_with_ti_start, tmp_path, log_to_file
+        self,
+        test_dags_dir,
+        captured_logs,
+        time_machine,
+        mocker,
+        client_with_ti_start,
+        tmp_path,
+        log_to_file,
+        conf_value,
     ):
         """Test running a simple DAG in a subprocess and capturing the output."""
 
         instant = timezone.datetime(2024, 11, 7, 12, 34, 56, 78901)
         time_machine.move_to(instant, tick=False)
+        client_with_ti_start.task_instances.start.return_value.dag_run.conf = {"large_integer": conf_value}
 
         dagfile_path = test_dags_dir
         ti = TaskInstance(
@@ -4072,6 +4086,48 @@ REQUEST_TEST_CASES = [
 
 
 class TestHandleRequest:
+    def test_send_large_integers_in_error_preserves_other_types(self, watched_subprocess):
+        process, reader = watched_subprocess
+        message = ErrorResponse(
+            detail={
+                "large": 2**64,
+                "tuple": (-(2**63) - 1,),
+                "integer_key": {1: 2**64},
+                "model": MaskSecret(value=2**64),
+                "date": timezone.datetime(2024, 1, 1),
+                "bytes": b"unchanged",
+                "extension": msgspec.msgpack.Ext(1, b"unchanged"),
+            }
+        )
+        expected = message.model_dump()
+        expected["error"] = message.error.value
+        expected["detail"]["tuple"] = [-(2**63) - 1]
+
+        process.send_msg(None, request_id=42, error=message)
+        received = CommsDecoder(socket=reader)._read_frame()
+
+        assert received.id == 42
+        assert received.body is None
+        assert received.error == expected
+        assert type(received.error["detail"]["large"]) is int
+        assert isinstance(message.detail["tuple"], tuple)
+        assert isinstance(message.detail["model"], MaskSecret)
+
+    @pytest.mark.parametrize("schema_version", [None, "2026-06-16"])
+    def test_send_large_integer_to_python_only(self, watched_subprocess, schema_version):
+        process, reader = watched_subprocess
+        process._subprocess_schema_version = schema_version
+        message = XComResult(key="large", value=2**64)
+
+        if schema_version is not None:
+            with pytest.raises(OverflowError, match="can't serialize ints"):
+                process.send_msg(message, request_id=0)
+        else:
+            process.send_msg(message, request_id=0)
+            received = CommsDecoder(socket=reader)._get_response()
+            assert received == message
+            assert type(received.value) is int
+
     @pytest.mark.parametrize("status", [404, 410, 422, 500])
     def test_terminal_report_propagates_errors_other_than_conflict(self, watched_subprocess, status):
         process, _ = watched_subprocess
@@ -6481,6 +6537,34 @@ class TestMakeBufferedSocketReader:
 
 
 class TestLengthPrefixedFrameReader:
+    @pytest.mark.parametrize(
+        "value",
+        [-(2**63) - 1, 2**64, -(2**4096), 2**4096],
+        ids=["negative", "positive", "huge-negative", "huge-positive"],
+    )
+    def test_receives_large_integers(self, socket_pair, value):
+        received = []
+
+        def collect_frames():
+            while True:
+                received.append((yield))
+
+        reader, writer = socket_pair
+        message = MaskSecret(value={"nested": [value, {"value": value}]})
+        frame = CommsDecoder(socket=writer)._make_frame(message)
+        frame = msgspec.structs.replace(
+            frame,
+            ti_id=uuid7(),
+            context_carrier={"traceparent": "00-" + "a" * 32 + "-" + "b" * 16 + "-01"},
+        )
+        writer.sendall(frame.as_bytes())
+        callback, _ = supervisor.length_prefixed_frame_reader(collect_frames(), on_close=lambda _: None)
+        callback(reader)
+
+        assert received == [frame]
+        assert type(received[0].body["value"]["nested"][0]) is int
+        assert frame.body == message.model_dump()
+
     def test_recovers_from_short_read_on_header(self):
         received: list[_RequestFrame] = []
 
