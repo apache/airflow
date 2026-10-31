@@ -1015,7 +1015,6 @@ class TestPopenActivitySubprocessSetTaskStateStore:
             process_log.warning.assert_called_once_with(
                 "Task store value exceeds configured max_value_storage_bytes",
                 key="k",
-                size=15,
                 max_value_storage_bytes=14,
             )
         else:
