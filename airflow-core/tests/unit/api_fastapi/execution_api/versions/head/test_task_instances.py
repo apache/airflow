@@ -56,7 +56,11 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
 )
 from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
-from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
+from airflow.api_fastapi.execution_api.routes.task_instances import (
+    _emit_task_finish_metrics,
+    _emit_task_span,
+    ti_update_state,
+)
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -790,6 +794,36 @@ class TestTIRunState:
         clear_db_serialized_dags()
         clear_db_dags()
         clear_db_assets()
+
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats")
+    def test_ti_run_updates_start_counter(self, mock_stats, client, session, create_task_instance):
+        ti = create_task_instance(task_id="test_ti_run_counts_the_start", state=State.QUEUED, session=session)
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        run_type = getattr(ti.dag_run.run_type, "value", ti.dag_run.run_type)
+        mock_stats.incr.assert_called_once_with(
+            "ti.start", tags={"dag_id": ti.dag_id, "run_type": run_type, "task_id": ti.task_id}
+        )
+
+    @mock.patch("airflow.api_fastapi.execution_api.routes.task_instances.stats")
+    def test_ti_run_duplicate_request_doesnt_update_start_counter(
+        self, mock_stats, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_run_duplicate_request", state=State.RUNNING, session=session
+        )
+        ti.hostname = self.RUN_PAYLOAD["hostname"]
+        ti.unixname = self.RUN_PAYLOAD["unixname"]
+        ti.pid = self.RUN_PAYLOAD["pid"]
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
+
+        assert response.status_code == 200
+        mock_stats.incr.assert_not_called()
 
     def test_ti_run_context_exposes_consumed_event_partition_key(self, client, session, create_task_instance):
         """The partition key of each consumed asset event is returned in the run context."""
@@ -3305,6 +3339,136 @@ class TestTIUpdateState:
         clear_db_assets()
         clear_db_logs()
         clear_db_runs()
+
+    @pytest.mark.parametrize(
+        ("payload", "expected_state", "expected_end_date"),
+        [
+            pytest.param(
+                {"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+                TaskInstanceState.SUCCESS,
+                DEFAULT_END_DATE,
+                id="success",
+            ),
+            pytest.param(
+                {"state": "failed", "end_date": DEFAULT_END_DATE.isoformat()},
+                TaskInstanceState.FAILED,
+                DEFAULT_END_DATE,
+                id="failed",
+            ),
+            pytest.param(
+                {"state": "up_for_retry", "end_date": DEFAULT_END_DATE.isoformat()},
+                TaskInstanceState.UP_FOR_RETRY,
+                DEFAULT_END_DATE,
+                id="up_for_retry",
+            ),
+            pytest.param(
+                {"state": "skipped", "end_date": DEFAULT_END_DATE.isoformat()},
+                TaskInstanceState.SKIPPED,
+                DEFAULT_END_DATE,
+                id="skipped",
+            ),
+            pytest.param(
+                {
+                    "state": "up_for_reschedule",
+                    "reschedule_date": "2024-10-31T11:03:00+00:00",
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+                TaskInstanceState.UP_FOR_RESCHEDULE,
+                DEFAULT_END_DATE,
+                id="up_for_reschedule",
+            ),
+            pytest.param(
+                {
+                    "state": "deferred",
+                    "trigger_kwargs": {"key": "value"},
+                    "classpath": "my-classpath",
+                    "next_method": "execute_callback",
+                    "next_kwargs": {},
+                    "trigger_timeout": "P1D",
+                },
+                TaskInstanceState.DEFERRED,
+                None,
+                id="deferred",
+            ),
+        ],
+    )
+    @mock.patch.object(task_instances_route, "_emit_task_finish_metrics")
+    def test_ti_update_state_emits_metrics_for_the_final_state(
+        self, mock_emit, client, session, create_task_instance, payload, expected_state, expected_end_date
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_emits_metrics_for_the_final_state",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        response = client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+        assert response.status_code == 204
+        mock_emit.assert_called_once()
+        emitted_ti, state, end_date = mock_emit.call_args.args
+        assert (emitted_ti.id, state, end_date) == (ti.id, expected_state, expected_end_date)
+
+    @mock.patch.object(task_instances_route, "_emit_task_finish_metrics")
+    def test_ti_update_state_duplicate_request_emits_no_metrics(
+        self, mock_emit, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_duplicate_request", state=State.SUCCESS, session=session
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 200
+        mock_emit.assert_not_called()
+
+    @mock.patch.object(
+        task_instances_route, "_emit_task_finish_metrics", side_effect=RuntimeError("metrics down")
+    )
+    def test_ti_update_state_survives_a_metrics_failure(
+        self, mock_emit, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_survives_a_metrics_failure", state=State.RUNNING, session=session
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.SUCCESS
+
+    @mock.patch.object(task_instances_route, "_emit_task_finish_metrics")
+    @mock.patch.object(
+        task_instances_route,
+        "_create_ti_state_update_query_and_update_state",
+        side_effect=RuntimeError("boom"),
+    )
+    def test_ti_update_state_internal_error_emits_failed_metrics(
+        self, mock_update, mock_emit, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_internal_error", state=State.RUNNING, session=session
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        assert mock_emit.call_args.args[1] == TaskInstanceState.FAILED
 
     @pytest.mark.parametrize(
         ("state", "end_date", "expected_state"),
@@ -7400,3 +7564,124 @@ class TestEmitTaskSpan:
         }
         _emit_task_span(ti, TaskInstanceState.SUCCESS, resolver=self.resolver)
         assert len(self.exporter.get_finished_spans()) == expected_spans
+
+
+class TestEmitTaskFinishMetrics:
+    def setup_method(self):
+        clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
+
+    def teardown_method(self):
+        clear_db_runs()
+        clear_db_serialized_dags()
+        clear_db_dags()
+
+    @pytest.fixture
+    def running_ti(self, create_task_instance, session):
+        ti = create_task_instance(task_id="finish_metrics", state=State.RUNNING, session=session)
+        ti.start_date = DEFAULT_START_DATE
+        session.flush()
+        return ti
+
+    @staticmethod
+    def _tags(ti):
+        run_type = getattr(ti.dag_run.run_type, "value", ti.dag_run.run_type)
+        return {"dag_id": ti.dag_id, "run_type": run_type, "task_id": ti.task_id}
+
+    @pytest.mark.parametrize(
+        ("state", "end_date", "expected_counters", "expect_duration"),
+        [
+            pytest.param(
+                TaskInstanceState.SUCCESS,
+                DEFAULT_END_DATE,
+                [
+                    ("ti.finish", {"state": "success"}),
+                    ("operator_successes", {"operator_name": "EmptyOperator"}),
+                    ("ti_successes", {}),
+                ],
+                True,
+                id="success",
+            ),
+            pytest.param(
+                TaskInstanceState.FAILED,
+                DEFAULT_END_DATE,
+                [
+                    ("ti.finish", {"state": "failed"}),
+                    ("operator_failures", {"operator_name": "EmptyOperator"}),
+                    ("ti_failures", {}),
+                ],
+                True,
+                id="failed",
+            ),
+            pytest.param(
+                TaskInstanceState.UP_FOR_RETRY,
+                DEFAULT_END_DATE,
+                [
+                    ("ti.finish", {"state": "up_for_retry"}),
+                    ("operator_failures", {"operator_name": "EmptyOperator"}),
+                    ("ti_failures", {}),
+                ],
+                True,
+                id="up_for_retry",
+            ),
+            pytest.param(
+                TaskInstanceState.SKIPPED,
+                DEFAULT_END_DATE,
+                [("ti.finish", {"state": "skipped"})],
+                True,
+                id="skipped",
+            ),
+            pytest.param(
+                TaskInstanceState.DEFERRED,
+                None,
+                [("ti.finish", {"state": "deferred"})],
+                False,
+                id="deferred_has_no_end_date",
+            ),
+        ],
+    )
+    @mock.patch.object(task_instances_route, "stats")
+    def test_counters_per_state(
+        self, mock_stats, running_ti, session, state, end_date, expected_counters, expect_duration
+    ):
+        tags = self._tags(running_ti)
+
+        _emit_task_finish_metrics(running_ti, state, end_date, session=session)
+
+        assert mock_stats.incr.call_args_list == [
+            mock.call(name, tags={**tags, **extra}) for name, extra in expected_counters
+        ]
+        if expect_duration:
+            mock_stats.timing.assert_called_once_with(
+                "task.duration", (DEFAULT_END_DATE - DEFAULT_START_DATE).total_seconds() * 1000, tags=tags
+            )
+        else:
+            mock_stats.timing.assert_not_called()
+
+    @mock.patch.object(task_instances_route, "stats")
+    def test_no_operator_skips_the_operator_counters(self, mock_stats, running_ti, session):
+        running_ti.operator = None
+
+        _emit_task_finish_metrics(running_ti, TaskInstanceState.SUCCESS, DEFAULT_END_DATE, session=session)
+
+        assert [call.args[0] for call in mock_stats.incr.call_args_list] == ["ti.finish", "ti_successes"]
+
+    @mock.patch.object(task_instances_route, "stats")
+    def test_no_start_date_skips_the_duration(self, mock_stats, running_ti, session):
+        running_ti.start_date = None
+
+        _emit_task_finish_metrics(running_ti, TaskInstanceState.SUCCESS, DEFAULT_END_DATE, session=session)
+
+        assert mock_stats.incr.call_count == 3
+        mock_stats.timing.assert_not_called()
+
+    @mock.patch.object(task_instances_route, "get_team_name_for_ti", return_value="my_team")
+    @mock.patch.object(task_instances_route, "stats")
+    def test_team_name_is_tagged(self, mock_stats, mock_team_name, running_ti, session):
+        _emit_task_finish_metrics(running_ti, TaskInstanceState.SUCCESS, DEFAULT_END_DATE, session=session)
+
+        mock_team_name.assert_called_once_with(running_ti.id, session)
+        calls = mock_stats.incr.call_args_list + mock_stats.timing.call_args_list
+        assert len(calls) == 4
+        assert all(call.kwargs["tags"]["team_name"] == "my_team" for call in calls)
