@@ -158,6 +158,24 @@ class TestBaseOperations:
             "order_by": "-id",
         }
 
+    @pytest.mark.parametrize(
+        ("operations", "args", "expected_path"),
+        [
+            ("variables", ("a#b",), "/api/v2/variables/a%23b"),
+            ("variables", ("..",), "/api/v2/variables/%2E%2E"),
+            ("connections", ("a?b",), "/api/v2/connections/a%3Fb"),
+            ("pools", ("../variables/key",), "/api/v2/pools/..%2Fvariables%2Fkey"),
+            ("dag_runs", ("dag_id", "run#1"), "/api/v2/dags/dag_id/dagRuns/run%231"),
+        ],
+    )
+    def test_delete_encodes_path_params(self, operations, args, expected_path):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode() == expected_path
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        getattr(client, operations).delete(*args)
+
     def test_server_connection_refused(self):
         # A real connect to localhost depends on the machine: a local web server answers, and WSL2
         # mirrored networking turns a closed loopback port into a timeout instead of a refusal.
