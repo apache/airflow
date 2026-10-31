@@ -56,6 +56,7 @@ class IntermediateTIState(str, Enum):
     UP_FOR_RETRY = "up_for_retry"
     UP_FOR_RESCHEDULE = "up_for_reschedule"
     DEFERRED = "deferred"
+    AWAITING_INPUT = "awaiting_input"
 
     def __str__(self) -> str:
         return self.value
@@ -87,6 +88,7 @@ class TaskInstanceState(str, Enum):
     UPSTREAM_FAILED = TerminalTIState.UPSTREAM_FAILED  # One or more upstream deps failed
     SKIPPED = TerminalTIState.SKIPPED  # Skipped by branching or some other mechanism
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
+    AWAITING_INPUT = IntermediateTIState.AWAITING_INPUT  # Parked waiting for human input (HITL)
 
     def __str__(self) -> str:
         return self.value
