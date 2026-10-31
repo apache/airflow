@@ -323,6 +323,7 @@ class BaseXCom:
             map_index=map_index,
             dag_result=dag_result,
             mapped_length=mapped_length,
+            task_instance_id=coordinate.ti_id,
         )
 
     @classmethod
@@ -347,6 +348,7 @@ class BaseXCom:
         task_id: str,
         run_id: str,
         map_index: int = -1,
+        task_instance_id: UUID | None = None,
     ) -> None:
         """
         Store an XCom value directly in the metadata database.
@@ -358,6 +360,7 @@ class BaseXCom:
         :param run_id: Dag run ID for the task.
         :param map_index: Optional map index to assign XCom for a mapped task.
             The default is ``-1`` (set for a non-mapped task).
+        :param task_instance_id: Optional attempt UUID to pin the write to.
         """
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
@@ -369,6 +372,7 @@ class BaseXCom:
                 task_id=task_id,
                 run_id=run_id,
                 map_index=map_index,
+                task_instance_id=task_instance_id,
             ),
         )
 

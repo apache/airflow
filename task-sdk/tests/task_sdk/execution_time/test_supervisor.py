@@ -2653,6 +2653,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": None,
+                "task_instance_id": None,
             },
             response=OKResponse(ok=True),
         ),
@@ -2680,6 +2681,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": None,
+                "task_instance_id": None,
             },
             response=OKResponse(ok=True),
         ),
@@ -2708,6 +2710,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": False,
                 "mapped_length": 3,
+                "task_instance_id": None,
             },
             response=OKResponse(ok=True),
         ),
@@ -2735,6 +2738,7 @@ REQUEST_TEST_CASES = [
             kwargs={
                 "dag_result": True,
                 "mapped_length": None,
+                "task_instance_id": None,
             },
             response=OKResponse(ok=True),
         ),

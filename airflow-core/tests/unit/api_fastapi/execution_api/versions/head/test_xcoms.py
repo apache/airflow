@@ -31,7 +31,13 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import (
+    DagParseClaims,
+    DagParseToken,
+    ExecutionToken,
+    TIClaims,
+    TIToken,
+)
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
@@ -1558,6 +1564,104 @@ class TestXComsSetEndpoint:
             }
         }
         assert any(msg.startswith("Checking write XCom access") for msg in caplog.messages)
+
+    @staticmethod
+    def _authenticate_dag_parse(exec_app, *, subject_id, bundle_names):
+        # Must be a DagParseToken so DagInGrantedBundle enforces bundle scope (base ExecutionToken skips it).
+        token = DagParseToken(
+            id=subject_id,
+            claims=DagParseClaims(
+                scope="dag_parse",
+                exp=2000000000,
+                dag_bundles=frozenset(bundle_names),
+                job_id=1,
+                session_id=subject_id,
+                relative_fileloc="dag.py",
+            ),
+        )
+        exec_app.dependency_overrides[require_auth] = lambda: token
+
+    def test_dag_parse_set_with_task_instance_id_pins_archived_attempt(
+        self, client, exec_app, create_task_instance, session
+    ):
+        """A stale callback naming attempt 1 must not write the successor after clear/retry."""
+        archived = create_task_instance(state=TaskInstanceState.FAILED)
+        archived_id = archived.id
+        dag_id, run_id, task_id = archived.dag_id, archived.run_id, archived.task_id
+        bundle_name = session.get(DagModel, dag_id).bundle_name
+        archived.prepare_db_for_next_try(session)
+        session.commit()
+
+        successor = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task_id,
+            )
+        )
+        assert successor is not None
+        assert successor.id != archived_id
+
+        self._authenticate_dag_parse(exec_app, subject_id=uuid4(), bundle_names=[bundle_name])
+
+        response = client.post(
+            f"/execution/xcoms/{dag_id}/{run_id}/{task_id}/callback_key",
+            params={"task_instance_id": str(archived_id)},
+            json=serialize("from-archived"),
+        )
+
+        assert response.status_code == 201, response.text
+        assert XComModelV2.get_for_attempt(archived_id, "callback_key", session=session).value == (
+            "from-archived"
+        )
+        assert XComModelV2.get_for_attempt(successor.id, "callback_key", session=session) is None
+
+    def test_dag_parse_set_same_bundle_allowed_cross_bundle_forbidden(
+        self, client, exec_app, session, dag_maker
+    ):
+        """dag_parse may set XCom only for Dags in its granted bundle (real HTTP auth path)."""
+        from airflow.models.dagbundle import DagBundleModel
+
+        with dag_maker(dag_id=f"granted_{uuid4().hex}", session=session):
+            EmptyOperator(task_id="task")
+        granted_dr = dag_maker.create_dagrun(run_id="run1", state=DagRunState.RUNNING)
+        granted_ti = granted_dr.get_task_instance("task")
+
+        with dag_maker(dag_id=f"other_{uuid4().hex}", session=session):
+            EmptyOperator(task_id="task")
+        other_dr = dag_maker.create_dagrun(run_id="run1", state=DagRunState.RUNNING)
+        other_ti = other_dr.get_task_instance("task")
+
+        granted_bundle = f"bundle-granted-{uuid4().hex}"
+        other_bundle = f"bundle-other-{uuid4().hex}"
+        session.add(DagBundleModel(name=granted_bundle))
+        session.add(DagBundleModel(name=other_bundle))
+        session.flush()
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == granted_ti.dag_id).values(bundle_name=granted_bundle)
+        )
+        session.execute(
+            update(DagModel).where(DagModel.dag_id == other_ti.dag_id).values(bundle_name=other_bundle)
+        )
+        session.commit()
+
+        self._authenticate_dag_parse(exec_app, subject_id=uuid4(), bundle_names=[granted_bundle])
+
+        allowed = client.post(
+            f"/execution/xcoms/{granted_ti.dag_id}/{granted_ti.run_id}/{granted_ti.task_id}/k",
+            params={"task_instance_id": str(granted_ti.id)},
+            json=serialize("ok"),
+        )
+        forbidden = client.post(
+            f"/execution/xcoms/{other_ti.dag_id}/{other_ti.run_id}/{other_ti.task_id}/k",
+            params={"task_instance_id": str(other_ti.id)},
+            json=serialize("nope"),
+        )
+
+        assert allowed.status_code == 201, allowed.text
+        assert forbidden.status_code == 403, forbidden.text
+        assert XComModelV2.get_for_attempt(granted_ti.id, "k", session=session).value == "ok"
+        assert XComModelV2.get_for_attempt(other_ti.id, "k", session=session) is None
 
     @pytest.mark.parametrize(
         ("value", "expected_value"),

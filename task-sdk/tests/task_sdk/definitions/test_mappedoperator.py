@@ -758,24 +758,28 @@ def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms
 
         group.expand(x=[0, 1])
 
+    pusher_ti = None
     for task in dag.tasks:
         for map_index in range(2):
             ti = create_runtime_ti(task=task.prepare_for_execution(), map_index=map_index)
+            if task.task_id == "group.push_xcom_from_shortcircuit" and map_index == 1:
+                pusher_ti = ti
             context = ti.get_template_context()
             ti.task.render_template_fields(context)
             ti.task.execute(context)
 
-    assert ti
+    assert pusher_ti is not None
     mock_supervisor_comms.send.assert_has_calls(
         [
             mock.call(
-                msg=SetXCom(
+                SetXCom(
                     key="skipmixin_key",
                     value={"skipped": ["group.empty_task"]},
-                    dag_id=ti.dag_id,
-                    run_id=ti.run_id,
+                    dag_id=pusher_ti.dag_id,
+                    run_id=pusher_ti.run_id,
                     task_id="group.push_xcom_from_shortcircuit",
                     map_index=1,
+                    task_instance_id=pusher_ti.id,
                 ),
             ),
         ]

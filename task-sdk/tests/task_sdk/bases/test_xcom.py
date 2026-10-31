@@ -400,6 +400,7 @@ class TestStoreAndLoadValue:
             run_id="test_run",
             map_index=-1,
             dag_result=True,
+            task_instance_id=ti.id,
         )
 
     @pytest.mark.parametrize(
