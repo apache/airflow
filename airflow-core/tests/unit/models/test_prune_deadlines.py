@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 import time_machine
-from sqlalchemy import select
+from sqlalchemy import event, select
 
 from airflow.models import DagRun
 from airflow.models.callback import Callback
@@ -34,6 +34,7 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.utils.state import DagRunState
 
 from tests_common.test_utils import db
+from tests_common.test_utils.asserts import assert_queries_count
 from unit.models import DEFAULT_DATE
 
 if TYPE_CHECKING:
@@ -87,6 +88,29 @@ class TestPruneDeadlines:
     @staticmethod
     def teardown_method():
         _clean_db()
+
+    @pytest.mark.backend("sqlite")
+    def test_prune_uses_unmissed_dagrun_index(self, dagrun, session):
+        _make_deadline(session, dagrun_id=dagrun.id, deadline_time=DEFAULT_DATE + timedelta(hours=1))
+        dagrun_id = dagrun.id
+        statements = []
+
+        def capture(connection, cursor, statement, parameters, context, executemany):
+            if statement.startswith("SELECT") and "FROM deadline" in statement:
+                statements.append((statement, parameters))
+
+        connection = session.connection()
+        event.listen(connection, "before_cursor_execute", capture)
+        try:
+            with assert_queries_count(1, session=session):
+                Deadline.prune_deadlines(session=session, conditions={DagRun.id: dagrun_id})
+        finally:
+            event.remove(connection, "before_cursor_execute", capture)
+
+        assert len(statements) == 1
+        statement, parameters = statements[0]
+        plan = connection.exec_driver_sql(f"EXPLAIN QUERY PLAN {statement}", parameters).all()
+        assert any("deadline_dagrun_id_idx" in row[3] for row in plan), plan
 
     def test_handle_miss_then_prune_does_not_delete_missed(self, dagrun, session):
         """
