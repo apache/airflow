@@ -344,6 +344,30 @@ ARG_AUTH_PASSWORD = Arg(
     dest="password",
     help="The password to use for authentication",
 )
+ARG_AUTH_SSO = Arg(
+    flags=("--sso",),
+    dest="sso",
+    default=False,
+    action="store_true",
+    help="Log in through the browser with the identity provider of the API server, if it offers it",
+)
+ARG_AUTH_NO_BROWSER = Arg(
+    flags=("--no-browser",),
+    dest="no_browser",
+    default=False,
+    action="store_true",
+    help=(
+        "With --sso, print the login URL instead of opening a browser. The browser must still reach "
+        "this machine on 127.0.0.1, for example through 'ssh -L' when logged in remotely"
+    ),
+)
+ARG_AUTH_TIMEOUT = Arg(
+    flags=("--timeout",),
+    type=float,
+    default=300,
+    dest="timeout",
+    help="With --sso, seconds to wait for the browser login to complete",
+)
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
@@ -1238,7 +1262,8 @@ AUTH_COMMANDS = (
         description=(
             "Log in to the Airflow API server and store the credentials for the selected environment. "
             "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
-            "missing credentials are prompted for when running in a terminal."
+            "missing credentials are prompted for when running in a terminal. "
+            "Pass --sso to log in through the browser when the API server offers it."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
@@ -1247,6 +1272,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
             ARG_AUTH_SKIP_KEYRING,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
     ActionCommand(
@@ -1268,6 +1296,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_URL,
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
 )
