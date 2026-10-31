@@ -1428,9 +1428,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if not isinstance(callback.data, dict) or "dag_run_id" not in callback.data:
                     self.log.error(
                         "ExecutorCallback %s is missing required 'dag_run_id' in data dict. "
-                        "This indicates a bug in callback creation. Skipping callback.",
+                        "This indicates a bug in callback creation. Marking callback as failed.",
                         callback.id,
                     )
+                    self._fail_executor_callback(callback, "missing dag_run_id", session=session)
                     continue
 
                 dag_run_id = callback.data["dag_run_id"]
@@ -1438,21 +1439,42 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 if dag_run is None:
                     self.log.warning(
-                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted.",
+                        "Could not find DagRun with id=%s for callback %s. DagRun may have been deleted. "
+                        "Marking callback as failed.",
                         dag_run_id,
                         callback.id,
                     )
+                    self._fail_executor_callback(callback, f"Dag run {dag_run_id} not found", session=session)
                     continue
 
-                workload = workloads.ExecuteCallback.make(
-                    callback=callback,
-                    dag_run=dag_run,
-                    generator=executor.jwt_generator,
-                )
+                # A savepoint so that a callback the executor cannot store (e.g. a DB write rejected at
+                # flush) fails on its own instead of aborting the scheduler loop. Otherwise the rollback
+                # leaves it PENDING and every scheduler restart crashes on it again.
+                workload: workloads.ExecuteCallback | None = None
+                try:
+                    with session.begin_nested():
+                        workload = workloads.ExecuteCallback.make(
+                            callback=callback,
+                            dag_run=dag_run,
+                            generator=executor.jwt_generator,
+                        )
+                        executor.queue_workload(workload, session=session)
+                        callback.state = CallbackState.QUEUED
+                        session.add(callback)
+                except Exception as e:
+                    if workload is not None:
+                        # The savepoint rollback does not undo what queue_workload put in executor memory.
+                        key = executor.get_workload_key(workload)
+                        executor.executor_queues[workload.type].pop(key, None)
+                        executor.running.discard(key)
+                    self.log.exception("Failed to queue callback %s to %s", callback.id, executor)
+                    self._fail_executor_callback(callback, type(e).__name__, session=session)
 
-                executor.queue_workload(workload, session=session)
-                callback.state = CallbackState.QUEUED
-                session.add(callback)
+    @staticmethod
+    def _fail_executor_callback(callback: ExecutorCallback, reason: str, *, session: Session) -> None:
+        callback.state = CallbackState.FAILED
+        callback.output = f"Failed to queue callback: {reason}"
+        session.add(callback)
 
     @staticmethod
     def _process_task_event_logs(log_records: deque[Log], session: Session):
