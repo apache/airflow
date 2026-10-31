@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
+import { createCoordinatorClient, parseFrameError, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -61,7 +61,13 @@ import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
 import { buildOperatorContext, runOperator } from "./operator-runner.js";
 import type { OperatorOutcome } from "../sdk/operator.js";
-import { runInTaskScope, type TaskContext, type TaskFunction } from "../sdk/task.js";
+import { createExecutionTimeout, executionTimeoutOf } from "./execution-timeout.js";
+import {
+  runInTaskScope,
+  TaskTimeoutError,
+  type TaskContext,
+  type TaskFunction,
+} from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -364,10 +370,29 @@ async function handleTask(
     return response;
   }
 
-  const ctx = buildContext(details, signal);
+  const timeoutSeconds = executionTimeoutOf(details.ti_context);
+  const timeout =
+    timeoutSeconds === null
+      ? null
+      : createExecutionTimeout(timeoutSeconds, {
+          cleanupMs: ABORT_GRACE_PERIOD_MS,
+          stopWaiting: signal,
+        });
+  // The task sees one signal: aborted by SIGTERM/SIGINT, or at its timeout.
+  const ctx = buildContext(details, timeout ? AbortSignal.any([signal, timeout.signal]) : signal);
   const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
+  // Starts the task's work, its handler call or its operator, and waits for it
+  // under its execution_timeout, which counts from here. The order matters: a
+  // timeout that has already passed fails before the work starts, and the
+  // supervisor's deadline starts right before the work, as the runtime's does.
+  const runTimed: RunTimed = async (start) => {
+    if (timeout === null) return start();
+    if (timeout.seconds < 0) throw new TaskTimeoutError(timeout.seconds);
+    await startSupervisorDeadline(comm, logs);
+    return timeout.wait(start());
+  };
   if (task.kind === "handler") {
-    return runHandler(details, task.fn, ctx, client, logs);
+    return runHandler(details, task.fn, ctx, client, logs, runTimed);
   }
 
   // How an operator ends the task as a failure: log the reason, then report the task
@@ -380,9 +405,11 @@ async function handleTask(
   try {
     switch (task.kind) {
       case "operator":
-        return await runOperator(
-          task.operator,
-          buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
+        return await runTimed(() =>
+          runOperator(
+            task.operator,
+            buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
+          ),
         );
     }
   } catch (err) {
@@ -397,6 +424,7 @@ async function runHandler(
   ctx: TaskContext,
   client: CoordinatorClient,
   logs: LogChannel,
+  runTimed: RunTimed,
 ): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   let bound: BoundArgs;
   try {
@@ -423,7 +451,11 @@ async function runHandler(
     // The scope is installed around the call, not awaited inside it: the store
     // follows the handler across every `await` it makes, so `getContext()` and
     // `getClient()` work at any depth without the handler being handed either.
-    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
+    // A handler that times out never gets here, even if it returns: its result
+    // is not pushed, and the task fails with the timeout.
+    const result = await runTimed(async () =>
+      runInTaskScope({ ctx, client }, () => handler(bound.args as never)),
+    );
     if (result !== undefined) {
       await client.setXCom({ key: "return_value", value: result as JsonValue });
     }
@@ -439,7 +471,7 @@ async function runHandler(
     return response;
   } catch (err) {
     const message = (err as Error).message ?? String(err);
-    logs.error("Task failed", {
+    logs.error(err instanceof TaskTimeoutError ? "Task timed out" : "Task failed", {
       task_id: ctx.taskId,
       error: message,
       stack: (err as Error).stack ?? null,
@@ -449,6 +481,21 @@ async function runHandler(
       bound_args: bound.names,
     });
     return buildFailureResponse(details, message);
+  }
+}
+
+/** Starts a task's own work and waits for it under its execution_timeout, if it has one. */
+type RunTimed = <T>(start: () => Promise<T>) => Promise<T>;
+
+/**
+ * Ask the supervisor to start its own deadline for this task now, so both count
+ * from the same moment. A supervisor that rejects the message keeps the deadline
+ * it set when the runtime started.
+ */
+async function startSupervisorDeadline(comm: CommChannel, logs: LogChannel): Promise<void> {
+  const err = parseFrameError(await comm.request({ type: "StartExecutionTimeout" }));
+  if (err) {
+    logs.warning("Supervisor did not take StartExecutionTimeout", { error: err.code });
   }
 }
 

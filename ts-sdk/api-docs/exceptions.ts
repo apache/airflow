@@ -19,4 +19,4 @@
 
 /** @module Exceptions */
 
-export { ConnectionNotFoundError, VariableNotFoundError } from "../src/index.js";
+export { ConnectionNotFoundError, TaskTimeoutError, VariableNotFoundError } from "../src/index.js";
