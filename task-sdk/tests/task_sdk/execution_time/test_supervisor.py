@@ -124,6 +124,7 @@ from airflow.sdk.execution_time.comms import (
     GetVariable,
     GetVariableKeys,
     GetXCom,
+    GetXComByKeys,
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
@@ -2586,7 +2587,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
-            kwargs={"previous_iteration": False},
+            kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2599,7 +2600,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", 2, False),
-            kwargs={"previous_iteration": False},
+            kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
             response=XComResult(key="test_key", value="test_value"),
         ),
         expected_body={"key": "test_key", "value": "test_value", "type": "XComResult"},
@@ -2610,7 +2611,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, False),
-            kwargs={"previous_iteration": False},
+            kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
@@ -2627,10 +2628,28 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="xcoms.get",
             args=("test_dag", "test_run", "test_task", "test_key", None, True),
-            kwargs={"previous_iteration": False},
+            kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
             response=XComResult(key="test_key", value=None, type="XComResult"),
         ),
         expected_body={"key": "test_key", "value": None, "type": "XComResult"},
+    ),
+    RequestTestCase(
+        message=GetXCom(
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            key="test_key",
+            region_id=UUID(int=7),
+            region_index=1,
+        ),
+        test_id="get_xcom_in_a_named_region",
+        client_mock=ClientMock(
+            method_path="xcoms.get",
+            args=("test_dag", "test_run", "test_task", "test_key", None, False),
+            kwargs={"previous_iteration": False, "region_id": UUID(int=7), "region_index": 1},
+            response=XComResult(key="test_key", value="value"),
+        ),
+        expected_body={"key": "test_key", "value": "value", "type": "XComResult"},
     ),
     RequestTestCase(
         message=SetXCom(
@@ -3775,6 +3794,23 @@ REQUEST_TEST_CASES = [
             response=XComSequenceSliceResult(root=["foo", "bar"]),
         ),
         test_id="get_xcom_seq_slice",
+    ),
+    RequestTestCase(
+        message=GetXComByKeys(
+            keys=["return_value_0", "return_value_1"],
+            dag_id="test_dag",
+            run_id="test_run",
+            task_id="test_task",
+            map_index=-1,
+        ),
+        expected_body={"root": ["foo", "bar"], "type": "XComSequenceSliceResult"},
+        client_mock=ClientMock(
+            method_path="xcoms.get_by_keys",
+            args=("test_dag", "test_run", "test_task", ["return_value_0", "return_value_1"], -1),
+            kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
+            response=XComSequenceSliceResult(root=["foo", "bar"]),
+        ),
+        test_id="get_xcom_by_keys",
     ),
     RequestTestCase(
         message=TaskState(state=TaskInstanceState.SKIPPED, end_date=timezone.parse("2024-10-31T12:00:00Z")),

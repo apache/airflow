@@ -36,6 +36,7 @@ from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
+    XComKeysRequest,
     XComResponse,
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
@@ -47,6 +48,8 @@ from airflow.api_fastapi.execution_api.security import (
     DagInGrantedBundle,
     ExecutionAPIRoute,
     ExecutionOrDagParseToken,
+    is_write_request,
+    reads_only,
     require_task_token,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
@@ -82,7 +85,6 @@ def has_xcom_access(
     dag_id: str,
     run_id: str,
     task_id: str,
-    xcom_key: Annotated[str, Path(alias="key", min_length=1)],
     request: Request,
     session: SessionDep,
     token: ExecutionToken = CurrentExecutionToken,
@@ -93,7 +95,7 @@ def has_xcom_access(
     In multi-team mode, XCom access is scoped by team ownership (resolved via the
     ``dag -> bundle -> team`` chain). There is no cross-team XCom sharing:
 
-    * reads (``GET``/``HEAD``) are allowed for the requester's own team or for
+    * reads (``GET``/``HEAD``, or a ``reads_only`` route) are allowed for the requester's own team or for
       global (teamless) dags;
     * writes and deletes are allowed only for the requester's own team; a team
       task may not mutate a global dag's XCom, mirroring how team-scoped
@@ -107,7 +109,8 @@ def has_xcom_access(
     """
     from airflow.configuration import conf
 
-    write = request.method not in {"GET", "HEAD", "OPTIONS"}
+    write = is_write_request(request)
+    xcom_key = request.path_params.get("key")
 
     log.debug(
         "Checking %s XCom access for task instance '%s' to XCom '%s' on dag '%s'",
@@ -157,6 +160,7 @@ router = APIRouter(
     dependencies=[Depends(has_xcom_access)],
 )
 
+
 log = logging.getLogger(__name__)
 
 
@@ -182,7 +186,7 @@ def _build_xcom_read(
     dag_id: str,
     run_id: str,
     task_id: str,
-    key: str,
+    key: str | None,
     session: Session,
     dag_bag: DBDagBag,
     token: ExecutionToken,
@@ -190,12 +194,20 @@ def _build_xcom_read(
     include_prior_dates: bool = False,
     previous_iteration: bool = False,
     sequence: bool = False,
+    region_id: UUID | None = None,
+    region_index: int | None = None,
 ) -> _XComRead:
     """
     Select the XCom rows of the producers visible to the calling task instance.
 
     A ``sequence`` read returns several values in order. When it targets a loop task from outside that
     loop, it covers every iteration of the task rather than the one a caller inside the loop would see.
+
+    ``region_id`` and ``region_index`` name the producer's region and pass explicitly, whatever the
+    caller's own: a value that points at other XComs of its producer (an iterated task's result) reads
+    them from the pass it was pushed in, by a reader outside the loop or in a later pass alike.
+
+    ``key`` None selects the rows of every key, for a caller that filters keys itself.
     """
     resolver = TaskCoordinateResolver(dag_bag, session)
     read = partial(
@@ -209,6 +221,9 @@ def _build_xcom_read(
     try:
         if previous_iteration and include_prior_dates:
             raise ValueError("previous_iteration cannot be combined with prior dates")
+        scoped = region_id is not None or region_index is not None
+        if scoped and include_prior_dates:
+            raise ValueError("An explicit producer region cannot be combined with prior dates")
         if not previous_iteration and not resolver.has_regions(
             dag_id, None if include_prior_dates else run_id, task_id
         ):
@@ -231,8 +246,12 @@ def _build_xcom_read(
             return _XComRead(
                 read(region_id=SENTINEL_REGION_ID, include_node_regions=True, map_indexes=map_index)
             )
-        loop_sequence = sequence and resolver.is_loop_task_read_from_outside(
-            dag_id=dag_id, run_id=run_id, task_id=task_id, caller=caller
+        loop_sequence = (
+            sequence
+            and not scoped
+            and resolver.is_loop_task_read_from_outside(
+                dag_id=dag_id, run_id=run_id, task_id=task_id, caller=caller
+            )
         )
         return _XComRead(
             XComModel.get_many(
@@ -246,6 +265,8 @@ def _build_xcom_read(
                     map_indexes=map_index,
                     previous_iteration=previous_iteration,
                     all_iterations=loop_sequence,
+                    region_id=region_id,
+                    region_index=region_index,
                 ),
             ),
             loop_sequence=loop_sequence,
@@ -569,6 +590,8 @@ class GetXcomFilterParams(BaseModel):
     include_prior_dates: bool = False
     offset: int | None = None
     previous_iteration: bool = False
+    region_id: UUID | None = None
+    region_index: int | None = None
 
 
 @router.get(
@@ -637,6 +660,8 @@ def get_xcom(
         include_prior_dates=params.include_prior_dates,
         previous_iteration=params.previous_iteration,
         sequence=params.offset is not None,
+        region_id=params.region_id,
+        region_index=params.region_index,
     )
     entity = xcom_entity(xcom_read.statement)
     xcom_query = xcom_read.statement
@@ -672,6 +697,67 @@ def get_xcom(
         )
 
     return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
+
+
+@router.post(
+    "/{dag_id}/{run_id}/{task_id}",
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
+            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
+        ]
+    ),
+    summary="Get multiple XCom values by keys",
+    description=(
+        "Fetch multiple XCom values by key list in a single database query. "
+        "Optimised for XComIterable iteration, reducing N round-trips to one."
+    ),
+)
+@reads_only
+def get_xcom_by_keys(
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    request_body: XComKeysRequest,
+    session: SessionDep,
+    dag_bag: DagBagDep,
+    map_index: Annotated[int, Query()] = -1,
+    previous_iteration: bool = False,
+    region_id: Annotated[UUID | None, Query()] = None,
+    region_index: Annotated[int | None, Query()] = None,
+    token: ExecutionToken = CurrentExecutionToken,
+) -> XComSequenceSliceResponse:
+    """
+    Fetch multiple XCom values by different keys in a single database query.
+
+    The producer is resolved as for a single-key read: inside a loop the keys are read from the
+    caller's iteration, from the previous one with ``previous_iteration``, or from the region and
+    pass ``region_id`` and ``region_index`` name, as an iterated task's result does.
+    """
+    key_list = request_body.keys
+    if not key_list:
+        return XComSequenceSliceResponse([])
+
+    xcom_read = _build_xcom_read(
+        dag_id=dag_id,
+        run_id=run_id,
+        task_id=task_id,
+        key=None,
+        session=session,
+        dag_bag=dag_bag,
+        token=token,
+        map_index=map_index,
+        previous_iteration=previous_iteration,
+        region_id=region_id,
+        region_index=region_index,
+    ).statement
+    entity = xcom_entity(xcom_read)
+    query = (
+        xcom_read.with_only_columns(entity.key, entity.value).where(entity.key.in_(key_list)).order_by(None)
+    )
+    rows = {row.key: row.value for row in session.execute(query)}
+    return XComSequenceSliceResponse([rows.get(key) for key in key_list])
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in

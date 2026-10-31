@@ -26,7 +26,7 @@ require a ``VersionChange`` entry below.
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import VersionChange, VersionChangeWithSideEffects, schema
 
 from airflow.dag_processing.processor import DagFileParsingResult  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import (
@@ -121,6 +121,22 @@ class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
     )
 
 
+class AddRegionToGetXCom(VersionChange):
+    """
+    Add ``region_id`` and ``region_index`` to ``GetXCom``, naming the producer's region and pass.
+
+    The supervisor-schema mirror of the execution API's ``AddRegionToXComFilterParams``: an iterated
+    task's result reads its items from the pass that pushed them, whoever reads it.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXCom).field("region_id").didnt_exist,
+        schema(GetXCom).field("region_index").didnt_exist,
+    )
+
+
 class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
     """
     Add ``expanded_ti_count``, the size of the mapped expansion a task instance belongs to.
@@ -148,3 +164,16 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
     )
+
+
+class AddGetXComByKeys(VersionChangeWithSideEffects):
+    """
+    Add ``GetXComByKeys``, the request that fetches several XCom values by key in one round trip.
+
+    A new body needs no migration instruction: its head shape is its schema, and older runtimes
+    never send it. Recorded here so the version history names when it appeared.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = ()

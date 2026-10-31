@@ -501,6 +501,50 @@ def test_outside_caller_cannot_read_a_single_value_of_a_loop_task(client, outsid
     assert client.get(get_loop_url(dr, "body.step")).status_code == 400
 
 
+@pytest.mark.parametrize("iteration", [1, 2, 3])
+def test_outside_caller_reads_one_pass_of_a_loop_task_it_names(client, outside_loop_run, iteration):
+    """
+    A value pointing at other XComs of its producer (an iterated task's result) names the producer's
+    region and pass, so its reads resolve there whoever makes them, a caller outside the loop included.
+    """
+    dr, _, root, _, _ = outside_loop_run
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": iteration}
+    )
+
+    assert response.status_code == 200, response.json()
+    assert response.json() == {"key": "key", "value": f"step-{iteration}"}
+
+
+def test_loop_task_inside_the_loop_reads_another_pass_it_names(client, outside_loop_run):
+    dr, _, root, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[3])
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": 1}
+    )
+
+    assert response.json() == {"key": "key", "value": "step-1"}
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param({"include_prior_dates": True}, id="prior-dates"),
+        pytest.param({"previous_iteration": True}, id="previous-iteration"),
+    ],
+)
+def test_a_named_pass_cannot_be_combined_with_a_relative_scope(client, outside_loop_run, params):
+    dr, _, root, _, _ = outside_loop_run
+
+    response = client.get(
+        get_loop_url(dr, "body.step"), params={"region_id": str(root.id), "region_index": 1, **params}
+    )
+
+    assert response.status_code == 400
+
+
 def test_outside_caller_cannot_read_the_previous_iteration_of_a_loop_task(client, outside_loop_run):
     dr = outside_loop_run[0]
 
@@ -981,11 +1025,10 @@ def access_denied(client):
         dag_id: str = Path(),
         run_id: str = Path(),
         task_id: str = Path(),
-        xcom_key: str = Path(alias="key"),
         token=CurrentTIToken,
     ):
         with create_session() as session:
-            has_xcom_access(dag_id, run_id, task_id, xcom_key, request, session, token)
+            has_xcom_access(dag_id, run_id, task_id, request, session, token)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={
@@ -1813,6 +1856,27 @@ class TestXComTeamAccess:
         assert write.status_code == 403, write.json()
         assert delete_.status_code == 403, delete_.json()
 
+    @pytest.mark.parametrize(
+        ("target_team", "expected_status"),
+        [pytest.param(None, 200, id="global-dag"), pytest.param("team_b", 403, id="other-team")],
+    )
+    def test_reading_by_keys_is_checked_as_a_read(
+        self, client, exec_app, session, dag_maker, target_team, expected_status
+    ):
+        """The keys endpoint is a POST but only reads, so a team task reads a global dag's XComs through it."""
+        _, requester_ti = self._make_dag(session, dag_maker, f"req_{uuid4().hex}", "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, target_team)
+        self._insert_xcom(session, target_dr, key="k", value="v")
+        self._authenticate_as(exec_app, requester_ti.id)
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.post(f"/execution/xcoms/{target_dag}/run1/task", json={"keys": ["k"]})
+
+        assert response.status_code == expected_status, response.json()
+        if expected_status == 200:
+            assert response.json() == ["v"]
+
     def test_teamless_requester_scoping(self, client, session, dag_maker):
         """A teamless requester (default token) reaches global dags but not team dags."""
         team_dag = f"team_{uuid4().hex}"
@@ -1827,3 +1891,186 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+
+class TestGetXComByKeys:
+    """Tests for the POST /{dag_id}/{run_id}/{task_id} batched-fetch endpoint."""
+
+    def _insert_xcom(self, session, ti, key, value):
+        session.add(XComModelV2(key=key, value=value, task_instance_id=ti.id))
+
+    def test_returns_values_in_request_key_order(self, client, create_task_instance, session):
+        """Values are returned in the same order as the requested keys."""
+        ti = create_task_instance()
+        self._insert_xcom(session, ti, "return_value_0", "alpha")
+        self._insert_xcom(session, ti, "return_value_1", "beta")
+        self._insert_xcom(session, ti, "return_value_2", "gamma")
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}",
+            json={"keys": ["return_value_2", "return_value_0", "return_value_1"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == ["gamma", "alpha", "beta"]
+
+    def test_missing_key_returned_as_none(self, client, create_task_instance, session):
+        """Keys not found in the database are returned as null (None)."""
+        ti = create_task_instance()
+        self._insert_xcom(session, ti, "return_value_0", "exists")
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}",
+            json={"keys": ["return_value_0", "return_value_1"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == ["exists", None]
+
+    @pytest.mark.parametrize(("previous_iteration", "expected"), [(False, ["current"]), (True, ["previous"])])
+    def test_reads_the_callers_iteration_inside_a_loop(
+        self, client, loop_xcoms, previous_iteration, expected
+    ):
+        """The producer is resolved as for a single-key read: this iteration's, or the previous one."""
+        dr, producer, _, _ = loop_xcoms
+
+        response = client.post(
+            f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/{producer.task_id}",
+            params={"previous_iteration": True} if previous_iteration else {},
+            json={"keys": ["key"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    @pytest.mark.parametrize("iteration", [1, 2, 3])
+    def test_reads_the_pass_it_names_from_outside_the_loop(self, client, outside_loop_run, iteration):
+        """An iterated task's result names its producer's region and pass, so batched reads resolve there."""
+        dr, _, root, _, _ = outside_loop_run
+
+        response = client.post(
+            f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.step",
+            params={"region_id": str(root.id), "region_index": iteration},
+            json={"keys": ["key"]},
+        )
+
+        assert response.status_code == 200, response.json()
+        assert response.json() == [f"step-{iteration}"]
+
+    def test_a_loop_task_read_from_outside_without_a_named_pass_is_refused(self, client, outside_loop_run):
+        """As for a single-key read: the caller is in no pass of the loop, so it has to name one."""
+        dr = outside_loop_run[0]
+
+        response = client.post(f"/execution/xcoms/{dr.dag_id}/{dr.run_id}/body.step", json={"keys": ["key"]})
+
+        assert response.status_code == 400
+
+    def test_empty_key_list_returns_empty_list(self, client, create_task_instance, session):
+        ti = create_task_instance()
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}",
+            json={"keys": []},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+    def test_map_index_filter(self, client, dag_maker, session):
+        """Only XCom rows matching the requested map_index are returned."""
+
+        class MyOperator(EmptyOperator):
+            def __init__(self, *, x, **kwargs):
+                super().__init__(**kwargs)
+                self.x = x
+
+        with dag_maker(dag_id="dag"):
+            MyOperator.partial(task_id="task").expand(x=["a", "b"])
+        dag_run = dag_maker.create_dagrun(run_id="run")
+        tis = {ti.map_index: ti for ti in dag_run.task_instances}
+
+        # Insert XComs for map_index=0 and map_index=1 (both have real TI rows).
+        # map_index=-1 has no TI row for a mapped task, so it is not inserted.
+        session.add(XComModelV2(key="return_value_0", value="for_index_0", task_instance_id=tis[0].id))
+        session.add(XComModelV2(key="return_value_0", value="for_index_1", task_instance_id=tis[1].id))
+        session.commit()
+
+        dag_id = tis[0].dag_id
+        task_id = tis[0].task_id
+
+        # Default map_index=-1: no rows stored there, so null is returned.
+        response_default = client.post(
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}",
+            json={"keys": ["return_value_0"]},
+        )
+        response_index_0 = client.post(
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}",
+            params={"map_index": 0},
+            json={"keys": ["return_value_0"]},
+        )
+        response_index_1 = client.post(
+            f"/execution/xcoms/{dag_id}/{dag_run.run_id}/{task_id}",
+            params={"map_index": 1},
+            json={"keys": ["return_value_0"]},
+        )
+
+        assert response_default.json() == [None]
+        assert response_index_0.json() == ["for_index_0"]
+        assert response_index_1.json() == ["for_index_1"]
+
+    def test_does_not_return_other_tasks_xcoms(self, client, create_task_instance, session):
+        """Keys from a different task_id are not returned."""
+        ti = create_task_instance()
+        other_ti = create_task_instance(dag_id="other_dag", task_id="other_task")
+        self._insert_xcom(session, other_ti, "return_value_0", "not_mine")
+        session.commit()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}",
+            json={"keys": ["return_value_0"]},
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [None]
+
+    def test_an_xcom_named_keys_can_still_be_pushed_and_read(self, client, create_task_instance, session):
+        """The endpoint sits outside the ``{key:path}`` routes, so ``keys`` stays a usable XCom key."""
+        ti = create_task_instance()
+        url = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/keys"
+
+        assert client.post(url, json="a value").status_code == 201
+        response = client.get(url)
+
+        assert response.status_code == 200
+        assert response.json()["value"] == "a value"
+
+    def test_an_archived_attempt_reads_by_keys_as_it_reads_a_slice(
+        self, client, exec_app, monkeypatch, create_task_instance, session
+    ):
+        """Only writes require a live attempt: the keys endpoint reads, so it skips that check like a GET."""
+        attempt = create_task_instance(state=TaskInstanceState.RUNNING)
+        self._insert_xcom(session, attempt, "return_value_0", "alpha")
+        attempt.prepare_db_for_next_try(session)
+        session.commit()
+
+        async def authenticated_token():
+            return TIToken(id=attempt.id, claims=TIClaims())
+
+        monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+        monkeypatch.setitem(exec_app.dependency_overrides, _jwt_bearer, authenticated_token)
+
+        with patch.object(
+            JWTValidator,
+            "avalidated_claims",
+            autospec=True,
+            return_value={"sub": str(attempt.id), "scope": "execution"},
+        ):
+            response = client.post(
+                f"/execution/xcoms/{attempt.dag_id}/{attempt.run_id}/{attempt.task_id}",
+                json={"keys": ["return_value_0"]},
+            )
+
+        assert response.status_code == 200, response.text

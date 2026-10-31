@@ -43,8 +43,10 @@ def get_bundle() -> VersionBundle:
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExpandedTICountToSupervisorTIRunContext,
         AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+        AddGetXComByKeys,
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
+        AddRegionToGetXCom,
         AddRetryReasonToTaskState,
     )
 
@@ -58,8 +60,10 @@ def get_bundle() -> VersionBundle:
             AddDagDefinitionsToDagFileParsingResult,
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+            AddRegionToGetXCom,
             AddExpandedTICountToSupervisorTIRunContext,
             AddExecutionTimeoutToSupervisorTIRunContext,
+            AddGetXComByKeys,
         ),
         Version("2026-06-16"),
     )
