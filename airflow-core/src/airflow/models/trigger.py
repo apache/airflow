@@ -24,7 +24,7 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, and_, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -43,7 +43,7 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy import Row
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import ColumnElement, Select
 
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -435,6 +435,8 @@ class Trigger(Base):
             )
             return
 
+        multi_team = conf.getboolean("core", "multi_team")
+
         alive_triggerer_ids = select(Job.id).where(
             Job.end_date.is_(None),
             Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
@@ -443,22 +445,79 @@ class Trigger(Base):
 
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
-        trigger_ids_query = cls.get_sorted_triggers(
-            capacity=capacity,
+        if cls._has_claimable_triggers(
             alive_triggerer_ids=alive_triggerer_ids,
             queues=queues,
             team_name=team_name,
+            multi_team=multi_team,
             session=session,
-        )
-        if trigger_ids_query:
-            session.execute(
-                update(cls)
-                .where(cls.id.in_([i[0] for i in trigger_ids_query]))
-                .values(triggerer_id=triggerer_id)
-                .execution_options(synchronize_session=False)
+        ):
+            trigger_ids_query = cls.get_sorted_triggers(
+                capacity=capacity,
+                alive_triggerer_ids=alive_triggerer_ids,
+                queues=queues,
+                team_name=team_name,
+                multi_team=multi_team,
+                session=session,
             )
+            if trigger_ids_query:
+                session.execute(
+                    update(cls)
+                    .where(cls.id.in_([i[0] for i in trigger_ids_query]))
+                    .values(triggerer_id=triggerer_id)
+                    .execution_options(synchronize_session=False)
+                )
 
         session.commit()
+
+    @classmethod
+    def _build_queue_and_team_filter(
+        cls, queues: set[str] | None, team_name: str | None, *, multi_team: bool
+    ) -> ColumnElement[bool]:
+        """Build the condition a trigger must meet for a triggerer with these queues and team."""
+        # Filter by queues if the triggerer explicitly was called with `--queues`, otherwise, filter out
+        # Triggers which have an explicit `queue` value since there may be other triggerer hosts explicitly
+        # assigned to that queue.
+        conditions: list[ColumnElement[bool]]
+        if queues:
+            conditions = [cls.queue.in_(queues)]
+        else:
+            conditions = [cls.queue.is_(None)]
+
+        # Check the multi_team flag instead of team_name: if multi-team is disabled after triggers
+        # were created with a team, those triggers must still be picked up instead of being orphaned.
+        if multi_team:
+            if team_name:
+                conditions.append(cls.team_name == team_name)
+            else:
+                conditions.append(cls.team_name.is_(None))
+
+        return and_(*conditions)
+
+    @classmethod
+    def _has_claimable_triggers(
+        cls,
+        alive_triggerer_ids: list[int] | Select,
+        queues: set[str] | None,
+        team_name: str | None,
+        *,
+        multi_team: bool,
+        session: Session,
+    ) -> bool:
+        """
+        Probe whether any claimable trigger may exist, without sorting or row locks.
+
+        A trigger can only be claimed if it has no live owner and matches the queue and team
+        filters. Each ``get_sorted_triggers`` query also requires a callback, task instance or
+        asset, so the probe must match a superset of the rows any of them can return: a miss
+        proves they would all return nothing, and a false positive, such as an orphaned row
+        awaiting cleanup that no claim query selects, only falls through to them.
+        """
+        probe = select(cls.id).where(
+            or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
+            cls._build_queue_and_team_filter(queues, team_name, multi_team=multi_team),
+        )
+        return session.scalar(probe.limit(1)) is not None
 
     @classmethod
     def get_sorted_triggers(
@@ -468,6 +527,7 @@ class Trigger(Base):
         queues: set[str] | None,
         session: Session,
         team_name: str | None = None,
+        multi_team: bool | None = None,
     ):
         """
         Get sorted triggers based on capacity and alive triggerer ids.
@@ -477,8 +537,13 @@ class Trigger(Base):
         :param queues: The optional set of trigger queues to filter triggers by.
         :param session: The database session.
         :param team_name: The team to filter triggers for (None = global triggerer).
+        :param multi_team: Whether multi-team mode is enabled; read from config when None.
         """
         from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
+
+        if multi_team is None:
+            multi_team = conf.getboolean("core", "multi_team")
+        queue_and_team_filter = cls._build_queue_and_team_filter(queues, team_name, multi_team=multi_team)
 
         result: list[Row[Any]] = []
 
@@ -515,21 +580,7 @@ class Trigger(Base):
             # picking up too many triggers and starving other triggerers for HA setup.
             remaining_capacity = min(remaining_capacity, cls.max_trigger_to_select_per_loop)
 
-            # Filter by queues if the triggerer explicitly was called with `--queues`, otherwise, filter out
-            # Triggers which have an explicit `queue` value since there may be other triggerer hosts explicitly
-            # assigned to that queue.
-            if queues:
-                filtered_query = query.filter(cls.queue.in_(queues))
-            else:
-                filtered_query = query.filter(cls.queue.is_(None))
-
-            # Check config instead of team_name: if multi-team is disabled after triggers were
-            # created with a team, those triggers must still be picked up instead of being orphaned.
-            if conf.getboolean("core", "multi_team"):
-                if team_name:
-                    filtered_query = filtered_query.filter(cls.team_name == team_name)
-                else:
-                    filtered_query = filtered_query.filter(cls.team_name.is_(None))
+            filtered_query = query.where(queue_and_team_filter)
 
             locked_query = with_row_locks(filtered_query.limit(remaining_capacity), session, skip_locked=True)
             result.extend(session.execute(locked_query).all())
