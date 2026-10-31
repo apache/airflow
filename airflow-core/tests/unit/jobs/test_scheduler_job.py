@@ -8000,6 +8000,77 @@ class TestSchedulerJob:
         assert states == {"good_dag": DagRunState.RUNNING, "bad_dag": DagRunState.QUEUED}
         assert any(r.levelno >= logging.ERROR and "bad_dag" in r.getMessage() for r in caplog.records)
 
+    def _run_queued_dagruns_with_broken_dag(self, session, passes):
+        """Run ``passes`` queued-run passes in which ``bad_dag`` cannot be deserialized."""
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+
+        def fail_for_bad_dag(dag_run, session):
+            if dag_run.dag_id == "bad_dag":
+                raise DeserializationError("bad_dag") from RuntimeError("Variable not found")
+            return get_dag_for_run(dag_run=dag_run, session=session)
+
+        with patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag):
+            for _ in range(passes):
+                self.job_runner._start_queued_dagruns(session)
+                session.flush()
+
+    def _bad_run_state(self, session):
+        return session.scalar(select(DagRun.state).where(DagRun.dag_id == "bad_dag"))
+
+    @conf_vars({("scheduler", "max_dag_load_failures_per_queued_run"): "3"})
+    def test_queued_run_is_failed_after_max_dag_load_failures(self, dag_maker, session):
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        self._run_queued_dagruns_with_broken_dag(session, passes=2)
+        assert self._bad_run_state(session) == DagRunState.QUEUED
+
+        self._run_queued_dagruns_with_broken_dag(session, passes=1)
+        assert self._bad_run_state(session) == DagRunState.FAILED
+        assert not self.job_runner._queued_run_dag_load_failures
+
+    def test_queued_run_is_never_failed_when_limit_is_disabled(self, dag_maker, session):
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        self._run_queued_dagruns_with_broken_dag(session, passes=10)
+        assert self._bad_run_state(session) == DagRunState.QUEUED
+
+    @conf_vars({("scheduler", "max_dag_load_failures_per_queued_run"): "3"})
+    def test_load_failure_count_resets_when_dag_loads_again(self, dag_maker, session):
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        self._run_queued_dagruns_with_broken_dag(session, passes=2)
+        self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        assert self._bad_run_state(session) == DagRunState.RUNNING
+        assert not self.job_runner._queued_run_dag_load_failures
+
+    @conf_vars({("scheduler", "max_dag_load_failures_per_queued_run"): "1"})
+    def test_failing_queued_run_on_dag_load_errors_can_auto_pause_dag(self, dag_maker, session):
+        """Failing the run lets the existing ``max_consecutive_failed_dag_runs`` auto-pause apply."""
+        with dag_maker(dag_id="bad_dag", schedule="@once", max_consecutive_failed_dag_runs=1):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+
+        self._run_queued_dagruns_with_broken_dag(session, passes=1)
+
+        assert self._bad_run_state(session) == DagRunState.FAILED
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == "bad_dag")) is True
+
     def test_schedule_all_dag_runs_reraises_db_errors(self, dag_maker, session):
         """Test that _schedule_all_dag_runs does not catch DBAPIError, allowing
         it to propagate to @retry_db_transaction for proper retry handling.
