@@ -311,8 +311,8 @@ class TestHTTPRouteAPIServer:
             show_only=SHOW_ONLY,
             api_versions=GATEWAY_API_VERSIONS,
         )
-        assert "tier" in jmespath.search("metadata.labels", docs[0])
-        assert "release" in jmespath.search("metadata.labels", docs[0])
+        assert "app.kubernetes.io/part-of" in jmespath.search("metadata.labels", docs[0])
+        assert "app.kubernetes.io/instance" in jmespath.search("metadata.labels", docs[0])
         assert jmespath.search('metadata.labels."label1"', docs[0]) == "value1"
         assert jmespath.search('metadata.labels."test_label"', docs[0]) == "test_label_value"
         assert jmespath.search('metadata.labels."route_label"', docs[0]) == "route_value"
