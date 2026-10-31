@@ -934,6 +934,79 @@ class TestSchedulerJob:
 
         assert [row.id for row in runner._find_task_instances_without_heartbeats(session=session)] == [ti.id]
 
+    def test_find_task_instances_without_heartbeats_is_bounded_by_max_tis_per_query(self, dag_maker, session):
+        """A mass heartbeat-loss event must be purged in bounded batches, oldest heartbeat first."""
+        with dag_maker(serialized=True):
+            EmptyOperator(task_id="task")
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        session.add(runner.job)
+        session.flush()
+        runner.job.max_tis_per_query = 2
+
+        # Insert with heartbeats in the REVERSE of insertion order, so insertion/uuid7-id order is not
+        # the same as heartbeat order: the row inserted first has the newest heartbeat, the row
+        # inserted last the oldest. This pins that the scan orders by oldest heartbeat, not by id --
+        # it would still pass with the order_by removed if the two orders agreed.
+        ids_by_insertion = []
+        for i in range(3):
+            dr = dag_maker.create_dagrun(run_id=f"run_{i}", logical_date=DEFAULT_DATE + timedelta(days=i))
+            ti = dr.get_task_instance("task", session=session)
+            ti.state = State.RUNNING
+            ti.region_index = -1
+            ti.last_heartbeat_at = DEFAULT_DATE - timedelta(minutes=i)
+            ti.queued_by_job_id = runner.job.id
+            ids_by_insertion.append(ti.id)
+        session.commit()
+
+        found = runner._find_task_instances_without_heartbeats(session=session)
+        # Oldest heartbeat first = reverse of insertion order; capped at max_tis_per_query (2), so the
+        # two oldest are returned (inserted last and second-to-last) and the newest waits for a later loop.
+        assert [row.id for row in found] == [ids_by_insertion[2], ids_by_insertion[1]]
+
+    def test_heartbeat_purge_batch_limit_falls_back_to_parallelism(self, session):
+        """max_tis_per_query == 0 means "use [core] parallelism", so the purge is never unbounded."""
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        runner._parallelism = 512
+        runner.job.max_tis_per_query = 0
+        assert runner._heartbeat_purge_batch_limit == 512
+        runner.job.max_tis_per_query = 16
+        assert runner._heartbeat_purge_batch_limit == 16
+
+    def test_find_and_purge_expedites_rerun_only_on_full_batch(self, session):
+        """A full purge batch asks the timer to rerun next loop (0); a partial/empty batch does not."""
+        runner = SchedulerJobRunner(Job(), executors=[MockExecutor(do_update=False)])
+        session.add(runner.job)
+        session.flush()
+        runner.job.max_tis_per_query = 2  # batch limit == 2
+
+        with mock.patch("airflow._shared.observability.metrics.stats.incr"):
+            # Full batch (len == limit): expedite the next pass.
+            with (
+                mock.patch.object(
+                    runner, "_find_task_instances_without_heartbeats", return_value=[MagicMock(), MagicMock()]
+                ),
+                mock.patch.object(runner, "_purge_task_instances_without_heartbeats") as purge,
+            ):
+                assert runner._find_and_purge_task_instances_without_heartbeats() == 0.0
+                purge.assert_called_once()
+
+            # Partial batch (len < limit): regular interval.
+            with (
+                mock.patch.object(
+                    runner, "_find_task_instances_without_heartbeats", return_value=[MagicMock()]
+                ),
+                mock.patch.object(runner, "_purge_task_instances_without_heartbeats"),
+            ):
+                assert runner._find_and_purge_task_instances_without_heartbeats() is None
+
+            # Nothing stale: regular interval and the purge is not invoked.
+            with (
+                mock.patch.object(runner, "_find_task_instances_without_heartbeats", return_value=[]),
+                mock.patch.object(runner, "_purge_task_instances_without_heartbeats") as purge_none,
+            ):
+                assert runner._find_and_purge_task_instances_without_heartbeats() is None
+                purge_none.assert_not_called()
+
     @pytest.mark.parametrize("event_state", [State.QUEUED, State.RUNNING])
     def test_restarting_waits_for_terminal_executor_event(self, dag_maker, session, event_state):
         with dag_maker(dag_id="restart_waits_for_termination"):
@@ -4839,6 +4912,39 @@ class TestSchedulerJob:
         # (dag_maker creates one) and the callback should be sent
         assert any("Backfilled dag_version_id" in rec.message for rec in caplog.records)
         mock_executor.send_callback.assert_called_once()
+
+    def test_purge_without_heartbeat_fails_ti_when_dag_version_unresolvable(self, dag_maker, session):
+        """
+        A TI whose dag_version_id cannot be resolved (no DagVersion at all, e.g. an adopted Airflow 2
+        task never reparsed) must still be failed -- without the callback -- not skipped. Skipping
+        would leave it RUNNING with its stale heartbeat, so with oldest-first batching it would sort to
+        the front of every batch and starve the purge.
+        """
+        with dag_maker("test_purge_unresolvable_dag_version", session=session):
+            EmptyOperator(task_id="task")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        mock_executor = MagicMock()
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
+
+        ti = dag_run.get_task_instance(task_id="task", session=session)
+        ti.state = TaskInstanceState.RUNNING
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(hours=1)
+        ti.dag_version_id = None
+        session.merge(ti)
+        session.commit()
+
+        # No DagVersion can be found, so the callback version cannot be resolved.
+        with mock.patch("airflow.jobs.scheduler_job_runner.DagVersion.get_latest_version", return_value=None):
+            self.job_runner._purge_task_instances_without_heartbeats([ti], session=session)
+
+        session.refresh(ti)
+        # Released (failed), not left RUNNING; and no callback was sent since it had no dag version.
+        assert ti.state in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY)
+        mock_executor.send_callback.assert_not_called()
 
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),

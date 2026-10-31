@@ -4014,8 +4014,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         num_unresumable,
                     )
 
+    @property
+    def _heartbeat_purge_batch_limit(self) -> int:
+        """
+        How many stale task instances the heartbeat-timeout purge clears per pass.
+
+        ``max_tis_per_query == 0`` means "use ``[core] parallelism``" (same as the scheduling path),
+        so the purge is always bounded -- there is no unbounded mode that could stall the loop on a
+        mass heartbeat-loss event.
+        """
+        return self.job.max_tis_per_query or self._parallelism
+
     # [START find_and_purge_task_instances_without_heartbeats]
-    def _find_and_purge_task_instances_without_heartbeats(self) -> None:
+    def _find_and_purge_task_instances_without_heartbeats(self) -> float | None:
         """
         Find and purge task instances without heartbeats.
 
@@ -4025,19 +4036,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A TaskCallbackRequest is also created for the killed task instance to be
         handled by the DAG processor, and the executor is informed to no longer
         count the task instance as running when it calculates parallelism.
+
+        Returns ``0`` when a full batch was purged, asking the caller to run the next pass on the
+        following loop instead of waiting the full detection interval; otherwise returns ``None`` so
+        the regular interval applies.
         """
         with create_session() as session:
-            if task_instances_without_heartbeats := self._find_task_instances_without_heartbeats(
-                session=session
-            ):
-                stats.incr(
-                    "scheduler.zombies.detected",
-                    len(task_instances_without_heartbeats),
-                    tags={"reason": "heartbeat_timeout"},
-                )
-                self._purge_task_instances_without_heartbeats(
-                    task_instances_without_heartbeats, session=session
-                )
+            task_instances_without_heartbeats = self._find_task_instances_without_heartbeats(session=session)
+            if not task_instances_without_heartbeats:
+                return None
+            stats.incr(
+                "scheduler.zombies.detected",
+                len(task_instances_without_heartbeats),
+                tags={"reason": "heartbeat_timeout"},
+            )
+            self._purge_task_instances_without_heartbeats(task_instances_without_heartbeats, session=session)
+        # A full batch means more stale rows are likely waiting; drain them on the next loop rather
+        # than after the full interval, so a mass event recovers quickly while each pass stays bounded.
+        if len(task_instances_without_heartbeats) >= self._heartbeat_purge_batch_limit:
+            return 0.0
+        return None
 
     def _find_task_instances_without_heartbeats(self, *, session: Session) -> list[TI]:
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
@@ -4071,6 +4089,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.execute(with_row_locks(run_query, of=DagRun, session=session, skip_locked=True))
         )
         query = query.where(or_(~regional_expression(TI), tuple_(TI.dag_id, TI.run_id).in_(locked_runs)))
+        # Bound the batch (oldest heartbeat first) so a mass heartbeat-loss event does not purge every
+        # stale row, each with its per-TI work (serialized-DAG load, handle_failure), in one
+        # scheduler-loop-stalling pass. handle_failure() commits per TI, so this bounds how long a
+        # single pass occupies the loop, not one giant lock; the caller re-runs the purge on the next
+        # loop while batches come back full, so the bounded cap does not slow recovery.
+        query = query.order_by(TI.last_heartbeat_at).limit(self._heartbeat_purge_batch_limit)
         # Lock the rows (FOR UPDATE, of=TI so the FOR UPDATE isn't applied to the joined dag_model)
         # so a worker can't commit a terminal state on the same TI between this scan and the
         # handle_failure() in the purge that follows in the same transaction. skip_locked keeps HA
@@ -4160,10 +4184,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
-            # Missing callback metadata must not prevent a cleared attempt from being released.
+            # Missing callback metadata must not prevent a cleared attempt from being released. A TI
+            # with no resolvable dag_version_id (e.g. an adopted Airflow 2 TI whose Dag was never
+            # reparsed) is still failed below -- just without the callback -- rather than skipped.
+            # Skipping would leave it RUNNING with its old heartbeat, so with oldest-first batching it
+            # would sort to the front of every batch and starve the purge.
             has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
-            if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
-                continue
             callback_map_index = None
             if has_callback_version:
                 try:

@@ -2933,8 +2933,11 @@ scheduler:
     max_tis_per_query:
       description: |
         This determines the number of task instances to be evaluated for scheduling
-        during each scheduler loop.
-        Set this to 0 to use the value of ``[core] parallelism``
+        during each scheduler loop. It also bounds how many heartbeat-timed-out task
+        instances the scheduler purges per pass, so a mass heartbeat-loss event is
+        cleared in bounded batches (oldest heartbeat first) over successive loops
+        instead of in one scheduler-loop-stalling pass.
+        Set this to 0 to use the value of ``[core] parallelism`` (for both uses).
       version_added: ~
       type: integer
       example: ~

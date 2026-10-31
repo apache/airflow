@@ -46,9 +46,10 @@ class EventScheduler(scheduler, LoggingMixin):
 
         def repeat(*args, **kwargs):
             self.log.debug("Calling %s", action)
+            result = None
             if non_fatal:
                 try:
-                    action(*args, **kwargs)
+                    result = action(*args, **kwargs)
                 except Exception as e:
                     self.log.warning(
                         "Failed to run periodic action %s due to %s; will retry on the next cycle",
@@ -57,10 +58,17 @@ class EventScheduler(scheduler, LoggingMixin):
                         exc_info=True,
                     )
             else:
-                action(*args, **kwargs)
+                result = action(*args, **kwargs)
+            # An action may request an earlier next run -- e.g. it cleared a full bounded batch and
+            # more work is likely waiting -- by returning a non-negative delay in seconds; otherwise
+            # the regular interval is used. A bool is ignored so a truthy/falsey return can't re-time
+            # the timer by accident.
+            next_delay = delay
+            if isinstance(result, (int, float)) and not isinstance(result, bool):
+                next_delay = max(0.0, float(result))
             # This is not perfect. If we want a timer every 60s, but action
             # takes 10s to run, this will run it every 70s.
             # Good enough for now
-            self.enter(delay, 1, repeat, args, kwargs)
+            self.enter(next_delay, 1, repeat, args, kwargs)
 
         self.enter(delay, 1, repeat, arguments, kwargs or {})
