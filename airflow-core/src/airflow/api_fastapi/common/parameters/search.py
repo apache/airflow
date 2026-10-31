@@ -42,41 +42,41 @@ if TYPE_CHECKING:
 
 class _PrefixPatternParam(BaseParam[str], ABC):
     """
-    Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), Unicode prefix range.
+    Shared prefix pattern: pipe ``|`` for OR, ``~`` → empty (match all), exact prefix check.
 
     .. note::
         Trailing non-alphanumeric characters in a search term are stripped before the
-        predicate is built. A range scan with a punctuation-terminated bound is unsafe under
-        PostgreSQL's default locale-aware collation (``en_US.utf8`` sorts punctuation in a
-        way that breaks the range), so the term is stripped first. A user who asks for prefix
-        ``"test_"`` gets matches starting with ``"test"`` — a small over-match trade-off made
-        explicit in the public ``*_prefix_pattern`` query-param description.
+        predicate is built. Punctuation-terminated terms are unsafe under PostgreSQL's
+        default locale-aware collation (``en_US.utf8`` sorts punctuation unexpectedly),
+        so the term is stripped first. A user who asks for prefix ``"test_"`` gets matches
+        starting with ``"test"`` — a small over-match trade-off made explicit in the public
+        ``*_prefix_pattern`` query-param description.
     """
 
     pipe_as_or: bool = True
 
     @staticmethod
-    def _prefix_lower_bound(term: str) -> str:
-        """Return the matching lower bound: ``term`` without trailing non-alphanumeric chars."""
+    def _strip_prefix_term(term: str) -> str:
+        """Strip trailing non-alphanumeric characters from a prefix search term."""
         while term and not term[-1].isalnum():
             term = term[:-1]
         return term
 
     @staticmethod
-    def _build_prefix_range_clauses(
-        column: ColumnElement | InstrumentedAttribute, lower: str
+    def _build_prefix_clauses(
+        column: ColumnElement | InstrumentedAttribute, term: str
     ) -> list[ColumnElement[bool]]:
         """
-        Return the predicates matching values that start with ``lower`` on ``column``.
+        Return the predicates matching values that start with ``term`` on ``column``.
 
-        There is deliberately no upper bound: bumping the last character is unsafe under
-        collations with contractions. In Postgres ICU ``cs-CZ-x-icu`` the digraph ``ch`` sorts
-        after ``h``, so ``'chata' < 'd'`` is false and prefix ``c`` would miss it (#74724).
-        ``column >= lower`` keeps the scan start index-friendly and the ``substr`` equality
-        enforces the exact prefix. ``LIKE 'lower%'`` is avoided because it is case-insensitive
-        on SQLite.
+        The check is a collation-independent ``substr`` equality — no range bounds are
+        used.  Range bounds (``column >= term``, ``column < term+1``) are unsafe under
+        collations with contractions: Czech ``ch`` sorts after ``h`` (ICU ``cs-CZ-x-icu``),
+        Welsh ``ng`` sorts after ``g`` (``cy-x-icu``), and Igbo ``ch`` likewise (``ig-x-icu``),
+        so a ``>=``/``<`` window can both exclude valid matches and include invalid ones
+        (#74724).  ``LIKE 'term%'`` is avoided because it is case-insensitive on SQLite.
         """
-        return [column >= lower, func.substr(column, 1, len(lower)) == lower]
+        return [func.substr(column, 1, len(term)) == term]
 
     @abstractmethod
     def _prefix_clause(self, term: str):
@@ -169,10 +169,9 @@ class _SearchParam(BaseParam[str]):
 
 class _PrefixSearchParam(_PrefixPatternParam):
     """
-    Prefix search on a column using range comparison (case-sensitive, index-friendly).
+    Prefix search on a column using a collation-safe ``substr`` equality (case-sensitive).
 
-    Unlike :class:`_SearchParam`, wildcard characters are treated as literals and the query
-    plan can use the column's default B-tree index for the range scan. Trailing
+    Unlike :class:`_SearchParam`, wildcard characters are treated as literals. Trailing
     non-alphanumeric characters in ``term`` are stripped first (see
     :class:`_PrefixPatternParam` for why).
     """
@@ -183,10 +182,10 @@ class _PrefixSearchParam(_PrefixPatternParam):
         self.pipe_as_or = pipe_as_or
 
     def _prefix_clause(self, term: str):
-        lower = self._prefix_lower_bound(term)
-        if not lower:
+        stripped = self._strip_prefix_term(term)
+        if not stripped:
             return self.attribute.is_not(None)
-        return and_(*self._build_prefix_range_clauses(self.attribute, lower))
+        return and_(*self._build_prefix_clauses(self.attribute, stripped))
 
     @classmethod
     def depends(cls, *args: Any, **kwargs: Any) -> Self:
@@ -198,22 +197,22 @@ class _TaskDisplayNamePrefixPatternParam(_PrefixPatternParam):
     Prefix filter equivalent to :attr:`TaskInstance.task_display_name`, rewritten for composite-index use.
 
     The hybrid expression ``coalesce(_task_display_property_value, task_id)`` cannot use those indexes;
-    this implementation applies an equivalent ``OR`` of simpler range predicates instead. Trailing
+    this implementation applies an equivalent ``OR`` of simpler prefix predicates instead. Trailing
     non-alphanumeric characters in ``term`` are stripped first (see :class:`_PrefixPatternParam`).
     """
 
     def _prefix_clause(self, term: str):
-        lower = self._prefix_lower_bound(term)
-        if not lower:
+        stripped = self._strip_prefix_term(term)
+        if not stripped:
             return sql_true()
         return or_(
             and_(
                 TaskInstance._task_display_property_value.is_(None),
-                *self._build_prefix_range_clauses(TaskInstance.task_id, lower),
+                *self._build_prefix_clauses(TaskInstance.task_id, stripped),
             ),
             and_(
                 TaskInstance._task_display_property_value.is_not(None),
-                *self._build_prefix_range_clauses(TaskInstance._task_display_property_value, lower),
+                *self._build_prefix_clauses(TaskInstance._task_display_property_value, stripped),
             ),
         )
 
