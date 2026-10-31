@@ -767,7 +767,7 @@ class TestBigQueryIntervalCheckTrigger:
     )
     @mock.patch("asyncio.sleep", new_callable=AsyncMock)
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.interval_check")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_sync_hook")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
@@ -776,7 +776,7 @@ class TestBigQueryIntervalCheckTrigger:
         mock_job_status,
         mock_sync_hook,
         mock_get_job_output,
-        mock_get_records,
+        mock_aget_records,
         mock_interval_check,
         mock_sleep,
         first_status,
@@ -791,7 +791,7 @@ class TestBigQueryIntervalCheckTrigger:
             {"status": "success", "message": "Job completed"},
         ]
         mock_sync_hook.return_value.is_default_universe.return_value = True
-        mock_get_records.side_effect = lambda *_, **__: [[100]]
+        mock_aget_records.side_effect = lambda *_, **__: [[100]]
 
         actual = await interval_check_trigger.run().asend(None)
 
@@ -929,14 +929,14 @@ class TestBigQueryValueCheckTrigger:
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=AsyncMock)
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.value_check")
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_records")
+    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_output")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.get_job_status")
     async def test_value_check_op_trigger_keeps_polling_while_job_is_running(
         self,
         mock_job_status,
         mock_get_job_output,
-        mock_get_records,
+        mock_aget_records,
         mock_value_check,
         mock_sleep,
         value_check_trigger,
@@ -946,7 +946,7 @@ class TestBigQueryValueCheckTrigger:
             {"status": "running", "message": "Job running"},
             {"status": "success", "message": "Job completed"},
         ]
-        mock_get_records.side_effect = lambda *_, **__: [[4]]
+        mock_aget_records.side_effect = lambda *_, **__: [[4]]
 
         actual = await value_check_trigger.run().asend(None)
 
