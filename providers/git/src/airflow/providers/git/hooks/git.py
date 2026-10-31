@@ -78,9 +78,12 @@ class GitHook(BaseHook):
       private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
       ``key_file`` (path to key file).
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
+    * ``git_config`` — JSON object of git configuration keys and values applied to every git command
+      the hook runs, e.g. ``{"http.https://gitlab.example.com/.proactiveAuth": "basic"}`` to send the
+      token on the first request to a public repository.
 
-    Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
-    and needs git version 2.31 or higher.
+    Token authentication over http(s) and ``git_config`` are passed to git through
+    ``GIT_CONFIG_COUNT`` and need git version 2.31 or higher.
     """
 
     conn_name_attr = "git_conn_id"
@@ -110,6 +113,7 @@ class GitHook(BaseHook):
                         "ssh_port": "",
                         "github_app_id": "",
                         "github_installation_id": "",
+                        "git_config": {},
                     }
                 )
             },
@@ -147,6 +151,8 @@ class GitHook(BaseHook):
         self.github_app_id = extra.get("github_app_id")
         self.github_installation_id = extra.get("github_installation_id")
         self.github_app_token_exp: datetime | None = None
+
+        self.git_config = self._build_git_config(extra.get("git_config"))
 
         self.env: dict[str, str] = {}
 
@@ -286,6 +292,56 @@ class GitHook(BaseHook):
         self.repo_url = f"{scheme}{separator}{host}{slash}{path}"
         return unquote(user) or None, unquote(password)
 
+    @staticmethod
+    def _build_git_config(git_config: Any) -> dict[str, str]:
+        if not git_config:
+            return {}
+        if not isinstance(git_config, dict):
+            raise ValueError("'git_config' must be a JSON object mapping git configuration keys to values")
+        built: dict[str, str] = {}
+        for key, value in git_config.items():
+            # bool is checked first because it is a subclass of int; git spells it true/false.
+            if isinstance(value, bool):
+                built[key] = "true" if value else "false"
+            elif isinstance(value, (str, int)):
+                built[key] = str(value)
+            else:
+                raise ValueError(f"'git_config' value for {key!r} must be a string, a number or a boolean")
+        return built
+
+    @contextlib.contextmanager
+    def _extended_git_env(
+        self, config: list[tuple[str, str]], variables: dict[str, str] | None = None
+    ) -> Generator[None]:
+        """Append ``config`` to the git configuration passed through ``GIT_CONFIG_*`` for the block."""
+        if not config and not variables:
+            yield
+            return
+        # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.
+        try:
+            index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+        except ValueError:
+            index = 0
+        values = {"GIT_CONFIG_COUNT": str(index + len(config))}
+        for offset, (key, value) in enumerate(config):
+            values[f"GIT_CONFIG_KEY_{index + offset}"] = key
+            values[f"GIT_CONFIG_VALUE_{index + offset}"] = value
+        values.update(variables or {})
+        # ``self.env`` alone is not enough: callers only forward it on the initial clone,
+        # so fetches would run without these settings.
+        envs = (os.environ, self.env)
+        saved = [(env, var, env.get(var)) for env in envs for var in values]
+        try:
+            for env in envs:
+                env.update(values)
+            yield
+        finally:
+            for env, var, old_val in saved:
+                if old_val is None:
+                    env.pop(var, None)
+                else:
+                    env[var] = old_val
+
     def _extract_credential_scope(self) -> str:
         """Return the ``<scheme>://<host>[:port]`` git matches a credential config against."""
         scheme, _, rest = str(self.repo_url).partition("://")
@@ -323,41 +379,23 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
                 )
             os.chmod(helper_path, stat.S_IRWXU)
 
-            # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.
-            try:
-                index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
-            except ValueError:
-                index = 0
             # System/global config loads before env-supplied config, so a deployment-wide
             # `credential.helper` would otherwise answer `get` first and our token would never
             # be used. git also invokes every helper on `approve`, so a `store` helper would
             # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
-            values = {
-                "GIT_CONFIG_COUNT": str(index + 2),
-                f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
-                f"GIT_CONFIG_VALUE_{index}": "",
-                f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
+            config = [
+                (f"credential.{scope}.helper", ""),
                 # git runs the value through a shell, so a temp dir containing a space would
                 # split into two words. ``!`` marks it as a command so the quoting survives.
-                f"GIT_CONFIG_VALUE_{index + 1}": "!" + shlex.quote(helper_path),
+                (f"credential.{scope}.helper", "!" + shlex.quote(helper_path)),
+            ]
+            variables = {
                 "GIT_TERMINAL_PROMPT": "0",
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
             }
-            # ``self.env`` alone is not enough: callers only forward it on the initial clone,
-            # so fetches would run without the credential and hang on the terminal prompt.
-            envs = (os.environ, self.env)
-            saved = [(env, var, env.get(var)) for env in envs for var in values]
-            try:
-                for env in envs:
-                    env.update(values)
+            with self._extended_git_env(config, variables):
                 yield
-            finally:
-                for env, var, old_val in saved:
-                    if old_val is None:
-                        env.pop(var, None)
-                    else:
-                        env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
@@ -397,6 +435,13 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
 
     @contextlib.contextmanager
     def configure_hook_env(self):
+        # The connection's own settings go first, so the credential configuration below
+        # still wins for the keys both of them set.
+        with self._extended_git_env(list(self.git_config.items())), self._auth_env():
+            yield
+
+    @contextlib.contextmanager
+    def _auth_env(self):
         if self.uses_github_app_auth:
             self._ensure_github_app_token()
             with self._token_credential_env():
