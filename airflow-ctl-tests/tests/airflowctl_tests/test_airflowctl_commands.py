@@ -105,6 +105,8 @@ TEST_COMMANDS = [
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # Tasks commands
+    "tasks get example_bash_operator runme_0",
+    "tasks list example_bash_operator",
     'tasks failed-deps example_bash_operator runme_0 "manual__{date_param}"',
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
