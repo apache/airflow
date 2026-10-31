@@ -56,6 +56,29 @@ vi.mock("src/queries/useDagParams", () => ({
   useDagParams: useDagParamsMock,
 }));
 
+const boundedParams = {
+  paramsDict: {
+    hold_seconds: {
+      description: "Hold seconds",
+      schema: {
+        maximum: 600,
+        minimum: 1,
+        title: "Hold seconds",
+        type: "integer",
+      },
+      value: 180,
+    },
+    message: {
+      description: "Message",
+      schema: {
+        title: "Message",
+        type: "string",
+      },
+      value: "Hello",
+    },
+  },
+};
+
 const togglePauseMock = vi.hoisted(() => vi.fn());
 
 vi.mock("src/queries/useTogglePause", () => ({
@@ -111,7 +134,36 @@ vi.mock("../JsonEditor", () => ({
   ),
 }));
 
+const getParamInput = async (container: HTMLElement, name: string) =>
+  waitFor(() => {
+    const input = container.querySelector<HTMLInputElement>(`input[name="element_${name}"]`);
+
+    if (input === null) {
+      throw new Error(`Expected the ${name} input to be rendered`);
+    }
+
+    return input;
+  });
+
 describe("TriggerDAGForm", () => {
+  const renderBoundedParamForm = (onSubmitTrigger: () => void) => {
+    useDagParamsMock.mockReturnValue(boundedParams);
+
+    return render(
+      <TriggerDAGForm
+        dagId="example_bounded_param"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+  };
+
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
     togglePauseMock.mockClear();
@@ -435,5 +487,67 @@ describe("TriggerDAGForm", () => {
       ),
     );
     expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
+  });
+
+  it("blocks the trigger when a param value is outside the range of its schema", async () => {
+    const onSubmitTrigger = vi.fn();
+    const { container } = renderBoundedParamForm(onSubmitTrigger);
+
+    const holdSecondsInput = await getParamInput(container, "hold_seconds");
+
+    fireEvent.focus(holdSecondsInput);
+    fireEvent.input(holdSecondsInput, { target: { value: "6666" } });
+
+    await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorMaximum")).toBeInTheDocument());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+  });
+
+  it("keeps the trigger blocked when another param is edited after an out-of-range value", async () => {
+    const onSubmitTrigger = vi.fn();
+    const { container } = renderBoundedParamForm(onSubmitTrigger);
+
+    const holdSecondsInput = await getParamInput(container, "hold_seconds");
+
+    fireEvent.focus(holdSecondsInput);
+    fireEvent.input(holdSecondsInput, { target: { value: "6666" } });
+
+    await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorMaximum")).toBeInTheDocument());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    const messageInput = await getParamInput(container, "message");
+
+    fireEvent.change(messageInput, { target: { value: "Updated message" } });
+
+    await waitFor(() => expect(messageInput).toHaveValue("Updated message"));
+    expect(screen.getByText("flexibleForm.validationErrorMaximum")).toBeInTheDocument();
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+  });
+
+  it("re-enables the trigger once the out-of-range value is corrected", async () => {
+    const onSubmitTrigger = vi.fn();
+    const { container } = renderBoundedParamForm(onSubmitTrigger);
+
+    const holdSecondsInput = await getParamInput(container, "hold_seconds");
+
+    fireEvent.focus(holdSecondsInput);
+    fireEvent.input(holdSecondsInput, { target: { value: "6666" } });
+
+    await waitFor(() => expect(screen.getByText("flexibleForm.validationErrorMaximum")).toBeInTheDocument());
+    expect(screen.getByTestId("trigger-dag-submit")).toBeDisabled();
+
+    fireEvent.input(holdSecondsInput, { target: { value: "300" } });
+
+    await waitFor(() =>
+      expect(screen.queryByText("flexibleForm.validationErrorMaximum")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("trigger-dag-submit")).toBeEnabled();
   });
 });

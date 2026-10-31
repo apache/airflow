@@ -93,7 +93,7 @@ export const FlexibleForm = ({
   const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
-  const [hasValidationError, setHasValidationError] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Map<string, unknown>>(new Map());
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -118,19 +118,32 @@ export const FlexibleForm = ({
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
     setSectionError(newSectionError);
-    setError(hasValidationError || newSectionError.size > 0);
-  }, [params, flexibleFormDefaultSection, setError, hasValidationError]);
+    setError(validationErrors.size > 0 || newSectionError.size > 0);
+  }, [params, flexibleFormDefaultSection, setError, validationErrors]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);
   }, [disabled, setDisabled]);
 
-  const onUpdate = (_value?: string, error?: unknown) => {
-    const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
+  // Validation errors are tracked per param: an error raised by one param must not be cleared
+  // when another param is edited, otherwise the form would be considered valid again while the
+  // offending value is still in place.
+  const onUpdate = (name: string, _value?: string, error?: unknown) => {
+    setValidationErrors((previousErrors) => {
+      if (!Boolean(error) && !previousErrors.has(name)) {
+        return previousErrors;
+      }
 
-    setHasValidationError(Boolean(error));
-    setSectionError(newSectionError);
-    setError(Boolean(error) || newSectionError.size > 0);
+      const nextErrors = new Map(previousErrors);
+
+      if (Boolean(error)) {
+        nextErrors.set(name, error);
+      } else {
+        nextErrors.delete(name);
+      }
+
+      return nextErrors;
+    });
   };
 
   return Object.keys(params).length > 0 ? (
@@ -165,7 +178,12 @@ export const FlexibleForm = ({
                     (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                 )
                 .map(([name]) => (
-                  <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
+                  <Row
+                    key={name}
+                    name={name}
+                    namespace={namespace}
+                    onUpdate={(value, error) => onUpdate(name, value, error)}
+                  />
                 ))}
             </Stack>
           </FlatSection>

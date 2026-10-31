@@ -16,13 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useTranslation } from "react-i18next";
+
 import { NumberInputField, NumberInputRoot } from "src/system-components";
 
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
+import { getParamRangeViolation } from "./getParamRangeViolation";
 
 export const FieldNumber = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
+  const { t: translate } = useTranslation("components");
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
   const handleChange = (value: string) => {
@@ -32,20 +36,44 @@ export const FieldNumber = ({ name, namespace = "default", onUpdate }: FlexibleF
         // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
         paramsDict[name].value = null;
       }
-    } else {
-      // Convert the string to a number if a valid value is entered
-      if (paramsDict[name]) {
-        paramsDict[name].value = Number(value);
-      }
+
+      setParamsDict(paramsDict);
+      onUpdate(value);
+
+      return;
+    }
+
+    // Convert the string to a number if a valid value is entered
+    const numericValue = Number(value);
+
+    if (paramsDict[name]) {
+      paramsDict[name].value = numericValue;
     }
 
     setParamsDict(paramsDict);
+
+    const violation = getParamRangeViolation(numericValue, param.schema);
+
+    if (violation) {
+      onUpdate(
+        undefined,
+        violation.kind === "minimum"
+          ? translate("flexibleForm.validationErrorMinimum", { minimum: violation.minimum })
+          : translate("flexibleForm.validationErrorMaximum", { maximum: violation.maximum }),
+      );
+
+      return;
+    }
+
     onUpdate(value);
   };
 
   return (
     <NumberInputRoot
       allowMouseWheel
+      // Keep the value the user typed: clamping it to the schema bounds would silently trigger
+      // the Dag with a corrected value instead of rejecting the out-of-range input.
+      clampValueOnBlur={false}
       disabled={disabled}
       id={`element_${name}`}
       max={param.schema.maximum ?? undefined}
