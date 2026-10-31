@@ -181,7 +181,12 @@ class KubernetesPodOperatorCallback:
         **kwargs,
     ) -> None:
         """
-        Invoke this callback when resuming the `KubernetesPodOperator` from deferred state.
+        Invoke this callback when the operator processes a trigger event.
+
+        This fires on every re-entry, including re-entries that defer again, and
+        including the synchronous short-circuit taken when the pod already reached
+        a terminal state before deferral. It does not fire when the pod was garbage
+        collected before re-entry, since there is no pod to pass.
 
         :param pod: the current state of the pod.
         :param event: the returned event from the Trigger.
