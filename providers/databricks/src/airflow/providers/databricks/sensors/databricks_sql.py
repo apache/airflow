@@ -20,13 +20,16 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterable, Sequence
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, AirflowSensorTimeout, BaseSensorOperator, conf
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.triggers.databricks import DatabricksSqlSensorTrigger
 from airflow.providers.databricks.utils.query_tags import build_query_tags
 
 if TYPE_CHECKING:
@@ -61,6 +64,8 @@ class DatabricksSqlSensor(BaseSensorOperator):
         ``system.query.history``. (templated)
     :param include_airflow_query_tags: If True, add Airflow DAG/task/run metadata as query tags.
         Defaults to True.
+    :param deferrable: Run sensor in deferrable mode (templated), defaults to False or conf
+        ``default_deferrable``.
     """
 
     template_fields: Sequence[str] = (
@@ -90,6 +95,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         client_parameters: dict[str, Any] | None = None,
         query_tags: dict[str, str | None] | None = None,
         include_airflow_query_tags: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         """Create DatabricksSqlSensor object using the specified input arguments."""
@@ -107,6 +113,9 @@ class DatabricksSqlSensor(BaseSensorOperator):
         self.handler = handler
         self.query_tags = query_tags or {}
         self.include_airflow_query_tags = include_airflow_query_tags
+        self.deferrable = deferrable
+        if self.deferrable and self.handler != fetch_all_handler:
+            raise ValueError("DatabricksSqlSensor does not support custom 'handler' when 'deferrable=True'.")
         super().__init__(**kwargs)
 
     @cached_property
@@ -145,3 +154,50 @@ class DatabricksSqlSensor(BaseSensorOperator):
         """Sensor poke function to get and return results from the SQL sensor."""
         self.hook.query_tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
         return self._get_results()
+
+    def execute(self, context: Context) -> Any:
+        """Execute the sensor, either blocking or deferring depending on `deferrable`."""
+        if not self.deferrable:
+            return super().execute(context=context)
+
+        if self.poke(context=context):
+            self.log.info("Success criteria met. Exiting.")
+            return
+
+        end_time = time.time() + self.timeout
+        query_tags = build_query_tags(context, self.query_tags, self.include_airflow_query_tags)
+
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=DatabricksSqlSensorTrigger(
+                sql=self.sql,
+                databricks_conn_id=self.databricks_conn_id,
+                http_path=self._http_path,
+                sql_warehouse_name=self._sql_warehouse_name,
+                session_configuration=self.session_config,
+                http_headers=self.http_headers,
+                catalog=self.catalog,
+                schema=self.schema,
+                client_parameters=self.client_parameters,
+                hook_params=self.hook_params,
+                query_tags=query_tags,
+                end_time=end_time,
+                timeout=self.timeout,
+                poke_interval=self.poke_interval,
+                silent_fail=self.silent_fail,
+                caller=self.caller,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        """Callback method for when the trigger completes execution."""
+        if event is None:
+            raise AirflowException("Trigger yielded no event.")
+        if event.get("status") == "error":
+            raise AirflowException(event.get("message", "Unknown error during Databricks SQL execution."))
+        if event.get("status") == "timeout":
+            raise AirflowSensorTimeout(
+                event.get("message", f"Sensor has timed out after {self.timeout} seconds.")
+            )
+        self.log.info("Success criteria met. %s completed successfully.", self.task_id)

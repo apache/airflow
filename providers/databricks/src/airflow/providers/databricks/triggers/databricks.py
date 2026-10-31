@@ -19,9 +19,12 @@ from __future__ import annotations
 
 import asyncio
 import time
+from functools import cached_property
 from typing import Any
 
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, WarehouseState
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.utils.databricks import extract_failed_task_errors_async
 from airflow.providers.databricks.utils.retry import validate_deferrable_databricks_retry_args
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -456,3 +459,144 @@ class DatabricksWarehouseStateTrigger(BaseTrigger):
                 status="timeout", last_state=last_state, state=last_warehouse_state
             )
             return
+
+
+class DatabricksSqlSensorTrigger(BaseTrigger):
+    """
+    Trigger that repeatedly executes a Databricks SQL query until it returns a truthy result.
+
+    Executes the query via DatabricksSqlHook in a worker thread via asyncio.to_thread,
+    preventing any blocking of the triggerer event loop.
+
+    :param sql: SQL statement to be executed (str or list of str).
+    :param databricks_conn_id: Reference to Databricks connection id.
+    :param http_path: Optional string specifying HTTP path of Databricks SQL warehouse or cluster.
+    :param sql_warehouse_name: Optional name of Databricks SQL warehouse.
+    :param session_configuration: Optional dictionary of Spark session parameters.
+    :param http_headers: Optional list of (k, v) pairs set as HTTP headers on every request.
+    :param catalog: Optional initial catalog to use.
+    :param schema: Optional initial schema to use.
+    :param client_parameters: Additional parameters internal to Databricks SQL connector.
+    :param hook_params: Additional parameters for DatabricksSqlHook.
+    :param query_tags: Optional dictionary of query tags.
+    :param end_time: Absolute Unix timestamp when polling must time out.
+    :param timeout: Sensor timeout in seconds.
+    :param poke_interval: Polling interval in seconds between query executions.
+    :param silent_fail: If True, log errors during polling without failing the trigger.
+    :param caller: Caller name for audit logging.
+    """
+
+    def __init__(
+        self,
+        *,
+        sql: str | list[str],
+        databricks_conn_id: str = "databricks_default",
+        http_path: str | None = None,
+        sql_warehouse_name: str | None = None,
+        session_configuration: dict[str, str] | None = None,
+        http_headers: list[tuple[str, str]] | list[list[str]] | None = None,
+        catalog: str = "",
+        schema: str = "default",
+        client_parameters: dict[str, Any] | None = None,
+        hook_params: dict[str, Any] | None = None,
+        query_tags: dict[str, str | None] | None = None,
+        end_time: float | None = None,
+        timeout: float = 3600.0,
+        poke_interval: float = 60.0,
+        silent_fail: bool = False,
+        caller: str = "DatabricksSqlSensorTrigger",
+    ) -> None:
+        super().__init__()
+        self.sql = sql if isinstance(sql, str) else list(sql)
+        self.databricks_conn_id = databricks_conn_id
+        self.http_path = http_path
+        self.sql_warehouse_name = sql_warehouse_name
+        self.session_configuration = session_configuration
+        self.http_headers = [tuple(h) for h in http_headers] if http_headers else None
+        self.catalog = catalog
+        self.schema = schema
+        self.client_parameters = client_parameters or {}
+        self.hook_params = hook_params or {}
+        self.query_tags = query_tags
+        self.end_time = end_time or (time.time() + timeout)
+        self.timeout = timeout
+        self.poke_interval = poke_interval
+        self.silent_fail = silent_fail
+        self.caller = caller
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.databricks.triggers.databricks.DatabricksSqlSensorTrigger",
+            {
+                "sql": self.sql,
+                "databricks_conn_id": self.databricks_conn_id,
+                "http_path": self.http_path,
+                "sql_warehouse_name": self.sql_warehouse_name,
+                "session_configuration": self.session_configuration,
+                "http_headers": [list(h) for h in self.http_headers] if self.http_headers else None,
+                "catalog": self.catalog,
+                "schema": self.schema,
+                "client_parameters": self.client_parameters,
+                "hook_params": self.hook_params,
+                "query_tags": self.query_tags,
+                "end_time": self.end_time,
+                "timeout": self.timeout,
+                "poke_interval": self.poke_interval,
+                "silent_fail": self.silent_fail,
+                "caller": self.caller,
+            },
+        )
+
+    @cached_property
+    def hook(self) -> DatabricksSqlHook:
+        return DatabricksSqlHook(
+            self.databricks_conn_id,
+            http_path=self.http_path,
+            sql_endpoint_name=self.sql_warehouse_name,
+            session_configuration=self.session_configuration,
+            http_headers=self.http_headers,
+            catalog=self.catalog,
+            schema=self.schema,
+            caller=self.caller,
+            query_tags=self.query_tags,
+            **self.client_parameters,
+            **self.hook_params,
+        )
+
+    def _query(self) -> bool:
+        """Run the query synchronously and return whether the result is truthy."""
+        sql_result = self.hook.run(
+            self.sql,
+            handler=fetch_all_handler,
+        )
+        self.log.debug("SQL result: %s", sql_result)
+        return bool(sql_result)
+
+    async def run(self):
+        while time.time() < self.end_time:
+            try:
+                result = await asyncio.to_thread(self._query)
+                if result:
+                    self.log.info("Databricks SQL query returned truthy result.")
+                    yield TriggerEvent({"status": "success"})
+                    return
+            except Exception as e:
+                if self.silent_fail:
+                    self.log.error("Query failed with error (silent_fail=True): %s", e)
+                else:
+                    self.log.exception("Error executing Databricks SQL query: %s", e)
+                    yield TriggerEvent({"status": "error", "message": str(e)})
+                    return
+
+            now = time.time()
+            if now >= self.end_time:
+                break
+            await asyncio.sleep(min(self.poke_interval, self.end_time - now))
+
+        yield TriggerEvent(
+            {
+                "status": "timeout",
+                "message": f"Sensor timed out after {self.timeout} seconds.",
+            }
+        )
+
