@@ -375,6 +375,7 @@ def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
 API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
 API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
 API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
+API_TIMEOUT = _get_int_env("AIRFLOW_CLI_API_TIMEOUT", 30, minimum=1)
 
 
 class Client(httpx.Client):
@@ -392,6 +393,9 @@ class Client(httpx.Client):
         if kind != ClientKind.NO_AUTH:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
+        # Connect stays short so an unreachable host fails fast; the rest is generous because
+        # write requests are not retried after a timeout.
+        kwargs.setdefault("timeout", httpx.Timeout(API_TIMEOUT, connect=5.0))
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
