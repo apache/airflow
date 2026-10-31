@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-31T17:28:37.672447
+# This constraints file was automatically generated on 2026-10-31T17:31:03.576306
 # via `uv pip install --resolution highest` for the "v3-4-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -125,7 +125,7 @@ apache-airflow-providers-clickhousedb==1.0.1
 apache-airflow-providers-cloudant==4.3.7
 apache-airflow-providers-cncf-kubernetes==10.25.0
 apache-airflow-providers-cohere==1.8.1
-apache-airflow-providers-common-ai==1.1.0rc1
+apache-airflow-providers-common-ai==1.1.0rc2
 apache-airflow-providers-common-compat==1.23.0
 apache-airflow-providers-common-io==1.11.0
 apache-airflow-providers-common-messaging==2.1.2
@@ -157,7 +157,7 @@ apache-airflow-providers-informatica==0.2.2
 apache-airflow-providers-jdbc==5.6.1
 apache-airflow-providers-jenkins==4.2.7
 apache-airflow-providers-keycloak==0.11.2
-apache-airflow-providers-microsoft-azure==15.3.0rc1
+apache-airflow-providers-microsoft-azure==15.3.0rc2
 apache-airflow-providers-microsoft-mssql==4.7.2
 apache-airflow-providers-microsoft-psrp==4.0.1
 apache-airflow-providers-microsoft-winrm==3.15.1
@@ -168,7 +168,7 @@ apache-airflow-providers-neo4j==3.13.1
 apache-airflow-providers-odbc==4.13.1
 apache-airflow-providers-openai==2.2.0
 apache-airflow-providers-openfaas==3.9.6
-apache-airflow-providers-openlineage==2.21.0rc1
+apache-airflow-providers-openlineage==2.21.0rc2
 apache-airflow-providers-opensearch==1.15.0
 apache-airflow-providers-opsgenie==5.11.1
 apache-airflow-providers-oracle==4.7.1
