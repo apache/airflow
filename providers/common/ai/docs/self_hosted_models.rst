@@ -257,6 +257,39 @@ model doesn't have to guess a path. That matters because ``HttpHook`` raises
 on any response outside the 2xx/3xx range: if the model guessed wrong, the
 task would fail outright rather than the agent recovering gracefully.
 
+Waiting for an Ollama model to load
+-------------------------------------
+
+Ollama loads a model into memory on the first request, which can take long
+enough to time out that request. To load the model ahead of time, call
+:meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.ensure_model_ready`
+before the task builds its agent. It asks Ollama which models are loaded,
+sends a load request if this connection's model is missing, and polls until the
+model is ready:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+
+    hook = PydanticAIHook(llm_conn_id="pydanticai_default")
+    hook.ensure_model_ready(timeout=300, poll_interval=2)
+    agent = hook.create_agent(instructions="Answer briefly.")
+
+Nothing calls it for you; it is opt-in. It has these limits:
+
+- Only Ollama is supported. Any other model prefix raises ``NotImplementedError``.
+- Only the hook's own connection is checked. Models behind ``fallback_conn_ids``
+  are not loaded.
+- Polling uses ``time.sleep`` and holds the worker slot for the whole wait.
+- The connection's password is not sent, so an Ollama server behind
+  authentication is not supported.
+
+``timeout`` is the total wait. The first readiness check and the load request
+fail fast, so a wrong host or a server error is raised right away. After the
+load request, connection failures, 5xx responses and single-request timeouts
+are logged and retried until ``timeout`` is used up, which ends in a
+``TimeoutError`` naming the model. Other HTTP error responses (anything but 5xx) are raised as is.
+
 Routing through an AI gateway
 --------------------------------
 

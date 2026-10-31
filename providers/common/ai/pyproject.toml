@@ -68,6 +68,7 @@ dependencies = [
     "apache-airflow>=2.11.0",
     "apache-airflow-providers-common-compat>=1.22.0",
     "apache-airflow-providers-standard>=1.20.0",
+    "httpx2>=2.7",
     # 2.33.0 is the first release that works with anthropic>=1: it moved to httpx2 alongside
     # the SDK and stopped passing temperature/top_p/top_k as messages.create() kwargs, both
     # of which raise TypeError on 2.31 and earlier. The cost API this provider relies on
