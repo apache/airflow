@@ -43,8 +43,11 @@ PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 # `spot=co` (capacity-optimized) takes Spot from the pools least likely to run out or be reclaimed
 # instead of RunsOn's default price-capacity-optimized: a capacity miss or an interruption sends the
 # runner to on-demand (and reruns the whole job), which costs more than the higher Spot price.
+# A family matches as a prefix (`m5` also takes m5n, m5d, ...). Left out because their us-east-2 Spot
+# runners were reclaimed far more often than the rest (13-54% vs. 1-4%, Oct 2026): m5, m5a, m6a and,
+# for the in-memory runners, r7a, r6a, r6i; r7i, which AWS Spot Advisor rates >20% there, too.
 RUNS_ON_AMD_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}"
 )
 RUNS_ON_ARM_RUNNER_TEMPLATE = (
@@ -54,7 +57,7 @@ RUNS_ON_ARM_RUNNER_TEMPLATE = (
 # databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
 # ask for memory headroom and also accept the memory-optimized r-family.
 RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i"
+    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i+r8i"
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}/extras=tmpfs"
 )
