@@ -202,6 +202,33 @@ class TestLLMSQLQueryOperator:
         with pytest.raises(TypeError, match="LLMSQLQueryOperator does not accept 'output_type'"):
             LLMSQLQueryOperator(task_id="test", prompt="get users", llm_conn_id="my_llm", output_type=int)
 
+    @pytest.mark.parametrize(
+        "extra_kwargs",
+        [
+            pytest.param({}, id="table_names_only"),
+            pytest.param(
+                {
+                    "datasource_config": DataSourceConfig(
+                        conn_id="aws_default",
+                        table_name="events",
+                        uri="s3://bucket/events/",
+                        format="parquet",
+                    )
+                },
+                id="with_datasource_config",
+            ),
+        ],
+    )
+    def test_table_names_without_db_conn_id_rejected(self, extra_kwargs):
+        with pytest.raises(ValueError, match="'db_conn_id' is required when using 'table_names'"):
+            LLMSQLQueryOperator(
+                task_id="test",
+                prompt="get users",
+                llm_conn_id="my_llm",
+                table_names=["users"],
+                **extra_kwargs,
+            )
+
     def test_template_fields_include_parent_and_sql_specific(self):
         expected = {
             "prompt",
