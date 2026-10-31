@@ -62,6 +62,7 @@ def _pr(
     created_at: datetime = AFTER,
     labels: tuple[str, ...] = (),
     head_repository: str = "someone/airflow",
+    ci_run_at: datetime | None = None,
 ) -> GateEvent:
     return GateEvent(
         event_name="pull_request",
@@ -72,6 +73,7 @@ def _pr(
         author_association=association,
         created_at=created_at,
         labels=labels,
+        ci_run_at=ci_run_at,
     )
 
 
@@ -201,6 +203,28 @@ def _push(repository: str, branch: str) -> GateEvent:
             {"enabled": False},
             Decision(run=True, reason=Reason.GATE_DISABLED),
             id="pilot-before-join-instant",
+        ),
+        pytest.param(
+            _pr(author="pilot-user", created_at=JOINED - timedelta(days=5), ci_run_at=JOINED),
+            {"enabled": False},
+            Decision(run=False, reason=Reason.PILOT),
+            id="pilot-older-pr-run-at-join-instant",
+        ),
+        pytest.param(
+            _pr(
+                author="pilot-user",
+                created_at=JOINED - timedelta(days=5),
+                ci_run_at=JOINED - timedelta(seconds=1),
+            ),
+            {"enabled": False},
+            Decision(run=True, reason=Reason.GATE_DISABLED),
+            id="pilot-older-pr-run-before-join-instant",
+        ),
+        pytest.param(
+            _pr(created_at=SINCE - timedelta(days=5), ci_run_at=AFTER),
+            {},
+            Decision(run=True, reason=Reason.BEFORE_ENABLED_SINCE),
+            id="run-time-does-not-move-enabled-since",
         ),
         pytest.param(
             _pr(author="pilot-user", created_at=AFTER, labels=("use project ci",)),
@@ -428,3 +452,89 @@ def test_main_fork_push_does_not_read_labels(mock_run, gate_env):
 
     assert _outputs(gate_env) == ["project-ci=true", "reason=fork_push"]
     mock_run.assert_not_called()
+
+
+PILOT_CONFIG = '[pilot]\n"pilot-user" = 2026-10-20T00:00:00Z\n'
+
+
+def _gh_responses(labels: str, run: subprocess.CompletedProcess | Exception):
+    def run_gh(args, **kwargs):
+        if args[2].startswith("repos/apache/airflow/pulls/"):
+            return subprocess.CompletedProcess([], 0, stdout=labels, stderr="")
+        assert args[2] == "repos/apache/airflow/actions/runs/123"
+        if isinstance(run, Exception):
+            raise run
+        return run
+
+    return run_gh
+
+
+def _older_pilot_pull_request(env: dict[str, str]) -> None:
+    Path(env["GATE_CONFIG"]).write_text(PILOT_CONFIG)
+    env.update(PR_AUTHOR="pilot-user", PR_CREATED_AT="2026-10-15T00:00:00Z", GITHUB_RUN_ID="123")
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    ("run_created_at", "expected"),
+    [
+        pytest.param("2026-10-20T00:00:00Z\n", ["project-ci=false", "reason=pilot"], id="run-after-joining"),
+        pytest.param(
+            "2026-10-19T23:59:59Z\n", ["project-ci=true", "reason=gate_disabled"], id="run-before-joining"
+        ),
+    ],
+)
+def test_main_decides_a_pilots_older_pull_request_by_its_run_time(
+    mock_run, gate_env, run_created_at, expected
+):
+    _older_pilot_pull_request(gate_env)
+    mock_run.side_effect = _gh_responses(
+        "[]\n", subprocess.CompletedProcess([], 0, stdout=run_created_at, stderr="")
+    )
+
+    assert main(gate_env) == 0
+
+    assert _outputs(gate_env) == expected
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+@pytest.mark.parametrize(
+    "run",
+    [
+        pytest.param(subprocess.CompletedProcess([], 1, stdout="", stderr="boom"), id="gh-fails"),
+        pytest.param(subprocess.CompletedProcess([], 0, stdout="not a date\n", stderr=""), id="bad-output"),
+        pytest.param(FileNotFoundError("gh"), id="no-gh"),
+    ],
+)
+def test_main_fails_when_the_run_time_of_a_pilots_older_pull_request_cannot_be_read(mock_run, gate_env, run):
+    _older_pilot_pull_request(gate_env)
+    mock_run.side_effect = _gh_responses("[]\n", run)
+
+    assert main(gate_env) == 1
+
+    assert not Path(gate_env["GITHUB_OUTPUT"]).exists()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_gate.subprocess.run", autospec=True)
+def test_main_reads_the_run_time_only_for_a_pilots_older_pull_request(mock_run, gate_env):
+    Path(gate_env["GATE_CONFIG"]).write_text(PILOT_CONFIG)
+    gate_env.update(PR_AUTHOR="pilot-user", GITHUB_RUN_ID="123")
+    mock_run.return_value = subprocess.CompletedProcess([], 0, stdout="[]\n", stderr="")
+
+    assert main(gate_env) == 0
+
+    assert _outputs(gate_env) == ["project-ci=false", "reason=pilot"]
+    mock_run.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    ("login", "created_at", "expected"),
+    [
+        pytest.param("Pilot-User", JOINED - timedelta(seconds=1), JOINED, id="created-before"),
+        pytest.param("pilot-user", JOINED, None, id="created-at-join-instant"),
+        pytest.param("someone", JOINED - timedelta(days=1), None, id="not-a-pilot"),
+        pytest.param("pilot-user", None, None, id="no-creation-time"),
+    ],
+)
+def test_find_pilot_join_after(login, created_at, expected):
+    assert _config().find_pilot_join_after(login, created_at) == expected
