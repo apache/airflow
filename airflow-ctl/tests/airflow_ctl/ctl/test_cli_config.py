@@ -32,14 +32,25 @@ import pytest
 
 from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
+    BackfillPostBody,
     ClearTaskInstancesBody,
     ConnectionBody,
     ConnectionTestResponse,
+    DAGPatchBody,
+    DagSchedulingState,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
 )
-from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.api.operations import (
+    BackfillOperations,
+    ConnectionsOperations,
+    DagRunOperations,
+    DagsOperations,
+    PoolsOperations,
+    ServerResponseError,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
@@ -1478,6 +1489,106 @@ class TestCliConfigMethods:
         rows = json.loads(capsys.readouterr().out)
         assert [row["dag_run_id"] for row in rows] == ["manual_run"]
         assert rows[0]["conf"] == ["a", "b"]
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_body"),
+        [
+            pytest.param(
+                ["--scheduling-state", "paused"],
+                DAGPatchBody(scheduling_state=DagSchedulingState.PAUSED),
+                id="scheduling-state-alone",
+            ),
+            pytest.param(["--is-paused"], DAGPatchBody(is_paused=True), id="explicit-pause"),
+            pytest.param(["--no-is-paused"], DAGPatchBody(is_paused=False), id="explicit-unpause"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_sends_only_given_state(
+        self, mocked_update, mocked_print_as, extra_argv, expected_body
+    ):
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["dag_body"] == expected_body
+
+    @pytest.mark.parametrize(
+        "extra_argv",
+        [
+            pytest.param([], id="no-state-does-not-unpause"),
+            pytest.param(["--is-paused", "--scheduling-state", "paused"], id="both-states"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_requires_exactly_one_state(self, mocked_update, mocked_print_as, extra_argv):
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        with pytest.raises(
+            SystemExit, match="exactly one of --is-paused / --no-is-paused or --scheduling-state"
+        ):
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        mocked_update.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_include_deferred"),
+        [
+            pytest.param([], None, id="omitted-flag-keeps-stored-value"),
+            pytest.param(["--include-deferred"], True, id="explicit-include"),
+            pytest.param(["--no-include-deferred"], False, id="explicit-exclude"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(PoolsOperations, "update", autospec=True)
+    def test_pools_update_omitted_include_deferred_stays_unset(
+        self, mocked_update, mocked_print_as, extra_argv, expected_include_deferred
+    ):
+        """Omitting ``--include-deferred`` must not send ``include_deferred=False`` and turn it off."""
+        args = cli_parser.get_parser().parse_args(
+            ["pools", "update", "--pool", "p", "--slots", "10", *extra_argv]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["pool_body"] == PoolPatchBody(
+            pool="p", slots=10, include_deferred=expected_include_deferred
+        )
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_run_on_latest_version"),
+        [
+            pytest.param([], None, id="omitted-flag-stays-unset"),
+            pytest.param(["--run-on-latest-version"], True, id="explicit-run-on-latest"),
+            pytest.param(["--no-run-on-latest-version"], False, id="explicit-run-on-original"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(BackfillOperations, "create", autospec=True)
+    def test_backfill_create_omitted_run_on_latest_version_stays_unset(
+        self, mocked_create, mocked_print_as, extra_argv, expected_run_on_latest_version
+    ):
+        """Omitting ``--run-on-latest-version`` must not send ``run_on_latest_version=False``."""
+        args = cli_parser.get_parser().parse_args(
+            [
+                "backfill",
+                "create",
+                "--dag-id",
+                "d",
+                "--from-date",
+                "2024-01-01T00:00:00Z",
+                "--to-date",
+                "2024-01-02T00:00:00Z",
+                *extra_argv,
+            ]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        backfill = mocked_create.call_args.kwargs["backfill"]
+        assert isinstance(backfill, BackfillPostBody)
+        assert backfill.run_on_latest_version is expected_run_on_latest_version
 
     def test_parser_resolves_nested_subcommand(self):
         """The parser descends into the state-store subgroup, binds the func, and keeps the auth token."""

@@ -591,7 +591,9 @@ class DagsOperations(BaseOperations):
         return super().execute_list(path="dags", data_model=DAGCollectionResponse)
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
-        self.response = self.client.patch(f"dags/{dag_id}", json=dag_body.model_dump(mode="json"))
+        self.response = self.client.patch(
+            f"dags/{dag_id}", json=dag_body.model_dump(mode="json", exclude_none=True)
+        )
         return validate_response(self.response.content, DAGResponse)
 
     def delete(self, dag_id: str) -> str | ServerResponseError:
