@@ -1308,3 +1308,65 @@ def test_process_waiting_runs_clears_a_failed_pull_request_whose_runs_were_appro
     api.is_run_waiting_for_approval.assert_called_once_with(1)
     assert api.set_approval_status.call_args_list[-1] == mock.call("aaa", "success", "Workflow runs approved")
     api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_does_not_approve_runs_before_the_decisions_cutoff(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [
+        _run(2, "aaa", created_at="2026-10-22T10:00:00Z"),
+        _run(3, "aaa", created_at="2026-10-22T11:00:00Z"),
+    ]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
+    mock_decide.return_value = ApprovalDecision(
+        approve=True, reasons=["gated"], not_before=datetime(2026, 10, 22, 10, 30, tzinfo=UTC)
+    )
+
+    process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert api.approve_run.call_args_list == [mock.call(3)]
+
+
+@pytest.mark.parametrize(
+    ("joined_at", "gated", "not_before"),
+    [
+        pytest.param(
+            datetime(2026, 10, 23, tzinfo=UTC),
+            True,
+            datetime(2026, 10, 23, tzinfo=UTC),
+            id="pilot-joined-after-opening",
+        ),
+        pytest.param(datetime(2026, 10, 21, tzinfo=UTC), True, None, id="pilot-joined-before-opening"),
+        pytest.param(datetime(2026, 10, 31, tzinfo=UTC), False, None, id="pilot-joining-later"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_approval", autospec=True)
+@mock.patch(f"{MODULE}.build_selective_checks", autospec=True)
+@mock.patch(f"{MODULE}.load_config", autospec=True)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=LARGE_SOURCE_CHANGE)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_decide_for_pull_request_gates_an_older_pilot_pull_request_from_joining(
+    mock_fetch,
+    mock_get_changed_files,
+    mock_load_config,
+    mock_selective_checks,
+    mock_decide_approval,
+    joined_at,
+    gated,
+    not_before,
+):
+    mock_load_config.return_value = GateConfig(pilot={"contributor": joined_at})
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    decision = decide_for_pull_request(api=api, pr=_gated_pr(), now=datetime(2026, 10, 30, tzinfo=UTC))
+
+    if gated:
+        assert decision.approve is True
+        assert decision.not_before == not_before
+        mock_decide_approval.assert_not_called()
+    else:
+        assert decision is mock_decide_approval.return_value
