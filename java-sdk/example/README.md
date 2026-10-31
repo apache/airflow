@@ -79,11 +79,11 @@ airflow dags trigger java_native_interface_example
 These Dags are declared in Python, in `src/resources/dags/java_examples.py`, and their stub tasks are
 implemented in Java:
 
-| Dag                         | Source                         | Shows                                                                  |
-| --------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
-| `java_annotation_example`   | `AnnotationExample.java`       | `@Airflow.TaskHandler` methods, with arguments by position and by name |
-| `java_interface_example`    | `InterfaceExampleBuilder.java` | `Task` and `InputTask` classes registered by Dag and task id           |
-| `java_xcom_casting_example` | `XComCastingExample.java`      | How values passed between tasks convert to the declared Java types     |
+| Dag                                      | Source                         | Shows                                                                  |
+| ---------------------------------------- | ------------------------------ | ---------------------------------------------------------------------- |
+| `java_task_handler_annotation_example`   | `AnnotationExample.java`       | `@Airflow.TaskHandler` methods, with arguments by position and by name |
+| `java_task_handler_interface_example`    | `InterfaceExampleBuilder.java` | `Task` and `InputTask` classes registered by Dag and task id           |
+| `java_task_handler_xcom_casting_example` | `XComCastingExample.java`      | How values passed between tasks convert to the declared Java types     |
 
 Copy `src/resources/dags/java_examples.py` into your Airflow Dags folder, and create the Connection and
 Variable the examples read:
@@ -101,7 +101,7 @@ export AIRFLOW_VAR_MY_VARIABLE=123
 ```
 
 ```bash
-airflow dags trigger java_annotation_example
-airflow dags trigger java_interface_example
-airflow dags trigger java_xcom_casting_example
+airflow dags trigger java_task_handler_annotation_example
+airflow dags trigger java_task_handler_interface_example
+airflow dags trigger java_task_handler_xcom_casting_example
 ```
