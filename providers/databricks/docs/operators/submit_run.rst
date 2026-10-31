@@ -124,7 +124,9 @@ dict-shaped parameter slot of every task in ``json`` whose corresponding field i
 Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_python_task``,
 ``spark_submit_task``) are skipped because there is no canonical mapping from a key/value
 dict to a positional argument list — pass those parameters explicitly via the ``json``
-or ``tasks`` argument.
+or ``tasks`` argument. A ``python_wheel_task`` that already has positional ``parameters`` is
+also skipped, because the Databricks API rejects ``parameters`` together with
+``named_parameters``.
 
 Params whose value resolves to ``None`` are skipped, since Databricks has no value to
 receive for them.
