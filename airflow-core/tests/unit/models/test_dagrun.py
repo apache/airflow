@@ -85,10 +85,14 @@ from airflow.models.taskinstance import (
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
-from airflow.models.xcom import XComModelV2
+from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.bash import BashOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
+from airflow.providers.standard.operators.python import (
+    BranchPythonOperator,
+    PythonOperator,
+    ShortCircuitOperator,
+)
 from airflow.sdk import (
     DAG,
     BaseOperator,
@@ -108,6 +112,11 @@ from airflow.serialization.serialized_objects import DagSerialization, LazyDeser
 from airflow.settings import get_policy_plugin_manager
 from airflow.task.trigger_rule import TriggerRule
 from airflow.ti_deps.dep_context import DepContext
+from airflow.ti_deps.deps.not_previously_skipped_dep import (
+    XCOM_SKIPMIXIN_FOLLOWED,
+    XCOM_SKIPMIXIN_KEY,
+    XCOM_SKIPMIXIN_SKIPPED,
+)
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session
@@ -1330,6 +1339,74 @@ class TestDagRun:
         decision = dag_run_2.task_instance_scheduling_decisions(session=session)
         schedulable_tis = [ti.task_id for ti in decision.schedulable_tis]
         assert ("test_dop_task" in schedulable_tis) == is_ti_schedulable
+
+    @pytest.mark.parametrize(
+        ("skipmixin_operator", "decision"),
+        [
+            pytest.param(ShortCircuitOperator, {XCOM_SKIPMIXIN_SKIPPED: ["past"]}, id="short_circuit"),
+            pytest.param(BranchPythonOperator, {XCOM_SKIPMIXIN_FOLLOWED: []}, id="branch"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("wait", "state_while_past_failed"),
+        [
+            pytest.param(False, TaskInstanceState.SKIPPED, id="skip_now"),
+            pytest.param(True, None, id="wait_for_past_depends"),
+        ],
+    )
+    def test_skip_decision_waits_for_past_depends(
+        self, dag_maker, session, skipmixin_operator, decision, wait, state_while_past_failed
+    ):
+        """A task told to skip waits for its past depends when it asks to, and is skipped once they are met."""
+        with dag_maker(
+            dag_id="test_skip_decision_waits_for_past_depends",
+            schedule=datetime.timedelta(days=1),
+            session=session,
+            serialized=True,
+        ):
+            gate = skipmixin_operator(task_id="gate", python_callable=lambda: None)
+            past = BaseOperator(
+                task_id="past", depends_on_past=True, wait_for_past_depends_before_skipping=wait
+            )
+            gate >> past
+
+        dag_run_1: DagRun = dag_maker.create_dagrun(
+            logical_date=timezone.datetime(2016, 1, 1, 0, 0, 0), run_type=DagRunType.SCHEDULED
+        )
+        dag_run_2: DagRun = dag_maker.create_dagrun(
+            logical_date=timezone.datetime(2016, 1, 2, 0, 0, 0), run_type=DagRunType.SCHEDULED
+        )
+        # Run 1: the gate ran and the past-dependent task failed.
+        dag_run_1.get_task_instance("gate", session=session).set_state(
+            TaskInstanceState.SUCCESS, session=session
+        )
+        past_ti_1 = dag_run_1.get_task_instance("past", session=session)
+        past_ti_1.set_state(TaskInstanceState.FAILED, session=session)
+        # Run 2: the gate decided that "past" should be skipped.
+        dag_run_2.get_task_instance("gate", session=session).set_state(
+            TaskInstanceState.SUCCESS, session=session
+        )
+        XComModel.set(
+            key=XCOM_SKIPMIXIN_KEY,
+            value=decision,
+            dag_id=dag_run_2.dag_id,
+            task_id="gate",
+            run_id=dag_run_2.run_id,
+            session=session,
+        )
+        session.flush()
+
+        dag_run_2.task_instance_scheduling_decisions(session=session)
+        session.flush()
+        assert dag_run_2.get_task_instance("past", session=session).state == state_while_past_failed
+
+        past_ti_1.set_state(TaskInstanceState.SUCCESS, session=session)
+        session.flush()
+        # The past-depends-met mark and the skip may land in separate scheduling passes.
+        for _ in range(2):
+            dag_run_2.task_instance_scheduling_decisions(session=session)
+            session.flush()
+        assert dag_run_2.get_task_instance("past", session=session).state == TaskInstanceState.SKIPPED
 
     @pytest.mark.parametrize(
         ("prev_ti_state", "is_ti_schedulable"),

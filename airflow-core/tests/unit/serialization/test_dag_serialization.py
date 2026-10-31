@@ -2079,6 +2079,18 @@ class TestStringifiedDAGs:
         assert round_tripped.inlets == []
         assert round_tripped.outlets == []
 
+    def test_serialize_mapped_wait_for_past_depends_before_skipping(self):
+        with DAG(dag_id="d", schedule=None, start_date=datetime.now()):
+            op = MockOperator.partial(
+                task_id="x", depends_on_past=True, wait_for_past_depends_before_skipping=True
+            ).expand(arg1=[1, 2])
+
+        serialized = OperatorSerialization.serialize_mapped_operator(op)
+        round_tripped = OperatorSerialization.deserialize_operator(serialized)
+        assert isinstance(round_tripped, SerializedMappedOperator)
+        assert round_tripped.depends_on_past is True
+        assert round_tripped.wait_for_past_depends_before_skipping is True
+
     @pytest.mark.db_test
     @pytest.mark.parametrize("mapped", [False, True])
     def test_derived_dag_deps_sensor(self, mapped):

@@ -64,9 +64,12 @@ class PrevDagrunDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @staticmethod
-    def _push_past_deps_met_xcom_if_needed(ti: TI, dep_context):
-        if dep_context.wait_for_past_depends_before_skipping:
-            ti.xcom_push(key=PAST_DEPENDS_MET, value=True)
+    def _push_past_deps_met_xcom_if_needed(ti: TI, dep_context, *, session: Session):
+        if TYPE_CHECKING:
+            assert ti.task
+        if dep_context.wait_for_past_depends_before_skipping or ti.task.wait_for_past_depends_before_skipping:
+            # The scheduler's session: a fresh one would commit inside the scheduling loop.
+            ti.xcom_push(key=PAST_DEPENDS_MET, value=True, session=session)
 
     @staticmethod
     def _has_tis(dagrun: DagRun, task_id: str, *, session: Session) -> bool:
@@ -148,13 +151,13 @@ class PrevDagrunDep(BaseTIDep):
         if TYPE_CHECKING:
             assert ti.task
         if dep_context.ignore_depends_on_past:
-            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
             reason = "The context specified that the state of past DAGs could be ignored."
             yield self._passing_status(reason=reason)
             return
 
         if not ti.task.depends_on_past:
-            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
             yield self._passing_status(reason="The task did not have depends_on_past set.")
             return
 
@@ -171,7 +174,7 @@ class PrevDagrunDep(BaseTIDep):
                 return
 
         if not dr:
-            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
             yield self._passing_status(reason="This task instance does not belong to a DAG.")
             return
 
@@ -183,7 +186,7 @@ class PrevDagrunDep(BaseTIDep):
             last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
         # First ever run for this DAG.
         if not last_dagrun:
-            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
@@ -194,14 +197,14 @@ class PrevDagrunDep(BaseTIDep):
             and last_dagrun.logical_date is not None
             and last_dagrun.logical_date < ti.task.start_date
         ):
-            self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+            self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
         if not self._has_tis(last_dagrun, ti.task_id, session=session):
             if ti.task.ignore_first_depends_on_past:
                 if not self._has_any_prior_tis(ti, session=session):
-                    self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+                    self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
                     yield self._passing_status(
                         reason="ignore_first_depends_on_past is true for this task "
                         "and it is the first task instance for its task."
@@ -234,4 +237,4 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        self._push_past_deps_met_xcom_if_needed(ti, dep_context)
+        self._push_past_deps_met_xcom_if_needed(ti, dep_context, session=session)
