@@ -170,6 +170,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.edges import EdgeModifier, Label
     from airflow.sdk.definitions.loop import LoopDecision
     from airflow.sdk.definitions.param import Param, ParamsDict
+    from airflow.sdk.definitions.parse_warning import emit_dag_warning
     from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
     from airflow.sdk.definitions.partition_mappers.base import (
         PartitionMapper,
@@ -278,7 +279,6 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "DeltaDataIntervalTimetable": (".definitions.timetables.interval", "DeltaDataIntervalTimetable"),
     "DeltaTriggerTimetable": (".definitions.timetables.trigger", "DeltaTriggerTimetable"),
     "EdgeModifier": (".definitions.edges", "EdgeModifier"),
-    "emit_dag_warning": (".definitions.parse_warning", "emit_dag_warning"),
     "EventsTimetable": (".definitions.timetables.events", "EventsTimetable"),
     "ExceptionRetryPolicy": (".definitions.retry_policy", "ExceptionRetryPolicy"),
     "FanOutMapper": (".definitions.partition_mappers.temporal", "FanOutMapper"),
