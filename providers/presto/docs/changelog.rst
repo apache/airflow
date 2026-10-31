@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``PrestoHook.get_pandas_df`` method has been removed. Use ``get_df(..., df_type="pandas")`` instead.
+
 5.13.1
 ......
 
