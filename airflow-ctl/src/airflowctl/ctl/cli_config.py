@@ -76,7 +76,7 @@ def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
     """Warn that a failed write is not retried because the server may already have applied it."""
     if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
         return
-    if isinstance(error, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
+    if isinstance(error, (httpx.ConnectTimeout, httpx.PoolTimeout)):
         return
     method = _request_method(error)
     if method in _WRITE_METHODS:
