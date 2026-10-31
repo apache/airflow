@@ -59,7 +59,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
+from airflow.exceptions import AirflowException, DagRunRolledBackError, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -10633,6 +10633,25 @@ class TestSchedulerJob:
         # In the dagmodel list, the first dag should fail, but the second one should succeed
         job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun" in caplog.text
+
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    def test_dag_run_rolled_back_by_deadline_alert_does_not_advance_schedule(
+        self, mock_create, session, dag_maker, caplog
+    ):
+        mock_create.side_effect = DagRunRolledBackError("rolled back")
+        with dag_maker("testdag1", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        dm1 = dag_maker.dag_model
+        session.add(dm1)
+        session.flush()
+        next_dagrun = dm1.next_dagrun
+
+        job_runner = SchedulerJobRunner(job=Job())
+        job_runner._create_dag_runs([dm1], session)
+
+        assert {"event": "Failed creating DagRun", "dag_id": "testdag1"} in caplog
+        assert dm1.next_dagrun == next_dagrun
 
     def test_activate_referenced_assets_no_in_check_inside_query(self, session, testing_dag_bundle):
         dag_id1 = "test_asset_dag1"

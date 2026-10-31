@@ -57,6 +57,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.dag_processing.dagbag import DagBag
+from airflow.exceptions import DagRunRolledBackError
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -2071,7 +2072,8 @@ class TestDagRun:
     ):
         """A failing interval resolution can roll back and close the caller's session underneath
         the handler (``create_session`` reusing the scoped session does exactly that), detaching
-        every ORM instance. The skip path must still log and count without touching ORM state."""
+        every ORM instance. The skip path must still log and count without touching ORM state, and the
+        discarded DagRun must surface as an error rather than being returned as created."""
         scheduler_dag = deadline_test_dag(
             deadline=DeadlineAlert(
                 reference=DeadlineReference.FIXED_DATETIME(
@@ -2093,13 +2095,48 @@ class TestDagRun:
 
         mock_variable_get.side_effect = teardown_session_and_raise
 
-        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
 
-        assert dag_run is not None
         mock_stats_incr.assert_any_call(
             "deadline_alerts.deadline_creation_failed",
             tags={"dag_id": scheduler_dag.dag_id},
         )
+
+    @mock.patch.object(Deadline, "prune_deadlines")
+    @mock.patch.object(Variable, "get")
+    def test_dagrun_deadline_alert_rolling_back_session_raises_instead_of_orphaning_deadline(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("missing_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=1),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def rollback_and_raise(*args, **kwargs):
+            session.rollback()
+            raise KeyError("missing_key")
+
+        mock_variable_get.side_effect = rollback_and_raise
+
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert session.scalars(select(Deadline)).all() == []
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 
     @pytest.mark.parametrize(
         ("interval", "expect_deadline", "variable_value"),

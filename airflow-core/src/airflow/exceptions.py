@@ -158,6 +158,10 @@ class InvalidPartitionKeyError(ValueError):
     """
 
 
+class DagRunRolledBackError(RuntimeError):
+    """Raise when a Dag run was discarded by a rollback before its deadline alerts were processed."""
+
+
 class DagRunAlreadyExists(AirflowBadRequest):
     """Raise when creating a DAG run for DAG which already has DAG run entry."""
 
