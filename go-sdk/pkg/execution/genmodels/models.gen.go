@@ -1145,6 +1145,12 @@ type GetXCom struct {
 	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
 	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1946,17 +1952,6 @@ type TriggerDagRun struct {
 
 type TriggerKwargs map[string]interface{}
 
-type Warnings []interface{}
-
-// Variable schema for responses with fields that are needed for Runtime.
-type VariableResponse struct {
-	// Key corresponds to the JSON schema field "key".
-	Key string `msgpack:"key"`
-
-	// Value corresponds to the JSON schema field "value".
-	Value interface{} `msgpack:"value"`
-}
-
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".
 	Note interface{} `msgpack:"note"`
@@ -1967,8 +1962,6 @@ type UpdateDagRunNote struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
-
-type VersionData map[string]interface{}
 
 // Update the response content part of an existing Human-in-the-loop response.
 type UpdateHITLDetail struct {
@@ -1984,6 +1977,19 @@ type UpdateHITLDetail struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 }
+
+type VersionData map[string]interface{}
+
+// Variable schema for responses with fields that are needed for Runtime.
+type VariableResponse struct {
+	// Key corresponds to the JSON schema field "key".
+	Key string `msgpack:"key"`
+
+	// Value corresponds to the JSON schema field "value".
+	Value interface{} `msgpack:"value"`
+}
+
+type Warnings []interface{}
 
 type ValidateInletsAndOutlets struct {
 	// TIID corresponds to the JSON schema field "ti_id".

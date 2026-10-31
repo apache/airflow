@@ -17,13 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import collections
 import itertools
-from collections.abc import Iterator, Sequence
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from collections import OrderedDict
+from collections.abc import AsyncIterator, Iterator, Sequence
+from functools import partial
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
 
 import attrs
 import structlog
+
+from airflow.sdk.configuration import conf
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.xcom_arg import PlainXComArg
@@ -37,6 +42,15 @@ T = TypeVar("T")
 _XComWrapper = collections.namedtuple("_XComWrapper", "value")
 
 log = structlog.get_logger(logger_name=__name__)
+
+#: Default for ``[core] xcom_sequence_chunk_size``: items a ``LazyXComSequence`` fetches per request
+#: when read by index or iterated. One slice request serves this many consecutive reads, and at
+#: most this many values are held at a time.
+XCOM_SEQUENCE_CHUNK_SIZE = 32
+
+
+def _configured_chunk_size() -> int:
+    return conf.getint("core", "xcom_sequence_chunk_size", fallback=XCOM_SEQUENCE_CHUNK_SIZE)
 
 
 @attrs.define
@@ -61,11 +75,61 @@ class LazyXComIterator(Iterator[T]):
 
 
 @attrs.define
+class AsyncLazyXComIterator(AsyncIterator[T]):
+    """
+    Async twin of :class:`LazyXComIterator`: the same item reads, sent through ``asend``.
+
+    An iterated task consumes a mapped task's results as its input on the event loop; reading
+    them synchronously there would block the loop thread on the supervisor channel while the
+    indexed tasks' own ``asend`` calls are in flight (see ``AsyncAwareExecutor.imap_unordered``).
+    """
+
+    seq: LazyXComSequence[T]
+    index: int = 0
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return self
+
+    async def __anext__(self) -> T:
+        try:
+            val = await self.seq.aget(self.index)
+        except IndexError:
+            raise StopAsyncIteration from None
+        self.index += 1
+        return val
+
+
+@attrs.define
 class LazyXComSequence(Sequence[T]):
+    """
+    A mapped upstream's return values, read from the API server on demand.
+
+    Reads come in chunks: an index outside the slice held fetches ``chunk_size`` items starting at
+    that index with one ``GetXComSequenceSlice`` request, so iterating, or an iterated task reading
+    this by index, costs one request per chunk instead of one per item, while no more than one
+    chunk is held in memory. ``chunk_size`` defaults to ``[core] xcom_sequence_chunk_size``. A
+    negative index counts from the end through the cached length.
+
+    The async reads of an iterated task (:meth:`aget`) run concurrently, one per indexed task in
+    flight, so their chunks start at multiples of ``chunk_size`` and the read of a chunk is shared:
+    the indexed tasks asking for the same chunk at the same time send one request between them, and
+    none answers with another index's item. The reads of the last ``MAX_CHUNK_READS`` chunks are
+    held, in flight or done, the chunk the indexed tasks use now and the one they move on to, and
+    let go as they move on.
+    """
+
+    #: Chunk reads held for the async reads: the chunk the indexed tasks use now and the one they
+    #: move on to, since their indices straddle a chunk boundary part of the time.
+    MAX_CHUNK_READS: ClassVar[int] = 2
+
     _len: int | None = attrs.field(init=False, default=None)
     _xcom_arg: PlainXComArg = attrs.field(alias="xcom_arg")
     _ti: RuntimeTaskInstance = attrs.field(alias="ti")
     _previous_iteration: bool = attrs.field(default=False, alias="previous_iteration", kw_only=True)
+    chunk_size: int = attrs.field(kw_only=True, factory=_configured_chunk_size)
+    _chunk_start: int = attrs.field(init=False, default=0)
+    _chunk: list[T] = attrs.field(init=False, factory=list)
+    _chunk_reads: OrderedDict[int, asyncio.Future[list[T]]] = attrs.field(init=False, factory=OrderedDict)
 
     def __repr__(self) -> str:
         if self._len is not None:
@@ -87,6 +151,88 @@ class LazyXComSequence(Sequence[T]):
 
     def __iter__(self) -> Iterator[T]:
         return LazyXComIterator(seq=self)
+
+    def __aiter__(self) -> AsyncIterator[T]:
+        return AsyncLazyXComIterator(seq=self)
+
+    async def aget(self, index: int) -> T:
+        """
+        Async counterpart of ``self[index]``: chunked reads sent with ``asend``, shared between callers.
+
+        The chunk holding ``index`` starts at a multiple of ``chunk_size``, so the indexed tasks
+        reading at the same time ask for the same chunks and share their reads (see the class).
+        """
+        if index < 0:
+            # range() maps a negative index from the end and raises IndexError past the front;
+            # only a negative one needs the length, so a forward read sends no count request.
+            index = range(await self.alen())[index]
+        start = index - index % self.chunk_size
+        chunk = await self._shared_chunk_read(start)
+        if index - start >= len(chunk):
+            raise IndexError(index)
+        return chunk[index - start]
+
+    async def _shared_chunk_read(self, start: int) -> list[T]:
+        """
+        Return the chunk starting at ``start``, read once for all the indexed tasks that ask while it is held.
+
+        A read is shared with ``asyncio.shield``, so an indexed task being cancelled does not cancel
+        a read others wait for; a read that fails is forgotten, so the next indexed task reads the
+        chunk again. It runs in the context of the first indexed task that asks for it.
+        """
+        read = self._chunk_reads.get(start)
+        if read is None:
+            read = self._chunk_reads[start] = asyncio.ensure_future(self._read_chunk(start))
+            read.add_done_callback(partial(self._forget_failed_chunk_read, start))
+            while len(self._chunk_reads) > self.MAX_CHUNK_READS:
+                self._chunk_reads.popitem(last=False)
+        else:
+            self._chunk_reads.move_to_end(start)
+        return await asyncio.shield(read)
+
+    async def _read_chunk(self, start: int) -> list[T]:
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        msg = await SUPERVISOR_COMMS.asend(self._slice_request(start, start + self.chunk_size))
+        # The backend may download the values (object storage), and the loop serves the other
+        # indexed tasks in flight: load in a thread, as XCom.aget_one does.
+        return await asyncio.to_thread(self._slice_values, msg)
+
+    def _forget_failed_chunk_read(self, start: int, read: asyncio.Future[list[T]]) -> None:
+        if (read.cancelled() or read.exception() is not None) and self._chunk_reads.get(start) is read:
+            del self._chunk_reads[start]
+
+    def _holds(self, index: int) -> bool:
+        return self._chunk_start <= index < self._chunk_start + len(self._chunk)
+
+    def _hold(self, index: int, values: list[T]) -> None:
+        """Keep the slice fetched for ``index``; an empty slice means ``index`` is past the end."""
+        if not values:
+            raise IndexError(index)
+        self._chunk_start, self._chunk = index, values
+
+    def _slice_request(self, start: int | None, stop: int | None, step: int | None = None) -> Any:
+        from airflow.sdk.execution_time.comms import GetXComSequenceSlice
+
+        source = (xcom_arg := self._xcom_arg).operator
+        return GetXComSequenceSlice(
+            previous_iteration=self._previous_iteration,
+            key=xcom_arg.key,
+            dag_id=source.dag_id,
+            task_id=source.task_id,
+            run_id=self._ti.run_id,
+            start=start,
+            stop=stop,
+            step=step,
+        )
+
+    def _slice_values(self, msg: Any) -> list[T]:
+        from airflow.sdk.execution_time.comms import XComSequenceSliceResult
+        from airflow.sdk.execution_time.xcom import XCom
+
+        if not isinstance(msg, XComSequenceSliceResult):
+            raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
+        return [XCom._load(_XComWrapper(value)) for value in msg.root]
 
     def __len__(self) -> int:
         if self._len is None:
@@ -111,6 +257,30 @@ class LazyXComSequence(Sequence[T]):
             self._len = msg.len
         return self._len
 
+    async def alen(self) -> int:
+        """Async twin of ``len(self)``: the same ``GetXComCount`` request, sent with ``asend``."""
+        if self._len is None:
+            from airflow.sdk.execution_time.comms import ErrorResponse, GetXComCount, XComCountResponse
+            from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+            task = self._xcom_arg.operator
+
+            msg = await SUPERVISOR_COMMS.asend(
+                GetXComCount(
+                    previous_iteration=self._previous_iteration,
+                    key=self._xcom_arg.key,
+                    dag_id=task.dag_id,
+                    run_id=self._ti.run_id,
+                    task_id=task.task_id,
+                ),
+            )
+            if isinstance(msg, ErrorResponse):
+                raise RuntimeError(msg)
+            if not isinstance(msg, XComCountResponse):
+                raise TypeError(f"Got unexpected response to GetXComCount: {msg!r}")
+            self._len = msg.len
+        return self._len
+
     @overload
     def __getitem__(self, key: int) -> T: ...
 
@@ -118,56 +288,21 @@ class LazyXComSequence(Sequence[T]):
     def __getitem__(self, key: slice) -> Sequence[T]: ...
 
     def __getitem__(self, key: int | slice) -> T | Sequence[T]:
-        from airflow.sdk.execution_time.comms import (
-            ErrorResponse,
-            GetXComSequenceItem,
-            GetXComSequenceSlice,
-            XComSequenceIndexResult,
-            XComSequenceSliceResult,
-        )
         from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-        from airflow.sdk.execution_time.xcom import XCom
 
         if isinstance(key, slice):
-            start, stop, step = _coerce_slice(key)
-            source = (xcom_arg := self._xcom_arg).operator
-            msg = SUPERVISOR_COMMS.send(
-                GetXComSequenceSlice(
-                    previous_iteration=self._previous_iteration,
-                    key=xcom_arg.key,
-                    dag_id=source.dag_id,
-                    task_id=source.task_id,
-                    run_id=self._ti.run_id,
-                    start=start,
-                    stop=stop,
-                    step=step,
-                ),
-            )
-            if not isinstance(msg, XComSequenceSliceResult):
-                raise TypeError(f"Got unexpected response to GetXComSequenceSlice: {msg!r}")
-            return [XCom._load(_XComWrapper(value)) for value in msg.root]
+            return self._slice_values(SUPERVISOR_COMMS.send(self._slice_request(*_coerce_slice(key))))
 
         if not isinstance(key, int):
             if (index := getattr(key, "__index__", None)) is not None:
                 key = index()
             raise TypeError(f"Sequence indices must be integers or slices not {type(key).__name__}")
 
-        source = (xcom_arg := self._xcom_arg).operator
-        msg = SUPERVISOR_COMMS.send(
-            GetXComSequenceItem(
-                previous_iteration=self._previous_iteration,
-                key=xcom_arg.key,
-                dag_id=source.dag_id,
-                task_id=source.task_id,
-                run_id=self._ti.run_id,
-                offset=key,
-            ),
-        )
-        if isinstance(msg, ErrorResponse):
-            raise IndexError(key)
-        if not isinstance(msg, XComSequenceIndexResult):
-            raise TypeError(f"Got unexpected response to GetXComSequenceItem: {msg!r}")
-        return XCom._load(_XComWrapper(msg.root))
+        index = range(len(self))[key] if key < 0 else key
+        if not self._holds(index):
+            msg = SUPERVISOR_COMMS.send(self._slice_request(index, index + self.chunk_size))
+            self._hold(index, self._slice_values(msg))
+        return self._chunk[index - self._chunk_start]
 
 
 def _coerce_slice_index(value: Any) -> int | None:

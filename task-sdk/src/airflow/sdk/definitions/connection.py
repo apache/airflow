@@ -224,8 +224,8 @@ class Connection:
         Async version of ``get_uri``, safe for use inside an async task.
 
         Calls ``aextra_dejson`` so that secret masking uses ``asend()``
-        instead of the synchronous ``send()``, preventing
-        ``DeadlockImminentError`` when invoked from within an async context.
+        instead of the synchronous ``send()``, which would block the event
+        loop when invoked from within an async context.
         """
         return self._build_uri(await self.aextra_dejson())
 
@@ -363,7 +363,7 @@ class Connection:
         Async version of ``extra_dejson``, safe for use inside an async task.
 
         Uses ``amask_secret`` instead of the synchronous ``mask_secret``, so calling
-        this from within an async context does not trigger ``DeadlockImminentError``.
+        this from within an async context does not block the event loop.
         """
         from airflow.sdk.log import amask_secret
 
