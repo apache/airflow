@@ -562,6 +562,25 @@ class SageMakerHook(AwsBaseHook):
             )
         return response
 
+    def stop_training_job(self, training_job_name: str) -> None:
+        """
+        Stop a running SageMaker training job.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SageMaker.Client.stop_training_job`
+
+        :param training_job_name: name of the training job to stop.
+        """
+        try:
+            self.conn.stop_training_job(TrainingJobName=training_job_name)
+        except ClientError as ce:
+            # SageMaker only accepts a stop for a job in InProgress; a ValidationException here means
+            # the job reached a terminal state (or never existed) before the stop landed.
+            if ce.response["Error"]["Code"] == "ValidationException":
+                self.log.warning("Could not stop training job %s: %s", training_job_name, ce)
+                return
+            raise
+
     def describe_training_job(self, name: str):
         """
         Get the training job info associated with the name.

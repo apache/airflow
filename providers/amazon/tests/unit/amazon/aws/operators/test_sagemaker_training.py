@@ -116,6 +116,52 @@ class TestSageMakerTrainingOperator:
         a = []
         a.sort()
 
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    def test_on_kill_does_nothing_by_default(self, mock_stop):
+        self.sagemaker._training_job_name = "job_name"
+
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    def test_on_kill_does_nothing_before_the_job_is_submitted(self, mock_stop):
+        self.sagemaker.stop_training_job_on_kill = True
+
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_not_called()
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    def test_on_kill_stops_the_job_when_enabled(self, mock_stop):
+        self.sagemaker.stop_training_job_on_kill = True
+        self.sagemaker._training_job_name = "job_name"
+
+        self.sagemaker.on_kill()
+
+        mock_stop.assert_called_once_with("job_name")
+
+    @mock.patch.object(SageMakerHook, "stop_training_job")
+    @mock.patch.object(SageMakerHook, "describe_training_job")
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    @mock.patch.object(sagemaker, "serialize", return_value="")
+    def test_on_kill_stops_the_renamed_job(self, _, mock_training, mock_desc, mock_stop):
+        # The job name is rewritten with a timestamp suffix when one already exists; on_kill has to
+        # stop the name that was actually submitted.
+        mock_desc.side_effect = [None, ClientError({"Error": {"Code": "ValidationException"}}, "op"), None]
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.stop_training_job_on_kill = True
+
+        self.sagemaker.execute(None)
+        self.sagemaker.on_kill()
+
+        submitted_name = self.sagemaker.config["TrainingJobName"]
+        assert submitted_name != "job_name"
+        mock_stop.assert_called_once_with(submitted_name)
+
     @mock.patch.object(SageMakerHook, "describe_training_job")
     @mock.patch.object(SageMakerHook, "create_training_job")
     def test_execute_with_failure(self, mock_training, mock_desc):
