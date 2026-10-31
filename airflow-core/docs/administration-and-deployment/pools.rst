@@ -24,6 +24,10 @@ Some systems can get overwhelmed when too many processes hit them at the same ti
 **limit the execution parallelism** on arbitrary sets of tasks. The list of pools is managed in the UI
 (``Menu -> Admin -> Pools``) by giving the pools a name and assigning it a number of worker slots. There you can also decide whether the pool should include :doc:`deferred tasks </authoring-and-scheduling/deferring>` in its calculation of occupied slots.
 
+.. tip::
+
+    By default, pools do not count deferred tasks towards occupied slots (``include_deferred=False``). If you have tasks configured with ``start_from_trigger=True`` or ``end_from_trigger=True`` that run primarily or entirely in the triggerer, make sure to enable ``include_deferred=True`` on the pool so that the scheduler constrains the number of concurrent triggers to the pool's capacity.
+
 Tasks can then be associated with one of the existing pools by using the ``pool`` parameter when creating tasks:
 
 .. code-block:: python

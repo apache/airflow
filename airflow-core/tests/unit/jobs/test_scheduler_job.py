@@ -161,6 +161,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
@@ -188,7 +189,7 @@ from tests_common.test_utils.db import (
     set_default_pool_slots,
 )
 from tests_common.test_utils.mock_executor import MockExecutor
-from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_operators import CustomOperator, MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
@@ -2891,6 +2892,74 @@ class TestSchedulerJob:
             32, make_pool_stats(total=1, running=1), set(), session=session
         )
         assert len(res) == 0
+
+        session.rollback()
+        session.close()
+
+    def test_select_task_instances_to_queue_start_from_trigger_respects_pool(self, dag_maker, session):
+        """Test that _select_task_instances_to_queue defers SCHEDULED tasks with start_from_trigger
+        only up to available pool capacity when include_deferred is True.
+        """
+        pool_name = "test_sft_pool"
+        pool = Pool(pool=pool_name, slots=1, include_deferred=True)
+        session.add(pool)
+        session.flush()
+
+        with dag_maker(session=session, serialized=True):
+            for i in range(3):
+                task = MockOperator(task_id=f"dummy_{i}", pool=pool_name)
+                task.start_from_trigger = True
+                task.start_trigger_args = StartTriggerArgs(
+                    trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                    next_method="execute_complete",
+                )
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, num_runs=1)
+
+        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, state=DagRunState.RUNNING)
+        tis = dr.task_instances
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        session.flush()
+
+        pool_stats = make_pool_stats(pool=pool_name, total=1)
+        starved_pools = set()
+
+        # First cycle: 1 slot open, 3 SCHEDULED tasks with start_from_trigger=True.
+        # Exactly 1 should be deferred, leaving 0 open slots and marking starved_pools.
+        res = self.job_runner._select_task_instances_to_queue(32, pool_stats, starved_pools, session=session)
+        session.flush()
+
+        # Deferred tasks should not be returned as executable_tis for worker queueing
+        assert len(res) == 0
+        assert pool_stats[pool_name]["open"] == 0
+        assert pool_stats[pool_name]["deferred"] == 1
+        assert pool_name in starved_pools
+
+        session.expire_all()
+        updated_tis = dr.get_task_instances(session=session)
+        states = [ti.state for ti in updated_tis]
+        assert states.count(TaskInstanceState.DEFERRED) == 1
+        assert states.count(TaskInstanceState.SCHEDULED) == 2
+
+        # Second cycle: 0 slots open, starved_pools prevents selection
+        second_pool_stats = make_pool_stats(pool=pool_name, total=1, deferred=1)
+        second_pool_stats[pool_name]["open"] = 0
+        starved_pools_2 = set()
+        res2 = self.job_runner._select_task_instances_to_queue(
+            32, second_pool_stats, starved_pools_2, session=session
+        )
+        session.flush()
+        assert len(res2) == 0
+        assert pool_name in starved_pools_2
+
+        session.expire_all()
+        updated_tis = dr.get_task_instances(session=session)
+        states = [ti.state for ti in updated_tis]
+        assert states.count(TaskInstanceState.DEFERRED) == 1
+        assert states.count(TaskInstanceState.SCHEDULED) == 2
 
         session.rollback()
         session.close()

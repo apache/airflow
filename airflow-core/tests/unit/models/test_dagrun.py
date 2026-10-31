@@ -4011,6 +4011,47 @@ def test_schedule_tis_start_trigger_kwargs_e2e(dag_maker, session):
     assert trigger_row.kwargs == {"delta": datetime.timedelta(seconds=2)}
 
 
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize("start_from_trigger", [False, True])
+def test_schedule_tis_start_from_trigger_respects_pool(dag_maker, session, start_from_trigger):
+    """Test that start_from_trigger respects pool capacity when include_deferred is True."""
+    from airflow.models.pool import Pool
+
+    pool = Pool(pool=f"test_pool_sft_{start_from_trigger}", slots=1, include_deferred=True)
+    session.add(pool)
+    session.flush()
+
+    with dag_maker(session=session, serialized=True):
+        for index in range(5):
+            task = MockOperator(task_id=f"task_{index}", pool=pool.pool)
+            task.start_from_trigger = start_from_trigger
+            task.start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                next_method="execute_complete",
+            )
+
+    dr = dag_maker.create_dagrun(session=session)
+    ready, _ = dr.update_state(session=session)
+    assert len(ready) == 5
+    dr.schedule_tis(ready, session=session)
+    session.flush()
+    session.expire_all()
+
+    tis = dr.get_task_instances(session=session)
+    states = [ti.state for ti in tis]
+    deferred = states.count(TaskInstanceState.DEFERRED)
+    scheduled = states.count(TaskInstanceState.SCHEDULED)
+
+    if start_from_trigger:
+        assert deferred == 1
+        assert scheduled == 4
+        assert pool.open_slots(session=session) == 0
+    else:
+        assert deferred == 0
+        assert scheduled == 5
+        assert pool.open_slots(session=session) == 1
+
+
 def test_schedule_tis_empty_operator_try_number(dag_maker, session: Session):
     """
     When empty operator is not actually run, then we need to increment the try_number,
