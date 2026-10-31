@@ -107,6 +107,8 @@ taskinstances:
   clear-state-store: "Delete all state store keys for a task instance"
 
 tasks:
+  get: "Retrieve a task for a Dag by its ID and task ID"
+  list: "List tasks for a Dag"
   clear: "Clear task instances of a Dag by its ID"
 
 variables:
