@@ -610,6 +610,13 @@ metrics:
     legacy_name: "scheduler.dagruns.queued.{dag_id}"
     name_variables: ["dag_id"]
 
+  - name: "dag.schedule_overdue_seconds"
+    description: "Seconds since a time-scheduled Dag's next run became due, emitted only while
+    ``max_active_runs`` prevents that run from being created."
+    type: "gauge"
+    legacy_name: "dag.schedule_overdue_seconds.{dag_id}"
+    name_variables: ["dag_id"]
+
   - name: "executor.open_slots"
     description: "Number of open slots on executor. Legacy metric only emitted
     when multiple executors are configured."
