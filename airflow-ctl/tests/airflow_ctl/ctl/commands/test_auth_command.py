@@ -317,14 +317,10 @@ class TestCliAuthToken:
             kind=ClientKind.AUTH,
         )
 
-    def test_token_prompts_on_stderr_interactively(self, api_client_maker, capsys):
-        with (
-            patch("sys.stdin", self._stdin(is_tty=True)),
-            patch("builtins.input", return_value="prompted_user") as mock_input,
-            patch(
-                "airflowctl.ctl.commands.auth_command.getpass.getpass", return_value="prompted_pass"
-            ) as mock_getpass,
-        ):
+    @patch("airflowctl.ctl.commands.auth_command.getpass.getpass", return_value="prompted_pass")
+    @patch("builtins.input", return_value="prompted_user")
+    def test_token_prompts_on_stderr_interactively(self, mock_input, mock_getpass, api_client_maker, capsys):
+        with patch("sys.stdin", self._stdin(is_tty=True)):
             auth_command.get_token(
                 self.parser.parse_args(self.token_args),
                 api_client=self._api_client(api_client_maker),
@@ -340,17 +336,17 @@ class TestCliAuthToken:
         "credential_args",
         [
             pytest.param([], id="no-credentials"),
-            pytest.param(["--username", "user"], id="username-only"),
             pytest.param(["--password", "pass"], id="password-only"),
         ],
     )
-    def test_token_missing_credentials_non_interactive_exits(self, credential_args, api_client_maker, capsys):
-        with (
-            patch("sys.stdin", self._stdin(is_tty=False)),
-            patch("builtins.input") as mock_input,
-            patch("airflowctl.ctl.commands.auth_command.getpass.getpass") as mock_getpass,
-            pytest.raises(SystemExit) as exc_info,
-        ):
+    @pytest.mark.parametrize("closed_stdin", [False, True], ids=["non-tty-stdin", "closed-stdin"])
+    @patch("airflowctl.ctl.commands.auth_command.getpass.getpass")
+    @patch("builtins.input")
+    def test_token_missing_username_non_interactive_exits(
+        self, mock_input, mock_getpass, closed_stdin, credential_args, api_client_maker, capsys
+    ):
+        stdin = None if closed_stdin else self._stdin(is_tty=False)
+        with patch("sys.stdin", stdin), pytest.raises(SystemExit) as exc_info:
             auth_command.get_token(
                 self.parser.parse_args([*self.token_args, *credential_args]),
                 api_client=self._api_client(api_client_maker),
@@ -361,8 +357,32 @@ class TestCliAuthToken:
         mock_getpass.assert_not_called()
         captured = capsys.readouterr()
         assert captured.out == ""
-        assert "No credentials provided." in captured.err
+        assert "No username provided." in captured.err
         assert "--username" in captured.err
+
+    @patch("airflowctl.ctl.commands.auth_command.getpass.getpass", return_value="piped_pass")
+    def test_token_reads_piped_password_non_interactive(self, mock_getpass, api_client_maker, capsys):
+        with patch("sys.stdin", self._stdin(is_tty=False)):
+            auth_command.get_token(
+                self.parser.parse_args([*self.token_args, "--username", "user"]),
+                api_client=self._api_client(api_client_maker),
+            )
+
+        mock_getpass.assert_called_once_with("Password: ")
+        assert capsys.readouterr().out == "TEST_TOKEN\n"
+
+    @patch("airflowctl.ctl.commands.auth_command.getpass.getpass", side_effect=EOFError)
+    def test_token_missing_password_non_interactive_exits(self, mock_getpass, api_client_maker, capsys):
+        with patch("sys.stdin", self._stdin(is_tty=False)), pytest.raises(SystemExit) as exc_info:
+            auth_command.get_token(
+                self.parser.parse_args([*self.token_args, "--username", "user"]),
+                api_client=self._api_client(api_client_maker),
+            )
+
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "No password provided." in captured.err
         assert "--password" in captured.err
 
     def test_token_failure_reported_on_stderr(self, api_client_maker, capsys):

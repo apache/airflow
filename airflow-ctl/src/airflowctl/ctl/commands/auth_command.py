@@ -120,21 +120,31 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
 
     # stdout is reserved for the token (e.g. TOKEN=$(airflowctl auth token)), so prompts
     # and errors go to stderr.
-    if not (username and password):
-        if not sys.stdin.isatty():
-            rich.print("[red]No credentials provided.[/red]", file=sys.stderr)
+    if not username:
+        if not (sys.stdin and sys.stdin.isatty()):
+            rich.print("[red]No username provided.[/red]", file=sys.stderr)
             rich.print(
-                "[green]Please pass:[/green] [blue]--username[/blue] and [blue]--password[/blue] "
+                "[green]Please pass:[/green] [blue]--username[/blue] "
                 "to generate a token in a non-interactive context.",
                 file=sys.stderr,
             )
             sys.exit(1)
-        if not username:
-            sys.stderr.write("Username: ")
-            sys.stderr.flush()
-            username = input()
-        if not password:
+        sys.stderr.write("Username: ")
+        sys.stderr.flush()
+        username = input()
+    if not password:
+        # getpass reads from /dev/tty when available and falls back to stdin, so the
+        # password can still be piped in non-interactive runs instead of passed on argv.
+        try:
             password = getpass.getpass("Password: ")
+        except EOFError:
+            rich.print("[red]No password provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--password[/blue] or pipe the password on stdin "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     try:
         api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
