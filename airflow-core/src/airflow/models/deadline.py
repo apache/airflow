@@ -58,6 +58,11 @@ logger = logging.getLogger(__name__)
 
 CALLBACK_METRICS_PREFIX = "deadline_alerts"
 
+# Must be in sync with the identically named constants in airflow.sdk.definitions.deadline
+EVALUATION_TIMING_FIELD = "evaluation_timing"
+DAGRUN_CREATED_TIMING = "DAGRUN_CREATED"
+DAGRUN_QUEUED_TIMING = "DAGRUN_QUEUED"
+
 
 class DeadlineDagRunProtocol(Protocol):
     """The Dag run interface deadline references are evaluated against."""
@@ -386,6 +391,8 @@ class ReferenceModels:
     class BaseDeadlineReference(LoggingMixin, ABC):
         """Base class for all Deadline implementations."""
 
+        evaluation_timing: str = DAGRUN_CREATED_TIMING
+
         @classproperty
         def reference_name(cls: Any) -> str:
             return cls.__name__
@@ -452,6 +459,8 @@ class ReferenceModels:
 
     class DagRunQueuedAtDeadline(BaseDeadlineReference):
         """A deadline that returns when a DagRun was queued."""
+
+        evaluation_timing: str = DAGRUN_QUEUED_TIMING
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
