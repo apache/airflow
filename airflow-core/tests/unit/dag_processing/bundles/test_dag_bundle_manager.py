@@ -26,23 +26,29 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
-from sqlalchemy import func, select, update
+from sqlalchemy import event, func, select, update
 
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
+    _get_cached_bundle_config_snapshot,
     _guess_best_bundle_for_fileloc,
-    _load_bundle_config_snapshot,
+    _refresh_bundle_config_snapshot,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
 )
+from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.errors import ParseImportError
+from airflow.models.team import Team
+from airflow.sdk.importers import PythonDagImporter, get_importer_registry
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
 
@@ -184,11 +190,11 @@ def test_get_configured_bundle_team_names(load_examples):
     }
 )
 def test_get_configured_bundle_names():
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
     try:
         assert get_configured_bundle_names() == {"team-bundle", "unscoped-bundle"}
     finally:
-        _load_bundle_config_snapshot.cache_clear()
+        _get_cached_bundle_config_snapshot.cache_clear()
 
 
 @conf_vars({("dag_processor", "dag_bundle_config_list"): "[]"})
@@ -223,9 +229,9 @@ def test_get_bundle():
 
 @pytest.fixture(autouse=True)
 def _clear_bundle_config_snapshot_cache():
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
     yield
-    _load_bundle_config_snapshot.cache_clear()
+    _get_cached_bundle_config_snapshot.cache_clear()
 
 
 def _bundle_config_env(config) -> dict[str, str]:
@@ -1877,3 +1883,670 @@ class TestSkippedRowLifecycle:
         assert restored.is_stale is False
         assert restored.bundle_name == "configured-bundle"
         assert restored.relative_fileloc == "legacy.py"
+
+
+@pytest.fixture
+def dynamic_bundle_config(tmp_path):
+    config_file = tmp_path / "bundles.json"
+    config_file.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): None,
+            ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+            ("dag_processor", "bundle_refresh_check_interval"): "5",
+        }
+    ):
+        yield config_file
+
+
+def _expire_bundle_config_snapshot():
+    _get_cached_bundle_config_snapshot().last_checked = float("-inf")
+    _get_cached_bundle_config_snapshot(metadata_only=True).last_checked = float("-inf")
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_names"),
+    [
+        (json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG), ["my-test-bundle", "second-bundle"]),
+        (json.dumps(SECOND_BUNDLE_CONFIG), ["second-bundle"]),
+        ("[]", []),
+        ("invalid json", ["my-test-bundle"]),
+    ],
+)
+@mock.patch.object(BasicBundle, "__init__", autospec=True, side_effect=RuntimeError("unavailable"))
+def test_bundle_names_refresh_existing_manager(mock_init, dynamic_bundle_config, payload, expected_names):
+    manager = DagBundlesManager()
+    assert manager.get_all_bundle_names() == ["my-test-bundle"]
+    dynamic_bundle_config.write_text(payload)
+    _expire_bundle_config_snapshot()
+
+    assert manager.get_all_bundle_names() == expected_names
+    assert DagBundlesManager.is_bundle_configured("my-test-bundle") == ("my-test-bundle" in expected_names)
+    mock_init.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ["invalid json", "", " ", "null", "{}", "1", '[{"name":"incomplete"}]', None],
+)
+def test_command_reload_keeps_last_snapshot_on_failed_or_blank_read(dynamic_bundle_config, payload):
+    assert get_configured_bundle_names() == {"my-test-bundle"}
+    if payload is None:
+        dynamic_bundle_config.unlink()
+    else:
+        dynamic_bundle_config.write_text(payload)
+    _expire_bundle_config_snapshot()
+    _refresh_bundle_config_snapshot()
+    assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+    assert get_configured_bundle_team_names() == {"my-test-bundle": None}
+
+
+@pytest.mark.parametrize("change_existing", [False, True])
+def test_invalid_classpath_reload_keeps_last_snapshot(dynamic_bundle_config, change_existing):
+    assert get_configured_bundle_names() == {"my-test-bundle"}
+    invalid = {
+        "name": "my-test-bundle" if change_existing else "invalid-bundle",
+        "classpath": "does.not.exist.Bundle",
+        "kwargs": {},
+    }
+    dynamic_bundle_config.write_text(json.dumps([invalid]))
+    _expire_bundle_config_snapshot()
+    _refresh_bundle_config_snapshot()
+    assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+
+
+@mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_command_reads_shared_between_managers_and_rate_limited(
+    mock_command, mock_clock, dynamic_bundle_config
+):
+    mock_command.reset_mock()
+    mock_clock.return_value = 100.0
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    assert get_configured_bundle_names() == {"my-test-bundle"}
+    DagBundlesManager()
+    get_configured_bundle_team_names()
+    assert mock_command.call_count == 1
+    mock_clock.return_value = 104.0
+    mock_command.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
+    assert get_configured_bundle_names() == {"my-test-bundle"}
+    DagBundlesManager()
+    assert mock_command.call_count == 1
+    mock_clock.return_value = 105.0
+    assert set(DagBundlesManager()._bundle_config) == {"my-test-bundle"}
+    assert mock_command.call_count == 1
+    assert get_configured_bundle_names() == {"second-bundle"}
+    assert mock_command.call_count == 2
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@pytest.mark.parametrize("unavailable", [None, "", " "])
+def test_secret_reload_does_not_fall_back_to_default_bundle(mock_secret, unavailable):
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): None,
+            ("dag_processor", "dag_bundle_config_list_secret"): "bundles/config",
+        }
+    ):
+        mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        assert get_configured_bundle_names() == {"my-test-bundle"}
+        mock_secret.return_value = unavailable
+        _expire_bundle_config_snapshot()
+        _refresh_bundle_config_snapshot()
+        assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+        mock_secret.return_value = json.dumps(SECOND_BUNDLE_CONFIG)
+        _expire_bundle_config_snapshot()
+        assert get_configured_bundle_names() == {"second-bundle"}
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@pytest.mark.parametrize("source_kind", ["cmd", "secret"])
+@pytest.mark.parametrize("load_examples", [False, True])
+def test_dynamic_list_can_remove_and_restore_all_bundles(
+    mock_secret, dynamic_bundle_config, source_kind, load_examples
+):
+    with conf_vars(
+        {
+            ("core", "load_examples"): str(load_examples),
+            ("dag_processor", "dag_bundle_config_list_cmd"): (
+                f"cat {dynamic_bundle_config}" if source_kind == "cmd" else None
+            ),
+            ("dag_processor", "dag_bundle_config_list_secret"): (
+                "bundles/config" if source_kind == "secret" else None
+            ),
+        }
+    ):
+        mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        assert "my-test-bundle" in get_configured_bundle_names()
+
+        dynamic_bundle_config.write_text("[]")
+        mock_secret.return_value = "[]"
+        _expire_bundle_config_snapshot()
+        _refresh_bundle_config_snapshot()
+        assert DagBundlesManager().get_all_bundle_names() == []
+        assert get_configured_bundle_team_names() == {}
+
+        _get_cached_bundle_config_snapshot.cache_clear()
+        assert DagBundlesManager().get_all_bundle_names() == []
+
+        dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
+        mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        _expire_bundle_config_snapshot()
+        assert "my-test-bundle" in get_configured_bundle_names()
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@pytest.mark.parametrize("source_kind", ["cmd", "secret"])
+@pytest.mark.parametrize("source_location", ["environment", "config"])
+def test_dynamic_source_preserves_command_and_secret_values(
+    mock_command, mock_secret, monkeypatch, source_kind, source_location
+):
+    value = (
+        "fetch '$BUNDLE_CONFIG_ROOT/~/bundles'" if source_kind == "cmd" else "$BUNDLE_CONFIG_ROOT/~/bundles"
+    )
+    monkeypatch.setenv("BUNDLE_CONFIG_ROOT", "/expanded")
+    mock_command.return_value = mock_secret.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): None,
+            ("dag_processor", "dag_bundle_config_list_cmd"): None,
+            ("dag_processor", "dag_bundle_config_list_secret"): None,
+            ("dag_processor", "bundle_refresh_check_interval"): "5",
+        }
+    ):
+        if source_location == "environment":
+            monkeypatch.setenv(f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST_{source_kind.upper()}", value)
+        else:
+            conf.set("dag_processor", f"dag_bundle_config_list_{source_kind}", value)
+        assert get_configured_bundle_names() == {"my-test-bundle"}
+    if source_kind == "cmd":
+        mock_command.assert_called_once_with(value)
+        mock_secret.assert_not_called()
+    else:
+        mock_secret.assert_called_once_with(conf, value)
+        mock_command.assert_not_called()
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_literal_configuration_does_not_reload(mock_command, mock_secret):
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG),
+        }
+    ):
+        manager = DagBundlesManager()
+        assert get_configured_bundle_names() == {"my-test-bundle"}
+        conf.set("dag_processor", "dag_bundle_config_list", json.dumps(SECOND_BUNDLE_CONFIG))
+        _expire_bundle_config_snapshot()
+        assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
+        assert manager.get_all_bundle_names() == ["my-test-bundle"]
+        assert [bundle.name for bundle in manager.get_all_dag_bundles()] == ["my-test-bundle"]
+        assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+        with pytest.raises(ValueError, match="Requested bundle 'second-bundle' is not configured"):
+            manager.get_bundle("second-bundle")
+    mock_command.assert_not_called()
+    mock_secret.assert_not_called()
+
+
+@pytest.mark.parametrize("literal_location", ["environment", "config"])
+def test_literal_config_takes_precedence_over_command(dynamic_bundle_config, monkeypatch, literal_location):
+    if literal_location == "environment":
+        monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", json.dumps(SECOND_BUNDLE_CONFIG))
+    else:
+        conf.set("dag_processor", "dag_bundle_config_list", json.dumps(SECOND_BUNDLE_CONFIG))
+    assert get_configured_bundle_names() == {"second-bundle"}
+
+
+@pytest.mark.db_test
+@mock.patch.object(DagBundlesManager, "get_bundle", autospec=True)
+def test_sync_existing_bundle_skips_construction_and_preserves_template(mock_get_bundle, clear_db, session):
+    existing = DagBundleModel(name="my-test-bundle")
+    existing.signed_url_template = "previous-template"
+    existing.template_params = {"subdir": "dags"}
+    session.add(existing)
+    session.flush()
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG),
+        }
+    ):
+        manager = DagBundlesManager()
+        manager.sync_bundles_to_db(bundle_instances={}, session=session)
+    mock_get_bundle.assert_not_called()
+    session.flush()
+    assert existing.active is True
+    assert existing.signed_url_template == "previous-template"
+    assert existing.template_params == {"subdir": "dags"}
+
+
+@pytest.mark.db_test
+@mock.patch.object(DagBundlesManager, "get_bundle", autospec=True, side_effect=RuntimeError("unavailable"))
+def test_sync_load_failure_keeps_existing_bundle_active(mock_get_bundle, clear_db, session):
+    existing = DagBundleModel(name="my-test-bundle")
+    existing.signed_url_template = "previous-template"
+    session.add(existing)
+    session.flush()
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG),
+        }
+    ):
+        DagBundlesManager().sync_bundles_to_db(session=session)
+    assert existing.active is True
+    assert existing.signed_url_template == "previous-template"
+
+
+@pytest.mark.parametrize("payload", ["null", "{}", "", "invalid JSON"])
+def test_dynamic_startup_requires_valid_list(dynamic_bundle_config, payload):
+    dynamic_bundle_config.write_text(payload)
+    with pytest.raises(AirflowConfigException):
+        DagBundlesManager()
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("bundle_count", [1, 8])
+def test_periodic_sync_batches_bundle_team_queries(clear_db, session, bundle_count):
+    configs = []
+    for index in range(bundle_count):
+        name = f"query-count-bundle-{index}"
+        team = Team(name=f"query-count-team-{index}")
+        bundle = DagBundleModel(name=name)
+        bundle.teams = [team]
+        session.add_all([team, bundle])
+        configs.append({**BASIC_BUNDLE_CONFIG[0], "name": name, "team_name": team.name})
+    session.flush()
+    session.expire_all()
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("core", "multi_team"): "True",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(configs),
+        }
+    ):
+        manager = DagBundlesManager()
+        with assert_queries_count(3, session=session):
+            manager.sync_bundles_to_db(bundle_instances={}, session=session)
+
+
+@pytest.mark.parametrize("multi_team", [False, True])
+@pytest.mark.parametrize("lookup", [get_configured_bundle_names, get_configured_bundle_team_names])
+@mock.patch(
+    "airflow.dag_processing.bundles.manager.import_string",
+    autospec=True,
+    side_effect=ImportError("Bundle class is not installed"),
+)
+def test_metadata_refresh_does_not_require_bundle_classes(
+    mock_import, dynamic_bundle_config, lookup, multi_team
+):
+    with conf_vars({("core", "multi_team"): str(multi_team)}):
+        assert "my-test-bundle" in lookup()
+        config = {**SECOND_BUNDLE_CONFIG[0], "classpath": "not.installed.Bundle", "team_name": "team-b"}
+        dynamic_bundle_config.write_text(json.dumps([config]))
+        _expire_bundle_config_snapshot()
+
+        assert "second-bundle" in lookup()
+        assert DagBundlesManager.is_bundle_configured("second-bundle")
+        assert get_configured_bundle_team_names() == {"second-bundle": "team-b"}
+        mock_import.assert_not_called()
+
+        _refresh_bundle_config_snapshot()
+        assert _get_cached_bundle_config_snapshot().names == {"my-test-bundle"}
+
+
+@mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@pytest.mark.parametrize("reuse_manager", [False, True])
+def test_bundle_lookup_refreshes_distinct_missing_names_before_interval(
+    mock_command, mock_clock, dynamic_bundle_config, reuse_manager
+):
+    mock_clock.return_value = 100.0
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
+        manager.get_bundle("missing")
+    assert mock_command.call_count == 2
+
+    mock_clock.return_value = 101.0
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG)
+    if not reuse_manager:
+        manager = DagBundlesManager()
+    assert manager.get_bundle("second-bundle").name == "second-bundle"
+    assert mock_command.call_count == 3
+
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG + OTHER_BUNDLE_CONFIG)
+    assert manager.get_bundle("other-test-bundle").name == "other-test-bundle"
+    assert mock_command.call_count == 4
+    assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+    assert mock_command.call_count == 4
+
+
+@pytest.mark.parametrize("remove_bundle", [False, True])
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+def test_bundle_lookup_keeps_manager_configuration_until_enumeration(
+    mock_command, dynamic_bundle_config, remove_bundle
+):
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    configs = [] if remove_bundle else BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG
+    mock_command.return_value = json.dumps(configs)
+    _expire_bundle_config_snapshot()
+    assert DagBundlesManager().get_all_bundle_names() == sorted(config["name"] for config in configs)
+    mock_command.reset_mock()
+
+    if remove_bundle:
+        assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+        mock_command.assert_not_called()
+        assert manager.get_all_bundle_names() == []
+        with pytest.raises(ValueError, match="Requested bundle 'my-test-bundle' is not configured"):
+            manager.get_bundle("my-test-bundle")
+        mock_command.assert_called_once()
+    else:
+        assert manager.get_bundle("second-bundle").name == "second-bundle"
+        mock_command.assert_not_called()
+
+
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
+@pytest.mark.parametrize(
+    "payload",
+    ["[]", "", "{invalid", json.dumps(BASIC_BUNDLE_CONFIG), OSError("Configuration source unavailable")],
+)
+def test_missing_bundle_lookup_limits_repeated_reads_for_each_name(
+    mock_clock, mock_command, dynamic_bundle_config, payload
+):
+    mock_clock.return_value = 100.0
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    if isinstance(payload, Exception):
+        mock_command.side_effect = payload
+    else:
+        mock_command.return_value = payload
+    mock_command.reset_mock()
+
+    for name in ("missing", "another-missing"):
+        for _ in range(2):
+            with pytest.raises(ValueError, match=f"Requested bundle '{name}' is not configured"):
+                manager.get_bundle(name)
+    assert mock_command.call_count == 2
+    assert manager.get_bundle("my-test-bundle").name == "my-test-bundle"
+    assert mock_command.call_count == 2
+
+    mock_clock.return_value = 104.9
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
+        manager.get_bundle("missing")
+    assert mock_command.call_count == 2
+
+    mock_clock.return_value = 105.0
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
+        manager.get_bundle("missing")
+    assert mock_command.call_count == 3
+
+
+@mock.patch("airflow.configuration.AirflowConfigParser._get_config_value_from_secret_backend", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
+@pytest.mark.parametrize("source_kind", ["cmd", "secret"])
+@pytest.mark.parametrize("recovery", ["new-manager", "refreshed-snapshot", "expired-miss"])
+def test_missing_bundle_lookup_recovers(
+    mock_clock, mock_command, mock_secret, dynamic_bundle_config, source_kind, recovery
+):
+    source_read = mock_command if source_kind == "cmd" else mock_secret
+    with conf_vars(
+        {
+            ("dag_processor", "dag_bundle_config_list_cmd"): "read-bundles" if source_kind == "cmd" else None,
+            ("dag_processor", "dag_bundle_config_list_secret"): "bundles/config"
+            if source_kind == "secret"
+            else None,
+        }
+    ):
+        mock_clock.return_value = 100.0
+        source_read.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+        manager = DagBundlesManager()
+        with pytest.raises(ValueError, match="Requested bundle 'second-bundle' is not configured"):
+            manager.get_bundle("second-bundle")
+        assert source_read.call_count == 2
+
+        mock_clock.return_value = 101.0
+        source_read.return_value = json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG)
+        if recovery == "new-manager":
+            lookup_manager = DagBundlesManager()
+        else:
+            lookup_manager = manager
+            if recovery == "refreshed-snapshot":
+                _expire_bundle_config_snapshot()
+                _refresh_bundle_config_snapshot()
+            else:
+                mock_clock.return_value = 105.0
+
+        assert lookup_manager.get_bundle("second-bundle").name == "second-bundle"
+        assert source_read.call_count == 3
+        assert manager.get_bundle("second-bundle").name == "second-bundle"
+        assert source_read.call_count == 3
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize(
+    ("lookup_before_reconcile", "revert_before_correction"), [(False, False), (True, False), (True, True)]
+)
+@conf_vars({("core", "multi_team"): "True"})
+@mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
+def test_reconcile_rejects_missing_team_and_accepts_correction(
+    mock_removed,
+    dynamic_bundle_config,
+    clear_db,
+    testing_team,
+    session,
+    lookup_before_reconcile,
+    revert_before_correction,
+):
+    processor = DagFileProcessorManager(max_runs=1)
+    processor.prepare_bundles()
+    retained = processor._dag_bundles[0]
+    known_files = {retained.name: set()}
+    config = {**SECOND_BUNDLE_CONFIG[0], "team_name": "reload-missing-team"}
+    dynamic_bundle_config.write_text(json.dumps([config]))
+    _expire_bundle_config_snapshot()
+
+    if lookup_before_reconcile:
+        processor._dag_bundle_manager.get_bundle("second-bundle")
+    processor._reconcile_bundles(known_files=known_files)
+
+    assert processor._dag_bundles == [retained]
+    assert processor._dag_bundle_manager._snapshot.names == {retained.name}
+    assert processor._dag_bundle_manager.get_bundle_importers_config(retained.name) is None
+    assert known_files == {retained.name: set()}
+    mock_removed.assert_not_called()
+    session.expire_all()
+    assert session.get(DagBundleModel, retained.name).active is True
+    assert session.get(DagBundleModel, "second-bundle") is None
+
+    if revert_before_correction:
+        dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
+        _expire_bundle_config_snapshot()
+        processor._reconcile_bundles(known_files=known_files)
+        assert _get_cached_bundle_config_snapshot().names == {retained.name}
+        mock_removed.assert_not_called()
+
+    config["team_name"] = testing_team.name
+    dynamic_bundle_config.write_text(json.dumps([config]))
+    _expire_bundle_config_snapshot()
+    processor._reconcile_bundles(known_files=known_files)
+
+    assert [bundle.name for bundle in processor._dag_bundles] == ["second-bundle"]
+    assert known_files == {}
+    mock_removed.assert_called_once_with(processor, known_files=known_files)
+    session.expire_all()
+    assert session.get(DagBundleModel, retained.name).active is False
+    added = session.get(DagBundleModel, "second-bundle")
+    assert added.active is True
+    assert [owner.name for owner in added.teams] == [testing_team.name]
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("retry_sync_fails", [False, True])
+@pytest.mark.parametrize("existing_template", [None, "previous-template"])
+@pytest.mark.parametrize("template", [None, "https://example.com/repo/{version}"])
+@mock.patch.object(BasicBundle, "view_url_template", autospec=True)
+def test_reconcile_retries_failed_template_update(
+    mock_template, dynamic_bundle_config, clear_db, session, template, existing_template, retry_sync_fails
+):
+    mock_template.return_value = None
+    processor = DagFileProcessorManager(max_runs=1)
+    processor.prepare_bundles()
+    if existing_template:
+        existing = DagBundleModel(name="second-bundle")
+        existing.active = False
+        existing.signed_url_template = existing_template
+        existing.template_params = {"subdir": "previous"}
+        session.add(existing)
+        session.commit()
+    dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG))
+    _expire_bundle_config_snapshot()
+    mock_template.side_effect = RuntimeError("template temporarily unavailable")
+    processor._reconcile_bundles(known_files={})
+
+    assert {bundle.name for bundle in processor._dag_bundles} == {"my-test-bundle", "second-bundle"}
+    session.expire_all()
+    added = session.get(DagBundleModel, "second-bundle")
+    assert added.active is True
+    assert added.signed_url_template == existing_template
+    assert added.template_params == ({"subdir": "previous"} if existing_template else None)
+    bundle_instance = next(bundle for bundle in processor._dag_bundles if bundle.name == "second-bundle")
+
+    mock_template.side_effect = None
+    mock_template.return_value = template
+    mock_template.reset_mock()
+    processor._force_refresh_bundles.clear()
+    if retry_sync_fails:
+
+        def fail_commit(session):
+            raise RuntimeError("database temporarily unavailable")
+
+        event.listen(type(session), "before_commit", fail_commit)
+        try:
+            processor._reconcile_bundles(known_files={})
+        finally:
+            event.remove(type(session), "before_commit", fail_commit)
+        session.expire_all()
+        added = session.get(DagBundleModel, "second-bundle")
+        assert added.signed_url_template == existing_template
+        assert added.template_params == ({"subdir": "previous"} if existing_template else None)
+    processor._reconcile_bundles(known_files={})
+
+    session.expire_all()
+    added = session.get(DagBundleModel, "second-bundle")
+    assert added.active is True
+    assert added.template_params == {}
+    assert added.render_url(version="v1") == (template.format(version="v1") if template else None)
+    assert processor._force_refresh_bundles == set()
+    assert mock_template.call_args_list == [mock.call(bundle_instance)] * (4 if retry_sync_fails else 2)
+    mock_template.reset_mock()
+    processor._reconcile_bundles(known_files={})
+    mock_template.assert_not_called()
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("failure", ["construction", "template"])
+@mock.patch.object(BasicBundle, "view_url_template", autospec=True)
+@mock.patch.object(DagBundlesManager, "get_bundle", autospec=True, side_effect=DagBundlesManager.get_bundle)
+def test_reconcile_retries_startup_template_failure(
+    mock_get_bundle, mock_template, dynamic_bundle_config, clear_db, session, failure
+):
+    get_bundle = mock_get_bundle.side_effect
+    processor = DagFileProcessorManager(max_runs=1)
+    if failure == "construction":
+        mock_get_bundle.side_effect = RuntimeError("bundle temporarily unavailable")
+    else:
+        mock_template.side_effect = RuntimeError("template temporarily unavailable")
+    processor.prepare_bundles()
+    bundle_instance = processor._dag_bundles[0]
+
+    mock_get_bundle.side_effect = get_bundle
+    mock_template.side_effect = None
+    mock_template.return_value = "https://example.com/repo/{version}"
+    processor._reconcile_bundles(known_files={})
+
+    session.expire_all()
+    bundle = session.get(DagBundleModel, bundle_instance.name)
+    assert bundle.active is True
+    assert bundle.render_url(version="v1") == "https://example.com/repo/v1"
+    assert processor._dag_bundles == [bundle_instance]
+    mock_template.reset_mock()
+    processor._reconcile_bundles(known_files={})
+    mock_template.assert_not_called()
+
+
+@pytest.mark.parametrize("bare_classpath", [False, True])
+def test_dynamic_importers_use_accepted_configuration(dynamic_bundle_config, tmp_path, bare_classpath):
+    manager = DagBundlesManager()
+    sdk_registry = get_importer_registry("second-bundle")
+    assert sdk_registry.get_importer("dag.custom") is None
+    config = {
+        "name": "second-bundle",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": str(tmp_path)},
+        "importers": (
+            ["airflow.sdk.importers.PythonDagImporter"]
+            if bare_classpath
+            else [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}]
+        ),
+    }
+    dynamic_bundle_config.write_text(json.dumps([*BASIC_BUNDLE_CONFIG, config]))
+    _expire_bundle_config_snapshot()
+    assert "second-bundle" in manager.get_all_bundle_names()
+    dynamic_bundle_config.write_text("[]")
+    processor = DagFileProcessorManager(max_runs=1)
+    processor.load_dag_bundles()
+    bundle = next(bundle for bundle in processor._dag_bundles if bundle.name == "second-bundle")
+    processor._find_files_in_bundle(bundle)
+    registry = processor._get_importer_registry("second-bundle")
+    assert isinstance(registry.get_importer("dag.py" if bare_classpath else "dag.custom"), PythonDagImporter)
+    dynamic_bundle_config.write_text("invalid JSON")
+    assert processor._get_importer_registry("second-bundle") is registry
+    assert get_importer_registry("second-bundle") is sdk_registry
+
+
+def test_bundle_configuration_preserves_importer_settings_without_validating_them(dynamic_bundle_config):
+    config = {**BASIC_BUNDLE_CONFIG[0], "importers": {"invalid": "importer settings"}}
+    dynamic_bundle_config.write_text(json.dumps([config]))
+    manager = DagBundlesManager()
+    assert manager.get_all_bundle_names() == ["my-test-bundle"]
+    assert manager.get_bundle_importers_config(config["name"]) == config["importers"]
+
+
+def test_bundle_enumeration_refreshes_existing_manager(dynamic_bundle_config):
+    manager = DagBundlesManager()
+    dynamic_bundle_config.write_text(json.dumps(SECOND_BUNDLE_CONFIG))
+    _expire_bundle_config_snapshot()
+    assert [bundle.name for bundle in manager.get_all_dag_bundles()] == ["second-bundle"]
+
+
+@mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
+@pytest.mark.parametrize(
+    "importers", [None, [], [{"classpath": "airflow.sdk.importers.PythonDagImporter", "kwargs": {}}]]
+)
+def test_get_bundle_importers_config_retains_accepted_data_without_refresh(
+    mock_command, dynamic_bundle_config, importers
+):
+    mock_command.return_value = json.dumps([{**BASIC_BUNDLE_CONFIG[0], "importers": importers}])
+    manager = DagBundlesManager()
+    mock_command.side_effect = OSError("configuration source unavailable")
+
+    accepted_importers = manager.get_bundle_importers_config("my-test-bundle")
+    assert accepted_importers == importers
+    if isinstance(accepted_importers, list):
+        if accepted_importers:
+            accepted_importers[0]["kwargs"]["changed_by_caller"] = True
+        accepted_importers.append({"classpath": "changed.by.caller"})
+    assert manager.get_bundle_importers_config("my-test-bundle") == importers
+    with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
+        manager.get_bundle_importers_config("missing")
+    mock_command.assert_called_once()

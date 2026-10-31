@@ -372,6 +372,22 @@ class TestDagImporterRegistry:
         assert importer2 is importer1
         assert LazyTestImporter.instances == 1
 
+    @pytest.mark.parametrize(
+        "bundle_importers",
+        [
+            None,
+            [],
+            [{"classpath": "airflow.sdk.importers.PythonDagImporter", "extensions": [".custom"]}],
+        ],
+    )
+    @mock.patch.object(DagImporterRegistry, "_get_bundle_importers_config", autospec=True)
+    def test_from_config_explicit_settings_bypass_bundle_lookup(self, mock_lookup, bundle_importers):
+        mock_lookup.side_effect = AssertionError("bundle configuration must not be read again")
+        registry = DagImporterRegistry.from_config("test_bundle", bundle_importers=bundle_importers)
+        assert isinstance(registry.get_importer("dag.py"), PythonDagImporter)
+        assert isinstance(registry.get_importer("dag.custom"), PythonDagImporter) is bool(bundle_importers)
+        mock_lookup.assert_not_called()
+
     def test_from_config_three_tier_precedence(self):
         """Bundle config overrides global config, which overrides defaults."""
         global_config = [

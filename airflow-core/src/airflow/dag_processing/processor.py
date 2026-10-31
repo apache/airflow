@@ -24,7 +24,7 @@ import os
 import traceback
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, BinaryIO, ClassVar, Literal, cast
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, cast
 
 import attrs
 from pydantic import BaseModel, Field, TypeAdapter
@@ -78,7 +78,8 @@ from airflow.sdk.execution_time.task_runner import (
     _send_error_email_notification,
     check_xcom_backend_supports_loops,
 )
-from airflow.sdk.importers import DagSourceCode  # noqa: TC001
+from airflow.sdk.importers import DagImporterRegistry, DagSourceCode
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
 from airflow.utils.file import iter_airflow_imports
@@ -115,6 +116,9 @@ class DagFileParseRequest(BaseModel):
 
     bundle_name: str
     """Bundle name for team-specific executor validation."""
+
+    bundle_config: dict[str, Any] | None = None
+    """Accepted importer settings and team ownership, when supplied by the processor."""
 
     callback_requests: list[CallbackRequest] = Field(default_factory=list)
     type: Literal["DagFileParseRequest"] = "DagFileParseRequest"
@@ -200,7 +204,7 @@ def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> No
             log.warning("Error when trying to pre-import module '%s' found in %s: %s", module, file_path, e)
 
 
-def _parse_file_entrypoint():
+def _parse_file_entrypoint(*, importer_registry: DagImporterRegistry | None = None) -> None:
     # Mark as client-side (runs user DAG code)
     # Prevents inheriting server context from parent DagProcessorManager
     os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
@@ -218,16 +222,22 @@ def _parse_file_entrypoint():
     if not isinstance(msg, DagFileParseRequest):
         raise RuntimeError(f"Required first message to be a DagFileParseRequest, it was {msg}")
 
-    task_runner.SUPERVISOR_COMMS = comms_decoder
+    # Parsing supports a narrower set of SDK messages than task execution.
+    task_runner.SUPERVISOR_COMMS = comms_decoder  # type: ignore[assignment]
     log = structlog.get_logger(logger_name="task")
 
-    result = _parse_file(msg, log)
+    result = _parse_file(msg, log, importer_registry=importer_registry)
 
     if result is not None:
         comms_decoder.send(result)
 
 
-def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileParsingResult | None:
+def _parse_file(
+    msg: DagFileParseRequest,
+    log: FilteringBoundLogger,
+    *,
+    importer_registry: DagImporterRegistry | None = None,
+) -> DagFileParsingResult | None:
     # TODO: Set known_pool names on DagBag!
 
     stability_check_result = check_dag_file_stability(os.fspath(msg.file))
@@ -245,11 +255,23 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
             import_errors=stability_check_error_dict,
         )
 
+    team_name: str | None | ArgNotSet = NOTSET
+    if msg.bundle_config is not None:
+        if importer_registry is None:
+            importer_registry = DagImporterRegistry.from_config(
+                bundle_name=msg.bundle_name, bundle_importers=msg.bundle_config.get("importers")
+            )
+        team_name = msg.bundle_config.get("team_name")
+    else:
+        importer_registry = None
+
     bag = BundleDagBag(
         dag_folder=msg.file,
         bundle_path=msg.bundle_path,
         bundle_name=msg.bundle_name,
         load_op_links=False,
+        importer_registry=importer_registry,
+        team_name=team_name,
     )
 
     if msg.callback_requests:
@@ -733,6 +755,8 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         bundle_name: str,
         dag_file_rel_path: str,
         callbacks: list[CallbackRequest],
+        bundle_config: dict[str, Any] | None = None,
+        importer_registry: DagImporterRegistry | None = None,
         target: Callable[[], None] = _parse_file_entrypoint,
         client: Client,
         **kwargs,
@@ -750,6 +774,8 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         # to avoid leaking user modules into the long-lived processor manager.
         if not use_exec:
             _pre_import_airflow_modules(os.fspath(path), logger)
+            if importer_registry is not None and target is _parse_file_entrypoint:
+                target = functools.partial(_parse_file_entrypoint, importer_registry=importer_registry)
 
         proc: Self = super().start(
             target=target,
@@ -760,7 +786,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
             **kwargs,
         )
         proc.had_callbacks = bool(callbacks)  # Track if this process had callbacks
-        proc._on_child_started(callbacks, path, bundle_path, bundle_name)
+        proc._on_child_started(callbacks, path, bundle_path, bundle_name, bundle_config=bundle_config)
         return proc
 
     def _on_child_started(
@@ -769,11 +795,14 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
         path: str | os.PathLike[str],
         bundle_path: Path,
         bundle_name: str,
+        *,
+        bundle_config: dict[str, Any] | None = None,
     ) -> None:
         msg = DagFileParseRequest(
             file=os.fspath(path),
             bundle_path=bundle_path,
             bundle_name=bundle_name,
             callback_requests=callbacks,
+            bundle_config=bundle_config,
         )
         self.send_msg(msg, request_id=0)

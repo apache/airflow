@@ -3330,6 +3330,12 @@ dag_processor:
 
         The default is the dags folder dag bundle.
 
+        Configure this option through ``dag_bundle_config_list_cmd`` or
+        ``dag_bundle_config_list_secret`` to enable bundle configuration reloads without a restart.
+        The Dag processor checks for additions and removals every ``bundle_refresh_check_interval``
+        seconds. Failed, invalid, or blank reads keep the last accepted list. A valid empty list
+        removes all configured bundles. Literal values remain static.
+
         A backend config may also supply ``importers`` (experimental): Dag importers for that
         bundle only, in the format of ``[dag_processor] dag_importer_configs``, taking precedence
         over it.
@@ -3339,6 +3345,7 @@ dag_processor:
         https://docs.python.org/3/library/configparser.html#supported-ini-file-structure.
       version_added: 3.0.0
       type: string
+      sensitive: true
       example: >
         [
               {

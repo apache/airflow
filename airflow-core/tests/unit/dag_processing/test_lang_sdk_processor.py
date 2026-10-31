@@ -54,7 +54,13 @@ from airflow.sdk.exceptions import AirflowRuntimeError
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import GetVariable, MaskSecret, _RequestFrame
 from airflow.sdk.execution_time.supervisor import PsutilTracker
-from airflow.sdk.importers import DagSourceCode
+from airflow.sdk.importers import (
+    DagImporterRegistry,
+    DagSourceCode,
+    get_importer_registry,
+    reset_importer_registry,
+)
+from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
@@ -540,6 +546,72 @@ class TestLangSDKDagFileProcessorProcess:
         assert fds["0"] == "/dev/null"
 
 
+@pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "fresh_interpreter"])
+def test_native_parser_uses_accepted_importers_when_source_is_unavailable(
+    use_exec, tmp_path, monkeypatch, mocker
+):
+    config = {
+        "importers": [
+            {
+                "classpath": f"{FakeCoordinatorDagImporter.__module__}.FakeCoordinatorDagImporter",
+                "kwargs": {"bundle_name": "testing"},
+            }
+        ]
+    }
+    registry = DagImporterRegistry.from_config("testing", bundle_importers=config["importers"])
+    registry.warm_importers()
+    mocker.patch.object(
+        DagImporterRegistry,
+        "from_config",
+        autospec=True,
+        side_effect=AssertionError("forked parser must reuse the warmed registry"),
+    )
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: use_exec)
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
+    monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", conf.get("sdk", "coordinators"))
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "invalid JSON")
+    runtime = (
+        "import os, socket, sys\n"
+        "os.environ['_AIRFLOW__AS_LIBRARY'] = '1'\n"
+        "from pydantic import TypeAdapter\n"
+        "from airflow.dag_processing.processor import DagFileParsingResult, ToDagProcessor, ToManager\n"
+        "from airflow.sdk.execution_time.comms import CommsDecoder\n"
+        "args = dict(arg[2:].split('=', 1) for arg in sys.argv[1:])\n"
+        "host, port = args['comm'].rsplit(':', 1)\n"
+        "comm = socket.create_connection((host, int(port)))\n"
+        "host, port = args['logs'].rsplit(':', 1)\n"
+        "logs = socket.create_connection((host, int(port)))\n"
+        "decoder = CommsDecoder[ToDagProcessor, ToManager](socket=comm, body_decoder=TypeAdapter(ToDagProcessor))\n"
+        "request = decoder._get_response()\n"
+        "decoder.send(DagFileParsingResult(fileloc=request.file, serialized_dags=[]))\n"
+    )
+    path = write_native_file(tmp_path / "dag.native", argv=[sys.executable, "-c", runtime])
+    with selectors.DefaultSelector() as selector:
+        proc = LangSDKDagFileProcessorProcess.start(
+            id=uuid.uuid4(),
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=path.name,
+            bundle_config=config,
+            importer_registry=registry,
+            selector=selector,
+            logger=structlog.get_logger(),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=MagicMock(spec=Client),
+        )
+        try:
+            deadline = time.monotonic() + 60
+            while not proc.is_ready:
+                assert time.monotonic() < deadline, "native parser did not finish"
+                proc._service_subprocess(max_wait_time=0.1)
+            assert proc.parsing_result is not None
+            assert proc.parsing_result.import_errors is None
+            assert proc.parsing_result.fileloc == str(path)
+        finally:
+            proc.close()
+
+
 class TestRun:
     @staticmethod
     def _run(tmp_path, **spec) -> DagFileParsingResult:
@@ -679,8 +751,14 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
     )
 
 
-def test_a_dag_source_that_cannot_be_read_is_a_placeholder():
+@pytest.mark.parametrize("retained_registry", [False, True])
+@patch.object(DagImporterRegistry, "_get_bundle_importers_config", autospec=True, return_value=None)
+def test_a_dag_source_that_cannot_be_read_is_a_placeholder(mock_config, retained_registry):
     proc = _make_process()
+    if retained_registry:
+        proc.importer_registry = get_importer_registry("testing")
+        reset_importer_registry()
+        mock_config.side_effect = OSError("configuration source unavailable")
     dag = _serialize_dag("native_dag")
 
     proc._handle_request(DagFileParsingResult(fileloc="/b/dag.native", serialized_dags=[dag]), MagicMock(), 1)
@@ -844,7 +922,8 @@ def test_a_dag_with_an_unavailable_executor_is_an_import_error(mock_lookup):
 
 @conf_vars({("core", "multi_team"): "True"})
 @patch("airflow.dag_processing.bundles.manager.DagBundlesManager", autospec=True)
-def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
+@pytest.mark.parametrize("ownership", [NOTSET, None, "team_a"])
+def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager, ownership):
     mock_bundles_manager.return_value._bundle_config = {"testing": MagicMock(team_name="team_a")}
     with DAG("team_dag", schedule=None) as dag:
         BaseOperator(task_id="extract")
@@ -855,6 +934,9 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
 
         fan_out.expand(x=[1, 2])
     proc = _make_process()
+    if ownership is not NOTSET:
+        proc.team_name = ownership
+        mock_bundles_manager.side_effect = OSError("configuration source unavailable")
 
     proc._handle_request(
         DagFileParsingResult(
@@ -867,8 +949,9 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
     [stored] = proc.parsing_result.serialized_dags
     assert proc.parsing_result.import_errors is None
     tasks = DagSerialization.from_dict(copy.deepcopy(stored.data)).tasks
+    pool = "default_pool" if ownership is None else "default_pool_team_a"
     assert {t.task_id: t.pool for t in tasks} == {
-        "extract": "default_pool_team_a",
+        "extract": pool,
         "load": "custom",
-        "fan_out": "default_pool_team_a",
+        "fan_out": pool,
     }

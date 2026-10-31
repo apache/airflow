@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+    from airflow.sdk.importers import DagImporterRegistry
     from airflow.sdk.importers.base import DagDefinition
 
 COORDINATOR_DAG_IMPORTERS: Final[tuple[str, ...]] = (
@@ -147,7 +148,10 @@ def build_coordinator_dag_importers(
 
 
 def find_claiming_importer(
-    path: str | os.PathLike[str], bundle_name: str | None
+    path: str | os.PathLike[str],
+    bundle_name: str | None,
+    *,
+    registry: DagImporterRegistry | None = None,
 ) -> CoordinatorDagImporter | None:
     """
     Return the coordinator Dag importer that claims *path* in *bundle_name*, or ``None`` if there is none.
@@ -156,7 +160,7 @@ def find_claiming_importer(
 
     :raises RuntimeError: when the bundle's coordinator Dag importers could not be built.
     """
-    registry = get_importer_registry(bundle_name)
+    registry = registry if registry is not None else get_importer_registry(bundle_name)
     if (error := registry.coordinator_importer_error) is not None:
         raise RuntimeError(
             f"Cannot build the coordinator Dag importers of Dag bundle {bundle_name!r}"

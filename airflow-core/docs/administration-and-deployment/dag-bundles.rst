@@ -40,6 +40,57 @@ Why are Dag bundles important?
 - **Scalability**: With Dag bundles, Airflow can efficiently manage large numbers of Dags by organizing them into logical units.
 - **Flexibility**: Dag bundles enable seamless integration with external systems, such as Git repositories, to source Dags.
 
+Reloading bundle configuration
+------------------------------
+
+Starting in Airflow 3.5, deployments can enable bundle configuration reloads by supplying
+:ref:`config:dag_processor__dag_bundle_config_list` through a command or a secrets backend.
+For example, configure a command that reads a deployment-managed JSON file:
+
+.. code-block:: bash
+
+    export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST_CMD='cat /opt/airflow/bundles.json'
+
+The command must print the same JSON list accepted by ``dag_bundle_config_list``. It can also
+fetch the list from an external service. Configure the command with a timeout when it performs
+network requests. Use ``AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST_SECRET`` to read a changing
+value from a configured secrets backend instead. Normal configuration precedence applies; a
+literal environment variable overrides the command and secret variants.
+
+The Dag processor checks the list every :ref:`config:dag_processor__bundle_refresh_check_interval`
+seconds. Newly configured bundles begin processing, and removed bundles stop processing. Failed,
+invalid, or blank reads retain the last accepted configuration. A successful read containing
+``[]`` removes all configured bundles. A process starting without an accepted configuration
+cannot recover one from another process; an invalid or unavailable source prevents startup,
+while ``[]`` starts with no bundles.
+
+Use a new bundle name when changing a bundle's configuration. Publish complete lists atomically;
+a valid list that accidentally omits a bundle is treated as an intentional removal. Commands
+must report failures with a nonzero exit status, rather than returning ``[]``. Unchanged
+bundle instances are reused. Failed bundle construction is retried without treating that bundle
+as removed. Database synchronization is retried before applying changes to the runtime list.
+
+Unfiltered Dag processors reconcile bundle active state in the database on every check. Removed
+bundles are marked inactive, and the existing stale-Dag scan marks their Dags stale. Processors
+can temporarily see different lists; they converge when surviving processors see the same list
+and continue reconciling. This does not provide immediate agreement across processors.
+
+Processors started with ``--bundle-name`` stop processing removed bundles locally, but never
+mark missing bundles inactive globally because their configuration may be partial. A processor
+that sees the complete list is needed for global deactivation.
+
+Keep the command or secrets backend available to all components that resolve bundles, including
+workers. The Dag processor passes accepted importer settings and team ownership to its parsing
+processes, so they do not read the bundle configuration source again. Other components cache their
+own last accepted list; there is no shared configuration snapshot. A worker looking up an unknown
+bundle attempts one fresh read, even before
+the normal refresh interval expires. Names and team lookups do not require bundle classes to be
+installed locally. Finish existing runs before removing a bundle when
+those runs must complete: tasks and callbacks can still need its definition, and stale Dags do
+not continue normal scheduling. Literal configuration and edits to ``airflow.cfg`` retain their
+existing startup behavior.
+
+
 Types of Dag bundles
 --------------------
 Airflow supports multiple types of Dag Bundles, each catering to specific use cases:
