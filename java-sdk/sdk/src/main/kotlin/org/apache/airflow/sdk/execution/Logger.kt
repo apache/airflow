@@ -29,6 +29,8 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import java.time.Instant
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.Executors
 import kotlin.reflect.KClass
 
 // Adapted from Python logging.
@@ -220,10 +222,23 @@ internal class Logger(
   }
 }
 
+// Several threads log: the task's own thread, the thread that handles a stop signal, and the thread
+// that reads replies from the supervisor. The lock keeps send from queuing a message after configure
+// has written out the queue. It also keeps a new message from being written before the messages that
+// were queued earlier.
 internal object LogSender {
   private var writer: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
+  // While runBlocking waits, it also runs other coroutines that are ready on the calling thread. On the
+  // thread that Server.serve blocks, one of them runs the task. So on that thread, a runBlocking call
+  // here could run the task while the caller holds this object's lock. The task would then hang if it
+  // waited for another thread that logs, such as the thread that reads replies from the supervisor.
+  // Writing on writerThread avoids this, because the waiting caller runs no coroutines.
+  private val writerThread =
+    Executors.newSingleThreadExecutor { Thread(it, "Airflow log sender").apply { isDaemon = true } }
+
+  @Synchronized
   fun configure(channel: ByteWriteChannel) {
     writer = channel
     if (!channel.isClosedForWrite) {
@@ -233,6 +248,7 @@ internal object LogSender {
     }
   }
 
+  @Synchronized
   fun send(message: LogMessage) {
     val channel = writer
     if (channel == null || channel.isClosedForWrite) {
@@ -256,8 +272,23 @@ internal object LogSender {
     map["level"] = message.level.name.lowercase()
     map["logger"] = message.logger
     map["timestamp"] = message.timestamp.toString()
+    // Build the line here rather than on writerThread. Building it calls toString() on the arguments.
+    // On writerThread, a toString() that logs would wait for this object's lock, which the caller holds
+    // while it waits for writerThread.
+    val line = "${map.toJsonElement()}\n"
     // TODO: Can this be done asynchronously instead?
-    runBlocking { writer.writeString("${map.toJsonElement()}\n") }
+    val written = writerThread.submit { runBlocking { writer.writeString(line) } }
+    // Future.get() throws at once for a thread that is already interrupted, even when the write finishes
+    // right away. Code that restores a thread's interrupt status often logs next, so the status is
+    // cleared while the caller waits and set again afterwards.
+    val interrupted = Thread.interrupted()
+    try {
+      written.get()
+    } catch (e: ExecutionException) {
+      throw e.cause ?: e
+    } finally {
+      if (interrupted) Thread.currentThread().interrupt()
+    }
   }
 }
 
