@@ -9841,9 +9841,9 @@
                             "default": 1
                         },
                         "maxFailures": {
-                            "description": "The number of consecutive failures allowed before aborting.",
+                            "description": "The number of consecutive failures before aborting. Set to 0 to abort on the first failure, or -1 to retry indefinitely.",
                             "type": "integer",
-                            "default": 0
+                            "default": 5
                         },
                         "subPath": {
                             "description": "Subpath within the repo where dags are located.",
