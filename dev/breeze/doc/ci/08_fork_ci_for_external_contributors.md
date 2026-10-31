@@ -1018,7 +1018,7 @@ prints one row: status, finding, and the command that fixes it.
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds or repoints it |
 | 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]`; when the membership call fails for any reason but a 404, the role is reported as not checked and checks 2, 3 and 5 stay informational | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>` |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`, GitHub Actions is enabled in the fork and allows all actions (`GET /repos/<fork>/actions/permissions`, readable by the fork's owner); committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>`; `gh api -X PUT repos/<fork>/actions/permissions -F enabled=true -f allowed_actions=all` |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than 200 commits (`MAX_FORK_MAIN_BEHIND`) | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
 
@@ -1029,6 +1029,11 @@ informational: working from an `apache/airflow` clone without a fork is fine for
 is enabled or not. The audit never suggests disabling it: a committer trying fork CI with the
 `use fork ci` label needs it enabled, and a workflow disabled while a pull request waits for its
 fork CI leaves that pull request stuck until the workflow is enabled again.
+
+A workflow can be `active` while nothing in the fork runs. GitHub Actions can be disabled for the
+whole fork: then a push starts no run. Or it can allow only the owner's actions or a selected list:
+`ci-amd.yml` uses actions from other repositories, so its runs fail before any job starts. Only the
+fork's owner can read these settings, which is why check 5 reads them and the reconciler cannot.
 
 A failed API call is reported as "could not check" rather than as a finding: a failed fork
 lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".

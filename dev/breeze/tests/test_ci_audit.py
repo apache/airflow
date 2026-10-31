@@ -40,6 +40,8 @@ Output = tuple[int, str] | tuple[int, str, str]
 
 NOT_A_MEMBER: Output = (1, "", "gh: Not Found (HTTP 404)")
 
+ACTIONS_ALLOWED: Output = (0, json.dumps({"enabled": True, "allowed_actions": "all"}))
+
 
 def _machine(**overrides: Output | None) -> dict[str, Output | None]:
     """Outputs of every command the audit runs, keyed by a short name."""
@@ -51,6 +53,7 @@ def _machine(**overrides: Output | None) -> dict[str, Output | None]:
         "membership": NOT_A_MEMBER,
         "private_membership": (1, ""),
         "workflow": (0, "active"),
+        "actions": ACTIONS_ALLOWED,
         "behind": (0, "12"),
         "branch": (0, "my-change"),
         "tracking": (0, "origin/my-change"),
@@ -76,6 +79,8 @@ def _runner(machine):
         if key is None and command[:2] == ("gh", "api"):
             if "/actions/workflows/" in command[2]:
                 key = "workflow"
+            elif command[2].endswith("/actions/permissions"):
+                key = "actions"
             elif "/compare/" in command[2]:
                 key = "behind"
             elif command[2].startswith("repos/"):
@@ -322,6 +327,64 @@ def test_fork_workflows_by_role(config, membership, collaborators, workflow, rol
     assert results[4].finding == f"you are a {role.value}"
     assert results[5].status == status
     assert results[5].fix == fix
+
+
+ENABLE_ALL_ACTIONS = (
+    "gh api -X PUT repos/someone/airflow/actions/permissions -F enabled=true -f allowed_actions=all",
+)
+
+
+@pytest.mark.parametrize(
+    ("membership", "actions", "status", "finding", "fix"),
+    [
+        pytest.param(
+            NOT_A_MEMBER,
+            (0, json.dumps({"enabled": False})),
+            CheckStatus.FAIL,
+            "GitHub Actions is disabled in someone/airflow, so `Tests (AMD)` never runs",
+            ENABLE_ALL_ACTIONS,
+            id="actions-disabled",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (0, json.dumps({"enabled": True, "allowed_actions": "local_only"})),
+            CheckStatus.FAIL,
+            "someone/airflow limits the actions workflows may use (`local_only`); "
+            "`Tests (AMD)` uses actions from other repositories, so it fails to start",
+            ENABLE_ALL_ACTIONS,
+            id="local-actions-only",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (0, json.dumps({"enabled": True, "allowed_actions": "selected"})),
+            CheckStatus.FAIL,
+            "someone/airflow limits the actions workflows may use (`selected`); "
+            "`Tests (AMD)` uses actions from other repositories, so it fails to start",
+            ENABLE_ALL_ACTIONS,
+            id="selected-actions-only",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (1, "", "HTTP 502: Bad Gateway"),
+            CheckStatus.INFO,
+            "could not check the GitHub Actions settings of someone/airflow: HTTP 502: Bad Gateway",
+            (),
+            id="settings-not-read",
+        ),
+        pytest.param(
+            (0, ""),
+            (0, json.dumps({"enabled": False})),
+            CheckStatus.OK,
+            "`Tests (AMD)` is active in someone/airflow",
+            (),
+            id="committer-actions-disabled",
+        ),
+    ],
+)
+def test_fork_actions_settings(membership, actions, status, finding, fix):
+    results = _audit(_machine(membership=membership, actions=actions))
+
+    assert (results[5].status, results[5].finding, results[5].fix) == (status, finding, fix)
 
 
 @pytest.mark.parametrize(
