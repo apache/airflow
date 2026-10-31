@@ -25,7 +25,10 @@ from functools import cached_property
 
 import boto3
 
-from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
+from airflow_breeze.global_constants import (
+    PACKAGES_METADATA_EXCLUDE_NAMES,
+    PACKAGES_METADATA_EXCLUDE_VERSIONS,
+)
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -321,14 +324,19 @@ class S3DocsPublish:
         console_print(f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n")
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
-        all_packages_infos = [
-            {
-                "package-name": package_name,
-                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
-                "stable-version": all_versions[-1],
-            }
-            for package_name, versions in package_versions.items()
-        ]
+        all_packages_infos = []
+        for package_name, versions in package_versions.items():
+            all_versions = self.get_latest_minor_versions(package_name, versions)
+            if not all_versions:
+                console_print(f"[warning]Skipping {package_name}: no released versions found\n")
+                continue
+            all_packages_infos.append(
+                {
+                    "package-name": package_name,
+                    "all-versions": all_versions,
+                    "stable-version": all_versions[-1],
+                }
+            )
 
         return all_packages_infos
 
@@ -339,7 +347,11 @@ class S3DocsPublish:
         console_print(f"[info]Getting package versions for {package_name} from:\n")
         console_print(versions)
         all_versions: list[Version] = []
+        excluded_versions = PACKAGES_METADATA_EXCLUDE_VERSIONS.get(package_name, [])
         for v in versions:
+            if v in excluded_versions:
+                console_print(f"[info]Skipping excluded version {package_name}/{v}\n")
+                continue
             try:
                 all_versions.append(Version(v))
             except ValueError as e:

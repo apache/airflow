@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 
-from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
+from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish, VersionError
 
 
 class TestPublishDocsToS3:
@@ -298,3 +298,34 @@ class TestPublishDocsToS3:
         self.publish_docs_to_s3.run_publish()
 
         assert mock_generate_packages_metadata.call_count == expected_calls
+
+    @patch.dict(
+        "airflow_breeze.utils.publish_docs_to_s3.PACKAGES_METADATA_EXCLUDE_VERSIONS",
+        {"java-sdk": ["1.0.0-SNAPSHOT"], "snapshot-only-sdk": ["1.0.0-SNAPSHOT"]},
+        clear=True,
+    )
+    @patch.object(VersionError, "version_error", False)
+    def test_dump_docs_package_metadata_skips_excluded_versions(self):
+        metadata = self.publish_docs_to_s3.dump_docs_package_metadata(
+            {
+                "java-sdk": ["1.0.0-SNAPSHOT", "1.0.0-beta1"],
+                "snapshot-only-sdk": ["1.0.0-SNAPSHOT"],
+            }
+        )
+
+        assert metadata == [
+            {"package-name": "java-sdk", "all-versions": ["1.0.0b1"], "stable-version": "1.0.0b1"},
+        ]
+        assert not VersionError.has_any_error()
+
+    @patch.dict(
+        "airflow_breeze.utils.publish_docs_to_s3.PACKAGES_METADATA_EXCLUDE_VERSIONS",
+        {"java-sdk": ["1.0.0-SNAPSHOT"]},
+        clear=True,
+    )
+    @patch.object(VersionError, "version_error", False)
+    def test_get_latest_minor_versions_flags_versions_not_excluded(self):
+        versions = S3DocsPublish.get_latest_minor_versions("java-sdk", ["1.1.0-SNAPSHOT", "1.0.0-beta1"])
+
+        assert versions == ["1.0.0b1"]
+        assert VersionError.has_any_error()
