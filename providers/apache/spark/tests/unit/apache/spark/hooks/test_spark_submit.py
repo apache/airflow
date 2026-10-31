@@ -1137,7 +1137,7 @@ class TestSparkSubmitHook:
         processes = []
 
         for index, returncode in enumerate(returncodes):
-            process = MagicMock()
+            process = MagicMock(spec=["stdout", "wait"])
             state = "FINISHED" if index == len(returncodes) - 1 else "RUNNING"
             process.stdout = StringIO('"driverState" : "' + state + '"\n')
             process.wait.return_value = returncode
