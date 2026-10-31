@@ -45,6 +45,8 @@ class SnowparkContainerJobTrigger(BaseTrigger):
     :param schema: (Optional) name of schema. (default: None)
     :param role: (Optional) name of role. (default: None)
     :param warehouse: (Optional) name of warehouse. (default: None)
+    :param cancel_on_kill: If True, drop the job service when the deferred task is killed.
+        (default: True)
     """
 
     def __init__(
@@ -58,6 +60,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
         schema: str | None = None,
         role: str | None = None,
         warehouse: str | None = None,
+        cancel_on_kill: bool = True,
     ) -> None:
         super().__init__()
         self.job_name = job_name
@@ -69,6 +72,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
         self.schema = schema
         self.role = role
         self.warehouse = warehouse
+        self.cancel_on_kill = cancel_on_kill
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize SnowparkContainerJobTrigger arguments and class path."""
@@ -84,6 +88,7 @@ class SnowparkContainerJobTrigger(BaseTrigger):
                 "schema": self.schema,
                 "role": self.role,
                 "warehouse": self.warehouse,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -158,6 +163,8 @@ class SnowparkContainerJobTrigger(BaseTrigger):
 
     async def on_kill(self) -> None:
         """Drop the job service when a deferred task is killed."""
+        if not self.cancel_on_kill:
+            return
         hook = self._get_hook()
         try:
             await asyncio.to_thread(hook.run, f"DROP SERVICE IF EXISTS {self.job_name}")

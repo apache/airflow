@@ -58,6 +58,7 @@ class TestSnowparkContainerJobTrigger:
             schema="sc",
             role="r",
             warehouse="wh",
+            cancel_on_kill=False,
         ).serialize()
         assert class_path == CLASSPATH
         assert kwargs == {
@@ -70,6 +71,7 @@ class TestSnowparkContainerJobTrigger:
             "schema": "sc",
             "role": "r",
             "warehouse": "wh",
+            "cancel_on_kill": False,
         }
 
     @mock.patch(HOOK, autospec=True)
@@ -194,6 +196,12 @@ class TestSnowparkContainerJobTrigger:
     async def test_on_kill_drops_service(self, mock_hook_cls):
         await self._trigger().on_kill()
         mock_hook_cls.return_value.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK, autospec=True)
+    async def test_on_kill_skips_drop_when_cancel_on_kill_disabled(self, mock_hook_cls):
+        await self._trigger(cancel_on_kill=False).on_kill()
+        mock_hook_cls.return_value.run.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch(HOOK, autospec=True)
