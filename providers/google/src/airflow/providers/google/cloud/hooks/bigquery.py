@@ -71,6 +71,7 @@ from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.cloud.utils.lineage import send_hook_lineage_for_bq_job
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     _UNSET,
     PROVIDE_PROJECT_ID,
@@ -2449,6 +2450,11 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
                 self.log.error("Failed to cancel BigQuery job %s: %s", job_id, str(e))
                 raise
 
+    @deprecated(
+        planned_removal_date="April 30, 2027",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryAsyncHook.aget_records",
+        category=AirflowProviderDeprecationWarning,
+    )
     def get_records(
         self,
         query_results: dict[str, Any],
@@ -2456,21 +2462,12 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         selected_fields: str | list[str] | None = None,
     ) -> list[Any]:
         """
-        Convert a response from BigQuery to records (synchronous).
-
-        .. deprecated:: 3.0.0
-            Use :meth:`aget_records` instead to avoid blocking the asyncio event loop.
+        Convert a response from BigQuery to records.
 
         :param query_results: the results from a SQL query
         :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         :param selected_fields:
         """
-        warnings.warn(
-            "The `get_records` method is deprecated and will be removed in a future release. "
-            "Please use the asynchronous `aget_records` method instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
         if isinstance(selected_fields, str):
             selected_fields = selected_fields.split(",")
         buffer: list[Any] = []
