@@ -125,7 +125,7 @@ apache-airflow-providers-clickhousedb==1.0.1
 apache-airflow-providers-cloudant==4.3.7
 apache-airflow-providers-cncf-kubernetes==10.25.0
 apache-airflow-providers-cohere==1.8.1
-apache-airflow-providers-common-ai==1.1.0rc2
+apache-airflow-providers-common-ai==1.1.0rc3
 apache-airflow-providers-common-compat==1.23.0
 apache-airflow-providers-common-io==1.11.0
 apache-airflow-providers-common-messaging==2.1.2
