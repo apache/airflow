@@ -99,6 +99,7 @@ from airflowctl.api.datamodels.generated import (
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
     TaskInletAssetReference,
@@ -106,6 +107,7 @@ from airflowctl.api.datamodels.generated import (
     TaskInstanceResponse,
     TaskInstanceState,
     TaskOutletAssetReference,
+    TaskResponse,
     TaskStateStoreCollectionResponse,
     TaskStateStoreResponse,
     TriggerDAGRunPostBody,
@@ -2611,6 +2613,67 @@ class TestTasksOperations:
         task_instances=[task_instance_response],
         total_entries=1,
     )
+    task_response = TaskResponse(
+        task_id="task_1",
+        task_display_name="task_1",
+        owner="airflow",
+        start_date=None,
+        end_date=None,
+        trigger_rule="all_success",
+        depends_on_past=False,
+        wait_for_downstream=False,
+        retries=0,
+        queue=None,
+        pool=None,
+        pool_slots=None,
+        execution_timeout=None,
+        retry_delay=None,
+        retry_exponential_backoff=1.0,
+        priority_weight=None,
+        weight_rule=None,
+        ui_color=None,
+        ui_fgcolor=None,
+        template_fields=None,
+        downstream_task_ids=None,
+        doc_md=None,
+        operator_name="BashOperator",
+        params=None,
+        class_ref=None,
+        is_mapped=False,
+        extra_links=[],
+    )
+    task_collection_response = TaskCollectionResponse(
+        tasks=[task_response],
+        total_entries=1,
+    )
+
+    @pytest.mark.parametrize("version_number", [None, 2])
+    def test_get(self, version_number):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks/task_1"
+            if version_number is None:
+                assert "version_number" not in request.url.params
+            else:
+                assert request.url.params["version_number"] == str(version_number)
+            return httpx.Response(200, json=json.loads(self.task_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.get(self.dag_id, "task_1", version_number=version_number)
+        assert response == self.task_response
+
+    @pytest.mark.parametrize("order_by", [None, "-task_id"])
+    def test_list(self, order_by):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == f"/api/v2/dags/{self.dag_id}/tasks"
+            if order_by is None:
+                assert "order_by" not in request.url.params
+            else:
+                assert request.url.params["order_by"] == order_by
+            return httpx.Response(200, json=json.loads(self.task_collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.tasks.list(self.dag_id, order_by=order_by)
+        assert response == self.task_collection_response
 
     def test_clear(self):
         expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)

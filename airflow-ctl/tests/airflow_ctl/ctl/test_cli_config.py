@@ -1278,6 +1278,8 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("taskinstances", "state-store", "Manage the state store of a task instance"),
+            ("tasks", "get", "Retrieve a task for a Dag by its ID and task ID"),
+            ("tasks", "list", "List tasks for a Dag"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )

@@ -78,9 +78,11 @@ from airflowctl.api.datamodels.generated import (
     ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskResponse,
     TaskStateStoreBody,
     TaskStateStoreCollectionResponse,
     TaskStateStorePatchBody,
@@ -935,6 +937,26 @@ class TaskInstancesOperations(BaseOperations):
 
 class TasksOperations(BaseOperations):
     """Tasks operations."""
+
+    def get(
+        self, dag_id: str, task_id: str, version_number: int | None = None
+    ) -> TaskResponse | ServerResponseError:
+        """Get a task for a Dag."""
+        self.response = self.client.get(
+            f"dags/{dag_id}/tasks/{task_id}",
+            params=_build_query_params(version_number=version_number),
+        )
+        return validate_response(self.response.content, TaskResponse)
+
+    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a Dag."""
+        # The server returns every task for the Dag in one response, so this
+        # intentionally does not use execute_list's limit/offset pagination.
+        self.response = self.client.get(
+            f"dags/{dag_id}/tasks",
+            params=_build_query_params(order_by=order_by),
+        )
+        return validate_response(self.response.content, TaskCollectionResponse)
 
     def clear(
         self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
