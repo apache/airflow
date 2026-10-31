@@ -23,11 +23,11 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 from airflow.sdk.definitions.taskgroup import TaskGroup
 
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
+    from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 
 T = TypeVar("T")
 

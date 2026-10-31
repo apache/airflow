@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from airflow.sdk._shared.module_loading.file_discovery import find_path_from_directory
 from airflow.sdk.configuration import conf
-from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.coordinator import get_coordinator_manager
 
@@ -39,6 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
+    from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 
     class _SiblingResource(Protocol):
         """A readable handle to a resource, e.g. a :class:`pathlib.Path` or :class:`zipfile.Path`."""
