@@ -49,6 +49,12 @@ Environment Variables
     required if you are using the Airflow API and have not set up
     authentication using a different method, such as a username and password.
 
+.. envvar:: AIRFLOW_CLI_API_URL
+
+    The URL of the Airflow API server, used when ``--api-url`` is not passed and no URL is
+    stored in the credentials. Defaults to ``http://localhost:8080``. After ``auth login`` the stored
+    URL takes precedence over this variable; re-run ``auth login`` to change it.
+
 .. envvar:: AIRFLOW_CLI_ENVIRONMENT
 
     Environment name to use for the CLI. This is used to determine
