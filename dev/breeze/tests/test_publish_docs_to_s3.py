@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 
-from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish
+from airflow_breeze.utils.publish_docs_to_s3 import S3DocsPublish, VersionError
 
 
 class TestPublishDocsToS3:
@@ -298,3 +298,41 @@ class TestPublishDocsToS3:
         self.publish_docs_to_s3.run_publish()
 
         assert mock_generate_packages_metadata.call_count == expected_calls
+
+
+@pytest.mark.parametrize(
+    ("versions", "expected"),
+    [
+        pytest.param(["1.0.0-SNAPSHOT", "1.0.0-beta1"], ["1.0.0b1"], id="maven-snapshot-skipped"),
+        pytest.param(["2.1.0-snapshot", "2.0.0"], ["2.0.0"], id="lowercase-snapshot-skipped"),
+    ],
+)
+def test_get_latest_minor_versions_skips_development_builds(versions, expected):
+    VersionError.set_version_error(False)
+
+    assert S3DocsPublish.get_latest_minor_versions("java-sdk", versions) == expected
+    assert VersionError.has_any_error() is False
+
+
+def test_get_latest_minor_versions_still_fails_on_other_invalid_versions():
+    VersionError.set_version_error(False)
+    try:
+        assert S3DocsPublish.get_latest_minor_versions("java-sdk", ["not-a-version", "1.0.0"]) == ["1.0.0"]
+        assert VersionError.has_any_error() is True
+    finally:
+        VersionError.set_version_error(False)
+
+
+def test_dump_docs_package_metadata_leaves_out_packages_with_only_development_builds():
+    publish = S3DocsPublish(
+        source_dir_path="source_dir_path",
+        destination_location="destination_location",
+        exclude_docs="",
+        dry_run=False,
+        overwrite=False,
+        parallelism=1,
+    )
+
+    assert publish.dump_docs_package_metadata(
+        {"java-sdk": ["1.0.0-SNAPSHOT"], "apache-airflow": ["3.3.0", "3.4.0"]}
+    ) == [{"package-name": "apache-airflow", "all-versions": ["3.3.0", "3.4.0"], "stable-version": "3.4.0"}]
