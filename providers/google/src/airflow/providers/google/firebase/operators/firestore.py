@@ -17,10 +17,15 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
-from airflow.providers.google.firebase.hooks.firestore import CloudFirestoreHook
+from airflow.providers.google.firebase.hooks.firestore import (
+    TIME_TO_SLEEP_IN_SECONDS,
+    CloudFirestoreHook,
+)
+from airflow.providers.google.firebase.triggers.firestore import CloudFirestoreExportDatabaseTrigger
 from airflow.providers.google.version_compat import BaseOperator
 
 if TYPE_CHECKING:
@@ -51,6 +56,12 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param reattach_on_restart: If True, check for an existing in-progress or completed
+        export operation matching ``body`` on task retry/restart instead of submitting a
+        duplicate export request.
+    :param deferrable: Run operator in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between calls to check the operation status
+        in deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -69,6 +80,9 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
+        reattach_on_restart: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: float = TIME_TO_SLEEP_IN_SECONDS,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -78,16 +92,53 @@ class CloudFirestoreExportDatabaseOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.impersonation_chain = impersonation_chain
+        self.reattach_on_restart = reattach_on_restart
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def _validate_inputs(self) -> None:
         if not self.body:
             raise ValueError("The required parameter 'body' is missing")
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> None:
         self._validate_inputs()
         hook = CloudFirestoreHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        return hook.export_documents(database_id=self.database_id, body=self.body, project_id=self.project_id)
+        if not self.deferrable:
+            return hook.export_documents(
+                database_id=self.database_id,
+                body=self.body,
+                project_id=self.project_id,
+                reattach_on_restart=self.reattach_on_restart,
+            )
+
+        operation = hook.start_export_documents(
+            database_id=self.database_id,
+            body=self.body,
+            project_id=self.project_id,
+            reattach_on_restart=self.reattach_on_restart,
+        )
+        if operation.get("done"):
+            error = operation.get("error")
+            if error:
+                raise RuntimeError(str(error))
+            return
+
+        self.defer(
+            trigger=CloudFirestoreExportDatabaseTrigger(
+                operation_name=operation["name"],
+                gcp_conn_id=self.gcp_conn_id,
+                api_version=self.api_version,
+                impersonation_chain=self.impersonation_chain,
+                poll_interval=self.poll_interval,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        if event["status"] == "error":
+            raise RuntimeError(event["message"])
+        self.log.info("Operation %s completed successfully.", event.get("operation_name"))
