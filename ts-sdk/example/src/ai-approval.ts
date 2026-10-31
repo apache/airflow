@@ -33,9 +33,9 @@
 //
 //     airflow-ts-pack src/ai-approval.ts --outfile dist/ai-approval.min.mjs
 
-import { Bundle, Dag } from "apache-airflow-ts-sdk";
-import { hitl } from "apache-airflow-ts-sdk/hitl";
-import type { HITLResult } from "apache-airflow-ts-sdk/hitl";
+import { Bundle, Dag } from "@apache-airflow/ts-sdk";
+import { hitl } from "@apache-airflow/ts-sdk/hitl";
+import type { HITLResult } from "@apache-airflow/ts-sdk/hitl";
 
 /** The queue the deployment's `[sdk] queue_to_coordinator` routes to the Node coordinator. */
 const QUEUE = "typescript";

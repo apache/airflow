@@ -32,7 +32,7 @@ Node.js. There are two ways to use it:
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
-The SDK is the ``apache-airflow-ts-sdk`` npm package (ESM-only). It is in **beta**, and its API may change.
+The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). It is in **beta**, and its API may change.
 
 .. warning::
 
@@ -64,7 +64,7 @@ Prerequisites
 
   .. code-block:: bash
 
-      npm install apache-airflow-ts-sdk
+      npm install @apache-airflow/ts-sdk
       npm install --save-dev esbuild
 
 .. _typescript-sdk/quick-start:
@@ -79,7 +79,7 @@ Declare a Dag in ``src/main.ts``:
 
 .. code-block:: typescript
 
-    import { Bundle, Dag } from "apache-airflow-ts-sdk";
+    import { Bundle, Dag } from "@apache-airflow/ts-sdk";
 
     const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 
@@ -124,7 +124,7 @@ the Dag and gives it its inputs, so the calls you write are the dependencies:
 
 .. code-block:: typescript
 
-    import { Dag } from "apache-airflow-ts-sdk";
+    import { Dag } from "@apache-airflow/ts-sdk";
 
     const dag = new Dag("ts_etl");
 
@@ -249,7 +249,7 @@ the code, just as the label sits between them in the graph:
 
 .. code-block:: typescript
 
-    import { Label } from "apache-airflow-ts-sdk";
+    import { Label } from "@apache-airflow/ts-sdk";
 
     checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(notified));
     cleaned.after(Label.of("always").on(loaded));      // loaded >> Label("always") >> cleaned
@@ -351,7 +351,7 @@ Triggering another Dag
 
 .. code-block:: typescript
 
-    import { triggerDagRun } from "apache-airflow-ts-sdk";
+    import { triggerDagRun } from "@apache-airflow/ts-sdk";
 
     const triggered = dag.task(
       "trigger_downstream",
@@ -416,7 +416,7 @@ on a ``Bundle``:
 
 .. code-block:: typescript
 
-    import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
+    import { Bundle, getClient, TaskHandler } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage() {
       const client = getClient();
@@ -587,7 +587,7 @@ for the full concept, including the equivalent Python API.
 
 .. code-block:: typescript
 
-    import { getClient, NEVER_EXPIRE } from "apache-airflow-ts-sdk";
+    import { getClient, NEVER_EXPIRE } from "@apache-airflow/ts-sdk";
 
     export async function runSparkJob() {
       const store = getClient().taskStateStore;
@@ -608,7 +608,7 @@ counted from the time of the write:
 
 * A number retains the key for that many seconds from now; ``retention: 0`` expires the key
   immediately.
-* ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
+* ``NEVER_EXPIRE`` (imported from ``@apache-airflow/ts-sdk``) stores the key with no expiry, regardless of
   the deployment default.
 * When ``retention`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``,
   which the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the
@@ -687,13 +687,13 @@ XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matchi
 Human-in-the-loop tasks
 -----------------------
 
-``approval`` and ``hitl``, from ``apache-airflow-ts-sdk/hitl``, make a task that waits for a person, as Python's
+``approval`` and ``hitl``, from ``@apache-airflow/ts-sdk/hitl``, make a task that waits for a person, as Python's
 ``ApprovalOperator`` and ``HITLOperator`` do. Pass one to ``dag.task`` in place of a handler. Options are the
 Python keyword arguments in camelCase:
 
 .. code-block:: typescript
 
-    import { approval } from "apache-airflow-ts-sdk/hitl";
+    import { approval } from "@apache-airflow/ts-sdk/hitl";
 
     const signOff = dag.task(
       "sign_off",
@@ -745,7 +745,7 @@ file, and Airflow refuses to run a bundle whose content was changed after it was
   The name must end in ``.min.mjs``.
 
 ``--outdir`` and ``--outfile`` cannot be used together. ``esbuild`` must be installed before you build; the
-runtime install of ``apache-airflow-ts-sdk`` does not need it.
+runtime install of ``@apache-airflow/ts-sdk`` does not need it.
 
 The bundle's code is minified, with license banners of bundled dependencies kept. The Airflow UI's **Code**
 view shows the file each Dag is declared in, as you wrote it.

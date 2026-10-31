@@ -1,5 +1,5 @@
 {
-  "name": "apache-airflow-ts-sdk",
+  "name": "@apache-airflow/ts-sdk",
   "version": "1.0.0-beta1",
   "packageManager": "pnpm@10.28.1",
   "description": "TypeScript Task SDK for Apache Airflow task handlers",
@@ -21,6 +21,7 @@
     "url": "https://github.com/apache/airflow/issues"
   },
   "publishConfig": {
+    "access": "public",
     "tag": "beta"
   },
   "exports": {

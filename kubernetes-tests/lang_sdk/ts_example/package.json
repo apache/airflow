@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "apache-airflow-ts-sdk": "file:../../../ts-sdk"
+    "@apache-airflow/ts-sdk": "file:../../../ts-sdk"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
