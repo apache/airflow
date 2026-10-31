@@ -29,7 +29,7 @@ dependencies {
     implementation("com.squareup:javapoet:1.13.0")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
+    testImplementation("com.google.testing.compile:compile-testing:0.24.0")
 }
 
 java {
