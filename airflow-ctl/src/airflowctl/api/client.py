@@ -318,12 +318,35 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-def _should_retry_api_request(exception: BaseException) -> bool:
-    """Determine if an API request should be retried based on the exception type."""
-    if isinstance(exception, httpx.HTTPStatusError):
-        return exception.response.status_code >= 500
+_REPLAY_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-    return isinstance(exception, httpx.RequestError)
+
+def _request_method(error: httpx.HTTPError) -> str | None:
+    """
+    Return the method of the request behind ``error``.
+
+    httpx leaves ``.request`` unset for some errors and reading it then raises, so return None for those.
+    """
+    try:
+        return error.request.method
+    except RuntimeError:
+        return None
+
+
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """
+    Determine if an API request can be sent again after it failed.
+
+    A request that never reached the server can always be sent again. Otherwise the server may
+    already have applied it, so only read-only methods are sent again.
+    """
+    if isinstance(exception, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
+        return True
+    if not isinstance(exception, (httpx.HTTPStatusError, httpx.RequestError)):
+        return False
+    if isinstance(exception, httpx.HTTPStatusError) and exception.response.status_code < 500:
+        return False
+    return _request_method(exception) in _REPLAY_SAFE_METHODS
 
 
 def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
@@ -352,6 +375,7 @@ def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
 API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
 API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
 API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
+API_TIMEOUT = _get_int_env("AIRFLOW_CLI_API_TIMEOUT", 30, minimum=1)
 
 
 class Client(httpx.Client):
@@ -369,6 +393,9 @@ class Client(httpx.Client):
         if kind != ClientKind.NO_AUTH:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
+        # Connect stays short so an unreachable host fails fast; the rest is generous because
+        # write requests are not retried after a timeout.
+        kwargs.setdefault("timeout", httpx.Timeout(API_TIMEOUT, connect=5.0))
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -511,6 +538,10 @@ class Client(httpx.Client):
         return PluginsOperations(self)
 
 
+def get_default_api_url() -> str:
+    return os.getenv("AIRFLOW_CLI_API_URL") or "http://localhost:8080"
+
+
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
 def get_client(
@@ -526,7 +557,8 @@ def get_client(
     api_client = None
     api_token = api_token or os.getenv("AIRFLOW_CLI_TOKEN", None)
     try:
-        # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
+        # The stored API URL wins; otherwise AIRFLOW_CLI_API_URL or the localhost default is used.
+        # Save the URL with the credentials if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
             credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
@@ -536,7 +568,7 @@ def get_client(
             ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
-            base_url=credentials.api_url or "http://localhost:8080",
+            base_url=credentials.api_url or get_default_api_url(),
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
             token=resolved_token,
             kind=kind,

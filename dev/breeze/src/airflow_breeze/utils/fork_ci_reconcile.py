@@ -30,6 +30,7 @@ from __future__ import annotations
 import base64
 import functools
 import json
+import re
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime, timedelta
@@ -1386,15 +1387,19 @@ class BypassFinder:
 def get_gate_wiring(workflow_text: str | None) -> Any:
     """
     The parts of a ci-amd.yml that make up the gate: its job, how build-info depends on it, the
-    jobs that do not depend on it (a job freed from the gate runs whatever it decides), and the
-    workflow-level triggers and settings that every job, the gate included, runs with.
+    jobs that run when the gate skips build-info, the names of all jobs, and the workflow-level
+    triggers and settings that every job, the gate included, runs with.
 
     A file that is not a workflow mapping yields an object equal to nothing, so a pull request
-    breaking the workflow counts as changing the gate rather than escaping the check.
+    breaking the workflow counts as changing the gate rather than escaping the check. So does a
+    file with YAML aliases, which ci-amd.yml does not use: an alias nested in itself expands
+    exponentially when compared.
     """
     if workflow_text is None:
         return None
     try:
+        if any(isinstance(event, yaml.AliasEvent) for event in yaml.parse(workflow_text)):
+            return object()
         workflow = yaml.safe_load(workflow_text)
     except yaml.YAMLError:
         return object()
@@ -1407,7 +1412,8 @@ def get_gate_wiring(workflow_text: str | None) -> Any:
         jobs.get("gate"),
         build_info.get("needs"),
         build_info.get("if"),
-        find_jobs_outside_gate(jobs),
+        find_jobs_run_when_gated(jobs),
+        get_job_names(jobs),
         workflow.get("on", workflow.get(True)),
         workflow.get("defaults"),
         workflow.get("env"),
@@ -1416,24 +1422,73 @@ def get_gate_wiring(workflow_text: str | None) -> Any:
     )
 
 
-def find_jobs_outside_gate(jobs: dict[str, Any]) -> frozenset[str]:
-    """Jobs that do not depend on the gate job, directly or through other jobs."""
+# A job whose `if` calls one of these runs although a job it needs was skipped: GitHub prefixes
+# `success() &&` only to an `if` without one, so even `success() || true` runs. Function names are
+# case-insensitive in GitHub expressions.
+STATUS_CHECK_FUNCTION = re.compile(r"\b(?:always|success|failure|cancelled)\s*\(", re.IGNORECASE)
 
-    def get_needs(job_id: str) -> list[str]:
-        job = jobs.get(job_id)
-        needs = job.get("needs") if isinstance(job, dict) else None
-        if isinstance(needs, str):
-            return [needs]
-        return [need for need in needs if isinstance(need, str)] if isinstance(needs, list) else []
 
-    def depends_on_gate(job_id: str, seen: frozenset[str] = frozenset()) -> bool:
-        # `seen` stops a dependency cycle, which GitHub rejects anyway.
-        return any(
-            need == "gate" or (need not in seen and depends_on_gate(need, seen | {job_id}))
-            for need in get_needs(job_id)
-        )
+def find_jobs_run_when_gated(jobs: dict[Any, Any]) -> list[tuple[Any, Any]]:
+    """
+    The definitions of the jobs that run when the gate leaves a pull request to fork CI.
 
-    return frozenset(job_id for job_id in jobs if job_id != "gate" and not depends_on_gate(job_id))
+    The gate succeeds then and skips build-info. A job runs if its `if` calls a status check
+    function, or if every job it needs runs, so also one that only needs a job that runs, such
+    as `ci-passed`. Such a job reports in apache/airflow whatever it is defined to, `CI passed`
+    included, so its whole definition is part of the gate. Anything unexpected counts as running.
+    """
+    runs: dict[Any, bool] = {"gate": True, "build-info": False}
+
+    def has_status_check(job: Any) -> bool:
+        if not isinstance(job, dict):
+            return True
+        condition = job.get("if")
+        if condition is None or isinstance(condition, bool):
+            return False
+        return not isinstance(condition, str) or bool(STATUS_CHECK_FUNCTION.search(condition))
+
+    def get_needs(job: Any) -> list[Any]:
+        needs = job.get("needs")
+        needs = needs if isinstance(needs, list) else [needs] if needs is not None else []
+        # A need that cannot be a job id stands for a job that is not in the workflow.
+        return [need if isinstance(need, (str, int, float, bool)) else object() for need in needs]
+
+    def is_run(job_id: Any, seen: frozenset[Any]) -> bool:
+        if job_id not in runs:
+            job = jobs.get(job_id)
+            # A cycle, which GitHub rejects anyway, or a need that is not a job of the workflow.
+            if job_id in seen or job_id not in jobs:
+                return True
+            runs[job_id] = has_status_check(job) or all(
+                is_run(need, seen | {job_id}) for need in get_needs(job)
+            )
+        return runs[job_id]
+
+    return sorted(
+        (
+            (job_id, job)
+            for job_id, job in jobs.items()
+            if job_id not in ("gate", "build-info") and is_run(job_id, frozenset())
+        ),
+        key=lambda entry: repr(entry[0]),
+    )
+
+
+def get_job_names(jobs: dict[Any, Any]) -> list[tuple[Any, Any, Any]]:
+    """
+    The name of every job, with its matrix when the name may read it.
+
+    GitHub treats a skipped required check as passed, so a job renamed to `CI passed` satisfies
+    the merge ruleset in a run the gate left to fork CI, where it is skipped. A job without a name
+    is named after its id, which cannot contain the space that `CI passed` has.
+    """
+    names = []
+    for job_id, job in jobs.items():
+        name = job.get("name") if isinstance(job, dict) else job
+        reads_matrix = name is not None and not (isinstance(name, str) and "${{" not in name)
+        strategy = job.get("strategy") if isinstance(job, dict) and reads_matrix else None
+        names.append((job_id, name, strategy))
+    return sorted(names, key=lambda entry: repr(entry[0]))
 
 
 def is_own_pilot_change(base_text: str | None, head_text: str | None, author_login: str) -> bool:
@@ -1456,8 +1511,8 @@ def is_own_pilot_change(base_text: str | None, head_text: str | None, author_log
     return replace(head, pilot=base.pilot) == base and changed <= {author_login.casefold()}
 
 
-class HeadMovedError(RuntimeError):
-    """The pull request's head moved while it was checked; the next run checks the new head."""
+class PullRequestChangedError(RuntimeError):
+    """The pull request's head or base changed while it was checked; the next run checks it again."""
 
 
 class GateChangeFinder:
@@ -1476,17 +1531,33 @@ class GateChangeFinder:
         )
         return compare["merge_base_commit"]["sha"]
 
+    @staticmethod
+    def _changes_gate_wiring(base_text: str | None, head_text: str | None) -> bool:
+        # The head version is the contributor's: a workflow that the comparison fails on, such as
+        # one with a needs chain deeper than the recursion limit, counts as a change.
+        try:
+            return get_gate_wiring(base_text) != get_gate_wiring(head_text)
+        except Exception:
+            return True
+
     def find(self, pr: PullRequestSnapshot) -> str | None:
         files = self._client.rest_get(
             f"repos/{self._repo}/pulls/{pr.number}/files?per_page=100", paginate=True
         )
         # The listing is of the pull request as it is now, while the head commit recorded as checked
-        # is the one read at the start of the run: a push in between would mark a commit checked
-        # by another one's files.
-        current_head = self._client.rest_get(f"repos/{self._repo}/pulls/{pr.number}")["head"]["sha"]
+        # and the base whose gate configuration classifies the result are those read at the start
+        # of the run: a push in between would mark a commit checked by another one's files, and a
+        # retarget would close for a gate change a pull request whose new base has no gate.
+        current = self._client.rest_get(f"repos/{self._repo}/pulls/{pr.number}")
+        current_head = current["head"]["sha"]
         if current_head != pr.head_sha:
-            raise HeadMovedError(
+            raise PullRequestChangedError(
                 f"head moved from {pr.head_sha[:8]} to {current_head[:8]} during the gate check"
+            )
+        current_base = current["base"]["ref"]
+        if current_base != pr.base_ref:
+            raise PullRequestChangedError(
+                f"base changed from {pr.base_ref} to {current_base} during the gate check"
             )
         # A listing at GitHub's cap may leave out a gate file, so it is not trusted.
         if len(files) >= PULL_REQUEST_FILES_CAP:
@@ -1504,12 +1575,14 @@ class GateChangeFinder:
             pr.author_login,
         ):
             return f"it changes `{GATE_CONFIG_PATH}` beyond the author's own `[pilot]` entry"
-        if CI_WORKFLOW_PATH in paths and get_gate_wiring(
-            read_file(self._client, self._repo, CI_WORKFLOW_PATH, merge_base)
-        ) != get_gate_wiring(read_file(self._client, head_repo, CI_WORKFLOW_PATH, pr.head_sha)):
+        if CI_WORKFLOW_PATH in paths and self._changes_gate_wiring(
+            read_file(self._client, self._repo, CI_WORKFLOW_PATH, merge_base),
+            read_file(self._client, head_repo, CI_WORKFLOW_PATH, pr.head_sha),
+        ):
             return (
-                f"it changes the `gate` job of `{CI_WORKFLOW_PATH}`, which jobs depend on it, or the "
-                "workflow-level triggers or settings it runs with"
+                f"it changes the `gate` job of `{CI_WORKFLOW_PATH}`, a job that runs when the gate "
+                "leaves a pull request to fork CI, the name of a job, or the workflow-level triggers or "
+                "settings they run with"
             )
         return None
 
@@ -1854,7 +1927,7 @@ def run_reconcile(
                     client.delete_run(pr.number, run.id)
             unknown.extend((pr.number, reason) for reason in plan.unknown)
             attention.extend((pr.number, item) for item in plan.attention)
-        except HeadMovedError as e:
+        except PullRequestChangedError as e:
             console_print(f"[info]#{listed.number}: {e}; checked again on the next run[/]")
         except Exception as e:
             console_print(f"[error]#{listed.number}: {e}[/]")

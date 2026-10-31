@@ -26,7 +26,6 @@ test can run for a long time end-to-end and is therefore opt-in: set
 from __future__ import annotations
 
 import os
-import time
 from datetime import datetime
 
 import pytest
@@ -65,7 +64,7 @@ TABLE_NAME = f"partitioned_table_{DAG_ID}_{ENV_ID}".replace("-", "_")
 # DML on rows still in the streaming buffer is rejected by BigQuery, hence the
 # sensor in the streaming-insert -> sensor -> DML chain below.
 STREAMING_UPDATE_QUERY = f"UPDATE {DATASET_NAME}.{TABLE_NAME} SET value = 200 WHERE value = 100"
-STREAMING_DELETE_QUERY = f"DELETE FROM {DATASET_NAME}.{TABLE_NAME} WHERE value = 200"
+STREAMING_DELETE_QUERY = f"DELETE FROM {DATASET_NAME}.{TABLE_NAME} WHERE value IN (100, 200)"
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},
@@ -109,21 +108,10 @@ with DAG(
             rows=[{"value": 100, "ds": ds}],
             fail_on_error=True,
         )
-        # BigQuery's streamingBuffer table metadata is eventually consistent: for
-        # a few seconds after a streaming insert the row is in the buffer but
-        # table.streaming_buffer is still None. Wait for the metadata to catch up
-        # so check_streaming_buffer_empty does not falsely report "empty" before
-        # the buffer is reported at all. Remove once the sensor handles this
-        # itself; tracked at https://github.com/apache/airflow/issues/66963
-        client = hook.get_client(project_id=PROJECT_ID)
-        table_uri = f"{PROJECT_ID}.{DATASET_NAME}.{TABLE_NAME}"
-        for _ in range(30):
-            if client.get_table(table_uri).streaming_buffer is not None:
-                return
-            time.sleep(2)
-        raise RuntimeError("BigQuery streaming buffer metadata did not appear within 60s")
 
     streaming_insert_task = streaming_insert()
+    # A fresh insert right before the deferrable sensor, so it also sees the just-inserted state.
+    streaming_insert_def_task = streaming_insert.override(task_id="streaming_insert_def")()
 
     # [START howto_sensor_bigquery_streaming_buffer_empty]
     check_streaming_buffer_empty = BigQueryStreamingBufferEmptySensor(
@@ -181,6 +169,7 @@ with DAG(
         >> streaming_insert_task
         >> check_streaming_buffer_empty
         >> stream_update
+        >> streaming_insert_def_task
         >> check_streaming_buffer_empty_def
         >> stream_delete
         >> delete_dataset

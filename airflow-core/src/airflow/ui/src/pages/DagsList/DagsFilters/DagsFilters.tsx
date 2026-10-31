@@ -37,6 +37,7 @@ export const DagsFilters = () => {
     SearchParamsKeys.OWNERS,
     SearchParamsKeys.TIMETABLE_TYPE,
     SearchParamsKeys.FAVORITE,
+    SearchParamsKeys.HAS_IMPORT_ERRORS,
   ];
 
   if (multiTeamEnabled) {

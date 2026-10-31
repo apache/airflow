@@ -17,6 +17,7 @@
  * under the License.
  */
 export enum SearchParamsKeys {
+  ACTIVE = "active",
   ADVANCED_SEARCH = "advanced_search",
   AFTER = "after",
   ASSET_EVENT_DATE_RANGE = "asset_event_date_range",
@@ -71,6 +72,7 @@ export enum SearchParamsKeys {
   GRAPH_TASK_STATE = "graph-task_state",
   GROUP_PATTERN = "group_pattern",
   HAS_EVENTS = "has_events",
+  HAS_IMPORT_ERRORS = "has_import_errors",
   HOSTNAME = "hostname",
   INCLUDED_EVENTS = "included_events",
   ITERATION = "iteration",
@@ -100,6 +102,7 @@ export enum SearchParamsKeys {
   OPERATOR = "operator",
   OPERATOR_NAME_PATTERN = "operator_name_pattern",
   OWNERS = "owners",
+  PARTITION_KEY = "partition_key",
   PARTITION_KEY_PATTERN = "partition_key_pattern",
   PAUSED = "paused",
   POOL = "pool",
@@ -122,6 +125,8 @@ export enum SearchParamsKeys {
   SCHEDULING_STATE = "scheduling_state",
   SORT = "sort",
   SOURCE = "log_source",
+  SOURCE_MAP_INDEX = "source_map_index",
+  SOURCE_RUN_ID = "source_run_id",
   START_DATE = "start_date",
   START_DATE_GTE = "start_date_gte",
   START_DATE_LTE = "start_date_lte",
