@@ -365,6 +365,78 @@ Similar to a TaskFlow task, you can also call either ``expand`` or ``expand_kwar
 
 In the above example, task ``convert_to_yaml`` is expanded into two task instances at runtime. The first expanded would receive ``"data1.json"`` as input, and the second ``"data2.json"``.
 
+Mapping over a ``TaskGroup`` of classic operators
+-------------------------------------------------
+
+.. versionadded:: 3.4.0
+
+To map a group of classic operators, call ``expand`` (or ``expand_kwargs``) on a ``TaskGroup`` and use the returned group as a context manager. The ``with`` block is required: it makes the group's tasks depend on the tasks that produce the mapped values, which ``task_group=tg`` alone does not.
+
+Each task in the group runs once per expanded instance, and can read that instance's mapped arguments in several ways:
+
+* **As a reference**, ``tg.mapped_args["duration"]``, passed as the whole value of a templated field, or as an element of a list or dict in one. It resolves to the argument's value, keeping its type (a dict stays a dict).
+* **Inside a templated string**, with an f-string: ``f"sleep {tg.mapped_args['duration']}"``. The reference turns into the Jinja expression below, so the result is always a string.
+* **In a Jinja template**, ``{{ mapped_args.duration }}`` or ``{{ mapped_args['duration'] }}``. This works in any templated field of a task in a mapped task group, including one created with ``@task_group``, and in templates loaded from files.
+* **In Python code at run time**, ``get_current_context()["mapped_args"]["duration"]``, or with a ``mapped_args=None`` parameter on a ``@task`` function in the group. This is not available in a virtualenv or external Python task, which only receives serializable context values.
+
+.. code-block:: python
+
+    import time
+
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.providers.standard.operators.python import PythonOperator
+    from airflow.sdk import TaskGroup, get_current_context
+
+
+    def wait(duration):
+        time.sleep(int(duration))
+
+
+    def log_duration():
+        print(get_current_context()["mapped_args"]["duration"])
+
+
+    first_task = PythonOperator(task_id="first", python_callable=lambda: ["1", "2", "3"])
+
+    with TaskGroup(group_id="process").expand(duration=first_task.output) as tg:
+        # A reference, as a value in a templated dict.
+        as_reference = PythonOperator(
+            task_id="as_reference",
+            python_callable=wait,
+            op_kwargs={"duration": tg.mapped_args["duration"]},
+        )
+        # A reference inside an f-string.
+        in_f_string = BashOperator(
+            task_id="in_f_string",
+            bash_command=f"sleep {tg.mapped_args['duration']}",
+        )
+        # The ``mapped_args`` template variable.
+        in_jinja = BashOperator(
+            task_id="in_jinja",
+            bash_command="sleep {{ mapped_args.duration }}",
+        )
+        # The task context, from Python code.
+        from_context = PythonOperator(task_id="from_context", python_callable=log_duration)
+
+        as_reference >> in_f_string >> in_jinja >> from_context
+
+With ``expand_kwargs``, the arguments are the keys of each dict:
+
+.. code-block:: python
+
+    def show(x):
+        print(x)
+
+
+    with TaskGroup(group_id="process").expand_kwargs(
+        [{"name": "a", "op_kwargs": {"x": 1}}, {"name": "b", "op_kwargs": {"x": 2}}]
+    ) as tg:
+        PythonOperator(task_id="run", python_callable=show, op_kwargs=tg.mapped_args["op_kwargs"])
+        BashOperator(task_id="echo", bash_command="echo {{ mapped_args.name }}")
+
+A reference only resolves in a templated field. ``tg.mapped_args`` cannot be iterated or unpacked. An unknown argument name in ``tg.mapped_args[...]`` raises ``KeyError`` when the Dag is parsed, except with ``expand_kwargs`` over an XCom, whose keys are only known at run time. A name written directly in Jinja is not checked: like other template variables, ``{{ mapped_args.typo }}`` renders as an empty string. Templates rendered by the triggerer, for a task that starts from a trigger (``start_from_trigger``), cannot use ``mapped_args``, in either form.
+
+
 Value references in a task group function
 -----------------------------------------
 

@@ -53,6 +53,7 @@ from airflow._shared.observability.traces import (
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span
 from airflow.listeners import hookimpl
 from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
@@ -61,6 +62,7 @@ from airflow.sdk import (
     BaseOperator,
     BaseOperatorLink,
     Connection,
+    TaskGroup,
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
@@ -203,6 +205,7 @@ from airflow.sdk.execution_time.task_runner import (
 from airflow.sdk.execution_time.xcom import XCom
 from airflow.sdk.importers import DagSourceCode
 from airflow.sdk.serde import deserialize
+from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, TriggerEvent
 from airflow.triggers.callback import CallbackTrigger
 from airflow.triggers.testing import SuccessTrigger
@@ -7563,3 +7566,34 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
         "task_id": "t",
         "run_type": "manual",
     }
+
+
+class TestMappedArgsTemplateContext:
+    @pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
+    def test_set_in_mapped_task_group(self, create_runtime_ti, mock_supervisor_comms, map_index, expected):
+        with DAG("test", schedule=None):
+            upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+            with TaskGroup(group_id="g").expand(value=upstream.output):
+                task = EmptyOperator(task_id="t")
+
+        mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
+        context = create_runtime_ti(task=task, map_index=map_index).get_template_context()
+        assert context["mapped_args"]["value"] == expected
+
+    def test_not_set_outside_mapped_task_group(self, create_runtime_ti):
+        with DAG("test", schedule=None):
+            with TaskGroup(group_id="g"):
+                task = EmptyOperator(task_id="t")
+
+        assert "mapped_args" not in create_runtime_ti(task=task).get_template_context()
+
+    def test_not_set_for_serialized_dag(self, create_runtime_ti):
+        """The triggerer builds the context from a serialized Dag, whose mapped groups cannot resolve."""
+        with DAG("test", schedule=None) as dag:
+            with TaskGroup(group_id="g").expand(value=[1]):
+                EmptyOperator(task_id="t")
+        serialized_task = DagSerialization.from_dict(DagSerialization.to_dict(dag)).get_task("g.t")
+
+        runtime_ti = create_runtime_ti(task=dag.get_task("g.t"), map_index=0)
+        runtime_ti.task = serialized_task
+        assert "mapped_args" not in runtime_ti.get_template_context()

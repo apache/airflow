@@ -30,8 +30,9 @@ from airflow.sdk import (
     teardown,
     timezone,
 )
-from airflow.sdk.definitions.taskgroup import TaskGroup
+from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 from airflow.sdk.exceptions import TaskAlreadyInTaskGroup
+from airflow.sdk.execution_time.comms import XComResult
 
 from tests_common.test_utils.compat import BashOperator, EmptyOperator, PythonOperator
 
@@ -1118,3 +1119,220 @@ def test_topological_sort_padded_reverse_chain_uses_pass_numbering(monkeypatch):
 
     assert called["value"]
     _assert_valid_topological_order(dag.task_group, order)
+
+
+def test_expand_replaces_task_group_with_mapped_task_group():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+        with TaskGroup(group_id="outer"):
+            with TaskGroup(group_id="g", tooltip="tip").expand(value=upstream.output) as tg:
+                task = EmptyOperator(task_id="t")
+
+    assert isinstance(tg, MappedTaskGroup)
+    assert dag.task_group_dict["outer.g"] is tg
+    assert tg.tooltip == "tip"
+    assert task.task_group is tg
+    assert task.task_id == "outer.g.t"
+    assert task.upstream_task_ids == {"upstream"}
+
+
+def test_expand_without_arguments():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with pytest.raises(TypeError, match="no arguments to expand against"):
+            TaskGroup(group_id="g").expand()
+
+
+def _build_non_empty_task_group(dag):
+    with TaskGroup(group_id="g") as tg:
+        EmptyOperator(task_id="t")
+    return tg
+
+
+@pytest.mark.parametrize(
+    ("build_group", "match"),
+    [
+        pytest.param(lambda dag: dag.task_group, "root task group", id="root"),
+        pytest.param(
+            lambda dag: TaskGroup(group_id="g").expand(value=[1]),
+            "not supported on MappedTaskGroup",
+            id="already-mapped",
+        ),
+        pytest.param(_build_non_empty_task_group, "before adding tasks", id="non-empty"),
+    ],
+)
+def test_expand_unsupported_task_group(build_group, match):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        tg = build_group(dag)
+        with pytest.raises(TypeError, match=match):
+            tg.expand(value=[1])
+
+
+@pytest.mark.parametrize("value", [{"a": 1}, [1]])
+def test_expand_kwargs_invalid(value):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with pytest.raises(TypeError, match="expected XComArg or list"):
+            TaskGroup(group_id="g").expand_kwargs(value)
+
+
+def test_expand_kwargs_unsupported_task_group_names_method():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with pytest.raises(TypeError, match=r"^expand_kwargs\(\) is not supported on the root task group"):
+            dag.task_group.expand_kwargs([{"value": 1}])
+
+
+@pytest.mark.parametrize(
+    "build_group",
+    [
+        pytest.param(lambda: TaskGroup(group_id="g").expand(value=[1]), id="expand"),
+        pytest.param(lambda: TaskGroup(group_id="g").expand_kwargs([{"value": 1}]), id="expand_kwargs"),
+    ],
+)
+def test_mapped_args_unknown_argument(build_group):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with build_group() as tg:
+            with pytest.raises(KeyError, match="'other' is not a mapped argument"):
+                tg.mapped_args["other"]
+
+
+def test_mapped_args_non_str_key():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with TaskGroup(group_id="g").expand_kwargs([{"value": 1}]) as tg:
+            with pytest.raises(TypeError, match="keys must be str, not int"):
+                tg.mapped_args[0]
+
+
+def test_mapped_args_has_no_attribute_access():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: [])
+        with TaskGroup(group_id="g").expand_kwargs(upstream.output) as tg:
+            assert not hasattr(tg.mapped_args, "resolve")
+
+
+@pytest.mark.parametrize(
+    "build_group",
+    [
+        pytest.param(lambda: TaskGroup(group_id="g").expand(value=[1]), id="expand"),
+        pytest.param(lambda: TaskGroup(group_id="g").expand_kwargs([{"value": 1}]), id="expand_kwargs"),
+    ],
+)
+def test_mapped_args_not_iterable(build_group):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with build_group() as tg:
+            with pytest.raises(TypeError, match="'MappedArgs' object is not iterable"):
+                list(tg.mapped_args)
+
+
+def test_enter_replaced_task_group():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        tg = TaskGroup(group_id="g")
+        tg.expand(value=[1])
+        with pytest.raises(TypeError, match="'g' was replaced by expand"):
+            with tg:
+                pass
+
+
+@pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
+def test_mapped_args_expand(create_runtime_ti, mock_supervisor_comms, map_index, expected):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+        with TaskGroup(group_id="g").expand(value=upstream.output) as tg:
+            task = PythonOperator(
+                task_id="t",
+                python_callable=lambda **kwargs: None,
+                op_kwargs={"value": tg.mapped_args["value"]},
+            )
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
+    runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.op_kwargs == {"value": expected}
+
+
+@pytest.mark.parametrize("map_index", [0, 1])
+def test_mapped_args_expand_kwargs(create_runtime_ti, mock_supervisor_comms, map_index):
+    mapped_kwargs = [
+        {"op_kwargs": {"x": 1, "y": 2}, "templates_dict": {"a": "1"}},
+        {"op_kwargs": {"x": 3, "y": 4}, "templates_dict": {"a": "2"}},
+    ]
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: mapped_kwargs)
+        with TaskGroup(group_id="process").expand_kwargs(upstream.output) as tg:
+            task = PythonOperator(
+                task_id="t",
+                python_callable=lambda **kwargs: None,
+                op_kwargs=tg.mapped_args["op_kwargs"],
+                templates_dict=tg.mapped_args["templates_dict"],
+            )
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=mapped_kwargs)
+    runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.op_kwargs == mapped_kwargs[map_index]["op_kwargs"]
+    assert runtime_ti.task.templates_dict == mapped_kwargs[map_index]["templates_dict"]
+
+
+@pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
+def test_mapped_args_in_template(create_runtime_ti, mock_supervisor_comms, map_index, expected):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+        # "items" would resolve to Mapping.items if the accessor were a Mapping.
+        with TaskGroup(group_id="g").expand(items=upstream.output) as tg:
+            task = PythonOperator(
+                task_id="t",
+                python_callable=lambda **kwargs: None,
+                op_kwargs={
+                    "jinja": "{{ mapped_args.items }}-{{ mapped_args['items'] }}",
+                    "f_string": f"v={tg.mapped_args['items']}",
+                },
+            )
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
+    runtime_ti = create_runtime_ti(task=task, map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.op_kwargs == {"jinja": f"{expected}-{expected}", "f_string": f"v={expected}"}
+
+
+@pytest.mark.parametrize(("map_index", "expected"), [(0, "a"), (1, "b")])
+def test_mapped_args_in_template_with_task_group_decorator(
+    create_runtime_ti, mock_supervisor_comms, map_index, expected
+):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: ["a", "b"])
+
+        @task_group_decorator
+        def g(value):
+            BashOperator(task_id="t", bash_command="echo {{ mapped_args.value }}")
+
+        g.expand(value=upstream.output)
+
+    mock_supervisor_comms.send.return_value = XComResult(key="return_value", value=["a", "b"])
+    runtime_ti = create_runtime_ti(task=dag.get_task("g.t"), map_index=map_index)
+    runtime_ti.task.render_template_fields(context=runtime_ti.get_template_context())
+    assert runtime_ti.task.bash_command == f"echo {expected}"
+
+
+@pytest.mark.parametrize(
+    ("build_group", "expected"),
+    [
+        pytest.param(
+            lambda: TaskGroup(group_id="g").expand(value=[1]), {"value": True, "x": False}, id="expand"
+        ),
+        pytest.param(
+            lambda: TaskGroup(group_id="g").expand_kwargs([{"value": 1}]),
+            {"value": True, "x": False},
+            id="expand_kwargs",
+        ),
+    ],
+)
+def test_mapped_args_contains(build_group, expected):
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        with build_group() as tg:
+            assert {key: key in tg.mapped_args for key in expected} == expected
+
+
+def test_mapped_args_contains_with_xcom_keys():
+    with DAG("test", schedule=None, start_date=DEFAULT_DATE):
+        upstream = PythonOperator(task_id="upstream", python_callable=lambda: [])
+        with TaskGroup(group_id="g").expand_kwargs(upstream.output) as tg:
+            with pytest.raises(TypeError, match="only known at run time"):
+                _ = "value" in tg.mapped_args

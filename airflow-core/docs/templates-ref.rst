@@ -109,6 +109,10 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
+``{{ mapped_args }}``                       accessor              | The arguments of the mapped task group the task runs in, for this
+                                                                  | expanded instance. Read one with ``{{ mapped_args.duration }}`` or
+                                                                  | ``{{ mapped_args['duration'] }}``. Only set for tasks in a mapped task group.
+                                                                  | Added in version 3.4.0.
 ``{{ triggering_asset_events }}``           dict[str,             | If in an Asset Scheduled Dag, a map of Asset URI to a list of triggering :class:`~airflow.models.asset.AssetEvent`
                                             list[AssetEvent]]     | (there may be more than one, if there are multiple Assets with different frequencies).
                                                                   | Read more here :doc:`Assets <authoring-and-scheduling/asset-scheduling>`.
