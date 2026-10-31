@@ -55,7 +55,7 @@ from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagrun import lock_dag_runs
+from airflow.models.dagrun import DagRun, lock_dag_runs
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
     DynamicRegion,
@@ -69,7 +69,11 @@ from airflow.models.task_coordinates import (
     public_map_index_expression,
 )
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances, select_loop_clear_scope
-from airflow.serialization.definitions.dag import SerializedDAG
+from airflow.serialization.definitions.dag import (
+    NO_LOGICAL_DATE_PAST_FUTURE_ERROR,
+    SerializedDAG,
+    validate_past_future_for_logical_date,
+)
 from airflow.state.metastore import _get_db_backend
 from airflow.utils.state import TaskInstanceState
 
@@ -222,6 +226,7 @@ def _patch_ti_validate_request(
     lock: bool = True,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     _validate_region_selection(body)
+    _validate_past_future_for_dag_run(dag_id, dag_run_id, body, session)
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if lock:
         _lock_patch_runs(dag, dag_run_id, body, session)
@@ -288,6 +293,29 @@ def _validate_region_selection(body: PatchTaskInstanceBody) -> None:
         )
     if body.region_id is not None and (body.include_past or body.include_future):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Regional selection requires one explicit DagRun")
+
+
+def _validate_past_future_for_dag_run(
+    dag_id: str,
+    dag_run_id: str,
+    body: PatchTaskInstanceBody | BulkTaskInstanceBody,
+    session: Session,
+    dag_run: DagRun | None = None,
+) -> None:
+    if not (body.include_past or body.include_future):
+        return
+
+    if dag_run is None:
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
+
+    # If the DagRun does not exist, downstream queries raise 404 for missing resources.
+    if dag_run is not None:
+        try:
+            validate_past_future_for_logical_date(
+                body.include_past, body.include_future, dag_run.logical_date
+            )
+        except ValueError as err:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
 
 
 def _lock_patch_runs(dag: SerializedDAG, run_id: str, body: PatchTaskInstanceBody, session: Session) -> None:
@@ -415,6 +443,7 @@ def _patch_ti_group_validate_request(
     lock: bool = True,
 ) -> tuple[SerializedDAG, list[TI], dict]:
     """Validate and prepare data for task group patch request."""
+    _validate_past_future_for_dag_run(dag_id, dag_run_id, body, session)
     dag = get_latest_version_of_dag(dag_bag, dag_id, session)
     if lock:
         _lock_patch_runs(dag, dag_run_id, body, session)
@@ -450,18 +479,23 @@ def _patch_task_instance_state(
     map_index = getattr(task_instance_body, "map_index", None)
     map_indexes = None if map_index is None else [map_index]
 
-    updated_tis = dag.set_task_instance_state(
-        task_id=task_id,
-        run_id=dag_run_id,
-        map_indexes=map_indexes,
-        state=data["new_state"],
-        upstream=task_instance_body.include_upstream,
-        downstream=task_instance_body.include_downstream,
-        future=task_instance_body.include_future,
-        past=task_instance_body.include_past,
-        commit=True,
-        session=session,
-    )
+    try:
+        updated_tis = dag.set_task_instance_state(
+            task_id=task_id,
+            run_id=dag_run_id,
+            map_indexes=map_indexes,
+            state=data["new_state"],
+            upstream=task_instance_body.include_upstream,
+            downstream=task_instance_body.include_downstream,
+            future=task_instance_body.include_future,
+            past=task_instance_body.include_past,
+            commit=True,
+            session=session,
+        )
+    except ValueError as err:
+        if str(err) == NO_LOGICAL_DATE_PAST_FUTURE_ERROR:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise
     if not updated_tis:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -551,17 +585,22 @@ def _patch_task_group_state(
         if selected is None:
             raise ValueError("Regional task group updates require the selected task instances")
         return _patch_selected_task_state(selected, body, data, session=session, commit=commit)
-    updated_tis = dag.set_task_group_state(
-        group_id=group_id,
-        run_id=dag_run_id,
-        state=data["new_state"],
-        upstream=body.include_upstream,
-        downstream=body.include_downstream,
-        future=body.include_future,
-        past=body.include_past,
-        commit=True,
-        session=session,
-    )
+    try:
+        updated_tis = dag.set_task_group_state(
+            group_id=group_id,
+            run_id=dag_run_id,
+            state=data["new_state"],
+            upstream=body.include_upstream,
+            downstream=body.include_downstream,
+            future=body.include_future,
+            past=body.include_past,
+            commit=True,
+            session=session,
+        )
+    except ValueError as err:
+        if str(err) == NO_LOGICAL_DATE_PAST_FUTURE_ERROR:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise
     if not updated_tis:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
@@ -639,17 +678,19 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
         results: BulkActionResponse,
         method: Literal["PUT", "DELETE"],
         action_name: str,
-    ) -> tuple[set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
+    ) -> tuple[list[str | BulkTaskInstanceBody], set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
         """
         Validate entities and categorize them into specific and all map index update sets.
 
         :param entities: Sequence of entities to validate
         :param results: BulkActionResponse object to track errors
-        :return: tuple of (specific_map_index_task_keys, all_map_index_task_keys)
+        :return: tuple of (valid_entities, specific_map_index_task_keys, all_map_index_task_keys)
         """
+        valid_entities: list[str | BulkTaskInstanceBody] = []
         specific_map_index_task_keys = set()
         all_map_index_task_keys = set()
         dag_authorization_cache: dict[str, bool] = {}
+        dag_run_cache: dict[tuple[str, str], DagRun | None] = {}
 
         for entity in entities:
             dag_id, dag_run_id, task_id, map_index = self._extract_task_identifiers(entity)
@@ -668,6 +709,22 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 )
                 continue
 
+            if isinstance(entity, BulkTaskInstanceBody) and (entity.include_past or entity.include_future):
+                run_key = (dag_id, dag_run_id)
+                if run_key not in dag_run_cache:
+                    dag_run_cache[run_key] = self.session.scalar(
+                        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+                    )
+                dag_run = dag_run_cache[run_key]
+                if dag_run is not None:
+                    try:
+                        validate_past_future_for_logical_date(
+                            entity.include_past, entity.include_future, dag_run.logical_date
+                        )
+                    except ValueError as err:
+                        results.errors.append({"error": str(err), "status_code": status.HTTP_400_BAD_REQUEST})
+                        continue
+
             if dag_id not in dag_authorization_cache:
                 team_name = DagModel.get_team_name(dag_id, session=self.session)
                 dag_authorization_cache[dag_id] = get_auth_manager().is_authorized_dag(
@@ -685,13 +742,14 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 )
                 continue
 
+            valid_entities.append(entity)
             # Separate logic for "update all" vs "update specific"
             if map_index is not None:
                 specific_map_index_task_keys.add((dag_id, dag_run_id, task_id, map_index))
             else:
                 all_map_index_task_keys.add((dag_id, dag_run_id, task_id))
 
-        return specific_map_index_task_keys, all_map_index_task_keys
+        return valid_entities, specific_map_index_task_keys, all_map_index_task_keys
 
     def _categorize_task_instances(
         self, task_keys: set[tuple[str, str, str, int]]
@@ -790,19 +848,19 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
     def _handle_regional_bulk(
         self, action: MutationAction, results: BulkActionResponse
     ) -> tuple[MutationAction, set[tuple[str, str, str, int]], set[tuple[str, str, str]]]:
+        deleting = isinstance(action, BulkDeleteAction)
+        valid_entities, specific, whole = self._categorize_entities(
+            action.entities, results, method="DELETE" if deleting else "PUT", action_name=action.action.value
+        )
         regional = [
             entity
-            for entity in action.entities
+            for entity in valid_entities
             if isinstance(entity, BulkTaskInstanceBody)
             and (entity.region_id is not None or entity.region_index is not None)
         ]
-        deleting = isinstance(action, BulkDeleteAction)
-        specific, whole = self._categorize_entities(
-            action.entities, results, method="DELETE" if deleting else "PUT", action_name=action.action.value
-        )
         keys = {key[:3] for key in specific} | whole
         run_keys = {key[:2] for key in keys}
-        for entity in action.entities:
+        for entity in valid_entities:
             if isinstance(entity, BulkTaskInstanceBody) and (entity.include_future or entity.include_past):
                 dag_id, run_id, task_id, _ = self._extract_task_identifiers(entity)
                 if (dag_id, run_id, task_id) in keys:
@@ -860,7 +918,7 @@ class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):
                 ):
                     continue
                 results.errors.append({"error": str(error.detail), "status_code": error.status_code})
-        remaining = [entity for entity in action.entities if entity not in regional]
+        remaining = [entity for entity in valid_entities if entity not in regional]
         remaining_keys = {self._extract_task_identifiers(entity) for entity in remaining}
         return (
             action.model_copy(update={"entities": remaining}),

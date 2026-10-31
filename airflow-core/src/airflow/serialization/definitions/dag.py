@@ -103,6 +103,17 @@ class EdgeInfoType(TypedDict):
     label: str | None
 
 
+NO_LOGICAL_DATE_PAST_FUTURE_ERROR = (
+    "Cannot use include_past or include_future when the DAG run has no logical_date "
+    "(e.g. manually or asset-triggered)."
+)
+
+
+def validate_past_future_for_logical_date(past: bool, future: bool, logical_date: Any) -> None:
+    if (past or future) and logical_date is None:
+        raise ValueError(NO_LOGICAL_DATE_PAST_FUTURE_ERROR)
+
+
 @attrs.define(eq=False, hash=False, slots=False)
 class SerializedDAG:
     """
@@ -895,6 +906,15 @@ class SerializedDAG:
         task = self.get_task(task_id)
         task.dag = self
 
+        # Raises an error if not found
+        dr_id, logical_date = session.execute(
+            select(DagRun.id, DagRun.logical_date).where(
+                DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
+            )
+        ).one()
+
+        validate_past_future_for_logical_date(past, future, logical_date)
+
         tasks_to_set_state: list[SerializedOperator | tuple[SerializedOperator, int]]
         if map_indexes is None:
             tasks_to_set_state = [task]
@@ -924,13 +944,6 @@ class SerializedDAG:
             include_downstream=True,
             include_upstream=False,
         )
-
-        # Raises an error if not found
-        dr_id, logical_date = session.execute(
-            select(DagRun.id, DagRun.logical_date).where(
-                DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
-            )
-        ).one()
 
         # Now we want to clear downstreams of tasks that had their state set...
         clear_kwargs = {
@@ -1006,6 +1019,8 @@ class SerializedDAG:
                 DagRun.run_id == run_id, DagRun.dag_id == self.dag_id
             )
         ).one()
+
+        validate_past_future_for_logical_date(past, future, logical_date)
 
         if not future and not past:
             dag_runs_query = dag_runs_query.where(DagRun.logical_date == logical_date)
