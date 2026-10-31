@@ -125,7 +125,8 @@ class FilteringAccessor(Sequence):
         return len(self._events)
 
 
-def make_context(events=None, accessor=None) -> dict[str, Any]:
+def make_context(events=None, accessor=None) -> Any:
+    """Return a minimal stand-in for the task ``Context`` with only the asset event accessors."""
     outlet_events: defaultdict = defaultdict(lambda: SimpleNamespace(extra={}))
     inlet = accessor if accessor is not None else list(events or [])
     return {"inlet_events": {TABLE.to_asset(): inlet}, "outlet_events": outlet_events}
@@ -413,6 +414,7 @@ class TestDelivery:
             return None
         extra = published(context)
         if succeed:
+            assert extra is not None
             history.append(make_event(extra))
         return extra
 
