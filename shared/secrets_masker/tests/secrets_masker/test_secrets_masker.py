@@ -29,6 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow_shared.secrets_masker import secrets_masker as secrets_masker_module
 from airflow_shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
     RedactedIO,
@@ -933,6 +934,22 @@ class TestShouldHideValueForKey:
         masker.hide_sensitive_var_conn_fields = hide_sensitive_var_conn_fields
         assert masker.should_hide_value_for_key("password") is hide_sensitive_var_conn_fields
         assert masker.should_hide_value_for_key("GOOGLE_API_KEY") is hide_sensitive_var_conn_fields
+
+    def test_key_decision_is_cached_and_follows_field_contents(self):
+        """Every key of every log line is checked; the cache must still follow in-place edits of the fields."""
+        is_sensitive_key = secrets_masker_module._is_sensitive_key
+        is_sensitive_key.cache_clear()
+        masker = SecretsMasker()
+        configure_secrets_masker_for_test(masker, sensitive_fields=["password"])
+
+        assert masker.should_hide_value_for_key("my_token") is False
+        assert masker.should_hide_value_for_key("my_token") is False
+        assert is_sensitive_key.cache_info().hits == 1
+
+        masker.sensitive_variables_fields.append("token")
+
+        assert masker.should_hide_value_for_key("my_token") is True
+        assert is_sensitive_key.cache_info().misses == 2
 
 
 class ShortExcFormatter(logging.Formatter):

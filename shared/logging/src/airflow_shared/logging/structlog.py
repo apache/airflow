@@ -308,8 +308,10 @@ def logger_name(logger: Any, method_name: Any, event_dict: EventDict) -> EventDi
 # token. Better safe than sorry
 def redact_jwt(logger: Any, method_name: str, event_dict: EventDict) -> EventDict:
     for k, v in event_dict.items():
-        if isinstance(v, str):
-            event_dict[k] = re.sub(JWT_PATTERN, "eyJ***", v)
+        # Every match contains ``eyJ``; checking for it first skips the regex for nearly all values.
+        # ``str`` subclasses still go through ``sub``, which returns a plain ``str`` for them.
+        if isinstance(v, str) and (type(v) is not str or "eyJ" in v):
+            event_dict[k] = JWT_PATTERN.sub("eyJ***", v)
     return event_dict
 
 
