@@ -274,8 +274,8 @@ to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 Task groups
 ~~~~~~~~~~~
 
-``dag.taskGroup(groupId)`` opens a group with the same ``task`` and ``taskGroup`` methods as the Dag. Every id
-declared in it is prefixed with the group's, as in Python:
+``dag.taskGroup(groupId)`` opens a group with the same ``task``, ``taskGroup``, ``if`` and ``switch`` methods
+as the Dag. Every id declared in it is prefixed with the group's, as in Python:
 
 .. code-block:: typescript
 
