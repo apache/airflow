@@ -27,6 +27,7 @@ import inspect
 import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -36,6 +37,8 @@ from typing import Any, NamedTuple
 
 import httpx
 import rich
+from pydantic import BaseModel, ValidationError
+from rich.markup import escape
 
 import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, _request_method, provide_api_client
@@ -136,6 +139,26 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
             )
         _warn_if_write_may_have_applied(e)
+        sys.exit(1)
+    except ValidationError as e:
+        errors = e.errors()
+        first: dict[str, Any] = dict(errors[0]) if errors else {}
+        title = escape(e.title)
+        location = escape(".".join(str(part) for part in first.get("loc", ())) or "<root>")
+        detail = f"{title} (invalid '{location}': {escape(first.get('msg', ''))})"
+        if first.get("type") == "json_invalid":
+            message = (
+                f"Server returned a non-JSON response for {title}; "
+                "check that the API URL points at the Airflow API server."
+            )
+        elif e.title.endswith("Body"):
+            message = f"Input did not match the airflowctl model {detail}."
+        else:
+            message = (
+                f"Response did not match the airflowctl model {detail}. "
+                "If the server is newer than this client, try upgrading airflowctl."
+            )
+        rich.print(f"[red]{message}[/red]")
         sys.exit(1)
 
 
@@ -733,6 +756,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -741,6 +765,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -762,6 +787,11 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
 
     def _find_subgroup_suffix(self, operation_group_name: str, operation_name: str) -> str | None:
         """Find the subgroup suffix an operation belongs to, if one exists."""
@@ -806,9 +836,16 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
-                    else None,
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
             )
         return commands
@@ -911,6 +948,33 @@ class CommandFactory:
 
         return params
 
+    def _validate_datamodel(self, datamodel: type[BaseModel], params: dict) -> Any:
+        """
+        Validate CLI input against ``datamodel`` and exit with a readable message when it is invalid.
+
+        Optional CLI flags default to ``None``, so a required datamodel field the user did not pass
+        reaches pydantic as ``None``. Report those as missing flags instead of a raw traceback.
+        """
+        try:
+            return datamodel.model_validate(params)
+        except ValidationError as e:
+            missing: list[str] = []
+            invalid: list[str] = []
+            for error in e.errors():
+                field = str(error["loc"][0]) if error["loc"] else ""
+                field_info = datamodel.model_fields.get(field)
+                flag = f"--{self._sanitize_arg_parameter_key(field)}" if field else "input"
+                if field_info is not None and field_info.is_required() and error.get("input") is None:
+                    if flag not in missing:
+                        missing.append(flag)
+                else:
+                    invalid.append(f"{flag}: {error['msg']}")
+            messages = []
+            if missing:
+                messages.append(f"the following arguments are required: {', '.join(missing)}")
+            messages.extend(invalid)
+            raise SystemExit("Invalid arguments: " + "; ".join(messages))
+
     def _create_func_map_from_operation(self):
         """Create function map from Operation Method checking for parameters and return types."""
 
@@ -955,11 +1019,11 @@ class CommandFactory:
                     method_params[datamodel_param_name] = self._apply_datamodel_defaults(
                         datamodel, method_params[datamodel_param_name]
                     )
-                    method_params[datamodel_param_name] = datamodel.model_validate(
-                        method_params[datamodel_param_name]
+                    method_params[datamodel_param_name] = self._validate_datamodel(
+                        datamodel, method_params[datamodel_param_name]
                     )
                 else:
-                    method_params = datamodel.model_validate(method_params)
+                    method_params = self._validate_datamodel(datamodel, method_params)
                 method_output = operation_method_object(**method_params)
             else:
                 method_output = operation_method_object(**method_params)

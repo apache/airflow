@@ -221,6 +221,10 @@
     "write": "Write"
   },
   "overallStatus": "Overall Status",
+  "pagination": {
+    "nextPage": "Next page",
+    "previousPage": "Previous page"
+  },
   "partition_one": "Partition",
   "partition_other": "Partitions",
   "partitionedDagRun_one": "Partitioned Dag Run",
@@ -267,7 +271,8 @@
   "search": {
     "advanced": {
       "description": "Match anywhere in the value (substring search). Slower on large deployments because it can't use the default B-tree index. See the docs section on custom metadata indexes for details.",
-      "title": "Match anywhere"
+      "title": "Match anywhere",
+      "toggleLabel": "Toggle match-anywhere search"
     }
   },
   "security": {
