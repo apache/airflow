@@ -5272,6 +5272,18 @@
         "dag_run": {
           "$ref": "#/$defs/DagRun"
         },
+        "serialized_dag_run_conf": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Serialized Dag Run Conf"
+        },
         "loop": {
           "anyOf": [
             {

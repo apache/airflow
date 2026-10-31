@@ -42,6 +42,34 @@ Versioning Principles
 3. Migrations encapsulate all schema changes.
 4. Core code logic remains version-agnostic.
 
+Task-start configuration transport
+----------------------------------
+
+The task-start response can carry persisted Dag run configuration as
+``serialized_dag_run_conf``. The server selects JSON text instead of decoding
+the configuration into nested Python objects. Python supervisors forward that
+text, and the task runner restores ``dag_run.conf`` before constructing task
+context and parameters. Empty objects and null configuration retain their
+runtime meanings; repeated context construction reuses the same dictionary.
+The database checks the JSON root type during retrieval, so non-object
+configuration is rejected before the task's running-state transaction commits.
+Such persisted invalid configurations return HTTP 422 instead of the previous
+HTTP 500, including for older negotiated API versions. The existing rollback
+behavior is preserved: the task remains queued.
+
+Older Execution API clients receive the dictionary through the response
+converter. Foreign-language runtimes also retain the dictionary startup
+contract, including runtimes pinned to the in-progress supervisor version.
+Those compatibility paths still materialize the configuration and do not
+receive the Python runtime's memory optimization. Unrelated Dag run endpoints
+and the database column type are unchanged.
+
+The field is accumulated in the in-progress API version, following the normal
+version cadence. Development snapshots sharing that unreleased version are not
+a supported mixed-build compatibility boundary; use matching core and Task SDK
+sources when testing head. Released clients retain their versioned dictionary
+responses.
+
 Version Changes
 ---------------
 

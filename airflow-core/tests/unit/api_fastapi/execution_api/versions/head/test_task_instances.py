@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -37,7 +38,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, null, select, update
+from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
@@ -791,7 +793,10 @@ class TestTIRunState:
         clear_db_dags()
         clear_db_assets()
 
-    def test_ti_run_context_exposes_consumed_event_partition_key(self, client, session, create_task_instance):
+    @pytest.mark.parametrize("event_count", [0, 1, 4])
+    def test_ti_run_context_exposes_consumed_event_partition_key(
+        self, client, session, create_task_instance, event_count
+    ):
         """The partition key of each consumed asset event is returned in the run context."""
         ti = create_task_instance(
             task_id="test_consumed_event_partition_key",
@@ -801,25 +806,36 @@ class TestTIRunState:
         asset = AssetModel(name="upstream", uri="s3://bucket/upstream", group="asset", extra={})
         session.add_all([asset, AssetActive.for_asset(asset)])
         session.flush()
-        ti.dag_run.consumed_asset_events.append(
-            AssetEvent(asset_id=asset.id, source_dag_id="src", source_run_id="r1", partition_key="2024-01-15")
-        )
+        for index in range(event_count):
+            ti.dag_run.consumed_asset_events.append(
+                AssetEvent(
+                    asset_id=asset.id,
+                    source_dag_id="src",
+                    source_run_id=f"r{index}",
+                    partition_key="2024-01-15",
+                )
+            )
         session.commit()
 
-        response = client.patch(
-            f"/execution/task-instances/{ti.id}/run",
-            json={
-                "state": "running",
-                "hostname": "h",
-                "unixname": "u",
-                "pid": 1,
-                "start_date": "2024-09-30T12:00:00Z",
-            },
-        )
+        with capture_orm_selects("dag_run") as run_queries:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
 
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
-        assert [e["partition_key"] for e in events] == ["2024-01-15"]
+        assert [e["partition_key"] for e in events] == ["2024-01-15"] * event_count
+        # The TI lock and legacy XCom lookup also join the run, besides metadata and event reads.
+        assert len(run_queries) == 4
+        assert sum("CAST(dag_run.conf" in query for query in run_queries) == 1
+        assert sum("dagrun_asset_event" in query for query in run_queries) == 1
 
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
@@ -830,10 +846,16 @@ class TestTIRunState:
         )
         session.commit()
 
-        # Patch only around the request so fixture setup above is untouched; force the DagRun
-        # lookup (the only scalars() call before the guard) to return None.
-        with mock.patch("sqlalchemy.orm.Session.scalars", autospec=True) as mock_scalars:
-            mock_scalars.return_value.unique.return_value.one_or_none.return_value = None
+        execute = Session.execute
+
+        def missing_run_lookup(request_session, statement, *args, **kwargs):
+            if isinstance(statement, Select) and statement.column_descriptions[0].get("expr") is DagRun:
+                result = mock.MagicMock(spec=Result)
+                result.unique.return_value.one_or_none.return_value = None
+                return result
+            return execute(request_session, statement, *args, **kwargs)
+
+        with mock.patch("sqlalchemy.orm.Session.execute", autospec=True, side_effect=missing_run_lookup):
             response = client.patch(
                 f"/execution/task-instances/{ti.id}/run",
                 json=self.RUN_PAYLOAD,
@@ -906,7 +928,7 @@ class TestTIRunState:
                 "state": "running",
                 "end_date": None,
                 "run_type": "manual",
-                "conf": {},
+                "conf": None,
                 "triggering_user_name": None,
                 "consumed_asset_events": [],
                 "partition_key": None,
@@ -921,6 +943,7 @@ class TestTIRunState:
             "connections": [],
             "xcom_keys_to_clear": [],
             "multi_team": False,
+            "serialized_dag_run_conf": "{}",
         }
         # upstream_map_indexes is now computed by Task SDK, not returned by the server in HEAD version
         assert "upstream_map_indexes" not in result
@@ -1586,6 +1609,7 @@ class TestTIRunState:
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
             "start_date": None,
+            "serialized_dag_run_conf": "{}",
         }
 
     @pytest.mark.parametrize("resume", [True, False])
@@ -1661,6 +1685,7 @@ class TestTIRunState:
             "multi_team": False,
             "next_method": "execute_complete",
             "next_kwargs": expected_next_kwargs,
+            "serialized_dag_run_conf": "{}",
         }
         session.expunge_all()
         ti = session.get(TaskInstance, ti.id)
@@ -6925,6 +6950,87 @@ class TestInvactiveInletsAndOutlets:
         assert response.status_code == 200, f"Response: {response.text}"
         context = response.json()
         assert context["dag_run"]["conf"] is None
+
+
+class TestSerializedTaskStartConf:
+    @pytest.mark.parametrize("version", ["2027-02-28", "2026-10-30", "2026-06-30", "2025-09-23"])
+    @pytest.mark.parametrize(
+        ("conf_value", "sql_null"),
+        [
+            pytest.param(None, False, id="json-null"),
+            pytest.param(None, True, id="sql-null"),
+            pytest.param({}, False, id="empty"),
+            pytest.param({"records": [{"value": False, "name": "\u03bb"}]}, False, id="nested"),
+        ],
+    )
+    def test_conf_transport_and_legacy_response(
+        self, client, session, create_task_instance, version, conf_value, sql_null
+    ):
+        ti = create_task_instance(state=State.QUEUED, dagrun_state=DagRunState.RUNNING, session=session)
+        ti.dag_run.conf = conf_value
+        session.commit()
+        if sql_null:
+            session.execute(update(DagRun).where(DagRun.id == ti.dag_run.id).values(conf=null()))
+            session.commit()
+        client.headers["Airflow-API-Version"] = version
+
+        with capture_orm_selects("dag_run") as statements:
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "pid": 100,
+                    "hostname": "test-hostname",
+                    "unixname": "test-user",
+                    "start_date": timezone.utcnow().isoformat(),
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        context = response.json()
+        if version == "2027-02-28":
+            assert context["dag_run"]["conf"] is None
+            if conf_value is None:
+                assert "serialized_dag_run_conf" not in context
+            else:
+                assert json.loads(context["serialized_dag_run_conf"]) == conf_value
+        else:
+            assert "serialized_dag_run_conf" not in context
+            expected = {} if conf_value is None and version == "2025-09-23" else conf_value
+            assert context["dag_run"]["conf"] == expected
+        conf_selects = [statement for statement in statements if "dag_run.conf" in statement]
+        assert len(conf_selects) == 1
+        assert "CAST(dag_run.conf AS TEXT)" in conf_selects[0]
+        assert conf_selects[0].count("dag_run.conf") == 2
+        session.refresh(ti.dag_run)
+        assert ti.dag_run.conf == conf_value
+
+    @pytest.mark.parametrize("version", ["2027-02-28", "2026-06-30"])
+    @pytest.mark.parametrize("invalid_conf", [[], 42, "secret-canary", True])
+    def test_invalid_conf_does_not_commit_running(
+        self, client, session, create_task_instance, version, invalid_conf
+    ):
+        ti = create_task_instance(state=State.QUEUED, dagrun_state=DagRunState.RUNNING, session=session)
+        ti.dag_run.conf = invalid_conf
+        session.commit()
+        client.headers["Airflow-API-Version"] = version
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "pid": 100,
+                "hostname": "test-hostname",
+                "unixname": "test-user",
+                "start_date": timezone.utcnow().isoformat(),
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"]["reason"] == "invalid_dag_run_conf"
+        assert "secret-canary" not in response.text
+        session.refresh(ti)
+        assert ti.state == State.QUEUED
 
 
 class TestTIPatchRenderedMapIndex:

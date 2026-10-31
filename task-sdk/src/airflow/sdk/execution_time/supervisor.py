@@ -149,6 +149,7 @@ from airflow.sdk.execution_time.comms import (
     _ResponseFrame,
 )
 from airflow.sdk.execution_time.coordinator import TaskLaunchError, get_coordinator_manager
+from airflow.sdk.execution_time.dag_run_conf import materialize_dag_run_conf
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
@@ -1135,10 +1136,20 @@ class WatchedSubprocess:
             del self._open_sockets[sock]
 
     def _serialize_response(self, msg: BaseModel | ErrorResponse, **dump_opts) -> dict[str, Any]:
+        foreign_startup = False
+        if self._subprocess_schema_version is not None and isinstance(msg, StartupDetails):
+            foreign_startup = True
+            # Foreign runtimes, including the current in-progress schema, still expect a dictionary.
+            context = msg.ti_context.model_copy(update={"dag_run": msg.ti_context.dag_run.model_copy()})
+            materialize_dag_run_conf(context)
+            msg = msg.model_copy(update={"ti_context": context})
         if self._subprocess_schema_version is not None:
             migrator = get_schema_version_migrator()
             msg = migrator.downgrade(msg, self._subprocess_schema_version, **dump_opts)
-        return msg.model_dump(**dump_opts)
+        body = msg.model_dump(**dump_opts)
+        if foreign_startup:
+            body["ti_context"].pop("serialized_dag_run_conf", None)
+        return body
 
     def send_msg(
         self,
@@ -1775,7 +1786,7 @@ class ActivitySubprocess(WatchedSubprocess):
         )
 
         # Send the message to tell the process what it needs to execute
-        log.debug("Sending", msg=msg)
+        log.debug("Sending task startup", ti_id=ti.id)
 
         try:
             self.send_msg(msg, request_id=0)
