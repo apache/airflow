@@ -719,6 +719,53 @@ The ``Client``
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the stored
    value when the Variable is read back. ``setVariable`` without a description clears the existing description.
 
+The Dag run conf
+~~~~~~~~~~~~~~~~
+
+``context.dagRun.conf`` is the conf the Dag run was triggered with. It is a ``Map``, and its values have the Java
+types listed in :ref:`the XCom type mapping <java-sdk/types>`. ``context.dagRun.getConf(type)`` reads the conf into
+an instance of a class with typed fields instead:
+
+.. code-block:: java
+
+    public static class EtlConf {
+      public String targetTable;
+      public int limit = 100;
+      public LocalDate since;
+    }
+
+    public class Load implements Task {
+      @Override
+      public void execute(Context context, Client client) {
+        EtlConf etl = context.dagRun.getConf(EtlConf.class);
+      }
+    }
+
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31"}``, ``etl.targetTable`` is
+``"sales"``, ``etl.since`` is ``LocalDate.of(2024, 1, 31)``, and ``etl.limit`` stays ``100``.
+
+* Each key goes to the field, setter or record component with the same name when case and underscores are
+  ignored, so ``target_table`` reaches ``targetTable``. Objects nested in the conf follow the same rule. The keys
+  of a ``Map`` field stay as written.
+* ``@ArgName`` has no effect on ``getConf``. Read a key that no Java name can match, such as ``target-table``,
+  from ``context.dagRun.conf``.
+* Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
+  key keeps its Java default.
+* The conf holds only the values that the run was triggered with. In a Python task, ``params`` combines the conf
+  with the defaults of the Dag's params. ``getConf`` does not add those defaults, so in a scheduled run, every
+  field keeps its Java default.
+* The class needs a no-argument constructor and public fields or setters, so a nested class must be ``static``.
+  A record also works. In Kotlin, declare the fields with ``@JvmField``, so that a property such as
+  ``isEnabled`` keeps its name.
+* ``getConf`` throws ``IllegalArgumentException`` when a value cannot be converted to the type of its field. It
+  also throws when two keys, such as ``target_table`` and ``TARGET_TABLE``, match the same field after case and
+  underscores are ignored but neither key matches the field name exactly. A primitive field cannot hold ``null``,
+  so ``getConf`` throws the same exception when a key holds ``null`` for a primitive field. To let a field
+  receive ``null``, declare it with a boxed type, such as ``Integer``.
+* ``getConf`` also throws ``IllegalArgumentException`` when the class has two fields whose names differ only in
+  case or underscores, such as ``targetTable`` and ``target_table``. It checks the class even when the conf is
+  empty, so a task that passes such a class fails in a scheduled run too.
+
 .. _java-sdk/task-state-store:
 
 Task state store
