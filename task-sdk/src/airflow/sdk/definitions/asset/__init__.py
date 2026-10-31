@@ -178,7 +178,6 @@ def _sanitize_uri(inp: str | ObjectStoragePath) -> str:
         netloc=normalized_netloc,
         path=parsed.path.rstrip("/") or "/",  # Remove all trailing slashes.
         query=normalized_query,
-        fragment="",  # Ignore any fragments.
     )
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
         parsed = normalizer(parsed)
