@@ -1175,6 +1175,23 @@ class TestDagFileProcessorManager:
 
         assert manager._file_queue == OrderedDict.fromkeys([known_file])
 
+    def test_max_runs_reached_ignores_versioned_callback_stat(self):
+        """A callback's versioned stat doesn't stand for a parse, so it doesn't hold back ``--num-runs``."""
+        manager = DagFileProcessorManager(max_runs=1)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+        manager._file_stats[known_file] = DagFileStat(run_count=1)
+        manager._num_run = 1
+        assert manager.max_runs_reached()
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = True
+        processor.parsing_result = None
+        manager.handle_parsing_result(versioned_file, processor)
+
+        assert manager._file_stats[versioned_file].run_count == 0
+        assert manager.max_runs_reached()
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
     def test_recently_modified_file_with_versioned_stat_does_not_create_duplicate_entries(
