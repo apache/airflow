@@ -1824,6 +1824,7 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
                         },
                         {
                             "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:40:00Z",
                             "status": "COMPLETED",
                             "conclusion": "SUCCESS",
                             "workflowRun": {
@@ -1863,7 +1864,12 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
     observations = fetch_fork_observations(client, [pr])
 
     assert observations[1] == ForkObservation(
-        suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url="new", run_id=77, run_attempt=2
+        suite_status="COMPLETED",
+        suite_conclusion="SUCCESS",
+        run_url="new",
+        run_id=77,
+        run_attempt=2,
+        completed_at=datetime(2026, 11, 2, 0, 40, tzinfo=UTC),
     )
     assert client.graphql.call_args.args[1] == {"o0": "someone", "n0": "my-airflow", "s0": "sha1"}
 
@@ -2478,6 +2484,7 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = "7:SUCCESS"
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
@@ -2587,6 +2594,7 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.side_effect = GitHubError("HTTP 502")
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
 
     assert _reconcile_with_reporter(client, tmp_path) is True
 
@@ -2599,6 +2607,7 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
 def test_run_reconcile_without_job_statuses(mock_classify, mock_reporter, client, tmp_path):
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
 
     _reconcile_with_reporter(client, tmp_path, config=dataclasses.replace(CONFIG, job_statuses=False))
 
@@ -2623,6 +2632,7 @@ def test_run_reconcile_reports_deferred_job_statuses_to_slack(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = deferred
+    mock_reporter.return_value.delayed = []
 
     assert _reconcile_with_reporter(client, tmp_path) is has_alerts
 
@@ -2643,6 +2653,7 @@ def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persist
     alerts = []
     for deferred in ([1], [1], [], [1], [1], [1]):
         mock_reporter.return_value.deferred = deferred
+        mock_reporter.return_value.delayed = []
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
     assert alerts == [False, False, False, False, False, True]
@@ -3170,6 +3181,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
     mock_report.return_value = [7, 8]
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
@@ -3192,7 +3204,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
 
     assert mock_classify.call_args.args[0].ci_run_at == datetime(2026, 11, 2, tzinfo=UTC)
     mock_report.assert_called_once_with(client, repo=REPO, skip={1})
-    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget)
+    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW)
     assert has_alerts is fails
     if fails:
         assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
@@ -3268,6 +3280,7 @@ def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.dry_run = False
     reported_file = tmp_path / "reported.json"
     reported_file.write_text("{}")
@@ -3279,3 +3292,52 @@ def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
     assert alerts == [False, False, False, True]
     assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
     assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2
+
+
+@pytest.mark.parametrize(
+    ("completed_minutes_ago", "delayed"),
+    [
+        pytest.param(61, True, id="finished-over-an-hour-ago"),
+        pytest.param(30, False, id="finished-recently"),
+        pytest.param(None, False, id="still-running"),
+    ],
+)
+def test_job_status_reporter_reports_statuses_deferred_long_after_the_run_finished(
+    client, completed_minutes_ago, delayed
+):
+    fork = dataclasses.replace(
+        COMPLETED_RUN,
+        completed_at=None
+        if completed_minutes_ago is None
+        else NOW - timedelta(minutes=completed_minutes_ago),
+    )
+    reporter = JobStatusReporter(client, repo=REPO, budget=0, now=NOW)
+
+    assert reporter.report(_pr(), fork) is None
+
+    assert reporter.deferred == [42]
+    assert reporter.delayed == (
+        [
+            (
+                42,
+                f"job statuses of fork run {fork.run_url} are still not all posted more than 1:00:00 after it finished",
+            )
+        ]
+        if delayed
+        else []
+    )
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_delayed_job_statuses_as_attention_items(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = [1]
+    mock_reporter.return_value.delayed = [(1, "job statuses of fork run R are still not all posted")]
+
+    assert _reconcile_with_reporter(client, tmp_path) is True
+
+    assert "job statuses of fork run R are still not all posted" in (tmp_path / "s.json").read_text()

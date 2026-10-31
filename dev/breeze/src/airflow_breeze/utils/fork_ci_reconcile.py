@@ -170,6 +170,9 @@ DEFERRED_RUNS_BEFORE_ALERT = 3
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
 RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+# A pull request whose fork run finished this long ago with job statuses still not all posted is
+# reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
+MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
 RATE_LIMITED_NOTE = (
     f"GitHub rate-limited the fork CI monitor in {RATE_LIMITED_RUNS_BEFORE_ALERT} runs in a row; the "
     "repository's shared GITHUB_TOKEN limits are close to exhausted. Consider `job_statuses = false` in "
@@ -285,6 +288,8 @@ class ForkObservation:
     run_url: str | None = None
     run_id: int | None = None
     run_attempt: int | None = None
+    # When the fork's check suite last changed, for a completed one when the run finished.
+    completed_at: datetime | None = None
     workflow_state: str | None = None
     error: str | None = None
 
@@ -1256,7 +1261,7 @@ def fetch_fork_observations(
             declarations.append(f"$o{index}: String!, $n{index}: String!, $s{index}: GitObjectID!")
             fields.append(
                 f"pr{index}: repository(owner: $o{index}, name: $n{index}) {{ object(oid: $s{index}) {{ "
-                "... on Commit { checkSuites(first: 30) { nodes { createdAt status conclusion "
+                "... on Commit { checkSuites(first: 30) { nodes { createdAt updatedAt status conclusion "
                 "workflowRun { databaseId runAttempt url event workflow { resourcePath } } } } } } }"
             )
             variables.update({f"o{index}": owner, f"n{index}": name, f"s{index}": pr.head_sha})
@@ -1287,6 +1292,11 @@ def fetch_fork_observations(
                 run_url=latest["workflowRun"]["url"],
                 run_id=latest["workflowRun"].get("databaseId"),
                 run_attempt=latest["workflowRun"].get("runAttempt"),
+                completed_at=(
+                    parse_github_datetime(latest.get("updatedAt") or "")
+                    if latest["status"] == "COMPLETED"
+                    else None
+                ),
             )
     return observations
 
@@ -1318,11 +1328,38 @@ def build_job_statuses(jobs: Iterable[dict[str, Any]]) -> dict[str, tuple[str, s
 class JobStatusReporter:
     """Reports each job of a pull request's fork run as a commit status, within a per-run budget."""
 
-    def __init__(self, client: GitHubClient, *, repo: str, budget: int = MAX_JOB_STATUSES_PER_RUN):
+    def __init__(
+        self,
+        client: GitHubClient,
+        *,
+        repo: str,
+        budget: int = MAX_JOB_STATUSES_PER_RUN,
+        now: datetime | None = None,
+    ):
+        """:param now: when given, deferring the statuses of a run that finished long ago is reported."""
         self._client = client
         self._repo = repo
+        self._now = now
         self.remaining = budget
         self.deferred: list[int] = []
+        # (pull request, attention item) for runs whose statuses are deferred long after they finished.
+        self.delayed: list[tuple[int, str]] = []
+
+    def _defer(self, pr: PullRequestSnapshot, fork: ForkObservation) -> None:
+        self.deferred.append(pr.number)
+        if (
+            self._now is not None
+            and fork.completed_at is not None
+            and self._now - fork.completed_at >= MIRROR_DELAY_BEFORE_ALERT
+        ):
+            # Fixed text per run, so it is posted to Slack once while the delay lasts.
+            self.delayed.append(
+                (
+                    pr.number,
+                    f"job statuses of fork run {fork.run_url} are still not all posted more than "
+                    f"{MIRROR_DELAY_BEFORE_ALERT} after it finished",
+                )
+            )
 
     def report(self, pr: PullRequestSnapshot, fork: ForkObservation) -> str | None:
         """
@@ -1346,7 +1383,7 @@ class JobStatusReporter:
         # Without writes left, the reads are spent for nothing: a backlog of hundreds of pull requests
         # would otherwise cost two reads each on every run.
         if self.remaining == 0:
-            self.deferred.append(pr.number)
+            self._defer(pr, fork)
             return None
         jobs = self._client.rest_get(
             f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
@@ -1382,7 +1419,7 @@ class JobStatusReporter:
         )
         for context, (state, target_url, description) in changes:
             if self.remaining == 0:
-                self.deferred.append(pr.number)
+                self._defer(pr, fork)
                 return None
             self._client.set_status(pr.number, pr.head_sha, state, target_url, description, context=context)
             # Charged per write, so writes made before a later one fails still count.
@@ -2188,7 +2225,7 @@ def run_reconcile(
             f"reporting `{CI_RUN_STARTED_CONTEXT}` for project CI failed: {type(e).__name__}"
         )
     job_reporter = JobStatusReporter(
-        client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0)
+        client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0), now=now
     )
 
     shared_heads = find_heads_shared_across_bases(prs)
@@ -2249,6 +2286,7 @@ def run_reconcile(
             unknown.append((listed.number, f"{type(e).__name__}: {e}"))
 
     attention.extend(bypass_finder.ambiguous)
+    attention.extend(job_reporter.delayed)
     notes = [bypass_finder.incomplete] if bypass_finder.incomplete else []
     if ci_run_started_note:
         notes.append(ci_run_started_note)

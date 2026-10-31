@@ -55,7 +55,8 @@ workflow of `apache/airflow` shares (see "Write budget" in
 If the budget is exceeded, turn the job statuses off: set `job_statuses = false` in
 `.github/fork-ci-gate.toml`. Signs that it is exceeded are the monitor's Slack note that job
 statuses "have not fit in the budget" (posted only after three runs in a row deferred them)
-staying for hours, its Slack note that GitHub rate-limited it in two runs in a row, the
+staying for hours, pull requests listed because their fork run finished more than an hour ago with
+job statuses still not posted, its Slack note that GitHub rate-limited it in two runs in a row, the
 "Rate limits left" line of its run log approaching zero, or other workflows of the repository
 failing on secondary rate limits. The aggregate `Fork CI / Tests (AMD)`
 status and `CI passed` are posted either way, so turning job statuses off loses detail, not gating.

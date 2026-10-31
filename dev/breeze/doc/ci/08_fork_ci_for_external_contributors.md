@@ -824,7 +824,11 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   requests, and only when three runs in a row deferred, about 45 minutes of the budget not
   keeping up, is a note added to the Slack message. The count is kept in the record the monitor
   carries between runs (`--reported-file`); without a readable record the note is added at once.
-  Its wording is fixed, so it is posted once while deferrals persist.
+  Its wording is fixed, so it is posted once while deferrals persist. A pull request whose fork run
+  finished more than an hour ago (the `updatedAt` of its completed check suite) and still has
+  statuses waiting is listed on its own as an attention item, so a delay that a busy backlog keeps
+  pushing back shows which pull request it holds up; the item names the run, so it is posted once
+  for that run.
 - Commit statuses cannot be deleted and have no neutral state. When a run has completed, a job
   context posted for an earlier run of the same commit that the completed run does not have, or
   skipped, is overwritten with `success` and the description "Not in the latest fork run - see
