@@ -350,7 +350,7 @@ class OpenSandboxBackend(SandboxBackend):
             if enforced.default_action != "deny" or allowed != wanted:
                 problem = (
                     f"the enforced policy is default {enforced.default_action!r} with allow "
-                    f"{sorted(allowed)}. The server may be running without its egress sidecar."
+                    f"{sorted(map(str, allowed))}. The server may be running without its egress sidecar."
                 )
             else:
                 mode = OpenSandboxBackend._get_egress_enforcement_mode(sandbox)
