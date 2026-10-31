@@ -773,6 +773,17 @@ workers:
       # This configuration will be ignored if PGBouncer is not enabled
       usePgbouncer: true
 
+      # Reference to a KEDA TriggerAuthentication (or ClusterTriggerAuthentication) holding
+      # the database connection for the scaler. When set, it is used instead of the connection
+      # the chart passes through the worker environment (connectionFromEnv / connectionStringFromEnv),
+      # and the worker no longer needs the kedaConnection key in the metadata Secret.
+      # The TriggerAuthentication must be created outside of this chart.
+      # For PostgreSQL use the "connection" parameter; for MySQL use "connectionString".
+      # authenticationRef:
+      #   name: airflow-keda-db
+      #   kind: TriggerAuthentication
+      authenticationRef: ~
+
     # Allow HPA for Airflow Celery workers (KEDA must be disabled)
     hpa:
       enabled: false

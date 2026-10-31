@@ -344,6 +344,62 @@ class TestKeda:
         )
         assert autoscaler_connection_env_var == "KEDA_DB_CONN"
 
+    def test_keda_authentication_ref_not_set_by_default(self):
+        docs = render_chart(
+            values={"workers": {"celery": {"keda": {"enabled": True}}}},
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.triggers[0].authenticationRef", docs[0]) is None
+
+    @pytest.mark.parametrize(
+        ("authentication_ref", "pgbouncer_enabled", "use_pgbouncer"),
+        [
+            ({"name": "airflow-keda-db"}, False, True),
+            ({"name": "airflow-keda-db"}, True, False),
+            ({"name": "airflow-keda-db", "kind": "ClusterTriggerAuthentication"}, False, True),
+        ],
+    )
+    def test_keda_authentication_ref_postgresql(self, authentication_ref, pgbouncer_enabled, use_pgbouncer):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": pgbouncer_enabled},
+                "workers": {
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "usePgbouncer": use_pgbouncer,
+                            "authenticationRef": authentication_ref,
+                        }
+                    }
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        trigger = jmespath.search("spec.triggers[0]", docs[0])
+        assert trigger["type"] == "postgresql"
+        assert trigger["authenticationRef"] == authentication_ref
+        assert "connectionFromEnv" not in trigger["metadata"]
+        assert trigger["metadata"]["targetQueryValue"] == "1"
+
+    def test_keda_authentication_ref_mysql(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql", "port": 3306}},
+                "workers": {
+                    "celery": {"keda": {"enabled": True, "authenticationRef": {"name": "airflow-keda-db"}}}
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+
+        trigger = jmespath.search("spec.triggers[0]", docs[0])
+        assert trigger["type"] == "mysql"
+        assert trigger["authenticationRef"] == {"name": "airflow-keda-db"}
+        assert "connectionStringFromEnv" not in trigger["metadata"]
+        assert trigger["metadata"]["queryValue"] == "1"
+
     @pytest.mark.parametrize(
         "queue",
         [
@@ -450,3 +506,35 @@ class TestKeda:
         assert "KEDA_DB_CONN" in self._env_names(triggerer)
         assert "KEDA_DB_CONN" not in self._env_names(worker)
         assert "KEDA_DB_CONN" not in self._env_names(scheduler)
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            {"data": {"metadataConnection": {"protocol": "mysql", "port": 3306}}},
+            {"pgbouncer": {"enabled": True}},
+        ],
+    )
+    def test_worker_keda_db_conn_not_set_with_authentication_ref(self, values):
+        docs = render_chart(
+            values={
+                **values,
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "celery": {
+                        "keda": {
+                            "enabled": True,
+                            "usePgbouncer": False,
+                            "authenticationRef": {"name": "airflow-keda-db"},
+                        }
+                    }
+                },
+                "triggerer": {"keda": {"enabled": True, "usePgbouncer": False}},
+            },
+            show_only=[
+                "templates/workers/worker-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+            ],
+        )
+        worker, triggerer = docs
+        assert "KEDA_DB_CONN" not in self._env_names(worker)
+        assert "KEDA_DB_CONN" in self._env_names(triggerer)

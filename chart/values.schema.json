@@ -1996,6 +1996,32 @@
                                     "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                                     "type": "boolean",
                                     "default": true
+                                },
+                                "authenticationRef": {
+                                    "description": "Reference to a KEDA TriggerAuthentication (or ClusterTriggerAuthentication) holding the database connection for the scaler. When set, it is used instead of the connection passed through the worker environment. The TriggerAuthentication must be created outside of this chart.",
+                                    "type": [
+                                        "null",
+                                        "object"
+                                    ],
+                                    "default": null,
+                                    "additionalProperties": false,
+                                    "required": [
+                                        "name"
+                                    ],
+                                    "properties": {
+                                        "name": {
+                                            "description": "Name of the TriggerAuthentication or ClusterTriggerAuthentication.",
+                                            "type": "string"
+                                        },
+                                        "kind": {
+                                            "description": "Kind of the referenced object.",
+                                            "type": "string",
+                                            "enum": [
+                                                "TriggerAuthentication",
+                                                "ClusterTriggerAuthentication"
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         },
