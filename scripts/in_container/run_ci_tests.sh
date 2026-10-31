@@ -28,6 +28,18 @@ set +e
 export PYTHONFAULTHANDLER="1"
 export PYTHONUNBUFFERED="1"
 
+# Breeze passes the JUnit XML path only as a pytest argument.
+RESULT_LOG_FILE=""
+for arg in "${@}"; do
+    if [[ ${arg} == --junitxml=* ]]; then
+        RESULT_LOG_FILE="${arg#--junitxml=}"
+    fi
+done
+# A report left by an earlier run would let a segfault pass the check below.
+if [[ -n ${RESULT_LOG_FILE} ]]; then
+    rm -f "${RESULT_LOG_FILE}"
+fi
+
 pytest "${@}"
 RES=$?
 
