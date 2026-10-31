@@ -669,6 +669,21 @@ def _match_any(column, value: str | Collection[str]) -> ColumnElement[bool]:
     return column == value if isinstance(value, str) else column.in_(value)
 
 
+def top_level_producer_filter(*, is_mapped: bool) -> ColumnElement[bool]:
+    """Match the task instances a producer outside any loop is read from: legacy rows and top-level regions."""
+    from airflow.models.taskinstance import TaskInstance
+
+    if not is_mapped:
+        return and_(TaskInstance.region_id == SENTINEL_REGION_ID, TaskInstance.region_index == -1)
+    top_level_region = (
+        select(DynamicRegion.id)
+        .where(DynamicRegion.id == TaskInstance.region_id, DynamicRegion.parent_region_id.is_(None))
+        .correlate(TaskInstance)
+        .exists()
+    )
+    return or_(TaskInstance.region_id == SENTINEL_REGION_ID, top_level_region)
+
+
 def _filter_producers(
     query: _SelectT,
     *,
@@ -695,16 +710,7 @@ def _filter_producers(
     if region_index is not None:
         query = query.where(TaskInstance.region_index == region_index)
     if top_level_only:
-        if is_mapped:
-            top_level_region = (
-                select(DynamicRegion.id)
-                .where(DynamicRegion.id == TaskInstance.region_id, DynamicRegion.parent_region_id.is_(None))
-                .correlate(TaskInstance)
-                .exists()
-            )
-            query = query.where(or_(TaskInstance.region_id == SENTINEL_REGION_ID, top_level_region))
-        else:
-            query = query.where(TaskInstance.region_id == SENTINEL_REGION_ID, TaskInstance.region_index == -1)
+        query = query.where(top_level_producer_filter(is_mapped=is_mapped))
     if map_indexes is None:
         return query
     if not is_mapped:

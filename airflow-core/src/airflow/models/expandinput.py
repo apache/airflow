@@ -131,13 +131,24 @@ class SchedulerDictOfListsExpandInput:
         If any arguments are not known right now (upstream task not finished),
         they will not be present in the dict.
         """
-        from airflow.serialization.definitions.xcom_arg import SchedulerXComArg, get_task_map_length
+        from airflow.serialization.definitions.xcom_arg import (
+            SchedulerXComArg,
+            get_task_map_length,
+            prefetch_map_lengths,
+        )
 
-        # TODO: This initiates one database call for each XComArg. Would it be
-        # more efficient to do one single db call and unpack the value here?
+        lengths = prefetch_map_lengths(
+            (v for v in self.value.values() if isinstance(v, SchedulerXComArg)),
+            run_id,
+            producer_contexts=producer_contexts,
+            session=session,
+        )
+
         def _get_length(v: ExpandArgument) -> int | None:
             if isinstance(v, SchedulerXComArg):
-                return get_task_map_length(v, run_id, session=session, producer_contexts=producer_contexts)
+                return get_task_map_length(
+                    v, run_id, lengths=lengths, producer_contexts=producer_contexts, session=session
+                )
 
             # Unfortunately a user-defined TypeGuard cannot apply negative type
             # narrowing. https://github.com/python/typing/discussions/1013
@@ -197,11 +208,16 @@ class SchedulerListOfDictsExpandInput:
         session: Session,
         producer_contexts: Mapping[str, ProducerContext] | None = None,
     ) -> int:
-        from airflow.serialization.definitions.xcom_arg import get_task_map_length
+        from airflow.serialization.definitions.xcom_arg import get_task_map_length, prefetch_map_lengths
 
         if isinstance(self.value, Sized):
             return len(self.value)
-        length = get_task_map_length(self.value, run_id, session=session, producer_contexts=producer_contexts)
+        lengths = prefetch_map_lengths(
+            [self.value], run_id, producer_contexts=producer_contexts, session=session
+        )
+        length = get_task_map_length(
+            self.value, run_id, lengths=lengths, producer_contexts=producer_contexts, session=session
+        )
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
