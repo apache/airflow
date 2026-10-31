@@ -2929,6 +2929,9 @@ pgbouncer:
   # Launch additional containers into PgBouncer pod.
   extraContainers: []
 
+  # Add additional init containers into PgBouncer pod (templated).
+  extraInitContainers: []
+
   # Select certain nodes for PgBouncer pods.
   nodeSelector: {}
   affinity: {}
