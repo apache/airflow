@@ -53,6 +53,7 @@ from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, CronPartitionTimetable, PartitionedAssetTimetable
 from airflow.ti_deps.dep_context import DepContext
 from airflow.timetables.base import DagRunInfo, DataInterval
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -284,6 +285,111 @@ def test_create_backfill_keeps_dag_row_available_until_runs_are_created(
     session.expire_all()
     assert session.get(DagModel, dag.dag_id).scheduling_state == DagSchedulingState.DRAINING
     assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.backfill_id == backfill.id))
+
+
+def test_create_backfill_commits_atomically(dag_maker, session, monkeypatch):
+    """Backfill row and its Dag runs must become visible in a single commit (#64534)."""
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    commit_count = 0
+    real_commit = Session.commit
+
+    def counting_commit(self):
+        nonlocal commit_count
+        commit_count += 1
+        return real_commit(self)
+
+    monkeypatch.setattr(Session, "commit", counting_commit)
+    _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+    )
+    assert commit_count == 1
+
+
+@pytest.mark.parametrize("partitioned", [False, True])
+@mock.patch("airflow.models.backfill._create_runs_partitioned", autospec=True)
+@mock.patch("airflow.models.backfill._create_runs_non_partitioned", autospec=True)
+def test_create_backfill_leaves_no_orphan_when_run_creation_fails(
+    mock_non_partitioned, mock_partitioned, partitioned, dag_maker, session
+):
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+    (mock_partitioned if partitioned else mock_non_partitioned).side_effect = RuntimeError(
+        "run creation failed"
+    )
+
+    with pytest.raises(RuntimeError):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    session.expire_all()
+    assert (
+        session.scalar(select(func.count()).select_from(Backfill).where(Backfill.dag_id == dag.dag_id)) == 0
+    )
+    assert session.scalar(select(func.count()).select_from(BackfillDagRun)) == 0
+
+
+@pytest.mark.parametrize("partitioned", [False, True])
+@mock.patch("airflow.models.backfill._create_runs_partitioned", autospec=True)
+@mock.patch("airflow.models.backfill._create_runs_non_partitioned", autospec=True)
+def test_create_backfill_rechecks_for_competing_backfill_before_commit(
+    mock_non_partitioned, mock_partitioned, partitioned, dag_maker, session
+):
+    """A backfill committed by a concurrent request mid-creation must abort this one (#64534)."""
+    if session.get_bind().dialect.name == "sqlite":
+        pytest.skip("SQLite serializes writers, so a second session cannot commit mid-creation")
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    def commit_competing_backfill(**kwargs):
+        with create_session() as competing_session:
+            competing_session.add(
+                Backfill(
+                    dag_id=dag.dag_id,
+                    from_date=pendulum.parse("2021-01-01"),
+                    to_date=pendulum.parse("2021-01-05"),
+                    max_active_runs=2,
+                    dag_run_conf={},
+                    reprocess_behavior=ReprocessBehavior.NONE,
+                )
+            )
+
+    (mock_partitioned if partitioned else mock_non_partitioned).side_effect = commit_competing_backfill
+
+    with pytest.raises(AlreadyRunningBackfill):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    session.expire_all()
+    assert (
+        session.scalar(select(func.count()).select_from(Backfill).where(Backfill.dag_id == dag.dag_id)) == 1
+    )
 
 
 @pytest.mark.parametrize("run_on_latest_version", [True, False])

@@ -38,12 +38,12 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     case,
-    delete,
+    exists,
     func,
     select,
     text,
 )
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -54,7 +54,6 @@ from airflow.utils.db import get_dialect_name
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     UtcDateTime,
-    is_lock_not_available_error,
     with_row_locks,
 )
 from airflow.utils.state import DagRunState
@@ -741,54 +740,53 @@ def _create_backfill(
             triggering_user_name=triggering_user_name,
         )
         session.add(backfill)
-        # Commit immediately so the backfill is visible to concurrent requests
-        # checking num_active backfills, preventing duplicate active backfills
-        # for the same dag.
-        session.commit()
-
-        session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one()
+        # Flush to assign the id referenced by BackfillDagRun rows; the row
+        # only becomes visible when create_session commits, so the scheduler
+        # can never observe a backfill without its Dag runs.
+        session.flush()
 
         first_info = dagrun_info_list[0]
-        try:
-            if first_info.partition_key:
-                _create_runs_partitioned(
-                    backfill=backfill,
-                    dag=dag,
-                    dagrun_info_list=dagrun_info_list,
-                    session=session,
+        if first_info.partition_key:
+            _create_runs_partitioned(
+                backfill=backfill,
+                dag=dag,
+                dagrun_info_list=dagrun_info_list,
+                session=session,
+            )
+        else:
+            _create_runs_non_partitioned(
+                backfill=backfill,
+                dag=dag,
+                dagrun_info_list=dagrun_info_list,
+                run_on_latest_version=run_on_latest_version,
+                session=session,
+            )
+        # Lock the Dag row until commit: a concurrent creation for the same
+        # Dag blocks here, then sees this committed backfill in the re-check
+        # below instead of creating a duplicate.
+        session.scalars(
+            with_row_locks(
+                select(DagModel).where(DagModel.dag_id == dag_id),
+                session=session,
+                key_share=False,
+            )
+        ).one()
+        if drain_dag:
+            DagModel.start_drain(dag_id, session=session)
+        if session.scalar(
+            select(
+                exists().where(
+                    Backfill.dag_id == dag_id,
+                    Backfill.completed_at.is_(None),
+                    Backfill.id != backfill.id,
                 )
-            else:
-                _create_runs_non_partitioned(
-                    backfill=backfill,
-                    dag=dag,
-                    dagrun_info_list=dagrun_info_list,
-                    run_on_latest_version=run_on_latest_version,
-                    session=session,
-                )
-            if drain_dag:
-                DagModel.start_drain(dag_id, session=session)
-        except OperationalError as e:
-            if is_lock_not_available_error(e):
-                # Lock error: clean up the orphan so the user can retry. The
-                # helper is best-effort; if it fails the original error still
-                # surfaces and the route returns 503.
-                _cleanup_partial_backfill(backfill, session)
-            raise
+            )
+        ):
+            raise AlreadyRunningBackfill(
+                f"Another backfill is running for Dag {dag_id}. "
+                f"There can be only one running backfill per Dag."
+            )
     return backfill
-
-
-def _cleanup_partial_backfill(backfill: Backfill, session: Session) -> None:
-    """Best-effort removal of a partially-created backfill after a lock error."""
-    from airflow.models.dagrun import DagRun
-
-    try:
-        session.rollback()
-        session.execute(delete(BackfillDagRun).where(BackfillDagRun.backfill_id == backfill.id))
-        session.execute(delete(DagRun).where(DagRun.backfill_id == backfill.id))
-        session.delete(backfill)
-        session.commit()
-    except Exception:
-        session.rollback()
 
 
 def _create_runs_partitioned(
