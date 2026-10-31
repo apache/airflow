@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import time
 import urllib.parse
 import warnings
 from collections.abc import Sequence
@@ -26,7 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 from botocore.exceptions import BotoCoreError, ClientError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
+from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError, GlueJobRunStopTimeoutError
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -60,6 +61,8 @@ JOB_RUN_SUCCESS_STATES = ("SUCCEEDED",)
 JOB_RUN_TERMINAL_STATES = (*JOB_RUN_SUCCESS_STATES, "STOPPED", "FAILED", "TIMEOUT", "ERROR", "EXPIRED")
 # Synthetic state for a run id Glue no longer knows about, so a retry submits fresh rather than failing.
 NOT_FOUND_STATE = "NOT_FOUND"
+# Upper bound on waiting for a previous run to leave STOPPING before a fresh run is submitted.
+PREVIOUS_JOB_RUN_STOP_TIMEOUT_SECONDS = 600
 
 
 class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
@@ -94,7 +97,9 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
     :param replace_script_file: If True, the script file will be replaced in S3. (default: False)
-    :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
+    :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed. In
+        deferrable mode this requires Airflow 3.3+, and with ``durable`` a retried or cleared task stops
+        its previous run and waits for it to end before starting a new one, instead of reconnecting to it.
     :param sleep_before_return: time in seconds to wait before returning final status. This is meaningful in case
         of limiting concurrency, Glue needs 5-10 seconds to clean up resources.
         Thus if status is returned immediately it might end up in case of more than 1 concurrent run.
@@ -342,6 +347,7 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
                     region_name=self.region_name,
                     verify=self.verify,
                     botocore_config=self.botocore_config,
+                    stop_job_run_on_kill=self.stop_job_run_on_kill,
                 ),
                 method_name="execute_complete",
             )
@@ -451,13 +457,26 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
     def submit_job(self, context: Context) -> str:
         """Start a Glue job run and return its run id, or reconnect to one this task already started."""
         script_args = self._build_script_args(context)
+        if (
+            AIRFLOW_V_3_3_PLUS
+            and self.deferrable
+            and self.durable
+            and self.stop_job_run_on_kill
+            and context["ti"].try_number > 1
+        ):
+            # The trigger's on_kill stops the previous run on any user action, and it cannot tell a
+            # clear (which re-runs the task) from mark failed/success. Reattaching would wait on a
+            # run that on_kill is stopping, so stop it here and start fresh instead.
+            previous_job_run_id = self._find_previous_job_run(context, script_args[self.TASK_UUID_ARG])
+            if previous_job_run_id:
+                self._stop_job_run_and_wait(previous_job_run_id)
         # Scan only when there's nothing else to go on: first attempt, no store, or a store that
         # never recorded this key. The store check itself is skipped on the deferrable path, where
         # nothing is ever written to it -- a store error there would otherwise block the scan.
         # Deferrable retries could reconnect via task_state_store too, avoiding this scan entirely,
         # if ResumableJobMixin exposed its reconnect decision apart from its polling loop;
         # tracked at https://github.com/apache/airflow/issues/71485.
-        if (
+        elif (
             self.durable
             and (self.deferrable or not AIRFLOW_V_3_3_PLUS)
             and context["ti"].try_number > 1
@@ -479,6 +498,32 @@ class GlueJobOperator(ResumableJobMixin, AwsBaseOperator[GlueJobHook]):
         # Set before polling so on_kill can stop the run even if the worker dies immediately after.
         self._set_job_run_id(context, glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
+
+    def _stop_job_run_and_wait(self, job_run_id: str) -> None:
+        """
+        Stop a job run and wait until it is terminal.
+
+        A STOPPING run still counts toward MaxConcurrentRuns, so submitting before then would fail.
+        """
+        self.log.info(
+            "Stopping previous AWS Glue job %s run %s before starting a new one.", self.job_name, job_run_id
+        )
+        response = self.hook.conn.batch_stop_job_run(JobName=self.job_name, JobRunIds=[job_run_id])
+        if response.get("Errors"):
+            # The trigger's on_kill may already have stopped it, or it may have just finished.
+            self.log.info("Stop request for run %s returned errors: %s", job_run_id, response["Errors"])
+        deadline = time.monotonic() + PREVIOUS_JOB_RUN_STOP_TIMEOUT_SECONDS
+        while True:
+            state = self.hook.get_job_state(self.job_name, job_run_id)
+            if state in JOB_RUN_TERMINAL_STATES:
+                self.log.info("Previous AWS Glue job run %s reached %s.", job_run_id, state)
+                return
+            if time.monotonic() >= deadline:
+                raise GlueJobRunStopTimeoutError(
+                    f"Previous AWS Glue job {self.job_name} run {job_run_id} is still {state} "
+                    f"{PREVIOUS_JOB_RUN_STOP_TIMEOUT_SECONDS}s after being stopped; not starting a new run."
+                )
+            time.sleep(self.job_poll_interval)
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """Query the raw job run state; a run id Glue no longer knows about degrades to NOT_FOUND."""

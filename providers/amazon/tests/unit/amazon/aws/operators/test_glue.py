@@ -30,7 +30,7 @@ from moto import mock_aws
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError
+from airflow.providers.amazon.aws.exceptions import GlueJobRunStoppedError, GlueJobRunStopTimeoutError
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -233,6 +233,28 @@ class TestGlueJobOperator:
         assert serialized["verify"] is False
         assert serialized["botocore_config"] == botocore_config
 
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_execute_deferrable_forwards_stop_job_run_on_kill_to_trigger(self, _, mock_initialize_job):
+        """stop_job_run_on_kill must reach the trigger so a cleared deferred task can stop the run."""
+        glue = GlueJobOperator(
+            durable=False,
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": JOB_RUN_ID}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock.MagicMock(try_number=1)})
+
+        _, serialized = defer.value.trigger.serialize()
+        assert serialized["stop_job_run_on_kill"] is True
+
     @mock.patch.object(GlueJobHook, "conn", new_callable=mock.PropertyMock)
     @mock.patch.object(GlueJobHook, "initialize_job")
     @mock.patch.object(GlueJobHook, "get_conn")
@@ -404,6 +426,123 @@ class TestGlueJobOperator:
             glue.execute({"ti": mock_ti})
 
         mock_initialize_job.assert_not_called()
+
+    @staticmethod
+    def _make_retry_with_running_previous_run(glue: GlueJobOperator) -> mock.MagicMock:
+        mock_ti = mock.MagicMock()
+        mock_ti.dag_id = DAG_ID
+        mock_ti.task_id = TASK_ID
+        mock_ti.run_id = "manual__2024-01-01T00:00:00+00:00"
+        mock_ti.map_index = -1
+        mock_ti.try_number = 2
+        mock_ti.xcom_pull.return_value = None
+        task_uuid = f"{mock_ti.dag_id}:{mock_ti.task_id}:{mock_ti.run_id}:{mock_ti.map_index}"
+        glue.hook.conn = mock.MagicMock()
+        glue.hook.conn.get_job_runs.return_value = {
+            "JobRuns": [
+                {
+                    "Id": JOB_RUN_ID,
+                    "Arguments": {GlueJobOperator.TASK_UUID_ARG: task_uuid},
+                    "JobRunState": "RUNNING",
+                }
+            ]
+        }
+        return mock_ti
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the trigger's on_kill only runs on Airflow 3.3+")
+    @pytest.mark.parametrize(
+        ("stop_response", "states_after_stop"),
+        [
+            pytest.param(
+                {"SuccessfulSubmissions": [{"JobRunId": JOB_RUN_ID}]},
+                ["STOPPING", "STOPPED"],
+                id="stopped_here",
+            ),
+            pytest.param(
+                {"Errors": [{"JobRunId": JOB_RUN_ID}]}, ["STOPPED"], id="already_stopped_by_on_kill"
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.operators.glue.time.sleep")
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_with_stop_job_run_on_kill_stops_previous_run_and_starts_fresh(
+        self,
+        mock_get_conn,
+        mock_initialize_job,
+        mock_get_job_state,
+        mock_sleep,
+        stop_response,
+        states_after_stop,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            deferrable=True,
+            durable=True,
+            stop_job_run_on_kill=True,
+        )
+        mock_ti = self._make_retry_with_running_previous_run(glue)
+        glue.hook.conn.batch_stop_job_run.return_value = stop_response
+        mock_get_job_state.side_effect = states_after_stop
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": "22222"}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock_ti})
+
+        glue.hook.conn.batch_stop_job_run.assert_called_once_with(JobName=JOB_NAME, JobRunIds=[JOB_RUN_ID])
+        assert mock_get_job_state.call_count == len(states_after_stop)
+        mock_initialize_job.assert_called_once()
+        assert defer.value.trigger.run_id == "22222"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the trigger's on_kill only runs on Airflow 3.3+")
+    @mock.patch("airflow.providers.amazon.aws.operators.glue.PREVIOUS_JOB_RUN_STOP_TIMEOUT_SECONDS", 0)
+    @mock.patch.object(GlueJobHook, "get_job_state", return_value="STOPPING")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_with_stop_job_run_on_kill_raises_when_previous_run_does_not_stop(
+        self, mock_get_conn, mock_initialize_job, mock_get_job_state
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            deferrable=True,
+            stop_job_run_on_kill=True,
+        )
+        mock_ti = self._make_retry_with_running_previous_run(glue)
+        glue.hook.conn.batch_stop_job_run.return_value = {}
+
+        with pytest.raises(GlueJobRunStopTimeoutError, match="is still STOPPING"):
+            glue.execute({"ti": mock_ti})
+
+        mock_initialize_job.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the trigger's on_kill only runs on Airflow 3.3+")
+    @mock.patch.object(GlueJobHook, "initialize_job")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_deferrable_retry_with_stop_job_run_on_kill_without_durable_starts_fresh(
+        self, mock_get_conn, mock_initialize_job
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            deferrable=True,
+            durable=False,
+            stop_job_run_on_kill=True,
+        )
+        mock_ti = self._make_retry_with_running_previous_run(glue)
+        mock_initialize_job.return_value = {"JobRunState": "RUNNING", "JobRunId": "22222"}
+
+        with pytest.raises(TaskDeferred) as defer:
+            glue.execute({"ti": mock_ti})
+
+        glue.hook.conn.batch_stop_job_run.assert_not_called()
+        assert GlueJobOperator.TASK_UUID_ARG not in mock_initialize_job.call_args[0][0]
+        assert defer.value.trigger.run_id == "22222"
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
