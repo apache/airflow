@@ -2506,7 +2506,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
         self.openlineage_inject_transport_info = openlineage_inject_transport_info
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> dict[str, Any]:
         if self.asynchronous and self.deferrable:
             raise AirflowException(
                 "Both asynchronous and deferrable parameters were passed. Please, provide only one."
@@ -2574,6 +2574,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             return Batch.to_dict(batch)
 
         if self.deferrable:
+            defer_timeout = None
+            if self.execution_timeout:
+                deadline = context["ti"].start_date + self.execution_timeout
+                defer_timeout = max(deadline - timezone.utcnow(), timedelta(0))
             self.defer(
                 trigger=DataprocBatchTrigger(
                     batch_id=batch_id,
@@ -2584,6 +2588,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
                     polling_interval_seconds=self.polling_interval_seconds,
                 ),
                 method_name="execute_complete",
+                timeout=defer_timeout,
             )
 
         self.log.info("Waiting for the completion of batch job %s", batch_id)
