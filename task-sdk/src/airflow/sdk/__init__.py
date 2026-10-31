@@ -279,6 +279,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "DeltaDataIntervalTimetable": (".definitions.timetables.interval", "DeltaDataIntervalTimetable"),
     "DeltaTriggerTimetable": (".definitions.timetables.trigger", "DeltaTriggerTimetable"),
     "EdgeModifier": (".definitions.edges", "EdgeModifier"),
+    "emit_dag_warning": (".definitions.parse_warning", "emit_dag_warning"),
     "EventsTimetable": (".definitions.timetables.events", "EventsTimetable"),
     "ExceptionRetryPolicy": (".definitions.retry_policy", "ExceptionRetryPolicy"),
     "FanOutMapper": (".definitions.partition_mappers.temporal", "FanOutMapper"),
