@@ -133,6 +133,46 @@ class TestCliVariableCommands:
         assert "Invalid variable file:" in output
         assert expected_json_path.as_posix() in output
 
+    @pytest.mark.parametrize(
+        ("variable_file", "expected_key", "expected_reason"),
+        [
+            (
+                {"my_key": {"value": "v", "description": 5}},
+                "'my_key'",
+                "description: Input should be a valid string",
+            ),
+            ({" ": "v"}, "' '", "key: String should match pattern '\\S'"),
+            ({"k" * 251: "v"}, f"'{'k' * 251}'", "key: String should have at most 250 characters"),
+        ],
+        ids=["non-string-description", "blank-key", "too-long-key"],
+    )
+    def test_import_reports_invalid_variable(
+        self, tmp_path, monkeypatch, capsys, variable_file, expected_key, expected_reason
+    ):
+        monkeypatch.chdir(tmp_path)
+        expected_json_path = tmp_path / self.export_file_name
+        expected_json_path.write_text(json.dumps(variable_file))
+        bulk_called = False
+
+        def bulk(variables):
+            nonlocal bulk_called
+            bulk_called = True
+
+        api_client = SimpleNamespace(variables=SimpleNamespace(bulk=bulk))
+
+        with pytest.raises(SystemExit) as exit_info:
+            variable_command.import_(
+                self.parser.parse_args(["variables", "import", expected_json_path.as_posix()]),
+                api_client=api_client,
+            )
+
+        assert exit_info.value.code == 1
+        output = " ".join(capsys.readouterr().out.split())
+        assert (
+            f"Invalid variable {expected_key} in {expected_json_path.as_posix()}: {expected_reason}" in output
+        )
+        assert not bulk_called
+
     def test_import_error(self, api_client_maker, tmp_path, monkeypatch):
         api_client = api_client_maker(
             path="/api/v2/variables",
