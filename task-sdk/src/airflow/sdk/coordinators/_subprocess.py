@@ -47,12 +47,12 @@ import attrs
 import psutil
 import structlog
 
-from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
+from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
@@ -605,29 +605,6 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         return super()._handle_set_task_state_store(msg, log, req_id)
 
 
-def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
-    """
-    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
-
-    A bundle resolved without a version points at the bundle's shared, mutable
-    checkout: another task refreshing the same bundle resets it underneath a running
-    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
-    lock is a no-op. Re-resolving at the version current now yields a private
-    ``versions/<version>`` tree that the lock does cover.
-
-    Bundles that do not track versions have nothing to pin and keep their single path.
-    """
-    bundle = initialize_ti_bundle(target)
-    if bundle.version is not None:
-        return bundle
-
-    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-    if version is None:
-        return bundle
-    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
-    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
-
-
 def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
     """
     Materialize the Dag bundle of *bundle_info*, pinned to a concrete version.
@@ -638,7 +615,7 @@ def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> Ba
     """
     cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
     try:
-        bundle = _initialize_pinned_bundle(bundle_info, logger)
+        bundle = initialize_pinned_bundle(bundle_info, logger)
     except Exception as e:
         raise TaskLaunchError(f"{cannot_read}: {e}") from e
     try:

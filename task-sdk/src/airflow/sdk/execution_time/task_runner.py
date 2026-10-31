@@ -1670,7 +1670,7 @@ def _run_task_and_map_outcome(
                 return state, msg, error
 
             try:
-                result = _execute_task(context=context, ti=ti, log=log)
+                result = _TaskRunner.run(ti, context, log)
                 log.info("::group::Post Execute")
             except Exception:
                 import jinja2
@@ -2361,52 +2361,108 @@ def _run_execute_callable(
     return result
 
 
-@detail_span("_execute_task")
-def _execute_task(context: Context, ti: RuntimeTaskInstance, log: Logger):
-    """Execute Task (optionally with a Timeout) and push Xcom results."""
-    task = ti.task
-    execute = task.execute
+class _TaskRunner:
+    """
+    Run a task instance and return its result.
 
-    if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
-        from airflow.sdk.serde import deserialize
+    Only :meth:`run` is meant to be called from outside. It selects how the task
+    runs and delegates. A stub task goes to its registered handler; a concrete
+    operator to its ``execute`` lifecycle (:meth:`_run_operator`).
 
-        next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
-        try:
+    .. note::
+
+        Ideally, the stub-or-not dispatching should live with the coordinator
+        dispatch. A coordinator is picked by queue, then either runs the handler
+        (if stub) or the (non-stub) task. This requires a larger refactor and is
+        deferred to a future PR.
+
+    .. seealso:: Language SDK ADR-0002.
+    """
+
+    @classmethod
+    @detail_span("_execute_task")
+    def run(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Run the task specified by *ti* with *context*."""
+        if ti.task.is_stub:
+            return cls._run_handler(ti, context, log)
+        return cls._run_operator(ti, context, log)
+
+    @classmethod
+    def _run_operator(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Execute a concrete operator."""
+        task = ti.task
+        execute = task.execute
+
+        if ti._ti_context_from_server and (next_method := ti._ti_context_from_server.next_method):
+            from airflow.sdk.serde import deserialize
+
+            next_kwargs_data = ti._ti_context_from_server.next_kwargs or {}
+            try:
+                if TYPE_CHECKING:
+                    assert isinstance(next_kwargs_data, dict)
+                kwargs = deserialize(next_kwargs_data)
+            except (ImportError, KeyError, AttributeError, TypeError):
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                kwargs = BaseSerialization.deserialize(next_kwargs_data)
+
             if TYPE_CHECKING:
-                assert isinstance(next_kwargs_data, dict)
-            kwargs = deserialize(next_kwargs_data)
-        except (ImportError, KeyError, AttributeError, TypeError):
-            from airflow.serialization.serialized_objects import BaseSerialization
+                assert isinstance(kwargs, dict)
+            execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
 
-            kwargs = BaseSerialization.deserialize(next_kwargs_data)
+        # Export context in os.environ to make it available for operators to use.
+        airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
+        os.environ.update(airflow_context_vars)
 
-        if TYPE_CHECKING:
-            assert isinstance(kwargs, dict)
-        execute = functools.partial(task.resume_execution, next_method=next_method, next_kwargs=kwargs)
+        outlet_events = context_get_outlet_events(context)
 
-    # Export context in os.environ to make it available for operators to use.
-    airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
-    os.environ.update(airflow_context_vars)
+        if (pre_execute_hook := task._pre_execute_hook) is not None:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
+            create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
 
-    outlet_events = context_get_outlet_events(context)
+        _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
 
-    if (pre_execute_hook := task._pre_execute_hook) is not None:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
-    if getattr(pre_execute_hook := task.pre_execute, "__func__", None) is not BaseOperator.pre_execute:
-        create_executable_runner(pre_execute_hook, outlet_events, logger=log).run(context)
+        log.info("::endgroup::")
 
-    _run_task_state_change_callbacks(task, "on_execute_callback", context, log)
+        result = _run_execute_callable(context, execute, task)
 
-    log.info("::endgroup::")
+        if (post_execute_hook := task._post_execute_hook) is not None:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
+        if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
+            create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
 
-    result = _run_execute_callable(context, execute, task)
+        return result
 
-    if (post_execute_hook := task._post_execute_hook) is not None:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context, result)
-    if getattr(post_execute_hook := task.post_execute, "__func__", None) is not BaseOperator.post_execute:
-        create_executable_runner(post_execute_hook, outlet_events, logger=log).run(context)
+    @classmethod
+    def _run_handler(cls, ti: RuntimeTaskInstance, context: Context, log: Logger):
+        """Run a stub task's registered Python task handler."""
+        from airflow.sdk.coordinators.python import PythonCoordinator
+        from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+        from airflow.sdk.task_handlers import call_handler
 
-    return result
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
+        if not isinstance(coordinator, PythonCoordinator):
+            raise RuntimeError(
+                f"No task handler for ({ti.dag_id!r}, {ti.task_id!r}); "
+                f"{type(coordinator).__name__} does not run Python task handlers."
+            )
+        if (handler := coordinator.resolve_handler(ti.dag_id, ti.task_id, bundle=ti.bundle_instance)) is None:
+            raise RuntimeError(
+                f"No task handler for ({ti.dag_id!r}, {ti.task_id!r}); check the "
+                "coordinator's task_handler_bundle_name bundle."
+            )
+
+        def _invoke(context: Context) -> Any:
+            return call_handler(
+                handler,
+                ctx.arg_bindings if (ctx := ti._ti_context_from_server) else None,
+                lambda task_id, key: ti.xcom_pull(task_ids=task_id, key=key),
+            )
+
+        log.info("Running Python task handler", dag_id=ti.dag_id, task_id=ti.task_id)
+        return _run_execute_callable(context, _invoke, ti.task)
 
 
 def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) -> str | None:

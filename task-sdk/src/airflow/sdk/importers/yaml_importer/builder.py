@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, cast
 
 import attrs
 import pendulum
+import structlog
 from dateutil.relativedelta import relativedelta
 
 from airflow.sdk import DAG, BaseOperator, XComArg, literal, task as task_decorators
@@ -64,7 +65,7 @@ from airflow.sdk.importers.yaml_importer.models import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.importers.base import DagDefinition
@@ -78,6 +79,8 @@ class YamlDagBuildError(ValueError):
 _BASE_TASK_ARGS = frozenset(BaseOperator.__init__._BaseOperatorMeta__param_names)  # type: ignore[attr-defined]
 _UNSUPPORTED_TASK_ARGS = frozenset({"task_id", "dag", "task_group", "default_args"})
 _MARKER_KEYS = frozenset({*XCOM_KEYS, *TEMPLATE_KEYS, *FILE_KEYS, CONST_KEY})
+
+log = structlog.get_logger(__name__)
 
 
 @attrs.define(kw_only=True)
@@ -105,10 +108,63 @@ class DagBuilder:
             for task in doc.tasks:
                 for upstream in sorted(task.get_dependency_ids()):
                     self._operators[upstream] >> self._operators[task.id_]
+        self._validate_stub_handlers(doc)
         dag.bundle_name = self._bundle.name
         dag.fileloc = repr(self._definition)
         dag.relative_fileloc = self._definition.get_relative_loc(self._bundle.path)
         return dag
+
+    def _validate_stub_handlers(self, doc: DagDocument) -> None:
+        """
+        Check each ``run:`` task's arguments against its handler.
+
+        This implements the interface defined in AIP-108 and Language SDK
+        ADR-0011. The routed coordinator is queried to obtain the handler's
+        signature and compared against the ``run:`` arguments. Mismatches are
+        collected and raised together as a :class:`YamlDagBuildError`,
+        eventually recorded as an import error.
+
+        Validation is skipped when no declaration is available (no handler
+        bundle or an unregistered handler), or resolving one fails (an
+        uninitializable bundle, an ImportError in it, or a malformed handler).
+
+        This never fails parsing, so building a Dag does not depend on handler
+        availability. A real problem surfaces when the task runs.
+        """
+        if not (stub_tasks := [task for task in doc.tasks if self._operators[task.id_].is_stub]):
+            return
+        if problems := "; ".join(self._iter_stub_handler_collect_problems(doc, stub_tasks)):
+            raise YamlDagBuildError(problems)
+
+    def _iter_stub_handler_collect_problems(self, doc: DagDocument, stub_tasks: list[Task]) -> Iterator[str]:
+        from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+
+        manager = get_coordinator_manager()
+        for task in stub_tasks:
+            coordinator = manager.for_queue(self._operators[task.id_].queue)
+            try:
+                declaration = coordinator.parse_task_handler(
+                    dag_id=doc.dag_id,
+                    task_id=task.id_,
+                    bundle=self._bundle,
+                )
+            except Exception:
+                log.warning(
+                    "Could not resolve task handler; skipping parse-time validation",
+                    dag_id=doc.dag_id,
+                    task_id=task.id_,
+                    exc_info=True,
+                )
+                continue
+            if declaration is None:
+                continue  # Best-effort: nothing to match against; defer to execution.
+            run_names = set(task.run) if task.run else set()
+            if missing := sorted({p.name for p in declaration.params if p.required} - run_names):
+                yield f"task {task.id_!r}: missing required handler argument(s) {missing}"
+            if unknown := sorted(run_names - {p.name for p in declaration.params}):
+                yield f"task {task.id_!r}: run argument(s) {unknown} are not parameters of its task handler"
+            # Only names and arity are checked here. Type validation will follow
+            # once Language SDK ADR-0011 is settled.
 
     def _build_stub_task(self, task: Task, args: dict[str, Value]) -> BaseOperator:
         """

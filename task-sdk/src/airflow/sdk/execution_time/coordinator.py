@@ -32,8 +32,6 @@ from __future__ import annotations
 
 import contextlib
 import functools
-import os
-import signal
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -46,14 +44,16 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Mapping
+    from collections.abc import Mapping
     from os import PathLike
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger
 
+    from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
+    from airflow.sdk.task_handlers import TaskHandlerDeclaration
 
 __all__ = [
     "BaseCoordinator",
@@ -84,10 +84,10 @@ class TaskLaunchError(Exception):
 
 class BaseCoordinator:
     """
-    Base coordinator for runtime-specific DAG file processing and task execution.
+    Base coordinator for runtime-specific Dag processing and execution.
 
     Coordinators are instantiated from the ``[sdk] coordinators`` configuration
-    (see :class:`CoordinatorManager`) — each entry's ``classpath`` is resolved
+    (see :class:`CoordinatorManager`). Each entry's ``classpath`` is resolved
     via :func:`~airflow.sdk._shared.module_loading.import_string` and
     constructed with the entry's ``kwargs``.
     """
@@ -122,6 +122,33 @@ class BaseCoordinator:
         """
         raise NotImplementedError
 
+    def parse_task_handler(
+        self,
+        *,
+        dag_id: str,
+        task_id: str,
+        bundle: BaseDagBundle,
+    ) -> TaskHandlerDeclaration | None:
+        """
+        Parse the handler for the specified task into its declared signature.
+
+        This is the cross-language, parse-time validation hook defined by
+        Language SDK ADR-0011 and ADR-0012. A stub task's captured arguments are
+        compared against the returned signature the same way for every runtime.
+
+        *bundle* is the stub's own Dag bundle, where a coordinator looks for
+        a handler colocated with the stub when no dedicated handler bundle is
+        configured.
+
+        If this coordinator has no handler for the *dag_id* and *task_id*
+        combination, *None* is returned and validation is deferred to run time.
+        This hook is for validation only and never resolves a callable to run.
+
+        The default implementation returns *None* to indicate this coordinator
+        declares nothing.
+        """
+        return None
+
 
 class _CoordinatorSpec(pydantic.BaseModel):
     classpath: str
@@ -131,90 +158,11 @@ class _CoordinatorSpec(pydantic.BaseModel):
     extra: dict[str, Any] | None = None
 
 
-@contextlib.contextmanager
-def _warm_shutdown_signals() -> Generator[None, None, None]:
-    """
-    Install SIGTERM/SIGINT warm-shutdown handlers for the duration of task supervision.
-
-    While supervising a task the supervisor must not be torn down by a
-    termination signal; instead it keeps running so the task can finish (or be
-    shut down gracefully) and its terminal state and logs are reported. The
-    handlers are installed around BOTH ``start()`` (which transitions the TI to
-    RUNNING) and ``wait()`` (which runs the task and then reports the terminal
-    state / uploads logs), so there is no window where Python's default SIGTERM
-    disposition could kill the supervisor and tear the just-started task down
-    with it.
-
-    The previous dispositions are restored on exit so a long-lived supervisor
-    process (e.g. a reused Celery prefork worker) does not leak the handler into
-    later tasks or clobber the worker's own signal handling.
-    """
-
-    def _warm_shutdown(signum, frame):
-        log.info(
-            "Received signal; warm shutdown in progress, waiting for the running task to complete.",
-            signal=signal.Signals(signum).name,
-            pid=os.getpid(),
-        )
-
-    prev_sigterm = signal.getsignal(signal.SIGTERM)
-    prev_sigint = signal.getsignal(signal.SIGINT)
-    signal.signal(signal.SIGTERM, _warm_shutdown)
-    signal.signal(signal.SIGINT, _warm_shutdown)
-    try:
-        yield
-    finally:
-        signal.signal(signal.SIGTERM, prev_sigterm)
-        signal.signal(signal.SIGINT, prev_sigint)
-
-
-class _PythonCoordinator(BaseCoordinator):
-    """
-    Coordinator implementation to execute Python tasks.
-
-    This is not supposed to be specified by users directly, but the fallback
-    used by default when nothing is specified.
-    """
-
-    def execute_task(
-        self,
-        *,
-        what: TaskInstance,
-        dag_rel_path: str | PathLike[str],
-        bundle_info,
-        client: Client,
-        logger: FilteringBoundLogger | None = None,
-        sentry_integration: str = "",
-        subprocess_logs_to_stdout: bool,
-        **kwargs,
-    ) -> BaseCoordinator.ExecutionResult:
-        # TODO: Importing this at the top causes circular imports.
-        # ActivitySubprocess and WatchedSubprocess should be moved out of the
-        # supervisor, and maybe with additional refactoring to abstract out
-        # process handling.
-        from airflow.sdk.execution_time.supervisor import ActivitySubprocess
-
-        # Keep the warm-shutdown handlers installed across both start() (which
-        # transitions the TI to RUNNING) and wait() (which runs the task and
-        # reports its terminal state / uploads logs) so a SIGTERM at any point
-        # in this window can't kill the supervisor and tear the task down.
-        with _warm_shutdown_signals():
-            process = ActivitySubprocess.start(
-                dag_rel_path=dag_rel_path,
-                what=what,
-                client=client,
-                logger=logger,
-                bundle_info=bundle_info,
-                subprocess_logs_to_stdout=subprocess_logs_to_stdout,
-                sentry_integration=sentry_integration,
-            )
-            exit_code = process.wait()
-            return self.ExecutionResult(exit_code, process.final_state)
-
-
 @functools.cache
-def _build_python_coordinator() -> _PythonCoordinator:
-    return _PythonCoordinator()
+def _build_python_coordinator() -> BaseCoordinator:
+    from airflow.sdk.coordinators.python import PythonCoordinator  # Lazy to avoid circular import.
+
+    return PythonCoordinator()
 
 
 class InvalidCoordinatorError(ValueError):
