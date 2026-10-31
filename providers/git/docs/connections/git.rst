@@ -56,6 +56,12 @@ Access Token (optional)
     credential helper scoped to the repository's host (``credential.<scheme>://<host>[:port].helper``).
     Token authentication over http(s) requires git version 2.31 or higher.
 
+    Over https with git 2.46 or higher, the token is sent with the first request
+    (``http.<repository url>.proactiveAuth = basic``). Without that, git only sends it after the
+    server answers ``401``, which a public repository never does, so fetches would count against
+    the server's anonymous rate limit. With an older git, a warning is logged and git falls back
+    to sending the token only when asked.
+
 Extra (optional)
     Specify the extra parameters as a JSON dictionary. The following keys are supported:
 
