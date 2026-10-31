@@ -231,7 +231,7 @@ def test_plan_explains_inputs_only_for_the_first_canary_attempt_that_saved_them(
     assert result["requests"][0]["attempt_number"] == int(source_attempt)
     assert included_inputs(result) == inputs_ids
     if source_attempt == "2":
-        assert "Explained for an earlier attempt: 3.14:constraints-source-providers" in result["summary"]
+        assert "Saved by an earlier attempt: 3.14:constraints-source-providers" in result["summary"]
 
 
 @requires_node
@@ -245,9 +245,7 @@ def test_plan_does_not_queue_a_second_report_from_inputs_already_explained(sourc
     )
     result = run_plan(source_run, source_artifacts, source_attempt="2")
     assert result["outputs"]["has-reports"] == "false"
-    assert result["notices"] == [
-        "The saved report inputs were already explained for an earlier canary attempt"
-    ]
+    assert result["notices"] == ["The saved report inputs were already saved by an earlier canary attempt"]
 
 
 def stash_artifact_name(key, ref):

@@ -114,14 +114,14 @@ jobs:
             }
             if (!include.length && !skipped.length) {
               core.notice(explained.length ?
-                'The saved report inputs were already explained for an earlier canary attempt' :
+                'The saved report inputs were already saved by an earlier canary attempt' :
                 'No saved report inputs: this run did not request independent diagnostics');
             }
             await core.summary.addHeading('Dependency upgrade diagnostics')
               .addLink(`Source canary run (attempt ${rawAttempt})`, run.html_url)
               .addRaw(`\n\nSource revision: ${run.head_sha}\n\nReports: ${include.length}\n`)
               .addRaw(skipped.length ? `\nSkipped: ${skipped.join(', ')}\n` : '')
-              .addRaw(explained.length ? `\nExplained for an earlier attempt: ${explained.join(', ')}\n` : '')
+              .addRaw(explained.length ? `\nSaved by an earlier attempt: ${explained.join(', ')}\n` : '')
               .write();
 
   explain:
@@ -202,7 +202,7 @@ jobs:
           aws s3 cp --only-show-errors "${object}" "${payload}"
           echo "${digest}  ${payload}" | sha256sum --check --status
           tar -tPf "${payload}" | while IFS= read -r entry; do
-            if [[ "${entry}" != /mnt/* ]]; then
+            if [[ "${entry}" != /mnt/* || "${entry}" == */../* || "${entry}" == */.. ]]; then
               echo "::error::The original CI image stash holds ${entry} outside /mnt"
               exit 1
             fi
