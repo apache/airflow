@@ -20,6 +20,7 @@ import asyncio
 import datetime
 import json
 import re
+import uuid
 from contextlib import contextmanager, nullcontext
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -66,7 +67,12 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, get_template_context
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 if AIRFLOW_V_3_0_PLUS or AIRFLOW_V_3_1_PLUS:
     from airflow.models.xcom import XComModel as XCom
@@ -591,6 +597,7 @@ class TestKubernetesPodOperator:
             "run_id": "test",
             "airflow_kpo_in_cluster": str(in_cluster),
             "none_value": "",  # None converted to empty string
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
         }
 
     def test_labels_mapped(self):
@@ -608,7 +615,53 @@ class TestKubernetesPodOperator:
             "run_id": "test",
             "map_index": "10",
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
         }
+
+    @staticmethod
+    def _context_in_loop_iteration(task):
+        """Context for a task instance in a task loop iteration, where the public map index is -1."""
+        context = create_context(task)
+        ti = mock.MagicMock(spec=TaskInstance)
+        ti.dag_id = "dag"
+        ti.task_id = task.task_id
+        ti.id = uuid.UUID("0199c1a6-0d6e-7a51-b7f5-6d7d1c2a9e02")
+        ti.try_number = 1
+        ti.map_index = -1
+        ti.region_id = uuid.UUID("0199c1a6-0d6e-7a51-b7f5-6d7d1c2a9e01")
+        ti.region_index = 2
+        context["ti"] = ti
+        return context
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Task instance ids and regions need Airflow 3.4+")
+    def test_labels_identify_task_instance_in_loop_iteration(self):
+        k = KubernetesPodOperator(name="test", task_id="task")
+
+        labels = k._get_ti_pod_labels(self._context_in_loop_iteration(k))
+
+        assert "map_index" not in labels
+        assert labels["region_id"] == "0199c1a6-0d6e-7a51-b7f5-6d7d1c2a9e01"
+        assert labels["region_index"] == "2"
+        assert labels["ti_id"] == "0199c1a6-0d6e-7a51-b7f5-6d7d1c2a9e02"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions need Airflow 3.4+")
+    def test_build_find_pod_label_selector_includes_region(self):
+        k = KubernetesPodOperator(name="test", task_id="task")
+
+        label_selector = k._build_find_pod_label_selector(self._context_in_loop_iteration(k))
+
+        assert "region_id=0199c1a6-0d6e-7a51-b7f5-6d7d1c2a9e01" in label_selector.split(",")
+        assert "region_index=2" in label_selector.split(",")
+        # Reattaching matches across tries, so the per-try id must stay out of the selector.
+        assert "ti_id" not in label_selector
+
+    def test_labels_skip_region_outside_dynamic_region(self):
+        k = KubernetesPodOperator(name="test", task_id="task")
+
+        labels = k._get_ti_pod_labels(create_context(k))
+
+        assert "region_id" not in labels
+        assert "region_index" not in labels
 
     @patch(HOOK_CLASS)
     def test_build_pod_request_obj_dry_run_skips_live_kube_client(self, hook_mock):
@@ -1509,6 +1562,7 @@ class TestKubernetesPodOperator:
             "kubernetes_pod_operator": "True",
             "task_id": "task",
             "try_number": mock.ANY,
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1545,6 +1599,7 @@ class TestKubernetesPodOperator:
             "kubernetes_pod_operator": "True",
             "task_id": "task",
             "try_number": mock.ANY,
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1617,6 +1672,7 @@ class TestKubernetesPodOperator:
             "kubernetes_pod_operator": "True",
             "task_id": "task",
             "try_number": mock.ANY,
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1689,6 +1745,7 @@ class TestKubernetesPodOperator:
             "kubernetes_pod_operator": "True",
             "task_id": "task",
             "try_number": mock.ANY,
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",
@@ -1740,6 +1797,7 @@ class TestKubernetesPodOperator:
             "kubernetes_pod_operator": "True",
             "task_id": "task",
             "try_number": mock.ANY,
+            **({"ti_id": mock.ANY} if AIRFLOW_V_3_4_PLUS else {}),
             "airflow_version": mock.ANY,
             "airflow_kpo_in_cluster": str(k.hook.is_in_cluster),
             "run_id": "test",

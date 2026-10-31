@@ -35,6 +35,7 @@ from contextlib import AbstractContextManager, suppress
 from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from uuid import UUID
 
 import kubernetes
 import pendulum
@@ -86,7 +87,11 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodPhase,
     detect_pod_terminate_early_issues,
 )
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, Stats, conf
 
 if AIRFLOW_V_3_1_PLUS:
@@ -630,8 +635,20 @@ class KubernetesPodOperator(BaseOperator):
         if map_index is not None and map_index >= 0:
             labels["map_index"] = str(map_index)
 
+        if AIRFLOW_V_3_4_PLUS:
+            # ``map_index`` is -1 for a task in a task loop iteration or in a region owned by another
+            # node, so label the region the task instance runs in to tell those instances apart.
+            region_id = getattr(ti, "region_id", None)
+            region_index = getattr(ti, "region_index", None)
+            if region_id is not None and UUID(str(region_id)).int != 0 and region_index is not None:
+                labels["region_id"] = str(region_id)
+                labels["region_index"] = str(region_index)
+
         if include_try_number:
             labels.update(try_number=str(ti.try_number))
+            if AIRFLOW_V_3_4_PLUS:
+                # Every try is its own task instance row with its own id on Airflow 3.4+.
+                labels["ti_id"] = str(ti.id)
         # In the case of sub dags this is just useful
         # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
         if getattr(context["dag"], "parent_dag", False):
