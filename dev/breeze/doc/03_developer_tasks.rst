@@ -311,15 +311,17 @@ Finding out what CI will run for your change
 
 ``breeze verify`` reads the files changed against the target branch (the merge-base of
 ``--base-ref`` and ``HEAD``, plus untracked files), runs the same selective-checks logic CI uses
-and lists the commands to run locally for the change. Nothing is executed. The only non-zero exit
-is a usage error such as a base ref git cannot resolve.
+and lists the commands to run locally for the change. Nothing is executed unless you pass ``--run``.
+Without ``--run``, the only non-zero exit is a usage error such as a base ref git cannot resolve.
 
 By default ``--base-ref`` is ``main`` on the git remote that points at apache/airflow (``upstream``
 if several do), the same base GitHub compares a PR with. A local ``main`` that is behind the
 ``main`` your branch has merged would count every merged-in commit as your change. Without such a
 remote, ``breeze verify`` falls back to the local ``main`` branch and says so. It also warns when
-the branch has merged commits the base does not have, for example after GitHub's "Update branch"
-when the remote was not fetched since. With ``--json`` the warnings go to stderr.
+the base may be out of date: the branch has merged commits the base does not have, for example
+after GitHub's "Update branch" when the remote was not fetched since, or the branch was rebased onto
+a remote's ``main`` that is newer than the base. A merge of another unmerged branch looks the same,
+so the warning can be a false alarm. With ``--json`` the warnings go to stderr.
 
 .. code-block:: bash
 
@@ -327,6 +329,7 @@ when the remote was not fetched since. With ``--json`` the warnings go to stderr
      breeze verify --json
      breeze verify --full
      breeze verify --base-ref main
+     breeze verify --run
 
 Each row says what kind of check it is, whether it runs on the host or needs Docker and the
 CI image (``breeze``), and the exact command. When there is no command to list, a single line
@@ -340,6 +343,11 @@ hooks). When the change triggers them, ``breeze verify`` prints the
 ``prek run --stage manual <hook> --from-ref <base>`` command to run each one, and ``--json``
 lists them under ``manual_prek_hooks``.
 Use ``--json`` for machine-readable output with the same fields.
+
+``--run`` runs the listed commands one after another from the repository root, then the manual
+prek hooks. A failure does not stop the rest. ``breeze verify`` ends with the commands that failed
+and exits non-zero if any did. Ctrl+C stops the run and still prints what failed and what did not
+finish. A change touching providers, core and docs can take hours, so look at the list first.
 
 When a change touches CI tooling or dependency files, selective checks make CI run the full suite.
 The default list leaves that expansion out and only shows what the changed files match themselves,
