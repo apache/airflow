@@ -29,10 +29,31 @@
 from __future__ import annotations
 
 import json
+import platform
 import sys
+from typing import Any
 
 from in_container_utils import AIRFLOW_ROOT_PATH, click, console, run_command
 from packaging.requirements import Requirement
+
+
+def is_python_version_excluded(excluded_python_versions: list[str], python_version: str) -> bool:
+    """Match ``X.Y`` entries against the minor and ``X.Y.Z`` entries against the exact patch release."""
+    current = python_version.split(".")
+    return any(current[: len(parts)] == parts for parts in (v.split(".") for v in excluded_python_versions))
+
+
+def get_providers_devel_dependencies(
+    providers_dependencies: dict[str, dict[str, Any]], python_version: str
+) -> list[str]:
+    devel_dependencies: list[str] = []
+    for provider_dependencies in providers_dependencies.values():
+        if is_python_version_excluded(
+            provider_dependencies.get("excluded-python-versions", []), python_version
+        ):
+            continue
+        devel_dependencies.extend(provider_dependencies["devel-deps"])
+    return devel_dependencies
 
 
 @click.command()
@@ -76,8 +97,9 @@ def install_development_dependencies(constraint: str, github_actions: bool):
     providers_dependencies = json.loads(
         (AIRFLOW_ROOT_PATH / "generated" / "provider_dependencies.json").read_text()
     )
-    for provider_id in providers_dependencies:
-        development_dependencies.extend(providers_dependencies[provider_id]["devel-deps"])
+    development_dependencies.extend(
+        get_providers_devel_dependencies(providers_dependencies, platform.python_version())
+    )
     # The shared distributions under shared/<name>/ provide the canonical
     # ``airflow_shared.<name>`` namespace used by devel-common. They are marked
     # ``Private :: Do Not Upload`` so they don't get pulled from PyPI by Airflow's
