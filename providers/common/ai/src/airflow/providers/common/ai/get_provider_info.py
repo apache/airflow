@@ -201,8 +201,23 @@ def get_provider_info():
                     },
                     "model_provider": {
                         "label": "Default Model Provider",
-                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat)",
-                        "schema": {"type": ["string", "null"]},
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat). Any provider the installed pydantic-ai recognizes works.\n",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "examples": [
+                                "openai-chat",
+                                "openai",
+                                "anthropic",
+                                "ollama",
+                                "litellm",
+                                "openrouter",
+                                "groq",
+                                "mistral",
+                                "deepseek",
+                                "together",
+                                "fireworks",
+                            ],
+                        },
                     },
                     "fallback_conn_ids": {
                         "label": "Fallback Connections",
