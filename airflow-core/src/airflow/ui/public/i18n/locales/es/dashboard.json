@@ -2,6 +2,7 @@
   "alerts": {
     "seeLessContext": "Ver menos",
     "seeMoreContext": "Ver más",
+    "showMoreAlerts_many": "+{{count, number}} de alertas más",
     "showMoreAlerts_one": "+{{count, number}} alerta más",
     "showMoreAlerts_other": "+{{count, number}} alertas más"
   },
@@ -20,6 +21,7 @@
   "deferredSlotsNotCounted": "Diferidos no contados en slots: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Las tareas diferidas mostradas en la barra se cuentan contra los slots del pool. Las tareas diferidas mostradas debajo de la barra provienen de pools que no cuentan las tareas diferidas contra los slots.",
   "favorite": {
+    "favoriteDags_many": "Primeros {{count, number}} de Dags Favoritos",
     "favoriteDags_one": "Primer {{count, number}} Dag Favorito",
     "favoriteDags_other": "Primeros {{count, number}} Dags Favoritos",
     "noDagRuns": "Aún no hay Ejecuciones de Dag para este Dag.",
@@ -28,17 +30,35 @@
   "group": "Grupo",
   "health": {
     "dagProcessor": "Procesador de Dags",
+    "degraded": "Degradado",
+    "degradedHint": {
+      "dagProcessor": "Algunos Dag bundles configurados no tienen un procesador de Dags que los analice.",
+      "triggerer": "Algunos equipos no tienen un triggerer ejecutando sus tareas diferidas."
+    },
+    "down": "Caído",
     "health": "Salud",
     "healthy": "Saludable",
+    "instances": {
+      "bundles": "Bundles",
+      "hostname": "Host",
+      "team": "Equipo",
+      "title_many": "{{title}} — {{status}} ({{count, number}} de instancias)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instancia)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instancias)",
+      "unknownHostname": "Host desconocido"
+    },
     "lastHeartbeat": "Último Heartbeat",
     "metaDatabase": "Base de datos de la metadata",
     "scheduler": "Programador",
     "status": "Estado",
     "triggerer": "Triggerer",
-    "unhealthy": "No Saludable"
+    "unhealthy": "No Saludable",
+    "unknownStatus": "Desconocido"
   },
   "history": "Historial",
   "importErrors": {
+    "bundle": "Bundle",
+    "dagImportError_many": "Errores de Importación de Dags",
     "dagImportError_one": "Error de Importación de Dag",
     "dagImportError_other": "Errores de Importación de Dags",
     "searchByFile": "Buscar por archivo",
