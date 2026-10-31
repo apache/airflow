@@ -512,7 +512,7 @@ def materialize_asset(
                     status.HTTP_403_FORBIDDEN, f"Draining requires permission to edit Dag: {dag_id}"
                 )
             DagModel.start_drain(dag_id, session=session)
-        return dag.create_dagrun(
+        dag_run = dag.create_dagrun(
             run_id=params["run_id"],
             logical_date=params["logical_date"],
             data_interval=params["data_interval"],
@@ -533,6 +533,8 @@ def materialize_asset(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
     except DagVersionNotFound as e:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+
+    return DAGRunResponse.from_dag_run(dag_run, context_dag)
 
 
 @assets_router.get(
