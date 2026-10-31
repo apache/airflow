@@ -154,6 +154,15 @@ And if you want to see the details of a particular hook, you can run:
 
 When you install auto-completion, you can also use the tab-completion to see the available hooks.
 
+License headers in RST files
+----------------------------
+
+Every ``*.rst`` file starts with the license header on line 1, with each non-empty line indented by one
+space. This is the shape the ``insert-license`` hook writes for a new file, and the
+``check-rst-license-header`` hook rewrites any other shape (a leading blank line, no indentation) into it and
+fails so that you can stage the change. ``scripts/ci/license-templates/LICENSE.rst`` holds the text without the
+indentation, which the hooks add. Files under ``newsfragments/`` carry no header.
+
 Using prek
 ----------
 

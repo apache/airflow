@@ -1788,6 +1788,19 @@ repos:
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/check_changelog_format.py
         pass_filenames: true
+      - id: check-rst-license-header
+        name: Check the shape of the license header in RST files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        language: python
+        files: \.rst$
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/
+        entry: ./scripts/ci/prek/check_rst_license_header.py
+        pass_filenames: true
       - id: check-newsfragments-are-valid
         name: Check newsfragments are valid
         env:
