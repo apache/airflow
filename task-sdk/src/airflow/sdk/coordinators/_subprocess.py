@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
-import json
 import logging
 import os
 import selectors
@@ -54,6 +53,7 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
@@ -595,11 +595,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
         # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            if (size := len(json.dumps(msg.value))) > limit:
+            if _json_size_exceeds(msg.value, limit):
                 self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
-                    size=size,
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
