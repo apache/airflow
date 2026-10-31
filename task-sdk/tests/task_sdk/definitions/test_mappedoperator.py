@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import datetime, timedelta
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -28,11 +29,14 @@ import pytest
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions.asset import Asset, AssetRef
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import XComArg
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     ErrorResponse,
+    GetAssetByName,
     GetTICount,
     GetXCom,
     GetXComSequenceItem,
@@ -43,6 +47,7 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceIndexResult,
     XComSequenceSliceResult,
 )
+from airflow.sdk.execution_time.context import AssetStateStoreAccessor, InletEventsAccessor
 
 from tests_common.test_utils.mapping import expand_mapped_task  # noqa: F401
 from tests_common.test_utils.mock_operators import (
@@ -730,6 +735,129 @@ def test_operator_mapped_task_group_receives_value(create_runtime_ti, mock_super
             mapped_ti.task.render_template_fields(context)
             mapped_ti.task.execute(context)
     assert results == expected_values
+
+
+class _OperatorWithConstructorLineage(BaseOperator):
+    """Operator that derives inlets and outlets from constructor arguments."""
+
+    def __init__(
+        self, *, inlet: Asset | AssetRef | None = None, outlet: Asset | AssetRef | None = None, **kwargs
+    ):
+        super().__init__(**kwargs)
+        if inlet is not None:
+            self.inlets.append(inlet)
+        if outlet is not None:
+            self.outlets.append(outlet)
+
+
+def test_mapped_render_template_fields_refreshes_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    with DAG("test_dag"):
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(inlet=[Asset("a"), Asset("b")])
+
+    ti = create_runtime_ti(task=mapped, map_index=1)
+    context = ti.get_template_context()
+    assert context["inlets"] == []
+    assert "asset_state_store" not in context
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] == [Asset("b")]
+    assert context["outlets"] == []
+    assert list(context["inlet_events"]) == [Asset("b")]
+    assert context["inlet_events"][Asset("b")] == InletEventsAccessor(asset_name="b", asset_uri="b")
+    assert context["asset_state_store"][Asset("b")] == AssetStateStoreAccessor(name="b")
+
+
+def test_mapped_render_template_fields_refreshes_constructor_outlets(
+    create_runtime_ti, mock_supervisor_comms
+):
+    with DAG("test_dag"):
+        mapped = _OperatorWithConstructorLineage.partial(task_id="t").expand(outlet=[Asset("a"), Asset("b")])
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    assert "asset_state_store" not in context
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] == []
+    assert context["outlets"] == [Asset("a")]
+    accessor = context["asset_state_store"][Asset("a")]
+    assert accessor._stats_tags == {**ti.stats_tags, "operator": "_OperatorWithConstructorLineage"}
+
+
+def test_mapped_render_template_fields_rebinds_asset_context(create_runtime_ti, mock_supervisor_comms):
+    with DAG("test_dag"):
+        mapped = MockOperator.partial(task_id="t", inlets=[Asset("a")], outlets=[Asset("b")]).expand(
+            arg1=["x", "y"]
+        )
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    inlet_events = context["inlet_events"]
+    asset_state_store = context["asset_state_store"]
+
+    ti.task.render_template_fields(context=context)
+
+    assert context["inlets"] is ti.task.inlets
+    assert context["outlets"] is ti.task.outlets
+    assert context["inlet_events"] is not inlet_events
+    assert context["asset_state_store"] is not asset_state_store
+
+    ti.task.inlets.append(Asset("c"))
+    assert list(context["inlet_events"]) == [Asset("a"), Asset("c")]
+
+
+@pytest.mark.parametrize(
+    "make_mapped",
+    [
+        pytest.param(
+            lambda: MockOperator.partial(task_id="t", inlets=[Asset.ref(name="a")]).expand(arg1=["x", "y"]),
+            id="partial",
+        ),
+        pytest.param(
+            lambda: _OperatorWithConstructorLineage.partial(task_id="t").expand(
+                inlet=[Asset.ref(name="a"), Asset.ref(name="b")]
+            ),
+            id="constructor",
+        ),
+    ],
+)
+def test_mapped_render_template_fields_resolves_ref_inlets_lazily(
+    make_mapped, create_runtime_ti, mock_supervisor_comms
+):
+    def get_asset_by_name_calls():
+        return [c for c in mock_supervisor_comms.send.call_args_list if isinstance(c.args[0], GetAssetByName)]
+
+    mock_supervisor_comms.send.return_value = AssetResult(name="a", uri="a", group="asset")
+    with DAG("test_dag"):
+        mapped = make_mapped()
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    ti.task.render_template_fields(context=context)
+    assert get_asset_by_name_calls() == []
+
+    assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
+    assert context["inlet_events"][Asset.ref(name="a")] == InletEventsAccessor(asset_name="a")
+    assert get_asset_by_name_calls() == [mock.call(GetAssetByName(name="a"))]
+
+
+def test_mapped_render_template_fields_with_minimal_context():
+    """A task without assets can be rendered with a hand-built context lacking runtime-only values."""
+    with DAG("test_dag") as dag:
+        mapped = MockOperator.partial(task_id="t").expand(arg1=["{{ ti.map_index }}", "y"])
+
+    context: dict = {
+        "ti": SimpleNamespace(map_index=0),
+        "params": {},
+        "dag": dag,
+        "dag_run": SimpleNamespace(conf={}),
+    }
+    mapped.render_template_fields(context)
+
+    assert context["task"].arg1 == "0"
+    assert "asset_state_store" not in context
 
 
 def test_mapped_xcom_push_skipped_tasks(create_runtime_ti, mock_supervisor_comms):

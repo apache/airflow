@@ -21,6 +21,7 @@ import collections
 import contextlib
 import functools
 import inspect
+import itertools
 import json
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
@@ -107,7 +108,7 @@ if TYPE_CHECKING:
         ReceiveMsgType,
     )
     from airflow.sdk.state import BaseStoreBackend
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -1067,6 +1068,7 @@ class AssetStateStoreAccessor:
         return msg
 
 
+@attrs.define
 class AssetStateStoreAccessors:
     """
     Mapping of asset state accessors for all concrete inlets and outlets of a task.
@@ -1077,44 +1079,44 @@ class AssetStateStoreAccessors:
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
     ``set``, ``delete``, ``clear``, and their async counterparts ``aget``, ``aset``,
     ``adelete``, ``aclear``) can be called directly without subscripting.
+
+    Alias inlets are resolved to their concrete assets through the supervisor on
+    first access. This is a blocking call, even if the first access is from an
+    async method.
     """
 
-    def __init__(
-        self, inlets: list, outlets: list | None = None, stats_tags: dict[str, str] | None = None
-    ) -> None:
-        self._by_name: dict[str, AssetStateStoreAccessor] = {}
-        self._by_uri: dict[str, AssetStateStoreAccessor] = {}
-        self._stats_tags = stats_tags
+    _inlets: list
+    _outlets: list = attrs.field(factory=list)
+    _stats_tags: dict[str, str] | None = None
 
-        for inlet in inlets:
+    @functools.cached_property
+    def _by_name(self) -> dict[str, AssetStateStoreAccessor]:
+        by_name: dict[str, AssetStateStoreAccessor] = {}
+        for inlet in self._inlets:
             if isinstance(inlet, (Asset, AssetNameRef)):
-                self._by_name[inlet.name] = AssetStateStoreAccessor(
-                    name=inlet.name, stats_tags=self._stats_tags
-                )
-            elif isinstance(inlet, AssetUriRef):
-                self._by_uri[inlet.uri] = AssetStateStoreAccessor(uri=inlet.uri, stats_tags=self._stats_tags)
+                by_name[inlet.name] = AssetStateStoreAccessor(name=inlet.name, stats_tags=self._stats_tags)
             elif isinstance(inlet, AssetAlias):
                 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
                 resp = SUPERVISOR_COMMS.send(GetAssetsByAlias(alias_name=inlet.name))
                 if isinstance(resp, AssetsByAliasResult):
                     for asset in resp.assets:
-                        self._by_name[asset.name] = AssetStateStoreAccessor(
+                        by_name[asset.name] = AssetStateStoreAccessor(
                             name=asset.name, stats_tags=self._stats_tags
                         )
-
-        for outlet in outlets or []:
+        for outlet in self._outlets:
             # AssetAlias outlets are for dynamic event emission, not state access, so skip them
-            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in self._by_name:
-                self._by_name[outlet.name] = AssetStateStoreAccessor(
-                    name=outlet.name, stats_tags=self._stats_tags
-                )
-            elif isinstance(outlet, AssetUriRef) and outlet.uri not in self._by_uri:
-                self._by_uri[outlet.uri] = AssetStateStoreAccessor(
-                    uri=outlet.uri, stats_tags=self._stats_tags
-                )
+            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in by_name:
+                by_name[outlet.name] = AssetStateStoreAccessor(name=outlet.name, stats_tags=self._stats_tags)
+        return by_name
 
-        self._total = len(self._by_name) + len(self._by_uri)
+    @functools.cached_property
+    def _by_uri(self) -> dict[str, AssetStateStoreAccessor]:
+        by_uri: dict[str, AssetStateStoreAccessor] = {}
+        for obj in itertools.chain(self._inlets, self._outlets):
+            if isinstance(obj, AssetUriRef) and obj.uri not in by_uri:
+                by_uri[obj.uri] = AssetStateStoreAccessor(uri=obj.uri, stats_tags=self._stats_tags)
+        return by_uri
 
     def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateStoreAccessor:
         try:
@@ -1127,9 +1129,10 @@ class AssetStateStoreAccessors:
         raise TypeError(f"Expected Asset, AssetNameRef, or AssetUriRef; got {type(key).__name__}")
 
     def _single_accessor(self) -> AssetStateStoreAccessor:
-        if self._total != 1:
+        if (total := len(self._by_name) + len(self._by_uri)) != 1:
             raise ValueError(
-                f"Task has {self._total} concrete inlets and outlets — use context['asset_state_store'][MY_ASSET] to specify which"
+                f"Task has {total} concrete inlets and outlets; "
+                f"use context['asset_state_store'][MY_ASSET] to specify which"
             )
         if self._by_name:
             return next(iter(self._by_name.values()))
@@ -1500,7 +1503,7 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         return self._asset_events[key]
 
 
-@attrs.define(init=False)
+@attrs.define
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
     _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
@@ -1508,25 +1511,29 @@ class InletEventsAccessors(
     """Lazy mapping of inlet asset event accessors."""
 
     _inlets: list[Any]
-    _assets: dict[AssetUniqueKey, Asset]
-    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
 
-    def __init__(self, inlets: list) -> None:
-        self._inlets = inlets
-        self._assets = {}
-        self._asset_aliases = {}
-
-        for inlet in inlets:
+    @functools.cached_property
+    def _assets(self) -> dict[AssetUniqueKey, Asset]:
+        assets: dict[AssetUniqueKey, Asset] = {}
+        for inlet in self._inlets:
             if isinstance(inlet, Asset):
-                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
-            elif isinstance(inlet, AssetAlias):
-                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
+                asset = inlet
             elif isinstance(inlet, AssetNameRef):
                 asset = OutletEventAccessors._get_asset_from_db(name=inlet.name)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
             elif isinstance(inlet, AssetUriRef):
                 asset = OutletEventAccessors._get_asset_from_db(uri=inlet.uri)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+            else:
+                continue
+            assets[AssetUniqueKey.from_asset(asset)] = asset
+        return assets
+
+    @functools.cached_property
+    def _asset_aliases(self) -> dict[AssetAliasUniqueKey, AssetAlias]:
+        return {
+            AssetAliasUniqueKey.from_asset_alias(inlet): inlet
+            for inlet in self._inlets
+            if isinstance(inlet, AssetAlias)
+        }
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(self._inlets)
@@ -1644,6 +1651,36 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def build_state_store_stats_tags(ti: RuntimeTaskInstanceProtocol) -> dict[str, str]:
+    """
+    Build tags for metrics emitted by a task instance's state store accessors.
+
+    These are the task instance's stats tags plus the operator name, attached to
+    ``task_state_store.*`` and ``asset_state_store.*`` metrics.
+
+    :meta private:
+    """
+    return {**ti.stats_tags, "operator": ti.task.task_type}
+
+
+def build_asset_state_store(ti: RuntimeTaskInstanceProtocol) -> AssetStateStoreAccessors | None:
+    """
+    Build the asset state store accessor for a task instance's inlets and outlets.
+
+    Return *None* if the task has no asset (or asset reference or alias) in its
+    inlets or outlets.
+
+    :meta private:
+    """
+    all_lets = itertools.chain((inlets := ti.task.inlets), (outlets := ti.task.outlets))
+    if not any(isinstance(t, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for t in all_lets):
+        return None
+    # Aliases count as assets here, but AssetStateStoreAccessors only
+    # creates accessors for the concrete resolved assets. The store can be
+    # empty if a task has only aliases that resolve to nothing.
+    return AssetStateStoreAccessors(inlets, outlets, stats_tags=build_state_store_stats_tags(ti))
+
+
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     """
     Update context after task unmapping.
@@ -1652,14 +1689,25 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     contains information about the mapped task. We need to do some in-place
     updates to ensure the template context reflects the unmapped task instead.
 
+    This includes entries derived from inlets and outlets, since the operator's
+    ``__init__`` (which only runs on unmapping) may add to them.
+
     :meta private:
     """
     from airflow.sdk.definitions.param import process_params
 
-    context["task"] = context["ti"].task = task
+    context["task"] = (ti := context["ti"]).task = task
     context["params"] = process_params(
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
+
+    context["inlets"] = task.inlets
+    context["outlets"] = task.outlets
+    context["inlet_events"] = InletEventsAccessors(task.inlets)
+    if (asset_state_store := build_asset_state_store(ti)) is None:
+        context.pop("asset_state_store", None)
+    else:
+        context["asset_state_store"] = asset_state_store
 
 
 def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:

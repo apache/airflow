@@ -939,8 +939,37 @@ class TestInletEventAccessor:
             AssetResult(name="test_uri", uri="test://test", group="asset"),
         ]
         obj = InletEventsAccessors(inlets=TEST_INLETS)
+        obj._assets  # Resolve refs so tests only see calls for asset events.
         mock_supervisor_comms.reset_mock()
         return obj
+
+    def test_refs_resolved_on_first_lookup(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.side_effect = [
+            AssetResult(name="test_uri", uri="test://test", group="asset"),
+            AssetResult(name="test_uri", uri="test://test", group="asset"),
+        ]
+
+        accessors = InletEventsAccessors(inlets=TEST_INLETS)
+        assert list(accessors) == TEST_INLETS
+        assert len(accessors) == 4
+        mock_supervisor_comms.send.assert_not_called()
+
+        accessors[TEST_ASSET_REFS[0]]
+        accessors[TEST_ASSET]
+        assert mock_supervisor_comms.send.mock_calls == [
+            mock.call(GetAssetByName(name="test_uri")),
+            mock.call(GetAssetByUri(uri="test://test/")),
+        ]
+
+    def test_unknown_ref_raises_on_lookup(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = ErrorResponse(error=ErrorType.ASSET_NOT_FOUND)
+        ref = Asset.ref(name="missing")
+
+        accessors = InletEventsAccessors(inlets=[ref])
+        assert list(accessors) == [ref]
+
+        with pytest.raises(AirflowRuntimeError):
+            accessors[ref]
 
     @pytest.mark.usefixtures("mock_supervisor_comms")
     def test__iter__(self, sample_inlet_evnets_accessor):
@@ -2635,20 +2664,19 @@ class TestAssetStateStoreAccessors:
         with pytest.raises(ValueError, match="2 concrete inlets and outlets"):
             AssetStateStoreAccessors([a1, a2]).get("watermark")
 
-    def test_alias_inlet_resolves_to_concrete_assets(self, mock_supervisor_comms):
+    def test_alias_inlet_resolves_to_concrete_assets_on_first_access(self, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
-        mock_supervisor_comms.send.return_value = AssetsByAliasResult(
-            assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
-        )
         mock_supervisor_comms.send.return_value = AssetsByAliasResult(
             assets=[AssetResult(name="resolved_asset", uri="s3://bucket/resolved", group="asset")]
         )
 
         accessors = AssetStateStoreAccessors([alias])
+        mock_supervisor_comms.send.assert_not_called()
 
-        mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
         resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
-        assert resolved.name in accessors._by_name
+        accessors[resolved]
+        accessors[resolved]
+        mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
 
     def test_alias_inlet_no_resolved_assets_contributes_nothing(self, mock_supervisor_comms):
         alias = AssetAlias(name="empty_alias")
@@ -2656,7 +2684,8 @@ class TestAssetStateStoreAccessors:
 
         accessors = AssetStateStoreAccessors([alias])
 
-        assert accessors._total == 0
+        with pytest.raises(ValueError, match="Task has 0 concrete inlets and outlets"):
+            accessors.get("watermark")
 
     def test_outlet_only_asset_is_accessible(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
@@ -2701,17 +2730,19 @@ class TestAssetStateStoreAccessors:
 
     def test_asset_in_both_inlets_and_outlets_not_duplicated(self, mock_supervisor_comms):
         asset = Asset(name=self.ASSET_NAME, uri=f"s3://{self.ASSET_NAME}")
+        mock_supervisor_comms.send.return_value = AssetStateStoreResult(value="v1")
 
         accessors = AssetStateStoreAccessors([asset], [asset])
 
-        assert accessors._total == 1
+        assert accessors.get("watermark") == "v1"
 
     def test_outlet_alias_is_ignored(self, mock_supervisor_comms):
         alias = AssetAlias(name="my_alias")
 
         accessors = AssetStateStoreAccessors([], [alias])
 
-        assert accessors._total == 0
+        with pytest.raises(ValueError, match="Task has 0 concrete inlets and outlets"):
+            accessors.get("watermark")
         mock_supervisor_comms.send.assert_not_called()
 
     @pytest.mark.parametrize(
