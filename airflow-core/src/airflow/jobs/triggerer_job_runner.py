@@ -62,7 +62,6 @@ from airflow.jobs.job import perform_heartbeat
 from airflow.models.dagbag import DBDagBag
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.trigger import Trigger
-from airflow.observability.metrics import stats_utils
 from airflow.sdk.api.datamodels._generated import HITLDetailResponse
 from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions.asset import Asset
@@ -286,10 +285,6 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "server"
         self.log.info("Starting the triggerer")
         self.register_signals()
-        stats.initialize(
-            factory=stats_utils.get_stats_factory(),
-            export_legacy_names=conf.getboolean("metrics", "legacy_names_on"),
-        )
         self.trigger_runner = None
         try:
             # Kick off runner sub-process without DB access
