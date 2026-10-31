@@ -27,6 +27,7 @@ import inspect
 import json
 import os
 import sys
+import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -641,6 +642,7 @@ class CommandFactory:
         arg_action: argparse.BooleanOptionalAction | None,
         arg_dest: str | None = None,
         arg_default: Any | None = None,
+        arg_required: bool = False,
     ) -> Arg:
         return Arg(
             flags=arg_flags,
@@ -649,6 +651,7 @@ class CommandFactory:
             help=arg_help,
             default=arg_default,
             action=arg_action,
+            required=True if arg_required else _UNSET,
         )
 
     @staticmethod
@@ -670,6 +673,11 @@ class CommandFactory:
             type=arg_type,
             help=arg_help,
         )
+
+    @staticmethod
+    def _allows_none(annotation: Any) -> bool:
+        """Return True if the annotation accepts None, e.g. ``str | None``."""
+        return type(None) in typing.get_args(annotation)
 
     def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
         """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
@@ -707,9 +715,16 @@ class CommandFactory:
                     arg_type=self._python_type_from_string(annotation),
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
-                    arg_default=self._get_bool_arg_default(parameter_type, field_type.default)
-                    if annotation is bool
-                    else None,
+                    arg_default=(
+                        self._get_bool_arg_default(parameter_type, field_type.default)
+                        if annotation is bool
+                        else None
+                    ),
+                    arg_required=(
+                        field_type.is_required()  # no default?
+                        and annotation is not bool  # not a bool flag
+                        and not self._allows_none(field_type.annotation)  # None not acceptable
+                    ),
                 )
             )
         return commands
