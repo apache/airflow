@@ -546,7 +546,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
         )
-        # Language runtimes do not send SetExecutionTimeout, so the clock starts once they have the task.
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
         self._arm_execution_timeout()
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
