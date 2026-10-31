@@ -42,7 +42,13 @@ import { GridPaginationButtons } from "./GridPaginationButtons";
 import { GridSelectionActionBar } from "./GridSelectionActionBar";
 import { TaskInstancesColumn } from "./TaskInstancesColumn";
 import { TaskNames } from "./TaskNames";
-import { GANTT_ROW_OFFSET_PX, GRID_HEADER_HEIGHT_PX, GRID_HEADER_PADDING_PX, ROW_HEIGHT } from "./constants";
+import {
+  GANTT_ROW_OFFSET_PX,
+  GRID_HEADER_HEIGHT_PX,
+  GRID_HEADER_PADDING_PX,
+  ROW_HEIGHT,
+  TASK_NAME_COLUMN_MIN_WIDTH_PX,
+} from "./constants";
 import { useGridPagination } from "./useGridPagination";
 import { useGridRunsWithVersionFlags } from "./useGridRunsWithVersionFlags";
 import { useGridScrollRestore } from "./useGridScrollRestore";
@@ -90,6 +96,7 @@ export const Grid = ({
 }: Props) => {
   const gridRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const taskNameColumnRef = useRef<HTMLDivElement>(null);
 
   const usesSharedScroll = Boolean(sharedScrollContainerRef && showGantt);
 
@@ -121,9 +128,11 @@ export const Grid = ({
 
   const scrollbarSpacerWidth = hasNewerRuns || latestNotVisible ? "32px" : "16px";
 
+  const runIds = gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [];
+
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
-    runIds: gridRuns?.map((dr: GridRunsResponse) => dr.run_id) ?? [],
+    runIds,
     states: gridRuns?.map((dr: GridRunsResponse) => dr.state),
   });
 
@@ -177,7 +186,7 @@ export const Grid = ({
       : {
           flexGrow: 1,
           flexShrink: 0,
-          minW: "200px",
+          minW: `${TASK_NAME_COLUMN_MIN_WIDTH_PX}px`,
         };
 
   const { setMode } = useNavigation({
@@ -212,6 +221,17 @@ export const Grid = ({
   );
   const handleColumnClick = useCallback(() => setMode(NavigationModes.RUN), [setMode]);
 
+  const paginationButtonProps = {
+    hasNewerRuns,
+    hasOlderRuns,
+    isLoading,
+    latestNotVisible,
+    onJumpToLatest,
+    onNewerRuns: handleNewerRuns,
+    onOlderRuns: handleOlderRuns,
+    taskNameColumnWidthPx: taskNameColumnWidthPx ?? TASK_NAME_COLUMN_MIN_WIDTH_PX,
+  };
+
   const headerPad = usesSharedScroll ? GANTT_ROW_OFFSET_PX : GRID_INNER_SCROLL_PADDING_START_PX;
 
   const rowVirtualizer = useVirtualizer({
@@ -224,7 +244,18 @@ export const Grid = ({
     scrollPaddingStart: headerPad,
   });
 
-  useGridScrollRestore({ dagId, flatNodes, headerPad, rowVirtualizer, selectedGroupId, selectedTaskId });
+  useGridScrollRestore({
+    dagId,
+    flatNodes,
+    headerPad,
+    rowVirtualizer,
+    runIds,
+    selectedGroupId,
+    selectedRunId,
+    selectedTaskId,
+    sharesScroller: usesSharedScroll,
+    taskNameColumnRef,
+  });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
@@ -245,7 +276,7 @@ export const Grid = ({
         <Box
           bg="bg"
           borderTopRadius="md"
-          left={0}
+          insetStart={0}
           position="sticky"
           pt={`${GRID_HEADER_PADDING_PX}px`}
           zIndex={1}
@@ -268,6 +299,7 @@ export const Grid = ({
             <DurationAxis top="4px" />
             {/* Isolated so version indicators stay beneath the sticky task name column when scrolled
               behind it. Pagination buttons sit outside on purpose: the older-runs button overlaps that column. */}
+            <GridPaginationButtons {...paginationButtonProps} side="older" />
             <Flex flexDirection="row-reverse" style={{ isolation: "isolate" }}>
               {!showGantt && <ScrollbarSpacer width={scrollbarSpacerWidth} />}
               {runsWithVersionFlags?.map((dr) => (
@@ -280,22 +312,30 @@ export const Grid = ({
                 />
               ))}
             </Flex>
-            <GridPaginationButtons
-              hasNewerRuns={hasNewerRuns}
-              hasOlderRuns={hasOlderRuns}
-              isLoading={isLoading}
-              latestNotVisible={latestNotVisible}
-              onJumpToLatest={onJumpToLatest}
-              onNewerRuns={handleNewerRuns}
-              onOlderRuns={handleOlderRuns}
-            />
+            <GridPaginationButtons {...paginationButtonProps} side="newer" />
           </Flex>
         </Flex>
       </Flex>
 
-      {/* Grid body */}
-      <Flex bg="bg" height={`${rowVirtualizer.getTotalSize()}px`} position="relative">
-        <Box left={0} position="sticky" zIndex={1} {...taskNameColumnStyles}>
+      {/* Grid body. minWidth matches the header: without it the body is only as wide as the
+        scrollport, so the sticky task name column runs out of containing block partway through a
+        horizontal scroll and slides out of view, leaving the rows unlabelled. */}
+      <Flex
+        bg="bg"
+        height={`${rowVirtualizer.getTotalSize()}px`}
+        minWidth={usesSharedScroll ? undefined : "max-content"}
+        position="relative"
+      >
+        {/* bg is what the run columns scroll behind: the rows themselves only paint a background
+          when selected, so without it the cells show through the pinned column. */}
+        <Box
+          bg="bg"
+          insetStart={0}
+          position="sticky"
+          ref={taskNameColumnRef}
+          zIndex={1}
+          {...taskNameColumnStyles}
+        >
           <TaskNames
             nodes={flatNodes}
             onRowClick={handleRowClick}
