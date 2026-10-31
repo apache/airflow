@@ -24,6 +24,7 @@ from pendulum.tz.exceptions import InvalidTimezone
 
 from airflow import sdk
 from airflow.partition_mappers.base import RollupMapper
+from airflow.partition_mappers.chain import ChainMapper
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import (
     FanOutMapper,
@@ -36,7 +37,7 @@ from airflow.partition_mappers.temporal import (
     _BaseTemporalMapper,
     _compile_output_format_regex,
 )
-from airflow.partition_mappers.window import HourWindow, WeekWindow
+from airflow.partition_mappers.window import DayWindow, HourWindow, WeekWindow
 from airflow.serialization.decoders import decode_partition_mapper
 from airflow.serialization.encoders import encode_partition_mapper
 from airflow.serialization.enums import Encoding
@@ -170,6 +171,87 @@ class TestTemporalMappers:
         # 2026-02-11T06:00:00+00:00 UTC == 2026-02-11T01:00:00-05:00 New York
         # → start-of-day in New York is 2026-02-11
         assert pm.to_downstream("2026-02-11T06:00:00+0000") == "2026-02-11"
+
+    @pytest.mark.parametrize(
+        ("mapper_cls", "key", "expected_downstream_key"),
+        [
+            # Each mapper accepts its own output.
+            (StartOfHourMapper, "2026-02-10T14", "2026-02-10T14"),
+            (StartOfDayMapper, "2026-02-10", "2026-02-10"),
+            (StartOfWeekMapper, "2026-02-09 (W07)", "2026-02-09 (W07)"),
+            (StartOfMonthMapper, "2026-02", "2026-02"),
+            (StartOfQuarterMapper, "2026-Q1", "2026-Q1"),
+            (StartOfYearMapper, "2026", "2026"),
+            # Finer keys map to a coarser grain.
+            (StartOfDayMapper, "2026-02-10T14", "2026-02-10"),
+            (StartOfWeekMapper, "2026-02-10", "2026-02-09 (W07)"),
+            (StartOfMonthMapper, "2026-02-09 (W07)", "2026-02"),
+            (StartOfQuarterMapper, "2026-02", "2026-Q1"),
+            (StartOfYearMapper, "2026-02-10T14", "2026"),
+            (StartOfYearMapper, "2026-02-09 (W07)", "2026"),
+            (StartOfYearMapper, "2026-Q1", "2026"),
+            # Quarter keys resolve to the first month of the quarter.
+            (StartOfMonthMapper, "2026-Q3", "2026-07"),
+            # Coarser keys resolve to the start of their period.
+            (StartOfDayMapper, "2026", "2026-01-01"),
+        ],
+    )
+    def test_to_downstream_accepts_default_output_of_temporal_mappers(
+        self,
+        mapper_cls: type[_BaseTemporalMapper],
+        key: str,
+        expected_downstream_key: str,
+    ):
+        assert mapper_cls().to_downstream(key) == expected_downstream_key
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param("2026-07-3", id="unpadded-day"),
+            pytest.param("2026-1", id="unpadded-month"),
+            pytest.param("2026-13", id="invalid-month"),
+            pytest.param("2026-02-30", id="invalid-day"),
+            pytest.param("2026-07-30T24", id="invalid-hour"),
+            pytest.param("2026-Q5", id="invalid-quarter"),
+            pytest.param("2026-07-30 (W31)", id="week-key-not-a-monday"),
+            pytest.param("2026-07-27 (W99)", id="week-key-wrong-week"),
+            pytest.param("12", id="too-short"),
+            pytest.param("not-a-date", id="not-a-date"),
+        ],
+    )
+    def test_to_downstream_rejects_malformed_keys(self, key: str):
+        with pytest.raises(ValueError, match="does not match format"):
+            StartOfDayMapper().to_downstream(key)
+
+    def test_to_downstream_prefers_input_format(self):
+        """A key matching input_format is read with it, never as a default output."""
+        pm = StartOfMonthMapper(input_format="%Y-%d")
+        assert pm.to_downstream("2026-02") == "2026-01"
+
+    def test_to_downstream_default_key_uses_mapper_timezone(self):
+        """Partial keys carry no offset, so they are read in the mapper's timezone."""
+        pm = StartOfDayMapper(timezone="Asia/Taipei")
+        assert pm.to_downstream("2026-02-10T23") == "2026-02-10"
+
+    def test_chain_mapper_passes_keys_between_temporal_mappers(self):
+        pm = ChainMapper(StartOfHourMapper(), StartOfDayMapper(), StartOfYearMapper())
+        assert pm.to_downstream("2026-02-10T14:30:45") == "2026"
+
+    def test_rollup_mapper_keeps_input_format_strict(self):
+        """A rollup only waits for keys in input_format, so other keys must still fail."""
+        pm = RollupMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow())
+        assert pm.to_downstream("2026-02-10T14:00:00") == "2026-02-10"
+        with pytest.raises(ValueError, match="does not match format"):
+            pm.to_downstream("2026-02-10T14")
+
+    def test_rollup_mapper_accepts_keys_in_custom_input_format(self):
+        pm = RollupMapper(
+            upstream_mapper=StartOfDayMapper(input_format="%Y-%m-%dT%H"),
+            window=DayWindow(),
+        )
+        key = pm.to_downstream("2026-02-10T14")
+        assert key == "2026-02-10"
+        assert "2026-02-10T14" in pm.to_upstream(key)
 
     def test_encode_upstream_accepts_aware_utc_decode(self):
         """`encode_upstream` accepts aware datetimes produced by `decode_downstream` with %z."""
