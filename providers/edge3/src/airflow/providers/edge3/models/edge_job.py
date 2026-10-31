@@ -33,29 +33,35 @@ from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
-from airflow.providers.edge3.models.types import is_callback_job
+from airflow.providers.edge3.models.types import is_callback_job, is_connection_test_job
 from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from airflow.models.callback import CallbackKey
+    from airflow.models.connection_test import ConnectionTestKey
 
 
 def build_job_key(
     dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int
-) -> TaskInstanceKey | CallbackKey:
+) -> TaskInstanceKey | CallbackKey | ConnectionTestKey:
     """
     Build the key the executor layer uses for a job row.
 
-    A row is a callback only if it has the full identity ``queue_workload()`` writes for callbacks, since
-    ``ExecuteCallback`` is a valid Dag id. A task row maps to the ``airflow.models`` ``TaskInstanceKey``,
-    not the ``airflow.sdk`` one, because ``BaseExecutor`` dispatches on it with ``isinstance``.
+    A row is a callback or connection test only if it has the full identity ``queue_workload()`` writes
+    for them, since ``ExecuteCallback`` and ``TestConnection`` are valid Dag ids. A task row maps to the
+    ``airflow.models`` ``TaskInstanceKey``, not the ``airflow.sdk`` one, because ``BaseExecutor``
+    dispatches on it with ``isinstance``.
     """
     if AIRFLOW_V_3_3_PLUS and is_callback_job(dag_id, task_id, run_id, try_number, map_index):
         from airflow.models.callback import CallbackKey
 
         return CallbackKey(id=task_id)
+    if AIRFLOW_V_3_3_PLUS and is_connection_test_job(dag_id, task_id, run_id, try_number, map_index):
+        from airflow.models.connection_test import ConnectionTestKey
+
+        return ConnectionTestKey(id=task_id)
     return TaskInstanceKey(dag_id, task_id, run_id, try_number, map_index)
 
 
@@ -129,7 +135,7 @@ class EdgeJobModel(Base, LoggingMixin):
     __table_args__ = (Index("rj_order", state, priority_weight.desc(), queued_dttm, queue),)
 
     @property
-    def key(self) -> TaskInstanceKey | CallbackKey:
+    def key(self) -> TaskInstanceKey | CallbackKey | ConnectionTestKey:
         """Key of the job as the executor layer knows it."""
         return build_job_key(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
