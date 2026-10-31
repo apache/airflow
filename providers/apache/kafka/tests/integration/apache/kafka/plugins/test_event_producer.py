@@ -22,6 +22,7 @@ import os
 import subprocess
 import time
 import uuid
+from typing import cast
 
 import pytest
 
@@ -66,7 +67,8 @@ class TestEventProducer:
     KAFKA_CONFIG_ID = "kafka_default"
     # Use a unique topic per run to avoid errors on a re-run, in case
     # the previous teardown hasn't finished with the topic deletion.
-    TOPIC = f"airflow.events.itest.{uuid.uuid4().hex[:8]}"
+    DAGRUN_TOPIC = f"airflow.dagrun.itest.{uuid.uuid4().hex[:8]}"
+    TASK_INSTANCE_TOPIC = f"airflow.task_instance.itest.{uuid.uuid4().hex[:8]}"
 
     @classmethod
     def setup_class(cls):
@@ -85,7 +87,8 @@ class TestEventProducer:
 
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED"] = "True"
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED"] = "True"
-        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC"] = cls.TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC"] = cls.DAGRUN_TOPIC
+        os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC"] = cls.TASK_INSTANCE_TOPIC
         os.environ["AIRFLOW__KAFKA_EVENT_PRODUCER__SOURCE"] = "dev-breeze"
 
         # Shared Kafka connection: used by the event producer plugin, the topic
@@ -107,15 +110,17 @@ class TestEventProducer:
 
         cls._admin = KafkaAdminClientHook(kafka_config_id=cls.KAFKA_CONFIG_ID)
         # Tuple positions are (name, partition, replication).
-        cls._admin.create_topic([(cls.TOPIC, 1, 1)])
+        cls._admin.create_topic([(cls.DAGRUN_TOPIC, 1, 1), (cls.TASK_INSTANCE_TOPIC, 1, 1)])
 
     @classmethod
     def teardown_class(cls):
         try:
-            cls._admin.delete_topic([cls.TOPIC])
+            cls._admin.delete_topic([cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC])
             time.sleep(2)  # let the broker finish the async delete
         except Exception as exc:
-            log.warning("teardown: failed to delete topic %r: %s", cls.TOPIC, exc)
+            log.warning(
+                "teardown: failed to delete topics %r, %r: %s", cls.DAGRUN_TOPIC, cls.TASK_INSTANCE_TOPIC, exc
+            )
 
     @pytest.fixture
     def start_components(self):
@@ -130,7 +135,9 @@ class TestEventProducer:
 
     @pytest.mark.execution_timeout(90)
     def test_dag_run_produces_event_messages(self, start_components):
-        consumer = KafkaConsumerHook(topics=[self.TOPIC], kafka_config_id=self.KAFKA_CONFIG_ID).get_consumer()
+        consumer = KafkaConsumerHook(
+            topics=[self.DAGRUN_TOPIC, self.TASK_INSTANCE_TOPIC], kafka_config_id=self.KAFKA_CONFIG_ID
+        ).get_consumer()
         _wait_for_assignment(consumer)
 
         dag_id = "demo_dag"
@@ -151,17 +158,23 @@ class TestEventProducer:
         finally:
             consumer.close()
 
-        topic_msg_bodies: list[dict] = []
+        topic_msg_bodies: list[tuple[str, dict]] = []
         for message in messages:
-            topic_msg_bodies.append(json.loads(message.value()))
+            topic = cast("str", message.topic())
+            value = json.loads(cast("str | bytes", message.value()))
+            topic_msg_bodies.append((topic, value))
 
         assert len(topic_msg_bodies) == len(expected_events)
 
-        for body in topic_msg_bodies:
+        for topic, body in topic_msg_bodies:
             assert body["dag_id"] == dag_id
             assert body["run_id"] == run_id
             if body["event"].startswith("task_instance."):
                 assert body["task_id"] == "task1"
+                assert topic == self.TASK_INSTANCE_TOPIC
+            if body["event"].startswith("dag_run."):
+                assert body["dag_id"] == "demo_dag"
+                assert topic == self.DAGRUN_TOPIC
 
-        received_events = [body["event"] for body in topic_msg_bodies]
+        received_events = [body["event"] for _topic, body in topic_msg_bodies]
         assert sorted(received_events) == sorted(expected_events)
