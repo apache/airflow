@@ -1,0 +1,1 @@
+Keep configured Dag bundles active when their URL template fails to build, instead of marking them inactive and clearing their import errors and team ownership until the next successful sync.
