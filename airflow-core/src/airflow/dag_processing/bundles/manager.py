@@ -184,6 +184,21 @@ def get_configured_bundle_team_names() -> dict[str, str | None]:
     return {cfg.name: cfg.team_name for cfg in _read_bundle_config_list()}
 
 
+def get_configured_bundle_config(name: str) -> _ExternalBundleConfig:
+    """
+    Get the configuration of one explicitly configured Dag bundle, without importing any bundle class.
+
+    For callers that build a single bundle on a host that may not have the other configured
+    bundles' classes installed, such as a deployment pipeline publishing a release.
+
+    :raises ValueError: if no bundle named ``name`` is configured.
+    """
+    for cfg in _read_bundle_config_list():
+        if cfg.name == name:
+            return cfg
+    raise ValueError(f"Requested bundle '{name}' is not configured.")
+
+
 def _add_example_dag_bundle(bundle_config_list: list[_ExternalBundleConfig]):
     from airflow import example_dags
 

@@ -167,6 +167,22 @@ ARG_BUNDLE_NAME = Arg(
     default=None,
     action="append",
 )
+ARG_DAG_BUNDLE_NAME = Arg(("bundle_name",), metavar="BUNDLE_NAME", help="Name of the configured Dag bundle")
+# Not the DIRPATH metavar: its argparse check would exit 2 with the usage text on stdout, while
+# the publisher reports a missing or non-directory source as a publication failure.
+ARG_DAG_BUNDLE_SOURCE_PATH = Arg(
+    ("source_path",),
+    metavar="SOURCE_DIR",
+    help="Local directory containing the Dag files to publish",
+)
+ARG_EXPECTED_CURRENT_BUNDLE_VERSION = Arg(
+    ("--expected-current-version",),
+    default=None,
+    help=(
+        "Publish only if this is still the bundle's current version, so that an "
+        "out-of-order deployment cannot replace a newer release. Omit it for the first release."
+    ),
+)
 ARG_START_DATE = Arg(
     ("-s", "--start-date"),
     help=(
@@ -1227,6 +1243,27 @@ BACKFILL_COMMANDS = (
         ),
     ),
 )
+DAG_BUNDLES_COMMANDS = (
+    ActionCommand(
+        name="publish-local",
+        help="Publish a local directory as a new release of a manifest-backed local Dag bundle",
+        description=(
+            "Copy the source directory into an immutable, content-addressed snapshot under the "
+            "bundle's published_root, then point the bundle's release reference at it. The "
+            "previous release is unchanged if publication fails before replacing the reference. "
+            "If the final disk sync fails after replacement, the new release may already be active; "
+            "check the current reference before retrying. Does not use the metadata database."
+        ),
+        func=lazy_load_command("airflow.cli.commands.dag_bundle_command.dag_bundle_publish_local"),
+        args=(
+            ARG_DAG_BUNDLE_NAME,
+            ARG_DAG_BUNDLE_SOURCE_PATH,
+            ARG_EXPECTED_CURRENT_BUNDLE_VERSION,
+            ARG_OUTPUT,
+            ARG_VERBOSE,
+        ),
+    ),
+)
 DAGS_COMMANDS = (
     ActionCommand(
         name="details",
@@ -2181,6 +2218,11 @@ core_commands: list[CLICommand] = [
         name="backfill",
         help="Manage backfills",
         subcommands=BACKFILL_COMMANDS,
+    ),
+    GroupCommand(
+        name="dag-bundles",
+        help="Manage Dag bundles",
+        subcommands=DAG_BUNDLES_COMMANDS,
     ),
     GroupCommand(
         name="partitions",
