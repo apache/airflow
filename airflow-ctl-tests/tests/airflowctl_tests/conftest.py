@@ -66,6 +66,13 @@ class _CtlTestState:
     access_token: str | None = None
 
 
+def _get_host_port_number() -> str:
+    port = DOCKER_COMPOSE_HOST_PORT.rpartition(":")[2]
+    if not port.isdigit():
+        raise ValueError(f"HOST_PORT must look like host:port, got {DOCKER_COMPOSE_HOST_PORT!r}")
+    return port
+
+
 def _get_access_token() -> str:
     """Log in once per pytest session; every REST call below reuses the token."""
     if _CtlTestState.access_token is None:
@@ -187,6 +194,7 @@ def run_command(wait_for_dag_run):
 
     def _run_command(command: str, env_vars: dict, skip_login: bool = False) -> str:
         host_envs = os.environ.copy()
+        host_envs["AIRFLOW_CLI_API_URL"] = f"http://{DOCKER_COMPOSE_HOST_PORT}"
         host_envs.update(env_vars)
 
         command_from_config = f"airflowctl {command}"
@@ -382,6 +390,7 @@ def docker_compose_up(tmp_path_factory):
 
     # Set environment variables for the test
     os.environ["AIRFLOW_IMAGE_NAME"] = DOCKER_IMAGE
+    os.environ["AIRFLOW_API_SERVER_PORT"] = _get_host_port_number()
     os.environ["AIRFLOW_CTL_VERSION"] = os.environ.get("AIRFLOW_CTL_VERSION", "1.0.0")
     os.environ["ENV_FILE_PATH"] = str(tmp_dir / ".env")
     #
