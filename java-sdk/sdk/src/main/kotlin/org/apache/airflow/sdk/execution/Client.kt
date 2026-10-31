@@ -20,13 +20,20 @@
 package org.apache.airflow.sdk.execution
 
 import kotlinx.coroutines.runBlocking
+import org.apache.airflow.sdk.execution.comm.AssetStateStoreResult
+import org.apache.airflow.sdk.execution.comm.ClearAssetStateStoreByName
+import org.apache.airflow.sdk.execution.comm.ClearAssetStateStoreByUri
 import org.apache.airflow.sdk.execution.comm.ClearTaskStateStore
 import org.apache.airflow.sdk.execution.comm.ConnectionResult
 import org.apache.airflow.sdk.execution.comm.DagResult
 import org.apache.airflow.sdk.execution.comm.DagRunStateResult
+import org.apache.airflow.sdk.execution.comm.DeleteAssetStateStoreByName
+import org.apache.airflow.sdk.execution.comm.DeleteAssetStateStoreByUri
 import org.apache.airflow.sdk.execution.comm.DeleteTaskStateStore
 import org.apache.airflow.sdk.execution.comm.DeleteVariable
 import org.apache.airflow.sdk.execution.comm.ErrorResponse
+import org.apache.airflow.sdk.execution.comm.GetAssetStateStoreByName
+import org.apache.airflow.sdk.execution.comm.GetAssetStateStoreByUri
 import org.apache.airflow.sdk.execution.comm.GetConnection
 import org.apache.airflow.sdk.execution.comm.GetDag
 import org.apache.airflow.sdk.execution.comm.GetDagRunState
@@ -35,6 +42,8 @@ import org.apache.airflow.sdk.execution.comm.GetVariable
 import org.apache.airflow.sdk.execution.comm.GetXCom
 import org.apache.airflow.sdk.execution.comm.OKResponse
 import org.apache.airflow.sdk.execution.comm.PutVariable
+import org.apache.airflow.sdk.execution.comm.SetAssetStateStoreByName
+import org.apache.airflow.sdk.execution.comm.SetAssetStateStoreByUri
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
 import org.apache.airflow.sdk.execution.comm.SkipDownstreamTasks
@@ -44,6 +53,22 @@ import org.apache.airflow.sdk.execution.comm.VariableResult
 import org.apache.airflow.sdk.execution.comm.XComResult
 import java.time.OffsetDateTime
 import java.util.UUID
+
+/**
+ * @suppress
+ *
+ * Names the asset whose state store a request reads or writes. The supervisor
+ * has a separate message for each way of naming an asset.
+ */
+sealed interface AssetRef {
+  data class Name(
+    val name: String,
+  ) : AssetRef
+
+  data class Uri(
+    val uri: String,
+  ) : AssetRef
+}
 
 /**
  * @suppress
@@ -141,6 +166,25 @@ interface Client {
 
   /** Whether the Dag is paused, which a task may refuse to trigger. */
   fun isDagPaused(dagId: String): Boolean
+
+  /** Returns `null` when the key is not stored, or no active asset matches [asset]. */
+  fun getAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ): AssetStateStoreResult?
+
+  fun setAssetStateStore(
+    asset: AssetRef,
+    key: String,
+    value: Any,
+  )
+
+  fun deleteAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  )
+
+  fun clearAssetStateStore(asset: AssetRef)
 }
 
 /**
@@ -319,4 +363,78 @@ class CoordinatorClient(
 
   override fun isDagPaused(dagId: String): Boolean =
     runBlocking { exec.communicate<DagResult>(GetDag().also { it.dagId = dagId }) }.isPaused == true
+
+  override fun getAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ): AssetStateStoreResult? {
+    val message =
+      when (asset) {
+        is AssetRef.Name ->
+          GetAssetStateStoreByName().also {
+            it.name = asset.name
+            it.key = key
+          }
+        is AssetRef.Uri ->
+          GetAssetStateStoreByUri().also {
+            it.uri = asset.uri
+            it.key = key
+          }
+      }
+    return runBlocking {
+      exec.communicateOrNullIf<AssetStateStoreResult>(message, ErrorResponse.ErrorType.ASSET_STORE_NOT_FOUND)
+    }
+  }
+
+  override fun setAssetStateStore(
+    asset: AssetRef,
+    key: String,
+    value: Any,
+  ) {
+    val message =
+      when (asset) {
+        is AssetRef.Name ->
+          SetAssetStateStoreByName().also {
+            it.name = asset.name
+            it.key = key
+            it.value = value
+          }
+        is AssetRef.Uri ->
+          SetAssetStateStoreByUri().also {
+            it.uri = asset.uri
+            it.key = key
+            it.value = value
+          }
+      }
+    runBlocking { exec.communicate<OKResponse>(message) }
+  }
+
+  override fun deleteAssetStateStore(
+    asset: AssetRef,
+    key: String,
+  ) {
+    val message =
+      when (asset) {
+        is AssetRef.Name ->
+          DeleteAssetStateStoreByName().also {
+            it.name = asset.name
+            it.key = key
+          }
+        is AssetRef.Uri ->
+          DeleteAssetStateStoreByUri().also {
+            it.uri = asset.uri
+            it.key = key
+          }
+      }
+    runBlocking { exec.communicate<OKResponse>(message) }
+  }
+
+  override fun clearAssetStateStore(asset: AssetRef) {
+    val message =
+      when (asset) {
+        is AssetRef.Name -> ClearAssetStateStoreByName().also { it.name = asset.name }
+        is AssetRef.Uri -> ClearAssetStateStoreByUri().also { it.uri = asset.uri }
+      }
+    runBlocking { exec.communicate<OKResponse>(message) }
+  }
 }

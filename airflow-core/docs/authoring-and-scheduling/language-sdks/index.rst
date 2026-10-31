@@ -310,7 +310,7 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
    * - ``asset-state-store`` (MAY)
      - ✗
-     - ✗
+     - ✓ 1.0.0
      - ✗
    * - ``asset-event-emit`` (MAY)
      - ✗
