@@ -138,6 +138,9 @@ class TestAwsDuckDBHookCredentials:
         secret_statement(AwsDuckDBHook())
         aws_base_hook.get_credentials.assert_not_called()
 
+    def test_credential_chain_secret_refreshes_expired_credentials(self, aws_base_hook):
+        assert "REFRESH 'auto'" in secret_statement(AwsDuckDBHook())
+
     def test_explicit_chain_is_passed_through(self, aws_base_hook):
         statement = secret_statement(AwsDuckDBHook(credential_chain="env;instance"))
         assert "CHAIN 'env;instance'" in statement
