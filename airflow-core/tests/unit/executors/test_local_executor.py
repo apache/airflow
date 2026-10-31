@@ -1123,6 +1123,7 @@ class TestLocalExecutorCallbackSupport:
             callback=callback_data,
             dag_rel_path=Path("test.py"),
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            team_name="team-a",
             token="test_token",
             log_path="test.log",
         )
@@ -1136,6 +1137,7 @@ class TestLocalExecutorCallbackSupport:
             dag_rel_path=Path("test.py"),
             log_path="test.log",
             bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            team_name="team-a",
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
             server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )

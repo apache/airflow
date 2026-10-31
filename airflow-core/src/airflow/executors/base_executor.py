@@ -930,6 +930,7 @@ class BaseExecutor(LoggingMixin):
                 dag_rel_path=workload.dag_rel_path,
                 log_path=workload.log_path,
                 bundle_info=workload.bundle_info,
+                team_name=workload.team_name,
                 token=workload.token,
                 server=server,
                 **encoding_kwargs,

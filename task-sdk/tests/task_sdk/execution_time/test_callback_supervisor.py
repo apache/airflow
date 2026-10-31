@@ -730,6 +730,56 @@ class TestCallbackSubprocessStart:
 
         assert calls == ["import task runner", "fork"]
 
+    def test_team_name_is_set_before_the_callback_runs(self, base_start_kwargs):
+        """Secret lookups in callback code must resolve to the owning team, even at import time."""
+        calls = []
+        self.mock_execute_callback.side_effect = lambda **kwargs: calls.append("execute") or (True, None)
+
+        with patch(
+            "airflow.sdk.execution_time.callback_supervisor.set_current_team_name",
+            side_effect=lambda team_name: calls.append(("team", team_name)),
+        ):
+            CallbackSubprocess.start(**{**base_start_kwargs, "team_name": "team-a"})
+            self.mock_super_start.call_args.kwargs["target"]()
+
+        assert calls == [("team", "team-a"), "execute"]
+
+
+class TestCallbackTeamSecrets:
+    """A callback subprocess must resolve secrets for the Dag run's team."""
+
+    def test_team_variable_wins_over_the_global_one(self, monkeypatch):
+        from airflow.sdk.execution_time import context
+        from airflow.secrets.environment_variables import EnvironmentVariablesBackend
+
+        monkeypatch.setenv("AIRFLOW_VAR_CALLBACK_TEAM_VAR", "global_value")
+        monkeypatch.setenv("AIRFLOW_VAR__TEAM_A___CALLBACK_TEAM_VAR", "team_a_value")
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [EnvironmentVariablesBackend()],
+        )
+
+        with (
+            patch("airflow.sdk.execution_time.comms.CommsDecoder"),
+            patch("airflow.sdk.execution_time.callback_supervisor.WatchedSubprocess.start") as mock_super,
+            patch(
+                "airflow.sdk.execution_time.callback_supervisor.execute_callback", return_value=(True, None)
+            ),
+        ):
+            CallbackSubprocess.start(
+                id=str(uuid.uuid4()),
+                callback_path="does.not.matter",
+                callback_kwargs={},
+                dag_rel_path=Path("dag.py"),
+                team_name="team_a",
+                client=Mock(),
+            )
+            try:
+                mock_super.call_args.kwargs["target"]()
+                assert context._get_variable("callback_team_var", deserialize_json=False) == "team_a_value"
+            finally:
+                context.set_current_team_name(None)
+
 
 class TestSuperviseCallbackExchangesTokenFirst:
     """No callback code may run until the single-use token has been exchanged."""
@@ -791,3 +841,19 @@ class TestSuperviseCallbackExchangesTokenFirst:
         )
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
+
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_team_name_is_passed_to_the_subprocess(self, mock_start, _nondumpable):
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            team_name="team-a",
+            client=Mock(),
+        )
+
+        assert mock_start.call_args.kwargs["team_name"] == "team-a"

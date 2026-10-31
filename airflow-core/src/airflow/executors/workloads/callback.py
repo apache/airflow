@@ -80,6 +80,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: CallbackDTO
+    team_name: str | None = None
 
     type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
@@ -134,6 +135,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
 
         return cls(
             callback=CallbackDTO.model_validate(callback, from_attributes=True),
+            team_name=dag_run.team_name,
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
             token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
