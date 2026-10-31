@@ -92,9 +92,9 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         job instead of resubmitting the SQL. Set to ``False`` to always submit fresh on
         retry. Requires Airflow 3.3+; ignored on earlier versions.
         With ``wait_for_completion=False`` or ``deferrable=True`` durable has no effect. (default value: True)
-    :param cancel_on_kill: If True (default), drop the job service when the task is killed. This
-        applies both while the operator is running and, for a deferred task, while it waits in the
-        triggerer.
+    :param cancel_on_kill: If True, drop the job service when the task is killed. This applies
+        both while the operator is running and, for a deferred task, while it waits in the
+        triggerer. (default value: True)
     :param timeout: Maximum seconds to wait for the job to reach a terminal
         state. When it elapses the task fails. (default value: 86400)
     :param database: name of database (will overwrite database defined
