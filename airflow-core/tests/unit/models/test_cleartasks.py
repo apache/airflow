@@ -1873,6 +1873,67 @@ class TestClearTasks:
 
         assert count == 0
 
+    def test_clear_only_new_for_run_without_created_version(self, dag_maker, session):
+        """only_new must use the run's TI rows when the run has no created Dag version.
+
+        Dag runs carried over from Airflow 2 have task instances but no
+        created_dag_version_id. Diffing against that pointer returns nothing, so only_new
+        must compare the latest Dag's task ids with the rows the run actually has.
+        """
+        with dag_maker(
+            "test_clear_only_new_versionless_run",
+            bundle_version="v1",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+        dr = dag_maker.create_dagrun(
+            state=State.RUNNING,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti0, ti1 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        for ti in (ti0, ti1):
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.state = TaskInstanceState.SUCCESS
+            session.merge(ti)
+
+        # Simulate a run carried over from Airflow 2: neither it nor its TIs have a version.
+        dr.created_dag_version_id = None
+        dr.bundle_version = None
+        for ti in (ti0, ti1):
+            ti.dag_version_id = None
+        session.merge(dr)
+        session.flush()
+
+        with dag_maker(
+            "test_clear_only_new_versionless_run",
+            bundle_version="v2",
+        ) as dag:
+            EmptyOperator(task_id="0")
+            EmptyOperator(task_id="1")
+            EmptyOperator(task_id="2")
+
+        new_tis = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            dry_run=True,
+            session=session,
+        )
+        assert sorted(new_tis) == ["2"]
+
+        count = dag.clear(
+            run_id=dr.run_id,
+            only_new=True,
+            session=session,
+        )
+        assert count == 1
+
+        session.expire_all()
+        updated_dr = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dr.dag_id, DagRun.run_id == dr.run_id)
+        )
+        assert {ti.task_id for ti in updated_dr.task_instances} == {"0", "1", "2"}
+
     def test_clear_normal_task_includes_setup_and_teardown(self, dag_maker):
         with dag_maker("test_clear_normal_task_includes_setup_and_teardown") as dag:
             setup_t = EmptyOperator(task_id="setup_t").as_setup()
