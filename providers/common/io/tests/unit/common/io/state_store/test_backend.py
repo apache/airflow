@@ -21,6 +21,7 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
+from fsspec.implementations.local import LocalFileOpener
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
@@ -151,6 +152,33 @@ class TestIOPrimitives:
         path = ObjectStoragePath(f"{conf_overrides}/a/b/c/key")
         _write_to_object_storage(path, "hello")
         assert path.exists()
+
+    def test_write_passes_bounded_chunks_to_the_file(self, conf_overrides, monkeypatch):
+        monkeypatch.setattr(backend, "_WRITE_CHUNK_CHARS", 4)
+        path = ObjectStoragePath(f"{conf_overrides}/chunked")
+
+        with mock.patch.object(
+            LocalFileOpener, "write", autospec=True, side_effect=LocalFileOpener.write
+        ) as mock_write:
+            _write_to_object_storage(path, "0123456789")
+
+        assert [c.args[1] for c in mock_write.call_args_list] == [b"0123", b"4567", b"89"]
+        assert _read_from_object_storage(path) == "0123456789"
+
+    def test_chunked_write_roundtrips_through_gzip(self, base_path, monkeypatch):
+        monkeypatch.setattr(backend, "_WRITE_CHUNK_CHARS", 3)
+        text = '{"weights": [1, 2, 3, 4, 5]}'
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_compression"): "gzip",
+            }
+        ):
+            # Reads infer compression from the suffix, as the backend's own paths do.
+            path = ObjectStoragePath(f"{base_path}/chunked{backend._get_compression_suffix()}")
+            _write_to_object_storage(path, text)
+
+            assert _read_from_object_storage(path) == text
 
 
 class TestStateStoreObjectStorageBackend:
@@ -286,31 +314,69 @@ class TestStateStoreObjectStorageBackend:
             ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
             assert ref.startswith("file://")
 
-    def test_task_serialize_to_db_when_below_threshold(self, task_scope, base_path):
+    @pytest.mark.parametrize(
+        ("scope_fixture", "serialize", "deserialize"),
+        [
+            pytest.param(
+                "task_scope",
+                "serialize_task_state_store_to_ref",
+                "deserialize_task_state_store_from_ref",
+                id="task",
+            ),
+            pytest.param(
+                "asset_scope",
+                "serialize_asset_state_store_to_ref",
+                "deserialize_asset_state_store_from_ref",
+                id="asset",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("value", "stored_size"),
+        [
+            pytest.param("abcdefg", 9, id="ascii"),
+            # JSON escapes non-ASCII characters, so each one counts as six bytes.
+            pytest.param("é ü", 15, id="non-ascii"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("threshold_offset", "offloaded"),
+        [
+            pytest.param(1, False, id="below-threshold"),
+            pytest.param(0, True, id="at-threshold"),
+            pytest.param(-1, True, id="above-threshold"),
+        ],
+    )
+    def test_serialize_threshold_boundary_roundtrips(
+        self,
+        request,
+        base_path,
+        scope_fixture,
+        serialize,
+        deserialize,
+        value,
+        stored_size,
+        threshold_offset,
+        offloaded,
+    ):
         with conf_vars(
             {
                 ("common.io", "state_store_objectstorage_path"): base_path,
-                ("common.io", "state_store_objectstorage_threshold"): "10000",
+                ("common.io", "state_store_objectstorage_threshold"): str(stored_size + threshold_offset),
             }
         ):
-            backend._get_threshold.cache_clear()
             store = StateStoreObjectStorageBackend()
-            ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
-            assert not ref.startswith("file://")
-            assert store.deserialize_task_state_store_from_ref(ref) == {"x": 1}
+            scope = request.getfixturevalue(scope_fixture)
+            ref = getattr(store, serialize)(value=value, key="k", scope=scope)
+            result = getattr(store, deserialize)(ref)
 
-    def test_asset_serialize_to_db_when_below_threshold(self, asset_scope, base_path):
-        with conf_vars(
-            {
-                ("common.io", "state_store_objectstorage_path"): base_path,
-                ("common.io", "state_store_objectstorage_threshold"): "10000",
-            }
-        ):
-            backend._get_threshold.cache_clear()
-            store = StateStoreObjectStorageBackend()
-            ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
-            assert not ref.startswith("file://")
-            assert store.deserialize_asset_state_store_from_ref(ref) == {"x": 1}
+            assert result == value
+            if offloaded:
+                assert ref.startswith("file://")
+                assert len(ObjectStoragePath(ref).read_bytes()) == stored_size
+            else:
+                assert len(ref) == stored_size
+                assert not ref.startswith("file://")
 
     def test_negative_threshold_raises(self, base_path):
         with conf_vars(
