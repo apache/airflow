@@ -21,13 +21,14 @@ import json
 from collections.abc import AsyncIterator, Hashable
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 import structlog
 from pydantic import (
     BaseModel,
     Discriminator,
     JsonValue,
+    StringConstraints,
     Tag,
     model_serializer,
 )
@@ -469,6 +470,29 @@ class TriggerEvent(BaseModel):
         return f"TriggerEvent<{self.payload!r}>"
 
 
+class AssetTriggerEvent(TriggerEvent):
+    """
+    An asset update emitted by a watcher, optionally identifying a native partition.
+
+    The partition key applies to every asset associated with the trigger. The payload
+    remains available in each asset event's extras and to any deferred task resumed
+    by the same trigger.
+    """
+
+    type: Literal["AssetTriggerEvent"] = "AssetTriggerEvent"
+    partition_key: Annotated[str, StringConstraints(pattern=r"\S", max_length=250)] | None = None
+
+    def __init__(self, payload, *, partition_key: str | None = None, **kwargs):
+        # Explicitly set type so serialization includes it. The triggerer supervisor
+        # needs it to reconstruct AssetTriggerEvent and preserve the partition key.
+        super().__init__(
+            payload=payload,
+            type=kwargs.pop("type", "AssetTriggerEvent"),
+            partition_key=partition_key,
+            **kwargs,
+        )
+
+
 class BaseTaskEndEvent(TriggerEvent):
     """
     Base event class to end the task without resuming on worker.
@@ -521,13 +545,18 @@ class TaskSkippedEvent(BaseTaskEndEvent):
 
 def trigger_event_discriminator(v):
     if isinstance(v, dict):
+        if v.get("type") == "AssetTriggerEvent":
+            return "_asset_"
         return v.get("task_instance_state", "_event_")
+    if isinstance(v, AssetTriggerEvent):
+        return "_asset_"
     if isinstance(v, TriggerEvent):
         return getattr(v, "task_instance_state", "_event_")
 
 
 DiscrimatedTriggerEvent = Annotated[
     Annotated[TriggerEvent, Tag("_event_")]
+    | Annotated[AssetTriggerEvent, Tag("_asset_")]
     | Annotated[TaskSuccessEvent, Tag(TaskInstanceState.SUCCESS)]
     | Annotated[TaskFailedEvent, Tag(TaskInstanceState.FAILED)]
     | Annotated[TaskSkippedEvent, Tag(TaskInstanceState.SKIPPED)],

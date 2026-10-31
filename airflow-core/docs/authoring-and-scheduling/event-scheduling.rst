@@ -64,6 +64,19 @@ event-driven scheduling, then a new trigger must be created.
 This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works with event-driven scheduling.
 It might inherit from the existing trigger as well if both triggers share some common code.
 
+Publishing partitioned asset events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To publish an update for a specific asset partition, yield ``AssetTriggerEvent`` with a ``partition_key``::
+
+    from airflow.triggers.base import AssetTriggerEvent
+
+    yield AssetTriggerEvent({"changed": True}, partition_key="2026-10-16")
+
+Airflow uses this key for partition-aware scheduling.
+
+See :ref:`asset-partitions` for configuring downstream consumers.
+
 Sharing one poll across sibling triggers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
