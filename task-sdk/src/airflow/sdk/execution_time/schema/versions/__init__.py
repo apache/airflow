@@ -46,6 +46,7 @@ def get_bundle() -> VersionBundle:
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
+        AddTaskInstanceIdToSetXCom,
     )
 
     return VersionBundle(
@@ -60,6 +61,7 @@ def get_bundle() -> VersionBundle:
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
             AddExpandedTICountToSupervisorTIRunContext,
             AddExecutionTimeoutToSupervisorTIRunContext,
+            AddTaskInstanceIdToSetXCom,
         ),
         Version("2026-06-16"),
     )

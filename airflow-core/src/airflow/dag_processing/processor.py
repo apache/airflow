@@ -64,6 +64,7 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     PrevSuccessfulDagRunResult,
     PutVariable,
+    SetXCom,
     TaskStatesResult,
     VariableKeysResult,
     VariableResult,
@@ -155,6 +156,7 @@ ToManagerMessage = (
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
+    | SetXCom
     | MaskSecret
 )
 
@@ -650,6 +652,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
         GetXComSequenceItem,
         GetXComSequenceSlice,
         PutVariable,
+        SetXCom,
     )
 
     # Each subclass builds its own ``_request_handlers``, typed with itself, from these.

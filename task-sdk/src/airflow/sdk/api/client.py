@@ -687,6 +687,7 @@ class XComOperations:
         *,
         dag_result: bool = False,
         mapped_length: int | None = None,
+        task_instance_id: uuid.UUID | None = None,
     ) -> OKResponse:
         """Set a XCom value via the API server."""
         params: dict[str, str | int] = {}
@@ -696,6 +697,8 @@ class XComOperations:
             params["map_index"] = map_index
         if mapped_length is not None and mapped_length >= 0:
             params["mapped_length"] = mapped_length
+        if task_instance_id is not None:
+            params["task_instance_id"] = str(task_instance_id)
         self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params, json=value)
         # Any error from the server will anyway be propagated down to the supervisor,
         # so we choose to send a generic response to the supervisor over the server response to

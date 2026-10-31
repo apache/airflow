@@ -1026,6 +1026,7 @@ def _xcom_push_to_db(ti: RuntimeTaskInstance, key: str, value: Any) -> None:
         task_id=ti.task_id,
         run_id=ti.run_id,
         map_index=ti.map_index,
+        task_instance_id=ti.id,
     )
 
 
