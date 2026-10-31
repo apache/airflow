@@ -117,7 +117,12 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, ServerResponseError, _build_query_params, _tolerant_model
+from airflowctl.api.operations import (
+    BaseOperations,
+    ServerResponseError,
+    _build_query_params,
+    _tolerant_model,
+)
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:

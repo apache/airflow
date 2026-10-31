@@ -34,9 +34,10 @@ from rich.markup import escape
 from airflowctl.exceptions import AirflowCtlBrowserLoginException
 
 CALLBACK_PATH = "/callback"
+# Sent before the code is exchanged for a token, so it must not claim that the login worked.
 _CALLBACK_PAGE = (
     b"<!doctype html><title>airflowctl</title>"
-    b"<p>Login complete. You can close this window and return to the terminal.</p>"
+    b"<p>You can close this window and return to the terminal to see the result of the login.</p>"
 )
 _CALLBACK_FAILED_PAGE = (
     b"<!doctype html><title>airflowctl</title><p>Login failed. Return to the terminal for details.</p>"
