@@ -41,7 +41,7 @@ import json
 import keyword
 import linecache
 import re
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import pendulum
@@ -55,12 +55,7 @@ from airflow.sdk.importers.yaml_importer.models import (
     FILE_KEYS,
     TEMPLATE_KEYS,
     XCOM_KEYS,
-    ConstRef,
-    FileRef,
-    Literal,
-    TemplateRef,
     TimetableSchedule,
-    XComRef,
 )
 
 if TYPE_CHECKING:
@@ -68,7 +63,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.importers.base import DagDefinition
-    from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value
+    from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value, XComRef
 
 
 class YamlDagBuildError(ValueError):
@@ -133,16 +128,17 @@ class DagBuilder:
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument {name!r} is not a valid identifier")
             if name in KNOWN_CONTEXT_KEYS:
                 raise YamlDagBuildError(f"task {task.id_!r}: run argument cannot be named {name!r}")
-            _reject_unbindable_run_marker(task.id_, value)
-            if not isinstance(lowered := self._lower(value, protect=False), XComArg):
+            if error := value.get_run_binding_error():
+                raise YamlDagBuildError(f"task {task.id_!r}: {error}")
+            if not isinstance(op_arg := value.as_operator_argument(self, rendered=False), XComArg):
                 try:
-                    json.dumps(lowered, allow_nan=False)
+                    json.dumps(op_arg, allow_nan=False)
                 except (TypeError, ValueError):
                     raise YamlDagBuildError(
                         f"task {task.id_!r}: run argument {name!r} must be JSON-serializable, "
-                        f"not a {type(lowered).__name__}"
+                        f"not a {type(op_arg).__name__}"
                     ) from None
-            run_kwargs[name] = lowered
+            run_kwargs[name] = op_arg
         decorator = task_decorators.stub(
             task_id=task.id_, **_coerce_temporal(task.model_extra or {}, BaseOperator)
         )
@@ -183,14 +179,14 @@ class DagBuilder:
         render_fields: list[str] = []
         off_template: list[str] = []
         for name, value in task.with_.items():
-            needs_render, has_marker = _field_markers(value)
-            lowered = self._lower(value, protect=needs_render)
-            if not has_marker:
-                lowered = coercer.coerce(name, lowered)
-            kwargs[name] = lowered
-            if has_marker and name not in template_fields:
+            flags = value.build_marker_flags()
+            op_arg = value.as_operator_argument(self, rendered=flags.needs_render)
+            if not flags.has_marker:
+                op_arg = coercer.coerce(name, op_arg)
+            kwargs[name] = op_arg
+            if flags.has_marker and name not in template_fields:
                 off_template.append(name)
-            if needs_render:
+            if flags.needs_render:
                 render_fields.append(name)
         if off_template:
             raise YamlDagBuildError(
@@ -202,53 +198,28 @@ class DagBuilder:
 
         return _restrict_template_fields(op_cls(task_id=task.id_, **kwargs), task.with_, render_fields)
 
-    def _lower(self, value: Any, *, protect: bool) -> Any:
+    def build_xcom_arg(self, ref: XComRef) -> XComArg:
         """
-        Lower a resolved value-grammar node into an operator argument.
+        Build an :class:`XComArg` from an :class:`XComRef`.
 
-        :param protect: This should be set when the enclosing field renders to
-            avoid double-rendering. :class:`LiteralValue` is used to wrap
-            rendered values so they stay literal.
+        This looks up the upstream operator among the already-built ones.
         """
-        if isinstance(value, XComRef):
-            return self._xcom_arg(value)  # resolves at render time; never wrapped
-        if isinstance(value, TemplateRef):
-            # $t over a string renders that string; $t over $f is a template file (read, then render).
-            if isinstance(value.source, FileRef):
-                # A constructed FileRef has a str path (its validator rejects a templated filename).
-                return self._read_file(cast("str", value.source.path))
-            return value.source
-        if isinstance(value, FileRef):
-            return self._protect(self._read_file(cast("str", value.path)), protect)
-        if isinstance(value, ConstRef):
-            return self._protect(value.value, protect)
-        if isinstance(value, Literal):
-            return self._lower(value.root, protect=protect)
-        if isinstance(value, dict):
-            return {k: self._lower(v, protect=protect) for k, v in value.items()}
-        if isinstance(value, list):
-            return [self._lower(v, protect=protect) for v in value]
-        return self._protect(value, protect)
-
-    @staticmethod
-    def _protect(value: Any, protect: bool) -> Any:
-        return literal(value) if protect else value
-
-    def _xcom_arg(self, value: XComRef) -> XComArg:
-        """Resolve an :class:`XComRef` against the already-built operators."""
-        target = value.target
+        target = ref.target
         if isinstance(target, str):
             return XComArg(self._operators[target])
         if target.key is None:
             return XComArg(self._operators[target.task])
         return XComArg(self._operators[target.task], key=target.key)
 
-    def _read_file(self, rel_path: str) -> str:
+    def read_file(self, path: str) -> str:
         """Read a ``$f`` at build time, relative to the document."""
         try:
-            return self._definition.sibling(rel_path).read_bytes().decode("utf-8")
+            return self._definition.sibling(path).read_bytes().decode("utf-8")
         except (OSError, ValueError) as exc:
-            raise YamlDagBuildError(f"cannot read $f {rel_path!r}: {exc}") from exc
+            raise YamlDagBuildError(f"cannot read $f {path!r}: {exc}") from exc
+
+    def ensure_literal(self, value: Any, *, rendered: bool) -> Any:
+        return literal(value) if rendered else value
 
     def _stub_callable(self, param_names: tuple[str, ...]) -> Callable[..., None]:
         """
@@ -291,43 +262,6 @@ def _restrict_template_fields(
     op.template_fields = tuple(f for f in op.template_fields if f not in with_ or f in render_fields)
     op.template_ext = ()
     return op
-
-
-def _reject_unbindable_run_marker(task_id: str, value: Any, *, top_level: bool = True) -> None:
-    """
-    Reject value-grammar a task handler's argument binding cannot carry.
-
-    The binding carries a JSON literal or a single top-level ``$x`` (an upstream
-    task's return value). So a template (``$t``) or a keyed ``$x`` anywhere, or a
-    plain ``$x`` nested inside a container instead of passed as its own argument,
-    is an error. ``$f`` and ``$const`` lower to literals and are fine.
-    """
-    if isinstance(value, TemplateRef):
-        raise YamlDagBuildError(
-            f"task {task_id!r}: a template ($t) reference is not supported in a run: task; the task "
-            "handler binding carries literal values and XCom return values, not rendered templates"
-        )
-    if isinstance(value, XComRef):
-        target = value.target
-        if not isinstance(target, str) and target.key is not None:
-            raise YamlDagBuildError(
-                f"task {task_id!r}: a keyed XCom ($x with 'key') is not supported in a run: task; "
-                "only a task's return value crosses the handler boundary"
-            )
-        if not top_level:
-            raise YamlDagBuildError(
-                f"task {task_id!r}: an XCom ($x) nested inside a run argument is not supported; pass "
-                "the upstream output as its own top-level run argument"
-            )
-        return
-    if isinstance(value, Literal):
-        _reject_unbindable_run_marker(task_id, value.root, top_level=top_level)
-    elif isinstance(value, dict):
-        for item in value.values():
-            _reject_unbindable_run_marker(task_id, item, top_level=False)
-    elif isinstance(value, list):
-        for item in value:
-            _reject_unbindable_run_marker(task_id, item, top_level=False)
 
 
 def _reject_reserved_extra_keys(extras: Any) -> None:
@@ -609,37 +543,6 @@ def _build_schedule(schedule: Any) -> Any:
         timetable_cls = import_string(schedule.uses)
         return timetable_cls(**_coerce_temporal(schedule.with_, timetable_cls))
     return schedule
-
-
-class _FieldMarkers(NamedTuple):
-    """Flags describing a value-grammar node's templating needs."""
-
-    needs_render: bool  # carries $t or $x anywhere -- the field must render
-    has_marker: bool  # carries $x/$t/$f -- only allowed on a templated field
-
-
-def _field_markers(value: Any) -> _FieldMarkers:
-    """
-    Scan a value-grammar node for its :class:`_FieldMarkers`.
-
-    ``$const`` is a force-literal escape, not a marker.
-    """
-    if isinstance(value, (XComRef, TemplateRef)):
-        return _FieldMarkers(needs_render=True, has_marker=True)
-    if isinstance(value, FileRef):
-        return _FieldMarkers(needs_render=False, has_marker=True)
-    if isinstance(value, ConstRef):
-        return _FieldMarkers(needs_render=False, has_marker=False)
-    if isinstance(value, Literal):
-        return _field_markers(value.root)
-    if isinstance(value, (dict, list)):
-        children = value.values() if isinstance(value, dict) else value
-        flags = [_field_markers(v) for v in children]
-        return _FieldMarkers(
-            needs_render=any(f.needs_render for f in flags),
-            has_marker=any(f.has_marker for f in flags),
-        )
-    return _FieldMarkers(needs_render=False, has_marker=False)
 
 
 def _topological_order(tasks: list[Task]) -> list[str]:
