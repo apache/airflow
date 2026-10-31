@@ -17,8 +17,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Literal, TypeVar
+from collections import defaultdict
+from collections.abc import Iterable, Sequence
+from datetime import datetime
+from typing import Any, Literal, NamedTuple, TypeVar
 from uuid import UUID
 
 import structlog
@@ -32,8 +34,13 @@ from sqlalchemy.orm.session import Session
 from airflow._shared.state import TaskScope
 from airflow.api.common.mark_tasks import get_run_ids
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
-from airflow.api_fastapi.common.dagbag import DagBagDep, get_latest_version_of_dag
+from airflow.api_fastapi.common.dagbag import (
+    DagBagDep,
+    get_latest_version_of_dag,
+    resolve_run_on_latest_version,
+)
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
@@ -52,10 +59,11 @@ from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.api_fastapi.core_api.services.public.task_coordinates import resolve_task_scope
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dagrun import lock_dag_runs
+from airflow.models.dagrun import DagRun, lock_dag_runs
 from airflow.models.dynamic_region import (
     SENTINEL_REGION_ID,
     DynamicRegion,
@@ -69,9 +77,10 @@ from airflow.models.task_coordinates import (
     public_map_index_expression,
 )
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances, select_loop_clear_scope
+from airflow.models.xcom import XComModel, build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state.metastore import _get_db_backend
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 log = structlog.get_logger(__name__)
 MutationAction = TypeVar(
@@ -591,6 +600,149 @@ def _patch_task_instance_note(
             else:
                 ti.task_instance_note.content = task_instance_body.note
                 ti.task_instance_note.user_id = user.get_id()
+
+
+EXTERNAL_CLEAR_TARGET_XCOM_KEY = "_external_clear_target"
+"""XCom key the Task SDK's task runner records ``ExternalClearTarget.serialize()`` under."""
+
+
+class ExternalClearDepthExceeded(AirflowException):
+    """A clear followed more levels of cross-Dag clear targets than the starting task allows."""
+
+
+class _ClearTarget(NamedTuple):
+    dag_id: str
+    task_id: str
+    logical_date: datetime
+    recursion_depth: int
+
+    @classmethod
+    def from_record(cls, data: dict[str, Any]) -> _ClearTarget:
+        return cls(
+            dag_id=data["dag_id"],
+            task_id=data["task_id"],
+            logical_date=datetime.fromisoformat(data["logical_date"]),
+            recursion_depth=data["recursion_depth"],
+        )
+
+
+def _recorded_targets(ti_ids: Iterable[UUID], *, session: Session) -> list[_ClearTarget]:
+    read = build_xcom_read_query(
+        producer_ids=select(TI.id).where(TI.id.in_(ti_ids)), key=EXTERNAL_CLEAR_TARGET_XCOM_KEY
+    )
+    rows = session.execute(read.with_only_columns(xcom_entity(read).value))
+    return [_ClearTarget.from_record(XComModel.deserialize_value(row)) for row in rows]
+
+
+def find_external_clear_task_instances(
+    task_instances: Iterable[TI],
+    *,
+    dag_bag: DBDagBag,
+    only_failed: bool = False,
+    only_running: bool = False,
+    session: Session,
+) -> list[TI]:
+    """
+    Return the task instances in other Dags that clearing ``task_instances`` should also clear.
+
+    A task instance that recorded an :class:`~airflow.sdk.ExternalClearTarget` when it ran pulls in the
+    target task and its downstream tasks, in the target Dag's run for that logical date. Those can record
+    targets of their own, which are followed in turn. The first level's largest ``recursion_depth`` caps how
+    many levels are followed, which stops a cycle of targets.
+
+    :raises ExternalClearDepthExceeded: when the targets go deeper than that cap.
+    :raises DagNotFound: when a target's Dag run has no serialized Dag to read its downstream tasks from.
+    """
+    seen = {ti.id for ti in task_instances}
+    frontier = set(seen)
+    found: list[TI] = []
+    max_depth: int | None = None
+    depth = 0
+    while frontier and (targets := _recorded_targets(frontier, session=session)):
+        if max_depth is None:
+            max_depth = max(target.recursion_depth for target in targets)
+        depth += 1
+        if depth > max_depth:
+            raise ExternalClearDepthExceeded(
+                f"Clearing followed more than {max_depth} levels of external clear targets, "
+                f"the last into Dag {targets[0].dag_id!r}. There may be a cycle between Dags."
+            )
+        frontier = set()
+        for target in targets:
+            target_tis = session.scalars(
+                select(TI)
+                .join(TI.dag_run)
+                .where(
+                    TI.dag_id == target.dag_id,
+                    TI.task_id == target.task_id,
+                    DagRun.logical_date == target.logical_date,
+                )
+            )
+            for target_ti in target_tis:
+                if (dag := dag_bag.get_dag_for_run(target_ti.dag_run, session=session)) is None:
+                    raise DagNotFound(f"Could not find Dag {target_ti.dag_id!r}")
+                downstream = dag.partial_subset(
+                    task_ids=[target_ti.task_id], include_downstream=True, include_upstream=False
+                )
+                for ti in dag.clear(
+                    task_ids=list(downstream.task_dict),
+                    run_id=target_ti.run_id,
+                    only_failed=only_failed,
+                    only_running=only_running,
+                    dry_run=True,
+                    session=session,
+                ):
+                    if ti.id not in seen:
+                        seen.add(ti.id)
+                        found.append(ti)
+                        frontier.add(ti.id)
+    return found
+
+
+def _editable_task_instances(tis: list[TI], *, user: BaseUser, session: Session) -> list[TI]:
+    """Drop the task instances of Dags the user may not clear; the route only checked the path Dag."""
+    dag_ids = list({ti.dag_id for ti in tis})
+    dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
+    auth_manager = get_auth_manager()
+    editable = {
+        dag_id
+        for dag_id in dag_ids
+        if auth_manager.is_authorized_dag(
+            method="PUT",
+            access_entity=DagAccessEntity.TASK_INSTANCE,
+            details=DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id)),
+            user=user,
+        )
+    }
+    return [ti for ti in tis if ti.dag_id in editable]
+
+
+def _clear_dependent_task_instances(
+    tis: list[TI],
+    *,
+    body: ClearTaskInstancesBody,
+    dag_run_state: DagRunState | Literal[False],
+    session: Session,
+) -> list[TI]:
+    """Clear task instances in other Dags, each under its own Dag's ``rerun_with_latest_version``."""
+    lock_dag_runs(session, {(ti.dag_id, ti.run_id) for ti in tis}, refresh=True)
+    by_dag: dict[str, list[TI]] = defaultdict(list)
+    for ti in session.scalars(
+        select(TI).where(TI.id.in_([ti.id for ti in tis])).execution_options(populate_existing=True)
+    ):
+        by_dag[ti.dag_id].append(ti)
+    whole_task = not body.only_failed and not body.only_running
+    cleared: list[TI] = []
+    for dag_id, dag_tis in by_dag.items():
+        cleared += clear_task_instances(
+            dag_tis,
+            session,
+            dag_run_state,
+            run_on_latest_version=resolve_run_on_latest_version(body.run_on_latest_version, dag_id, session),
+            prevent_running_task=body.prevent_running_task,
+            whole_task_keys={(ti.dag_id, ti.run_id, ti.task_id) for ti in dag_tis} if whole_task else (),
+        )
+    return cleared
 
 
 class BulkTaskInstanceService(BulkService[BulkTaskInstanceBody]):

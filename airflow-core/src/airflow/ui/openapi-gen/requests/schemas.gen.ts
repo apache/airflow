@@ -2525,6 +2525,18 @@ export const $ClearTaskInstancesBody = {
             title: 'Include Downstream',
             default: false
         },
+        include_dependent_dags: {
+            anyOf: [
+                {
+                    type: 'boolean'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Include Dependent Dags',
+            description: 'Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.'
+        },
         include_future: {
             type: 'boolean',
             title: 'Include Future',

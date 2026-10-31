@@ -118,7 +118,10 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
+    ExternalClearDepthExceeded,
+    _clear_dependent_task_instances,
     _discard_task_state_store,
+    _editable_task_instances,
     _get_task_group_task_ids,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -126,10 +129,11 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_group_validate_request,
     _patch_ti_validate_request,
     _reload_tis_with_rendered_fields,
+    find_external_clear_task_instances,
     patch_region_selection,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
-from airflow.exceptions import AirflowClearRunningTaskException, TaskNotFound
+from airflow.exceptions import AirflowClearRunningTaskException, DagNotFound, TaskNotFound
 from airflow.models import DagRun
 from airflow.models.dagrun import lock_dag_runs
 from airflow.models.dynamic_region import SENTINEL_REGION_ID
@@ -1269,6 +1273,27 @@ def post_clear_task_instances(
             .execution_options(populate_existing=True)
         ).all()
 
+    include_dependent_dags = (
+        body.include_downstream if body.include_dependent_dags is None else body.include_dependent_dags
+    )
+    dependent_tis: list[TI] = []
+    if include_dependent_dags and task_instances:
+        try:
+            dependent_tis = find_external_clear_task_instances(
+                task_instances,
+                dag_bag=dag_bag,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                session=session,
+            )
+        except ExternalClearDepthExceeded as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+        except DagNotFound as e:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, str(e)) from e
+        dependent_tis = _editable_task_instances(dependent_tis, user=user, session=session)
+    if dry_run:
+        task_instances = [*task_instances, *dependent_tis]
+
     if not dry_run:
         whole_task_keys = {
             (ti.dag_id, ti.run_id, ti.task_id)
@@ -1307,6 +1332,16 @@ def post_clear_task_instances(
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
                 )
+            if dependent_tis:
+                task_instances = [
+                    *task_instances,
+                    *_clear_dependent_task_instances(
+                        dependent_tis,
+                        body=body,
+                        dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+                        session=session,
+                    ),
+                ]
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
         except ValueError as e:

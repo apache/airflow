@@ -326,6 +326,13 @@ class ClearTaskInstancesBody(BaseModel):
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")] = None
     include_upstream: Annotated[bool | None, Field(title="Include Upstream")] = False
     include_downstream: Annotated[bool | None, Field(title="Include Downstream")] = False
+    include_dependent_dags: Annotated[
+        bool | None,
+        Field(
+            description="Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.",
+            title="Include Dependent Dags",
+        ),
+    ] = None
     include_future: Annotated[bool | None, Field(title="Include Future")] = False
     include_past: Annotated[bool | None, Field(title="Include Past")] = False
     run_on_latest_version: Annotated[

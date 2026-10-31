@@ -74,6 +74,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.external_clear import EXTERNAL_CLEAR_TARGET_XCOM_KEY, SupportsExternalClearTarget
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -1693,6 +1694,7 @@ def _run_task_and_map_outcome(
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
+        _record_external_clear_target(context, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
@@ -2418,6 +2420,16 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     rendered_map_index = render_template_to_string(jinja_env.from_string(template), context)
     log.debug("Map index rendered", length=len(rendered_map_index))
     return rendered_map_index
+
+
+def _record_external_clear_target(context: Context, ti: RuntimeTaskInstance, log: Logger) -> None:
+    """Record the task's resolved cross-Dag clear target, so the API server can follow it on clear."""
+    if not isinstance(ti.task, SupportsExternalClearTarget):
+        return
+    target = ti.task.get_external_clear_target(context)
+    log.debug("Recording external clear target", target=target)
+    # Straight to the metadata DB, like operator extra links: the API server reads it there.
+    _xcom_push_to_db(ti, key=EXTERNAL_CLEAR_TARGET_XCOM_KEY, value=target.serialize())
 
 
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):

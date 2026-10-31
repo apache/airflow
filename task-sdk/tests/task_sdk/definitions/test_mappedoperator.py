@@ -25,6 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
@@ -137,6 +138,36 @@ def test_mapped_task_preserves_custom_base_operator_default():
     assert mapped.partial_kwargs["retry_policy"] is retry_policy
     assert mapped.partial_kwargs["inlets"] == []
     assert unmapped.retry_policy is retry_policy
+
+
+class _ItemEmptyOperator(EmptyOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+class _RunsOnWorkerEmptyOperator(_ItemEmptyOperator):
+    inherits_from_empty_operator = False
+
+
+class _ItemMockOperator(MockOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+@pytest.mark.parametrize(
+    ("operator_class", "expected"),
+    [
+        pytest.param(_ItemEmptyOperator, True, id="empty-subclass"),
+        pytest.param(_RunsOnWorkerEmptyOperator, False, id="empty-subclass-opted-out"),
+        pytest.param(_ItemMockOperator, False, id="not-empty"),
+    ],
+)
+def test_mapped_operator_reads_inherits_from_empty_operator(operator_class, expected):
+    mapped = operator_class.partial(task_id="t").expand(item=[1, 2])
+
+    assert mapped.inherits_from_empty_operator is expected
 
 
 def test_map_unknown_arg_raises():
