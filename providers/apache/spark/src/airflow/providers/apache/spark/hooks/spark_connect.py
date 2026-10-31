@@ -73,7 +73,7 @@ class SparkConnectHook(BaseHook, LoggingMixin):
         url = urlparse(host)
 
         if url.path:
-            raise ValueError("Path {url.path} is not supported in Spark Connect connection URL")
+            raise ValueError(f"Path {url.path} is not supported in Spark Connect connection URL")
 
         params = []
 
