@@ -378,6 +378,7 @@ class TestSnowflakeCortexAgentHook:
         assert headers["Authorization"] == "Bearer my-pat-value"
         assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
 
+    @mock.patch("airflow.providers.snowflake.utils._rest_auth._fetch_gcp_identity_token")
     @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
     @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
     @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)
@@ -385,30 +386,29 @@ class TestSnowflakeCortexAgentHook:
         f"{HOOK_PATH}._get_static_conn_params",
         new_callable=mock.PropertyMock,
     )
-    def test_request_raises_for_workload_identity_connections(
+    def test_request_sends_workload_identity_headers(
         self,
         mock_static_conn_params,
         mock_conn_params,
         mock_get_private_key,
         mock_request,
+        mock_fetch_token,
     ):
-        """WORKLOAD_IDENTITY connections without a private key are not supported for REST APIs --
-        SnowflakeHook sets a ``token`` in extras for this authenticator, but it is not one of the
-        three REST-accepted credential types, so this must be an explicit, actionable error rather
-        than silently falling into (and failing) the key-pair branch."""
+        """WORKLOAD_IDENTITY connections without a private key authenticate with a WIF token."""
         mock_static_conn_params.return_value = STATIC_CONN_PARAMS
         mock_conn_params.return_value = {
             "account": ACCOUNT,
-            "workload_identity_provider": "AWS",
-            "token": "wif-token",
+            "workload_identity_provider": "GCP",
         }
+        mock_fetch_token.return_value = "gcp-id-token"
+        mock_request.return_value = create_response(json_body={"name": AGENT_NAME})
 
         hook = SnowflakeCortexAgentHook(snowflake_conn_id="mock_conn_id")
+        hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
 
-        with pytest.raises(ValueError, match="Workload identity federation"):
-            hook.describe_agent(database=DATABASE, schema=SCHEMA, agent_name=AGENT_NAME)
-
-        mock_request.assert_not_called()
+        headers = mock_request.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer WIF.GCP.gcp-id-token"
+        assert headers["X-Snowflake-Authorization-Token-Type"] == "WORKLOAD_IDENTITY_FEDERATION"
 
     @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
     @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True)
