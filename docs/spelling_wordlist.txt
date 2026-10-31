@@ -1685,6 +1685,7 @@ sslkey
 sslmode
 sslrootcert
 ssm
+sso
 Stackdriver
 stackdriver
 stacklevel
