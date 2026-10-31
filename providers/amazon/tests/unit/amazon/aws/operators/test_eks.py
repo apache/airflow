@@ -1499,6 +1499,38 @@ class TestEksPodOperator:
         assert trigger._aws_conn_id == "aws_default"
         assert trigger.pod_name == "test-pod-abc123"
         assert trigger.pod_namespace == "default"
+        assert trigger.log_events_on_startup is True
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
+    )
+    def test_invoke_defer_method_passes_log_events_on_startup_to_trigger(self, mock_convert_config):
+        """invoke_defer_method should pass log_events_on_startup to EksPodTrigger."""
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+            log_events_on_startup=False,
+        )
+
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = "test-pod-abc123"
+        mock_pod.metadata.namespace = "default"
+        mock_pod.status = None
+        op.pod = mock_pod
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.invoke_defer_method()
+
+        trigger = exc.value.trigger
+        assert isinstance(trigger, EksPodTrigger)
+        assert trigger.log_events_on_startup is False
+        assert trigger.serialize()[1]["log_events_on_startup"] is False
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"

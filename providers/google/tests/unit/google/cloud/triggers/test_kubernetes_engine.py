@@ -163,6 +163,17 @@ class TestGKEStartPodTrigger:
 
         assert reconstructed_trigger.on_finish_action.value == "delete_succeeded_pod"
 
+    def test_serialize_emits_log_events_on_startup_only_when_disabled(self, trigger):
+        assert "log_events_on_startup" not in trigger.serialize()[1]
+
+        trigger.log_events_on_startup = False
+
+        _, kwargs_dict = trigger.serialize()
+
+        assert kwargs_dict["log_events_on_startup"] is False
+        reconstructed = GKEStartPodTrigger(**kwargs_dict)
+        assert reconstructed.log_events_on_startup is False
+
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_POD_PATH}._wait_for_pod_start")
     @mock.patch(f"{TRIGGER_GKE_POD_PATH}.hook")
