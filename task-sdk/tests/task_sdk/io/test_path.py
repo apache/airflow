@@ -161,6 +161,20 @@ def register_fake_remote_filesystem():
         fsspec_implementation_registry.update(old_registry)
 
 
+@pytest.fixture
+def fake_remote_stores():
+    cache = _STORE_CACHE.copy()
+    for protocol in ("ffs", "ffs2"):
+        attach(protocol=protocol, fs=_FakeRemoteFileSystem())
+    try:
+        yield
+    finally:
+        _STORE_CACHE.clear()
+        _STORE_CACHE.update(cache)
+        _FakeRemoteFileSystem.store.clear()
+        _FakeRemoteFileSystem.pseudo_dirs[:] = [""]
+
+
 class TestAttach:
     FAKE = "ffs:///fake"
     MNT = "ffs:///mnt/warehouse"
@@ -349,6 +363,53 @@ class TestRemotePath:
         assert o.key == key
         assert o.protocol == protocol
 
+    @pytest.mark.parametrize("src_key", ["src", "x/src"])
+    @mock.patch.object(_FakeRemoteFileSystem, "mkdir", autospec=True)
+    def test_copy_dir_to_new_remote_dir(self, mock_mkdir, src_key, fake_remote_stores):
+        bucket = uuid.uuid4().hex
+        src = ObjectStoragePath(f"ffs://{bucket}/{src_key}")
+        for name in ("a.txt", "b.txt"):
+            (src / name).write_text(name)
+        dst = ObjectStoragePath(f"ffs2://{bucket}/dst")
+
+        src.copy(dst, recursive=True)
+
+        assert (dst / src_key / "a.txt").read_text() == "a.txt"
+        assert (dst / src_key / "b.txt").read_text() == "b.txt"
+
+    @pytest.mark.parametrize(
+        ("src_key", "dst_key"),
+        [
+            ("src", "src"),
+            ("src", "src/archive"),
+            ("", "archive"),
+        ],
+    )
+    def test_move_dir_into_itself_across_conn_ids_raises(self, src_key, dst_key, fake_remote_stores):
+        for conn_id in ("conn_a", "conn_b"):
+            attach(protocol="ffs", conn_id=conn_id, fs=_FakeRemoteFileSystem())
+        bucket = uuid.uuid4().hex
+        src = ObjectStoragePath(f"ffs://conn_a@{bucket}/{src_key}")
+        (src / "a.txt").write_text("a")
+        dst = ObjectStoragePath(f"ffs://conn_b@{bucket}/{dst_key}")
+
+        with pytest.raises(ValueError, match="the destination is the source or inside it"):
+            src.move(dst, recursive=True)
+
+        assert (src / "a.txt").read_text() == "a"
+
+    def test_move_dir_non_recursive_raises(self, fake_remote_stores):
+        bucket = uuid.uuid4().hex
+        src = ObjectStoragePath(f"ffs://{bucket}/src")
+        (src / "a.txt").write_text("a")
+        dst = ObjectStoragePath(f"ffs2://{bucket}/dst")
+
+        with pytest.raises(IsADirectoryError, match="is a directory, set recursive=True to move it"):
+            src.move(dst, recursive=False)
+
+        assert (src / "a.txt").read_text() == "a"
+        assert not dst.exists()
+
 
 class TestLocalPath:
     @pytest.fixture
@@ -459,6 +520,18 @@ class TestLocalPath:
         assert len(collected_assets.outputs) == 1
         assert collected_assets.inputs[0].asset.uri == str(o1)
         assert collected_assets.outputs[0].asset.uri == str(o2)
+
+    def test_move_dir_local_to_remote(self, tmp_path, fake_remote_stores):
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "a.txt").write_text("a")
+        src = ObjectStoragePath(f"file://{src_dir.as_posix()}")
+        dst = ObjectStoragePath(f"ffs://{uuid.uuid4().hex}/dst")
+
+        src.move(dst, recursive=True)
+
+        assert not src_dir.exists()
+        assert (dst / "a.txt").read_text() == "a"
 
     def test_serde_objectstoragepath(self):
         path = "file:///bucket/key/part1/part2"
