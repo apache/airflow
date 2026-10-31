@@ -2200,7 +2200,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             if ti_queued and not ti_requeued:
-                # A retried attempt inherits its predecessor's pid and start date, so record it here.
                 task_started = ti.state == TaskInstanceState.RUNNING
                 team_name = (
                     DagModel.get_team_name(ti.dag_id, session=session)

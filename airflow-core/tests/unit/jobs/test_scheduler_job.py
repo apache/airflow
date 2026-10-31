@@ -17463,19 +17463,15 @@ class TestRouteDagProcessorCallbacks:
             assert len(self._queued_callbacks(executor)) == (alias == expected_executor)
 
     @conf_vars({("scheduler", "num_stuck_in_queued_retries"): "0"})
-    def test_a_retried_attempt_failed_while_stuck_in_the_queue_avoids_its_queue(self, dag_run, session):
+    def test_a_task_failed_while_stuck_in_the_queue_avoids_its_queue(self, dag_run, session):
         executors = {alias: self._make_executor(alias) for alias in ("default_exec", "other_exec")}
         runner = self._make_runner(list(executors.values()))
-        first = dag_run.get_task_instance("task", session=session)
-        # The first attempt ran on its queue, then failed into a retry.
-        first.executor, first.queue, first.pid = "other_exec", "task_queue", 4242
-        first.state = TaskInstanceState.UP_FOR_RETRY
-        retry = first.prepare_db_for_next_try(session)
-        retry.state = TaskInstanceState.QUEUED
+        ti = dag_run.get_task_instance("task", session=session)
+        ti.executor, ti.queue = "other_exec", "task_queue"
+        ti.state = TaskInstanceState.QUEUED
         session.commit()
-        assert retry.pid == 4242
 
-        runner._maybe_requeue_stuck_ti(ti=retry, session=session, executor=executors["other_exec"])
+        runner._maybe_requeue_stuck_ti(ti=ti, session=session, executor=executors["other_exec"])
         session.commit()
         (request,) = [call.args[0] for call in executors["other_exec"].callback_sink.send.call_args_list]
         assert request.task_started is False

@@ -862,7 +862,7 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     assert request.version_data == version_data
 
 
-@pytest.mark.parametrize("retried", [False, True])
+@pytest.mark.parametrize("rescheduled", [False, True])
 @pytest.mark.parametrize(
     "worker_heartbeat_offset",
     [
@@ -876,7 +876,7 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
 @time_machine.travel("2026-10-22 12:00:00+00:00", tick=False)
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
 def test_submit_event_callback_records_whether_a_trigger_started_attempt_ran_on_a_worker(
-    mock_send, session, create_task_instance, retried, worker_heartbeat_offset
+    mock_send, session, create_task_instance, rescheduled, worker_heartbeat_offset
 ):
     task_instance = create_task_instance(
         session=session,
@@ -884,14 +884,12 @@ def test_submit_event_callback_records_whether_a_trigger_started_attempt_ran_on_
         start_from_trigger=True,
         start_trigger_args=StartTriggerArgs(trigger_cls="does.not.matter", next_method="execute_complete"),
     )
-    if retried:
-        task_instance.state = TaskInstanceState.UP_FOR_RETRY
-        task_instance.try_number = 1
+    if rescheduled:
+        # A reschedule keeps the attempt, and the heartbeat of its run on a worker.
+        task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
         task_instance.pid = 4242
         task_instance.start_date = timezone.utcnow() - datetime.timedelta(minutes=2)
         task_instance.last_heartbeat_at = timezone.utcnow() - datetime.timedelta(minutes=1)
-        task_instance = task_instance.prepare_db_for_next_try(session)
-        assert task_instance.pid == 4242
     assert task_instance.defer_task(session=session)
     if worker_heartbeat_offset is not None:
         task_instance.pid = 4343

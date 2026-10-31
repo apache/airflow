@@ -2749,7 +2749,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
             self.start_date = timezone.utcnow()
-            # No worker has run this attempt, so drop the heartbeat a retry inherits from its predecessor.
+            # No worker has resumed it yet, so drop the heartbeat of a run before a reschedule.
             self.last_heartbeat_at = None
 
             # If an execution_timeout is set, set the timeout to the minimum of
