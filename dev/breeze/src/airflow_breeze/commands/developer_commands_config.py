@@ -409,6 +409,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--base-ref",
                 "--full",
                 "--json",
+                "--run",
             ],
         },
     ],
