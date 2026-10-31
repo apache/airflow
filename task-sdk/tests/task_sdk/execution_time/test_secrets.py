@@ -25,7 +25,11 @@ import pytest
 
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
-from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, ErrorType
+from airflow.sdk.exceptions import (
+    AirflowSecretsBackendAccessDenied,
+    AirflowSupervisorCommsOutOfSync,
+    ErrorType,
+)
 from airflow.sdk.execution_time.comms import ConnectionResult, ErrorResponse, VariableResult
 from airflow.sdk.execution_time.secrets import (
     _SERVER_DEFAULT_SECRETS_SEARCH_PATH,
@@ -173,6 +177,88 @@ class TestExecutionAPISecretsBackend:
         backend = ExecutionAPISecretsBackend()
         with pytest.raises(AirflowSecretsBackendAccessDenied, match="variable 'denied_var'"):
             await backend.aget_variable("denied_var")
+
+
+class TestOutOfSyncSupervisorComms:
+    """A desynced supervisor connection must surface, not turn into "not found".
+
+    Both the backend and the dispatchers catch ``Exception`` to fall through to the next backend,
+    so each of them needs its own re-raise for the error to reach the task.
+    """
+
+    @pytest.mark.parametrize("method", ["get_connection", "get_variable"])
+    def test_backend_raises(self, mock_supervisor_comms, method):
+        mock_supervisor_comms.send.side_effect = AirflowSupervisorCommsOutOfSync("out of sync")
+
+        with pytest.raises(AirflowSupervisorCommsOutOfSync, match="out of sync"):
+            getattr(ExecutionAPISecretsBackend(), method)("some_key")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("method", ["aget_connection", "aget_variable"])
+    async def test_backend_raises_async(self, mock_supervisor_comms, method):
+        async def asend(*_args, **_kwargs):
+            raise AirflowSupervisorCommsOutOfSync("out of sync")
+
+        mock_supervisor_comms.asend = asend
+
+        with pytest.raises(AirflowSupervisorCommsOutOfSync, match="out of sync"):
+            await getattr(ExecutionAPISecretsBackend(), method)("some_key")
+
+    def test_get_connection_does_not_fall_through(self, mock_supervisor_comms, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from airflow.sdk.execution_time import context as ctx_module
+
+        mock_supervisor_comms.send.side_effect = AirflowSupervisorCommsOutOfSync("out of sync")
+        later_backend = MagicMock(name="LaterBackend")
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [ExecutionAPISecretsBackend(), later_backend],
+        )
+
+        with pytest.raises(AirflowSupervisorCommsOutOfSync, match="out of sync"):
+            ctx_module._get_connection("some_conn")
+
+        later_backend.get_connection.assert_not_called()
+
+    def test_get_variable_does_not_fall_through(self, mock_supervisor_comms, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from airflow.sdk.execution_time import context as ctx_module
+
+        mock_supervisor_comms.send.side_effect = AirflowSupervisorCommsOutOfSync("out of sync")
+        later_backend = MagicMock(name="LaterBackend")
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [ExecutionAPISecretsBackend(), later_backend],
+        )
+
+        with pytest.raises(AirflowSupervisorCommsOutOfSync, match="out of sync"):
+            ctx_module._get_variable("some_var", deserialize_json=False)
+
+        later_backend.get_variable.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_async_get_connection_does_not_fall_through(self, mock_supervisor_comms, monkeypatch):
+        from unittest.mock import MagicMock
+
+        from airflow.sdk.execution_time import context as ctx_module
+
+        async def asend(*_args, **_kwargs):
+            raise AirflowSupervisorCommsOutOfSync("out of sync")
+
+        mock_supervisor_comms.asend = asend
+        later_backend = MagicMock(name="LaterBackend")
+        monkeypatch.setattr(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded",
+            lambda: [ExecutionAPISecretsBackend(), later_backend],
+        )
+
+        with pytest.raises(AirflowSupervisorCommsOutOfSync, match="out of sync"):
+            await ctx_module._async_get_connection("some_conn")
+
+        later_backend.aget_connection.assert_not_called()
+        later_backend.get_connection.assert_not_called()
 
 
 class TestDispatcherRefusesFallbackOnDeny:
