@@ -48,6 +48,21 @@ They also take the following optional parameters:
 
 Please check the `Keycloak auth manager CLI </cli-ref.html>`_ documentation for more information about accepted parameters.
 
+.. warning::
+
+    ``create-all``, ``create-permissions``, and ``create-team`` configure the
+    Keycloak client's resource-server decision strategy as ``AFFIRMATIVE``,
+    in both non-team and multi-team mode. This allows an applicable permission
+    that permits access to authorize a request even when another applicable
+    permission denies it.
+
+    This setting applies to the entire client, including existing custom
+    permissions. Authorization rules that rely on the ``UNANIMOUS`` strategy
+    to combine a permit with a restrictive denial can therefore behave
+    differently. Review existing custom permissions before running these
+    commands against an existing client. Use ``--dry-run`` to preview the
+    strategy change without applying it.
+
 One-go creation of permissions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -88,12 +103,48 @@ Finally, with the command below, we create the permissions using the previously 
 
   airflow keycloak-auth-manager create-permissions --teams team-a,team-b
 
-This will create
+Without ``--teams``, the CLI creates resource-specific permissions for non-team installations.
+It generates a ``<Resource>Read`` permission with ``GET`` and ``LIST`` scopes and a
+``<Resource>Write`` permission with ``POST``, ``PUT``, and ``DELETE`` scopes for each resource
+except the generic ``Menu`` resource. The current model has 24 read/write permissions for
+12 resources, plus ``DefaultMenuAccess`` for individual menu resources with the ``MENU`` scope.
 
-* read-only permissions (per-team when ``--teams`` is provided)
-* admin permissions (global)
-* user permissions (per-team when ``--teams`` is provided)
-* operations permissions (per-team when ``--teams`` is provided)
+The generated non-team grants are:
+
+.. list-table:: Non-team role grants
+    :header-rows: 1
+    :widths: 40 30 30
+
+    * - Resources
+      - Read roles
+      - Write roles
+    * - ``Dag``, ``Asset``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - User, Op, Admin, SuperAdmin
+    * - ``Backfill``, ``Connection``, ``Pool``, ``Variable``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - Op, Admin, SuperAdmin
+    * - ``AdminView``, ``AssetAlias``, ``Configuration``, ``Custom``, ``Team``, ``View``
+      - Viewer, User, Op, Admin, SuperAdmin
+      - Admin, SuperAdmin
+
+Higher roles are explicitly attached to the appropriate permissions; composite roles are not
+required. ``DefaultMenuAccess`` grants all individual menu resources to all five default roles.
+These are Keycloak scope grants. Airflow endpoint checks and configuration exposure settings
+can impose additional restrictions, and not every resource has an endpoint for every scope.
+
+With ``--teams``, the CLI instead creates team-specific ``ReadOnly-<team>``, ``User-<team>``,
+``Op-<team>``, and ``Admin-<team>`` permissions, together with global list, view, and menu
+permissions. Use ``create-team`` as described below to configure each team's group and policy
+attachments.
+
+.. note::
+
+    Provisioning preserves legacy permissions and extra policy attachments in non-team mode.
+    Re-running the commands creates the new resource-specific permissions but does not remove
+    the old ``ReadOnly``, ``User``, ``Op``, or ``Admin`` permissions. Existing legacy or custom
+    grants can therefore affect effective access; upgrading the provider alone does not migrate
+    the client's authorization configuration.
 
 Managing teams with Keycloak
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -123,6 +174,12 @@ Views over records that are not tied to a Dag or a team -- audit log entries not
 import errors for files with no registered Dag and reparsing such files -- are checked against the
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
+
+.. note::
+
+    These commands do not migrate an existing non-team Keycloak client to multi-team mode.
+    Provision a separate client for multi-team configuration. Reusing a non-team client can
+    leave its existing grants active alongside the team-specific permissions.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 
