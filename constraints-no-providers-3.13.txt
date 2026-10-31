@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-10-31T14:49:04.921231
+# This constraints file was automatically generated on 2026-10-31T17:23:25.676372
 # via `uv sync --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -16,21 +16,21 @@ PyJWT==2.15.1
 PyYAML-ft==8.0.0
 PyYAML==6.0.3
 Pygments==2.21.0
-SQLAlchemy==2.0.54
+SQLAlchemy==2.0.55
 a2wsgi==1.10.10
 aiosmtplib==5.1.3
 aiosqlite==0.22.1
-alembic==1.20.0
+alembic==1.20.1
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
 argcomplete==3.7.2
 arrow==1.4.0
-asgiref==3.12.1
+asgiref==3.13.0
 attrs==26.1.0
 babel==2.18.0
 cachetools==6.2.6
-cadwyn==8.1.0
+cadwyn==8.1.1
 certifi==2026.10.19
 cffi==2.1.1
 charset-normalizer==3.5.2
@@ -43,17 +43,17 @@ dill==0.4.1
 dnspython==2.9.0
 email-validator==2.3.0
 fastapi-cli==0.0.32
-fastapi==0.161.0
+fastapi==0.162.0
 fsspec==2026.9.0
-googleapis-common-protos==1.75.5
+googleapis-common-protos==1.76.0
 greenback==1.3.0
 greenlet==3.5.6
-grpcio==1.84.0
+grpcio==1.85.0
 h11==0.16.0
-httpcore2==2.13.1
+httpcore2==2.16.0
 httpcore==1.0.9
 httptools==0.9.0
-httpx2==2.13.1
+httpx2==2.16.0
 httpx==0.28.1
 idna==3.20
 importlib_metadata==8.9.0
@@ -61,7 +61,7 @@ isoduration==20.11.0
 itsdangerous==2.2.0
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
-lazy-object-proxy==1.12.0
+lazy-object-proxy==1.13.0
 libcst==1.9.0
 linkify-it-py==2.2.0
 lockfile==0.12.2
@@ -86,12 +86,12 @@ packaging==26.3
 pathlib_abc==0.5.2
 pathspec==1.1.1
 pendulum==3.3.0
-pluggy==1.6.0
+pluggy==1.7.0
 protobuf==6.33.6
 psutil==7.2.2
-pycparser==3.11
+pycparser==3.12
 pydantic-extra-types==2.11.1
-pydantic-settings==2.16.0
+pydantic-settings==2.16.1
 pydantic==2.14.1
 pydantic_core==2.50.1
 pygtrie==2.6.2
@@ -112,7 +112,7 @@ shellingham==1.5.4
 six==1.17.0
 sniffio==1.3.1
 sqlparse==0.6.0
-starlette==1.8.0
+starlette==1.10.0
 structlog==26.1.0
 svcs==26.2.0
 tabulate==0.10.0
@@ -127,12 +127,12 @@ tzdata==2026.5
 universal_pathlib==0.3.10
 urllib3==2.8.0
 uuid6==2025.0.1
-uv==0.13.4
+uv==0.13.6
 uvicorn==0.54.0
 uvloop==0.23.0
 watchfiles==1.3.0
-websockets==16.1.1
+websockets==17.3
 wheel==0.48.0
 wirerope==1.0.0
 wrapt==2.5.1
-zipp==4.1.1
+zipp==4.1.2
