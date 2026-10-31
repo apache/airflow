@@ -2209,6 +2209,34 @@ class TestDagFileProcessorManager:
         assert manager._file_stats[file].last_duration is not None
         assert manager.processed_recently(timezone.utcnow(), file) is True
 
+    def test_handle_parsing_result_survives_failed_flush_in_own_session(self):
+        """A flush failure inside persistence must not escape ``handle_parsing_result`` on session teardown."""
+        from airflow.models.pool import Pool
+
+        manager = DagFileProcessorManager(max_runs=1)
+        file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)
+        manager._file_stats[file] = DagFileStat()
+        manager._bundle_versions["testing"] = "v1"
+
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = False
+        processor.parsing_result = DagFileParsingResult(
+            fileloc="abc.txt", serialized_dags=[], import_errors={"abc.txt": "boom"}
+        )
+
+        def failing_update_import_errors(*, session, **kwargs):
+            # include_deferred is NOT NULL, so this flush fails and leaves the session pending rollback
+            session.add(Pool(pool="poisoned_pool", slots=1))
+            session.flush()
+
+        with mock.patch(
+            "airflow.dag_processing.collection._update_import_errors",
+            side_effect=failing_update_import_errors,
+        ):
+            manager.handle_parsing_result(file, processor)
+
+        assert manager._file_stats[file].run_count == 1
+
     def test_handle_parsing_result_updates_stats_after_successful_persist(self, session):
         manager = DagFileProcessorManager(max_runs=1)
         file = DagFileInfo(bundle_name="testing", rel_path=Path("abc.txt"), bundle_path=TEST_DAGS_FOLDER)

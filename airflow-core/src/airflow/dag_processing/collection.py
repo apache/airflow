@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, TypeVar
 
 import structlog
 from sqlalchemy import delete, false, func, insert, or_, select, tuple_, update
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import joinedload, load_only
 
 from airflow._shared.timezones.timezone import utcnow
@@ -599,6 +599,11 @@ def _reject_dags_with_unloadable_timetables(
     return accepted
 
 
+def _session_unusable(session: Session, error: Exception) -> bool:
+    """Whether a swallowed error left the session unable to continue the transaction."""
+    return not session.is_active or (isinstance(error, DBAPIError) and error.connection_invalidated)
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -699,21 +704,29 @@ def update_dag_parsing_results_in_db(
             # Only now we are "complete" do we update import_errors - don't want to record errors from
             # previous failed attempts
             import_errors.update(serialize_errors)
-    # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works
+    # Record import errors into the ORM - we don't retry on this one as it's not as critical that it works.
+    # The savepoint keeps a failure here from discarding the Dags written above; if even the savepoint
+    # cannot be rolled back (e.g. the connection was lost) the session is unusable, so re-raise.
     try:
-        _update_import_errors(
-            files_parsed=files_parsed if files_parsed is not None else set(),
-            import_errors=import_errors,
-            session=session,
-        )
-    except Exception:
+        with session.begin_nested():
+            _update_import_errors(
+                files_parsed=files_parsed if files_parsed is not None else set(),
+                import_errors=import_errors,
+                session=session,
+            )
+    except Exception as e:
         log.exception("Error logging import errors!")
+        if _session_unusable(session, e):
+            raise
 
     # Record DAG warnings in the metadatabase.
     try:
-        _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
-    except Exception:
+        with session.begin_nested():
+            _update_dag_warnings([dag.dag_id for dag in dags], warnings, warning_types, session)
+    except Exception as e:
         log.exception("Error logging DAG warnings.")
+        if _session_unusable(session, e):
+            raise
 
     session.flush()
 
