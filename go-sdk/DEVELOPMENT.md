@@ -174,6 +174,98 @@ have. [`go_native.json`](../airflow-core/tests/unit/dag_processing/lang_sdk_fixt
 holds the Go output for the same Dags, so that the Airflow core tests check that Airflow loads it.
 `TestSerializeConformanceDags` says how to rewrite it.
 
+## Publishing
+
+Release management common to every language SDK (which branch to release from, how the cycle
+follows Airflow core, and what a release candidate has to satisfy) lives in
+[`dev/README_RELEASE_LANG_SDKS.md`](../dev/README_RELEASE_LANG_SDKS.md). Read it first. This
+section covers only what is specific to publishing the Go SDK.
+
+There is no build or upload step. A Go module is published by pushing a tag: the module proxy
+fetches the source straight from GitHub the first time someone asks for that version.
+
+### Prerequisites
+
+* An ASF committer account with push access to `apache/airflow`.
+* A GPG key that has been
+  [added to the project KEYS file](https://infra.apache.org/release-signing.html)
+  and uploaded to a public key server.
+
+### Version and tag
+
+The module path is `github.com/apache/airflow/go-sdk`, a subdirectory of the repository, so Go
+only recognises a tag that carries the directory as a prefix:
+
+```bash
+git tag -s go-sdk/v<VERSION> -m "Go SDK <VERSION>"
+git push upstream go-sdk/v<VERSION>
+```
+
+Use a Go semantic version, including the leading `v` (`v1.0.0-beta1`, `v1.0.0`). Go treats
+anything after a `-` as a prerelease and will not select it for `go get` without an explicit
+version, which is what keeps a beta or a release candidate out of everyone's builds.
+
+The SDK has no version constant to bump: the tag is the only place the version is recorded. The
+module is still at major version 1, so the path needs no `/vN` suffix. Moving to `v2` would mean
+renaming the module path to `github.com/apache/airflow/go-sdk/v2`.
+
+**NOTE:** Go module versions are immutable. Once `proxy.golang.org` has served a version, its
+contents are cached forever, so a bad release cannot be fixed by moving the tag. Retracting it
+means publishing a new version, and adding a `retract` directive to `go.mod` so `go get` stops
+offering the bad one. Verify the tag before pushing it.
+
+### Release candidates
+
+Tag a release candidate as a prerelease of the version being voted on, so the artifact the vote
+points at is the one users will get:
+
+```bash
+git tag -s go-sdk/v<VERSION>-rc<N> -m "Go SDK <VERSION> RC <N>"
+```
+
+A failed vote bumps to the next RC. Because the proxy caches every version it has served, the RC
+tags stay published; the final `go-sdk/v<VERSION>` tag is what `go get` resolves to.
+
+### Verify before tagging
+
+From the `go-sdk` directory, against the release branch:
+
+```bash
+just test                 # unit tests
+just build                # the example bundles still build
+go vet ./...
+```
+
+Check that the [compatibility matrix](./README.md#compatibility-matrix) is current (the
+`update-go-sdk-readme-matrix` prek hook regenerates it from `capabilities.yaml`), that the
+vendored schemas and the generated specs have not drifted from the release branch (see
+[Schema and spec drift](../dev/README_RELEASE_LANG_SDKS.md#schema-and-spec-drift)), and that
+`LICENSE` and `NOTICE` are present and correct.
+
+### Verify after tagging
+
+Ask the proxy for the version from a throwaway module, which both checks the publication and
+warms the proxy cache:
+
+```bash
+cd "$(mktemp -d)" && go mod init tmp
+GOPROXY=https://proxy.golang.org go get github.com/apache/airflow/go-sdk@v<VERSION>
+go list -m -versions github.com/apache/airflow/go-sdk
+```
+
+Confirm the version appears on <https://pkg.go.dev/github.com/apache/airflow/go-sdk> and that its
+documentation renders.
+
+### Source release and vote
+
+The Go module is a convenience binary. A general-availability release also needs a signed source
+package in `dist/dev`, a `[VOTE]` on `dev@airflow.apache.org`, and promotion of that package to
+`dist/release` before the final tag is pushed. The steps, the vote template and the reviewer
+checklist are in
+[`dev/README_RELEASE_LANG_SDKS.md`](../dev/README_RELEASE_LANG_SDKS.md) and, as a worked example,
+in the Java SDK's [`DEVELOPMENT.md`](../java-sdk/DEVELOPMENT.md). The Go SDK has no source-packaging or
+signing tooling yet, and needs it before its first GA.
+
 ## Architectural decisions
 
 The [`adr/`](./adr) directory records the design decisions behind the SDK:

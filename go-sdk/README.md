@@ -182,4 +182,7 @@ prek hook regenerate it.
 - [API reference](https://pkg.go.dev/github.com/apache/airflow/go-sdk) on pkg.go.dev
 - [Source](https://github.com/apache/airflow/tree/main/go-sdk): the `go-sdk/` directory of the Apache Airflow monorepo
 - [Issues](https://github.com/apache/airflow/issues): bug reports and feature requests
-- [Developing this module](./DEVELOPMENT.md): building, testing, code generation and design decisions
+- [Developing this module](./DEVELOPMENT.md): building, testing, code generation, publishing and
+  design decisions
+- [Releasing the language SDKs](../dev/README_RELEASE_LANG_SDKS.md): the release cycle and branch
+  every language SDK release is cut from
