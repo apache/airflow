@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import datetime
+import importlib.util
 import itertools
 import os
 import random
@@ -301,6 +302,19 @@ def test_capacity_decode():
         job = Job()
         with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
+
+
+@conf_vars({("triggerer", "triggerer_health_check_threshold"): "30.5"})
+def test_health_check_threshold_accepts_float():
+    # The threshold is read when the class body runs, so execute a fresh copy of the module.
+    # importlib.reload() would rebind the classes that the rest of this module imported and patches.
+    spec = importlib.util.find_spec("airflow.jobs.triggerer_job_runner")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.TriggerRunnerSupervisor.health_check_threshold == 30.5
 
 
 @pytest.mark.parametrize("team_name", ["team_a", None])
