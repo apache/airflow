@@ -426,6 +426,92 @@ class TestDagFileProcessor:
         assert result.import_errors == {}
         assert result.serialized_dags[0].dag_id == "dag_name"
 
+    @staticmethod
+    def _write_dag_that_kills_itself(folder: pathlib.Path, signal_name: str) -> pathlib.Path:
+        path = folder / "dag_that_kills_itself.py"
+        path.write_text(
+            textwrap.dedent(
+                f"""\
+                import os
+                import signal
+
+                from airflow.sdk import DAG
+
+                os.kill(os.getpid(), signal.{signal_name})
+                DAG("never_defined")
+                """
+            )
+        )
+        return path
+
+    @pytest.mark.parametrize("signal_name", ["SIGSEGV", "SIGBUS", "SIGILL", "SIGFPE", "SIGABRT"])
+    def test_parse_killed_by_a_crash_signal_is_an_import_error(
+        self, tmp_path: pathlib.Path, inprocess_client, signal_name
+    ):
+        path = self._write_dag_that_kills_itself(tmp_path, signal_name)
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[],
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=inprocess_client,
+        )
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        assert proc.parsing_result == DagFileParsingResult(
+            fileloc=str(path),
+            serialized_dags=[],
+            import_errors={
+                "dag_that_kills_itself.py": f"The Dag file parsing process was killed by {signal_name} before it "
+                "reported a parse result; see the Dag processor log of this file."
+            },
+        )
+
+    @pytest.mark.parametrize(
+        ("signal_name", "callbacks"),
+        [
+            pytest.param("SIGKILL", [], id="not-a-crash-signal"),
+            pytest.param(
+                "SIGSEGV",
+                [
+                    DagCallbackRequest(
+                        filepath="dag_that_kills_itself.py",
+                        msg="Message",
+                        dag_id="never_defined",
+                        run_id="b",
+                        bundle_name="testing",
+                        bundle_version=None,
+                    )
+                ],
+                id="callback-run",
+            ),
+        ],
+    )
+    def test_parse_killed_by_signal_reports_no_parse_result(
+        self, tmp_path: pathlib.Path, inprocess_client, signal_name, callbacks
+    ):
+        path = self._write_dag_that_kills_itself(tmp_path, signal_name)
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=callbacks,
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=inprocess_client,
+        )
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        assert proc.parsing_result is None
+
     def test__pre_import_airflow_modules_when_disabled(self):
         logger = MagicMock(spec=FilteringBoundLogger)
         with (
