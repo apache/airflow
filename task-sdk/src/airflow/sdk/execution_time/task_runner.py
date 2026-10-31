@@ -137,6 +137,7 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
+    _CURRENT_TEAM_NAME_ENV_VAR,
     AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
@@ -2647,6 +2648,8 @@ def reinit_supervisor_comms() -> None:
     can continue to access variables etc.
     """
     import socket
+
+    set_current_team_name(os.environ.get(_CURRENT_TEAM_NAME_ENV_VAR))
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS
