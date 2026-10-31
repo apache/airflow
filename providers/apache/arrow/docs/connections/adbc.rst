@@ -175,6 +175,11 @@ Usage
 
 Use :class:`~airflow.providers.apache.arrow.hooks.adbc.AdbcHook` in a task to query or load data:
 
+.. note::
+
+    The external Redis ADBC driver requires ``RedisAdbcHook``. For installation,
+    connection configuration and autocommit handling, see :ref:`howto/redis-adbc`.
+
 .. code-block:: python
 
     from airflow.providers.apache.arrow.hooks.adbc import AdbcHook
