@@ -46,6 +46,18 @@ inputs:
     description: 'Fail when a stash was found but could not be restored.'
     required: false
     default: 'false'
+  # When a whole run's test jobs pull the same multi-GB image at once, GitHub's artifact storage
+  # answers "503 Egress is over the account limit" for minutes, not seconds. The ASF action's own
+  # default (3 attempts, 5s base) gives up within ~20s, so jobs retry for several minutes instead,
+  # with jittered waits (each capped at 60s by the action) spreading them out of the burst.
+  retry-count:
+    description: 'Attempts to download a stash found on GitHub-hosted runners.'
+    required: false
+    default: '8'
+  retry-delay:
+    description: 'Base seconds of the jittered exponential backoff between download attempts.'
+    required: false
+    default: '20'
 outputs:
   stash-hit:
     description: "'true' if a stash was restored, 'false' otherwise."
@@ -63,6 +75,8 @@ runs:
         path: ${{ inputs.path }}
         only-current-branch: ${{ inputs.only-current-branch }}
         fail-on-download: ${{ inputs.fail-on-download }}
+        retry-count: ${{ inputs.retry-count }}
+        retry-delay: ${{ inputs.retry-delay }}
     - name: "Restore stash digest from GitHub artifacts"
       id: digest
       if: runner.environment == 'self-hosted'

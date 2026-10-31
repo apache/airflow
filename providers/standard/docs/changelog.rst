@@ -35,6 +35,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+
 1.21.0
 ......
 

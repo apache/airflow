@@ -23,6 +23,7 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock, Mock, call
 
 import pytest
+import time_machine
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 from google.api_core.retry_async import AsyncRetry
@@ -1871,6 +1872,50 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         assert isinstance(exc.value.trigger, DataprocSubmitTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @time_machine.travel(dt.datetime(2026, 1, 1, 0, 10, tzinfo=dt.UTC), tick=False)
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_deferrable_with_execution_timeout(self, mock_trigger_hook, mock_hook):
+        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+            execution_timeout=dt.timedelta(hours=1),
+        )
+        start_date = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+        self.mock_ti.start_date = start_date
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(self.mock_context)
+
+        expected_deadline = start_date.timestamp() + 3600
+        assert exc.value.trigger.execution_deadline == expected_deadline
+        # 50 minutes remain, plus the 60 second minimum buffer.
+        assert exc.value.timeout == dt.timedelta(minutes=50, seconds=60)
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_complete_timed_out_raises(self, mock_hook):
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+        )
+        event = {
+            "job_id": TEST_JOB_ID,
+            "job_state": "TIMED_OUT",
+            "message": f"Job {TEST_JOB_ID} exceeded the task's execution_timeout while deferred.",
+        }
+        with pytest.raises(AirflowTaskTimeout, match="execution_timeout"):
+            op.execute_complete(context=self.mock_context, event=event)
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_PATH.format("DataprocSubmitJobOperator.defer"))
