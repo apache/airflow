@@ -22,10 +22,12 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG
 from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena_spark import AthenaSparkOperator
+from airflow.providers.amazon.aws.triggers.athena import AthenaSparkTrigger
 
 from tests_common.test_utils.compat import timezone
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -79,6 +81,7 @@ class TestAthenaSparkOperator:
             client_request_token=MOCK_DATA["client_request_token"],
             waiter_delay=0,
             waiter_max_attempts=3,
+            deferrable=False,
         )
         self.athena = AthenaSparkOperator(**self.default_op_kwargs, aws_conn_id=None, dag=self.dag)
 
@@ -112,6 +115,7 @@ class TestAthenaSparkOperator:
         assert self.athena.client_request_token == MOCK_DATA["client_request_token"]
         assert self.athena.waiter_delay == 0
         assert self.athena.waiter_max_attempts == 3
+        assert self.athena.deferrable is False
         assert self.athena._calculation_execution_id is None
 
     @mock.patch.object(AthenaHook, "get_spark_calculation_info")
@@ -272,6 +276,222 @@ class TestAthenaSparkOperator:
             description=None,
             client_request_token=MOCK_DATA["client_request_token"],
         )
+
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
+    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status")
+    @mock.patch.object(AthenaHook, "start_spark_calculation", return_value=ATHENA_CALCULATION_ID)
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_deferrable(
+        self,
+        mock_conn,
+        mock_start_spark_calculation,
+        mock_poll_spark_calculation_status,
+        mock_get_spark_calculation_info,
+        mock_stop_spark_calculation,
+    ):
+        self.athena.deferrable = True
+        self.athena.aws_conn_id = "aws-test-custom-conn"
+        self.athena.region_name = "eu-west-1"
+        self.athena.verify = False
+        self.athena.botocore_config = {"read_timeout": 42}
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.athena.execute({})
+
+        mock_start_spark_calculation.assert_called_once_with(
+            session_id=MOCK_DATA["session_id"],
+            code_block=MOCK_DATA["code_block"],
+            description=None,
+            client_request_token=MOCK_DATA["client_request_token"],
+        )
+        mock_poll_spark_calculation_status.assert_not_called()
+        mock_get_spark_calculation_info.assert_not_called()
+        mock_stop_spark_calculation.assert_not_called()
+
+        deferred = exc.value
+        assert deferred.method_name == "execute_complete"
+        assert deferred.kwargs == {
+            "calculation_execution_id": ATHENA_CALCULATION_ID,
+        }
+        assert isinstance(deferred.trigger, AthenaSparkTrigger)
+        assert deferred.trigger.serialize() == (
+            "airflow.providers.amazon.aws.triggers.athena.AthenaSparkTrigger",
+            {
+                "calculation_execution_id": ATHENA_CALCULATION_ID,
+                "waiter_delay": 0,
+                "waiter_max_attempts": 3,
+                "aws_conn_id": "aws-test-custom-conn",
+                "region_name": "eu-west-1",
+                "verify": False,
+                "botocore_config": {"read_timeout": 42},
+            },
+        )
+
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
+    @mock.patch.object(AthenaHook, "poll_spark_calculation_status")
+    @mock.patch.object(AthenaHook, "start_spark_calculation")
+    @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason", return_value=None)
+    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_complete_success(
+        self,
+        mock_conn,
+        mock_get_spark_calculation_info,
+        mock_get_spark_calculation_state_change_reason,
+        mock_start_spark_calculation,
+        mock_poll_spark_calculation_status,
+        mock_stop_spark_calculation,
+    ):
+        submission_time = timezone.datetime(2026, 1, 1)
+        completion_time = timezone.datetime(2026, 1, 1, 0, 1)
+        mock_get_spark_calculation_info.return_value = _calculation_info(
+            "COMPLETED",
+            submission_time=submission_time,
+            completion_time=completion_time,
+        )
+
+        # A resumed operator starts without the ID assigned during execute().
+        assert self.athena._calculation_execution_id is None
+
+        result = self.athena.execute_complete(
+            context={},
+            calculation_execution_id=ATHENA_CALCULATION_ID,
+            event={"status": "success", "value": ATHENA_CALCULATION_ID},
+        )
+
+        assert result == {
+            "calculation_execution_id": ATHENA_CALCULATION_ID,
+            "state": "COMPLETED",
+            "state_change_reason": None,
+            "submission_time": str(submission_time),
+            "completion_time": str(completion_time),
+            "session_id": MOCK_DATA["session_id"],
+            "working_directory": "s3://test-bucket/spark/",
+            "stdout_s3_uri": "s3://test-bucket/spark/stdout",
+            "stderr_s3_uri": "s3://test-bucket/spark/stderr",
+            "result_s3_uri": "s3://test-bucket/spark/results",
+            "result_type": "application/vnd.aws.athena.v1+json",
+        }
+        assert self.athena._calculation_execution_id == ATHENA_CALCULATION_ID
+        mock_get_spark_calculation_state_change_reason.assert_called_once_with(ATHENA_CALCULATION_ID)
+        mock_start_spark_calculation.assert_not_called()
+        mock_poll_spark_calculation_status.assert_not_called()
+        mock_stop_spark_calculation.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["FAILED", "CANCELED"])
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
+    @mock.patch.object(
+        AthenaHook,
+        "get_spark_calculation_state_change_reason",
+        return_value="Test reason",
+    )
+    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_complete_terminal_failure(
+        self,
+        mock_conn,
+        mock_get_spark_calculation_info,
+        mock_get_spark_calculation_state_change_reason,
+        mock_stop_spark_calculation,
+        state,
+    ):
+        mock_get_spark_calculation_info.return_value = _calculation_info(state)
+
+        with pytest.raises(
+            RuntimeError,
+            match=(
+                rf"Athena Spark calculation ended in {state}\. "
+                rf"CalculationExecutionId: {ATHENA_CALCULATION_ID}\. "
+                r"Reason: Test reason"
+            ),
+        ):
+            self.athena.execute_complete(
+                context={},
+                calculation_execution_id=ATHENA_CALCULATION_ID,
+                event={"status": "success", "value": ATHENA_CALCULATION_ID},
+            )
+
+        mock_get_spark_calculation_state_change_reason.assert_called_once_with(ATHENA_CALCULATION_ID)
+        mock_stop_spark_calculation.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("event", "expected_message"),
+        [
+            pytest.param(
+                {"status": "error", "message": "Waiter exhausted"},
+                "Waiter exhausted",
+                id="waiter-error",
+            ),
+            pytest.param(None, "event is None", id="missing-event"),
+            pytest.param({}, "Unknown trigger error", id="missing-status"),
+        ],
+    )
+    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_complete_trigger_error(
+        self,
+        mock_conn,
+        mock_stop_spark_calculation,
+        mock_get_spark_calculation_info,
+        event,
+        expected_message,
+    ):
+        with pytest.raises(RuntimeError, match=expected_message):
+            self.athena.execute_complete(
+                context={},
+                calculation_execution_id=ATHENA_CALCULATION_ID,
+                event=event,
+            )
+
+        mock_stop_spark_calculation.assert_called_once_with(ATHENA_CALCULATION_ID)
+        mock_get_spark_calculation_info.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["RUNNING", "UNKNOWN", None])
+    @mock.patch.object(AthenaHook, "get_spark_calculation_state_change_reason")
+    @mock.patch.object(AthenaHook, "stop_spark_calculation")
+    @mock.patch.object(AthenaHook, "get_spark_calculation_info")
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_complete_invalid_state(
+        self,
+        mock_conn,
+        mock_get_spark_calculation_info,
+        mock_stop_spark_calculation,
+        mock_get_spark_calculation_state_change_reason,
+        state,
+    ):
+        mock_get_spark_calculation_info.return_value = _calculation_info(state)
+
+        with pytest.raises(RuntimeError, match="Expected a terminal state"):
+            self.athena.execute_complete(
+                context={},
+                calculation_execution_id=ATHENA_CALCULATION_ID,
+                event={"status": "success", "value": ATHENA_CALCULATION_ID},
+            )
+
+        mock_stop_spark_calculation.assert_called_once_with(ATHENA_CALCULATION_ID)
+        mock_get_spark_calculation_state_change_reason.assert_not_called()
+
+    @mock.patch.object(
+        AthenaHook,
+        "stop_spark_calculation",
+        side_effect=RuntimeError("Stop failed"),
+    )
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_execute_complete_stop_failure_preserves_trigger_error(
+        self,
+        mock_conn,
+        mock_stop_spark_calculation,
+    ):
+        with pytest.raises(RuntimeError, match="Waiter exhausted"):
+            self.athena.execute_complete(
+                context={},
+                calculation_execution_id=ATHENA_CALCULATION_ID,
+                event={"status": "error", "message": "Waiter exhausted"},
+            )
+
+        mock_stop_spark_calculation.assert_called_once_with(ATHENA_CALCULATION_ID)
 
     @mock.patch.object(AthenaHook, "stop_spark_calculation")
     @mock.patch.object(AthenaHook, "get_conn")
