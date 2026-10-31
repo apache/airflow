@@ -40,6 +40,7 @@ from airflow.sdk.execution_time.comms import (
     GetXComCount,
     GetXComSequenceItem,
     GetXComSequenceSlice,
+    SetXCom,
     TaskState,
 )
 
@@ -132,4 +133,14 @@ class AddExpandedTICountToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("expanded_ti_count").didnt_exist,
+    )
+
+
+class AddTaskInstanceIdToSetXCom(VersionChange):
+    """Pin XCom writes to a concrete attempt so stale callbacks cannot hit a successor TI."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(SetXCom).field("task_instance_id").didnt_exist,
     )

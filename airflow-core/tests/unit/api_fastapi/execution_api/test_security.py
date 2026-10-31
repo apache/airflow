@@ -844,7 +844,8 @@ class TestDagProcessorTokenOverHTTP:
             ("POST", f"/jobs/{JOB_ID}/complete", {}, 403),
             ("POST", f"/jobs/{JOB_ID}/parse-token", {}, 403),
             ("POST", "/jobs", {}, 403),
-            ("POST", "/xcoms/granted_dag/run/task/key", {}, 403),
+            # Auth succeeds for dag_parse; missing TI yields 404 (set was previously execution-only → 403).
+            ("POST", "/xcoms/granted_dag/run/task/key", {}, 404),
             ("GET", f"/task-instances/{SESSION_SUB}/previous-successful-dagrun", {}, 403),
         ],
     )

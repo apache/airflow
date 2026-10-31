@@ -3947,6 +3947,19 @@
           "default": null,
           "title": "Mapped Length"
         },
+        "task_instance_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Instance Id"
+        },
         "type": {
           "const": "SetXCom",
           "default": "SetXCom",

@@ -1001,6 +1001,9 @@ class SetXCom(BaseModel):
     map_index: int | None = None
     dag_result: bool = False
     mapped_length: int | None = None
+    # When set (own-TI / callback writes), the API pins the row to this attempt instead of
+    # resolving by coordinates alone — so a stale callback cannot write the successor TI.
+    task_instance_id: UUID | None = None
     type: Literal["SetXCom"] = "SetXCom"
 
 

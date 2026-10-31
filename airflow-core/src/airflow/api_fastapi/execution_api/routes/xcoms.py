@@ -679,6 +679,7 @@ def get_xcom(
 @router.post(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     status_code=status.HTTP_201_CREATED,
+    dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
     responses=create_openapi_http_exception_doc(
         [
             (
@@ -725,9 +726,27 @@ def set_xcom(
     mapped_length: Annotated[
         int | None, Query(ge=0, description="Number of mapped tasks this value expands into")
     ] = None,
-    token=_TriggerAwareTIToken,
+    task_instance_id: Annotated[
+        UUID | None,
+        Query(
+            description=(
+                "When set, write to this task-instance attempt (including archived). "
+                "Coordinates must match; the write does not fall back to a successor attempt."
+            ),
+        ),
+    ] = None,
+    # Dag-parse tokens are admitted so callbacks during parsing can persist XComs; scope is the
+    # granted bundle (DagInGrantedBundle), same as parse-time Variable writes. Task tokens keep
+    # the trigger-aware rewrite used by deferred tasks. Same pattern as the XCom read endpoints.
+    token: ExecutionToken = _TriggerAwareToken,
 ):
-    """Set an Airflow XCom."""
+    """
+    Set an Airflow XCom.
+
+    A ``dag_parse`` token may write XComs for any task instance whose Dag is in the token's
+    granted bundle. Pass ``task_instance_id`` to pin the write to a specific attempt (required for
+    safe callback writes after clear/retry).
+    """
     from airflow.configuration import conf
 
     if key.startswith(LOOP_XCOM_PREFIX):
@@ -776,6 +795,7 @@ def set_xcom(
         map_index=map_index,
         session=session,
         dag_bag=dag_bag,
+        task_instance_id=task_instance_id,
     )
     if owner is None:
         raise HTTPException(
@@ -850,7 +870,7 @@ def delete_xcom(
 
 
 def _find_writer_id(
-    token: TIToken,
+    token: ExecutionToken,
     *,
     dag_id: str,
     run_id: str,
@@ -858,9 +878,40 @@ def _find_writer_id(
     map_index: int,
     session: Session,
     dag_bag: DBDagBag,
+    task_instance_id: UUID | None = None,
 ) -> UUID | None:
     """Resolve the task instance a write targets with the rule reads use, working from the caller."""
-    caller = session.get(TaskInstance, token.id, execution_options={"include_all_attempts": True})
+    # Explicit attempt id wins: pin the write (including archived) and never fall back to a successor.
+    if task_instance_id is not None:
+        target = session.get(TaskInstance, task_instance_id, execution_options={"include_all_attempts": True})
+        if target is None:
+            return None
+        if (target.dag_id, target.run_id, target.task_id) != (dag_id, run_id, task_id):
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "task_instance_mismatch",
+                    "message": (
+                        f"task_instance_id {task_instance_id} does not match {dag_id}/{run_id}/{task_id}"
+                    ),
+                },
+            )
+        if get_public_map_index(target, session=session) != map_index:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "reason": "task_instance_mismatch",
+                    "message": (f"task_instance_id {task_instance_id} does not match map_index={map_index}"),
+                },
+            )
+        return target.id
+
+    # Dag-parse tokens identify a parsing attempt, not a task instance; resolve by coordinates only.
+    caller = (
+        session.get(TaskInstance, token.id, execution_options={"include_all_attempts": True})
+        if isinstance(token, TIToken)
+        else None
+    )
     # A write admitted for an attempt that has since been archived must stay with that attempt.
     if (
         caller is not None

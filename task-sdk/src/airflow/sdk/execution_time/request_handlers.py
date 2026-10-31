@@ -191,6 +191,7 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
         msg.map_index,
         dag_result=msg.dag_result,
         mapped_length=msg.mapped_length,
+        task_instance_id=msg.task_instance_id,
     )
     return None, {}
 
