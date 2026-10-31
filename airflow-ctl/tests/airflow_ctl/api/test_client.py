@@ -44,6 +44,7 @@ from airflowctl.api.client import (
     _request_method,
     _should_retry_api_request,
     get_client,
+    get_default_api_url,
     get_json_error,
     provide_api_client,
 )
@@ -696,6 +697,34 @@ def test_credentials_accepts_safe_env():
 def test_get_client_allows_explicit_token_without_config():
     with get_client(kind=ClientKind.CLI, api_token="TEST_TOKEN") as client:
         assert str(client.base_url) == "http://localhost:8080/api/v2/"
+
+
+@pytest.mark.parametrize(
+    ("env_value", "expected"),
+    [
+        (None, "http://localhost:8080"),
+        ("", "http://localhost:8080"),
+        ("http://localhost:18080", "http://localhost:18080"),
+    ],
+)
+def test_get_default_api_url(monkeypatch, env_value, expected):
+    if env_value is None:
+        monkeypatch.delenv("AIRFLOW_CLI_API_URL", raising=False)
+    else:
+        monkeypatch.setenv("AIRFLOW_CLI_API_URL", env_value)
+    assert get_default_api_url() == expected
+
+
+@patch.dict(
+    os.environ,
+    {
+        "AIRFLOW_CLI_ENVIRONMENT": "TEST_GET_CLIENT_API_URL_FROM_ENV",
+        "AIRFLOW_CLI_API_URL": "http://localhost:18080",
+    },
+)
+def test_get_client_falls_back_to_api_url_env_var():
+    with get_client(kind=ClientKind.CLI, api_token="TEST_TOKEN") as client:
+        assert str(client.base_url) == "http://localhost:18080/api/v2/"
 
 
 @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_GET_CLIENT_NO_AUTH_WITHOUT_CONFIG"})
