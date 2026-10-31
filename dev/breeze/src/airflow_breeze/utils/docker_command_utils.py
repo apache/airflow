@@ -1077,7 +1077,7 @@ def _get_compose_resources(
     ], result.returncode != 0
 
 
-def _should_remove_volume(
+def _is_volume_removable(
     labels: dict[str, str], *, preserve_volumes: bool, cleanup_build_cache: bool
 ) -> bool:
     if labels.get("com.docker.compose.volume") != BUILD_CACHE_VOLUME:
@@ -1134,7 +1134,7 @@ def bring_compose_projects_down(
                 if not stale_only and legacy:
                     selected = True
             if selected and kind == "volume":
-                selected = _should_remove_volume(
+                selected = _is_volume_removable(
                     labels, preserve_volumes=preserve_volumes, cleanup_build_cache=cleanup_build_cache
                 )
             if selected:
