@@ -252,6 +252,33 @@ def sample_hitl_detail(sample_ti: TaskInstance, session: Session) -> HITLDetail:
 
 
 @pytest.fixture
+def sample_hitl_detail_with_schema(sample_ti: TaskInstance, session: Session) -> HITLDetail:
+    hitl_detail_model = HITLDetail(
+        ti_id=sample_ti.id,
+        options=["Approve", "Reject"],
+        subject="This is subject",
+        body="this is body",
+        defaults=["Approve"],
+        multiple=False,
+        # As Param.serialize() stores it. The schema carries its own "default" and "description".
+        params={
+            "replicas": {
+                "value": 3,
+                "description": "How many replicas to start",
+                "schema": {"type": "integer", "minimum": 1, "maximum": 10, "default": 3, "description": "n"},
+                "source": "task",
+            },
+            "note": {"value": "", "description": None, "schema": {"type": "string"}, "source": "task"},
+        },
+        assignees=None,
+    )
+    session.add(hitl_detail_model)
+    session.commit()
+
+    return hitl_detail_model
+
+
+@pytest.fixture
 def sample_hitl_detail_non_respondent(sample_ti: TaskInstance, session: Session) -> HITLDetail:
     hitl_detail_model = HITLDetail(
         ti_id=sample_ti.id,
@@ -620,6 +647,68 @@ class TestUpdateHITLDetailEndpoint:
         )
         assert response.status_code == 400
         assert "Invalid options" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("sample_hitl_detail_with_schema", "park_sample_ti")
+    @pytest.mark.parametrize(
+        ("params_input", "expected_detail"),
+        [
+            pytest.param(
+                {"replicas": 50, "note": "load test"},
+                "Invalid input for param replicas: 50 is greater than the maximum of 10",
+                id="value-outside-schema",
+            ),
+            pytest.param(
+                {"replicas": "five", "note": "load test"},
+                "Invalid input for param replicas: 'five' is not of type 'integer'",
+                id="value-of-wrong-type",
+            ),
+            pytest.param(
+                {"replicas": 5},
+                "params_input ['replicas'] does not match params ['note', 'replicas'].",
+                id="missing-param",
+            ),
+            pytest.param(
+                {"replicas": 5, "note": "load test", "color": "red"},
+                "params_input ['color', 'note', 'replicas'] does not match params ['note', 'replicas'].",
+                id="unknown-param",
+            ),
+        ],
+    )
+    def test_should_respond_400_for_invalid_params_input(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        params_input: dict[str, Any],
+        expected_detail: str,
+    ) -> None:
+        """Write-side validation rejects a params_input that HITLOperator.validate_params_input would fail."""
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": params_input},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"].startswith(expected_detail)
+
+    @pytest.mark.usefixtures("sample_hitl_detail_with_schema", "park_sample_ti")
+    @pytest.mark.parametrize(
+        "params_input",
+        [
+            pytest.param({"replicas": 5, "note": "load test"}, id="valid-values"),
+            pytest.param({}, id="no-params-input"),
+        ],
+    )
+    def test_should_accept_params_input_that_passes_its_schema(
+        self,
+        test_client: TestClient,
+        sample_ti_url_identifier: str,
+        params_input: dict[str, Any],
+    ) -> None:
+        response = test_client.patch(
+            f"{sample_ti_url_identifier}/hitlDetails",
+            json={"chosen_options": ["Approve"], "params_input": params_input},
+        )
+        assert response.status_code == 200
+        assert response.json()["params_input"] == params_input
 
     @pytest.mark.usefixtures("sample_hitl_detail", "park_sample_ti")
     def test_should_validate_against_row_refreshed_under_lock(
