@@ -19,6 +19,8 @@ package execution
 
 import (
 	"fmt"
+	"math"
+	"reflect"
 	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
@@ -68,7 +70,7 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 	switch typ {
 	case genmodels.TypeStartupDetails:
 		var msg genmodels.StartupDetails
-		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+		if err := unmarshalNormalized(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding StartupDetails: %w", err)
 		}
 		if err := validateStartupTI(msg.TI); err != nil {
@@ -77,13 +79,13 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 		return &msg, nil
 	case genmodels.TypeDagFileParseRequest:
 		var msg genmodels.DagFileParseRequest
-		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+		if err := unmarshalNormalized(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding DagFileParseRequest: %w", err)
 		}
 		return &msg, nil
 	case genmodels.TypeErrorResponse:
 		var msg genmodels.ErrorResponse
-		if err := msgpack.Unmarshal(raw, &msg); err != nil {
+		if err := unmarshalNormalized(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding ErrorResponse: %w", err)
 		}
 		return &msg, nil
@@ -117,7 +119,109 @@ func decodeBody(raw msgpack.RawMessage, dst any) error {
 	if isNilRaw(raw) {
 		return fmt.Errorf("empty response body")
 	}
-	return msgpack.Unmarshal(raw, dst)
+	return unmarshalNormalized(raw, dst)
+}
+
+// unmarshalNormalized decodes raw into dst, then normalizes the numbers that
+// msgpack decoded into any-typed values, wherever they sit in dst.
+func unmarshalNormalized(raw []byte, dst any) error {
+	if err := msgpack.Unmarshal(raw, dst); err != nil {
+		return err
+	}
+	normalizeDecodedNumbers(reflect.ValueOf(dst))
+	return nil
+}
+
+// normalizeDecodedNumbers applies normalizeDecodedValue, in place, to every
+// any-typed struct field, map value and slice element reachable from v.
+func normalizeDecodedNumbers(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.Pointer:
+		if !v.IsNil() {
+			normalizeDecodedNumbers(v.Elem())
+		}
+	case reflect.Interface:
+		if !v.IsNil() && v.CanSet() {
+			v.Set(reflect.ValueOf(normalizeDecodedValue(v.Interface())))
+		}
+	case reflect.Struct:
+		for i := range v.NumField() {
+			if v.Type().Field(i).IsExported() {
+				normalizeDecodedNumbers(v.Field(i))
+			}
+		}
+	case reflect.Slice, reflect.Array:
+		if !mayHoldDecodedAny(v.Type().Elem()) {
+			return
+		}
+		for i := range v.Len() {
+			normalizeDecodedNumbers(v.Index(i))
+		}
+	case reflect.Map:
+		if !mayHoldDecodedAny(v.Type().Elem()) {
+			return
+		}
+		iter := v.MapRange()
+		for iter.Next() {
+			// A map value is not addressable, so normalize a copy and store it back.
+			elem := reflect.New(v.Type().Elem()).Elem()
+			elem.Set(iter.Value())
+			normalizeDecodedNumbers(elem)
+			v.SetMapIndex(iter.Key(), elem)
+		}
+	}
+}
+
+// mayHoldDecodedAny reports whether a value of type t can contain an any-typed
+// value, so that normalizeDecodedNumbers skips the elements of a []byte or a
+// map[string]string.
+func mayHoldDecodedAny(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Interface, reflect.Pointer, reflect.Struct,
+		reflect.Slice, reflect.Array, reflect.Map:
+		return true
+	default:
+		return false
+	}
+}
+
+// normalizeDecodedValue returns value with its integers as int64, or uint64
+// above math.MaxInt64, and its floats as float64, including the values nested
+// in its maps and slices, which it updates in place. msgpack decodes a number
+// into the narrowest Go type that its wire encoding names, and the supervisor
+// packs each integer in the fewest bytes, so 7, 200 and 70000 would otherwise
+// arrive as int8, uint8 and uint32. The Java SDK decodes every integer to a
+// Long in the same way.
+func normalizeDecodedValue(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		for key, item := range v {
+			v[key] = normalizeDecodedValue(item)
+		}
+	case []any:
+		for i, item := range v {
+			v[i] = normalizeDecodedValue(item)
+		}
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case uint8:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint64:
+		if v <= math.MaxInt64 {
+			return int64(v)
+		}
+	case float32:
+		return float64(v)
+	}
+	return value
 }
 
 // apiErrorFromFrame returns the supervisor error carried by a frame, or nil if

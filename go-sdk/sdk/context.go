@@ -20,6 +20,8 @@ package sdk
 import (
 	"context"
 	"time"
+
+	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
 // TIRunContext is a context.Context that also exposes the identifiers and
@@ -85,13 +87,21 @@ type TaskInstance struct {
 }
 
 // DagRun identifies the Dag run the current task instance belongs to and
-// carries its scheduling timestamps. The *time.Time fields are nil when the
-// supervisor did not provide a value (for example, a manually triggered run
-// without a logical date).
+// carries its scheduling timestamps, how it was created, and its conf. The
+// *time.Time fields are nil when the supervisor did not provide a value (for
+// example, a manually triggered run without a logical date).
 type DagRun struct {
 	DagID             string
 	RunID             string
 	LogicalDate       *time.Time
 	DataIntervalStart *time.Time
 	DataIntervalEnd   *time.Time
+	RunAfter          time.Time
+	// RunType says how the run was created, such as
+	// [github.com/apache/airflow/go-sdk/airflow.DagRunTypeManual].
+	RunType genmodels.DagRunType
+	// Conf is the configuration the run was triggered with. It may be nil or
+	// empty when no configuration was supplied. Integers are int64, except values
+	// above math.MaxInt64, which are uint64; floating-point values are float64.
+	Conf map[string]any
 }

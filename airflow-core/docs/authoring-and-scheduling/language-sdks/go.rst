@@ -467,13 +467,18 @@ Its first parameter is an ``airflow.Context``, which gives it what Airflow provi
      - ``DagID``, ``RunID``, ``TaskID`` (including any task group prefix), ``MapIndex`` (``nil`` for an unmapped
        task) and ``TryNumber``.
    * - ``actx.DagRun()``
-     - ``DagID``, ``RunID``, and the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and
-       ``DataIntervalEnd`` (``nil`` when the run has no such value, such as a manual run).
+     - ``DagID``, ``RunID``, ``RunAfter``, ``RunType`` (an ``airflow.DagRunType`` such as
+       ``airflow.DagRunTypeManual``), ``Conf`` (may be ``nil`` or empty when no configuration was supplied), and
+       the ``*time.Time`` fields ``LogicalDate``, ``DataIntervalStart`` and ``DataIntervalEnd`` (``nil`` when the
+       run has no such value, such as a manual run).
 
 ``airflow.Context`` is a ``context.Context``, so pass it to a client call or to ``http.NewRequestWithContext``. Its
 ``Done()`` fires when Airflow stops the task, so long-running work can stop cleanly. Cleanup that must outlive
 that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``context.Context`` gets the
 ``airflow.Context`` back with ``airflow.FromContext``.
+
+``Conf`` is a ``map[string]any`` whose values follow the :ref:`XCom type mapping <go-sdk/types>`. Use a map lookup
+or ``len`` to check for configuration entries; a run without configuration may have a ``nil`` or empty map.
 
 A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
 retries it if the task has retries.
@@ -596,7 +601,8 @@ A namespace level applies to the longest matching dotted prefix, so ``example=DE
 XCom type mapping
 -----------------
 
-XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matching Go type:
+XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matching Go type. The same mapping
+applies to a value read with ``TaskStateStore().Get`` and to the values in ``actx.DagRun().Conf``:
 
 .. list-table::
    :header-rows: 1
@@ -607,7 +613,7 @@ XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matchi
      - Go type
    * - ``int``
      - number (integer)
-     - an integer type (see note)
+     - ``int64`` (see note)
    * - ``float``
      - number (decimal)
      - ``float64``
@@ -629,9 +635,10 @@ XComs are stored as JSON, so a value read with ``GetXCom`` arrives as the matchi
 
 .. note::
 
-  An integer arrives as a Go integer type whose width depends on the value. Type-switch over the integer types
-  you expect, or round-trip the value through ``json.Marshal`` and ``json.Unmarshal`` into a typed Go value. A
-  task input from ``airflow.Inputs`` or a TaskFlow argument is already decoded into its parameter type.
+  An integer arrives as ``int64``, or as ``uint64`` when it is above ``math.MaxInt64``. This also applies to
+  values in nested maps and arrays. To get a typed Go value, round-trip the value through ``json.Marshal`` and
+  ``json.Unmarshal``. A task input from ``airflow.Inputs`` or a TaskFlow argument is already decoded into its
+  parameter type.
 
 .. _go-sdk/build:
 

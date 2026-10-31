@@ -18,7 +18,9 @@
 package execution
 
 import (
+	"bytes"
 	"encoding/json"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -540,6 +542,93 @@ func TestAPIErrorFromFrame(t *testing.T) {
 		require.NotNil(t, apiErr)
 		assert.Equal(t, "VARIABLE_NOT_FOUND", apiErr.Err)
 	})
+}
+
+// marshalCompactBody encodes body with each integer in the fewest bytes, as the
+// supervisor's msgpack packer does.
+func marshalCompactBody(t *testing.T, body any) msgpack.RawMessage {
+	t.Helper()
+	var buf bytes.Buffer
+	enc := msgpack.NewEncoder(&buf)
+	enc.UseCompactInts(true)
+	require.NoError(t, enc.Encode(body))
+	return buf.Bytes()
+}
+
+func TestDecodeBodyNormalizesNumbers(t *testing.T) {
+	cases := []struct {
+		name  string
+		value any
+		want  any
+	}{
+		{name: "positive fixint", value: 7, want: int64(7)},
+		{name: "uint8", value: 200, want: int64(200)},
+		{name: "uint16", value: 500, want: int64(500)},
+		{name: "uint32", value: 70000, want: int64(70000)},
+		{name: "uint64 up to max int64", value: uint64(math.MaxInt64), want: int64(math.MaxInt64)},
+		{
+			name:  "uint64 above max int64",
+			value: uint64(math.MaxInt64) + 1,
+			want:  uint64(math.MaxInt64) + 1,
+		},
+		{name: "negative fixint", value: -1, want: int64(-1)},
+		{name: "int8", value: -100, want: int64(-100)},
+		{name: "int16", value: -129, want: int64(-129)},
+		{name: "int32", value: -32769, want: int64(-32769)},
+		{name: "float32", value: float32(1.25), want: float64(1.25)},
+		{
+			name: "nested in maps and arrays",
+			value: map[string]any{
+				"rows":    7,
+				"batches": []any{200, "eu", nil, map[string]any{"ratio": float32(0.5)}},
+			},
+			want: map[string]any{
+				"rows":    int64(7),
+				"batches": []any{int64(200), "eu", nil, map[string]any{"ratio": float64(0.5)}},
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := marshalCompactBody(t, map[string]any{
+				"type":  "XComResult",
+				"key":   "return_value",
+				"value": tc.value,
+			})
+			var result genmodels.XComResult
+			require.NoError(t, decodeBody(raw, &result))
+			assert.Equal(t, tc.want, result.Value)
+		})
+	}
+}
+
+func TestDecodeStartupDetailsNormalizesConfNumbers(t *testing.T) {
+	raw := marshalCompactBody(t, map[string]any{
+		"type": "StartupDetails",
+		"ti": map[string]any{
+			"id":         "550e8400-e29b-41d4-a716-446655440000",
+			"task_id":    "extract",
+			"dag_id":     "tutorial_dag",
+			"run_id":     "manual__2024-01-15",
+			"try_number": 1,
+		},
+		"bundle_info": map[string]any{"name": "example_dags", "version": "1.0.0"},
+		"ti_context": map[string]any{
+			"dag_run": map[string]any{
+				"conf": map[string]any{"rows": 200, "window": map[string]any{"days": 7}},
+			},
+		},
+	})
+	body, err := decodeIncomingBody(raw)
+	require.NoError(t, err)
+	details, ok := body.(*genmodels.StartupDetails)
+	require.True(t, ok)
+	require.NotNil(t, details.TIContext.DagRun.Conf)
+	assert.Equal(
+		t,
+		genmodels.Conf{"rows": int64(200), "window": map[string]any{"days": int64(7)}},
+		*details.TIContext.DagRun.Conf,
+	)
 }
 
 func TestIfaceInt(t *testing.T) {

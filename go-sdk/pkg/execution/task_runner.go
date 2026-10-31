@@ -74,6 +74,10 @@ func RunTask(
 	// live task context.
 	ti := taskInstanceOf(details)
 	dagRun := details.TIContext.DagRun
+	var conf map[string]any
+	if dagRun.Conf != nil {
+		conf = *dagRun.Conf
+	}
 	runtimeContext := sdk.NewTIRunContext(
 		context.Background(),
 		ti,
@@ -83,6 +87,9 @@ func RunTask(
 			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
 			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
 			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			RunAfter:          dagRun.RunAfter,
+			RunType:           dagRun.RunType,
+			Conf:              conf,
 		},
 	)
 
