@@ -116,11 +116,11 @@ importers:
         specifier: ^8.2.1
         version: 8.2.1
       i18next-http-backend:
-        specifier: ^4.0.2
-        version: 4.0.2
+        specifier: ^4.0.4
+        version: 4.0.4
       katex:
-        specifier: ^0.19.0
-        version: 0.19.0
+        specifier: ^0.19.1
+        version: 0.19.1
       mermaid:
         specifier: ^12.1.0
         version: 12.1.0
@@ -288,8 +288,8 @@ importers:
         specifier: ^17.13.0
         version: 17.13.0
       happy-dom:
-        specifier: ^21.0.1
-        version: 21.0.1
+        specifier: ^21.0.4
+        version: 21.0.4
       jsonc-eslint-parser:
         specifier: ^3.3.0
         version: 3.3.0
@@ -319,7 +319,7 @@ importers:
         version: 5.0.2(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
       vitest:
         specifier: ^5.0.4
-        version: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.1)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
+        version: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
       web-worker:
         specifier: ^1.5.0
         version: 1.5.0
@@ -413,6 +413,10 @@ packages:
     resolution: {integrity: sha512-qMlSxKbpRlAridDExk92nSobyDdpPijUq2DW6oDnUqd0iOGxmQjyqhMIihI9+zv4LPyZdRje2cavWPbCbWm3eA==}
     engines: {node: '>=6.9.0'}
 
+  '@babel/helper-string-parser@7.29.11':
+    resolution: {integrity: sha512-snZbO7MEDOof+hvNa97EjEY7qD7h2kwvQr5AJC3ZhQudKW5dnej6k3kP9NQV88hJwaS8vDqRLFo9rivLEhle2g==}
+    engines: {node: '>=6.9.0'}
+
   '@babel/helper-string-parser@7.29.7':
     resolution: {integrity: sha512-Pb5ijPrZ89GDH8223L4UP8i6QApWxs04RbPQJTeWDV0/keR2E36MeKnyr6LYmUUvqRRI+Iv87SuF1W6ErINzYw==}
     engines: {node: '>=6.9.0'}
@@ -428,6 +432,11 @@ packages:
   '@babel/helpers@7.29.7':
     resolution: {integrity: sha512-1k2lAGRMfHTcwuNYcCNUmaUffmQv8KWMfh2iJUUeRlwlwH4FdNG7mfPI10NPfLHJFThE4Tyr4mv7kTNZOiPuBg==}
     engines: {node: '>=6.9.0'}
+
+  '@babel/parser@7.29.12':
+    resolution: {integrity: sha512-WJ7JBp/Q4+z/ImydtI7jS6NVco5++632ExBemSX+Ysb+G1lCwQ5BVo3SY+jGGOcZXI4ZccbZSUSJLNBW6eEpJg==}
+    engines: {node: '>=6.0.0'}
+    hasBin: true
 
   '@babel/parser@7.29.2':
     resolution: {integrity: sha512-4GgRzy/+fsBa72/RZVJmGKPmZu9Byn8o4MoLpmNe1m8ZfYnz5emHLQz3U4gLud6Zwl0RZIcgiLD7Uq7ySFuDLA==}
@@ -482,6 +491,10 @@ packages:
 
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
+    engines: {node: '>=6.9.0'}
+
+  '@babel/types@7.29.11':
+    resolution: {integrity: sha512-WCsemW40Cpc6gouC1SrY6PBaZ+oLRlEVY9XBvZBI7il/HyUrb2nJ505wE1MHEFyDZNnrWDEuy4jL50WVHfTTSQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.7':
@@ -866,36 +879,42 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-arm64-musl@1.2.13':
     resolution: {integrity: sha512-xU+Kvv9N2A3SY35zFh1FWWNjxbadE/BKeqnkXe7vScU4GZsw757BlVmDLITZEq8DPpk6m7uoDYkK7P+x/uU5Ow==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-linux-ppc64-gnu@1.2.13':
     resolution: {integrity: sha512-XMk/hnhh25oQ756Lclb1Q11h4ll0xC0Esa5w4Vzp+mAE2S3AGJgeM0SonrIgY8fHhjarb6hcoTuwoFG0VVP2ig==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [ppc64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-s390x-gnu@1.2.13':
     resolution: {integrity: sha512-U1BoTHYmlywE2n3HUWjzZ+8EQsKr+OwpxYuDWaubx42tUL8QSL7nOqRz/NVHanibbFP3M1Rxuprz/wNcbMKjqw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [s390x]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-gnu@1.2.13':
     resolution: {integrity: sha512-J4cm80Pc6wEwV5AZ42o62sIQgDk+Y7R2s646jIwuvO+4V46QB58N4vVuMPWCBaNgursXLpmUWJV//WQAkPvHBQ==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   '@rolldown/binding-linux-x64-musl@1.2.13':
     resolution: {integrity: sha512-W0euZS40U4V6JkmEnVCIX9mcsL6cbXQ4X8c2w+MMOIjFg68TXUW+u3RT+2e1t1pv9mg/EP3pDtK3POXdQ7Rxyw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   '@rolldown/binding-openharmony-arm64@1.2.13':
     resolution: {integrity: sha512-do/AF/4n9MRshia3a5aXoy8xM2c6mgfT6D7H/dY6my5z+hfCIR4ab7mk4IRj++nsEQpKy39kd0DQnDq+r692tw==}
@@ -2704,8 +2723,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@21.0.1:
-    resolution: {integrity: sha512-pRBs/u9fhrncyByOl58DMex0R2uAj6ZPKWIjV5j5yNGZBqLw3P6BTRhlc0DD5b/Ht4/6JYTMuE2LJhUWRC6SGw==}
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -2813,8 +2832,8 @@ packages:
   i18next-browser-languagedetector@8.2.1:
     resolution: {integrity: sha512-bZg8+4bdmaOiApD7N7BPT9W8MLZG+nPTOFlLiJiT8uzKXFjhxw4v2ierCXOwB5sFDMtuA5G4kgYZ0AznZxQ/cw==}
 
-  i18next-http-backend@4.0.2:
-    resolution: {integrity: sha512-oay62dIB2kL7+WHzoUXBjWfL3+mwijD3pQkQkIEaRLhy6kjXxUhrRenV0gInwlCASAaJaDy94+XvYizK+cAGdA==}
+  i18next-http-backend@4.0.4:
+    resolution: {integrity: sha512-nG9OQKvUsPiTVUBg1rCGmvmWhzxC9GOxVbGdTYyejHVMSUjutt1hiBNVSzhB/ZE7keL9Xkb880kUfhDovV5T5g==}
     engines: {node: '>=18'}
 
   i18next@26.4.4:
@@ -3076,8 +3095,8 @@ packages:
     resolution: {integrity: sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg==}
     hasBin: true
 
-  katex@0.19.0:
-    resolution: {integrity: sha512-v6Tznz3zJ7u3niRCoDTsumM2+HA2XXcCu+WAacCeHD2z3p9A9Ks987o5FzfTGBN0e8A0vjEgIDvLbICrXpdw/Q==}
+  katex@0.19.1:
+    resolution: {integrity: sha512-jG8uKntjSEcm2EpQOh0XturpPuuC9r3Sq5HLHdsFdWZT27E672SF19QEi+of0/YeOy15lDgRhKvr5614uRrEfA==}
     hasBin: true
 
   keyv@5.6.0:
@@ -3138,24 +3157,28 @@ packages:
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-arm64-musl@1.33.0:
     resolution: {integrity: sha512-yiO5ROMuYQgXbC60yjZU5CYSFZGKXL0HFATXt9mHJn1+zW55oCtMI9NfcVhYLMFDL7gV7oBPon/EmMMGg2OvtQ==}
     engines: {node: '>= 12.0.0'}
     cpu: [arm64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-linux-x64-gnu@1.33.0:
     resolution: {integrity: sha512-ar+Ju7LmcN0Jo4FpL4hpFybwNG9/3A/Br5KW2n2jyODg3MEZXaDYADdemoNS+BDNfMgKvylJLj4S5tyRActuAg==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [glibc]
 
   lightningcss-linux-x64-musl@1.33.0:
     resolution: {integrity: sha512-RYiYbkokw0trfKqqzfF55lginwEPrD3OJDfTuJzFs1MK6iFnDenaz1fqLLtX4ITG3OktJQXOeTaw1awrBAlZPw==}
     engines: {node: '>= 12.0.0'}
     cpu: [x64]
     os: [linux]
+    libc: [musl]
 
   lightningcss-win32-arm64-msvc@1.33.0:
     resolution: {integrity: sha512-1K+MPfLSFVpphzpdbfkhlWk6wBrTObBzS2T6db10PNOZgR9GoVsAWzwNyuhUYYbTp23j+4RrncfujZ4uAzXvwA==}
@@ -4701,6 +4724,9 @@ snapshots:
 
   '@babel/helper-string-parser@7.27.1': {}
 
+  '@babel/helper-string-parser@7.29.11':
+    optional: true
+
   '@babel/helper-string-parser@7.29.7': {}
 
   '@babel/helper-validator-identifier@7.29.7': {}
@@ -4711,6 +4737,11 @@ snapshots:
     dependencies:
       '@babel/template': 7.29.7
       '@babel/types': 7.29.8
+
+  '@babel/parser@7.29.12':
+    dependencies:
+      '@babel/types': 7.29.11
+    optional: true
 
   '@babel/parser@7.29.2':
     dependencies:
@@ -4779,6 +4810,12 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@babel/types@7.29.11':
+    dependencies:
+      '@babel/helper-string-parser': 7.29.11
+      '@babel/helper-validator-identifier': 7.29.7
+    optional: true
 
   '@babel/types@7.29.7':
     dependencies:
@@ -5284,7 +5321,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.1)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
+      vitest: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -5717,7 +5754,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.1)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
+      vitest: 5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
 
@@ -7547,7 +7584,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@21.0.1:
+  happy-dom@21.0.4:
     dependencies:
       '@types/node': 26.6.5
       '@types/whatwg-mimetype': 3.0.2
@@ -7710,7 +7747,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.28.6
 
-  i18next-http-backend@4.0.2: {}
+  i18next-http-backend@4.0.4: {}
 
   i18next@26.4.4(typescript@6.0.3):
     optionalDependencies:
@@ -7951,7 +7988,7 @@ snapshots:
     dependencies:
       commander: 8.3.0
 
-  katex@0.19.0:
+  katex@0.19.1:
     dependencies:
       commander: 15.0.0
 
@@ -8062,8 +8099,8 @@ snapshots:
 
   magicast@0.3.5:
     dependencies:
-      '@babel/parser': 7.29.9
-      '@babel/types': 7.29.8
+      '@babel/parser': 7.29.12
+      '@babel/types': 7.29.11
       source-map-js: 1.2.2
     optional: true
 
@@ -9516,7 +9553,7 @@ snapshots:
       jiti: 1.21.7
       yaml: 2.9.1
 
-  vitest@5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.1)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)):
+  vitest@5.0.4(@types/node@26.6.5)(@vitest/coverage-v8@5.0.4)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.4(msw@3.0.3(@types/node@26.6.5)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.4(@types/node@26.6.5)(jiti@1.21.7)(yaml@2.9.1))
@@ -9535,7 +9572,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.6.5
       '@vitest/coverage-v8': 5.0.4(vitest@5.0.4)
-      happy-dom: 21.0.1
+      happy-dom: 21.0.4
     transitivePeerDependencies:
       - msw
 
