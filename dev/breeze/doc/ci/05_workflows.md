@@ -563,6 +563,51 @@ unprivileged, which constrains what can go on it:
 When adding a job, reach for `ubuntu-slim` if it only shuffles metadata around, and
 `ubuntu-22.04` otherwise.
 
+### Dependency upgrade diagnostics
+
+Scheduled and manually dispatched AMD canaries on `main` keep the dependency freshness
+summary in `finalize-tests.yml`, but run it with `--no-explain-why`. Tests, constraint
+generation and validation, and image publication still run in the canary. Release-branch
+and other run types retain their existing explanation behavior. The summary saves the
+constraints it checked, and the constraints-branch commit they came from, with
+`--save-constraints-to`; a failure to save them only warns and never fails the canary.
+
+After the canary completes, `dependency-upgrade-report.yml` runs the detailed explanations
+independently, from the inputs the canary saved; a canary with failed jobs saves none. It checks out
+the original source SHA and downloads the original image and saved constraints by artifact
+ID from that run. It never substitutes the latest branch image or constraints: an entry whose
+saved constraints or image are missing or expired is skipped with a warning and listed in the
+summary, and the others are still explained. The image comes from the CI image stash, which
+keeps only the newest image per Python version and branch, so a later build on `main` can
+replace it within hours. A canary on RunsOn keeps the image in RunsOn's S3 cache and stashes
+only its digest; the report job then runs on a RunsOn runner and downloads exactly that tarball
+by its digest. Re-running the canary triggers the workflow again; inputs that an earlier attempt
+already saved are not explained again.
+
+The saved constraints are the constraints branch as the summary saw it, not constraints
+generated from the source SHA, so dependency bounds that changed between the two can appear
+as conflicts or as stale constraints. The report summary shows both commits. PyPI release
+metadata is fetched when the report executes, so the available upgrade targets can change
+between the summary and the explanations.
+
+The workflow has read-only repository permissions. It runs on `workflow_run`, in the context
+of the default branch, so it could write that branch's GitHub Actions cache: what keeps the
+cache untouched is that no step saves one. Do not add caching (for example `actions/cache` or
+the cache option of a `setup-*` action) to this workflow. Reports use the saved image artifact.
+
+The report runs at most three jobs concurrently. Each job has a 150-minute limit and saves
+its output, including partial output on failure. A failed or timed-out report is incomplete;
+it does not invalidate the canary's test result. Find diagnostics in the **Dependency
+upgrade report** workflow, whose summary links to the source canary. To repeat diagnostics,
+use **Re-run jobs** on that report before its two-day input retention expires (or run
+`gh run rerun REPORT_RUN_ID`). Reruns keep the original source canary ID and attempt. A rerun
+fails when inputs were saved but none can be explained any more, rather than using a newer
+image or constraints; a report whose canary saved no inputs posts the same notice every time.
+
+`breeze release-management constraints-version-check --constraints-file PATH` can also
+analyze a saved constraints file locally. Detailed explanations reuse one baseline resolution
+and skip the pinned resolution when that baseline already selects the target version.
+
 ### Spot interruptions of self-hosted runners
 
 Runs of `apache/airflow` committers and the canary run on self-hosted
