@@ -76,6 +76,8 @@ def _warn_if_write_may_have_applied(error: httpx.HTTPError) -> None:
     """Warn that a failed write is not retried because the server may already have applied it."""
     if isinstance(error, httpx.HTTPStatusError) and error.response.status_code < 500:
         return
+    if isinstance(error, (httpx.ConnectTimeout, httpx.PoolTimeout)):
+        return
     method = _request_method(error)
     if method in _WRITE_METHODS:
         rich.print(
@@ -103,7 +105,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     ) as e:
         rich.print(f"command failed due to {e}")
         sys.exit(1)
-    except (httpx.RemoteProtocolError, httpx.ReadError) as e:
+    except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
         rich.print(f"[red]Remote protocol error: {e}[/red]")
         if "Server disconnected without sending a response." in str(e):
             rich.print(
@@ -112,8 +114,8 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
-    except httpx.ReadTimeout as e:
-        rich.print(f"[red]Read timeout error: {e}[/red]")
+    except httpx.TimeoutException as e:
+        rich.print(f"[red]Request timeout error: {e}[/red]")
         if "timed out" in str(e):
             rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
         _warn_if_write_may_have_applied(e)

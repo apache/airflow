@@ -664,6 +664,10 @@ class TestCliConfigMethods:
             (httpx.ReadTimeout, True),
             (httpx.ReadError, True),
             (httpx.RemoteProtocolError, True),
+            (httpx.ConnectTimeout, False),
+            (httpx.PoolTimeout, False),
+            (httpx.WriteTimeout, True),
+            (httpx.WriteError, True),
             ("json-500", True),
             ("plain-503", True),
             ("json-400", False),
@@ -727,8 +731,9 @@ class TestCliConfigMethods:
         [
             httpx.RemoteProtocolError("remote protocol error"),
             httpx.ReadError("read error"),
+            httpx.WriteError("write error"),
         ],
-        ids=["remote-protocol-error", "read-error"],
+        ids=["remote-protocol-error", "read-error", "write-error"],
     )
     def test_safe_call_command_exits_non_zero_for_httpx_protocol_errors(self, raised_exception):
         def raise_error(_args):
@@ -739,9 +744,19 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
 
-    def test_safe_call_command_exits_non_zero_for_httpx_read_timeout(self):
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            httpx.ReadTimeout("timed out"),
+            httpx.ConnectTimeout("timed out"),
+            httpx.WriteTimeout("timed out"),
+            httpx.PoolTimeout("timed out"),
+        ],
+        ids=["read-timeout", "connect-timeout", "write-timeout", "pool-timeout"],
+    )
+    def test_safe_call_command_exits_non_zero_for_httpx_timeouts(self, raised_exception):
         def raise_error(_args):
-            raise httpx.ReadTimeout("timed out")
+            raise raised_exception
 
         with pytest.raises(SystemExit) as ctx:
             safe_call_command(raise_error, args=argparse.Namespace())

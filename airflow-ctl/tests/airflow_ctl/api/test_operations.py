@@ -170,6 +170,16 @@ class TestBaseOperations:
         ):
             client.connections.get("1")
 
+    def test_server_connection_timed_out(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectTimeout("Connection timed out", request=request)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection timed out. Is the API server running?"
+        ):
+            client.connections.get("1")
+
     def test_execute_list_raises_validation_error_for_non_json_response(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>login</html>")
