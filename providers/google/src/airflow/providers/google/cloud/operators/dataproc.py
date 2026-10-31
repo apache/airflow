@@ -36,7 +36,7 @@ from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, conf, timezone
 from airflow.providers.google.cloud.hooks.dataproc import (
     DataprocHook,
     DataProcJobBuilder,
@@ -2064,11 +2064,10 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
                 start_date = context["ti"].start_date
                 anchor = start_date.timestamp() if start_date else time.time()
                 execution_deadline = anchor + self.execution_timeout.total_seconds()
-                # Framework backstop only: one extra poll interval of slack so the
+                # Framework backstop only: slack of at least a minute (two poll intervals) so the
                 # trigger's own deadline handling (which cancels the job) fires first.
-                trigger_timeout = timedelta(
-                    seconds=max(execution_deadline - time.time(), 0) + self.polling_interval_seconds
-                )
+                poll_buffer = max(60, 2 * self.polling_interval_seconds)
+                trigger_timeout = timedelta(seconds=max(execution_deadline - time.time(), 0) + poll_buffer)
             self.defer(
                 trigger=DataprocSubmitTrigger(
                     job_id=self.job_id,
@@ -2101,7 +2100,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         job_state = event["job_state"]
         job_id = event["job_id"]
         if job_state == "TIMED_OUT":
-            raise AirflowException(
+            raise AirflowTaskTimeout(
                 event.get("message") or f"Job {job_id} exceeded the task's execution_timeout while deferred."
             )
         job = event["job"]

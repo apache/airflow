@@ -785,6 +785,7 @@ class TestDataprocSubmitTrigger:
 
         event = await trigger.run().asend(None)
 
+        mock_get_async_hook.return_value.get_job.assert_not_awaited()
         mock_get_sync_hook.return_value.cancel_job.assert_called_once_with(
             job_id=TEST_JOB_ID,
             project_id=TEST_PROJECT_ID,
@@ -815,6 +816,7 @@ class TestDataprocSubmitTrigger:
 
         event = await trigger.run().asend(None)
 
+        mock_get_async_hook.return_value.get_job.assert_not_awaited()
         mock_get_sync_hook.return_value.cancel_job.assert_not_called()
         assert event.payload["job_state"] == "TIMED_OUT"
 
