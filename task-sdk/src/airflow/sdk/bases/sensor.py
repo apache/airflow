@@ -258,6 +258,13 @@ class BaseSensorOperator(BaseOperator):
                 return super().resume_execution(next_method, next_kwargs, context)
             except TaskDeferralTimeout as e:
                 raise AirflowSensorTimeout(*e.args) from e
+        except AirflowRescheduleException:
+            # A reschedule request must propagate so the task goes UP_FOR_RESCHEDULE.
+            # soft_fail/never_fail must not swallow it into a skip (this mirrors the
+            # poke loop in execute(), which never converts a reschedule to a skip).
+            # AirflowRescheduleException subclasses AirflowException, so this more
+            # specific handler must come before the broad one below.
+            raise
         except (AirflowException, TaskDeferralError) as e:
             if self.soft_fail:
                 raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
