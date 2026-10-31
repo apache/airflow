@@ -2666,6 +2666,17 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
+def run_dummy_supervisor_until_events_handled(job: Job) -> None:
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    try:
+        supervisor.run()
+    finally:
+        # run() returns once the events are handled, but the forked runner keeps running. A leaked runner
+        # holds the multiprocessing resource tracker's pipe open, and on Python 3.12.16 pytest then hangs
+        # at exit: ResourceTracker.__del__ waits for the tracker process, which never sees EOF.
+        supervisor.kill(force=True)
+
+
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
@@ -2730,8 +2741,7 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
@@ -2834,8 +2844,7 @@ async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(s
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
@@ -2935,8 +2944,7 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, d
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     parent_task.refresh_from_db()
     task_instance.refresh_from_db()
