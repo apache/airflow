@@ -53,6 +53,8 @@ from airflow_breeze.commands.common_image_options import (
     option_push,
     option_python_image,
     option_skip_image_file_deletion,
+    option_snapshot_file_to_load,
+    option_snapshot_file_to_save,
     option_tag_as,
     option_verify,
     option_wait_for_image,
@@ -107,7 +109,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH, SCRIPTS_CI_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -516,6 +518,7 @@ def run_verify_in_parallel(
 @option_image_file_dir
 @option_platform_single
 @option_python
+@option_snapshot_file_to_save
 @option_verbose
 @option_dry_run
 def save(
@@ -524,9 +527,13 @@ def save(
     github_repository: str,
     image_file: Path | None,
     image_file_dir: Path,
+    snapshot_file: Path | None,
 ):
     """Save CI image to a file."""
     perform_environment_checks()
+    if snapshot_file:
+        save_ci_image_snapshot(snapshot_file)
+        return
     image_name = BuildCiParams(
         python=python,
         github_repository=github_repository,
@@ -560,6 +567,7 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
+@option_snapshot_file_to_load
 @option_tag_as
 @option_verbose
 def load(
@@ -572,6 +580,7 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
+    snapshot_file: Path | None,
     tag_as: str | None,
 ):
     """Load CI image from a file."""
@@ -580,6 +589,10 @@ def load(
         python=python,
         github_repository=github_repository,
     )
+    if snapshot_file:
+        restore_ci_image_snapshot(snapshot_file, build_ci_params.airflow_image_name)
+        tag_and_mark_loaded_ci_image(build_ci_params, tag_as)
+        return
     escaped_platform = platform.replace("/", "_")
 
     if not image_file:
@@ -622,6 +635,41 @@ def load(
     if result.returncode != 0:
         console_print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
+    if not skip_image_file_deletion:
+        console_print(f"[info]Deleting image file {image_file_to_load}[/]")
+        image_file_to_load.unlink()
+    tag_and_mark_loaded_ci_image(build_ci_params, tag_as)
+
+
+def save_ci_image_snapshot(snapshot_file: Path) -> None:
+    """Save a Docker data-root snapshot holding only the CI image, exiting when it cannot be made."""
+    console_print(f"[info]Saving Python CI image snapshot to {snapshot_file}[/]")
+    result = run_command(
+        [os.fspath(SCRIPTS_CI_PATH / "docker_data_root_snapshot.sh"), "create", os.fspath(snapshot_file)],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning]Snapshot {snapshot_file} not created[/]")
+        sys.exit(result.returncode)
+
+
+def restore_ci_image_snapshot(snapshot_file: Path, image_name: str) -> None:
+    """Restore the CI image from a Docker data-root snapshot, exiting when it does not fit."""
+    console_print(f"[info]Restoring Python CI image from snapshot {snapshot_file}[/]")
+    result = run_command(
+        [os.fspath(SCRIPTS_CI_PATH / "docker_data_root_snapshot.sh"), "restore", os.fspath(snapshot_file)],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning]Snapshot {snapshot_file} not restored, load the image file instead[/]")
+        sys.exit(result.returncode)
+    result = run_command(["docker", "image", "inspect", "--format", "{{.Id}}", image_name], check=False)
+    if result.returncode != 0:
+        console_print(f"[error]The restored snapshot does not hold {image_name}[/]")
+        sys.exit(result.returncode)
+
+
+def tag_and_mark_loaded_ci_image(build_ci_params: BuildCiParams, tag_as: str | None) -> None:
     if tag_as:
         console_print(f"[info]Tagging {build_ci_params.airflow_image_name} as {tag_as}[/]")
         result = run_command(
@@ -631,9 +679,6 @@ def load(
         if result.returncode != 0:
             console_print(f"[error]Error when tagging image: {result.stdout}[/]")
             sys.exit(result.returncode)
-    if not skip_image_file_deletion:
-        console_print(f"[info]Deleting image file {image_file_to_load}[/]")
-        image_file_to_load.unlink()
     if get_verbose():
         run_command(["docker", "images", "-a"])
     mark_image_as_rebuilt(ci_image_params=build_ci_params)
