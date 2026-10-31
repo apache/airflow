@@ -18,7 +18,7 @@
  */
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { OpenAPI } from "openapi/requests/core/OpenAPI";
+import { client } from "openapi/requests/services.gen";
 
 import { ColorModeProvider } from "src/context/colorMode";
 import { EdgeLayout } from "src/layouts/EdgeLayout";
@@ -31,10 +31,10 @@ export type PluginComponentProps = object;
  * Main plugin component
  */
 const PluginComponent = () => {
-  // Set the base URL for OpenAPI client from the HTML base tag
+  // Set the base URL for the API client from the HTML base tag
   const baseHref = document.querySelector("head > base")?.getAttribute("href") ?? "";
   const baseUrl = new URL(baseHref, globalThis.location.origin);
-  OpenAPI.BASE = baseUrl.pathname.replace(/\/$/, ""); // Remove trailing slash
+  client.setConfig({ baseURL: baseUrl.pathname.replace(/\/$/, "") }); // Remove trailing slash
 
   // Use the globalChakraUISystem provided by the Airflow Core UI,
   // so the plugin has a consistent theming with the host Airflow UI,
