@@ -28,7 +28,7 @@ from decimal import Decimal
 from enum import Enum
 from types import ModuleType, SimpleNamespace
 from typing import Any, NamedTuple, NewType
-from unittest.mock import ANY, MagicMock, PropertyMock, call, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, Mock, PropertyMock, call, patch
 from uuid import UUID
 
 import pytest
@@ -71,7 +71,11 @@ from airflow.providers.common.ai.durable.journal import DurableJournal, DurableR
 from airflow.providers.common.ai.durable.storage import DurableStorage
 from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
-from airflow.providers.common.ai.operators.agent import AgentOperator, HITLReviewLink
+from airflow.providers.common.ai.operators.agent import (
+    _TOOL_APPROVAL_TRANSCRIPT_KEY,
+    AgentOperator,
+    HITLReviewLink,
+)
 from airflow.providers.common.ai.sandbox.base import (
     HOLDER_TAG,
     OWNER_TAG,
@@ -103,7 +107,12 @@ from airflow.providers.common.compat.sdk import (
 )
 
 from tests_common.test_utils.compat import OperatorSerialization
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+)
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
 
@@ -4160,3 +4169,295 @@ class TestAgentOperatorMasksToolOutput:
         op._build_agent()
 
         assert hook.create_agent.call_args.kwargs["toolsets"] == [sql]
+
+
+def _refused_on_the_event_loop(call):
+    """Wrap a blocking call so it fails the test when it runs on the event loop."""
+
+    def guarded(*args, **kwargs):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return call(*args, **kwargs)
+        raise AssertionError("blocking call to the supervisor on the event loop")
+
+    return guarded
+
+
+def _make_async_task_state_store_accessor(*, async_methods: bool = True):
+    """
+    A task state store backed by ``accessor.data``, whose blocking methods fail on the event loop.
+
+    Every write and delete, async or blocking, is recorded in ``accessor.ops``. With
+    ``async_methods=False`` the store has no async methods, as before Airflow 3.4, and the operator
+    has to call the blocking ones from a worker thread.
+    """
+    from airflow.sdk.execution_time.context import TaskStateStoreAccessor
+
+    accessor = MagicMock(spec=TaskStateStoreAccessor)
+    data: dict[str, Any] = {}
+    ops: list[tuple[str, str]] = []
+    accessor.data = data
+    accessor.ops = ops
+
+    def get(key, default=None):
+        return data.get(key, default)
+
+    def set_(key, value, retention=None):
+        ops.append(("set", key))
+        data[key] = value
+
+    def delete(key):
+        ops.append(("delete", key))
+        data.pop(key, None)
+
+    accessor.get.side_effect = _refused_on_the_event_loop(get)
+    accessor.set.side_effect = _refused_on_the_event_loop(set_)
+    accessor.delete.side_effect = _refused_on_the_event_loop(delete)
+    if async_methods:
+        accessor.aget = AsyncMock(side_effect=get)
+        accessor.aset = AsyncMock(side_effect=set_)
+        accessor.adelete = AsyncMock(side_effect=delete)
+    else:
+        del accessor.aget, accessor.aset, accessor.adelete
+    return accessor
+
+
+def _make_async_context(task_state_store=None):
+    """A context for ``aexecute``: XComs go through ``axcom_push`` on Airflow 3.3+, ``xcom_push`` on 3.2."""
+    ti = _make_ti()
+    ti.axcom_push = AsyncMock()
+    context = {"task_instance": ti}
+    if task_state_store is not None:
+        context["task_state_store"] = task_state_store
+    return context
+
+
+def _make_async_mock_agent(mock_hook_cls, **run):
+    """Wire a mock agent whose ``run`` is awaitable into the hook's async path, and return it."""
+    mock_agent = MagicMock(spec=["run", "instrument"])
+    mock_agent.run = AsyncMock(**run)
+    mock_hook_cls.aget_hook = AsyncMock()
+    mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(return_value=mock_agent)
+    return mock_agent
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="async tasks need Airflow >= 3.2")
+class TestAgentOperatorAsync:
+    def test_operator_is_synchronous_unless_a_subclass_says_otherwise(self):
+        assert AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm").is_async is False
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_aexecute_awaits_the_run_through_the_async_hook_path(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result("done"))
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        result = await op.aexecute(_make_async_context())
+
+        assert result == "done"
+        mock_hook_cls.aget_hook.assert_awaited_once_with(
+            "my_llm", hook_params={"model_id": None, "fallback_conn_ids": None}
+        )
+        mock_hook_cls.get_hook.assert_not_called()
+        mock_agent.run.assert_awaited_once_with(
+            "run", usage_limits=None, run_id="ti-1", cancellation_token=ANY, usage=ANY
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.parametrize("async_store", [True, False], ids=["async-store", "store-before-3.4"])
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_successful_run_makes_no_blocking_call_to_the_supervisor(self, mock_hook_cls, async_store):
+        """A real run with a usage budget and a message history: no blocking call reaches the event
+        loop, whether the task state store has async methods (Airflow 3.4+) or not."""
+        mock_hook_cls.aget_hook = AsyncMock()
+        mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(
+            side_effect=lambda **kw: Agent(FunctionModel(_build_priced_response), **kw)
+        )
+        store = _make_async_task_state_store_accessor(async_methods=async_store)
+        context = _make_async_context(task_state_store=store)
+        context["task_instance"].xcom_push.side_effect = AssertionError("blocking xcom_push")
+
+        op = AgentOperator(
+            task_id="test",
+            prompt="run",
+            llm_conn_id="my_llm",
+            usage_limits={"cost_limit": str(PRICED_COST * 2)},
+            message_history=[],
+        )
+        with (
+            patch("airflow.providers.common.ai.operators.agent.AIRFLOW_V_3_4_PLUS", async_store),
+            patch("airflow.providers.common.ai.utils.usage_budget.AIRFLOW_V_3_4_PLUS", async_store),
+        ):
+            result = await op.aexecute(context)
+
+        assert result == "the answer"
+        pushed = [c.kwargs["key"] for c in context["task_instance"].axcom_push.await_args_list]
+        assert pushed == ["run_id", "usage", MODEL_NAME_XCOM_KEY, "message_history"]
+        assert ("delete", _TOOL_APPROVAL_TRANSCRIPT_KEY) in store.ops
+        assert ("set", USAGE_BUDGET_KEY) in store.ops
+        assert store.ops[-1] == ("delete", USAGE_BUDGET_KEY)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_failed_run_saves_the_budget_and_reports_its_usage(self, mock_hook_cls):
+        _make_async_mock_agent(mock_hook_cls, side_effect=RuntimeError("boom"))
+        store = _make_async_task_state_store_accessor()
+        context = _make_async_context(task_state_store=store)
+
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", usage_limits={"request_limit": 5}
+        )
+        with pytest.raises(RuntimeError, match="boom"):
+            await op.aexecute(context)
+
+        assert ("set", USAGE_BUDGET_KEY) in store.ops
+        # The failure report reuses the synchronous code, from a worker thread.
+        pushed = {c.kwargs["key"] for c in context["task_instance"].xcom_push.call_args_list}
+        assert pushed == {"run_id", "usage"}
+
+    @pytest.mark.parametrize("feature", ["durable", "enable_hitl_review"])
+    @pytest.mark.asyncio
+    async def test_aexecute_rejects_features_that_block_the_event_loop(self, feature):
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **{feature: True})
+
+        with pytest.raises(ValueError, match="not supported with an async callable"):
+            await op.aexecute(_make_async_context())
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_run_waiting_on_a_tool_approval_pauses_through_the_synchronous_path(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        class Paused(Exception):
+            pass
+
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result(DeferredToolRequests()))
+        context = _make_async_context()
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        with patch.object(
+            AgentOperator,
+            "_pause_for_tool_approval",
+            side_effect=_refused_on_the_event_loop(Mock(side_effect=Paused)),
+        ) as pause:
+            with pytest.raises(Paused):
+                await op.aexecute(context)
+
+        pause.assert_called_once()
+        context["task_instance"].axcom_push.assert_not_awaited()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_a_retry_starts_from_the_usage_of_earlier_tries(self, mock_hook_cls, make_mock_run_result):
+        mock_agent = _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result("done"))
+        store = _make_async_task_state_store_accessor()
+        context = _make_async_context(task_state_store=store)
+        store.data[USAGE_BUDGET_KEY] = TaskStateStoreUsageBudget(
+            store, max_tries=context["task_instance"].max_tries
+        )._record(RunUsage(requests=3))
+
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", usage_limits={"request_limit": 5}
+        )
+        await op.aexecute(context)
+
+        assert mock_agent.run.await_args.kwargs["usage"].requests == 3
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store needs Airflow >= 3.3")
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_the_approval_transcript_of_an_earlier_try_is_deleted(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result("done"))
+        store = _make_async_task_state_store_accessor()
+        store.data[_TOOL_APPROVAL_TRANSCRIPT_KEY] = "[]"
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm")
+        await op.aexecute(_make_async_context(task_state_store=store))
+
+        assert ("delete", _TOOL_APPROVAL_TRANSCRIPT_KEY) in store.ops
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_a_model_output_is_returned_as_a_dict(self, mock_hook_cls, make_mock_run_result):
+        class Answer(BaseModel):
+            text: str
+
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result(Answer(text="done")))
+
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", output_type=Answer, serialize_output=True
+        )
+
+        assert await op.aexecute(_make_async_context()) == {"text": "done"}
+
+    @requires_typed_xcom
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_a_model_the_worker_does_not_register_is_returned_as_json(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        """The async path converts the output the way ``execute`` does: a model inside a list output is
+        dumped, since the worker registers no class for an output marker."""
+        _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result([Summary(text="ok")]))
+
+        op = AgentOperator(
+            task_id="test", prompt="run", llm_conn_id="my_llm", output_type=ToolOutput(list[Summary])
+        )
+
+        assert await op.aexecute(_make_async_context()) == [{"text": "ok", "score": 0.0}]
+
+    @pytest.mark.parametrize(
+        ("kwargs", "emits"),
+        [
+            pytest.param({"message_history": []}, True, id="seeded"),
+            pytest.param({"emit_message_history": True}, True, id="opt-in"),
+            pytest.param({"message_history": [], "emit_message_history": False}, False, id="opt-out"),
+        ],
+    )
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_the_transcript_push_follows_emit_message_history(
+        self, mock_hook_cls, kwargs, emits, make_mock_run_result
+    ):
+        mock_agent = _make_async_mock_agent(mock_hook_cls, return_value=make_mock_run_result("ok"))
+        mock_agent.run.return_value.all_messages.return_value = _sample_history()
+        context = _make_async_context()
+
+        op = AgentOperator(task_id="test", prompt="run", llm_conn_id="my_llm", **kwargs)
+        await op.aexecute(context)
+
+        pushes = {
+            c.kwargs["key"]: c.kwargs["value"] for c in context["task_instance"].axcom_push.await_args_list
+        }
+        assert ("message_history" in pushes) is emits
+        if emits:
+            assert len(ModelMessagesTypeAdapter.validate_json(pushes["message_history"])) == 2
+
+    @pytest.mark.asyncio
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    async def test_runs_overlap_on_one_event_loop(self, mock_hook_cls):
+        async def slow(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            await asyncio.sleep(0.2)
+            return ModelResponse(parts=[TextPart(content="the answer")])
+
+        mock_hook_cls.aget_hook = AsyncMock()
+        mock_hook_cls.aget_hook.return_value.acreate_agent = AsyncMock(
+            side_effect=lambda **kw: Agent(FunctionModel(slow), **kw)
+        )
+        ops = [AgentOperator(task_id=f"test_{i}", prompt="run", llm_conn_id="my_llm") for i in range(8)]
+
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        results = await asyncio.gather(*(op.aexecute(_make_async_context()) for op in ops))
+
+        assert results == ["the answer"] * 8
+        # Eight runs of 0.2 s each take 1.6 s one after the other.
+        assert loop.time() - started < 1.0
