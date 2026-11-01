@@ -189,8 +189,10 @@ def list_envs(args) -> None:
         try:
             with open(config_path) as f:
                 config = json.load(f)
+                if not isinstance(config, dict):
+                    raise ValueError("not a JSON object")
                 api_url = config.get("api_url", "unknown")
-        except (OSError, json.JSONDecodeError, KeyError) as e:
+        except (OSError, ValueError, KeyError) as e:
             config_status = f"config error: {str(e)[:50]}"
             api_url = "error reading config"
 
