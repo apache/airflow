@@ -47,6 +47,9 @@ s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")
 
 
+SNAPSHOT_SUFFIX = "-SNAPSHOT"
+
+
 class VersionError:
     """Class to track version errors during processing."""
 
@@ -321,15 +324,20 @@ class S3DocsPublish:
         console_print(f"[success]CloudFront cache request invalidated successfully: {distribution_id}\n")
 
     def dump_docs_package_metadata(self, package_versions: dict[str, list[str]]):
-        all_packages_infos = [
-            {
-                "package-name": package_name,
-                "all-versions": (all_versions := self.get_latest_minor_versions(package_name, versions)),
-                "stable-version": all_versions[-1],
-            }
-            for package_name, versions in package_versions.items()
-        ]
-
+        all_packages_infos = []
+        for package_name, versions in package_versions.items():
+            all_versions = self.get_latest_minor_versions(package_name, versions)
+            # A package with only development builds, such as Java SDK snapshots, has no release yet.
+            if not all_versions:
+                console_print(f"[warning]No released versions of {package_name}; left out of the metadata\n")
+                continue
+            all_packages_infos.append(
+                {
+                    "package-name": package_name,
+                    "all-versions": all_versions,
+                    "stable-version": all_versions[-1],
+                }
+            )
         return all_packages_infos
 
     @staticmethod
@@ -340,6 +348,11 @@ class S3DocsPublish:
         console_print(versions)
         all_versions: list[Version] = []
         for v in versions:
+            # A Maven development build such as the Java SDK's `1.0.0-SNAPSHOT` is not a release and
+            # is not a valid Python version either; one that reached S3 is left out, not an error.
+            if v.upper().endswith(SNAPSHOT_SUFFIX):
+                console_print(f"[warning]Skipping development build {v} of {package_name}\n")
+                continue
             try:
                 all_versions.append(Version(v))
             except ValueError as e:

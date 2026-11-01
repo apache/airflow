@@ -266,6 +266,10 @@ class TriggererCallback(Callback):
         if self.bundle_name and conf.getboolean("core", "multi_team"):
             team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
 
+        if self.id is None:
+            # Not flushed yet; the trigger records which callback it runs for.
+            self.id = uuid6.uuid7()
+        dag_run = ((self.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
         # The kwargs stay encoded: the triggerer decodes them when it creates the CallbackTrigger.
         self.trigger = Trigger.from_serialized_kwargs(
             classpath=qualname(CallbackTrigger),
@@ -274,6 +278,8 @@ class TriggererCallback(Callback):
                 "callback_kwargs": encode_queued_callback_kwargs(self.data["kwargs"] or {}),
             },
             queue=self.data.get("queue"),
+            dag_id=self.get_dag_id() or dag_run.get("dag_id"),
+            owner_ref={"callback_id": str(self.id)},
         )
         self.trigger.team_name = team_name
         super().queue(session=session)

@@ -2217,6 +2217,60 @@ class TestGetDagRunAssetTriggerEvents:
         assert {event["uri"] for event in body["asset_events"]} == {"file:///da2"}
         assert body["total_entries"] == 1
 
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"TEST_DAG_ID"}, ["TEST_DAG_ID"], id="other-consumer-dag-not-readable"),
+            pytest.param(
+                {"TEST_DAG_ID", "other_consumer"}, ["TEST_DAG_ID", "other_consumer"], id="both-readable"
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_run_dags
+    ):
+        """An event's created Dag runs are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        asset = AssetModel(name="ds1", uri="file:///da1", group="asset")
+        session.add(asset)
+        session.flush()
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(asset_id=asset.id, timestamp=START_DATE1)
+        session.add(event)
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.append(event)
+        session.merge(DagBundleModel(name="testing"))
+        session.flush()
+        session.add(DagModel(dag_id="other_consumer", bundle_name="testing"))
+        session.flush()
+        other_run = DagRun(
+            dag_id="other_consumer",
+            run_id="other_consumer_run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=START_DATE1,
+            start_date=START_DATE1,
+            data_interval=(START_DATE1, START_DATE1),
+            state=DagRunState.SUCCESS,
+        )
+        other_run.consumed_asset_events.append(event)
+        session.add(other_run)
+        session.commit()
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",

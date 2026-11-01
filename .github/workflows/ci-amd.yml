@@ -171,6 +171,10 @@ jobs:
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
+    permissions:
+      contents: read
+      # Reads the creation time of this run, which decides for a pilot's older pull request.
+      actions: read
     outputs:
       project-ci: ${{ steps.gate.outputs.project-ci }}
       reason: ${{ steps.gate.outputs.reason }}
@@ -639,6 +643,7 @@ jobs:
         with:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
+          hooks: mypy-providers
       - name: "MyPy checks for providers"
         run: prek --color always --verbose --stage manual mypy-providers --all-files
         env:
@@ -680,6 +685,7 @@ jobs:
         with:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
+          hooks: migration-round-trip
       - name: "Migration round-trip check"
         run: prek --color always --verbose --stage manual migration-round-trip --all-files
         env:
