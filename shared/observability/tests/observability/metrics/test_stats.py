@@ -329,6 +329,27 @@ class TestStatsAllowAndBlockLists:
         else:
             statsd_client.assert_not_called()
 
+    @pytest.mark.parametrize("entries", ["stats_one,", "stats_one,,", ",stats_one", "stats_one, ,"])
+    def test_empty_entries_in_allow_list_are_ignored(self, entries):
+        validator = PatternAllowListValidator(entries)
+
+        assert validator.validate_list == ("stats_one",)
+        assert validator.test("stats_one")
+        assert not validator.test("stats_two")
+
+    @pytest.mark.parametrize("entries", ["stats_one,", "stats_one,,", ",stats_one", "stats_one, ,"])
+    def test_empty_entries_in_block_list_are_ignored(self, entries):
+        validator = PatternBlockListValidator(entries)
+
+        assert validator.validate_list == ("stats_one",)
+        assert not validator.test("stats_one")
+        assert validator.test("stats_two")
+
+    @pytest.mark.parametrize("validator", [PatternAllowListValidator, PatternBlockListValidator])
+    @pytest.mark.parametrize("entries", [None, "", " ", ",", " , "])
+    def test_list_without_entries_accepts_everything(self, validator, entries):
+        assert validator(entries).test("stats_one")
+
     @pytest.mark.parametrize(
         ("match_pattern", "expect_incr"),
         [
