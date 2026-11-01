@@ -20,7 +20,6 @@ import asyncio
 import collections
 import contextlib
 import datetime
-import gc
 import json
 from typing import Any
 from unittest import mock
@@ -710,16 +709,29 @@ class TestParallelToolCalls:
         assert retry_model.calls == 1
 
     def test_a_finished_run_does_not_keep_its_reserved_tool_steps(self):
-        gc.collect()
-        kept_before = len(_RESERVED_TOOL_STEPS)
+        @function_tool(needs_approval=True)
+        def lookup(key: str) -> str:
+            """Look a key up."""
+            return key
 
-        _attempt_parallel(MemoryStorage(), _ParallelModel(), _SleepingTools())
-        gc.collect()
+        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
+        with journal_scope(journal):
+            run_durably_sync(
+                Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
+            )
 
-        assert len(_RESERVED_TOOL_STEPS) == kept_before
+        # The tool never ran, so its reservation was never taken by the tool.
+        assert not _RESERVED_TOOL_STEPS
 
     @pytest.mark.parametrize("source", ["run-hook", "agent-hook", "tool-input-guardrail"])
-    def test_parallel_tool_calls_replay_when_what_runs_before_them_takes_a_different_time(self, source):
+    @pytest.mark.parametrize(
+        "first_attempt_delays",
+        [{"call-a": 0.01, "call-b": 0.1}, {"call-a": 0.1, "call-b": 0.01}],
+        ids=["a-first", "b-first"],
+    )
+    def test_parallel_tool_calls_replay_when_what_runs_before_them_takes_a_different_time(
+        self, source, first_attempt_delays
+    ):
         """A hook or guardrail the SDK awaits before invoking a tool can let a later call claim first."""
         storage = MemoryStorage()
         tools = _SleepingTools()
@@ -735,7 +747,7 @@ class TestParallelToolCalls:
             return _attempt_parallel(storage, model, tools, **kwargs)
 
         with pytest.raises(RuntimeError, match="worker lost"):
-            attempt(_ParallelModel(fail_on_answer=True), {"call-a": 0.01, "call-b": 0.1})
+            attempt(_ParallelModel(fail_on_answer=True), first_attempt_delays)
         assert tools.calls == {"a": 1, "b": 1}
 
         _, journal = attempt(_ParallelModel(), {"call-a": 0.1, "call-b": 0.01})

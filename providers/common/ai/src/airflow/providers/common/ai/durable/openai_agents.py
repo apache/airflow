@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import copy
 import json
-import weakref
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import TypeAdapter, ValidationError
@@ -108,9 +107,12 @@ _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_
 # Tool steps a model response claimed, by tool call id, until the tool takes its own. The tools of
 # one response start in model order but reach their wrapper after guardrails and hooks of varying
 # duration, so claiming there would number them by completion order.
-_RESERVED_TOOL_STEPS: weakref.WeakKeyDictionary[DurableRun, dict[str, JournalStep]] = (
-    weakref.WeakKeyDictionary()
-)
+# Removed when ``run_durably`` ends: the steps hold their run, so a weak reference would not free it.
+_RESERVED_TOOL_STEPS: dict[DurableRun, dict[str, JournalStep]] = {}
+
+# Set on the copy of a function tool that reports through the journal, so that reserving a position
+# skips tools nothing wraps, such as those of MCP servers or of a handoff agent with a named model.
+_DURABLE_MARKER = "_airflow_durable_tool"
 
 
 async def run_durably(
@@ -188,6 +190,8 @@ async def run_durably(
     except BaseException as error:
         durable_run.fail(error, model_at_fault=isinstance(error, _MODEL_AT_FAULT))
         raise
+    finally:
+        _RESERVED_TOOL_STEPS.pop(durable_run, None)
     if journal.clean_up_after_run:
         durable_run.cleanup()
     return result
@@ -228,6 +232,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
+    setattr(durable_tool, _DURABLE_MARKER, True)
     invoke = tool.on_invoke_tool
     # Exceptions a custom failure_error_function turned into text, by tool call.
     handled: dict[str, Exception] = {}
@@ -398,7 +403,7 @@ class _DurableModel(Model):
         that replays is counted in ``stats.replayed`` when reserved, so one whose tool never runs
         is over-counted.
         """
-        durable_names = {tool.name for tool in tools if _is_durable_tool(tool)}
+        durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
         reserved = _RESERVED_TOOL_STEPS.setdefault(self.durable_run, {})
         for item in response.output:
             if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names:
