@@ -1251,7 +1251,9 @@ class TestConnection(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @conf_vars({("core", "multi_team"): "true"})
-    def test_existing_connection_lookup_preserves_team_scope(self, test_client, testing_team, session):
+    def test_existing_connection_lookup_preserves_team_scope(
+        self, test_client, testing_team, session, tmp_path, monkeypatch
+    ):
         """The secrets-backend lookup must propagate the authorized
         ``team_name`` to ``Connection.get_connection_from_secrets``.
         Otherwise the call falls back to global / wrong-team paths in
@@ -1260,6 +1262,10 @@ class TestConnection(TestConnectionEndpoint):
         team-scoped authorization check above is supposed to prevent."""
         self.create_connection(team_name=testing_team.name)
         session.commit()
+
+        # The stored connection supplies login, host and port, so the sqlite hook really connects
+        # and creates a database file named after them in the working directory.
+        monkeypatch.chdir(tmp_path)
 
         with mock.patch.object(
             Connection,
