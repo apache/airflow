@@ -103,7 +103,7 @@ def registry():
 
 def test_os_deps_image_tags():
     assert get_os_deps_image_tag("ci", "3.12") == f"ci-{PYTHON_TAG}"
-    assert get_os_deps_image_python_tag("ci", "3.12", PYTHON_DIGEST) == f"ci-{PYTHON_TAG}-{'12' * 6}"
+    assert get_os_deps_image_python_tag("ci", PYTHON_TAG, PYTHON_DIGEST) == f"ci-{PYTHON_TAG}-{'12' * 6}"
 
 
 @mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
@@ -193,7 +193,7 @@ def test_extract_dockerfile_stage_fails_for_a_missing_stage():
     ],
 )
 def test_os_deps_image_build_args_match_the_image_builds(image_type, expected):
-    build_args = get_os_deps_image_build_args(IMAGE_TYPES[image_type], "3.12", PYTHON_DIGEST)
+    build_args = get_os_deps_image_build_args(IMAGE_TYPES[image_type], PYTHON_TAG, PYTHON_DIGEST)
 
     assert build_args == {
         "BASE_IMAGE": f"{MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}",
@@ -463,3 +463,53 @@ def test_build_os_deps_images_rejects_invalid_base_image_digests(value):
 
     assert result.exit_code == 2
     assert "--base-image-digests" in result.output
+
+
+def test_os_deps_image_builds_include_a_newer_mirrored_patchlevel():
+    newer_digest = "sha256:" + "34" * 32
+    base_image_digests = {
+        PYTHON_TAG: PYTHON_DIGEST,
+        "3.12.99-debian13-dev": newer_digest,
+        "3.12.99-debian12-dev": "sha256:" + "56" * 32,
+        "3.13.99-debian13-dev": "sha256:" + "78" * 32,
+    }
+    with mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True, side_effect=FakeRegistry()):
+        builds = get_os_deps_image_builds("3.12", ("ci",), base_image_digests)
+
+    assert [(build.latest_tag, build.build_args) for build in builds] == [
+        (
+            f"ci-{PYTHON_TAG}",
+            {
+                "BASE_IMAGE": f"{MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}",
+                "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION["3.12"],
+            },
+        ),
+        (
+            "ci-3.12.99-debian13-dev",
+            {
+                "BASE_IMAGE": f"{MIRROR}:3.12.99-debian13-dev@{newer_digest}",
+                "AIRFLOW_PYTHON_VERSION": "3.12.99",
+            },
+        ),
+    ]
+    assert builds[1].content_tag.startswith(f"ci-3.12.99-debian13-dev-{'34' * 6}-")
+
+
+@mock.patch(f"{PATCH_PREFIX}.get_dry_run", autospec=True, return_value=True)
+def test_publish_os_deps_images_prints_the_plan_in_dry_run(mock_dry_run):
+    # In a dry run every registry lookup comes back empty, as nothing is inspected.
+    registry = FakeRegistry()
+    with mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True, side_effect=registry):
+        (build,) = get_os_deps_image_builds("3.12", ("ci",))
+        result = CliRunner().invoke(
+            publish_os_deps_images,
+            ["--python", "3.12", "--image-type", "ci"],
+            env={"GITHUB_OUTPUT": None},
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0
+    assert [targets for _, targets in registry.copies] == [
+        [f"{REPOSITORY}:{build.content_tag}"],
+        [f"{REPOSITORY}:ci-{PYTHON_TAG}"],
+    ]

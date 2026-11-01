@@ -122,7 +122,6 @@ from airflow_breeze.global_constants import (
     get_hardened_python_image_retention_tag,
     get_hardened_python_image_tag,
     get_os_deps_image_python_tag,
-    get_os_deps_image_tag,
     get_pinned_os_deps_image,
     get_task_sdk_version,
     get_ts_sdk_version,
@@ -5361,8 +5360,9 @@ def mirror_base_images(python: str | None):
             digest = get_image_digest(mirrored)
             if digest is None:
                 continue
-            if copy_tag == tag and debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION:
-                os_deps_base_image_digests[tag] = digest
+            # The newer patchlevel too, so its OS-dependencies images are published before its pin.
+            if debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION:
+                os_deps_base_image_digests[copy_tag] = digest
             if digest != previous_digest and digest != HARDENED_PYTHON_IMAGE_DIGESTS.get(copy_tag):
                 moved.append(copy_tag)
             # The moving tag is replaced by the next refresh, which would leave the digest an upgrade
@@ -5413,18 +5413,18 @@ def extract_dockerfile_stage(dockerfile_content: str, target: str) -> str:
 
 
 def get_os_deps_image_build_args(
-    image_type: OsDepsImageType, python: str, python_digest: str
+    image_type: OsDepsImageType, python_tag: str, python_digest: str
 ) -> dict[str, str]:
     """
-    Return the build args of an OS-dependencies image.
+    Return the build args of an OS-dependencies image built on a mirrored base image tag.
 
     They must give the installation the same environment the CI and PROD builds give it, or the
     marker install_os_dependencies.sh writes would not match there and the installation would run again.
+    Those builds pass the Python patchlevel they are pinned to - the one in the base image tag.
     """
-    python_tag = get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)
     build_args = {
         "BASE_IMAGE": f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}@{python_digest}",
-        "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
+        "AIRFLOW_PYTHON_VERSION": python_tag.split("-", 1)[0],
     }
     if image_type.dockerfile == "Dockerfile":
         build_args["AIRFLOW_IMAGE_FLAVOR"] = "hardened"
@@ -5455,7 +5455,7 @@ class OsDepsImageBuild(NamedTuple):
     content_tag: str
 
 
-DRY_RUN_BASE_IMAGE_DIGEST = "sha256:" + "0" * 64
+DRY_RUN_IMAGE_DIGEST = "sha256:" + "0" * 64
 
 
 def get_os_deps_image_builds(
@@ -5465,36 +5465,47 @@ def get_os_deps_image_builds(
     Describe the OS-dependencies images to build on the mirrored base images.
 
     :param base_image_digests: the base image digest for each mirrored tag - the ones the mirror job of
-        the same workflow run mirrored. A tag missing from it is read from the mirror's moving tag.
+        the same workflow run mirrored. The pinned patchlevel missing from it is read from the mirror's
+        moving tag. A newer patchlevel the mirror already copied is built too, so its images are published
+        by the time the upgrade check moves the base image pin to it.
     """
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    base_image_digests = base_image_digests or {}
+    distro = DEBIAN_VERSION_TO_HARDENED_IMAGE_DISTRO[OS_DEPS_IMAGE_DEBIAN_VERSION]
     builds = []
     for python_version in python_versions:
-        python_tag = get_hardened_python_image_tag(python_version, OS_DEPS_IMAGE_DEBIAN_VERSION)
-        python_digest = (base_image_digests or {}).get(python_tag) or get_image_digest(
-            f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}"
+        pinned_tag = get_hardened_python_image_tag(python_version, OS_DEPS_IMAGE_DEBIAN_VERSION)
+        python_digest = base_image_digests.get(pinned_tag) or get_image_digest(
+            f"{HARDENED_PYTHON_IMAGE_MIRROR}:{pinned_tag}"
         )
         if python_digest is None and get_dry_run():
             # A dry run does not inspect the registry, so the plan is printed for a placeholder digest.
-            python_digest = DRY_RUN_BASE_IMAGE_DIGEST
+            python_digest = DRY_RUN_IMAGE_DIGEST
         if python_digest is None:
-            console_print(f"[error]{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag} is not mirrored[/]")
+            console_print(f"[error]{HARDENED_PYTHON_IMAGE_MIRROR}:{pinned_tag} is not mirrored[/]")
             sys.exit(1)
-        for image_type in OS_DEPS_IMAGE_TYPES:
-            if image_types and image_type.name not in image_types:
-                continue
-            build_args = get_os_deps_image_build_args(image_type, python_version, python_digest)
-            os_deps_python_tag = get_os_deps_image_python_tag(image_type.name, python_version, python_digest)
-            inputs_hash = compute_os_deps_image_inputs_hash(image_type, build_args)
-            builds.append(
-                OsDepsImageBuild(
-                    image_type=image_type,
-                    python=python_version,
-                    build_args=build_args,
-                    latest_tag=get_os_deps_image_tag(image_type.name, python_version),
-                    content_tag=f"{os_deps_python_tag}-{inputs_hash[:12]}",
+        python_tag_digests = {pinned_tag: python_digest}
+        for tag, digest in sorted(base_image_digests.items()):
+            if tag != pinned_tag and tag.startswith(f"{python_version}.") and tag.endswith(f"-{distro}-dev"):
+                python_tag_digests[tag] = digest
+        for python_tag, tag_digest in python_tag_digests.items():
+            for image_type in OS_DEPS_IMAGE_TYPES:
+                if image_types and image_type.name not in image_types:
+                    continue
+                build_args = get_os_deps_image_build_args(image_type, python_tag, tag_digest)
+                inputs_hash = compute_os_deps_image_inputs_hash(image_type, build_args)
+                builds.append(
+                    OsDepsImageBuild(
+                        image_type=image_type,
+                        python=python_version,
+                        build_args=build_args,
+                        latest_tag=f"{image_type.name}-{python_tag}",
+                        content_tag=(
+                            f"{get_os_deps_image_python_tag(image_type.name, python_tag, tag_digest)}"
+                            f"-{inputs_hash[:12]}"
+                        ),
+                    )
                 )
-            )
     return builds
 
 
@@ -5606,6 +5617,8 @@ def publish_os_deps_images(
 ):
     failed: list[str] = []
     moved: list[str] = []
+    # A dry run does not inspect the registry, so it takes every image as built to print the plan.
+    dry_run = get_dry_run()
     for build in get_os_deps_image_builds(python, image_types, base_image_digests):
         image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
         if get_image_digest(image) is None:
@@ -5614,7 +5627,9 @@ def publish_os_deps_images(
                 for platform in OS_DEPS_IMAGE_PLATFORMS
             ]
             missing = [
-                platform_image for platform_image in platform_images if not get_image_digest(platform_image)
+                platform_image
+                for platform_image in platform_images
+                if not dry_run and not get_image_digest(platform_image)
             ]
             if missing:
                 console_print(f"[error]Not built: {', '.join(missing)}[/]")
@@ -5627,7 +5642,7 @@ def publish_os_deps_images(
             if result.returncode != 0:
                 failed.append(image)
                 continue
-        digest = get_image_digest(image)
+        digest = get_image_digest(image) or (DRY_RUN_IMAGE_DIGEST if dry_run else None)
         if digest is None:
             failed.append(image)
             continue

@@ -1026,7 +1026,9 @@ OS_DEPS_IMAGE_TYPES = (
 # ones install their OS dependencies from the apt repositories.
 OS_DEPS_IMAGE_DEBIAN_VERSION = ALLOWED_DEBIAN_VERSIONS[0]
 # Written by scripts/ci/prek/upgrade_important_versions.py together with the Python base image digests,
-# so the pins only move in the upgrade PR, after the full CI has passed on them.
+# so the pins only move in the upgrade PR, after the full CI has passed on them. Only main carries pins:
+# the images are built from main's install_os_dependencies.sh and Dockerfiles, so the upgrade leaves the
+# file empty on other branches until there are images per branch.
 HARDENED_OS_DEPS_IMAGE_DIGESTS_PATH = (
     AIRFLOW_ROOT_PATH
     / "dev"
@@ -1044,9 +1046,9 @@ def get_os_deps_image_tag(image_type: str, python: str) -> str:
     return f"{image_type}-{get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)}"
 
 
-def get_os_deps_image_python_tag(image_type: str, python: str, python_digest: str) -> str:
-    """Return the prefix of the tags of the OS-dependencies images built on one Python base image digest."""
-    return f"{get_os_deps_image_tag(image_type, python)}-{python_digest.removeprefix('sha256:')[:12]}"
+def get_os_deps_image_python_tag(image_type: str, python_tag: str, python_digest: str) -> str:
+    """Return the prefix of the tags of the OS-dependencies images built on one base image digest."""
+    return f"{image_type}-{python_tag}-{python_digest.removeprefix('sha256:')[:12]}"
 
 
 def get_pinned_os_deps_image(image_type: str, python: str) -> str | None:

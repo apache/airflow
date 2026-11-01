@@ -551,6 +551,50 @@ def test_os_deps_image_digests_pin_the_latest_published_images(monkeypatch, buil
     ]
 
 
+@pytest.mark.parametrize(
+    ("branch", "expected"),
+    [
+        pytest.param("main", {"ci-3.13.17-debian13-dev": OS_DEPS_DIGEST}, id="main-pins"),
+        pytest.param("v3-4-test", {}, id="release-branch-pins-nothing"),
+    ],
+)
+def test_only_main_pins_os_deps_images(monkeypatch, branch, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    fetch = mock.create_autospec(uiv.fetch_os_deps_image_digests, return_value=expected)
+    monkeypatch.setattr(uiv, "fetch_os_deps_image_digests", fetch)
+
+    pins = uiv.compute_os_deps_image_pins(
+        {"3.13.17-debian13-dev": NEW_DIGEST}, {"ci-3.13.17-debian13-dev": OLD_DIGEST}, branch
+    )
+
+    assert pins == expected
+    assert fetch.called is (branch == "main")
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param('    AIRFLOW_BRANCH = "v2-2-test"\nAIRFLOW_BRANCH = "main"\n', "main", id="main"),
+        pytest.param('AIRFLOW_BRANCH = "v3-4-test"\n', "v3-4-test", id="release-branch"),
+    ],
+)
+def test_airflow_branch_is_read_from_branch_defaults(monkeypatch, tmp_path, content, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    branch_defaults = tmp_path / "branch_defaults.py"
+    branch_defaults.write_text(content)
+    monkeypatch.setattr(uiv, "BRANCH_DEFAULTS_PATH", branch_defaults)
+
+    assert uiv.get_airflow_branch() == expected
+
+
+def test_airflow_branch_of_this_checkout_is_found():
+    from ci.prek import upgrade_important_versions as uiv
+
+    assert uiv.get_airflow_branch()
+
+
 def test_ghcr_image_digest_is_none_for_a_missing_tag(monkeypatch):
     from ci.prek import upgrade_important_versions as uiv
 

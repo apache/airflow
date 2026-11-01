@@ -1351,12 +1351,17 @@ by CI and the release workflows therefore start from images in which ``install_o
 already ran, one per installation type (``ci``, ``dev`` and ``runtime``). They are built from the
 ``ci-os-deps``, ``dev-os-deps`` and ``runtime-os-deps`` stages of the Dockerfiles, on the base images the
 mirror serves, and pinned in ``dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json``
-by the same upgrade that moves the base image pins.
+by the same upgrade that moves the base image pins. Only ``main`` carries pins: the images are built from
+``main``'s script and Dockerfiles, so on a release branch they would not match its own installation - the
+upgrade leaves the file empty on any other branch until there are images per branch.
 
 The "Mirror hardened base images" workflow runs this command daily, natively on an AMD and an ARM runner,
-after it mirrored the base images - its six-hourly runs only mirror, and the run the upgrade check
-dispatches (``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input of an image - the base image digest, the script, its Dockerfile
-stage and its build args - is part of its tag, so an image is built only when one of them changed.
+after it mirrored the base images - also for a newer Python patch release the mirror already copied, so
+its images are published by the time the upgrade moves the base image pin to it. Its six-hourly runs only
+mirror, and the run the upgrade check dispatches
+(``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input
+of an image - the base image digest, the script, its Dockerfile stage and its build args - is part of its
+tag, so an image is built only when one of them changed.
 
 These are all available flags of ``release-management build-os-deps-images`` command:
 

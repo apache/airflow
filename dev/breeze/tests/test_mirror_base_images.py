@@ -225,3 +225,34 @@ def test_mirror_covers_the_python_versions_release_branches_still_use(mock_lates
 
     assert result.exit_code == 0
     assert {source.split(":")[1].rsplit(".", 1)[0] for source in registry.sources} == {"3.13", "3.14"}
+
+
+@mock.patch(
+    "airflow_breeze.commands.release_management_commands.get_latest_hardened_python_patchlevel",
+    autospec=True,
+    return_value="3.14.99",
+)
+def test_mirror_outputs_the_os_deps_base_digests_of_a_newer_patchlevel_too(mock_latest, tmp_path):
+    newer_digest = "sha256:" + "cd" * 32
+    registry = FakeRegistry(
+        {PINNED_TAG: NEW_DIGEST, "3.14.99-debian13-dev": newer_digest, "3.14.99-debian12-dev": NEW_DIGEST}
+    )
+    github_output = tmp_path / "github_output"
+    with mock.patch(
+        "airflow_breeze.commands.release_management_commands.run_command",
+        autospec=True,
+        side_effect=registry,
+    ):
+        result = CliRunner().invoke(
+            mirror_base_images,
+            ["--python", "3.14"],
+            env={"GITHUB_OUTPUT": str(github_output)},
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0
+    digests_line = github_output.read_text().splitlines()[1]
+    assert json.loads(digests_line.split("=", 1)[1]) == {
+        PINNED_TAG: NEW_DIGEST,
+        "3.14.99-debian13-dev": newer_digest,
+    }

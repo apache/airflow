@@ -510,7 +510,10 @@ HARDENED_OS_DEPS_IMAGE_REPOSITORY = "apache/airflow/base/os-deps"
 OS_DEPS_IMAGE_TYPES = ["ci", "dev", "runtime"]
 OS_DEPS_IMAGE_DEBIAN_RELEASE = HARDENED_PYTHON_DEBIAN_RELEASES[0]
 # The digests the CI and release builds start their OS dependencies from - breeze reads them from this
-# file. A branch without it does not build on OS-dependencies images.
+# file. A branch without it does not build on OS-dependencies images. Only main carries pins: the images
+# are built from main's install_os_dependencies.sh and Dockerfiles, so on another branch they would never
+# match its marker and would install on top of main's dependencies - until there are images per branch,
+# the upgrade empties the file anywhere else.
 OS_DEPS_IMAGE_DIGESTS_PATH = (
     AIRFLOW_ROOT_PATH
     / "dev"
@@ -520,6 +523,7 @@ OS_DEPS_IMAGE_DIGESTS_PATH = (
     / "files"
     / "hardened_os_deps_image_digests.json"
 )
+BRANCH_DEFAULTS_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "branch_defaults.py"
 
 
 def fetch_os_deps_image_digests(
@@ -555,6 +559,27 @@ def fetch_os_deps_image_digests(
                     "it stays unpinned and installs its OS dependencies from the apt repositories."
                 )
     return pins
+
+
+def get_airflow_branch() -> str:
+    """Return the branch this checkout belongs to - every branch sets AIRFLOW_BRANCH in its breeze."""
+    match = re.search(r'^AIRFLOW_BRANCH = "([^"]+)"$', BRANCH_DEFAULTS_PATH.read_text(), re.MULTILINE)
+    if not match:
+        console.print(f"[bright_red]No AIRFLOW_BRANCH in {BRANCH_DEFAULTS_PATH}")
+        sys.exit(1)
+    return match.group(1)
+
+
+def compute_os_deps_image_pins(
+    python_image_digests: dict[str, str], current_pins: dict[str, str], branch: str
+) -> dict[str, str]:
+    """Return the OS-dependencies image pins of a branch - none anywhere but on main."""
+    if branch != "main":
+        console.print(
+            f"[yellow]The OS-dependencies images are built from main only - {branch} does not pin them."
+        )
+        return {}
+    return fetch_os_deps_image_digests(python_image_digests, current_pins)
 
 
 def write_pins_file(path: Path, pins: dict[str, str]) -> bool:
@@ -1439,8 +1464,8 @@ def main() -> None:
     if python_image_digests:
         changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
         if OS_DEPS_IMAGE_DIGESTS_PATH.exists():
-            os_deps_image_digests = fetch_os_deps_image_digests(
-                python_image_digests, json.loads(OS_DEPS_IMAGE_DIGESTS_PATH.read_text())
+            os_deps_image_digests = compute_os_deps_image_pins(
+                python_image_digests, json.loads(OS_DEPS_IMAGE_DIGESTS_PATH.read_text()), get_airflow_branch()
             )
             changed = write_pins_file(OS_DEPS_IMAGE_DIGESTS_PATH, os_deps_image_digests) or changed
     if legacy_python_versions:
