@@ -56,7 +56,7 @@ router = VersionedAPIRouter(
 )
 
 
-def _get_callback(callback_id: UUID, session: SessionDep, *, for_update: bool = False) -> Callback:
+def _get_callback(callback_id: UUID, *, session: SessionDep, for_update: bool = False) -> Callback:
     callback = session.get(Callback, callback_id, with_for_update=for_update)
     if callback is None:
         raise HTTPException(
@@ -69,7 +69,7 @@ def _get_callback(callback_id: UUID, session: SessionDep, *, for_update: bool = 
     return callback
 
 
-def _get_identity_claims(callback: Callback, session: SessionDep) -> dict[str, str]:
+def _get_identity_claims(callback: Callback, *, session: SessionDep) -> dict[str, str]:
     """Return the Dag, run, and bundle a callback runs for, which resolve its team."""
     run_id = None
     if dag_run_id := callback.data.get("dag_run_id"):
@@ -107,7 +107,7 @@ def run_callback(
     and gets a new execution token. Any other exchange of a callback that already started is refused,
     including a second delivery of its workload.
     """
-    callback = _get_callback(callback_id, session, for_update=True)
+    callback = _get_callback(callback_id, session=session, for_update=True)
     started_by = body.model_dump(mode="json") if body is not None else None
 
     if (
@@ -115,7 +115,7 @@ def run_callback(
         and started_by is not None
         and callback.started_by == started_by
     ):
-        _issue_callback_token(callback, response, session, services)
+        _issue_callback_token(callback, response, services, session=session)
         return
 
     if callback.state != CallbackState.QUEUED:
@@ -143,17 +143,17 @@ def run_callback(
 
     callback.state = CallbackState.RUNNING
     callback.mark_started(now, started_by=started_by)
-    _issue_callback_token(callback, response, session, services)
+    _issue_callback_token(callback, response, services, session=session)
 
 
-def _issue_callback_token(callback: Callback, response: Response, session: SessionDep, services) -> None:
+def _issue_callback_token(callback: Callback, response: Response, services, *, session: SessionDep) -> None:
     # A callback doesn't heartbeat, so its token must last until it reports its outcome.
     timeout = callback.data.get(EXECUTION_TIMEOUT_KEY)
     issue_execution_token(
         services,
         response,
         sub=str(callback.id),
-        claims=_get_identity_claims(callback, session),
+        claims=_get_identity_claims(callback, session=session),
         min_valid_for=get_callback_report_window(timeout) if timeout else None,
     )
 
@@ -170,7 +170,7 @@ def _issue_callback_token(callback: Callback, response: Response, session: Sessi
 )
 def get_callback_context(callback_id: UUID, session: SessionDep) -> CallbackContextResponse:
     """Return the context of the Dag success, failure, task, or email callback this token runs."""
-    callback = _get_callback(callback_id, session)
+    callback = _get_callback(callback_id, session=session)
 
     if (request := callback.get_callback_request()) is None:
         raise HTTPException(
@@ -237,7 +237,7 @@ def get_callback_previous_successful_dagrun(
     A callback's token names the callback, not a task instance, so it can't read this from the
     task-instance endpoint a task uses.
     """
-    callback = _get_callback(callback_id, session)
+    callback = _get_callback(callback_id, session=session)
     previous = None
     if (dag_run_id := callback.data.get("dag_run_id")) and (dag_run := session.get(DagRun, dag_run_id)):
         previous = DagRun.get_previous_dagrun(dag_run, state=DagRunState.SUCCESS, session=session)
@@ -263,7 +263,7 @@ def update_callback_state(
     session: SessionDep,
 ) -> None:
     """Report the final state of a callback that has finished running."""
-    callback = _get_callback(callback_id, session, for_update=True)
+    callback = _get_callback(callback_id, session=session, for_update=True)
 
     # Accepting the state the row already holds keeps the report idempotent: the SDK client retries
     # a lost response (Client.request defaults to retry=True), and a 409 there makes the supervisor

@@ -172,6 +172,8 @@ class AwsEcsExecutor(BaseExecutor):
                 max_workers=self._run_task_threads, thread_name_prefix="ecs-run-task"
             )
         self._run_task_futures: dict[Future, EcsQueuedTask] = {}
+        # Callbacks released while their RunTask call was in flight: the ECS task it starts is stopped.
+        self._released_callback_keys: set[WorkloadKey] = set()
 
         self.load_ecs_connection(check_connection=False)
         self.IS_BOTO_CONNECTION_HEALTHY = False
@@ -345,6 +347,13 @@ class AwsEcsExecutor(BaseExecutor):
     def release_callback(self, key: CallbackKey) -> None:
         """Stop submitting or tracking a callback settled by the scheduler."""
         self.pending_workloads = deque(task for task in self.pending_workloads if task.key != key)
+        for future, ecs_task in list(self._run_task_futures.items()):
+            if ecs_task.key != key:
+                continue
+            if future.cancel():
+                del self._run_task_futures[future]
+            else:
+                self._released_callback_keys.add(key)
         self.active_workers.key_to_task_info.pop(key, None)
         self.active_workers.key_to_failure_counts.pop(key, None)
         if arn := self.active_workers.key_to_arn.pop(key, None):
@@ -494,11 +503,34 @@ class AwsEcsExecutor(BaseExecutor):
         credentials_error: ClientError | NoCredentialsError | None = None
         for future in [future for future in self._run_task_futures if future.done()]:
             try:
-                self._handle_run_task_response(self._run_task_futures.pop(future), future.result)
+                self._handle_run_task_future(self._run_task_futures.pop(future), future)
             except (ClientError, NoCredentialsError) as error:
                 credentials_error = credentials_error or error
         if credentials_error is not None:
             raise credentials_error
+
+    def _handle_run_task_future(self, ecs_task: EcsQueuedTask, future: Future) -> None:
+        """Handle a finished RunTask call, unless its callback was released while the call was in flight."""
+        if ecs_task.key not in self._released_callback_keys:
+            self._handle_run_task_response(ecs_task, future.result)
+            return
+        self._released_callback_keys.discard(ecs_task.key)
+        try:
+            started = future.result()["tasks"]
+        except Exception:
+            # Nothing to retry or fail: the scheduler has already settled the callback.
+            return
+        for task in started:
+            try:
+                self.ecs.stop_task(
+                    cluster=self.cluster,
+                    task=task.task_arn,
+                    reason="Airflow released the callback before its ECS task started",
+                )
+            except Exception:
+                self.log.exception(
+                    "Failed to stop ECS task %s of released callback %s", task.task_arn, ecs_task.key
+                )
 
     def _handle_run_task_response(self, ecs_task: EcsQueuedTask, get_response: Callable[[], dict]) -> None:
         """Get the RunTask response for ``ecs_task``, then track the ECS task, or retry or fail the workload."""
@@ -681,7 +713,7 @@ class AwsEcsExecutor(BaseExecutor):
                         continue
                     # One failure must not keep the other ECS tasks from being tracked, then stopped.
                     try:
-                        self._handle_run_task_response(ecs_task, future.result)
+                        self._handle_run_task_future(ecs_task, future)
                     except Exception:
                         self.log.exception("Failed to handle the RunTask response for %s", ecs_task.key)
             for arn in self.active_workers.get_all_arns():
