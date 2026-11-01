@@ -76,9 +76,20 @@ class TestPoolImportCommand:
                 {"name": "bad_pool", "slots": 1, "include_deferred": "maybe"},
                 "include_deferred: Input should be a valid boolean, unable to interpret input",
             ),
+            (
+                {"name": "bad_pool", "slots": "many", "include_deferred": "maybe"},
+                "slots: Input should be a valid integer, unable to parse string as an integer; "
+                "include_deferred: Input should be a valid boolean, unable to interpret input",
+            ),
             ({"name": None, "slots": 1}, "missing required field(s): name"),
         ],
-        ids=["non-integer-slots", "slots-below-minimum", "non-boolean-include-deferred", "null-name"],
+        ids=[
+            "non-integer-slots",
+            "slots-below-minimum",
+            "non-boolean-include-deferred",
+            "non-integer-slots-and-non-boolean-include-deferred",
+            "null-name",
+        ],
     )
     def test_import_reports_invalid_pool(self, mock_client, tmp_path, pool_config, expected_reason):
         """Test that an invalid pool value is reported as a readable error instead of a traceback."""
@@ -90,6 +101,22 @@ class TestPoolImportCommand:
 
         assert (
             str(exc_info.value) == f"Invalid pool {pool_config['name']!r} in {pools_file}: {expected_reason}"
+        )
+        mock_client.pools.bulk.assert_not_called()
+
+    def test_import_reports_invalid_pool_after_valid_one(self, mock_client, tmp_path):
+        """Test that an invalid pool stops the whole import, so the valid pool before it is not sent."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(
+            json.dumps([{"name": "good_pool", "slots": 1}, {"name": "bad_pool", "slots": "many"}])
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
+
+        assert str(exc_info.value) == (
+            f"Invalid pool 'bad_pool' in {pools_file}: "
+            "slots: Input should be a valid integer, unable to parse string as an integer"
         )
         mock_client.pools.bulk.assert_not_called()
 
