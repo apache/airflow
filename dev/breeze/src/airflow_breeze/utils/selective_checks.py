@@ -195,6 +195,7 @@ class FileGroupForCi(Enum):
     SCRIPTS_FILES = auto()
     UV_LOCK_FILE = auto()
     PREK_FILES = auto()
+    OS_DEPENDENCIES_FILES = auto()
     KERBEROS_FILES = auto()
     OTEL_FILES = auto()
     CELERY_FILES = auto()
@@ -639,6 +640,13 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         ],
         FileGroupForCi.PREK_FILES: [
             r"^scripts/ci/prek",
+        ],
+        # The inputs install_os_dependencies.sh hashes into its marker, apart from the build args.
+        FileGroupForCi.OS_DEPENDENCIES_FILES: [
+            r"^scripts/docker/install_os_dependencies\.sh$",
+            r"^scripts/docker/common\.sh$",
+            r"^scripts/docker/install_(mysql|mssql|postgres)\.sh$",
+            r"^scripts/docker/keys/",
         ],
         FileGroupForCi.UV_LOCK_FILE: [
             r"^uv\.lock$",
@@ -2347,7 +2355,11 @@ class SelectiveChecks:
     def use_pinned_os_deps_images(self) -> bool:
         # Only the label - not the DOCKER_CACHE=disabled retry of a failed image build - asks for the OS
         # dependencies to be installed from scratch rather than taken from the pinned images.
-        return DISABLE_IMAGE_CACHE_LABEL not in self._pr_labels
+        if DISABLE_IMAGE_CACHE_LABEL in self._pr_labels:
+            return False
+        # Reinstalling on top of a pinned image exercises additions only: a package or client the change
+        # drops stays installed from the pinned layer, so the change is tested from the base image.
+        return not self._matching_files(FileGroupForCi.OS_DEPENDENCIES_FILES, CI_FILE_GROUP_MATCHES)
 
     @cached_property
     def helm_test_packages(self) -> str:

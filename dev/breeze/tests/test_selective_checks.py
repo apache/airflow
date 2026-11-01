@@ -2210,6 +2210,34 @@ def test_disable_image_cache_label_also_stops_using_the_pinned_os_deps_images(
     assert outputs["use-pinned-os-deps-images"] == use_pinned_os_deps_images
 
 
+@pytest.mark.parametrize(
+    ("changed_file", "use_pinned_os_deps_images"),
+    [
+        pytest.param("scripts/docker/install_os_dependencies.sh", "false", id="install-os-dependencies"),
+        pytest.param("scripts/docker/common.sh", "false", id="common"),
+        pytest.param("scripts/docker/install_mysql.sh", "false", id="mysql-client"),
+        pytest.param("scripts/docker/install_mssql.sh", "false", id="mssql-client"),
+        pytest.param("scripts/docker/install_postgres.sh", "false", id="postgres-client"),
+        pytest.param("scripts/docker/keys/postgres.asc", "false", id="keys"),
+        pytest.param(
+            "scripts/docker/install_airflow_when_building_images.sh", "true", id="not-a-marker-input"
+        ),
+    ],
+)
+def test_changing_os_dependencies_inputs_stops_using_the_pinned_os_deps_images(
+    changed_file, use_pinned_os_deps_images
+):
+    stderr = SelectiveChecks(
+        files=(changed_file,),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=(),
+        default_branch="main",
+    )
+    outputs = get_outputs_from_stderr(str(stderr))
+    assert outputs["use-pinned-os-deps-images"] == use_pinned_os_deps_images
+
+
 def test_spotless_skipped_when_only_airflow_serializer_changes():
     # Changing serialized_objects.py runs the conformance check and the Dag schema sync, but
     # spotless only formats java-sdk/ files, so it is skipped.

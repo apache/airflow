@@ -590,6 +590,11 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   `false`, so the CI and PROD images install their OS dependencies from the apt repositories instead of
   starting from the pinned OS-dependencies images. Only the label does that: the image build's own
   retry with the cache disabled, after a failed first attempt, keeps using the pinned images.
+* A change to an input that `install_os_dependencies.sh` hashes into its marker - the script itself,
+  `common.sh`, `install_mysql.sh`, `install_mssql.sh`, `install_postgres.sh` or `scripts/docker/keys/` -
+  also sets `use-pinned-os-deps-images` to `false`. Reinstalling on top of a pinned image would only
+  exercise additions: a package or database client the change drops would still be there from the
+  pinned layer.
 * If docs are build, the `docs-list-as-string` will determine which docs packages to build. This is based on
   several criteria: if any of the airflow core, charts, docker-stack, Apache Airflow Mypy, providers files or
   docs have changed, then corresponding packages are built (including cross-dependent providers). If any of the core files
@@ -760,7 +765,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
-| use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label | true                                     |      |
+| use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label or a changed OS-dependencies script | true                                     |      |
 
 
 ## Self-hosted (RunsOn) vs. public runners
