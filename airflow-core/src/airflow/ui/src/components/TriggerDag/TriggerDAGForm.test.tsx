@@ -440,7 +440,6 @@ describe("TriggerDAGForm", () => {
   it("pre-fills the partition key field with the suggested value", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -453,8 +452,6 @@ describe("TriggerDAGForm", () => {
       />,
       { wrapper: Wrapper },
     );
-
-    fireEvent.click(screen.getByText("Advanced Options"));
 
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
@@ -467,7 +464,6 @@ describe("TriggerDAGForm", () => {
   it("leaves the partition key field blank when no suggestion is provided", async () => {
     const { container } = render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -480,8 +476,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
     );
@@ -493,7 +487,6 @@ describe("TriggerDAGForm", () => {
   it("applies a fresher suggestion arriving after the form is shown", async () => {
     const { container, rerender } = render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -507,15 +500,12 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
     );
 
     rerender(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -538,7 +528,6 @@ describe("TriggerDAGForm", () => {
   it("keeps an edited partition key when a fresher suggestion arrives", async () => {
     const { container, rerender } = render(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
@@ -552,8 +541,6 @@ describe("TriggerDAGForm", () => {
       { wrapper: Wrapper },
     );
 
-    fireEvent.click(screen.getByText("Advanced Options"));
-
     await waitFor(() =>
       expect(container.querySelector<HTMLInputElement>('input[name="partitionKey"]')).toBeInTheDocument(),
     );
@@ -564,7 +551,6 @@ describe("TriggerDAGForm", () => {
 
     rerender(
       <TriggerDAGForm
-        dagDisplayName="Partitioned Dag"
         dagId="example_partitioned_dag"
         error={undefined}
         hasSchedule={false}
