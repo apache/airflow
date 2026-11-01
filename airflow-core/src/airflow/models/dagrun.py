@@ -99,6 +99,7 @@ from airflow.models.dynamic_region import (
 )
 from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti
 from airflow.models.tasklog import LogTemplate
+from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.ti_deps.dep_context import DepContext
@@ -134,7 +135,6 @@ if TYPE_CHECKING:
     from airflow.models.dag_version import DagVersion
     from airflow.models.task_coordinates import SchedulingTI
     from airflow.sdk import DAG as SDKDAG
-    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
