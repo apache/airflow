@@ -2088,7 +2088,7 @@ class TestGetDag(TestDagEndpoint):
 class TestSuggestedPartitionKey(TestDagEndpoint):
     """Unit tests for the ``suggested_partition_key`` field of the Dag details endpoint."""
 
-    @time_machine.travel(datetime(2026, 2, 18, 9, 30, tzinfo=timezone.utc), tick=False)
+    @time_machine.travel(datetime(2026, 2, 18, 9, 30, tzinfo=UTC), tick=False)
     def test_details_endpoint_suggests_last_elapsed_partition(self, session, test_client, dag_maker):
         dag_id = "test_cron_partitioned_suggested_key"
         with dag_maker(
