@@ -32,9 +32,6 @@ from functools import cache
 from typing import Any
 from urllib.parse import unquote
 
-from git import Git
-from git.exc import GitError
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
@@ -44,6 +41,9 @@ log = logging.getLogger(__name__)
 @cache
 def _is_proactive_auth_supported() -> bool:
     """Check once per process whether the installed git knows ``http.proactiveAuth`` (git 2.46+)."""
+    from git import Git
+    from git.exc import GitError
+
     try:
         version = Git().version_info
     except (GitError, ValueError):
@@ -101,8 +101,7 @@ class GitHook(BaseHook):
     * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
 
     Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
-    and needs git version 2.31 or higher. Over https with git 2.46 or higher the token is sent on
-    the first request (``http.proactiveAuth``), so public repositories are fetched authenticated.
+    and needs git version 2.31 or higher.
     """
 
     conn_name_attr = "git_conn_id"
@@ -368,7 +367,6 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
             }
             # A public repository answers anonymous requests, so git never gets the 401 that makes
             # it send the token, and the fetch counts against the server's anonymous rate limit.
-            # Scoped to the repository url, and never over plain http.
             if str(self.repo_url).startswith("https://") and _is_proactive_auth_supported():
                 values["GIT_CONFIG_COUNT"] = str(index + 3)
                 values[f"GIT_CONFIG_KEY_{index + 2}"] = f"http.{self.repo_url}.proactiveAuth"

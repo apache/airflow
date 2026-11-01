@@ -20,6 +20,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import http.server
+import ipaddress
 import os
 import pathlib
 import shlex
@@ -33,10 +34,6 @@ from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.x509.oid import NameOID
 from git import Git, Repo
 from git.exc import GitCommandNotFound
 
@@ -113,7 +110,15 @@ def recording_git_server():
 
 @contextlib.contextmanager
 def recording_public_https_git_server(tmp_path: pathlib.Path):
-    """Serve 200s over https on loopback, like a public repository, recording every credential git sends."""
+    """Serve 200s over https on loopback, like a public repository, recording every credential git sends.
+
+    Yields the port, the received credentials, and the certificate git needs to trust the server.
+    """
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+
     received: list[str] = []
 
     class Public(http.server.BaseHTTPRequestHandler):
@@ -138,6 +143,9 @@ def recording_public_https_git_server(tmp_path: pathlib.Path):
         .serial_number(1)
         .not_valid_before(datetime(2000, 1, 1, tzinfo=UTC))
         .not_valid_after(datetime(2100, 1, 1, tzinfo=UTC))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), critical=False
+        )
         .sign(key, hashes.SHA256())
     )
     cert_file = tmp_path / "cert.pem"
@@ -156,7 +164,7 @@ def recording_public_https_git_server(tmp_path: pathlib.Path):
     server.socket = context.wrap_socket(server.socket, server_side=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        yield server.server_address[1], received
+        yield server.server_address[1], received, cert_file
     finally:
         server.shutdown()
         server.server_close()
@@ -880,7 +888,7 @@ class TestGitHook:
         self, proactive_auth_supported, create_connection_without_db, tmp_path
     ):
         proactive_auth_supported.return_value = True
-        with recording_public_https_git_server(tmp_path) as (port, received):
+        with recording_public_https_git_server(tmp_path) as (port, received, cert_file):
             url = f"https://127.0.0.1:{port}/repo.git"
             create_connection_without_db(
                 Connection(
@@ -894,7 +902,7 @@ class TestGitHook:
             hook = GitHook(git_conn_id="git_public_repo")
 
             with hook.configure_hook_env():
-                git_ls_remote(url, {**hook.env, "GIT_SSL_NO_VERIFY": "true"})
+                git_ls_remote(url, {**hook.env, "GIT_SSL_CAINFO": str(cert_file)})
 
         assert set(received) == {f"token_user:{ACCESS_TOKEN}"}
 
@@ -907,7 +915,7 @@ class TestGitHook:
             pytest.param((), GitCommandNotFound("git", "not found"), False, id="unknown"),
         ],
     )
-    @mock.patch("airflow.providers.git.hooks.git.Git", autospec=True)
+    @mock.patch("git.Git", autospec=True)
     def test_is_proactive_auth_supported(self, mock_git, version_info, side_effect, expected):
         mock_git.side_effect = side_effect
         mock_git.return_value.version_info = version_info
