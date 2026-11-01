@@ -18,13 +18,27 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 
+import i18n from "src/i18n/config";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
 beforeAll(() => preloadAppRoutes(["/task_instances"]));
 
 describe("Task Instances date filters", () => {
+  beforeEach(() => {
+    // The locale bundles are served over HTTP, which jsdom does not do, so a key left to resolve
+    // on its own renders as the key. Register the one the remove button reads, which also means a
+    // pass can only come from the locale and not from a literal that happens to say the same.
+    i18n.addResourceBundle(
+      "en",
+      "common",
+      { filters: { removeNamedFilter: "Drop the {{label}} filter" } },
+      true,
+      true,
+    );
+  });
+
   it("shows a pill for a logical_date link so the filter is visible and removable", async () => {
     render(<AppWrapper initialEntries={["/task_instances?logical_date_gte=2026-06-01T00%3A00%3A00Z"]} />);
 
@@ -34,7 +48,7 @@ describe("Task Instances date filters", () => {
     const pill = await screen.findByTestId("logical_date_range-pill");
 
     expect(pill).toBeInTheDocument();
-    expect(screen.getByTestId("logical_date_range-pill-remove")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Drop the .+ filter$/u })).toBeInTheDocument();
   });
 
   it("offers both run after and logical date in the add-filter menu", async () => {
