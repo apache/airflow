@@ -464,26 +464,34 @@ PINNED_BASE_IMAGE_PATTERN = re.compile(
 )
 
 
-def get_mirrored_python_image_digest(tag: str) -> str:
-    """Return the digest the mirror's moving tag currently points at - the image the pin moves to."""
+def get_ghcr_image_digest(repository: str, tag: str) -> str | None:
+    """Return the digest a public ghcr.io tag points at, or None if there is no such tag."""
     token = requests.get(
         "https://ghcr.io/token",
-        params={"scope": f"repository:{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}:pull"},
+        params={"scope": f"repository:{repository}:pull"},
         timeout=30,
     ).json()["token"]
     response = requests.head(
-        f"https://ghcr.io/v2/{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}/manifests/{tag}",
+        f"https://ghcr.io/v2/{repository}/manifests/{tag}",
         headers={"Authorization": f"Bearer {token}", "Accept": MANIFEST_LIST_MEDIA_TYPES},
         timeout=30,
     )
     if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    return response.headers["Docker-Content-Digest"]
+
+
+def get_mirrored_python_image_digest(tag: str) -> str:
+    """Return the digest the mirror's moving tag currently points at - the image the pin moves to."""
+    digest = get_ghcr_image_digest(HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY, tag)
+    if digest is None:
         console.print(
             f"[bright_red]ghcr.io/{HARDENED_PYTHON_IMAGE_MIRROR_REPOSITORY}:{tag} is not mirrored yet. "
             "Run the 'Mirror hardened base images' workflow and try again."
         )
         sys.exit(1)
-    response.raise_for_status()
-    return response.headers["Docker-Content-Digest"]
+    return digest
 
 
 def fetch_python_image_digests(latest_python_versions: dict[str, str]) -> dict[str, str]:
@@ -494,6 +502,59 @@ def fetch_python_image_digests(latest_python_versions: dict[str, str]) -> dict[s
         for debian in HARDENED_PYTHON_DEBIAN_RELEASES
         for tag in [f"{python_version}-debian{debian}-dev"]
     }
+
+
+HARDENED_OS_DEPS_IMAGE_REPOSITORY = "apache/airflow/base/os-deps"
+# The installation types of install_os_dependencies.sh, each built as an image of its own - only on the
+# first Debian release, the one the CI image and the default PROD image are built on.
+OS_DEPS_IMAGE_TYPES = ["ci", "dev", "runtime"]
+OS_DEPS_IMAGE_DEBIAN_RELEASE = HARDENED_PYTHON_DEBIAN_RELEASES[0]
+# The digests the CI and release builds start their OS dependencies from - breeze reads them from this
+# file. A branch without it does not build on OS-dependencies images.
+OS_DEPS_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_os_deps_image_digests.json"
+)
+
+
+def fetch_os_deps_image_digests(
+    python_image_digests: dict[str, str], current_pins: dict[str, str]
+) -> dict[str, str]:
+    """
+    Fetch the digest to pin for every OS-dependencies image, given the base image digests being pinned.
+
+    The mirror workflow tags the latest OS-dependencies image built on each digest of a base image,
+    so the pins move together and the upgrade PR tests the images built on the base images it pins.
+    When there is none for a digest yet, the current pin of that image stays: it was built on an
+    older base image, but on one the full CI has passed with.
+    """
+    pins: dict[str, str] = {}
+    for python_tag, python_digest in python_image_digests.items():
+        if not python_tag.endswith(f"-debian{OS_DEPS_IMAGE_DEBIAN_RELEASE}-dev"):
+            continue
+        for image_type in OS_DEPS_IMAGE_TYPES:
+            pin = f"{image_type}-{python_tag}"
+            tag = f"{pin}-{python_digest.removeprefix('sha256:')[:12]}"
+            digest = get_ghcr_image_digest(HARDENED_OS_DEPS_IMAGE_REPOSITORY, tag)
+            if digest:
+                pins[pin] = digest
+            elif pin in current_pins:
+                console.print(
+                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag} is not built yet - "
+                    f"keeping the current {pin} pin."
+                )
+                pins[pin] = current_pins[pin]
+            else:
+                console.print(
+                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag} is not built yet - "
+                    f"{pin} stays unpinned and installs its OS dependencies from the apt repositories."
+                )
+    return pins
 
 
 def write_pins_file(path: Path, pins: dict[str, str]) -> bool:
@@ -1377,6 +1438,11 @@ def main() -> None:
     changed = process_all_files(versions, latest_python_versions, python_image_digests)
     if python_image_digests:
         changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
+        if OS_DEPS_IMAGE_DIGESTS_PATH.exists():
+            os_deps_image_digests = fetch_os_deps_image_digests(
+                python_image_digests, json.loads(OS_DEPS_IMAGE_DIGESTS_PATH.read_text())
+            )
+            changed = write_pins_file(OS_DEPS_IMAGE_DIGESTS_PATH, os_deps_image_digests) or changed
     if legacy_python_versions:
         changed = write_pins_file(LEGACY_PYTHON_VERSIONS_PATH, legacy_python_versions) or changed
 

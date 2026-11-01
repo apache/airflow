@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import ast
 import glob
+import hashlib
 import itertools
 import json
 import operator
@@ -104,18 +105,25 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION_FOR_IMAGES,
     DESTINATION_LOCATIONS,
+    HARDENED_OS_DEPS_IMAGE_REPOSITORY,
     HARDENED_PYTHON_IMAGE_DIGESTS,
     HARDENED_PYTHON_IMAGE_MIRROR,
     HARDENED_PYTHON_IMAGE_SOURCE,
     MULTI_PLATFORM,
+    OS_DEPS_IMAGE_DEBIAN_VERSION,
+    OS_DEPS_IMAGE_TYPES,
     SCHEMA_DESTINATION_LOCATIONS,
     UV_VERSION,
+    OsDepsImageType,
     get_airflow_mypy_version,
     get_airflow_version,
     get_airflowctl_version,
     get_hardened_python_base_image,
     get_hardened_python_image_retention_tag,
     get_hardened_python_image_tag,
+    get_os_deps_image_python_tag,
+    get_os_deps_image_tag,
+    get_pinned_os_deps_image,
     get_task_sdk_version,
     get_ts_sdk_version,
 )
@@ -2497,6 +2505,10 @@ def release_prod_images(
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
             "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
+        for image_type in OS_DEPS_IMAGE_TYPES:
+            os_deps_image = get_pinned_os_deps_image(image_type.name, python)
+            if image_type.dockerfile == "Dockerfile" and os_deps_image:
+                build_args[image_type.build_arg] = os_deps_image
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
         if slim_images:
@@ -5378,3 +5390,217 @@ def mirror_base_images(python: str | None):
         console_print(f"[error]Failed to mirror: {', '.join(failed)}[/]")
         sys.exit(1)
     console_print("[success]All base images mirrored[/]")
+
+
+OS_DEPS_IMAGE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+INSTALL_OS_DEPENDENCIES_SCRIPT_PATH = AIRFLOW_ROOT_PATH / "scripts" / "docker" / "install_os_dependencies.sh"
+
+
+def extract_dockerfile_stage(dockerfile_content: str, target: str) -> str:
+    """Return the text of one stage of a Dockerfile, from its FROM line to the next stage."""
+    match = re.search(
+        rf"^FROM \S+ as {re.escape(target)}\n.*?(?=^FROM |\Z)", dockerfile_content, re.MULTILINE | re.DOTALL
+    )
+    if not match:
+        raise ValueError(f"The Dockerfile has no stage named {target!r}")
+    return match.group(0)
+
+
+def get_os_deps_image_build_args(
+    image_type: OsDepsImageType, python: str, python_digest: str
+) -> dict[str, str]:
+    """
+    Return the build args of an OS-dependencies image.
+
+    They must give the installation the same environment the CI and PROD builds give it, or the
+    marker install_os_dependencies.sh writes would not match there and the installation would run again.
+    """
+    python_tag = get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)
+    build_args = {
+        "BASE_IMAGE": f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}@{python_digest}",
+        "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION.get(python, python),
+    }
+    if image_type.dockerfile == "Dockerfile":
+        build_args["AIRFLOW_IMAGE_FLAVOR"] = "hardened"
+    return build_args
+
+
+def compute_os_deps_image_inputs_hash(image_type: OsDepsImageType, build_args: dict[str, str]) -> str:
+    """Hash what an OS-dependencies image is built from apart from its base image, whose tag it gets."""
+    inputs = hashlib.sha256()
+    inputs.update(INSTALL_OS_DEPENDENCIES_SCRIPT_PATH.read_bytes())
+    dockerfile_content = (AIRFLOW_ROOT_PATH / image_type.dockerfile).read_text()
+    inputs.update(extract_dockerfile_stage(dockerfile_content, image_type.target).encode())
+    for name, value in sorted(build_args.items()):
+        if name != "BASE_IMAGE":
+            inputs.update(f"{name}={value}\n".encode())
+    return inputs.hexdigest()
+
+
+class OsDepsImageBuild(NamedTuple):
+    image_type: OsDepsImageType
+    python: str
+    build_args: dict[str, str]
+    # The tag of the latest image built on this digest of the Python base image - the upgrade check
+    # pins the image it points at.
+    python_tag: str
+    # Every input of the image is in this tag, so an image is built only once.
+    content_tag: str
+
+
+def get_os_deps_image_builds(python: str | None, image_types: tuple[str, ...]) -> list[OsDepsImageBuild]:
+    """Describe the OS-dependencies images to build on the base images the mirror currently serves."""
+    python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
+    builds = []
+    for python_version in python_versions:
+        python_tag = get_hardened_python_image_tag(python_version, OS_DEPS_IMAGE_DEBIAN_VERSION)
+        python_digest = get_image_digest(f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}")
+        if python_digest is None:
+            console_print(f"[error]{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag} is not mirrored[/]")
+            sys.exit(1)
+        for image_type in OS_DEPS_IMAGE_TYPES:
+            if image_types and image_type.name not in image_types:
+                continue
+            build_args = get_os_deps_image_build_args(image_type, python_version, python_digest)
+            os_deps_python_tag = get_os_deps_image_python_tag(image_type.name, python_version, python_digest)
+            inputs_hash = compute_os_deps_image_inputs_hash(image_type, build_args)
+            builds.append(
+                OsDepsImageBuild(
+                    image_type=image_type,
+                    python=python_version,
+                    build_args=build_args,
+                    python_tag=os_deps_python_tag,
+                    content_tag=f"{os_deps_python_tag}-{inputs_hash[:12]}",
+                )
+            )
+    return builds
+
+
+def get_platform_tag(tag: str, platform: str) -> str:
+    return f"{tag}-{platform.split('/')[-1]}"
+
+
+option_os_deps_image_type = click.option(
+    "--image-type",
+    "image_types",
+    type=BetterChoice([image_type.name for image_type in OS_DEPS_IMAGE_TYPES]),
+    multiple=True,
+    help="Installation type of the OS-dependencies images (if not specified - all of them).",
+)
+
+
+@release_management_group.command(
+    name="build-os-deps-images",
+    help="Build and push the OS-dependencies images for one platform, on the mirrored hardened base images.",
+)
+@option_python_no_default
+@option_os_deps_image_type
+@click.option(
+    "--platform",
+    type=BetterChoice(OS_DEPS_IMAGE_PLATFORMS),
+    required=True,
+    help="Platform to build the images for - each one is built natively, on a runner of its own.",
+)
+@option_verbose
+@option_dry_run
+def build_os_deps_images(python: str | None, image_types: tuple[str, ...], platform: str):
+    failed: list[str] = []
+    for build in get_os_deps_image_builds(python, image_types):
+        image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
+        platform_image = (
+            f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{get_platform_tag(build.content_tag, platform)}"
+        )
+        if get_image_digest(image) or get_image_digest(platform_image):
+            console_print(f"[info]{platform_image} is already built[/]")
+            continue
+        console_print(f"[info]Building {platform_image}[/]")
+        result = run_command(
+            [
+                "docker",
+                "buildx",
+                "build",
+                "--file",
+                build.image_type.dockerfile,
+                "--target",
+                build.image_type.target,
+                "--platform",
+                platform,
+                # The point of the image is a fresh installation from the apt repositories.
+                "--no-cache",
+                "--pull",
+                # A plain image manifest per platform, for publish-os-deps-images to merge.
+                "--provenance=false",
+                *convert_build_args_dict_to_array_of_args(build_args=build.build_args),
+                "--tag",
+                platform_image,
+                "--push",
+                ".",
+            ],
+            check=False,
+            cwd=AIRFLOW_ROOT_PATH,
+        )
+        if result.returncode != 0:
+            failed.append(platform_image)
+    if failed:
+        console_print(f"[error]Failed to build: {', '.join(failed)}[/]")
+        sys.exit(1)
+    console_print(f"[success]All OS-dependencies images for {platform} built[/]")
+
+
+@release_management_group.command(
+    name="publish-os-deps-images",
+    help="Merge the per-platform OS-dependencies images and move the tags the upgrade check pins.",
+)
+@option_python_no_default
+@option_os_deps_image_type
+@option_verbose
+@option_dry_run
+def publish_os_deps_images(python: str | None, image_types: tuple[str, ...]):
+    failed: list[str] = []
+    moved: list[str] = []
+    for build in get_os_deps_image_builds(python, image_types):
+        image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
+        if get_image_digest(image) is None:
+            platform_images = [
+                f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{get_platform_tag(build.content_tag, platform)}"
+                for platform in OS_DEPS_IMAGE_PLATFORMS
+            ]
+            missing = [
+                platform_image for platform_image in platform_images if not get_image_digest(platform_image)
+            ]
+            if missing:
+                console_print(f"[error]Not built: {', '.join(missing)}[/]")
+                failed.append(image)
+                continue
+            console_print(f"[info]Merging {', '.join(platform_images)} -> {image}[/]")
+            result = run_command(
+                ["docker", "buildx", "imagetools", "create", "--tag", image, *platform_images], check=False
+            )
+            if result.returncode != 0:
+                failed.append(image)
+                continue
+        digest = get_image_digest(image)
+        if digest is None:
+            failed.append(image)
+            continue
+        python_tag_image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.python_tag}"
+        if get_image_digest(python_tag_image) == digest:
+            continue
+        moving_tag_image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{get_os_deps_image_tag(build.image_type.name, build.python)}"
+        if copy_image(f"{image}@{digest}", [python_tag_image, moving_tag_image]):
+            moved.append(build.python_tag)
+        else:
+            failed.append(python_tag_image)
+    if moved:
+        console_print(
+            f"[warning]New OS-dependencies images for: {', '.join(moved)}. "
+            "Run 'breeze ci upgrade' to move the pins.[/]"
+        )
+    github_output = os.environ.get("GITHUB_OUTPUT")
+    if github_output:
+        with open(github_output, "a") as output_file:
+            output_file.write(f"moved-os-deps-images={'true' if moved else 'false'}\n")
+    if failed:
+        console_print(f"[error]Failed to publish: {', '.join(failed)}[/]")
+        sys.exit(1)
+    console_print("[success]All OS-dependencies images published[/]")

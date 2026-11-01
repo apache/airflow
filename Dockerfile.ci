@@ -31,6 +31,13 @@
 #   docker build . --build-arg BASE_IMAGE="dhi.io/python:3.13.18-debian13-fips-dev"
 ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:cacda18986eefebc42b0c6c03565ec2d65a4507b6adff559e4daf0f1e2bfe338"
 
+# CI_OS_DEPS_IMAGE: the image the OS dependencies are installed on. By default that is BASE_IMAGE and
+# the build installs them from the apt repositories. Breeze passes the pinned OS-dependencies image
+# instead - BASE_IMAGE with the OS dependencies already installed by the "ci-os-deps" stage below - so
+# the build does not depend on the live dhi.io apt repository. See "breeze release-management
+# build-os-deps-images".
+ARG CI_OS_DEPS_IMAGE="${BASE_IMAGE}"
+
 ##############################################################################################
 # This is the script image where we keep all inlined bash scripts needed in other segments
 # We use BASE_IMAGE to make sure that the scripts are different for different platforms.
@@ -54,6 +61,28 @@ if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     echo
     exit 1
+fi
+
+OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
+OS_DEPENDENCIES_INPUTS_HASH=$(
+    {
+        echo "${1}"
+        sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1
+        for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
+                DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
+                ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
+                ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
+                TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS; do
+            printf '%s=%s\n' "${variable}" "${!variable-}"
+        done
+    } | sha256sum | cut -d ' ' -f 1
+)
+if [[ -f "${OS_DEPENDENCIES_MARKER}" && "$(cat "${OS_DEPENDENCIES_MARKER}")" == "${OS_DEPENDENCIES_INPUTS_HASH}" ]]; then
+    echo
+    echo "The base image already has the OS dependencies for these inputs (${OS_DEPENDENCIES_INPUTS_HASH}) - nothing to install."
+    echo
+    exit 0
 fi
 
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
@@ -797,6 +826,9 @@ else
     install_docker_cli
     apt_clean
 fi
+
+mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
+echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
@@ -2062,14 +2094,13 @@ RUN --mount=type=bind,target=/source \
     done < "${manifest_list}" && \
     if [ -f uv.lock ]; then cp uv.lock /dependency-manifests/ || exit 1; fi
 
-FROM ${BASE_IMAGE} as main
+FROM ${CI_OS_DEPS_IMAGE} as ci-os-deps
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG BASE_IMAGE
-ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # By increasing this number we can do force build of all dependencies.
 # NOTE! When you want to make sure dependencies are installed from scratch in your PR after removing
@@ -2130,6 +2161,12 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 
 RUN bash /scripts/docker/install_os_dependencies.sh ci
+
+FROM ci-os-deps as main
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and

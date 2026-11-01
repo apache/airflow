@@ -54,6 +54,18 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                           | Point it at a ``dhi.io`` ``-fips-`` variant |
 |                                          |                                           | to build a FIPS-compliant image.            |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
+| ``DEV_OS_DEPS_IMAGE``                    | ``BASE_IMAGE``                            | The image the build stage installs its OS   |
+|                                          |                                           | dependencies on. Airflow's CI and release   |
+|                                          |                                           | builds pass a pinned image that already has |
+|                                          |                                           | them, built from ``BASE_IMAGE`` by the      |
+|                                          |                                           | ``dev-os-deps`` stage. Any other image runs |
+|                                          |                                           | the installation.                           |
++------------------------------------------+-------------------------------------------+---------------------------------------------+
+| ``RUNTIME_OS_DEPS_IMAGE``                | ``BASE_IMAGE``                            | The image the final image installs its OS   |
+|                                          |                                           | dependencies on - like                      |
+|                                          |                                           | ``DEV_OS_DEPS_IMAGE``, for the              |
+|                                          |                                           | ``runtime-os-deps`` stage.                  |
++------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_EXTRAS``                       | (see below the table)                     | Default extras with which Airflow is        |
 |                                          |                                           | installed.                                  |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+

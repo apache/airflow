@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import platform
 import re
+from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
@@ -835,6 +836,7 @@ DEVEL_DEPS_PATH = AIRFLOW_ROOT_PATH / "generated" / "devel_deps.txt"
 FILES_FOR_REBUILD_CHECK = [
     "Dockerfile.ci",
     "dev/breeze/src/airflow_breeze/files/hardened_python_image_digests.json",
+    "dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json",
     ".dockerignore",
     "scripts/docker/common.sh",
     "scripts/docker/install_additional_dependencies.sh",
@@ -991,6 +993,67 @@ def get_hardened_python_base_image(python: str, debian_version: str = ALLOWED_DE
 def get_hardened_python_image_retention_tag(tag: str, digest: str) -> str:
     """Return the mirror tag that keeps a pinned digest tagged after its moving tag has moved on."""
     return f"{tag}-{digest.removeprefix('sha256:')[:12]}"
+
+
+# The OS dependencies of the hardened images come from the dhi.io apt repository, which is live: it
+# moves on - and drops the versions it replaced - under a base image pinned to a digest. The
+# "Mirror hardened base images" workflow therefore also builds images with the OS dependencies already
+# installed, one per installation type of install_os_dependencies.sh, and the CI and release builds
+# start from those, pinned to a digest the same way as the Python base images.
+HARDENED_OS_DEPS_IMAGE_REPOSITORY = "ghcr.io/apache/airflow/base/os-deps"
+
+
+@dataclass(frozen=True)
+class OsDepsImageType:
+    """One installation type of install_os_dependencies.sh, built as an image of its own."""
+
+    name: str
+    dockerfile: str
+    # The stage that ends with the installation - its image is the OS-dependencies image.
+    target: str
+    # The build arg naming the image that stage starts from.
+    build_arg: str
+
+
+OS_DEPS_IMAGE_TYPES = (
+    OsDepsImageType(name="ci", dockerfile="Dockerfile.ci", target="ci-os-deps", build_arg="CI_OS_DEPS_IMAGE"),
+    OsDepsImageType(name="dev", dockerfile="Dockerfile", target="dev-os-deps", build_arg="DEV_OS_DEPS_IMAGE"),
+    OsDepsImageType(
+        name="runtime", dockerfile="Dockerfile", target="runtime-os-deps", build_arg="RUNTIME_OS_DEPS_IMAGE"
+    ),
+)
+# Only the default Debian version: the CI image and the default PROD image are built on it, the other
+# ones install their OS dependencies from the apt repositories.
+OS_DEPS_IMAGE_DEBIAN_VERSION = ALLOWED_DEBIAN_VERSIONS[0]
+# Written by scripts/ci/prek/upgrade_important_versions.py together with the Python base image digests,
+# so the pins only move in the upgrade PR, after the full CI has passed on them.
+HARDENED_OS_DEPS_IMAGE_DIGESTS_PATH = (
+    AIRFLOW_ROOT_PATH
+    / "dev"
+    / "breeze"
+    / "src"
+    / "airflow_breeze"
+    / "files"
+    / "hardened_os_deps_image_digests.json"
+)
+HARDENED_OS_DEPS_IMAGE_DIGESTS: dict[str, str] = json.loads(HARDENED_OS_DEPS_IMAGE_DIGESTS_PATH.read_text())
+
+
+def get_os_deps_image_tag(image_type: str, python: str) -> str:
+    """Return the moving tag of an OS-dependencies image - also the key of its pin."""
+    return f"{image_type}-{get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)}"
+
+
+def get_os_deps_image_python_tag(image_type: str, python: str, python_digest: str) -> str:
+    """Return the tag of the latest OS-dependencies image built on one digest of the Python base image."""
+    return f"{get_os_deps_image_tag(image_type, python)}-{python_digest.removeprefix('sha256:')[:12]}"
+
+
+def get_pinned_os_deps_image(image_type: str, python: str) -> str | None:
+    """Return the pinned OS-dependencies image of an installation type, or None if there is no pin."""
+    tag = get_os_deps_image_tag(image_type, python)
+    digest = HARDENED_OS_DEPS_IMAGE_DIGESTS.get(tag)
+    return f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag}@{digest}" if digest else None
 
 
 def get_legacy_base_image(debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]) -> str:

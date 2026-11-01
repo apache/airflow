@@ -72,6 +72,14 @@ ARG AIRFLOW_VERSION="3.3.2"
 # "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
 ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:cacda18986eefebc42b0c6c03565ec2d65a4507b6adff559e4daf0f1e2bfe338"
+
+# DEV_OS_DEPS_IMAGE / RUNTIME_OS_DEPS_IMAGE: the images the build and the final image install their OS
+# dependencies on. By default both are BASE_IMAGE and the build installs them from the apt repositories.
+# The CI and release builds pass the pinned OS-dependencies images instead - BASE_IMAGE with the OS
+# dependencies already installed by the "dev-os-deps" and "runtime-os-deps" stages below - so they do
+# not depend on the live dhi.io apt repository. See "breeze release-management build-os-deps-images".
+ARG DEV_OS_DEPS_IMAGE="${BASE_IMAGE}"
+ARG RUNTIME_OS_DEPS_IMAGE="${BASE_IMAGE}"
 ARG AIRFLOW_PYTHON_VERSION=""
 
 # You can swap comments between those two args to test pip from the main version
@@ -123,6 +131,28 @@ if [[ "$#" != 1 ]]; then
     echo "ERROR! There should be 'runtime', 'ci' or 'dev' parameter passed as argument.".
     echo
     exit 1
+fi
+
+OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
+OS_DEPENDENCIES_INPUTS_HASH=$(
+    {
+        echo "${1}"
+        sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1
+        for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
+                DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
+                ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
+                ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
+                TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS; do
+            printf '%s=%s\n' "${variable}" "${!variable-}"
+        done
+    } | sha256sum | cut -d ' ' -f 1
+)
+if [[ -f "${OS_DEPENDENCIES_MARKER}" && "$(cat "${OS_DEPENDENCIES_MARKER}")" == "${OS_DEPENDENCIES_INPUTS_HASH}" ]]; then
+    echo
+    echo "The base image already has the OS dependencies for these inputs (${OS_DEPENDENCIES_INPUTS_HASH}) - nothing to install."
+    echo
+    exit 0
 fi
 
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
@@ -866,6 +896,9 @@ else
     install_docker_cli
     apt_clean
 fi
+
+mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
+echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
@@ -2205,7 +2238,7 @@ EOF
 ##############################################################################################
 # This is the build image where we build all dependencies
 ##############################################################################################
-FROM ${BASE_IMAGE} as airflow-build-image
+FROM ${DEV_OS_DEPS_IMAGE} as dev-os-deps
 
 # Nolog bash flag is currently ignored - but you can replace it with
 # xtrace - to show commands executed)
@@ -2242,6 +2275,10 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
+
+FROM dev-os-deps as airflow-build-image
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 # The final image copies /python-dist over its root. It is empty for the hardened flavor, whose Python
 # comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that COPY
@@ -2461,19 +2498,11 @@ RUN --mount=type=cache,id=prod-$TARGETARCH-$DEPENDENCY_CACHE_EPOCH,target=/tmp/.
 # This is the actual Airflow image - much smaller than the build one. We copy
 # installed Airflow and all its dependencies from the build image to make it smaller.
 ##############################################################################################
-FROM ${BASE_IMAGE} as main
+FROM ${RUNTIME_OS_DEPS_IMAGE} as runtime-os-deps
 
 # Nolog bash flag is currently ignored - but you can replace it with other flags (for example
 # xtrace - to show commands executed)
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
-
-ARG AIRFLOW_UID
-
-LABEL org.apache.airflow.distro="debian" \
-  org.apache.airflow.module="airflow" \
-  org.apache.airflow.component="airflow" \
-  org.apache.airflow.image="airflow" \
-  org.apache.airflow.uid="${AIRFLOW_UID}"
 
 ARG BASE_IMAGE
 
@@ -2508,9 +2537,24 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
-COPY --from=airflow-build-image /python-dist/ /
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
+
+FROM runtime-os-deps as main
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+ARG AIRFLOW_UID
+
+LABEL org.apache.airflow.distro="debian" \
+  org.apache.airflow.module="airflow" \
+  org.apache.airflow.component="airflow" \
+  org.apache.airflow.image="airflow" \
+  org.apache.airflow.uid="${AIRFLOW_UID}"
+
+# Copied after the runtime OS dependencies, so the "runtime-os-deps" stage does not depend on the build
+# image. It holds the compiled Python of the legacy flavor, whose runtime installation does not use it.
+COPY --from=airflow-build-image /python-dist/ /
 
 # Having the variable in final image allows to disable providers manager warnings when
 # production image is prepared from sources rather than from package
