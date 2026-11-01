@@ -546,6 +546,28 @@ class TestListEnvs:
             args = self.parser.parse_args(["auth", "list-envs"])
             auth_command.list_envs(args)
 
+    @pytest.mark.parametrize(
+        ("contents", "expected"),
+        [
+            pytest.param(b"\xff\xfe", "codec can't decode", id="not-utf8"),
+            pytest.param(b"[]", "not a JSON object", id="not-an-object"),
+            pytest.param(b'{"api_url": null}', "does not contain an api_url", id="null-api-url"),
+        ],
+    )
+    @patch("airflowctl.ctl.commands.auth_command.AirflowConsole", autospec=True)
+    @patch("keyring.get_password")
+    def test_list_envs_unusable_config(
+        self, mock_get_password, mock_console, monkeypatch, tmp_path, contents, expected
+    ):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        (tmp_path / "production.json").write_bytes(contents)
+
+        auth_command.list_envs(self.parser.parse_args(["auth", "list-envs"]))
+
+        [env] = mock_console.return_value.print_as.call_args.kwargs["data"]
+        assert env["api_url"] == "error reading config"
+        assert expected in env["status"]
+
     def test_list_envs_debug_mode(self, monkeypatch):
         """Test list-envs in debug mode."""
         with tempfile.TemporaryDirectory() as temp_airflow_home:
