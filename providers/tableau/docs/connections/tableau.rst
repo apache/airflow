@@ -32,18 +32,14 @@ There are two ways to connect to Tableau using Airflow.
 1. Use `Password and Username Authentication
    <https://tableau.github.io/server-client-python/docs/api-ref#tableauauth-class>`_
    i.e. add a ``password`` and ``login`` to the Airflow connection.
-2. Use a `Token Authentication
-   <https://tableau.github.io/server-client-python/docs/api-ref#personalaccesstokenauth-class>`_
-   i.e. add a ``token_name`` and ``personal_access_token`` to the Airflow connection (deprecated).
-3. Use `JSON Web Token (JWT) Authentication
+2. Use `JSON Web Token (JWT) Authentication
    <https://tableau.github.io/server-client-python/docs/sign-in-out.html#sign-in-with-json-web-token-jwt>`_
-   i.e add a ``jwt_file`` or a ``jwt_token`` to the Airflow connection extras.
+   i.e. set ``auth`` to ``jwt`` and add a ``jwt_file`` or a ``jwt_token`` to the Airflow connection extras.
 
-Authentication by personal token was deprecated as Tableau automatically invalidates opened
-personal token connection if one or more parallel connections with the same token are opened.
-So, in the environments with multiple parallel tasks this authentication method can lead to numerous bugs
-and all the jobs will not run as they intended. Therefore, personal token auth option
-is considered harmful until the logic of Tableau server client changes.
+Authentication by personal access token was removed in version 5.0.0 of the provider, as Tableau
+invalidates a personal access token session when another session with the same token is opened, which
+breaks parallel tasks. Connections that still set ``token_name`` and ``personal_access_token`` must switch
+to one of the methods above.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -68,20 +64,17 @@ Host
     <https://tableau.github.io/server-client-python/docs/api-ref#server>`_ used for Tableau.
 
 Extra (optional)
-    Specify the extra parameters (as json dictionary) that can be used in Azure connection.
+    Specify the extra parameters (as json dictionary) that can be used in Tableau connection.
     The following parameters are all optional:
 
     * ``site_id``: This corresponds to the contentUrl attribute in the Tableau REST API. The ``site_id`` is the portion of
       the URL that follows the **/site/** in the URL. For example, **MarketingTeam** is the ``site_id`` in the following URL
       **MyServer/#/site/MarketingTeam/projects**. To specify the default site on Tableau Server, you can use an empty string
       **''** (single quotes, no space). For Tableau Online, you must provide a value for the ``site_id.``
-      This is used for both token and password Authentication.
-    * ``token_name``: The personal access token name.
-      This is used with token authentication.
-    * ``personal_access_token``: The personal access token value.
-      This is used with token authentication.
+      This is used for both password and JWT authentication.
     * ``verify``: Either a boolean, in which case it controls whether we verify the server's TLS certificate, or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
     * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
+    * ``auth`` - Set to ``jwt`` to use JWT authentication. Requires exactly one of ``jwt_token`` or ``jwt_file``.
     * ``jwt_token`` - If jwt authentication should be used, the value of token is given via this parameter.
     * ``jwt_file``  - If jwt authentication should be used, the location on disk for the file containing the jwt token.
 
