@@ -372,13 +372,15 @@ metrics:
     name_variables: []
 
   - name: "triggers.failed"
-    description: "Number of triggers that errored before they could fire an event"
+    description: "Number of triggers that errored before they could fire an event.
+    Tagged with trigger_kind (asset_watcher, callback or task)."
     type: "counter"
     legacy_name: "-"
     name_variables: []
 
   - name: "triggers.succeeded"
-    description: "Number of triggers that have fired at least one event"
+    description: "Number of triggers that have fired at least one event.
+    Tagged with trigger_kind (asset_watcher, callback or task)."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -678,6 +680,13 @@ metrics:
     type: "gauge"
     legacy_name: "triggerer.capacity_left.{hostname}"
     name_variables: ["hostname"]
+
+  - name: "triggers.failing"
+    description: "Triggers currently failing on a triggerer, that is failed since they last recovered.
+    One value per trigger_kind (asset_watcher, callback or task)."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
 
   - name: "ti.scheduled"
     description: "Number of scheduled tasks in a given Dag."
