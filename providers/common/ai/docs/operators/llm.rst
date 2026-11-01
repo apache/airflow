@@ -206,6 +206,19 @@ With structured output:
     :start-after: [START howto_decorator_llm_structured]
     :end-before: [END howto_decorator_llm_structured]
 
+The returned prompt is rendered as a Jinja template, like the operator's ``prompt``
+argument, so ``{{ ds }}`` and other template variables work in it. Text you insert into
+the returned string yourself, for example with an f-string, is rendered as part of the
+template too. To include text that comes from a function argument, such as a document or
+an upstream task's output, reference the argument by name in the template instead of
+formatting it into the string. The function's arguments are available when the prompt is
+rendered, and their values are inserted as they are:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_analysis_pipeline.py
+    :language: python
+    :start-after: [START howto_decorator_llm_prompt_argument]
+    :end-before: [END howto_decorator_llm_prompt_argument]
+
 Multimodal prompts
 ^^^^^^^^^^^^^^^^^^
 

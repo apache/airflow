@@ -90,7 +90,9 @@ class _LLMSchemaCompareDecoratedOperator(DecoratedOperator, LLMSchemaCompareOper
 
         validate_prompt(self.prompt, decorator_name="@task.llm_schema_compare")
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        self.prompt = self.render_template(self.prompt, context)
         return LLMSchemaCompareOperator.execute(self, context)
 
 

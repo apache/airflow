@@ -581,3 +581,21 @@ class TestBashDecorator:
         op = render_template_fields(ti, task_arg.operator, context=context)
         result = op.execute(context=context)
         assert result == "test_templated_fields_task"
+
+    def test_execute_renders_only_the_returned_command(self):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        with self.dag_maker:
+
+            @task.bash(env={"message": "{{ message }}"})
+            def bash():
+                return 'echo "{{ greeting }} $message"'
+
+            bash_task = bash()
+
+        op = bash_task.operator
+        context = {"greeting": "hello", "message": "{{ other }}", "other": "rendered twice"}
+        op.render_template_fields(context)
+
+        assert op.execute(context=context) == "hello {{ other }}"
+        assert op.bash_command == 'echo "hello $message"'
+        assert op.env == {"message": "{{ other }}"}

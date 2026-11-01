@@ -90,7 +90,9 @@ class _LLMFileAnalysisDecoratedOperator(DecoratedOperator, LLMFileAnalysisOperat
                 "The returned value from the @task.llm_file_analysis callable must be a non-empty string."
             )
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        self.prompt = self.render_template(self.prompt, context)
         return LLMFileAnalysisOperator.execute(self, context)
 
 

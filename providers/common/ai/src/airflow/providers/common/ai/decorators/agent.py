@@ -98,7 +98,9 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
             feature_enabled=self.enable_hitl_review,
         )
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        self.prompt = self.render_template(self.prompt, context)
         return AgentOperator.execute(self, context)
 
 

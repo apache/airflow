@@ -91,7 +91,9 @@ class _LLMDecoratedOperator(DecoratedOperator, LLMOperator):
 
         validate_prompt(self.prompt, decorator_name="@task.llm")
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        self.prompt = self.render_template(self.prompt, context)
         return LLMOperator.execute(self, context)
 
 
