@@ -178,6 +178,38 @@ By default, the operator validates generated SQL using an allowlist approach:
 You can disable validation with ``validate_sql=False`` or customize the allowed
 statement types with ``allowed_sql_types``.
 
+Restricting the tables a query may reference
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``table_names`` only selects the schemas shown to the LLM; it does not stop the
+generated SQL from reading other tables. Set ``allowed_tables`` to reject any query
+that references a table outside the list:
+
+.. code-block:: python
+
+    LLMSQLQueryOperator(
+        task_id="generate_sql",
+        prompt="Total order value per customer last month",
+        llm_conn_id="pydanticai_default",
+        db_conn_id="postgres_default",
+        table_names=["orders"],
+        allowed_tables=["orders"],
+    )
+
+Every table the query reaches is checked, including tables in subqueries and joins,
+while a CTE defined in the query is not mistaken for a table. Constructs that cannot
+be checked against the list, such as table-valued functions like ``dblink``, are
+rejected too. The rules match ``SQLToolset(allowed_tables=...)``: entries are
+``table`` or ``schema.table``, matching is case-insensitive, an unqualified entry
+only matches unqualified references, and catalog-qualified references never match.
+The check also applies to SQL edited by a reviewer during Human-in-the-Loop approval
+and raises :class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`.
+``allowed_tables`` requires ``validate_sql=True``.
+
+Like ``SQLToolset``'s allow-list, the check fails closed but is only as exact as the SQL
+parser, so it is not a security boundary: pair it with least-privilege grants for the
+database user that runs the generated query.
+
 Logging
 -------
 

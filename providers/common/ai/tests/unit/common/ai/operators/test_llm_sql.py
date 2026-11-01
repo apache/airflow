@@ -759,6 +759,103 @@ def _make_context(ti_id=None):
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
 )
+class TestLLMSQLQueryOperatorAllowedTables:
+    @staticmethod
+    def _execute(mock_hook_cls, make_mock_run_result, sql, allowed_tables, **kwargs):
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = _make_mock_agent(
+            sql, make_mock_run_result
+        )
+        op = LLMSQLQueryOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            schema_context="Table: orders",
+            allowed_tables=allowed_tables,
+            **kwargs,
+        )
+        return op.execute(context=MagicMock())
+
+    @pytest.mark.parametrize(
+        ("sql", "allowed_tables"),
+        [
+            pytest.param("SELECT customer_id, SUM(amount) FROM orders GROUP BY 1", ["orders"], id="allowed"),
+            pytest.param("SELECT * FROM ORDERS", ["orders"], id="case-insensitive"),
+            pytest.param("SELECT * FROM sales.orders", ["sales.orders"], id="schema-qualified"),
+            pytest.param(
+                "WITH salaries AS (SELECT * FROM orders) SELECT * FROM salaries",
+                ["orders"],
+                id="cte-named-like-another-table",
+            ),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_sql_within_allowed_tables_is_returned(
+        self, mock_hook_cls, make_mock_run_result, sql, allowed_tables
+    ):
+        assert self._execute(mock_hook_cls, make_mock_run_result, sql, allowed_tables) == sql
+
+    @pytest.mark.parametrize(
+        ("sql", "disallowed"),
+        [
+            pytest.param("SELECT name, salary FROM salaries", "salaries", id="other-table"),
+            pytest.param(
+                "SELECT * FROM orders WHERE customer_id IN (SELECT id FROM customers)",
+                "customers",
+                id="subquery",
+            ),
+            pytest.param(
+                "SELECT * FROM orders o JOIN salaries s ON o.customer_id = s.id", "salaries", id="join"
+            ),
+            pytest.param("SELECT * FROM otherdb.public.orders", "otherdb.public.orders", id="catalog"),
+        ],
+    )
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_sql_outside_allowed_tables_is_rejected(
+        self, mock_hook_cls, make_mock_run_result, sql, disallowed
+    ):
+        with pytest.raises(SQLSafetyError, match=f"not in allowed_tables: {disallowed}\\."):
+            self._execute(mock_hook_cls, make_mock_run_result, sql, ["orders"])
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_unverifiable_source_is_rejected(self, mock_hook_cls, make_mock_run_result):
+        with pytest.raises(SQLSafetyError, match="cannot be checked against allowed_tables"):
+            self._execute(
+                mock_hook_cls,
+                make_mock_run_result,
+                "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)",
+                ["orders"],
+                dialect="postgres",
+            )
+
+    def test_reviewer_modified_sql_is_checked(self):
+        op = LLMSQLQueryOperator(
+            task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True, allowed_tables=["orders"]
+        )
+        event = {
+            "chosen_options": ["Approve"],
+            "responded_by_user": {"id": "u1", "name": "john"},
+            "params_input": {"output": "SELECT * FROM salaries"},
+        }
+
+        with pytest.raises(SQLSafetyError, match="not in allowed_tables: salaries\\."):
+            op.execute_complete({}, generated_output="SELECT * FROM orders", event=event)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            pytest.param({"allowed_tables": []}, "must name at least one table", id="empty"),
+            pytest.param(
+                {"allowed_tables": ["orders"], "validate_sql": False},
+                "requires validate_sql=True",
+                id="unvalidated",
+            ),
+        ],
+    )
+    def test_invalid_configuration_is_rejected_at_construction(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
+
+
 class TestLLMSQLQueryOperatorApproval:
     """Tests for LLMSQLQueryOperator with require_approval=True (LLMApprovalMixin integration)."""
 

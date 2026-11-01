@@ -25,6 +25,9 @@ from typing import TYPE_CHECKING, Any, ClassVar
 try:
     from airflow.providers.common.ai.utils.sql_validation import (
         DEFAULT_ALLOWED_TYPES,
+        SQLSafetyError,
+        canonical_allowed_tables,
+        find_allowed_tables_violations,
         resolve_sqlglot_dialect,
         validate_sql as _validate_sql,
     )
@@ -80,13 +83,21 @@ class LLMSQLQueryOperator(LLMOperator):
     :param db_conn_id: Connection ID for database schema introspection.
         The connection must resolve to a ``DbApiHook``.
     :param table_names: Tables to include in the LLM's schema context.
-        Used with ``db_conn_id`` for automatic introspection.
+        Used with ``db_conn_id`` for automatic introspection. This does not restrict
+        the tables the generated SQL may reference; use ``allowed_tables`` for that.
     :param schema_context: Manual schema context string. When provided,
         this is used instead of ``db_conn_id`` introspection.
     :param validate_sql: Whether to validate generated SQL via AST parsing.
         Default ``True`` (safe by default).
     :param allowed_sql_types: SQL statement types to allow.
         Default: ``(Select, Union, Intersect, Except)``.
+    :param allowed_tables: Tables the generated SQL may reference, as ``table`` or
+        ``schema.table`` entries. When set, SQL that reaches any other table, or uses a
+        construct that cannot be checked against the list (such as a table-valued
+        function), is rejected with ``SQLSafetyError``. Matching is case-insensitive;
+        an unqualified entry matches only unqualified references and catalog-qualified
+        references never match. Requires ``validate_sql=True`` and must name at least one
+        table. Default ``None`` (no restriction).
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
     :param datasource_config: A
@@ -125,6 +136,7 @@ class LLMSQLQueryOperator(LLMOperator):
         schema_context: str | None = None,
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES,
+        allowed_tables: list[str] | None = None,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
@@ -133,12 +145,24 @@ class LLMSQLQueryOperator(LLMOperator):
             raise TypeError(
                 "LLMSQLQueryOperator does not accept 'output_type'; it always returns the generated SQL as str."
             )
+        if allowed_tables is not None:
+            if not allowed_tables:
+                raise ValueError(
+                    f"allowed_tables must name at least one table, got {allowed_tables!r}. Omit the "
+                    "argument to allow every table. An empty value is rejected rather than read as "
+                    "'no restriction' so that an allow-list built at runtime cannot silently widen."
+                )
+            if not validate_sql:
+                raise ValueError(
+                    "allowed_tables requires validate_sql=True; it is enforced on the parsed SQL."
+                )
         super().__init__(**kwargs)
         self.db_conn_id = db_conn_id
         self.table_names = table_names
         self.schema_context = schema_context
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
+        self.allowed_tables = allowed_tables
         self.dialect = dialect
         self.datasource_config = datasource_config
 
@@ -173,7 +197,7 @@ class LLMSQLQueryOperator(LLMOperator):
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
         if self.validate_sql:
-            _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+            self._check_sql(sql)
 
         self.log.info("Generated SQL:\n%s", sql)
 
@@ -193,9 +217,26 @@ class LLMSQLQueryOperator(LLMOperator):
         """Resume after human review, re-validating if the reviewer modified the SQL."""
         output = self._complete_review(context, generated_output, event, decision)
         if output is not None and output != generated_output:
-            _validate_sql(output, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+            self._check_sql(output)
         self._clear_usage_budget(context)
         return output
+
+    def _check_sql(self, sql: str) -> None:
+        """Validate the statement types of ``sql`` and, when set, the tables it may reference."""
+        statements = _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
+        if self.allowed_tables is None:
+            return
+        violations = find_allowed_tables_violations(statements, canonical_allowed_tables(self.allowed_tables))
+        if violations.unverifiable_sources:
+            raise SQLSafetyError(
+                "SQL uses a data source that cannot be checked against allowed_tables: "
+                f"{'; '.join(violations.unverifiable_sources)}."
+            )
+        if violations.disallowed_tables:
+            raise SQLSafetyError(
+                "SQL references tables that are not in allowed_tables: "
+                f"{', '.join(violations.disallowed_tables)}. Allowed tables: {', '.join(self.allowed_tables)}."
+            )
 
     @staticmethod
     def _strip_llm_output(raw: str, *, dialect: str | None = None) -> str:
