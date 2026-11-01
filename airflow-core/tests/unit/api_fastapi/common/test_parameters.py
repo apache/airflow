@@ -491,8 +491,8 @@ class TestPrefixSearchParamOnARealEngine:
     """
     Run the predicate against SQLite so the rows it lets through are checked, not just the SQL.
 
-    Every term below computes an upper bound wider than the term itself, so the bounds alone
-    would also return the rows that are missing from each ``expected`` list.
+    The expected rows are determined by Python's ``str.startswith`` semantics. The predicate
+    uses exact ``substr`` equality because collation-dependent range bounds are unsafe.
     """
 
     NAMES = [
@@ -609,8 +609,9 @@ class TestPrefixSearchContractionCollationsPostgres:
             MetaData(),
             Column("name", String(64, collation=collation), primary_key=True),
         )
-        table.drop(session.bind, checkfirst=True)
-        table.create(session.bind)
+        connection = session.connection()
+        table.drop(connection, checkfirst=True)
+        table.create(connection)
 
         try:
             session.execute(table.insert(), [{"name": r} for r in self.ROWS])
@@ -643,7 +644,7 @@ class TestPrefixSearchContractionCollationsPostgres:
                         "Expected lower bound to fail on Igbo prefix 'c' (should miss 'ch1' and 'chata')"
                     )
         finally:
-            table.drop(session.bind, checkfirst=True)
+            table.drop(connection, checkfirst=True)
 
 
 class TestTaskDisplayNamePrefixPatternParam:
@@ -658,6 +659,8 @@ class TestTaskDisplayNamePrefixPatternParam:
         assert "task_display_name is null" in sql
         assert "task_id >= " not in sql
         assert "task_id < " not in sql
+        assert "task_display_name >= " not in sql
+        assert "task_display_name < " not in sql
         assert "task_display_name is not null" in sql
 
     def test_to_orm_narrows_both_branches_with_a_leading_substring(self):
