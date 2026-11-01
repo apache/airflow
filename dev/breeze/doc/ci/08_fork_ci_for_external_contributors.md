@@ -164,6 +164,13 @@ cron trigger, and selective checks force the full matrix for `schedule` events. 
 every enabled fork would run the full canary matrix twice a day on the contributor's
 concurrency cap. A manual `workflow_dispatch` in a fork still runs.
 
+The same applies to every other workflow with a `schedule` trigger: a fork that enables
+Actions gets all of their crons too. Their jobs carry a job-level
+`if: github.repository == 'apache/airflow'` guard, combined with
+`github.event_name != 'schedule'` when the workflow has other triggers that should still run
+in a fork. A new scheduled workflow needs the same guard. The guard skips the jobs but not
+the run itself, so the frequent crons still leave an empty run in every enabled fork.
+
 | Rule | Decision | Reason |
 |---|---|---|
 | Event is `schedule` and repository is not `apache/airflow` | skip | `fork_schedule` |
