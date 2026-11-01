@@ -271,6 +271,20 @@ class TestSnowparkContainerJobOperator:
         assert mock_info.call_count == 3
 
     @mock.patch(MOCK_HOOK_PATH)
+    def test_log_container_output_binds_arguments(self, mock_hook_cls):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = ["logs"]
+        op = _make_operator()
+        op.job_name = JOB_NAME
+        op._log_container_output("DONE")
+        mock_hook.run.assert_called_once_with(
+            "SELECT SYSTEM$GET_SERVICE_LOGS(%(job_name)s, %(instance_id)s, %(container_name)s)",
+            parameters={"job_name": JOB_NAME, "instance_id": 0, "container_name": op.container_name},
+            handler=mock.ANY,
+            return_dictionaries=False,
+        )
+
+    @mock.patch(MOCK_HOOK_PATH)
     def test_log_container_output_swallows_fetch_error(self, mock_hook_cls):
         mock_hook = mock_hook_cls.return_value
         mock_hook.run.side_effect = Exception("Unable to retrieve logs")
@@ -505,7 +519,7 @@ class TestSnowparkContainerJobOperatorDurable:
         task_store.get.assert_called_once_with(op.external_id_key)
         assert task_store.set.call_args_list == [
             mock.call(op.external_id_key, JOB_NAME),
-            mock.call(op._job_status_key, "DONE"),
+            mock.call(op._job_status_key, {JOB_NAME: "DONE"}),
         ]
         mock_handle.assert_called_once_with(status="DONE")
 
@@ -529,7 +543,7 @@ class TestSnowparkContainerJobOperatorDurable:
         result = op.execute(context=_context(task_store=task_store))
 
         assert task_store.get.call_args_list == [mock.call(op.external_id_key), mock.call(op._job_status_key)]
-        task_store.set.assert_called_once_with(op._job_status_key, "DONE")
+        task_store.set.assert_called_once_with(op._job_status_key, {JOB_NAME: "DONE"})
         mock_submit_job.assert_not_called()
         mock_handle.assert_called_once_with(status="DONE")
         assert result == JOB_NAME
@@ -646,7 +660,7 @@ class TestSnowparkContainerJobOperatorDurable:
     def test_get_job_status_returns_status(self, mock_describe_status):
         mock_describe_status.return_value = "DONE"
         op = _make_operator()
-        status = op.get_job_status(context=_context(), external_id="test job")
+        status = op.get_job_status(context=_context(), external_id=JOB_NAME)
         assert status == "DONE"
 
     @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
@@ -655,7 +669,7 @@ class TestSnowparkContainerJobOperatorDurable:
             msg="test job does not exist", errno=OBJECT_NOT_EXIST_ERROR_CODE
         )
         op = _make_operator()
-        status = op.get_job_status(context=_context(), external_id="test job")
+        status = op.get_job_status(context=_context(), external_id=JOB_NAME)
         assert status == NOT_FOUND_STATUS
 
     @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
@@ -663,17 +677,35 @@ class TestSnowparkContainerJobOperatorDurable:
         mock_describe_status.side_effect = ProgrammingError(msg="syntax error", errno=1003)
         op = _make_operator()
         with pytest.raises(ProgrammingError, match="syntax error"):
-            op.get_job_status(context=_context(), external_id="test job")
+            op.get_job_status(context=_context(), external_id=JOB_NAME)
 
     @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
     def test_get_job_status_returns_done_from_task_state_store(self, mock_describe_status):
         task_store = mock.MagicMock(spec_set=["get", "set"])
-        task_store.get.return_value = "DONE"
+        task_store.get.return_value = {JOB_NAME: "DONE"}
         op = _make_operator()
         status = op.get_job_status(context=_context(task_store=task_store), external_id=JOB_NAME)
         assert status == "DONE"
         task_store.get.assert_called_once_with(op._job_status_key)
         mock_describe_status.assert_not_called()
+
+    @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
+    def test_get_job_status_ignores_marker_not_tied_to_job_name(self, mock_describe_status):
+        mock_describe_status.return_value = "RUNNING"
+        task_store = mock.MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = "DONE"
+        op = _make_operator()
+        status = op.get_job_status(context=_context(task_store=task_store), external_id=JOB_NAME)
+        assert status == "RUNNING"
+        mock_describe_status.assert_called_once_with(JOB_NAME)
+
+    @pytest.mark.parametrize("external_id", ["x; DROP TABLE t", 123])
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_get_job_status_rejects_invalid_stored_job_name(self, mock_hook_cls, external_id):
+        op = _make_operator()
+        with pytest.raises(ValueError, match="not a valid Snowflake identifier"):
+            op.get_job_status(external_id, _context())
+        mock_hook_cls.return_value.run.assert_not_called()
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch(MOCK_HOOK_PATH)
@@ -689,7 +721,7 @@ class TestSnowparkContainerJobOperatorDurable:
         op.poll_until_complete(JOB_NAME, _context(task_store=task_store))
 
         assert manager.mock_calls[-2:] == [
-            mock.call.set(op._job_status_key, "DONE"),
+            mock.call.set(op._job_status_key, {JOB_NAME: "DONE"}),
             mock.call.run(f"DROP SERVICE IF EXISTS {JOB_NAME}"),
         ]
 
