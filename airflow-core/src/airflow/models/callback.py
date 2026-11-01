@@ -26,7 +26,7 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -159,6 +159,8 @@ class Callback(Base, BaseWorkload):
     # Used for callbacks of type CallbackType.TRIGGERER
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
+
+    __table_args__ = (Index("idx_callback_bundle_type_priority", bundle_name, type, priority_weight.desc()),)
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         """

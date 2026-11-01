@@ -41,7 +41,7 @@ import msgspec
 import pytest
 import structlog
 import time_machine
-from sqlalchemy import event, func, select
+from sqlalchemy import event, func, select, text
 from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
@@ -79,6 +79,7 @@ from airflow.serialization.serialized_objects import DagSerialization, LazyDeser
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.compat import ParseImportError
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
@@ -2869,6 +2870,40 @@ class TestDagFileProcessorManager:
                     "other-bundle-a",
                     "other-bundle-b",
                 }
+
+    @pytest.mark.backend("sqlite")
+    @conf_vars({("dag_processor", "max_callbacks_per_loop"): "2"})
+    def test_fetch_callbacks_uses_bundle_priority_index(self, configure_testing_dag_bundle):
+        with create_session() as session:
+            session.add_all(
+                DbCallbackRequest(
+                    callback=DagCallbackRequest(
+                        dag_id="test_start_date_scheduling",
+                        run_id=f"run-{priority}",
+                        filepath="test_on_failure_callback_dag.py",
+                        bundle_name="testing" if priority % 2 else "other-bundle",
+                        bundle_version=None,
+                    ),
+                    priority_weight=priority,
+                )
+                for priority in range(64)
+            )
+
+        with configure_testing_dag_bundle(TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            with create_session() as session:
+                with assert_queries_count(2), capture_orm_selects("callback") as queries:
+                    callbacks = manager._fetch_callbacks_from_db(session=session)
+
+                assert [callback.run_id for callback in callbacks] == ["run-63", "run-61"]
+                assert len(queries) == 1
+                # The generic capture dialect retains FOR UPDATE; SQLite omits it.
+                query = queries[0].removesuffix(" FOR UPDATE")
+                plan = session.execute(text(f"EXPLAIN QUERY PLAN {query}"))
+                details = [row[3] for row in plan]
+                assert any("USING INDEX idx_callback_bundle_type_priority" in detail for detail in details)
+                assert not any("USE TEMP B-TREE" in detail for detail in details)
 
     @mock.patch.object(LateResolvingBundle, "initialize", autospec=True)
     def test_callback_executes_after_bundle_initialization_recovers(self, mock_initialize, tmp_path):
