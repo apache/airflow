@@ -70,6 +70,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _stop_remaining_tasks,
     clear_loop_task_instances,
     clear_task_instances,
     find_relevant_relatives,
@@ -2861,6 +2862,64 @@ class TestTaskInstance:
             "reg_Task2": State.SKIPPED,
             "reg_Task3": State.SKIPPED,
             "reg_Task4": State.SKIPPED,
+        }
+
+    @pytest.mark.parametrize("use_teardown_map", [True, False], ids=["execution_api", "scheduler"])
+    @pytest.mark.parametrize("victim_state", [State.REMOVED, State.RUNNING])
+    def test_stop_remaining_tasks_skips_task_removed_from_dag(
+        self, dag_maker, session, use_teardown_map, victim_state
+    ):
+        dag_id = "test_stop_remaining_tasks_skips_task_removed_from_dag"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = State.FAILED
+        tis["victim"].state = victim_state
+        session.flush()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+        latest_dag = DBDagBag().get_dag_for_run(dag_run=dr, session=session)
+        assert "victim" not in latest_dag.task_dict
+
+        boom = tis["boom"]
+        boom.task = latest_dag.get_task("boom")
+        task_teardown_map = (
+            {k: v.is_teardown for k, v in latest_dag.task_dict.items()} if use_teardown_map else None
+        )
+
+        _stop_remaining_tasks(task_instance=boom, task_teardown_map=task_teardown_map, session=session)
+
+        assert tis["victim"].state == victim_state
+
+    def test_stop_remaining_tasks_leaves_finished_tis_unchanged(self, dag_maker, session):
+        with dag_maker(
+            dag_id="test_stop_remaining_tasks_leaves_finished_tis_unchanged",
+            fail_fast=True,
+            serialized=True,
+            session=session,
+        ):
+            for task_id in ("boom", "upstream_failed", "removed", "no_state"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = State.FAILED
+        tis["upstream_failed"].state = State.UPSTREAM_FAILED
+        tis["removed"].state = State.REMOVED
+        tis["no_state"].state = None
+        session.flush()
+        tis["boom"].task = dag_maker.serialized_dag.get_task("boom")
+
+        _stop_remaining_tasks(task_instance=tis["boom"], session=session)
+
+        assert {task_id: ti.state for task_id, ti in tis.items()} == {
+            "boom": State.FAILED,
+            "upstream_failed": State.UPSTREAM_FAILED,
+            "removed": State.REMOVED,
+            "no_state": State.SKIPPED,
         }
 
     def test_retries_on_other_exceptions(self, dag_maker):
