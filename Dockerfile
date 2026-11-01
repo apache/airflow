@@ -331,12 +331,35 @@ function prefer_hardened_apt_repository() {
     # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
     # dhi.io's build of a package it publishes, but may take a newer version from another repository
     # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
-    # ">= 18.6" and dhi.io does not carry. Pinning the base image to a digest CI has passed on keeps
-    # dhi.io and the image consistent, so the renumbering that once needed a forced "downgrade" of the
-    # image's copy (docker-hardened-images/catalog#689) no longer arises within a build.
+    # ">= 18.6" and dhi.io does not carry. The renumbered builds that sort below the image's own copy
+    # are handled by align_image_packages_with_hardened_repository instead.
     # The preference covers every apt run - this build's and those of images extending it.
     mkdir -p /etc/apt/preferences.d
     printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
+function align_image_packages_with_hardened_repository() {
+    # The dhi.io apt repository is live, so it moves on even under a base image pinned to a digest.
+    # Docker renumbered its builds ("14.2.0-19+dhi5" became "14.2.0-19+deb13u0+dhi5", which sorts
+    # lower) and the repository dropped the old numbers, while the image still ships them. Packages
+    # depending on the exact new version (gcc-14 on gcc-14-base, libgmp-dev on libgmp10) are then
+    # uninstallable, because apt will not downgrade the image's copy at a priority below 1000
+    # (docker-hardened-images/catalog#689). Only installed versions no repository offers any more
+    # ("local" ones) are moved to dhi.io's build, so newer packages from other repositories - such as
+    # PGDG's libpq5 - are left alone.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ {print $2; exit}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y --no-install-recommends --allow-downgrades "${downgrades[@]}"
+    fi
 }
 
 function refresh_ldconfig_after_dpkg() {
@@ -404,6 +427,7 @@ function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -700,6 +724,7 @@ function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
