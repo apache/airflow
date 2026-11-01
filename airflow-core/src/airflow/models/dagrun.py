@@ -1625,7 +1625,6 @@ class DagRun(Base, LoggingMixin):
                         TI.state != TaskInstanceState.REMOVED,
                     )
                     .values(state=TaskInstanceState.REMOVED)
-                    .execution_options(synchronize_session=False)
                 )
             return finished
 
@@ -1908,10 +1907,20 @@ class DagRun(Base, LoggingMixin):
         expansion_happened = False
         # (task id, region id) pairs for which _revise_map_indexes_if_mapped was already done
         revised_expansion_keys: set[tuple[str, UUID]] = set()
+        now = timezone.utcnow()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             if TYPE_CHECKING:
                 assert isinstance(schedulable.task, Operator)
             old_state = schedulable.state
+            if old_state == TaskInstanceState.UP_FOR_RETRY:
+                # Worker-reported retries arrive without one; storing it spares later passes the
+                # previous-attempt lookup.
+                if schedulable.retry_at is None:
+                    schedulable.retry_at = schedulable.next_retry_datetime()
+                # Not due yet, so no dependency of it can pass; _are_premature_tis still counts it
+                # as runnable when the run looks for a deadlock.
+                if schedulable.retry_at >= now:
+                    continue
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.id] = old_state
                 continue
@@ -2880,6 +2889,7 @@ class DagRun(Base, LoggingMixin):
                         # Already archived with the finished try; the new one must not inherit it.
                         retry_reason=None,
                         retry_delay_override=None,
+                        retry_at=None,
                     )
                     .execution_options(synchronize_session=False)
                 )
@@ -2932,6 +2942,7 @@ class DagRun(Base, LoggingMixin):
                         try_number=next_try_number,
                         retry_reason=None,
                         retry_delay_override=None,
+                        retry_at=None,
                     )
                     .execution_options(
                         synchronize_session=False,
