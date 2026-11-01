@@ -28,7 +28,7 @@ import threading
 import time
 import typing
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable
 from socket import socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
@@ -1521,6 +1521,37 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
+def _make_sleeping_trigger_workload(trigger_id: int) -> workloads.RunTrigger:
+    """Build a workload for a trigger that keeps running for the rest of the test."""
+    classpath, kwargs = DateTimeTrigger(pendulum.datetime(2999, 1, 1, tz="UTC")).serialize()
+    return workloads.RunTrigger.model_construct(
+        id=trigger_id, ti=None, classpath=classpath, encrypted_kwargs=Trigger.encrypt_kwargs(kwargs)
+    )
+
+
+async def _await_counting_yields(awaitable: Awaitable[Any]) -> tuple[Any, int]:
+    """Await ``awaitable`` and count how many times it gave the event loop to other tasks."""
+    turns = 0
+
+    async def count_turns() -> None:
+        nonlocal turns
+        while True:
+            await asyncio.sleep(0)
+            turns += 1
+
+    counter = asyncio.create_task(count_turns())
+    # Let the counter reach its first sleep, so only turns taken while ``awaitable`` runs count.
+    await asyncio.sleep(0)
+    try:
+        result = await awaitable
+        yields = turns
+    finally:
+        counter.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await counter
+    return result, yields
+
+
 class TestTriggerRunner:
     def test_blocked_main_thread_warning_threshold_decode(self) -> None:
         with conf_vars({("triggerer", "blocked_main_thread_warning_threshold"): "0.5"}):
@@ -2176,6 +2207,81 @@ class TestTriggerRunner:
         await asyncio.gather(task, return_exceptions=True)
 
         await runner.cleanup_finished_triggers()
+
+    @pytest.mark.asyncio
+    @patch("airflow.jobs.triggerer_job_runner._DRAIN_YIELD_INTERVAL", 0)
+    async def test_cleanup_finished_triggers_visits_only_finished_triggers(self):
+        runner = TriggerRunner()
+        running_ids = set(range(1, 101))
+        runner.to_create.extend(_make_sleeping_trigger_workload(trigger_id) for trigger_id in running_ids)
+        runner.to_create.append(
+            workloads.RunTrigger.model_construct(
+                id=101,
+                ti=None,
+                classpath=f"{SuccessTrigger.__module__}.{SuccessTrigger.__name__}",
+                encrypted_kwargs='{"__type":"dict", "__var":{}}',
+            )
+        )
+        await runner.create_triggers()
+        try:
+            await asyncio.wait([runner.triggers[101]["task"]])
+
+            finished_ids, yields = await _await_counting_yields(runner.cleanup_finished_triggers())
+
+            assert finished_ids == [101]
+            assert set(runner.triggers) == running_ids
+            assert yields == 1
+        finally:
+            for details in runner.triggers.values():
+                details["task"].cancel()
+            await asyncio.gather(*(d["task"] for d in runner.triggers.values()), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    @patch("airflow.jobs.triggerer_job_runner._maybe_yield", autospec=True)
+    async def test_cleanup_finished_triggers_handles_only_ids_queued_when_it_starts(self, mock_maybe_yield):
+        runner = TriggerRunner()
+        ids_finishing_during_yield: list[int] = []
+
+        def finish_triggers_during_yield(last_yield: float) -> float:
+            runner._finished_trigger_ids.extend(ids_finishing_during_yield)
+            ids_finishing_during_yield.clear()
+            return last_yield
+
+        mock_maybe_yield.side_effect = finish_triggers_during_yield
+        runner.to_create.extend(_make_sleeping_trigger_workload(trigger_id) for trigger_id in (1, 2))
+        await runner.create_triggers()
+        tasks = [details["task"] for details in runner.triggers.values()]
+        for task in tasks:
+            task.cancel()
+        await asyncio.wait(tasks)
+        runner._finished_trigger_ids.remove(2)
+        ids_finishing_during_yield.append(2)
+
+        assert await runner.cleanup_finished_triggers() == [1]
+        assert set(runner.triggers) == {2}
+        assert await runner.cleanup_finished_triggers() == [2]
+        assert not runner.triggers
+
+    @pytest.mark.asyncio
+    @patch("airflow.jobs.triggerer_job_runner._DRAIN_YIELD_INTERVAL", 3600)
+    async def test_create_cancel_and_cleanup_yield_by_time_not_per_trigger(self):
+        runner = TriggerRunner()
+        trigger_ids = list(range(1, 101))
+        runner.to_create.extend(_make_sleeping_trigger_workload(trigger_id) for trigger_id in trigger_ids)
+        try:
+            _, create_yields = await _await_counting_yields(runner.create_triggers())
+            runner.to_cancel.extend(trigger_ids)
+            _, cancel_yields = await _await_counting_yields(runner.cancel_triggers())
+            await asyncio.wait([details["task"] for details in runner.triggers.values()])
+            finished_ids, cleanup_yields = await _await_counting_yields(runner.cleanup_finished_triggers())
+
+            assert sorted(finished_ids) == trigger_ids
+        finally:
+            for details in runner.triggers.values():
+                details["task"].cancel()
+            await asyncio.gather(*(d["task"] for d in runner.triggers.values()), return_exceptions=True)
+
+        assert (create_yields, cancel_yields, cleanup_yields) == (0, 0, 0)
 
     @pytest.mark.asyncio
     @patch(
