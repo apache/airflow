@@ -132,6 +132,27 @@ class TestClientCredentialsGrantFlowTokenSupplier:
 
         assert token == "mock-token2"
 
+    @pytest.mark.parametrize(
+        ("kwargs1", "kwargs2"),
+        [
+            pytest.param(
+                {"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET, "audience": "foo,scope=bar"},
+                {"client_id": CLIENT_ID, "client_secret": CLIENT_SECRET, "audience": "foo", "scope": "bar"},
+                id="extra-param-value-with-separators",
+            ),
+            pytest.param(
+                {"client_id": "ab", "client_secret": "c"},
+                {"client_id": "a", "client_secret": "bc"},
+                id="client-id-and-secret-boundary",
+            ),
+        ],
+    )
+    def test_get_subject_key_distinguishes_ambiguous_credentials(self, kwargs1, kwargs2):
+        token_supplier1 = ClientCredentialsGrantFlowTokenSupplier(oidc_issuer_url=MOCK_URL1, **kwargs1)
+        token_supplier2 = ClientCredentialsGrantFlowTokenSupplier(oidc_issuer_url=MOCK_URL1, **kwargs2)
+
+        assert token_supplier1.get_subject_key() != token_supplier2.get_subject_key()
+
     def test_cache_token_expiration_date(self):
         token_supplier = ClientCredentialsGrantFlowTokenSupplier(
             oidc_issuer_url=MOCK_URL4,
