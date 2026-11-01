@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Sequence
 from datetime import timedelta
@@ -42,6 +43,16 @@ if TYPE_CHECKING:
     from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
+
+# The job name goes into DESCRIBE/DROP SERVICE as an identifier, which cannot be bound,
+# so it must match Snowflake's unquoted identifier syntax.
+_JOB_NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_$]{0,254}")
+
+
+def _validate_job_name(external_id: JsonValue) -> str:
+    if not isinstance(external_id, str) or not _JOB_NAME_PATTERN.fullmatch(external_id):
+        raise ValueError(f"Stored job name {external_id!r} is not a valid Snowflake identifier")
+    return external_id
 
 
 class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
@@ -94,7 +105,8 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
         With ``wait_for_completion=False`` or ``deferrable=True`` durable has no effect. (default value: True)
     :param cancel_on_kill: If True, drop the job service when the task is killed. This applies
         both while the operator is running and, for a deferred task, while it waits in the
-        triggerer. (default value: True)
+        triggerer. With ``durable``, set this to False so the job survives a graceful worker
+        shutdown or pod eviction. (default value: True)
     :param timeout: Maximum seconds to wait for the job to reach a terminal
         state. When it elapses the task fails. (default value: 86400)
     :param database: name of database (will overwrite database defined
@@ -213,9 +225,13 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
             sql += f" FROM {self.spec_stage} SPEC = '{self.spec}'"
         return sql
 
-    def _run_one(self, sql: str, return_dictionaries: bool = False) -> Any:
+    def _run_one(
+        self, sql: str, return_dictionaries: bool = False, parameters: dict[str, Any] | None = None
+    ) -> Any:
         """Run a single statement that returns one row via fetch_one_handler."""
-        return self._hook.run(sql, handler=fetch_one_handler, return_dictionaries=return_dictionaries)
+        return self._hook.run(
+            sql, parameters=parameters, handler=fetch_one_handler, return_dictionaries=return_dictionaries
+        )
 
     def _describe_status(self, external_id: JsonValue) -> str:
         """Describe the job's current status."""
@@ -232,11 +248,13 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """Return DONE if a prior try stored it, NOT_FOUND if the service is gone, else the current status."""
+        job_name = _validate_job_name(external_id)
         if (task_state_store := context.get("task_state_store")) is not None:
-            if task_state_store.get(self._job_status_key) == SnowparkContainerJobStatus.DONE:
+            marker = task_state_store.get(self._job_status_key)
+            if isinstance(marker, dict) and marker.get(job_name) == SnowparkContainerJobStatus.DONE:
                 return SnowparkContainerJobStatus.DONE
         try:
-            return self._describe_status(external_id)
+            return self._describe_status(job_name)
         except ProgrammingError as e:
             if e.errno == OBJECT_NOT_EXIST_ERROR_CODE:
                 return NOT_FOUND_STATUS
@@ -272,7 +290,9 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
                     and status == SnowparkContainerJobStatus.DONE
                     and (task_state_store := context.get("task_state_store")) is not None
                 ):
-                    task_state_store.set(self._job_status_key, SnowparkContainerJobStatus.DONE.value)
+                    task_state_store.set(
+                        self._job_status_key, {self.job_name: SnowparkContainerJobStatus.DONE.value}
+                    )
                 # get_job_result is skipped when the mixin reconnects to a still-running job, so
                 # finalize here.
                 self._handle_final_status(status=status)
@@ -293,9 +313,14 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
     def _log_container_output(self, status: str | None) -> None:
         """Fetch and log container output for all replicas. Best-effort so it never blocks cleanup."""
         for instance_id in range(self.replicas):
-            sql = f"SELECT SYSTEM$GET_SERVICE_LOGS('{self.job_name}', {instance_id}, '{self.container_name}')"
+            sql = "SELECT SYSTEM$GET_SERVICE_LOGS(%(job_name)s, %(instance_id)s, %(container_name)s)"
+            parameters = {
+                "job_name": self.job_name,
+                "instance_id": instance_id,
+                "container_name": self.container_name,
+            }
             try:
-                response = self._run_one(sql)[0]
+                response = self._run_one(sql, parameters=parameters)[0]
             except Exception as e:
                 self.log.warning("Could not retrieve logs for instance_id %d: %s", instance_id, e)
                 continue
