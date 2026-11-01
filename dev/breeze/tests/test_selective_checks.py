@@ -5198,18 +5198,18 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
 
 
 RUNS_ON_AMD = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+    '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
 )
 RUNS_ON_ARM = (
-    '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+    '["runs-on=42/env=flex/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
 )
 RUNS_ON_AMD_IN_MEMORY = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6i+r8i'
+    '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i+r8i'
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 RUNS_ON_ARM_IN_MEMORY = (
-    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
+    '["runs-on=42/env=flex/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 
