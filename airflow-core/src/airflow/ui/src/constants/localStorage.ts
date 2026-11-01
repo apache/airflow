@@ -53,6 +53,7 @@ export const presetFiltersKey = (pageName: string) =>
   `${pageName.replaceAll("/", "-").slice(1)}-preset-filters`;
 export const presetFiltersDefaultKey = (pageName: string) =>
   `${pageName.replaceAll("/", "-").slice(1)}-preset-filters-default`;
+export const lastFiltersKey = (pageName: string) => `${pageName.replaceAll("/", "-").slice(1)}-last-filters`;
 
 // SearchBar advanced (substring) toggle, scoped per searchbar via a caller-provided id.
 export const advancedSearchKey = (id: string) => `advanced_search-${id}`;

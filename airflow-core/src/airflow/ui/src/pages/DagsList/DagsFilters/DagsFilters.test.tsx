@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
@@ -55,6 +55,11 @@ const selectPillOption = async (key: string, value: string) => {
   fireEvent.click(await screen.findByTestId(`${key}-filter`));
   fireEvent.click(await screen.findByTestId(`${key}-filter-${value}`));
 };
+
+beforeEach(() => {
+  // The list remembers its filters, so a test must not inherit the previous one's.
+  localStorage.clear();
+});
 
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
   afterEach(() => {
@@ -273,5 +278,60 @@ describe("Import errors filter", () => {
 
     await waitFor(() => expect(screen.getByText("broken_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+  });
+});
+
+describe("Persisting filters across navigation", () => {
+  it("restores the filters the user last had when returning to the Dag list", async () => {
+    localStorage.setItem("dags-last-filters", JSON.stringify("timetable_type=CronTriggerTimetable"));
+
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+    expect(screen.getByTestId("timetable_type-pill")).toHaveTextContent("CronTriggerTimetable");
+  });
+
+  it("leaves an explicit link alone", async () => {
+    localStorage.setItem("dags-last-filters", JSON.stringify("timetable_type=CronTriggerTimetable"));
+
+    render(<AppWrapper initialEntries={["/dags?timetable_type=NullTimetable"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_failed")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("timetable_type-pill")).toHaveTextContent("NullTimetable");
+  });
+
+  it("remembers the filters once they are applied", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+
+    await addFilter("timetable_type");
+
+    const input = await screen.findByLabelText("filters.timetableType");
+
+    await waitFor(() => expect(input).toHaveFocus());
+    fireEvent.change(input, { target: { value: "Cron" } });
+    fireEvent.click(await screen.findByText("CronTriggerTimetable"));
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-last-filters") ?? '""')).toContain(
+        "timetable_type=CronTriggerTimetable",
+      );
+    });
+  });
+
+  it("forgets a filter once it is removed", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("timetable_type-pill-remove"));
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-last-filters") ?? '""')).not.toContain("timetable_type");
+    });
   });
 });
