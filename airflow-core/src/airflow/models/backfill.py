@@ -45,7 +45,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload, validates
 
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException, DagNotFound, DagRunTypeNotAllowed
@@ -638,6 +638,7 @@ def _handle_clear_run(
             select(Deadline, DeadlineAlert)
             .join(DeadlineAlert, Deadline.deadline_alert_id == DeadlineAlert.id)
             .where(Deadline.dagrun_id == dr.id, ~Deadline.missed)
+            .options(selectinload(Deadline.callback))
             .execution_options(populate_existing=True),
             session=session,
             of=Deadline,

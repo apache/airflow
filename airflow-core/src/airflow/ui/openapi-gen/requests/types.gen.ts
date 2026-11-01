@@ -5879,6 +5879,7 @@ export type HistoricalMetricsResponse = HistoricalMetricDataResponse;
 export type DagStatsResponse2 = DashboardDagStatsResponse;
 
 export type GetDeadlinesData = {
+    alertIds?: Array<(string)> | null;
     dagId: string;
     dagRunId: string;
     deadlineTimeGt?: string | null;

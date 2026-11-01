@@ -69,6 +69,7 @@ from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, 
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import (
     clear_db_backfills,
     clear_db_dags,
@@ -1642,18 +1643,21 @@ def test_handle_clear_run_removes_only_unhandled_excluded_deadlines(
     )
     session.add(alert)
     session.flush()
-    deadline = Deadline(
-        dagrun_id=dr.id,
-        deadline_alert_id=alert.id,
-        deadline_time=timezone.parse("2026-01-12T01:00:00Z"),
-        callback=callback,
-        dag_id=dag.dag_id,
-    )
-    session.add(deadline)
-    session.flush()
-    deadline.missed = missed
-    deadline.callback.state = CallbackState.QUEUED if missed else CallbackState.SCHEDULED
-    deadline_id, callback_id = deadline.id, deadline.callback_id
+    deadline_ids, callback_ids = set(), set()
+    for _ in range(3):
+        deadline = Deadline(
+            dagrun_id=dr.id,
+            deadline_alert_id=alert.id,
+            deadline_time=timezone.parse("2026-01-12T01:00:00Z"),
+            callback=callback,
+            dag_id=dag.dag_id,
+        )
+        session.add(deadline)
+        session.flush()
+        deadline.missed = missed
+        deadline.callback.state = CallbackState.QUEUED if missed else CallbackState.SCHEDULED
+        deadline_ids.add(deadline.id)
+        callback_ids.add(deadline.callback_id)
     dr.get_task_instance("hi", session=session).state = TaskInstanceState.FAILED
 
     other_run = dag_maker.create_dagrun(
@@ -1683,24 +1687,32 @@ def test_handle_clear_run_removes_only_unhandled_excluded_deadlines(
     session.add(backfill)
     session.flush()
 
-    _handle_clear_run(
-        session=session,
-        dag=dag_maker.serialized_dag,
-        dr=dr,
-        info=DagRunInfo.interval(logical_date, logical_date + timedelta(days=1)),
-        backfill_id=backfill.id,
-        sort_ordinal=1,
-    )
+    session.expire_all()
+    with capture_orm_selects("callback") as callback_queries:
+        _handle_clear_run(
+            session=session,
+            dag=dag_maker.serialized_dag,
+            dr=dr,
+            info=DagRunInfo.interval(logical_date, logical_date + timedelta(days=1)),
+            backfill_id=backfill.id,
+            sort_ordinal=1,
+        )
+    assert len(callback_queries) <= 1
     session.flush()
 
     assert session.scalar(select(DagRun.run_type).where(DagRun.id == dr.id)) == DagRunType.BACKFILL_JOB
-    assert (session.scalar(select(Deadline.id).where(Deadline.id == deadline_id)) is not None) == retained
-    assert (session.scalar(select(Callback.id).where(Callback.id == callback_id)) is not None) == retained
+    assert set(session.scalars(select(Deadline.id).where(Deadline.id.in_(deadline_ids)))) == (
+        deadline_ids if retained else set()
+    )
+    assert set(session.scalars(select(Callback.id).where(Callback.id.in_(callback_ids)))) == (
+        callback_ids if retained else set()
+    )
     assert session.scalar(select(Deadline.id).where(Deadline.id == other_deadline_id)) == other_deadline_id
     assert session.scalar(select(Callback.id).where(Callback.id == other_callback_id)) == other_callback_id
     if missed:
         assert (
-            session.scalar(select(Callback.state).where(Callback.id == callback_id)) == CallbackState.QUEUED
+            session.scalars(select(Callback.state).where(Callback.id.in_(callback_ids))).all()
+            == [CallbackState.QUEUED] * 3
         )
 
 

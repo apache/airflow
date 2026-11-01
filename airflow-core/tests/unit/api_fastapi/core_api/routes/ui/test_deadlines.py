@@ -269,6 +269,69 @@ def setup(dag_maker, session):
 
 
 class TestGetDagRunDeadlines:
+    @pytest.mark.parametrize(
+        ("selected", "offset"),
+        [
+            (["included"], 0),
+            (["included"], 1),
+            (["included"], 2),
+            (["included", "excluded"], 1),
+            (["unknown"], 0),
+        ],
+    )
+    def test_alert_ids_filter_before_pagination(self, test_client, session, selected, offset):
+        excluded = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
+        excluded.run_type_filter = ["scheduled"]
+        included = DeadlineAlert(
+            serialized_dag_id=excluded.serialized_dag_id,
+            name="backfill_included",
+            reference=excluded.reference,
+            interval=excluded.interval,
+            callback_def=excluded.callback_def,
+            run_type_filter=["backfill"],
+        )
+        session.add(included)
+        session.flush()
+        run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG_ID, DagRun.run_id == RUN_MULTI))
+        run.run_type = DagRunType.BACKFILL_JOB
+        records = session.scalars(
+            select(Deadline).where(Deadline.dagrun_id == run.id).order_by(Deadline.deadline_time)
+        ).all()
+        for record in records[:2]:
+            record.deadline_alert_id = excluded.id
+            record.missed = True
+        records[2].deadline_alert_id = included.id
+        later = Deadline(
+            deadline_time=records[2].deadline_time + timedelta(hours=1),
+            callback=_cb(),
+            dagrun_id=run.id,
+            deadline_alert_id=included.id,
+        )
+        session.add(later)
+        session.flush()
+        records.append(later)
+        ids = {"excluded": excluded.id, "included": included.id, "unknown": uuid.uuid4()}
+        selected_ids = {ids[name] for name in selected}
+        expected = [str(record.id) for record in records if record.deadline_alert_id in selected_ids]
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines",
+            params={"alert_ids": [str(value) for value in selected_ids], "limit": 1, "offset": offset},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["total_entries"] == len(expected)
+        assert [record["id"] for record in response.json()["deadlines"]] == expected[offset : offset + 1]
+        history = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines")
+        assert history.json()["total_entries"] == 4
+
+    def test_alert_ids_reject_invalid_uuid(self, test_client):
+        response = test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines", params={"alert_ids": "not-a-uuid"}
+        )
+        assert response.status_code == 422
+
     """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines."""
 
     def test_no_deadlines_returns_empty_list(self, test_client):

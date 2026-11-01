@@ -5628,6 +5628,7 @@ export class DeadlinesService {
      * @param data.lastUpdatedAtLte
      * @param data.lastUpdatedAtLt
      * @param data.teams
+     * @param data.alertIds
      * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -5652,7 +5653,8 @@ export class DeadlinesService {
                 last_updated_at_gt: data.lastUpdatedAtGt,
                 last_updated_at_lte: data.lastUpdatedAtLte,
                 last_updated_at_lt: data.lastUpdatedAtLt,
-                teams: data.teams
+                teams: data.teams,
+                alert_ids: data.alertIds
             },
             errors: {
                 400: 'Bad Request',
@@ -5664,10 +5666,11 @@ export class DeadlinesService {
     
     /**
      * Get Dag Deadline Alerts
-     * Get deadline alerts defined on a Dag, optionally filtered by name pattern.
+     * Get alerts from the latest Dag, a specified version, or a run's creation version.
      * @param data The data for the request.
      * @param data.dagId
      * @param data.versionNumber
+     * @param data.dagRunId
      * @param data.limit
      * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.offset
@@ -5684,12 +5687,14 @@ export class DeadlinesService {
             },
             query: {
                 version_number: data.versionNumber,
+                dag_run_id: data.dagRunId,
                 limit: data.limit,
                 name_pattern: data.namePattern,
                 offset: data.offset,
                 order_by: data.orderBy
             },
             errors: {
+                400: 'Bad Request',
                 404: 'Not Found',
                 422: 'Validation Error'
             }

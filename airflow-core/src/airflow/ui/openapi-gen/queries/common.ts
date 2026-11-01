@@ -1167,7 +1167,8 @@ export const UseDashboardServiceDagStatsKeyFn = (queryKey?: Array<unknown>) => [
 export type DeadlinesServiceGetDeadlinesDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDeadlines>>;
 export type DeadlinesServiceGetDeadlinesQueryResult<TData = DeadlinesServiceGetDeadlinesDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDeadlinesKey = "DeadlinesServiceGetDeadlines";
-export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
+export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ alertIds, dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
+  alertIds?: string[];
   dagId: string;
   dagRunId: string;
   deadlineTimeGt?: string;
@@ -1183,18 +1184,19 @@ export const UseDeadlinesServiceGetDeadlinesKeyFn = ({ dagId, dagRunId, deadline
   offset?: number;
   orderBy?: string[];
   teams?: string[];
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDeadlinesKey, ...(queryKey ?? [{ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDeadlinesKey, ...(queryKey ?? [{ alertIds, dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }])];
 export type DeadlinesServiceGetDagDeadlineAlertsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getDagDeadlineAlerts>>;
 export type DeadlinesServiceGetDagDeadlineAlertsQueryResult<TData = DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetDagDeadlineAlertsKey = "DeadlinesServiceGetDagDeadlineAlerts";
-export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, limit, namePattern, offset, orderBy, versionNumber }: {
+export const UseDeadlinesServiceGetDagDeadlineAlertsKeyFn = ({ dagId, dagRunId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
+  dagRunId?: string;
   limit?: number;
   namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, limit, namePattern, offset, orderBy, versionNumber }])];
+}, queryKey?: Array<unknown>) => [useDeadlinesServiceGetDagDeadlineAlertsKey, ...(queryKey ?? [{ dagId, dagRunId, limit, namePattern, offset, orderBy, versionNumber }])];
 export type DeadlinesServiceGetCallbackLogsDefaultResponse = Awaited<ReturnType<typeof DeadlinesService.getCallbackLogs>>;
 export type DeadlinesServiceGetCallbackLogsQueryResult<TData = DeadlinesServiceGetCallbackLogsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDeadlinesServiceGetCallbackLogsKey = "DeadlinesServiceGetCallbackLogs";
