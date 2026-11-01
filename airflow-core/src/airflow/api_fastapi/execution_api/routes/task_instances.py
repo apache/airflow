@@ -386,10 +386,15 @@ def ti_run(
 
         # Only a lang-SDK (foreign-runtime) task needs its definition here: a Python task parses its
         # Dag file itself. ti.is_stub carries the row's own copy of the serialized flag, so a Python
-        # task never loads the serialized Dag.
-        if ti.is_stub and (serialized_task := get_task(dag_bag, ti, session=session)) is not None:
+        # task never loads the serialized Dag. The arg_bindings version check also covers
+        # execution_timeout, which only exists in a later API version.
+        if (
+            client_supports_arg_bindings()
+            and ti.is_stub
+            and (serialized_task := get_task(dag_bag, ti, session=session)) is not None
+        ):
             # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
-            if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
+            if arg_bindings := get_arg_bindings(serialized_task):
                 try:
                     context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
                 except ValidationError:
