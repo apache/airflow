@@ -31,13 +31,16 @@ name: Mirror hardened base images
 # The builds do not use these moving tags: they are pinned to digests that only "breeze ci upgrade"
 # moves, in a PR that has to pass the full CI. A pinned image cannot pin the dhi.io apt repository
 # the OS dependencies are installed from, though: it moves on - and drops the versions it replaced -
-# whenever Docker rebuilds its images. So this workflow also installs the OS dependencies once, in
+# whenever Docker rebuilds its images. So the daily run also installs the OS dependencies once, in
 # images built on the mirrored base images, and the CI and release builds start from those, pinned
-# the same way. An OS-dependencies image is built only when one of its inputs changed - the base
-# image, install_os_dependencies.sh or its Dockerfile stage - as every input is part of its tag.
+# the same way. The six-hourly runs only mirror. An OS-dependencies image is built only when one of
+# its inputs changed - the base image, install_os_dependencies.sh or its Dockerfile stage - as every
+# input is part of its tag.
 #
 # A run that moves a mirrored tag past its pin, or publishes a new OS-dependencies image, triggers
-# the upgrade check, which moves both pins together, so they follow Docker's rebuilds within hours.
+# the upgrade check. It pins the latest published OS-dependencies image of each Python patch release,
+# whatever base image digest it was built on: the image carries its own Python, so it does not have
+# to share the base image pin's digest.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
     inputs:
@@ -47,8 +50,16 @@ on:  # yamllint disable-line rule:truthy
           published. "breeze ci upgrade" for main turns it off, as it is the upgrade that pins the images.
         type: boolean
         default: true
+      build-os-deps-images:
+        description: >-
+          Also build and publish the OS-dependencies images. The upgrade check turns it off: it pins the
+          images the daily build published.
+        type: boolean
+        default: true
   schedule:
     - cron: '27 */6 * * *'
+    # The daily run also builds the OS-dependencies images - the jobs below match this exact string.
+    - cron: '47 2 * * *'
 permissions:
   contents: read
 concurrency:
@@ -146,16 +157,18 @@ jobs:
       - name: "Mirror base images"
         id: mirror
         run: breeze release-management mirror-base-images
-  # Each platform builds natively, on a runner of its own, and each Python version in a job of its
-  # own. The OS-dependencies images are built on the tags the mirror serves now - the digests the
-  # upgrade check pins next - and only for the Python versions and the Debian version main builds on.
+  # Daily, or when dispatched with build-os-deps-images. Each platform builds natively, on a runner of
+  # its own, and each Python version in a job of its own. The OS-dependencies images are built on the
+  # tags the mirror serves now, and only for the Python versions and the Debian version main builds on.
   build-os-deps-images:
     name: "Build OS-dependencies images ${{ matrix.platform }}:${{ matrix.python }}"
     needs: [build-info, mirror]
     # Also after a failed mirror: the tags it did mirror are served, and the builds look them up.
     if: >-
       !cancelled() && needs.build-info.result == 'success' &&
-      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && github.event.schedule == '47 2 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build-os-deps-images))
     strategy:
       fail-fast: false
       matrix:
@@ -197,7 +210,9 @@ jobs:
     # rest.
     if: >-
       !cancelled() && needs.build-info.result == 'success' &&
-      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && github.event.schedule == '47 2 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build-os-deps-images))
     runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
     timeout-minutes: 30
     permissions:

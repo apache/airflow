@@ -974,8 +974,8 @@ previous images that can matter when you extend or run the image are:
   repository: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
   images, so installing the OS dependencies from it can fail for a commit that built fine before. Airflow's
   CI and release builds therefore start their OS dependencies from images in which
-  ``install_os_dependencies.sh`` already ran, built on the mirrored base images and pinned to a digest by the
-  same upgrade, passed as ``DEV_OS_DEPS_IMAGE`` and ``RUNTIME_OS_DEPS_IMAGE``. The script records what it
+  ``install_os_dependencies.sh`` already ran, built daily on the mirrored base images and pinned to a digest
+  by the same upgrade, passed as ``DEV_OS_DEPS_IMAGE`` and ``RUNTIME_OS_DEPS_IMAGE``. The script records what it
   installed with and does nothing when nothing differs, so a build with other apt dependencies still
   installs them. A plain ``docker build`` leaves both at ``BASE_IMAGE`` and installs everything as before.
 * **Packages come from Docker's apt repository first.** The image keeps stock Debian's apt sources beside

@@ -240,9 +240,10 @@ def test_os_deps_image_builds_are_tagged_with_their_inputs(registry):
     builds = get_os_deps_image_builds("3.12", ("ci",))
 
     assert len(builds) == 1
-    assert builds[0].python_tag == f"ci-{PYTHON_TAG}-{'12' * 6}"
-    assert builds[0].content_tag.startswith(f"{builds[0].python_tag}-")
-    assert len(builds[0].content_tag) == len(builds[0].python_tag) + 13
+    assert builds[0].latest_tag == f"ci-{PYTHON_TAG}"
+    digest_prefix = f"ci-{PYTHON_TAG}-{'12' * 6}-"
+    assert builds[0].content_tag.startswith(digest_prefix)
+    assert len(builds[0].content_tag) == len(digest_prefix) + 12
 
 
 def test_os_deps_image_builds_fail_without_a_mirrored_base_image():
@@ -306,7 +307,7 @@ def test_publish_os_deps_images_merges_the_platforms_and_moves_the_tags(registry
         (platform_images, [f"{REPOSITORY}:{build.content_tag}"]),
         (
             [f"{REPOSITORY}:{build.content_tag}@{OS_DEPS_DIGEST}"],
-            [f"{REPOSITORY}:{build.python_tag}", f"{REPOSITORY}:ci-{PYTHON_TAG}"],
+            [f"{REPOSITORY}:ci-{PYTHON_TAG}"],
         ),
     ]
     assert github_output.read_text() == "moved-os-deps-images=true\n"
@@ -315,7 +316,7 @@ def test_publish_os_deps_images_merges_the_platforms_and_moves_the_tags(registry
 def test_publish_os_deps_images_does_not_move_tags_already_there(registry, tmp_path):
     (build,) = get_os_deps_image_builds("3.12", ("ci",))
     registry.digests[f"{REPOSITORY}:{build.content_tag}"] = OS_DEPS_DIGEST
-    registry.digests[f"{REPOSITORY}:{build.python_tag}"] = OS_DEPS_DIGEST
+    registry.digests[f"{REPOSITORY}:{build.latest_tag}"] = OS_DEPS_DIGEST
     github_output = tmp_path / "github_output"
 
     result = CliRunner().invoke(

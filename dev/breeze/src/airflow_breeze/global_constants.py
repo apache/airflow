@@ -998,7 +998,7 @@ def get_hardened_python_image_retention_tag(tag: str, digest: str) -> str:
 # The OS dependencies of the hardened images come from the dhi.io apt repository, which is live: it
 # moves on - and drops the versions it replaced - under a base image pinned to a digest. The
 # "Mirror hardened base images" workflow therefore also builds images with the OS dependencies already
-# installed, one per installation type of install_os_dependencies.sh, and the CI and release builds
+# installed, daily, one per installation type of install_os_dependencies.sh. The CI and release builds
 # start from those, pinned to a digest the same way as the Python base images.
 HARDENED_OS_DEPS_IMAGE_REPOSITORY = "ghcr.io/apache/airflow/base/os-deps"
 
@@ -1040,12 +1040,12 @@ HARDENED_OS_DEPS_IMAGE_DIGESTS: dict[str, str] = json.loads(HARDENED_OS_DEPS_IMA
 
 
 def get_os_deps_image_tag(image_type: str, python: str) -> str:
-    """Return the moving tag of an OS-dependencies image - also the key of its pin."""
+    """Return the tag of the latest published OS-dependencies image - also the key of its pin."""
     return f"{image_type}-{get_hardened_python_image_tag(python, OS_DEPS_IMAGE_DEBIAN_VERSION)}"
 
 
 def get_os_deps_image_python_tag(image_type: str, python: str, python_digest: str) -> str:
-    """Return the tag of the latest OS-dependencies image built on one digest of the Python base image."""
+    """Return the prefix of the tags of the OS-dependencies images built on one Python base image digest."""
     return f"{get_os_deps_image_tag(image_type, python)}-{python_digest.removeprefix('sha256:')[:12]}"
 
 

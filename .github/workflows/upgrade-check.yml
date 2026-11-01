@@ -77,8 +77,7 @@ jobs:
   # A job of its own, so the token that may dispatch workflows never reaches the upgrade job, which
   # runs the third-party tools and hooks it upgrades. It only dispatches the mirror and waits for it.
   mirror-base-images:
-    # The mirror run also builds the OS-dependencies images on newly mirrored base images.
-    timeout-minutes: 180
+    timeout-minutes: 30
     name: >-
       [${{ inputs.target-branch }}] Mirror hardened base images
     runs-on: ["ubuntu-slim"]
@@ -97,13 +96,14 @@ jobs:
         uses: ./.github/actions/breeze
         with:
           free-space: "false"
-      # The upgrade for main is the one the mirror would otherwise start a second time.
+      # The upgrade for main is the one the mirror would otherwise start a second time. The upgrade pins
+      # the OS-dependencies images the daily build published, so this run does not build new ones.
       - name: >-
           [${{ inputs.target-branch }}] Mirror the base images and wait for the run
         env:
           TRIGGER_UPGRADE_CHECK_FLAG: >-
             ${{ inputs.target-branch == 'main' && '--no-trigger-upgrade-check' || '--trigger-upgrade-check' }}
-        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}"
+        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}" --no-build-os-deps-images
   createupgrade-check:
     timeout-minutes: 45
     name: >-

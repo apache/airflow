@@ -1353,8 +1353,9 @@ already ran, one per installation type (``ci``, ``dev`` and ``runtime``). They a
 mirror serves, and pinned in ``dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json``
 by the same upgrade that moves the base image pins.
 
-The "Mirror hardened base images" workflow runs this command natively on an AMD and an ARM runner after
-it mirrored the base images. Every input of an image - the base image digest, the script, its Dockerfile
+The "Mirror hardened base images" workflow runs this command daily, natively on an AMD and an ARM runner,
+after it mirrored the base images - its six-hourly runs only mirror, and the run the upgrade check
+dispatches (``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input of an image - the base image digest, the script, its Dockerfile
 stage and its build args - is part of its tag, so an image is built only when one of them changed.
 
 These are all available flags of ``release-management build-os-deps-images`` command:
@@ -1381,8 +1382,11 @@ Publish the OS-dependencies images
 """"""""""""""""""""""""""""""""""
 
 Once both platforms are built, this command merges them into a multi-platform image and moves the tag
-the upgrade check pins - the latest OS-dependencies image built on a given digest of the base image -
-to it. When it moves a tag, the workflow triggers the upgrade check.
+the upgrade check pins - the latest published OS-dependencies image of a Python patch release - to it.
+The merged image keeps its own tag, which has every input in it and never moves, so a pinned digest
+stays tagged. When it moves a tag, the workflow triggers the upgrade check, which pins the latest image
+of each Python patch release whatever base image digest it was built on: the image carries its own
+Python, so it need not share the digest of the base image pin, which moves several times a day.
 
 These are all available flags of ``release-management publish-os-deps-images`` command:
 

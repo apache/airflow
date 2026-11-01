@@ -5441,10 +5441,11 @@ class OsDepsImageBuild(NamedTuple):
     image_type: OsDepsImageType
     python: str
     build_args: dict[str, str]
-    # The tag of the latest image built on this digest of the Python base image - the upgrade check
-    # pins the image it points at.
-    python_tag: str
-    # Every input of the image is in this tag, so an image is built only once.
+    # The tag of the latest published image of this Python patch release - the upgrade check pins the
+    # image it points at, whatever base image digest that was built on.
+    latest_tag: str
+    # Every input of the image is in this tag, so an image is built only once and the tag never moves -
+    # it is what keeps a pinned digest tagged after the latest tag has moved on.
     content_tag: str
 
 
@@ -5469,7 +5470,7 @@ def get_os_deps_image_builds(python: str | None, image_types: tuple[str, ...]) -
                     image_type=image_type,
                     python=python_version,
                     build_args=build_args,
-                    python_tag=os_deps_python_tag,
+                    latest_tag=get_os_deps_image_tag(image_type.name, python_version),
                     content_tag=f"{os_deps_python_tag}-{inputs_hash[:12]}",
                 )
             )
@@ -5583,14 +5584,13 @@ def publish_os_deps_images(python: str | None, image_types: tuple[str, ...]):
         if digest is None:
             failed.append(image)
             continue
-        python_tag_image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.python_tag}"
-        if get_image_digest(python_tag_image) == digest:
+        latest_image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.latest_tag}"
+        if get_image_digest(latest_image) == digest:
             continue
-        moving_tag_image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{get_os_deps_image_tag(build.image_type.name, build.python)}"
-        if copy_image(f"{image}@{digest}", [python_tag_image, moving_tag_image]):
-            moved.append(build.python_tag)
+        if copy_image(f"{image}@{digest}", [latest_image]):
+            moved.append(build.latest_tag)
         else:
-            failed.append(python_tag_image)
+            failed.append(latest_image)
     if moved:
         console_print(
             f"[warning]New OS-dependencies images for: {', '.join(moved)}. "

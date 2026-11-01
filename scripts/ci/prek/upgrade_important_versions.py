@@ -526,33 +526,33 @@ def fetch_os_deps_image_digests(
     python_image_digests: dict[str, str], current_pins: dict[str, str]
 ) -> dict[str, str]:
     """
-    Fetch the digest to pin for every OS-dependencies image, given the base image digests being pinned.
+    Fetch the digest to pin for every OS-dependencies image of the Python patch releases being pinned.
 
-    The mirror workflow tags the latest OS-dependencies image built on each digest of a base image,
-    so the pins move together and the upgrade PR tests the images built on the base images it pins.
-    When there is none for a digest yet, the current pin of that image stays: it was built on an
-    older base image, but on one the full CI has passed with.
+    The mirror workflow builds the OS-dependencies images daily, while the base image pins move several
+    times a day, so the latest published image of each Python patch release is pinned - whatever base
+    image digest it was built on. It carries its own Python, so it need not share the base image pin's
+    digest. When none is published for a patch release yet - a new one, typically - the current pin
+    stays if it is for the same patch release, and the image is left unpinned otherwise.
     """
     pins: dict[str, str] = {}
-    for python_tag, python_digest in python_image_digests.items():
+    for python_tag in python_image_digests:
         if not python_tag.endswith(f"-debian{OS_DEPS_IMAGE_DEBIAN_RELEASE}-dev"):
             continue
         for image_type in OS_DEPS_IMAGE_TYPES:
             pin = f"{image_type}-{python_tag}"
-            tag = f"{pin}-{python_digest.removeprefix('sha256:')[:12]}"
-            digest = get_ghcr_image_digest(HARDENED_OS_DEPS_IMAGE_REPOSITORY, tag)
+            digest = get_ghcr_image_digest(HARDENED_OS_DEPS_IMAGE_REPOSITORY, pin)
             if digest:
                 pins[pin] = digest
             elif pin in current_pins:
                 console.print(
-                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag} is not built yet - "
-                    f"keeping the current {pin} pin."
+                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{pin} is not published - "
+                    "keeping the current pin."
                 )
                 pins[pin] = current_pins[pin]
             else:
                 console.print(
-                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag} is not built yet - "
-                    f"{pin} stays unpinned and installs its OS dependencies from the apt repositories."
+                    f"[yellow]ghcr.io/{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{pin} is not published yet - "
+                    "it stays unpinned and installs its OS dependencies from the apt repositories."
                 )
     return pins
 

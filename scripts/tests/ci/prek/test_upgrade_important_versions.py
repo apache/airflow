@@ -519,11 +519,17 @@ CURRENT_OS_DEPS_DIGEST = "sha256:" + "cd" * 32
                 "ci-3.13.17-debian13-dev": OS_DEPS_DIGEST,
                 "dev-3.13.17-debian13-dev": CURRENT_OS_DEPS_DIGEST,
             },
-            id="not-built-keeps-the-current-pin-and-drops-old-patchlevels",
+            id="not-published-keeps-the-current-pin-and-drops-old-patchlevels",
+        ),
+        pytest.param(
+            set(),
+            {"ci-3.13.16-debian13-dev": OLD_DIGEST},
+            {},
+            id="new-patchlevel-not-published-stays-unpinned",
         ),
     ],
 )
-def test_os_deps_image_digests_follow_the_pinned_base_images(monkeypatch, built, current_pins, expected):
+def test_os_deps_image_digests_pin_the_latest_published_images(monkeypatch, built, current_pins, expected):
     from ci.prek import upgrade_important_versions as uiv
 
     looked_up = []
@@ -539,9 +545,8 @@ def test_os_deps_image_digests_follow_the_pinned_base_images(monkeypatch, built,
     )
 
     assert pins == expected
-    digest_tag = NEW_DIGEST.removeprefix("sha256:")[:12]
     assert looked_up == [
-        ("apache/airflow/base/os-deps", f"{image_type}-3.13.17-debian13-dev-{digest_tag}")
+        ("apache/airflow/base/os-deps", f"{image_type}-3.13.17-debian13-dev")
         for image_type in ("ci", "dev", "runtime")
     ]
 

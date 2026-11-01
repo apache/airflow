@@ -507,8 +507,19 @@ def workflow_run_release_constraints(version: str, ref: str, workflow_branch: st
     help="Let the mirror run the main upgrade check when a tag moves past its pin. Turn it off when the "
     "main upgrade check is what runs the mirror.",
 )
-def workflow_run_mirror_base_images(trigger_upgrade_check: bool):
-    mirror_hardened_base_images(APACHE_AIRFLOW_REPO, trigger_upgrade_check=trigger_upgrade_check)
+@click.option(
+    "--build-os-deps-images/--no-build-os-deps-images",
+    default=True,
+    show_default=True,
+    help="Also build the OS-dependencies images on the mirrored base images. Turn it off when the "
+    "upgrade check is what runs the mirror: it pins the images the daily build published.",
+)
+def workflow_run_mirror_base_images(trigger_upgrade_check: bool, build_os_deps_images: bool):
+    mirror_hardened_base_images(
+        APACHE_AIRFLOW_REPO,
+        trigger_upgrade_check=trigger_upgrade_check,
+        build_os_deps_images=build_os_deps_images,
+    )
 
 
 @workflow_run_group.command(
