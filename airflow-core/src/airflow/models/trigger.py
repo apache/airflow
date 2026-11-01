@@ -747,7 +747,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         """Pushes XComs to the database if they are provided."""
         if event.xcoms and callback_type != TaskInstanceState.UP_FOR_RETRY:
             for key, value in event.xcoms.items():
-                task_instance.xcom_push(key=key, value=value)
+                task_instance.xcom_push(key=key, value=value, session=session)
 
     # Send the callback before mutating task state so it reflects the retry-vs-terminal
     # decision derived above.
