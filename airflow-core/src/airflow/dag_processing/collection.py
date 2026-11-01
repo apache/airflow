@@ -387,7 +387,9 @@ def _update_dag_warnings(
         session.merge(warning_to_add)
 
 
-def dag_parse_failure_warnings(bundle_name: str, warnings_by_rel_path: dict[str, list]) -> list[DagWarning]:
+def build_dag_parse_failure_warnings(
+    bundle_name: str, warnings_by_rel_path: dict[str, list]
+) -> list[DagWarning]:
     return [
         DagWarning(
             dag_id=record.dag_id,

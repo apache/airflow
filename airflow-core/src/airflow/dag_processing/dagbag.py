@@ -707,9 +707,9 @@ def sync_bag_to_db(
             if enclosing_file := find_enclosing_file(Path(dagbag.bundle_path, rel_path)):
                 files_parsed.add((bundle_name, dagbag._get_relative_fileloc(os.fspath(enclosing_file))))
 
-    from airflow.dag_processing.collection import dag_parse_failure_warnings
+    from airflow.dag_processing.collection import build_dag_parse_failure_warnings
 
-    parse_failure_warnings = dag_parse_failure_warnings(bundle_name, dagbag.parse_warnings)
+    parse_failure_warnings = build_dag_parse_failure_warnings(bundle_name, dagbag.parse_warnings)
 
     update_dag_parsing_results_in_db(
         bundle_name,

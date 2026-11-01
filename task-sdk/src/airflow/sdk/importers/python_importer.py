@@ -36,6 +36,7 @@ from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_na
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import DagContext
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.parse_warning import drain_parse_warnings
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
@@ -212,7 +213,6 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
 
         self._process_modules(modules, result, bundle=bundle)
-        from airflow.sdk.definitions.parse_warning import drain_parse_warnings
 
         result.parse_warnings.extend(drain_parse_warnings())
         return result
