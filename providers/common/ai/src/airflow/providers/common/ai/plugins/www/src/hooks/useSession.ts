@@ -19,7 +19,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { ApiError, createApi, type TaskRegion } from "src/api";
+import { ApiError, createApi } from "src/api";
+import type { TaskRegion } from "src/region";
 import { type SessionResponse, isTerminalStatus } from "src/types/feedback";
 
 const POLL_INTERVAL_MS = 3000;

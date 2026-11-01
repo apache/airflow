@@ -470,6 +470,8 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		unset   bool
 		want    any
 		wantErr string
+		// The timestamp only wraps for day counts that need a 64-bit int.
+		needs64BitInt bool
 	}{
 		{name: "unset is an error", unset: true, wantErr: "is not set"},
 		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
@@ -487,14 +489,23 @@ func TestResolveDefaultExpiry(t *testing.T) {
 			wantErr: "failed to convert value to int",
 		},
 		{
-			name:    "day count that wraps the timestamp is an error",
-			env:     "9223372036854775807",
-			wantErr: "overflows the expiry timestamp",
+			name:    "out of int range is an error",
+			env:     strconv.FormatUint(math.MaxInt+1, 10),
+			wantErr: "failed to convert value to int",
+		},
+		{
+			name:          "day count that wraps the timestamp is an error",
+			env:           "9223372036854775807",
+			wantErr:       "overflows the expiry timestamp",
+			needs64BitInt: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.needs64BitInt && strconv.IntSize < 64 {
+				t.Skip("requires 64-bit int")
+			}
 			// Setenv registers the restore, so unsetting it here is undone after.
 			t.Setenv(defaultRetentionDaysEnv, tc.env)
 			if tc.unset {

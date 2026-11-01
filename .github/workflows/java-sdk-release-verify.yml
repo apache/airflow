@@ -16,7 +16,7 @@
 # under the License.
 #
 # Runs the Java SDK reviewer checklist ("Verifying a release" in
-# java-sdk/README.md) automatically, minus the GPG signature (only the release
+# java-sdk/DEVELOPMENT.md) automatically, minus the GPG signature (only the release
 # manager's key can satisfy that).
 #
 #   * on a pull request touching java-sdk/ -> verify HEAD can produce a source

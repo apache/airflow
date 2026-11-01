@@ -129,7 +129,7 @@
     "dagRuns": "Suche $t(common:dagRun_other)",
     "dags": "Dags suchen",
     "hotkey": "+K",
-    "mapIndexes": "Suche $t(common:mapIndex)",
+    "mapIndexes": "Nach $t(common:mapIndex) suchen",
     "tasks": "Tasks suchen"
   },
   "sort": {

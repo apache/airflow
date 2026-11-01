@@ -89,6 +89,10 @@ class LLMSQLQueryOperator(LLMOperator):
         Default: ``(Select, Union, Intersect, Except)``.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
+    :param datasource_config: A
+        :class:`~airflow.providers.common.sql.config.DataSourceConfig` for an object-storage
+        table whose schema is introspected through DataFusion. The DataFusion engine of
+        ``common.sql`` pins ``datafusion`` below 52.
 
     ``usage_limits`` is inherited from
     :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`.

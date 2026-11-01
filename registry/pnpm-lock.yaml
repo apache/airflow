@@ -25,8 +25,8 @@ importers:
         specifier: ^3.1.7
         version: 3.1.7
       swagger-ui-dist:
-        specifier: ^5.33.3
-        version: 5.33.3
+        specifier: ^5.34.0
+        version: 5.34.0
     devDependencies:
       clean-css-cli:
         specifier: ^5.6.3
@@ -586,8 +586,8 @@ packages:
     resolution: {integrity: sha512-uCC2VHvQRYu+lMh4My/sFNmF2klFymLX1wHJeXnbEJERpV/ZsVuonzerjfrGpIGF7LBVa1O7i9kjiWvJiFck8g==}
     engines: {node: '>=0.10.0'}
 
-  swagger-ui-dist@5.33.3:
-    resolution: {integrity: sha512-7xJKxAjf+/ajlW/V/dMfbiY+NC5BWtbvzzdI/AsX5UzMtOMudmFz/tjuKN0jN7QVe5drKKnx01CdYEJvTFvQlw==}
+  swagger-ui-dist@5.34.0:
+    resolution: {integrity: sha512-H6tAIjr3XqE31PbkZl0OFya1ziRLDfTwh3J6OHdumPtPCLfjTnyLeagl/55kFNZcTOz9a9QI9WP0FXldwiGJag==}
 
   tinyglobby@0.2.17:
     resolution: {integrity: sha512-wXR/dYpcqKmfWpEdZjiKJOwCNFndD0DMnrW/cYjVGttEkBfVgcLFHoNrlj47mjOVic9yyNu65alsgF4NQyTa2g==}
@@ -1174,7 +1174,7 @@ snapshots:
 
   strip-bom-string@1.0.0: {}
 
-  swagger-ui-dist@5.33.3:
+  swagger-ui-dist@5.34.0:
     dependencies:
       '@scarf/scarf': 1.4.0
 

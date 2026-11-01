@@ -40,12 +40,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from deprecated import deprecated
 from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -115,6 +114,11 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+    # Import paths of the factories building a subclass's own sync and async clients, called with
+    # ``team_name``. They take precedence over [kubernetes_executor] client_factory and
+    # async_client_factory, which stay free for a KubernetesExecutor running alongside.
+    client_factory: str | None = None
+    async_client_factory: str | None = None
     supports_multi_team: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
@@ -277,16 +281,24 @@ class KubernetesExecutor(BaseExecutor):
         )
         from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
 
-        if (
-            self.kube_config.async_pod_creation
-            and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
-            and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
-        ):
-            raise AirflowConfigException(
-                "In the [kubernetes_executor] Airflow config, async_client_factory is required "
-                "when client_factory is set and async_pod_creation is enabled."
-            )
-        self.kube_client = _get_executor_kube_client(team_name=self.team_name)
+        if self.kube_config.async_pod_creation:
+            if self.client_factory and not self.async_client_factory:
+                raise AirflowConfigException(
+                    f"{type(self).__name__} sets client_factory but not async_client_factory, "
+                    "which is required when async_pod_creation is enabled."
+                )
+            if (
+                not self.client_factory
+                and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
+                and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
+            ):
+                raise AirflowConfigException(
+                    "In the [kubernetes_executor] Airflow config, async_client_factory is required "
+                    "when client_factory is set and async_pod_creation is enabled."
+                )
+        self.kube_client = _get_executor_kube_client(
+            team_name=self.team_name, executor_client_factory=self.client_factory
+        )
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,
             result_queue=self.result_queue,
@@ -294,6 +306,8 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
             team_name=self.team_name,
             supports_task_instance_uuid=self.supports_task_instance_uuid,
+            client_factory=self.client_factory,
+            async_client_factory=self.async_client_factory,
         )
 
     def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
@@ -1045,7 +1059,9 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
-            client = _get_executor_kube_client(team_name=self.team_name)
+            client = _get_executor_kube_client(
+                team_name=self.team_name, executor_client_factory=self.client_factory
+            )
 
             hostname_desc = f" {ti.hostname}" if ti.hostname else ""
             messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
@@ -1132,28 +1148,6 @@ class KubernetesExecutor(BaseExecutor):
 
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Handle remnants of tasks that were failed because they were stuck in queued.
-
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
-        """
-        reprs = []
-        for ti in tis:
-            reprs.append(repr(ti))
-            self.revoke_task(ti=ti)
-            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
-        return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
         """

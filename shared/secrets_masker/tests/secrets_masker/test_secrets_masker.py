@@ -638,6 +638,17 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    def test_redact_masks_whole_secret_when_another_secret_is_its_prefix(self):
+        secret = "hunter2-production-key"
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        # ``patterns`` is a set, so every prefix is registered to make the result independent of its
+        # iteration order.
+        for length in range(5, len(secret) + 1):
+            filt.add_mask(secret[:length])
+
+        assert filt.redact(f"token={secret};") == "token=***;"
+
     @pytest.mark.parametrize(
         ("name", "value", "expected"),
         [

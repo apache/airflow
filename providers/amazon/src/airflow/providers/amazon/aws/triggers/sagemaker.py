@@ -27,7 +27,11 @@ from typing import TYPE_CHECKING
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError, WaiterTerminalFailure
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterNoCredentialsError,
+    WaiterTerminalFailure,
+)
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -110,6 +114,9 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
         )
 
     def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
+
+        if isinstance(error, WaiterNoCredentialsError):
+            return super()._event_from_exception(error)
 
         if isinstance(error, WaiterMaxAttemptsError):
             return TriggerEvent(

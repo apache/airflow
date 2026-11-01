@@ -38,6 +38,7 @@ jobs:
             for your contributions.
           days-before-pr-stale: 45
           days-before-pr-close: 5
+          operations-per-run: 500
           exempt-pr-labels: 'pinned,security,pending-response'
           only-issue-labels: 'pending-response'
           remove-stale-when-updated: true

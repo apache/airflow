@@ -18,7 +18,7 @@
 Simple DAG with task group dependency
 
 It checks:
-    - task's `task_group` attr
+    - task's `task_group` attr, with its `unique_group_id`
 """
 
 from __future__ import annotations

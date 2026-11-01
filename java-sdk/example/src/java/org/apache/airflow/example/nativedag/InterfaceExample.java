@@ -101,6 +101,7 @@ public class InterfaceExample {
         new DagDef("java_native_interface_example")
             .config("description", "Pure-Java Dag authored with the interface API")
             .config("schedule", "@daily")
+            .config("queue", "java")
             .config("catchup", false)
             .config("tags", List.of("example", "java-sdk"));
 

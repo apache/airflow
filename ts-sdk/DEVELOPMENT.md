@@ -152,6 +152,11 @@ git tag ts-sdk/1.0.0-beta1 <commit-sha>
 git push upstream ts-sdk/1.0.0-beta1
 ```
 
+The commit you tag must be on `main` or on a core release branch (`vX-Y-test`
+or `vX-Y-stable`); the workflow rejects anything else. Releasing from a release
+branch is the normal path once a core minor has branched: cherry-pick the SDK
+change there first, then tag that branch's commit.
+
 To submit the package to npm's private staging area for review, run:
 
 ```bash

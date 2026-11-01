@@ -403,7 +403,7 @@ class AirflowProcessorTest {
         """
         package org.apache.airflow.example;
         import org.apache.airflow.sdk.Airflow;
-        @Airflow.Dag(id = "cfg", schedule = "@daily", tags = {"a", "b"}, catchup = true,
+        @Airflow.Dag(id = "cfg", schedule = "@daily", queue = "java", tags = {"a", "b"}, catchup = true,
             startDate = "2026-01-01T00:00:00Z")
         public class TestExample {
           @Airflow.Task(retries = 2, queue = "q", retryDelay = "PT5M", retryExponentialBackoff = 1.5)
@@ -442,6 +442,7 @@ class AirflowProcessorTest {
            public static DagDef build() {
              var dag = DagSource.declaredBy(new DagDef("cfg"), TestExample.class);
              dag.config("schedule", "@daily");
+             dag.config("queue", "java");
              dag.config("tags", List.of("a", "b"));
              dag.config("catchup", true);
              dag.config("start_date", OffsetDateTime.parse("2026-01-01T00:00:00Z"));
@@ -2072,6 +2073,56 @@ class AirflowProcessorTest {
     assertThat(compilation).hadErrorContaining(
       "Annotation attribute 'retryDelay' is not valid ISO-8601: '5 minutes'",
     )
+  }
+
+  @Test
+  @DisplayName("reject a blank Dag-level queue")
+  fun rejectBlankDagQueue() {
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag(queue = "$queue")
+          public class TestExample {
+            @Airflow.Task public void t() {}
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
+  }
+
+  @Test
+  @DisplayName("reject a blank task-level queue")
+  fun rejectBlankTaskQueue() {
+    for (queue in listOf("", " ")) {
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          @Airflow.Dag
+          public class TestExample {
+            @Airflow.Task(queue = "$queue") public void t() {}
+
+            @Airflow.Deps
+            static class Wiring implements TestExampleDeps {
+              void depends() { t(); }
+            }
+          }
+        """,
+        )
+      assertThat(compilation).failed()
+      assertThat(compilation).hadErrorContaining("Annotation attribute 'queue' must not be blank")
+    }
   }
 
   @Test

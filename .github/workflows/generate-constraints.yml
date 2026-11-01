@@ -53,6 +53,14 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
+      fail-on-pending-provider-candidates:
+        description: >
+          Fail the PyPI constraints when a provider's newest version is a release candidate that was
+          neither released nor yanked (true/false). Set when constraints are cut for a final release,
+          which must not pin a candidate nor silently pass over one.
+        required: false
+        default: "false"
+        type: string
       pypi-providers-only:
         description: >
           Resolve against providers exactly as published on PyPI (true/false). Skips building the
@@ -85,7 +93,7 @@ jobs:
       contents: read
     timeout-minutes: 70
     name: Generate constraints for ${{ matrix.python-version }} on ${{ inputs.platform }}
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       max-parallel: 20
@@ -114,6 +122,8 @@ jobs:
           platform: ${{ inputs.platform }}
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
+          # Runs the checkout-ref's own make_mnt_writeable.sh, which on old refs empties /mnt and
+          # would kill a RunsOn runner: every caller passing checkout-ref pins public runners.
           make-mnt-writeable-and-cleanup: true
       - name: "Install prek"
         uses: ./.github/actions/install-prek
@@ -146,7 +156,7 @@ jobs:
         shell: bash
         run: >
           breeze release-management prepare-provider-distributions
-          --include-not-ready-providers --distribution-format wheel
+          --include-not-ready-providers --distribution-format wheel --github-repository apache/airflow
         if: inputs.generate-pypi-constraints == 'true' && inputs.pypi-providers-only != 'true'
       - name: "Prepare airflow distributions"
         shell: bash
@@ -166,9 +176,12 @@ jobs:
           # both paths set it would make it unclear which one is in force. Empty on a normal run,
           # so the unquoted expansion below contributes no argument at all.
           PRE_RELEASE_FLAG: ${{ inputs.allow-pre-releases == 'true' && '--allow-pre-releases' || '' }}
+          PENDING_CANDIDATES_FLAG: >-
+            ${{ inputs.fail-on-pending-provider-candidates == 'true'
+            && '--fail-on-pending-provider-candidates' || '' }}
         run: |
           breeze release-management generate-constraints --airflow-constraints-mode constraints \
-            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG}
+            --answer yes --python "${PYTHON_VERSION}" ${PRE_RELEASE_FLAG} ${PENDING_CANDIDATES_FLAG}
         if: inputs.generate-pypi-constraints == 'true'
       - name: "Check for provider downgrade alert"
         id: downgrade-alert
@@ -189,6 +202,7 @@ jobs:
         if: always() && steps.downgrade-alert.outputs.notify == 'true'
         uses: slackapi/slack-github-action@dcb1066f776dd043e64d0e8ba94ca15cc7e1875d  # v4.0.0
         with:
+          method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
           payload-file-path: ${{ steps.downgrade-alert.outputs.message-file }}
       - name: "Upload constraint artifacts"

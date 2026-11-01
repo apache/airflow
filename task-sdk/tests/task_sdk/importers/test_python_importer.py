@@ -33,6 +33,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.sdk import DAG
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.importers import (
     DagImportError,
@@ -346,6 +347,42 @@ class TestPythonDagImporter:
                 FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
                 bundle=mock_bundle,
             )
+
+    @pytest.mark.parametrize(
+        ("timeout_policy", "expectation"),
+        [
+            pytest.param(
+                {"return_value": "invalid_timeout_str"},
+                pytest.raises(AirflowConfigException),
+                id="config-error-propagates",
+            ),
+            pytest.param(
+                {"side_effect": RuntimeError("policy failed")},
+                contextlib.nullcontext(),
+                id="error-reported",
+            ),
+            pytest.param(
+                {"return_value": 0},
+                pytest.raises(KeyboardInterrupt),
+                id="keyboard-interrupt-propagates",
+            ),
+        ],
+    )
+    def test_failed_load_does_not_break_later_dags(self, mock_bundle, timeout_policy, expectation):
+        (mock_bundle.path / "dag.py").write_text("raise KeyboardInterrupt\n")
+        mock_settings = mock.MagicMock(spec=["get_dagbag_import_timeout"])
+        mock_settings.get_dagbag_import_timeout.configure_mock(**timeout_policy)
+        mock_airflow = mock.MagicMock(spec=["settings"], settings=mock_settings)
+
+        with mock.patch.dict("sys.modules", {"airflow": mock_airflow}), expectation:
+            PythonDagImporter().import_definition(
+                FilesystemDagDefinition(path=mock_bundle.path / "dag.py"),
+                bundle=mock_bundle,
+            )
+
+        with DAG("built_after_failed_load") as dag:
+            pass
+        assert dag.dag_id == "built_after_failed_load"
 
     @mock.patch.object(PythonDagImporter, "_load_modules", side_effect=TypeError("unexpected None"))
     def test_unexpected_type_error_captured_in_result_errors(self, mock_load, mock_bundle):

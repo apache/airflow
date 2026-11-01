@@ -1165,6 +1165,13 @@ directly to the container.
    breeze container, and you can re-run the tests inside the ``breeze`` container without restarting it
    (which makes it faster to iterate).
 
+.. AGENT-SKILL-START
+   type: agents-md-commands
+   order: 25
+   lines:
+     - "- **Run provider tests against a released Airflow version:** `breeze shell --use-airflow-version <VERSION> --mount-sources providers-and-tests`, then `pytest providers/<provider>/tests/...` inside the shell"
+.. AGENT-SKILL-END
+
 .. note::
 
    Since providers are installed from sources rather than from packages, plugins from providers are not

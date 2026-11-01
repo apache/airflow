@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, UnknownExecutorException
 from airflow.executors import executor_loader
 from airflow.executors.executor_loader import ConnectorSource, ExecutorName
 from airflow.executors.local_executor import LocalExecutor
@@ -35,6 +35,13 @@ class FakeExecutor:
 
 celery_executor = pytest.importorskip("airflow.providers.celery.executors.celery_executor")
 ecs_executor = pytest.importorskip("airflow.providers.amazon.aws.executors.ecs.ecs_executor")
+
+
+TEAM_EXECUTORS_CONFIG = {
+    ("core", "multi_team"): "True",
+    ("core", "executor"): "global_celery_exec:CeleryExecutor,LocalExecutor,pkg_a.mod.MyExec,pkg_b.mod.MyExec;"
+    "team_a=team_celery_exec:CeleryExecutor;team_b=KubernetesExecutor",
+}
 
 
 @pytest.mark.usefixtures("clean_executor_loader")
@@ -748,6 +755,45 @@ class TestExecutorLoader:
                     "LocalExecutor", validate_teams=False
                 )
                 assert result.alias == "LocalExecutor"
+
+    @pytest.mark.parametrize(
+        ("executor", "team_name", "expected"),
+        [
+            pytest.param("CeleryExecutor", "team_a", ("team_celery_exec", "team_a"), id="classname-to-team"),
+            pytest.param(
+                "airflow.providers.celery.executors.celery_executor.CeleryExecutor",
+                "team_a",
+                ("team_celery_exec", "team_a"),
+                id="module-path-to-team",
+            ),
+            pytest.param("team_celery_exec", "team_a", ("team_celery_exec", "team_a"), id="team-alias"),
+            pytest.param("global_celery_exec", "team_a", ("global_celery_exec", None), id="global-alias"),
+            pytest.param("LocalExecutor", "team_a", ("LocalExecutor", None), id="global-fallback"),
+            pytest.param(None, "team_a", ("team_celery_exec", "team_a"), id="team-default"),
+            pytest.param(None, "team_c", ("global_celery_exec", None), id="team-without-executors-default"),
+            pytest.param(None, None, ("global_celery_exec", None), id="global-default"),
+            pytest.param("MyExec", None, ("pkg_a.mod.MyExec", None), id="first-of-several-global-matches"),
+        ],
+    )
+    @conf_vars(TEAM_EXECUTORS_CONFIG)
+    @patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database")
+    def test_resolve_executor_name(self, _, executor, team_name, expected):
+        name = executor_loader.ExecutorLoader.resolve_executor_name(executor, team_name)
+        assert (name.alias or name.module_path, name.team_name) == expected
+
+    @pytest.mark.parametrize(
+        ("executor", "team_name"),
+        [
+            pytest.param("team_celery_exec", None, id="team-alias-without-team"),
+            pytest.param("KubernetesExecutor", "team_a", id="other-teams-executor"),
+            pytest.param("EcsExecutor", "team_a", id="unknown-does-not-fall-back-to-default"),
+        ],
+    )
+    @conf_vars(TEAM_EXECUTORS_CONFIG)
+    @patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database")
+    def test_resolve_executor_name_no_match(self, _, executor, team_name):
+        with pytest.raises(UnknownExecutorException):
+            executor_loader.ExecutorLoader.resolve_executor_name(executor, team_name)
 
     def test_get_executor_names_default_validates_teams(self):
         """Test that get_executor_names validates teams by default."""

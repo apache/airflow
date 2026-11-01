@@ -78,11 +78,13 @@ Why ``ExecutionAPIRoute`` is needed:
     to *relax* the outer router's default execution-only restriction, but
     ``SecurityScopes`` only accumulate additively — an outer dependency
     cannot see scopes declared by inner ones. ``ExecutionAPIRoute`` solves
-    this by inspecting the **merged** dependency list at route registration
-    time (after ``include_router`` has combined all parent and child
-    dependencies) and precomputing the full ``allowed_token_types`` set.
+    this by inspecting the route's own dependency list at route registration
+    time and precomputing the full ``allowed_token_types`` set.
     ``require_auth`` then reads this precomputed set from the matched route
-    at request time, avoiding the ordering problem entirely.
+    at request time, avoiding the ordering problem entirely. FastAPI includes
+    routers lazily, so ``token:*`` scopes must be declared on the route
+    itself: scopes on an enclosing router or ``include_router`` call are not
+    seen, and the route falls back to execution-only.
 
     Any router whose routes need non-default token type policies must use
     ``route_class=ExecutionAPIRoute``. Routers that only need the default

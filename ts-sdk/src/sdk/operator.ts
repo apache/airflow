@@ -61,19 +61,19 @@ export interface OperatorContext {
   fail(message: string): RuntimeRetryTask | RuntimeTaskState;
   /** Skip `taskIds`, as `SkipMixin.skip` does. */
   skip(taskIds: readonly string[]): Promise<void>;
-  /** Park in `awaiting_input`. The next run calls `executeComplete`. */
+  /** Park in `awaiting_input`. The next run calls `executeComplete`. `timeout` is in seconds. */
   awaitInput(opts?: {
-    timeoutSeconds?: number;
+    timeout?: number;
     kwargs?: Record<string, JsonValue>;
   }): RuntimeAwaitInputTask;
   /**
    * Defer to a Python trigger. The next run calls `executeComplete`. Without a `queue`, the
-   * trigger gets the task's queue when triggerer queues are enabled.
+   * trigger gets the task's queue when triggerer queues are enabled. `timeout` is in seconds.
    */
   defer(opts: {
     classpath: string;
     kwargs: Record<string, JsonValue>;
-    timeoutSeconds?: number;
+    timeout?: number;
     queue?: string | null;
   }): RuntimeDeferTask;
 }

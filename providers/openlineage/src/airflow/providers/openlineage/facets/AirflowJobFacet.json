@@ -17,12 +17,64 @@
               "taskGroups": {
                 "description": "Information about all task groups within the DAG.",
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "is_mapped": {
+                      "type": "boolean"
+                    },
+                    "is_loop": {
+                      "type": "boolean"
+                    },
+                    "parse_time_mapped_count": {
+                      "description": "Number of mapped instances, when known before the Dag runs.",
+                      "type": "integer"
+                    },
+                    "max_iterations": {
+                      "type": "integer"
+                    },
+                    "has_until": {
+                      "type": "boolean"
+                    },
+                    "gate_task_id": {
+                      "type": "string"
+                    },
+                    "terminal_task_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
+                }
               },
               "tasks": {
                 "description": "Details of all individual tasks within the DAG.",
                 "type": "object",
-                "additionalProperties": true
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "loop_group": {
+                      "description": "Group id of the loop the task runs in (Airflow 3.4+).",
+                      "type": "string"
+                    },
+                    "is_mapped": {
+                      "type": "boolean"
+                    },
+                    "parse_time_mapped_count": {
+                      "description": "Number of mapped instances, when known before the Dag runs.",
+                      "type": "integer"
+                    },
+                    "trigger_rule": {
+                      "type": "string"
+                    },
+                    "depends_on_past": {
+                      "type": "boolean"
+                    },
+                    "retries": {
+                      "type": "integer"
+                    }
+                  },
+                  "additionalProperties": true
+                }
               }
             },
             "required": ["taskTree", "taskGroups", "tasks"]

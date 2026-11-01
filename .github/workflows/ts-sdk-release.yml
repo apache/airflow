@@ -83,7 +83,19 @@ jobs:
           test "${DISPATCH_REF}" = "refs/tags/${RELEASE_TAG}"
           test "${DISPATCH_SHA}" = "$(git rev-parse HEAD)"
           test "$(git rev-parse "refs/tags/${RELEASE_TAG}^{commit}")" = "$(git rev-parse HEAD)"
-          git merge-base --is-ancestor HEAD "$(git rev-parse refs/remotes/origin/main)"
+          # A release is cut from main or from a core release branch. Cherry-picks onto a
+          # release branch get new SHAs, so containment in main alone is not enough.
+          release_refs=$(git for-each-ref --format='%(refname)' refs/remotes/origin \
+            | grep -E '^refs/remotes/origin/(main|v[0-9]+-[0-9]+-(test|stable))$' || true)
+          contained_in=""
+          for ref in ${release_refs}; do
+            if git merge-base --is-ancestor HEAD "${ref}"; then
+              contained_in="${ref}"
+              break
+            fi
+          done
+          test -n "${contained_in}"
+          echo "Release commit is contained in ${contained_in}"
       - name: Verify package identity
         working-directory: ts-sdk
         env:

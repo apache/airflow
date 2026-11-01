@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "1 Error",
     "errorAndWarning": "1 Error y {{warningText}}",
+    "types": {
+      "asset conflict": "Conflicto de Asset",
+      "duplicate dag id": "Dag ID duplicado",
+      "non-existent pool": "Pool inexistente",
+      "runtime varying value": "Valor variable en tiempo de ejecución",
+      "task group cycle": "Ciclo en el grupo de tareas"
+    },
     "warning_one": "1 Advertencia",
     "warning_other": "{{count, number}} Advertencias"
   },

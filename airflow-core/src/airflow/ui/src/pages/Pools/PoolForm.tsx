@@ -84,7 +84,7 @@ const PoolForm = ({ error, initialPool, isPending, manageMutate, setError }: Poo
         )}
         rules={{
           required: translate("pools.form.nameRequired"),
-          validate: (_value) => _value.length <= 256 || translate("pools.form.rules.nameMaxLength"),
+          validate: (_value) => _value.length <= 256 || translate("pools.form.nameMaxLength"),
         }}
       />
 
