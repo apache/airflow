@@ -156,6 +156,8 @@ class Deadline(Base):
     __table_args__ = (
         Index("deadline_missed_deadline_time_idx", missed, deadline_time, unique=False),
         Index("deadline_callback_id_idx", callback_id, unique=False),
+        # SQLite can choose a slower join for global deadline lists with an unfiltered index.
+        Index("deadline_dagrun_id_idx", dagrun_id, unique=False, sqlite_where=text("missed = 0")),
     )
 
     def __init__(
