@@ -288,7 +288,8 @@ Nothing calls it for you; it is opt-in. It has these limits:
 fail fast, so a wrong host or a server error is raised right away. After the
 load request, connection failures, 5xx responses and single-request timeouts
 are logged and retried until ``timeout`` is used up, which ends in a
-``TimeoutError`` naming the model. Other HTTP error responses (anything but 5xx) are raised as is.
+``TimeoutError`` naming the model. Other HTTP error responses (anything but 5xx)
+are raised as is.
 
 Routing through an AI gateway
 --------------------------------
