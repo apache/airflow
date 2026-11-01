@@ -127,6 +127,7 @@ from airflow_breeze.global_constants import (
     get_ts_sdk_version,
 )
 from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.prepare_providers.provider_distributions import (
     PrepareReleasePackageErrorBuildingPackageException,
@@ -5420,14 +5421,26 @@ def get_os_deps_image_build_args(
 
     They must give the installation the same environment the CI and PROD builds give it, or the
     marker install_os_dependencies.sh writes would not match there and the installation would run again.
-    Those builds pass the Python patchlevel they are pinned to - the one in the base image tag.
+    Those builds pass the Python patchlevel they are pinned to - the one in the base image tag - and
+    the database clients of their default parameters, which the images install too.
     """
     build_args = {
         "BASE_IMAGE": f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}@{python_digest}",
         "AIRFLOW_PYTHON_VERSION": python_tag.split("-", 1)[0],
     }
     if image_type.dockerfile == "Dockerfile":
-        build_args["AIRFLOW_IMAGE_FLAVOR"] = "hardened"
+        prod_params = BuildProdParams()
+        build_args.update(
+            {
+                "AIRFLOW_IMAGE_FLAVOR": "hardened",
+                "INSTALL_MYSQL_CLIENT": prod_params.install_mysql_client,
+                "INSTALL_MYSQL_CLIENT_TYPE": prod_params.install_mysql_client_type,
+                "INSTALL_MSSQL_CLIENT": prod_params.install_mssql_client,
+                "INSTALL_POSTGRES_CLIENT": prod_params.install_postgres_client,
+            }
+        )
+    else:
+        build_args["INSTALL_MYSQL_CLIENT_TYPE"] = BuildCiParams().install_mysql_client_type
     return build_args
 
 
@@ -5533,6 +5546,21 @@ option_base_image_digests = click.option(
     "'os-deps-base-image-digests' output of mirror-base-images. Tags missing from it are read from the mirror.",
 )
 
+
+def find_built_os_deps_image(build: OsDepsImageBuild, platform: str) -> str | None:
+    """
+    Return an already built OS-dependencies image of a build, for a build of another type to start from.
+
+    The merged image if it is published, the image of the platform otherwise - the one this job has just
+    built, or an earlier run that failed before publishing it.
+    """
+    for tag in (build.content_tag, get_platform_tag(build.content_tag, platform)):
+        image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{tag}"
+        if get_image_digest(image):
+            return image
+    return None
+
+
 option_os_deps_image_type = click.option(
     "--image-type",
     "image_types",
@@ -5561,6 +5589,11 @@ def build_os_deps_images(
     python: str | None, image_types: tuple[str, ...], base_image_digests: dict[str, str], platform: str
 ):
     failed: list[str] = []
+    # The dev images built - now or before - for each base image, which the runtime builds start from.
+    dev_builds = {
+        build.build_args["BASE_IMAGE"]: build
+        for build in get_os_deps_image_builds(python, ("dev",), base_image_digests)
+    }
     for build in get_os_deps_image_builds(python, image_types, base_image_digests):
         image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
         platform_image = (
@@ -5570,6 +5603,14 @@ def build_os_deps_images(
             console_print(f"[info]{platform_image} is already built[/]")
             continue
         console_print(f"[info]Building {platform_image}[/]")
+        # Not part of the content tag: the runtime stage only copies the legacy flavor's Python from the
+        # dev stage, which is empty for the hardened flavor, so the runtime image does not change.
+        extra_build_args = {}
+        dev_build = dev_builds.get(build.build_args["BASE_IMAGE"])
+        if build.image_type.name == "runtime" and dev_build:
+            dev_image = find_built_os_deps_image(dev_build, platform)
+            if dev_image:
+                extra_build_args["DEV_OS_DEPS_IMAGE"] = dev_image
         result = run_command(
             [
                 "docker",
@@ -5583,14 +5624,15 @@ def build_os_deps_images(
                 platform,
                 # The point of the image is a fresh installation from the apt repositories - but only of
                 # the target stage: the runtime stage copies from one built on the dev OS dependencies,
-                # which the dev image built just before in the same job leaves in the cache, so this
-                # does not install them a second time. The installation types are built in this order.
+                # which starts from the dev image built before, so it does not install them a second time.
                 "--no-cache-filter",
                 build.image_type.target,
                 "--pull",
                 # A plain image manifest per platform, for publish-os-deps-images to merge.
                 "--provenance=false",
-                *convert_build_args_dict_to_array_of_args(build_args=build.build_args),
+                *convert_build_args_dict_to_array_of_args(
+                    build_args={**build.build_args, **extra_build_args}
+                ),
                 "--tag",
                 platform_image,
                 "--push",

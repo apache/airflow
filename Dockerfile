@@ -133,17 +133,23 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
+OS_DEPENDENCIES_SCRIPTS_DIR="$(dirname "${BASH_SOURCE[0]}")"
 OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
 OS_DEPENDENCIES_INPUTS_HASH=$(
     {
         echo "${1}"
-        sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1
+        for file in "${BASH_SOURCE[0]}" "${OS_DEPENDENCIES_SCRIPTS_DIR}/common.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}"/keys/*; do
+            sha256sum "${file}" | cut -d ' ' -f 1
+        done
         for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
                 DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
                 ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
                 ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
                 TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
-                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER; do
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER \
+                INSTALL_MYSQL_CLIENT INSTALL_MYSQL_CLIENT_TYPE INSTALL_MSSQL_CLIENT INSTALL_POSTGRES_CLIENT; do
             printf '%s=%s\n' "${variable}" "${!variable-}"
         done
     } | sha256sum | cut -d ' ' -f 1
@@ -864,6 +870,25 @@ function install_rustup() {
     rm -f /tmp/rustup-init
 }
 
+function install_database_clients() {
+    # Part of the OS dependencies, so the pinned OS-dependencies images carry the clients too and an
+    # image built on one does not install them from the live apt repositories. They run in the same
+    # order as before they moved here: after the rest of the OS dependencies, each cleaning up after apt.
+    if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" prod
+        return
+    fi
+    # The CI image runs Airflow from the sources as well, so it also gets the MySQL runtime client.
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+    fi
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" dev
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -896,6 +921,7 @@ else
     install_docker_cli
     apt_clean
 fi
+install_database_clients
 
 mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
 echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
@@ -2283,7 +2309,21 @@ ENV RUSTUP_HOME="/usr/local/rustup"
 ENV CARGO_HOME="/home/airflow/.cargo"
 ENV PATH="${CARGO_HOME}/bin:${PATH}"
 
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+ARG INSTALL_MYSQL_CLIENT="true"
+ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
+ARG INSTALL_MSSQL_CLIENT="true"
+ARG INSTALL_POSTGRES_CLIENT="true"
+
+ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
+    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
+    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
+    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
+
+# The database clients are part of the OS dependencies - install_os_dependencies.sh runs their
+# scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
+COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
+    install_postgres.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
 FROM dev-os-deps as python-dist
@@ -2309,26 +2349,8 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 # python interpreter might break if accidentally the old system libraries are used.
 ENV LD_LIBRARY_PATH="/usr/python/lib"
 
-ARG INSTALL_MYSQL_CLIENT="true"
-ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
-ARG INSTALL_MSSQL_CLIENT="true"
-ARG INSTALL_POSTGRES_CLIENT="true"
-
-ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
-    INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
-    INSTALL_MSSQL_CLIENT=${INSTALL_MSSQL_CLIENT} \
-    INSTALL_POSTGRES_CLIENT=${INSTALL_POSTGRES_CLIENT}
-
 COPY --from=scripts common.sh /scripts/docker/
 
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-COPY scripts/docker/keys/ /scripts/docker/keys/
-
-RUN bash /scripts/docker/install_mysql.sh dev && \
-    bash /scripts/docker/install_mssql.sh dev && \
-    bash /scripts/docker/install_postgres.sh dev
 ENV PATH=${PATH}:/opt/mssql-tools/bin
 
 # By default we do not install from docker context files but if we decide to install from docker context
@@ -2560,7 +2582,11 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
 COPY --from=python-dist /python-dist/ /
-COPY --from=scripts install_os_dependencies.sh /scripts/docker/
+# The database clients are part of the OS dependencies - install_os_dependencies.sh runs their
+# scripts, and its marker covers them, so the pinned OS-dependencies images carry them too.
+COPY --from=scripts install_os_dependencies.sh common.sh install_mysql.sh install_mssql.sh \
+    install_postgres.sh /scripts/docker/
+COPY scripts/docker/keys/ /scripts/docker/keys/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
 FROM runtime-os-deps as main
@@ -2593,19 +2619,7 @@ ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:/usr/python/bin:${PATH}" \
 
 COPY --from=scripts common.sh /scripts/docker/
 
-COPY scripts/docker/keys/ /scripts/docker/keys/
-
-# Only copy mysql/mssql installation scripts for now - so that changing the other
-# scripts which are needed much later will not invalidate the docker layer here.
-COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scripts/docker/
-# We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
-# unexpected result - the cache for Dockerfiles might get invalidated in case the host system
-# had different umask set and group x bit was not set. In Azure the bit might be not set at all.
-# That also protects against AUFS Docker backend problem where changing the executable bit required sync
-RUN bash /scripts/docker/install_mysql.sh prod \
-    && bash /scripts/docker/install_mssql.sh prod \
-    && bash /scripts/docker/install_postgres.sh prod \
-    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
+RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
            --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" \
 # Make Airflow files belong to the root group and are accessible. This is to accommodate the guidelines from
 # OpenShift https://docs.openshift.com/enterprise/3.0/creating_images/guidelines.html

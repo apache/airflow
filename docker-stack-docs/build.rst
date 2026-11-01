@@ -973,11 +973,12 @@ previous images that can matter when you extend or run the image are:
 * **The OS dependencies come from pinned images too.** A digest pins the base image, but not ``dhi.io``'s apt
   repository: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
   images, so installing the OS dependencies from it can fail for a commit that built fine before. Airflow's
-  CI and release builds therefore start their OS dependencies from images in which
-  ``install_os_dependencies.sh`` already ran, built daily on the mirrored base images and pinned to a digest
-  by the same upgrade, passed as ``DEV_OS_DEPS_IMAGE`` and ``RUNTIME_OS_DEPS_IMAGE``. The script records what it
-  installed with and does nothing when nothing differs, so a build with other apt dependencies still
-  installs them. A plain ``docker build`` leaves both at ``BASE_IMAGE`` and installs everything as before.
+  CI and release builds therefore start their OS dependencies - the database clients included - from
+  images in which ``install_os_dependencies.sh`` already ran, built daily on the mirrored base images and
+  pinned to a digest by the same upgrade, passed as ``DEV_OS_DEPS_IMAGE`` and ``RUNTIME_OS_DEPS_IMAGE``. The
+  script records what it installed with and does nothing when nothing differs, so a build with other apt
+  dependencies or database clients still installs them. A plain ``docker build`` leaves both at
+  ``BASE_IMAGE`` and installs everything as before.
   The ``AIRFLOW_OS_DEPS_IMAGE`` environment variable of an image names the image its OS dependencies came
   from, and ``/usr/share/airflow/os-dependencies.base-image`` the base image they were installed on - which
   can be an older digest than ``BASE_IMAGE``.

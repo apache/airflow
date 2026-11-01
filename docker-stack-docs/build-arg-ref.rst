@@ -59,7 +59,9 @@ Those are the most common arguments that you use when you want to build a custom
 |                                          |                                           | builds pass a pinned image that already has |
 |                                          |                                           | them, built from ``BASE_IMAGE`` by the      |
 |                                          |                                           | ``dev-os-deps`` stage. Any other image runs |
-|                                          |                                           | the installation.                           |
+|                                          |                                           | the installation. The OS dependencies       |
+|                                          |                                           | include the database clients the            |
+|                                          |                                           | ``INSTALL_*_CLIENT`` args select.           |
 +------------------------------------------+-------------------------------------------+---------------------------------------------+
 | ``RUNTIME_OS_DEPS_IMAGE``                | ``BASE_IMAGE``                            | The image the final image installs its OS   |
 |                                          |                                           | dependencies on - like                      |

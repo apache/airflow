@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from subprocess import CompletedProcess
 from unittest import mock
 
@@ -187,12 +188,20 @@ def test_extract_dockerfile_stage_fails_for_a_missing_stage():
         extract_dockerfile_stage("FROM scratch as main\n", "no-such-stage")
 
 
+PROD_CLIENT_ARGS = {
+    "INSTALL_MYSQL_CLIENT": "true",
+    "INSTALL_MYSQL_CLIENT_TYPE": "mariadb",
+    "INSTALL_MSSQL_CLIENT": "true",
+    "INSTALL_POSTGRES_CLIENT": "true",
+}
+
+
 @pytest.mark.parametrize(
     ("image_type", "expected"),
     [
-        pytest.param("ci", {}, id="ci"),
-        pytest.param("dev", {"AIRFLOW_IMAGE_FLAVOR": "hardened"}, id="dev"),
-        pytest.param("runtime", {"AIRFLOW_IMAGE_FLAVOR": "hardened"}, id="runtime"),
+        pytest.param("ci", {"INSTALL_MYSQL_CLIENT_TYPE": "mariadb"}, id="ci"),
+        pytest.param("dev", {"AIRFLOW_IMAGE_FLAVOR": "hardened", **PROD_CLIENT_ARGS}, id="dev"),
+        pytest.param("runtime", {"AIRFLOW_IMAGE_FLAVOR": "hardened", **PROD_CLIENT_ARGS}, id="runtime"),
     ],
 )
 def test_os_deps_image_build_args_match_the_image_builds(image_type, expected):
@@ -202,6 +211,25 @@ def test_os_deps_image_build_args_match_the_image_builds(image_type, expected):
         "BASE_IMAGE": f"{MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}",
         "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION["3.12"],
         **expected,
+    }
+
+
+@pytest.mark.parametrize(
+    ("image_type", "params"),
+    [
+        pytest.param("ci", BuildCiParams(python="3.12"), id="ci"),
+        pytest.param("dev", BuildProdParams(python="3.12"), id="dev"),
+        pytest.param("runtime", BuildProdParams(python="3.12"), id="runtime"),
+    ],
+)
+def test_os_deps_images_install_what_the_default_image_builds_pass(image_type, params):
+    # Every arg the marker depends on must have the value the CI and PROD builds pass by default, or
+    # every build on the pinned image would install all of its OS dependencies again.
+    os_deps_build_args = get_os_deps_image_build_args(IMAGE_TYPES[image_type], PYTHON_TAG, PYTHON_DIGEST)
+    image_build_args = _build_args(params)
+
+    assert {name: image_build_args[name] for name in os_deps_build_args if name != "BASE_IMAGE"} == {
+        name: value for name, value in os_deps_build_args.items() if name != "BASE_IMAGE"
     }
 
 
@@ -537,6 +565,7 @@ def test_os_deps_image_builds_include_a_newer_mirrored_patchlevel():
             {
                 "BASE_IMAGE": f"{MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}",
                 "AIRFLOW_PYTHON_VERSION": ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION["3.12"],
+                "INSTALL_MYSQL_CLIENT_TYPE": "mariadb",
             },
         ),
         (
@@ -544,6 +573,7 @@ def test_os_deps_image_builds_include_a_newer_mirrored_patchlevel():
             {
                 "BASE_IMAGE": f"{MIRROR}:3.12.99-debian13-dev@{newer_digest}",
                 "AIRFLOW_PYTHON_VERSION": "3.12.99",
+                "INSTALL_MYSQL_CLIENT_TYPE": "mariadb",
             },
         ),
     ]
@@ -582,3 +612,85 @@ def test_os_deps_stages_expose_the_image_their_os_dependencies_come_from():
             (AIRFLOW_ROOT_PATH / image_type.dockerfile).read_text(), image_type.target
         )
         assert f"ENV AIRFLOW_OS_DEPS_IMAGE=${{{image_type.build_arg}}}" in stage
+
+
+CLIENT_SCRIPTS = ("install_mysql.sh", "install_mssql.sh", "install_postgres.sh")
+CLIENT_VARIABLES = (
+    "INSTALL_MYSQL_CLIENT",
+    "INSTALL_MYSQL_CLIENT_TYPE",
+    "INSTALL_MSSQL_CLIENT",
+    "INSTALL_POSTGRES_CLIENT",
+)
+
+
+@pytest.mark.parametrize("image_type", OS_DEPS_IMAGE_TYPES, ids=lambda image_type: image_type.name)
+def test_database_clients_are_installed_in_the_os_deps_stages(image_type):
+    dockerfile = (AIRFLOW_ROOT_PATH / image_type.dockerfile).read_text()
+    stage = extract_dockerfile_stage(dockerfile, image_type.target)
+    main_stage = extract_dockerfile_stage(dockerfile, "main")
+
+    copied = stage.split("COPY --from=scripts install_os_dependencies.sh", 1)[1].split("\n\n", 1)[0]
+    assert all(script in copied for script in ("common.sh", *CLIENT_SCRIPTS))
+    assert "COPY scripts/docker/keys/ /scripts/docker/keys/" in stage
+    # Set in the stage, before its installation runs - from an arg, or fixed for the CI image.
+    before_installation = stage.split("RUN bash /scripts/docker/install_os_dependencies.sh", 1)[0]
+    assert all(f"{variable}=" in before_installation for variable in CLIENT_VARIABLES)
+    assert not [script for script in CLIENT_SCRIPTS if f"bash /scripts/docker/{script}" in main_stage]
+
+
+def test_marker_covers_the_database_clients():
+    script = (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "install_os_dependencies.sh").read_text()
+    marker_block = script.split("OS_DEPENDENCIES_INPUTS_HASH=$(", 1)[1].split("\n)\n", 1)[0]
+
+    assert all(f"/{name}" in marker_block for name in ("common.sh", *CLIENT_SCRIPTS))
+    assert "/keys/*" in marker_block
+    assert all(re.search(rf"\b{variable}\b", marker_block) for variable in CLIENT_VARIABLES)
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param({"disable_mysql_client_installation": True}, id="no-mysql"),
+        pytest.param({"disable_mssql_client_installation": True}, id="no-mssql"),
+        pytest.param({"disable_postgres_client_installation": True}, id="no-postgres"),
+        pytest.param({"install_mysql_client_type": "mysql"}, id="other-mysql-client"),
+    ],
+)
+@mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
+def test_prod_image_with_other_database_clients_installs_them_itself(params):
+    build_args = _build_args(BuildProdParams(python="3.12", **params))
+
+    assert not [name for name in build_args if name.endswith("_OS_DEPS_IMAGE")]
+
+
+@mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
+def test_ci_image_with_another_mysql_client_installs_it_itself():
+    assert "CI_OS_DEPS_IMAGE" not in _build_args(
+        BuildCiParams(python="3.12", install_mysql_client_type="mysql")
+    )
+
+
+@pytest.mark.parametrize("existing", ["merged", "platform", "none"])
+def test_runtime_os_deps_image_build_starts_from_the_built_dev_image(registry, existing):
+    (dev_build,) = get_os_deps_image_builds("3.12", ("dev",))
+    (runtime_build,) = get_os_deps_image_builds("3.12", ("runtime",))
+    dev_image = {
+        "merged": f"{REPOSITORY}:{dev_build.content_tag}",
+        "platform": f"{REPOSITORY}:{dev_build.content_tag}-arm64",
+        "none": None,
+    }[existing]
+    if dev_image:
+        registry.digests[dev_image] = OS_DEPS_DIGEST
+
+    result = CliRunner().invoke(
+        build_os_deps_images,
+        ["--python", "3.12", "--image-type", "runtime", "--platform", "linux/arm64"],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0
+    (command,) = registry.builds
+    build_args = dict(command[i + 1].split("=", 1) for i, arg in enumerate(command) if arg == "--build-arg")
+    assert build_args.get("DEV_OS_DEPS_IMAGE") == dev_image
+    # The dev image the runtime build starts from is not one of its inputs.
+    assert command[command.index("--tag") + 1] == f"{REPOSITORY}:{runtime_build.content_tag}-arm64"

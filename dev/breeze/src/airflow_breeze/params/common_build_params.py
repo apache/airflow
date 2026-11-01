@@ -143,17 +143,23 @@ class CommonBuildParams:
             ]
         )
 
+    def _has_custom_database_clients(self) -> bool:
+        """Whether the build installs other database clients than the OS-dependencies images carry."""
+        return self.install_mysql_client_type != ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
+
     def _can_use_pinned_os_deps_images(self) -> bool:
         """Whether the build may start from the pinned OS-dependencies images instead of BASE_IMAGE.
 
         Those images are built on the pinned base image of the default Debian version with the default
-        apt dependencies, so any other base image or apt customization installs from the repositories.
+        apt dependencies and database clients, so any other base image, apt customization or choice
+        of database clients installs from the repositories.
         A disabled image cache does not turn them off - the CI build retries with it after any failure.
         """
         return (
             self.use_pinned_os_deps_images
             and self.python_image is None
             and self.debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION
+            and not self._has_custom_database_clients()
         )
 
     def _set_os_deps_image_arg(self, image_type: str, build_arg: str):

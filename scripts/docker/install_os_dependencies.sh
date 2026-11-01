@@ -27,22 +27,29 @@ fi
 
 # The images built on a pinned OS-dependencies image (see "breeze release-management
 # build-os-deps-images") start from a layer this script already ran in. The marker records what it
-# ran with: this script, the installation type and every environment variable that changes what
-# gets installed - read before the defaults below are applied, as those are part of the script. The CI
-# image's DEPENDENCIES_EPOCH_NUMBER is among them, so bumping it reinstalls on a pinned image too.
-# When nothing differs there is nothing left to install. When anything does - a PR changing this
-# script or the apt dependencies - the installation runs again on top, so the change is exercised.
+# ran with: this script, the database client scripts it runs with common.sh and the keys they use, the
+# installation type and every environment variable that changes what gets installed - read before the
+# defaults below are applied, as those are part of the script. The CI image's DEPENDENCIES_EPOCH_NUMBER
+# is among them, so bumping it reinstalls on a pinned image too. When nothing differs there is nothing
+# left to install. When anything does - a PR changing one of the scripts, the apt dependencies or the
+# database clients - all of the installation runs again on top, so the change is exercised.
+OS_DEPENDENCIES_SCRIPTS_DIR="$(dirname "${BASH_SOURCE[0]}")"
 OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
 OS_DEPENDENCIES_INPUTS_HASH=$(
     {
         echo "${1}"
-        sha256sum "${BASH_SOURCE[0]}" | cut -d ' ' -f 1
+        for file in "${BASH_SOURCE[0]}" "${OS_DEPENDENCIES_SCRIPTS_DIR}/common.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}"/keys/*; do
+            sha256sum "${file}" | cut -d ' ' -f 1
+        done
         for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
                 DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
                 ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
                 ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
                 TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
-                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER; do
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER \
+                INSTALL_MYSQL_CLIENT INSTALL_MYSQL_CLIENT_TYPE INSTALL_MSSQL_CLIENT INSTALL_POSTGRES_CLIENT; do
             printf '%s=%s\n' "${variable}" "${!variable-}"
         done
     } | sha256sum | cut -d ' ' -f 1
@@ -769,6 +776,25 @@ function install_rustup() {
     rm -f /tmp/rustup-init
 }
 
+function install_database_clients() {
+    # Part of the OS dependencies, so the pinned OS-dependencies images carry the clients too and an
+    # image built on one does not install them from the live apt repositories. They run in the same
+    # order as before they moved here: after the rest of the OS dependencies, each cleaning up after apt.
+    if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" prod
+        return
+    fi
+    # The CI image runs Airflow from the sources as well, so it also gets the MySQL runtime client.
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+    fi
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" dev
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -801,6 +827,7 @@ else
     install_docker_cli
     apt_clean
 fi
+install_database_clients
 
 mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
 echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"

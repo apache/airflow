@@ -69,6 +69,15 @@ class BuildProdParams(CommonBuildParams):
             return get_legacy_base_image(self.debian_version)
         return super().python_base_image
 
+    def _has_custom_database_clients(self) -> bool:
+        return super()._has_custom_database_clients() or any(
+            [
+                self.disable_mssql_client_installation,
+                self.disable_mysql_client_installation,
+                self.disable_postgres_client_installation,
+            ]
+        )
+
     @property
     def _has_custom_runtime_apt_dependencies(self) -> bool:
         return any(
