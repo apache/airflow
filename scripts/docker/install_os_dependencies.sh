@@ -804,3 +804,10 @@ fi
 
 mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
 echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
+# The base image the OS dependencies were first installed on. An image built on a pinned OS-dependencies
+# image records its own BASE_IMAGE, but its layers come from this one, which may be an older digest. An
+# installation on top keeps the record, as the layers underneath still come from that image.
+OS_DEPENDENCIES_BASE_IMAGE_FILE="$(dirname "${OS_DEPENDENCIES_MARKER}")/os-dependencies.base-image"
+if [[ ! -f "${OS_DEPENDENCIES_BASE_IMAGE_FILE}" ]]; then
+    echo "${BASE_IMAGE:-unknown}" > "${OS_DEPENDENCIES_BASE_IMAGE_FILE}"
+fi

@@ -267,7 +267,8 @@ def test_build_os_deps_images_builds_and_pushes_the_platform_image(registry):
     assert command[command.index("--platform") + 1] == "linux/arm64"
     assert command[command.index("--tag") + 1] == f"{REPOSITORY}:{build.content_tag}-arm64"
     assert "--push" in command
-    assert "--no-cache" in command
+    assert command[command.index("--no-cache-filter") + 1] == "runtime-os-deps"
+    assert "--no-cache" not in command
 
 
 @pytest.mark.parametrize("existing", ["merged", "platform"])
@@ -513,3 +514,17 @@ def test_publish_os_deps_images_prints_the_plan_in_dry_run(mock_dry_run):
         [f"{REPOSITORY}:{build.content_tag}"],
         [f"{REPOSITORY}:ci-{PYTHON_TAG}"],
     ]
+
+
+def test_dev_os_deps_image_is_built_before_the_runtime_one_that_reuses_it():
+    names = [image_type.name for image_type in OS_DEPS_IMAGE_TYPES]
+
+    assert names.index("dev") < names.index("runtime")
+
+
+def test_os_deps_stages_expose_the_image_their_os_dependencies_come_from():
+    for image_type in OS_DEPS_IMAGE_TYPES:
+        stage = extract_dockerfile_stage(
+            (AIRFLOW_ROOT_PATH / image_type.dockerfile).read_text(), image_type.target
+        )
+        assert f"ENV AIRFLOW_OS_DEPS_IMAGE=${{{image_type.build_arg}}}" in stage

@@ -5581,8 +5581,12 @@ def build_os_deps_images(
                 build.image_type.target,
                 "--platform",
                 platform,
-                # The point of the image is a fresh installation from the apt repositories.
-                "--no-cache",
+                # The point of the image is a fresh installation from the apt repositories - but only of
+                # the target stage: the runtime stage copies from one built on the dev OS dependencies,
+                # which the dev image built just before in the same job leaves in the cache, so this
+                # does not install them a second time. The installation types are built in this order.
+                "--no-cache-filter",
+                build.image_type.target,
                 "--pull",
                 # A plain image manifest per platform, for publish-os-deps-images to merge.
                 "--provenance=false",

@@ -899,6 +899,10 @@ fi
 
 mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
 echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
+OS_DEPENDENCIES_BASE_IMAGE_FILE="$(dirname "${OS_DEPENDENCIES_MARKER}")/os-dependencies.base-image"
+if [[ ! -f "${OS_DEPENDENCIES_BASE_IMAGE_FILE}" ]]; then
+    echo "${BASE_IMAGE:-unknown}" > "${OS_DEPENDENCIES_BASE_IMAGE_FILE}"
+fi
 EOF
 
 # The content below is automatically copied from scripts/docker/install_mysql.sh
@@ -2246,6 +2250,12 @@ SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "n
 
 ARG BASE_IMAGE
 
+# BASE_IMAGE is the base image the build was given. When DEV_OS_DEPS_IMAGE names a pinned OS-dependencies
+# image, the OS dependencies and Python come from that image instead - it may be built on an older digest
+# of the base image, which /usr/share/airflow/os-dependencies.base-image records.
+ARG DEV_OS_DEPS_IMAGE
+ENV AIRFLOW_OS_DEPS_IMAGE=${DEV_OS_DEPS_IMAGE}
+
 # Make sure noninteractive debian install is used and language variables set
 ENV BASE_IMAGE=${BASE_IMAGE} \
     DEBIAN_FRONTEND=noninteractive LANGUAGE=C.UTF-8 LANG=C.UTF-8 LC_ALL=C.UTF-8 \
@@ -2511,6 +2521,12 @@ FROM ${RUNTIME_OS_DEPS_IMAGE} as runtime-os-deps
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 ARG BASE_IMAGE
+
+# BASE_IMAGE is the base image the build was given. When RUNTIME_OS_DEPS_IMAGE names a pinned OS-dependencies
+# image, the OS dependencies and Python come from that image instead - it may be built on an older digest
+# of the base image, which /usr/share/airflow/os-dependencies.base-image records.
+ARG RUNTIME_OS_DEPS_IMAGE
+ENV AIRFLOW_OS_DEPS_IMAGE=${RUNTIME_OS_DEPS_IMAGE}
 
 # Make sure noninteractive debian install is used and language variables set
 ENV BASE_IMAGE=${BASE_IMAGE} \
