@@ -43,7 +43,7 @@ import os
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import requests
@@ -170,6 +170,8 @@ class ApprovalDecision:
     comment: str | None = None
     # The labels the decision depends on: runs started before one of them changed are not approved.
     decision_labels: frozenset[str] = TEST_SELECTION_LABELS
+    # Runs started before this are not approved either.
+    not_before: datetime | None = None
 
 
 def count_source_lines(changed_files: list[ChangedFile]) -> int:
@@ -196,8 +198,14 @@ def find_new_provider_files(files: list[str]) -> list[str]:
     ]
 
 
-def is_gated_to_fork_ci(*, pr: dict[str, Any], github_repository: str, config: GateConfig) -> bool:
-    """Whether the PR's ``Tests (AMD)`` run only executes the fork CI gate (AIP-120)."""
+def is_gated_to_fork_ci(
+    *, pr: dict[str, Any], github_repository: str, config: GateConfig, ci_run_at: datetime | None = None
+) -> bool:
+    """
+    Whether the PR's ``Tests (AMD)`` run only executes the fork CI gate (AIP-120).
+
+    :param ci_run_at: when the run was created, as the gate reads it; see ``GateEvent.ci_run_at``.
+    """
     event = GateEvent(
         event_name="pull_request",
         repository=github_repository,
@@ -207,6 +215,7 @@ def is_gated_to_fork_ci(*, pr: dict[str, Any], github_repository: str, config: G
         author_association=pr.get("author_association") or "",
         created_at=parse_github_datetime(pr["created_at"]),
         labels=tuple(label["name"] for label in pr.get("labels", [])),
+        ci_run_at=ci_run_at,
     )
     return decide(event, config).reason in GATED_REASONS
 
@@ -663,7 +672,11 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                 # A trusted repository's runs do not depend on the base branch or labels they started with.
                 if decision.approve and stakeholder is None:
                     pr_run_ids = find_runs_started_for_current_pr(
-                        api=api, pr=pr, runs=head_runs, decision_labels=decision.decision_labels
+                        api=api,
+                        pr=pr,
+                        runs=head_runs,
+                        decision_labels=decision.decision_labels,
+                        not_before=decision.not_before,
                     )
                     if not pr_run_ids:
                         decision = ApprovalDecision(
@@ -726,6 +739,7 @@ def find_runs_started_for_current_pr(
     pr: dict[str, Any],
     runs: list[dict[str, Any]],
     decision_labels: frozenset[str] = TEST_SELECTION_LABELS,
+    not_before: datetime | None = None,
 ) -> list[int]:
     """
     Return the runs started after the PR was opened and after its base branch last changed.
@@ -744,11 +758,13 @@ def find_runs_started_for_current_pr(
         api.get_last_base_change(pr["number"]),
         api.get_last_label_change(pr["number"], decision_labels),
     ]
-    started_after = max([started_after, *(change for change in changes if change is not None)])
+    started_after = max([started_after, *(time for time in (*changes, not_before) if time is not None)])
     return [run["id"] for run in runs if parse_github_time(run["created_at"]) >= started_after]
 
 
-def decide_for_pull_request(*, api: GitHubApi, pr: dict[str, Any]) -> ApprovalDecision:
+def decide_for_pull_request(
+    *, api: GitHubApi, pr: dict[str, Any], now: datetime | None = None
+) -> ApprovalDecision:
     merge_sha = fetch_merge_commit(
         github_repository=api.github_repository, pr_number=pr["number"], head_sha=pr["head"]["sha"]
     )
@@ -760,10 +776,20 @@ def decide_for_pull_request(*, api: GitHubApi, pr: dict[str, Any]) -> ApprovalDe
         changed_files = get_changed_files(merge_sha)
     except ValueError:
         return ApprovalDecision(approve=False, reasons=["its changed files could not be listed"])
+    config = load_config(FORK_CI_GATE_CONFIG_PATH)
+    # A pilot's PR created before they joined is gated from its first run created after joining; its
+    # runs from before, and every run until the join instant has passed, stay with the rules below.
+    joined_at = config.find_pilot_join_after(
+        (pr.get("user") or {}).get("login") or "", parse_github_time(pr["created_at"])
+    )
+    if joined_at is not None and joined_at > (now or datetime.now(UTC)):
+        joined_at = None
     if pr["base"]["ref"] == AUTO_APPROVABLE_BASE_BRANCH and is_gated_to_fork_ci(
-        pr=pr, github_repository=api.github_repository, config=load_config(FORK_CI_GATE_CONFIG_PATH)
+        pr=pr, github_repository=api.github_repository, config=config, ci_run_at=joined_at
     ):
-        return decide_gated_approval(changed_files=changed_files)
+        decision = decide_gated_approval(changed_files=changed_files)
+        decision.not_before = joined_at
+        return decision
     pr_labels = tuple(label["name"] for label in pr.get("labels", []))
     return decide_approval(
         base_branch=pr["base"]["ref"],

@@ -71,15 +71,15 @@ ARG AIRFLOW_VERSION="3.3.2"
 # build fails if a version passed here does not match it. Breeze passes the Python patchlevel that
 # "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:9ed60ac490ee5038920b1e69ea9adb256f9f95ca285b65800d2ddab73b6e3a1e"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:f21773073cf72f02df2c40142815280514fb0424d6c46326b0f4adb14e7f1370"
 ARG AIRFLOW_PYTHON_VERSION=""
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.2.1
+ARG AIRFLOW_PIP_VERSION=26.2.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.4
+ARG AIRFLOW_UV_VERSION=0.13.6
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -1540,6 +1540,15 @@ function install_from_sources() {
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
         extra_sync_flags="--active"
     fi
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        extra_sync_flags="${extra_sync_flags} --no-install-workspace"
+    fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
             set +x
@@ -1560,19 +1569,35 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        set +x
-        echo
-        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
-        echo
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
+        # shellcheck disable=SC2206 # extra_sync_flags holds several flags
+        local -a frozen_sync=(uv sync --all-packages --frozen --group ci-image
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --no-python-downloads --no-managed-python)
+        set +x
+        # Without the workspace sources a lock that does not match the manifests cannot be re-resolved;
+        # the installation that adds the workspace packages does that later.
+        if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]] && ! "${frozen_sync[@]}" --dry-run; then
+            echo
+            echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
+        echo
         set -x
-        if ! uv sync --all-packages --frozen --group ci-image \
-            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python; then
+        if ! "${frozen_sync[@]}"; then
             set +x
+            if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because the locked third-party installation failed although uv.lock matches the dependency manifests.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
                 echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
@@ -1662,6 +1687,10 @@ function install_airflow_when_building_images() {
         install_from_external_spec
     fi
     set +x
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        # Packaging tools and 'pip check' are handled by the installation that adds the workspace packages
+        return
+    fi
     common::install_packaging_tools
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"

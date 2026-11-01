@@ -35,20 +35,9 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "Restore CI docker images ${{ inputs.platform }}:${{ inputs.python }}"
-      uses: ./.github/actions/stash-restore
-      with:
-        key: ci-image-save-v3-${{ inputs.platform }}-${{ inputs.python }}
-        path: "/mnt/"
-        # Must stay true: runs on RunsOn (canaries and release-branch pushes) save these image
-        # stashes as S3 digests only.
-        only-current-branch: 'true'
-        fail-on-download: 'true'
-      if: contains(inputs.python-versions-list-as-string, inputs.python)
     - name: "Load CI image ${{ inputs.platform }}:${{ inputs.python }}"
-      env:
-        PLATFORM: ${{ inputs.platform }}
-        PYTHON: ${{ inputs.python }}
-      run: breeze ci-image load --platform "${PLATFORM}" --python "${PYTHON}" --image-file-dir "/mnt/"
-      shell: bash
+      uses: ./.github/actions/load_image
+      with:
+        python: ${{ inputs.python }}
+        platform: ${{ inputs.platform }}
       if: contains(inputs.python-versions-list-as-string, inputs.python)

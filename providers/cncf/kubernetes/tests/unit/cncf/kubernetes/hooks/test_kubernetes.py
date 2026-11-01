@@ -37,6 +37,7 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client
 
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     AsyncKubernetesHook,
     KubernetesHook,
@@ -2025,6 +2026,62 @@ class TestAsyncKubernetesHook:
 
         assert logs == ["decoded line"]
         mock_to_thread.assert_awaited_once_with(_split_log_bytes, raw_bytes)
+
+    # The async hook talks to kubernetes_asyncio, whose ApiException does not derive from urllib3's
+    # HTTPError, so these statuses only reach the handlers through the async exception type.
+    ASYNC_API_CALLS = [
+        pytest.param(
+            "get_pod", "read_namespaced_pod", {"name": POD_NAME, "namespace": NAMESPACE}, id="get_pod"
+        ),
+        pytest.param(
+            "read_logs", "read_namespaced_pod_log", {"name": POD_NAME, "namespace": NAMESPACE}, id="read_logs"
+        ),
+        pytest.param(
+            "get_pod_events",
+            "list_namespaced_event",
+            {"name": POD_NAME, "namespace": NAMESPACE},
+            id="get_pod_events",
+        ),
+    ]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("hook_method", "api_method", "call_kwargs"), ASYNC_API_CALLS)
+    async def test_async_api_403_raises_permission_error(
+        self, hook_method, api_method, call_kwargs, kube_config_loader
+    ):
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        with mock.patch(self.KUBE_API.format(api_method), autospec=True) as lib_method:
+            lib_method.side_effect = async_client.ApiException(status=403, reason="Forbidden")
+
+            with pytest.raises(KubernetesApiPermissionError, match="Permission denied \\(403\\)"):
+                await getattr(hook, hook_method)(**call_kwargs)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("hook_method", "api_method", "call_kwargs"), ASYNC_API_CALLS)
+    async def test_async_api_other_status_stays_api_exception(
+        self, hook_method, api_method, call_kwargs, kube_config_loader
+    ):
+        """Non-403 statuses must reach generic_api_retry unwrapped so it can judge transience itself."""
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        with mock.patch(self.KUBE_API.format(api_method), autospec=True) as lib_method:
+            lib_method.side_effect = async_client.ApiException(status=404, reason="Not Found")
+
+            with pytest.raises(async_client.ApiException) as exc_info:
+                await getattr(hook, hook_method)(**call_kwargs)
+
+        assert exc_info.value.status == 404
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))

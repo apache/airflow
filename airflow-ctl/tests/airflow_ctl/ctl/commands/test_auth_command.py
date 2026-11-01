@@ -36,6 +36,49 @@ class TestCliAuthCommands:
         access_token="TEST_TOKEN",
     )
 
+    @pytest.mark.parametrize(
+        ("cli_args", "expected_api_url"),
+        [
+            ([], "http://localhost:18080"),
+            (["--api-url", "http://localhost:19090"], "http://localhost:19090"),
+        ],
+    )
+    @patch.dict(
+        os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN", "AIRFLOW_CLI_API_URL": "http://localhost:18080"}
+    )
+    @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN_API_URL"})
+    @patch("airflowctl.api.client.keyring")
+    def test_login_api_url_resolution(self, mock_keyring, cli_args, expected_api_url, monkeypatch):
+        with tempfile.TemporaryDirectory() as temp_airflow_home:
+            monkeypatch.setenv("AIRFLOW_HOME", temp_airflow_home)
+            mock_keyring.get_password.return_value = None
+
+            auth_command.login(
+                self.parser.parse_args(["auth", "login", *cli_args]), api_client=mock.MagicMock()
+            )
+
+            with open(os.path.join(temp_airflow_home, "TEST_AUTH_LOGIN_API_URL.json")) as f:
+                assert json.load(f) == {"api_url": expected_api_url}
+
+    @pytest.mark.parametrize(
+        ("cli_args", "expected_api_url"),
+        [
+            ([], "http://localhost:18080"),
+            (["--api-url", "http://localhost:19090"], "http://localhost:19090"),
+        ],
+    )
+    @patch.dict(os.environ, {"AIRFLOW_CLI_API_URL": "http://localhost:18080"})
+    def test_get_token_api_url_resolution(self, cli_args, expected_api_url):
+        api_client = mock.MagicMock()
+        api_client.login.login_with_username_and_password.return_value = self.login_response
+
+        auth_command.get_token(
+            self.parser.parse_args(["auth", "token", "--username", "u", "--password", "p", *cli_args]),
+            api_client=api_client,
+        )
+
+        api_client.refresh_base_url.assert_called_once_with(base_url=expected_api_url, kind=ClientKind.AUTH)
+
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_AUTH_LOGIN"})
     @patch("airflowctl.api.client.keyring")
