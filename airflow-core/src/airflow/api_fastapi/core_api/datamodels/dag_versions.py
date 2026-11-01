@@ -41,6 +41,34 @@ class DagVersionResponse(BaseModel):
     bundle_url: str | None = Field(validation_alias="bundle_url")
 
 
+def pin_version_to_run(version: DagVersionResponse, dag_version: Any, dag_run: Any) -> None:
+    """
+    Report a run's created version with the bundle the run executed.
+
+    A code-only change advances a reused Dag version's bundle in place while the run stays pinned to
+    the earlier commit in ``DagRun.bundle_version``, so the row no longer says which code the run ran.
+    Only the version the run was created with is affected; any other version, and every version of an
+    unpinned run, keeps the row's values. Inputs that are not ORM rows leave the response untouched.
+    """
+    bundle_version = getattr(dag_run, "bundle_version", None)
+    if bundle_version is None or version.bundle_version == bundle_version:
+        return
+    if getattr(dag_version, "id", None) != getattr(dag_run, "created_dag_version_id", None):
+        return
+    version.bundle_version = bundle_version
+    version.bundle_url = dag_version.bundle_url_for(bundle_version)
+
+
+def dag_versions_for_run(dag_run: Any) -> list[DagVersionResponse]:
+    """Serialize a run's Dag versions, reporting the created version with the run's own bundle."""
+    versions = []
+    for dag_version in dag_run.dag_versions:
+        version = DagVersionResponse.model_validate(dag_version)
+        pin_version_to_run(version, dag_version, dag_run)
+        versions.append(version)
+    return versions
+
+
 class DAGVersionCollectionResponse(BaseModel):
     """Dag Version Collection serializer for responses."""
 

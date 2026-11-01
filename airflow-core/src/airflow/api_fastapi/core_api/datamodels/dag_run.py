@@ -22,12 +22,20 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from pydantic import AliasPath, AwareDatetime, Field, NonNegativeInt, field_validator, model_validator
+from pydantic import (
+    AliasPath,
+    AwareDatetime,
+    Field,
+    ModelWrapValidatorHandler,
+    NonNegativeInt,
+    field_validator,
+    model_validator,
+)
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
-from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse, pin_version_to_run
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -186,6 +194,24 @@ class DAGRunResponse(BaseModel):
     partition_key: str | None
     partition_date: datetime | None
     team_name: str | None = None
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def report_created_version_with_run_bundle(
+        cls, data: Any, handler: ModelWrapValidatorHandler[DAGRunResponse]
+    ) -> DAGRunResponse:
+        """Report the version a pinned run was created with under the commit the run executed."""
+        response = handler(data)
+        if getattr(data, "bundle_version", None) is None:
+            return response
+        # A pinned run's versions property already loaded its created version.
+        created_dag_version = getattr(data, "created_dag_version", None)
+        if created_dag_version is None:
+            return response
+        for version in response.dag_versions:
+            if version.id == created_dag_version.id:
+                pin_version_to_run(version, created_dag_version, data)
+        return response
 
 
 class DAGRunCollectionResponse(BaseModel):

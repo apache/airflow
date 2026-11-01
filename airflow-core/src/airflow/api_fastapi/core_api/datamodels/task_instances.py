@@ -27,6 +27,7 @@ from pydantic import (
     BeforeValidator,
     Discriminator,
     Field,
+    ModelWrapValidatorHandler,
     NonNegativeInt,
     StringConstraints,
     Tag,
@@ -37,7 +38,7 @@ from pydantic import (
 from airflow._shared.secrets_masker import redact
 from airflow.api_fastapi.common.region import OmitsMissingRegion, RegionId, RegionIndex
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
-from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse, pin_version_to_run
 from airflow.api_fastapi.core_api.datamodels.job import JobResponse
 from airflow.api_fastapi.core_api.datamodels.trigger import TriggerResponse
 from airflow.utils.state import TaskInstanceState
@@ -114,6 +115,19 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         default=None,
         description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
     )
+
+    @model_validator(mode="wrap")
+    @classmethod
+    def report_version_with_run_bundle(
+        cls, data: Any, handler: ModelWrapValidatorHandler[TaskInstanceResponse]
+    ) -> TaskInstanceResponse:
+        """Report a pinned run's created version under the commit the run executed."""
+        response = handler(data)
+        if response.dag_version is not None:
+            pin_version_to_run(
+                response.dag_version, getattr(data, "dag_version", None), getattr(data, "dag_run", None)
+            )
+        return response
 
     @field_validator("state_reason", mode="after")
     @classmethod

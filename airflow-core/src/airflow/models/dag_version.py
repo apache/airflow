@@ -102,17 +102,21 @@ class DagVersion(Base):
     @property
     def bundle_url(self) -> str | None:
         """Render the bundle URL from the bundle metadata row, when there is one."""
+        return self.bundle_url_for(self.bundle_version)
+
+    def bundle_url_for(self, bundle_version: str | None) -> str | None:
+        """Render this version's bundle URL for ``bundle_version``, or None when no URL can be rendered."""
         # When a bundle row exists, use it (render_url returns None if it has no URL template).
         # Only when there is no bundle row do we fall back to the deprecated manager lookup -- doing
         # so for an empty template would hit the deprecated path (and its warning) on every call.
         bundle = getattr(self, "bundle", None)
         if bundle is not None:
-            return bundle.render_url(self.bundle_version)
+            return bundle.render_url(bundle_version)
 
         if self.bundle_name is None:
             return None
         try:
-            return DagBundlesManager().view_url(self.bundle_name, self.bundle_version)
+            return DagBundlesManager().view_url(self.bundle_name, bundle_version)
         except ValueError:
             return None
 

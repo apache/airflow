@@ -50,6 +50,7 @@ from airflow.api_fastapi.common.parameters import (
     search_param_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
+from airflow.api_fastapi.core_api.datamodels.dag_versions import dag_versions_for_run
 from airflow.api_fastapi.core_api.datamodels.ui.common import (
     GridNodeResponse,
     GridRunsResponse,
@@ -402,7 +403,7 @@ def get_grid_runs(
                     "run_after": run.run_after,
                     "state": run.state,
                     "run_type": run.run_type,
-                    "dag_versions": run.dag_versions,
+                    "dag_versions": dag_versions_for_run(run),
                     "has_missed_deadline": has_missed,
                     "has_note": has_note,
                 }
