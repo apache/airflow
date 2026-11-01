@@ -1942,6 +1942,26 @@ class TestStringifiedDAGs:
     def assert_taskgroup_children(se_task_group, dag_task_group, expected_children):
         assert se_task_group.children.keys() == dag_task_group.children.keys() == expected_children
 
+    def test_task_group_retries_serialization(self):
+        """``TaskGroup.retries`` round-trips and defaults to 0 for blobs serialized before it existed."""
+        from airflow.providers.standard.operators.empty import EmptyOperator
+
+        with DAG("test_tg_retries_serde", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+            with TaskGroup("g", retries=3):
+                EmptyOperator(task_id="t")
+            with TaskGroup("plain"):
+                EmptyOperator(task_id="t2")
+
+        encoded = DagSerialization.serialize_dag(dag)
+        groups = DagSerialization.deserialize_dag(encoded).task_group.get_task_group_dict()
+        assert groups["g"].retries == 3
+        assert groups["plain"].retries == 0
+
+        # A blob predating the field (no "retries" key) deserializes to the default of 0.
+        del encoded["task_group"]["children"]["g"][1]["retries"]
+        legacy = DagSerialization.deserialize_dag(encoded)
+        assert legacy.task_group.get_task_group_dict()["g"].retries == 0
+
     @staticmethod
     def assert_task_is_setup_teardown(task, is_setup: bool = False, is_teardown: bool = False):
         assert task.is_setup == is_setup
@@ -5431,6 +5451,94 @@ class TestValidateSerializedDag:
         dag = DAG(dag_id="checked_dag", catchup=True, **kwargs)
 
         assert DagSerialization.validate_serialized_dag(DagSerialization.to_dict(dag)).catchup is True
+
+
+def _mapped_group_with_retries():
+    @task_group(retries=2)
+    def grp(x):
+        BaseOperator(task_id="inner")
+
+    grp.expand(x=[1, 2])
+
+
+def _looped_group_with_retries():
+    @task_group(retries=2)
+    def body():
+        return task_decorator(lambda: 1, task_id="work")()
+
+    body.loop(max_iterations=2)
+
+
+def _loop_in_group_with_retries():
+    with TaskGroup("g", retries=2):
+
+        @task_group
+        def body():
+            return task_decorator(lambda: 1, task_id="work")()
+
+        body.loop(max_iterations=2)
+
+
+def _group_with_retries_and_teardown():
+    with TaskGroup("g", retries=2):
+        create = BaseOperator(task_id="create").as_setup()
+        create >> BaseOperator(task_id="delete").as_teardown(setups=create)
+
+
+class TestValidateSerializedDagTaskGroupRetries:
+    @pytest.mark.parametrize(
+        ("build", "error"),
+        [
+            pytest.param(
+                _mapped_group_with_retries,
+                "task group 'grp' with retries that is or is inside a mapped task group or a loop",
+                id="mapped",
+            ),
+            pytest.param(
+                _looped_group_with_retries,
+                "task group 'body' with retries that is or is inside a mapped task group or a loop",
+                id="loop",
+            ),
+            pytest.param(
+                _loop_in_group_with_retries,
+                "task group 'g' with retries that contains loop 'g.body'",
+                id="contains-loop",
+            ),
+            pytest.param(
+                _group_with_retries_and_teardown,
+                "task group 'g' with retries that contains setup or teardown task 'g.create'",
+                id="teardown",
+            ),
+        ],
+    )
+    def test_rejects_retries_the_sdk_rejects(self, build, error):
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            build()
+        data = DagSerialization.to_dict(dag)
+
+        with pytest.raises(DeserializationError, match=f"^Dag 'checked_dag' has {re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_negative_retries(self):
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            with TaskGroup("g", retries=1):
+                BaseOperator(task_id="t")
+        data = DagSerialization.to_dict(dag)
+        data["dag"]["task_group"]["children"]["g"][1]["retries"] = -1
+
+        with pytest.raises(
+            DeserializationError,
+            match="^Dag 'checked_dag' has task group 'g' with retries that are not a non-negative integer$",
+        ):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_accepts_nested_groups_with_retries(self):
+        with DAG(dag_id="checked_dag", schedule=None) as dag:
+            with TaskGroup("outer", retries=1):
+                with TaskGroup("inner", retries=2):
+                    BaseOperator(task_id="t")
+
+        DagSerialization.validate_serialized_dag(DagSerialization.to_dict(dag))
 
 
 class TestFillConfigDefaults:
