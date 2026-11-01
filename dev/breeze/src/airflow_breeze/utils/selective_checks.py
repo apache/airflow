@@ -2344,6 +2344,12 @@ class SelectiveChecks:
         return self.docker_cache == "disabled"
 
     @cached_property
+    def use_pinned_os_deps_images(self) -> bool:
+        # Only the label - not the DOCKER_CACHE=disabled retry of a failed image build - asks for the OS
+        # dependencies to be installed from scratch rather than taken from the pinned images.
+        return DISABLE_IMAGE_CACHE_LABEL not in self._pr_labels
+
+    @cached_property
     def helm_test_packages(self) -> str:
         # A Helm test package takes about a minute under xdist on a RunsOn runner, against two to three
         # minutes of preparing the image, so RunsOn runs all of them in one job.

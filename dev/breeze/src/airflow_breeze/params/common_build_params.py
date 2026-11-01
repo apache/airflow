@@ -148,11 +148,10 @@ class CommonBuildParams:
 
         Those images are built on the pinned base image of the default Debian version with the default
         apt dependencies, so any other base image or apt customization installs from the repositories.
-        A build with the image cache disabled is asked to install everything from scratch, so it does too.
+        A disabled image cache does not turn them off - the CI build retries with it after any failure.
         """
         return (
             self.use_pinned_os_deps_images
-            and self.docker_cache != "disabled"
             and self.python_image is None
             and self.debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION
         )

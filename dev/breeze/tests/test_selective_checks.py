@@ -2188,6 +2188,28 @@ def test_lang_sdk_conformance_sdks(files: tuple[str, ...], expected_sdks: list[s
     assert json.loads(get_outputs_from_stderr(str(stderr))["lang-sdk-conformance-sdks"]) == expected_sdks
 
 
+@pytest.mark.parametrize(
+    ("pr_labels", "docker_cache", "use_pinned_os_deps_images"),
+    [
+        pytest.param((), "registry", "true", id="default"),
+        pytest.param(("disable image cache",), "disabled", "false", id="disable-image-cache-label"),
+    ],
+)
+def test_disable_image_cache_label_also_stops_using_the_pinned_os_deps_images(
+    pr_labels, docker_cache, use_pinned_os_deps_images
+):
+    stderr = SelectiveChecks(
+        files=("airflow-core/src/airflow/models/dag.py",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        pr_labels=pr_labels,
+        default_branch="main",
+    )
+    outputs = get_outputs_from_stderr(str(stderr))
+    assert outputs["docker-cache"] == docker_cache
+    assert outputs["use-pinned-os-deps-images"] == use_pinned_os_deps_images
+
+
 def test_spotless_skipped_when_only_airflow_serializer_changes():
     # Changing serialized_objects.py runs the conformance check and the Dag schema sync, but
     # spotless only formats java-sdk/ files, so it is skipped.

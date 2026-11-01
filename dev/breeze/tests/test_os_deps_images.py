@@ -20,9 +20,12 @@ import json
 from subprocess import CompletedProcess
 from unittest import mock
 
+import click
 import pytest
 from click.testing import CliRunner
 
+from airflow_breeze.commands.ci_image_commands import build as ci_image_build
+from airflow_breeze.commands.production_image_commands import build as prod_image_build
 from airflow_breeze.commands.release_management_commands import (
     OS_DEPS_IMAGE_PLATFORMS,
     build_os_deps_images,
@@ -390,16 +393,67 @@ def test_release_prod_images_start_from_the_pinned_os_deps_images(
     mock_console_print.assert_any_call("[info]Building regular 3.2.0 image for Python 3.12[/]")
 
 
+@pytest.mark.parametrize(
+    ("use_pinned_os_deps_images", "expected"),
+    [
+        pytest.param(True, {"CI_OS_DEPS_IMAGE": _pinned("ci")}, id="cache-disabled-keeps-the-pins"),
+        pytest.param(False, {}, id="no-use-pinned-os-deps-images"),
+    ],
+)
 @mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
-def test_cache_disabled_ci_image_installs_os_dependencies_itself():
-    assert "CI_OS_DEPS_IMAGE" not in _build_args(BuildCiParams(python="3.12", docker_cache="disabled"))
+def test_cache_disabled_ci_image_follows_use_pinned_os_deps_images(use_pinned_os_deps_images, expected):
+    # The CI image build retries with the cache disabled after any failure - that alone must not
+    # install from the apt repositories.
+    build_args = _build_args(
+        BuildCiParams(
+            python="3.12", docker_cache="disabled", use_pinned_os_deps_images=use_pinned_os_deps_images
+        )
+    )
+
+    assert {name: build_args[name] for name in build_args if name.endswith("_OS_DEPS_IMAGE")} == expected
 
 
+@pytest.mark.parametrize(
+    ("use_pinned_os_deps_images", "expected"),
+    [
+        pytest.param(
+            True,
+            {"DEV_OS_DEPS_IMAGE": _pinned("dev"), "RUNTIME_OS_DEPS_IMAGE": _pinned("runtime")},
+            id="cache-disabled-keeps-the-pins",
+        ),
+        pytest.param(False, {}, id="no-use-pinned-os-deps-images"),
+    ],
+)
 @mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
-def test_cache_disabled_prod_image_installs_os_dependencies_itself():
-    build_args = _build_args(BuildProdParams(python="3.12", docker_cache="disabled"))
+def test_cache_disabled_prod_image_follows_use_pinned_os_deps_images(use_pinned_os_deps_images, expected):
+    build_args = _build_args(
+        BuildProdParams(
+            python="3.12", docker_cache="disabled", use_pinned_os_deps_images=use_pinned_os_deps_images
+        )
+    )
 
-    assert not [name for name in build_args if name.endswith("_OS_DEPS_IMAGE")]
+    assert {name: build_args[name] for name in build_args if name.endswith("_OS_DEPS_IMAGE")} == expected
+
+
+@pytest.mark.parametrize(
+    ("args", "env", "expected"),
+    [
+        pytest.param([], {}, True, id="default-on"),
+        pytest.param(["--no-use-pinned-os-deps-images"], {}, False, id="flag"),
+        pytest.param([], {"USE_PINNED_OS_DEPS_IMAGES": "false"}, False, id="env-var"),
+    ],
+)
+@pytest.mark.parametrize("command", [ci_image_build, prod_image_build], ids=["ci-image", "prod-image"])
+def test_image_builds_have_the_use_pinned_os_deps_images_option(command, args, env, expected):
+    option = next(param for param in command.params if param.name == "use_pinned_os_deps_images")
+
+    @click.command(params=[option])
+    def probe(use_pinned_os_deps_images):
+        click.echo(use_pinned_os_deps_images)
+
+    result = CliRunner().invoke(probe, args, env=env, catch_exceptions=False)
+
+    assert result.output.strip() == str(expected)
 
 
 def test_ci_dependencies_epoch_is_a_marker_input():
