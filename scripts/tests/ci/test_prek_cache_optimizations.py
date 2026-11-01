@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -65,7 +66,7 @@ def sandbox(tmp_path):
     home.mkdir()
     output = tmp_path / "output"
     output.touch()
-    return {"HOME": str(home), "GITHUB_OUTPUT": str(output)}
+    return {"HOME": str(home), "GITHUB_OUTPUT": str(output), "HOOKS": ""}
 
 
 def read_outputs(env):
@@ -157,6 +158,8 @@ def test_cache_key_keeps_only_environment_inputs():
             "change-detection-uncertain",
         ),
         ({"SAVE_CACHE": "true"}, False, "unchanged"),
+        ({"HOOKS": "mypy-providers"}, False, "selected-hooks"),
+        ({"HOOKS": "mypy-providers", "SAVE_CACHE": "true", "STASH_HIT": "false"}, False, "selected-hooks"),
     ],
 )
 def test_cache_refresh_policy(sandbox, inputs, expected_save, expected_reason):
@@ -196,6 +199,85 @@ def test_restored_hooks_are_always_validated(sandbox, fake_tools):
     ] in read_commands(fake_tools)
     assert read_outputs(sandbox)["cache-changed"] == "false"
     assert read_outputs(sandbox)["change-detection-uncertain"] == "false"
+
+
+@pytest.mark.parametrize(
+    ("hooks", "expected_arguments", "expected_reason"),
+    [
+        (
+            "compile-fab-assets compile-edge-assets",
+            ["compile-fab-assets", "compile-edge-assets"],
+            "selected-hooks",
+        ),
+        (
+            "compile-fab-assets\ncompile-edge-assets\n",
+            ["compile-fab-assets", "compile-edge-assets"],
+            "selected-hooks",
+        ),
+        (
+            " \n",
+            ["--skip", "run-skill-eval", "--skip", "run-skill-eval-codex", "--skip", "view-skill-eval"],
+            "cache-miss",
+        ),
+    ],
+    ids=("space-separated", "newline-separated", "whitespace-only"),
+)
+def test_hooks_input_decides_what_is_prepared_and_saved(
+    sandbox, fake_tools, hooks, expected_arguments, expected_reason
+):
+    install_step = find_step(PREK_ACTION, step_id="install-hooks")
+    policy_step = find_step(PREK_ACTION, step_id="cache-policy")
+    assert install_step["env"]["HOOKS"] == policy_step["env"]["HOOKS"] == "${{ inputs.hooks }}"
+    result = run_shell(install_step["run"], {**sandbox, **fake_tools, "HOOKS": hooks})
+    assert result.returncode == 0, result.stderr
+    assert read_commands(fake_tools) == [["prek", "install-hooks", *expected_arguments]]
+    result = run_shell(
+        policy_step["run"], {**sandbox, "HOOKS": hooks, "SAVE_CACHE": "true", "STASH_HIT": "false"}
+    )
+    assert result.returncode == 0, result.stderr
+    assert read_outputs(sandbox)["reason"] == expected_reason
+
+
+def find_hatch_build_hooks():
+    return {
+        hook
+        for path in (*ROOT.glob("providers/*/hatch_build.py"), *ROOT.glob("providers/*/*/hatch_build.py"))
+        for hook in re.findall(r'"prek", "run", "([\w-]+)"', path.read_text())
+    }
+
+
+def find_hooks_run_by_job(job):
+    hooks = set()
+    for step in job["steps"]:
+        command = step.get("run", "")
+        if "prepare-provider-distributions" in command:
+            hooks |= find_hatch_build_hooks()
+        hooks.update(re.findall(r"^prek .* ([\w-]+) --all-files$", command, re.MULTILINE))
+    return hooks
+
+
+def test_selected_hooks_match_the_hooks_each_job_runs():
+    selections = {
+        f"{workflow.name}:{job_id}": (set(step["with"]["hooks"].split()), find_hooks_run_by_job(job))
+        for workflow in (ROOT / ".github/workflows").glob("*.yml")
+        for job_id, job in load_yaml(workflow)["jobs"].items()
+        for step in job.get("steps", [])
+        if step.get("uses") == "./.github/actions/install-prek" and "hooks" in step.get("with", {})
+    }
+    assert sorted(selections) == [
+        "ci-amd.yml:migration-round-trip",
+        "ci-amd.yml:mypy-providers",
+        "ci-arm.yml:migration-round-trip",
+        "ci-arm.yml:mypy-providers",
+        "generate-constraints.yml:generate-constraints-matrix",
+        "prod-image-build.yml:build-prod-packages",
+        "test-providers.yml:prepare-install-verify-provider-distributions",
+        "test-providers.yml:providers-compatibility-tests-matrix",
+    ]
+    for site, (selected, run) in selections.items():
+        assert selected == run, (
+            f"Set the hooks input of the install-prek step in {site} to: {' '.join(sorted(run))}"
+        )
 
 
 @pytest.mark.parametrize("cache_state", ("missing", "empty", "renamed-markers", "log-only"))

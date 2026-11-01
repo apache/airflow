@@ -638,7 +638,9 @@ class SecretsMasker(logging.Filter):
                         self.patterns.add(pattern)
                         new_mask = True
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Regex alternation takes the first alternative that matches, not the longest, so
+                # longer secrets must come first or a secret that is a prefix of another leaves its tail.
+                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:

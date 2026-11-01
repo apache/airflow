@@ -1192,6 +1192,37 @@ class TestCliConfigMethods:
         assert args_by_flag["--task-ids"].kwargs["type"] is str
         assert "--output" in args_by_flag
 
+    def test_tasks_get_and_list_args_parse(self):
+        """``tasks get`` and ``tasks list`` parse positionals and optional flags, and reject missing required args."""
+        command_factory = CommandFactory()
+        tasks_group = next(
+            group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
+        )
+        sub_commands = {sub_command.name: sub_command for sub_command in tasks_group.subcommands}
+
+        get_parser = argparse.ArgumentParser()
+        for arg in sub_commands["get"].args:
+            arg.add_to_parser(get_parser)
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.task_id == "runme_0"
+        assert namespace.version_number is None
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0", "--version-number", "3"])
+        assert namespace.version_number == 3
+        with pytest.raises(SystemExit):
+            get_parser.parse_args(["example_bash_operator"])
+
+        list_parser = argparse.ArgumentParser()
+        for arg in sub_commands["list"].args:
+            arg.add_to_parser(list_parser)
+        namespace = list_parser.parse_args(["example_bash_operator"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.order_by is None
+        namespace = list_parser.parse_args(["example_bash_operator", "--order-by=-start_date"])
+        assert namespace.order_by == "-start_date"
+        with pytest.raises(SystemExit):
+            list_parser.parse_args([])
+
     @pytest.mark.parametrize(
         ("field", "raw_value", "expected_value"),
         [
@@ -1312,6 +1343,8 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("taskinstances", "state-store", "Manage the state store of a task instance"),
+            ("tasks", "get", "Retrieve a task for a Dag by its ID and task ID"),
+            ("tasks", "list", "List tasks for a Dag"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
