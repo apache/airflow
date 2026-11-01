@@ -47,22 +47,23 @@ PUBLIC_ARM_RUNNERS = '["ubuntu-22.04-arm"]'
 # runners were reclaimed far more often than the rest (13-54% vs. 1-4%, Oct 2026): m5, m5a, m6a and,
 # for the in-memory runners, r7a, r6a, r6i; r7i, which AWS Spot Advisor rates >20% there, too.
 RUNS_ON_AMD_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
+    "runs-on={run_id}/env=flex/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}"
 )
 RUNS_ON_ARM_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={{0}}/ram={{1}}"
+    "runs-on={run_id}/env=flex/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "/cpu={{0}}/ram={{1}}"
 )
 # The same runners with docker, /tmp and /home/runner on a RAM disk (RunsOn `extras=tmpfs`), for jobs whose
 # databases wait on disk syncs. The RAM disk is capped at 100% of RAM before RunsOn v3.5.0, so these jobs
 # ask for memory headroom and also accept the memory-optimized r-family.
 RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8a+m8i+m7a+m7i+m6i+r8i"
+    "runs-on={run_id}/env=flex/family=m8a+m8i+m7a+m7i+m6i+r8i"
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}/extras=tmpfs"
 )
 RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE = (
-    "runs-on={run_id}/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
+    "runs-on={run_id}/env=flex/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co"
     "/cpu={{0}}/ram={{1}}/extras=tmpfs"
 )
 

@@ -105,6 +105,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Set current date as RELEASE_DATE variable"
@@ -214,6 +216,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
       - name: "Cleanup dist files"
         run: rm -fv ./dist/*
       - name: "Prepare provider distributions: wheel"
