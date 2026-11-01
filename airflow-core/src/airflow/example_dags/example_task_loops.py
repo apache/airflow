@@ -114,3 +114,34 @@ def partial_override_loop():
 
 partial_override_loop()
 # [END partial_override_loop]
+
+
+# [START retry_group_loop]
+@dag(schedule=None, catchup=False, tags=["example"])
+def retry_group_loop():
+    @task_group
+    def collect_and_publish():
+        @task
+        def collect():
+            return ["a", "b", "c"]
+
+        @task
+        def publish(rows, *, loop):
+            if loop.index == 1:
+                raise RuntimeError("Target briefly unavailable")  # Stands in for a transient failure.
+            return len(rows)
+
+        @task(trigger_rule="all_done")
+        def check_published(published_count):
+            return published_count is not None
+
+        check_published(publish(collect()))
+
+    def published(*, loop):
+        return loop.result
+
+    collect_and_publish.loop(max_iterations=3, until=published)
+
+
+retry_group_loop()
+# [END retry_group_loop]

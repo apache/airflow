@@ -410,6 +410,7 @@ def clear_loop_example_runs():
         ("fixed_task_loop", 3),
         ("mapped_task_loop", 2),
         ("partial_override_loop", 3),
+        ("retry_group_loop", 2),
     ],
 )
 def test_documented_task_loop_examples_complete(session, dag_id, expected_iterations):

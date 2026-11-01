@@ -562,6 +562,8 @@ A TaskGroup can be used to organize tasks into hierarchical groups in Graph view
 
 Tasks in TaskGroups live on the same original Dag, and honor all the Dag settings and pool configurations.
 
+To run a whole TaskGroup again when one of its tasks fails, make it a loop, as shown in :ref:`loops-retry-task-group`.
+
 .. seealso::
    API reference for :class:`~airflow.sdk.TaskGroup` and :class:`~airflow.sdk.task_group`
 

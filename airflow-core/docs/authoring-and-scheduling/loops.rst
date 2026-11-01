@@ -369,6 +369,34 @@ iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loo
 the loop reached ``max_iterations`` without meeting ``until`` and the gate fails. A gate that fails before
 deciding, for example because ``until`` raised, or that was marked successful by hand, has no decision.
 
+.. _loops-retry-task-group:
+
+Retry a group of tasks
+======================
+
+A task's ``retries`` run that task again. To run a whole group of tasks again when one of them fails,
+for example a step that collects data and a step that publishes it, make the group a loop that stops
+once an iteration succeeds:
+
+.. exampleinclude:: /../src/airflow/example_dags/example_task_loops.py
+   :start-after: [START retry_group_loop]
+   :end-before: [END retry_group_loop]
+
+``check_published`` runs with ``trigger_rule="all_done"``, so it runs even when ``publish`` fails, and
+it is the body's terminal task. A failed ``publish`` pushes no return value, so ``check_published``
+receives ``None`` and returns ``False``. The gate then starts another iteration, which runs ``collect``
+and ``publish`` again. Once an iteration publishes, ``until`` returns ``True`` and the loop stops. If
+``publish`` still fails in the last allowed iteration, the gate fails, as for any loop that reaches
+``max_iterations`` without meeting ``until``.
+
+* ``max_iterations`` counts the first run, so ``max_iterations=3`` runs the group at most two more times.
+* ``publish`` returns a value other than ``None`` when it succeeds, because a task that returns nothing
+  also reaches ``check_published`` as ``None``.
+* A task's own ``retries`` stay in the same iteration, so the group runs again only after the failing
+  task has used up its retries.
+* The failed attempts stay in their iterations, and the Dag run succeeds once an iteration succeeds.
+* Loops cannot be nested or placed inside a mapped task group, so neither can a group retried this way.
+
 Iterations and execution history
 ================================
 

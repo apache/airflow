@@ -48,6 +48,9 @@ Choose a mechanism
      - Retries, set with ``retries`` on the task. See :doc:`/core-concepts/tasks`.
      - A retry reruns the same task instance. It does not create new task instances, and it does not advance a
        loop.
+   * - Run a whole group of tasks again when one of them fails
+     - :ref:`Loops <loops-retry-task-group>`
+     - A loop that stops once an iteration succeeds runs the group again after an iteration fails.
    * - Create tasks from something known when the Dag file is parsed
      - A Python ``for`` loop in the Dag file. See :doc:`/howto/dynamic-dag-generation`.
      - The Dag has the same shape in every run.
