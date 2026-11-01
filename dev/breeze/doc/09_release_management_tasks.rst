@@ -1371,6 +1371,11 @@ Example usage:
 
      breeze release-management build-os-deps-images --platform linux/arm64 --python 3.13
 
+In the workflow, the build and publish jobs get the base image digests the run's own mirror job mirrored
+(``--base-image-digests``), so a mirror-only run moving the tags meanwhile does not change what they
+build and publish - the OS-dependencies jobs have concurrency groups of their own and do not hold up the
+mirror runs.
+
 The script records what it installed with in the image, and a build on it installs nothing when nothing
 differs. When a PR changes the script or the variables it installs with (such as the Go or Node.js
 versions), the installation runs again on top of the pinned

@@ -2505,10 +2505,10 @@ def release_prod_images(
             "DOCKER_CONTEXT_FILES": "./docker-context-files",
             "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         }
-        for image_type in OS_DEPS_IMAGE_TYPES:
-            os_deps_image = get_pinned_os_deps_image(image_type.name, python)
-            if image_type.dockerfile == "Dockerfile" and os_deps_image:
-                build_args[image_type.build_arg] = os_deps_image
+        for os_deps_image_type in OS_DEPS_IMAGE_TYPES:
+            os_deps_image = get_pinned_os_deps_image(os_deps_image_type.name, python)
+            if os_deps_image_type.dockerfile == "Dockerfile" and os_deps_image:
+                build_args[os_deps_image_type.build_arg] = os_deps_image
         if commit_sha:
             build_args["COMMIT_SHA"] = commit_sha
         if slim_images:
@@ -5334,6 +5334,9 @@ def mirror_base_images(python: str | None):
     # Tags this run moved to an image other than the one the builds are pinned to. Only a move counts:
     # a pin that was already behind has had its upgrade triggered by the run that moved the tag.
     moved: list[str] = []
+    # The digests the OS-dependencies images are built on in the same workflow run - read here rather
+    # than from the moving tags later, which a mirror-only run may move while the images are building.
+    os_deps_base_image_digests: dict[str, str] = {}
     # Every Debian version is mirrored: the CI image and the default PROD image use the first one, the
     # others are still available to build PROD images on.
     for python_version, debian_version in itertools.product(python_versions, ALLOWED_DEBIAN_VERSIONS):
@@ -5358,6 +5361,8 @@ def mirror_base_images(python: str | None):
             digest = get_image_digest(mirrored)
             if digest is None:
                 continue
+            if copy_tag == tag and debian_version == OS_DEPS_IMAGE_DEBIAN_VERSION:
+                os_deps_base_image_digests[tag] = digest
             if digest != previous_digest and digest != HARDENED_PYTHON_IMAGE_DIGESTS.get(copy_tag):
                 moved.append(copy_tag)
             # The moving tag is replaced by the next refresh, which would leave the digest an upgrade
@@ -5386,6 +5391,7 @@ def mirror_base_images(python: str | None):
     if github_output:
         with open(github_output, "a") as output_file:
             output_file.write(f"moved-past-pins={'true' if moved else 'false'}\n")
+            output_file.write(f"os-deps-base-image-digests={json.dumps(os_deps_base_image_digests)}\n")
     if failed:
         console_print(f"[error]Failed to mirror: {', '.join(failed)}[/]")
         sys.exit(1)
@@ -5449,13 +5455,28 @@ class OsDepsImageBuild(NamedTuple):
     content_tag: str
 
 
-def get_os_deps_image_builds(python: str | None, image_types: tuple[str, ...]) -> list[OsDepsImageBuild]:
-    """Describe the OS-dependencies images to build on the base images the mirror currently serves."""
+DRY_RUN_BASE_IMAGE_DIGEST = "sha256:" + "0" * 64
+
+
+def get_os_deps_image_builds(
+    python: str | None, image_types: tuple[str, ...], base_image_digests: dict[str, str] | None = None
+) -> list[OsDepsImageBuild]:
+    """
+    Describe the OS-dependencies images to build on the mirrored base images.
+
+    :param base_image_digests: the base image digest for each mirrored tag - the ones the mirror job of
+        the same workflow run mirrored. A tag missing from it is read from the mirror's moving tag.
+    """
     python_versions = CURRENT_PYTHON_MAJOR_MINOR_VERSIONS if python is None else [python]
     builds = []
     for python_version in python_versions:
         python_tag = get_hardened_python_image_tag(python_version, OS_DEPS_IMAGE_DEBIAN_VERSION)
-        python_digest = get_image_digest(f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}")
+        python_digest = (base_image_digests or {}).get(python_tag) or get_image_digest(
+            f"{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag}"
+        )
+        if python_digest is None and get_dry_run():
+            # A dry run does not inspect the registry, so the plan is printed for a placeholder digest.
+            python_digest = DRY_RUN_BASE_IMAGE_DIGEST
         if python_digest is None:
             console_print(f"[error]{HARDENED_PYTHON_IMAGE_MIRROR}:{python_tag} is not mirrored[/]")
             sys.exit(1)
@@ -5481,6 +5502,26 @@ def get_platform_tag(tag: str, platform: str) -> str:
     return f"{tag}-{platform.split('/')[-1]}"
 
 
+def parse_base_image_digests(ctx: click.Context, param: click.Parameter, value: str | None) -> dict[str, str]:
+    if not value:
+        return {}
+    try:
+        digests = json.loads(value)
+    except json.JSONDecodeError as e:
+        raise click.BadParameter(f"not valid JSON: {e}") from e
+    if not isinstance(digests, dict):
+        raise click.BadParameter("must be a JSON object mapping base image tags to digests")
+    return digests
+
+
+option_base_image_digests = click.option(
+    "--base-image-digests",
+    callback=parse_base_image_digests,
+    envvar="OS_DEPS_BASE_IMAGE_DIGESTS",
+    help="JSON object with the digest of each mirrored base image tag to build on - the "
+    "'os-deps-base-image-digests' output of mirror-base-images. Tags missing from it are read from the mirror.",
+)
+
 option_os_deps_image_type = click.option(
     "--image-type",
     "image_types",
@@ -5496,6 +5537,7 @@ option_os_deps_image_type = click.option(
 )
 @option_python_no_default
 @option_os_deps_image_type
+@option_base_image_digests
 @click.option(
     "--platform",
     type=BetterChoice(OS_DEPS_IMAGE_PLATFORMS),
@@ -5504,9 +5546,11 @@ option_os_deps_image_type = click.option(
 )
 @option_verbose
 @option_dry_run
-def build_os_deps_images(python: str | None, image_types: tuple[str, ...], platform: str):
+def build_os_deps_images(
+    python: str | None, image_types: tuple[str, ...], base_image_digests: dict[str, str], platform: str
+):
     failed: list[str] = []
-    for build in get_os_deps_image_builds(python, image_types):
+    for build in get_os_deps_image_builds(python, image_types, base_image_digests):
         image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
         platform_image = (
             f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{get_platform_tag(build.content_tag, platform)}"
@@ -5554,12 +5598,15 @@ def build_os_deps_images(python: str | None, image_types: tuple[str, ...], platf
 )
 @option_python_no_default
 @option_os_deps_image_type
+@option_base_image_digests
 @option_verbose
 @option_dry_run
-def publish_os_deps_images(python: str | None, image_types: tuple[str, ...]):
+def publish_os_deps_images(
+    python: str | None, image_types: tuple[str, ...], base_image_digests: dict[str, str]
+):
     failed: list[str] = []
     moved: list[str] = []
-    for build in get_os_deps_image_builds(python, image_types):
+    for build in get_os_deps_image_builds(python, image_types, base_image_digests):
         image = f"{HARDENED_OS_DEPS_IMAGE_REPOSITORY}:{build.content_tag}"
         if get_image_digest(image) is None:
             platform_images = [

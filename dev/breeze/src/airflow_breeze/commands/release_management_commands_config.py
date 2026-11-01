@@ -121,6 +121,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--image-type",
+                "--base-image-digests",
                 "--platform",
             ],
         }
@@ -131,6 +132,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--image-type",
+                "--base-image-digests",
             ],
         }
     ],

@@ -143,7 +143,7 @@ OS_DEPENDENCIES_INPUTS_HASH=$(
                 ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
                 ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
                 TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
-                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS; do
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER; do
             printf '%s=%s\n' "${variable}" "${!variable-}"
         done
     } | sha256sum | cut -d ' ' -f 1
@@ -2276,17 +2276,23 @@ ENV PATH="${CARGO_HOME}/bin:${PATH}"
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh dev
 
-FROM dev-os-deps as airflow-build-image
+FROM dev-os-deps as python-dist
 
+# The final image copies /python-dist over its root before its runtime OS dependencies are installed -
+# the legacy flavor's installation links the compiled Python. It is empty for the hardened flavor, whose
+# Python comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that
+# COPY needs no condition and adds nothing to the hardened image. A stage of its own, so the
+# "runtime-os-deps" stage needs the OS dependencies of the build image, but not the build image itself.
 SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
-# The final image copies /python-dist over its root. It is empty for the hardened flavor, whose Python
-# comes with the base image, and holds the compiled /usr/python for the legacy flavor - so that COPY
-# needs no condition and adds nothing to the hardened image.
 RUN mkdir -p /python-dist; \
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "legacy" ]]; then \
         mkdir -p /python-dist/usr && cp -a /usr/python /python-dist/usr/; \
     fi
+
+FROM dev-os-deps as airflow-build-image
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
 
 # In case system python is installed, setting LD_LIBRARY_PATH prevents any case the system python
 # libraries will be accidentally used before the library installed from sources (which is newer and
@@ -2537,6 +2543,7 @@ ENV RUNTIME_APT_DEPS=${RUNTIME_APT_DEPS} \
     AIRFLOW_INSTALLATION_METHOD=${AIRFLOW_INSTALLATION_METHOD} \
     AIRFLOW_IMAGE_FLAVOR=${AIRFLOW_IMAGE_FLAVOR}
 
+COPY --from=python-dist /python-dist/ /
 COPY --from=scripts install_os_dependencies.sh /scripts/docker/
 RUN bash /scripts/docker/install_os_dependencies.sh runtime
 
@@ -2551,10 +2558,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.component="airflow" \
   org.apache.airflow.image="airflow" \
   org.apache.airflow.uid="${AIRFLOW_UID}"
-
-# Copied after the runtime OS dependencies, so the "runtime-os-deps" stage does not depend on the build
-# image. It holds the compiled Python of the legacy flavor, whose runtime installation does not use it.
-COPY --from=airflow-build-image /python-dist/ /
 
 # Having the variable in final image allows to disable providers manager warnings when
 # production image is prepared from sources rather than from package

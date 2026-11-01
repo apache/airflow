@@ -28,7 +28,8 @@ fi
 # The images built on a pinned OS-dependencies image (see "breeze release-management
 # build-os-deps-images") start from a layer this script already ran in. The marker records what it
 # ran with: this script, the installation type and every environment variable that changes what
-# gets installed - read before the defaults below are applied, as those are part of the script.
+# gets installed - read before the defaults below are applied, as those are part of the script. The CI
+# image's DEPENDENCIES_EPOCH_NUMBER is among them, so bumping it reinstalls on a pinned image too.
 # When nothing differs there is nothing left to install. When anything does - a PR changing this
 # script or the apt dependencies - the installation runs again on top, so the change is exercised.
 OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
@@ -41,7 +42,7 @@ OS_DEPENDENCIES_INPUTS_HASH=$(
                 ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
                 ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
                 TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
-                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS; do
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER; do
             printf '%s=%s\n' "${variable}" "${!variable-}"
         done
     } | sha256sum | cut -d ' ' -f 1

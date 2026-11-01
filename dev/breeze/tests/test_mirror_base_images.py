@@ -195,7 +195,10 @@ def test_mirror_reports_moving_past_the_pins(mock_latest, previous_digest, new_d
         )
 
     assert result.exit_code == 0
-    assert github_output.read_text() == f"moved-past-pins={expected}\n"
+    # Only the default Debian version is in the digests the OS-dependencies images are built on.
+    assert github_output.read_text() == (
+        f"moved-past-pins={expected}\nos-deps-base-image-digests={json.dumps({PINNED_TAG: new_digest})}\n"
+    )
 
 
 @mock.patch(

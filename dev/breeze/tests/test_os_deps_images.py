@@ -361,8 +361,9 @@ def test_publish_os_deps_images_fails_for_a_platform_not_built(registry):
 @mock.patch(f"{PATCH_PREFIX}.check_remote_ghcr_io_commands", autospec=True)
 @mock.patch(f"{PATCH_PREFIX}.check_airflow_cache_builder_configured", autospec=True)
 @mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True)
+@mock.patch(f"{PATCH_PREFIX}.console_print", autospec=True)
 def test_release_prod_images_start_from_the_pinned_os_deps_images(
-    mock_run_command, mock_builder, mock_ghcr, mock_environment, pins, expected, tmp_path
+    mock_console_print, mock_run_command, mock_builder, mock_ghcr, mock_environment, pins, expected, tmp_path
 ):
     with mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, pins, clear=True):
         result = CliRunner().invoke(
@@ -385,3 +386,80 @@ def test_release_prod_images_start_from_the_pinned_os_deps_images(
     command = mock_run_command.call_args.args[0]
     build_args = dict(command[i + 1].split("=", 1) for i, arg in enumerate(command) if arg == "--build-arg")
     assert {name: build_args[name] for name in build_args if name.endswith("_OS_DEPS_IMAGE")} == expected
+    mock_console_print.assert_any_call("[info]Building regular 3.2.0 image for Python 3.12[/]")
+
+
+@mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
+def test_cache_disabled_ci_image_installs_os_dependencies_itself():
+    assert "CI_OS_DEPS_IMAGE" not in _build_args(BuildCiParams(python="3.12", docker_cache="disabled"))
+
+
+@mock.patch.dict(HARDENED_OS_DEPS_IMAGE_DIGESTS, PINS, clear=True)
+def test_cache_disabled_prod_image_installs_os_dependencies_itself():
+    build_args = _build_args(BuildProdParams(python="3.12", docker_cache="disabled"))
+
+    assert not [name for name in build_args if name.endswith("_OS_DEPS_IMAGE")]
+
+
+def test_ci_dependencies_epoch_is_a_marker_input():
+    script = (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "install_os_dependencies.sh").read_text()
+    marker_variables = script.split("for variable in", 1)[1].split("; do", 1)[0].split()
+    stage = extract_dockerfile_stage((AIRFLOW_ROOT_PATH / "Dockerfile.ci").read_text(), "ci-os-deps")
+
+    assert "DEPENDENCIES_EPOCH_NUMBER" in marker_variables
+    assert "DEPENDENCIES_EPOCH_NUMBER=${DEPENDENCIES_EPOCH_NUMBER}" in stage
+
+
+def test_legacy_python_is_in_place_before_the_runtime_os_dependencies_install():
+    dockerfile = (AIRFLOW_ROOT_PATH / "Dockerfile").read_text()
+    runtime_stage = extract_dockerfile_stage(dockerfile, "runtime-os-deps")
+    python_dist_stage = extract_dockerfile_stage(dockerfile, "python-dist")
+    main_stage = extract_dockerfile_stage(dockerfile, "main")
+
+    assert python_dist_stage.startswith("FROM dev-os-deps as python-dist\n")
+    assert runtime_stage.index("COPY --from=python-dist /python-dist/ /") < runtime_stage.index(
+        "RUN bash /scripts/docker/install_os_dependencies.sh runtime"
+    )
+    assert "/python-dist" not in main_stage
+
+
+def test_os_deps_image_builds_use_the_given_base_image_digests():
+    # No registry: the digest the mirror job of the same run mirrored is used as given.
+    with mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True, side_effect=FakeRegistry()):
+        (build,) = get_os_deps_image_builds("3.12", ("ci",), {PYTHON_TAG: PYTHON_DIGEST})
+
+    assert build.build_args["BASE_IMAGE"] == f"{MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}"
+
+
+@mock.patch(f"{PATCH_PREFIX}.get_dry_run", autospec=True, return_value=True)
+def test_os_deps_image_builds_plan_with_a_placeholder_digest_in_dry_run(mock_dry_run):
+    with mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True, side_effect=FakeRegistry()):
+        (build,) = get_os_deps_image_builds("3.12", ("ci",))
+
+    assert build.build_args["BASE_IMAGE"] == f"{MIRROR}:{PYTHON_TAG}@sha256:{'0' * 64}"
+
+
+def test_build_os_deps_images_reads_the_base_image_digests_from_the_environment():
+    registry = FakeRegistry()
+    with mock.patch(f"{PATCH_PREFIX}.run_command", autospec=True, side_effect=registry):
+        result = CliRunner().invoke(
+            build_os_deps_images,
+            ["--python", "3.12", "--image-type", "ci", "--platform", "linux/amd64"],
+            env={"OS_DEPS_BASE_IMAGE_DIGESTS": json.dumps({PYTHON_TAG: PYTHON_DIGEST})},
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0
+    (command,) = registry.builds
+    assert f"BASE_IMAGE={MIRROR}:{PYTHON_TAG}@{PYTHON_DIGEST}" in command
+
+
+@pytest.mark.parametrize("value", ["not-json", "[]"])
+def test_build_os_deps_images_rejects_invalid_base_image_digests(value):
+    result = CliRunner().invoke(
+        build_os_deps_images,
+        ["--platform", "linux/amd64", "--base-image-digests", value],
+    )
+
+    assert result.exit_code == 2
+    assert "--base-image-digests" in result.output

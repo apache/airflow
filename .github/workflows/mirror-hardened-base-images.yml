@@ -62,9 +62,10 @@ on:  # yamllint disable-line rule:truthy
     - cron: '47 2 * * *'
 permissions:
   contents: read
-concurrency:
-  group: mirror-hardened-base-images
-  cancel-in-progress: false
+# Concurrency is per job, not per run: the mirror jobs of all runs are serialized, the OS-dependencies
+# builds have groups of their own, so a mirror-only run - such as the one the upgrade check dispatches
+# and waits for - never queues behind a daily build. The builds use the digests their own run's mirror
+# job mirrored, so a later mirror moving the tags does not change what they build or publish.
 jobs:
   # Picks the runners the way CI does: RunsOn in apache/airflow, public runners when the repository
   # variable USE_PUBLIC_RUNNERS is "true".
@@ -127,11 +128,15 @@ jobs:
     # branch must not be able to replace it. Main mirrors every Python version an active release
     # branch still builds on, so the release branches need no runs of their own.
     if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: mirror-hardened-base-images
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
     outputs:
       moved-past-pins: ${{ steps.mirror.outputs.moved-past-pins }}
+      os-deps-base-image-digests: ${{ steps.mirror.outputs.os-deps-base-image-digests }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -178,6 +183,9 @@ jobs:
       ${{ format(fromJSON(matrix.platform == 'linux/arm64' && needs.build-info.outputs.arm-runner-type ||
       needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 120
+    concurrency:
+      group: mirror-hardened-base-images-os-deps-${{ matrix.platform }}-${{ matrix.python }}
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
@@ -200,12 +208,13 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python }}
+          OS_DEPS_BASE_IMAGE_DIGESTS: ${{ needs.mirror.outputs.os-deps-base-image-digests }}
         run: >
           breeze release-management build-os-deps-images
           --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}"
   publish-os-deps-images:
     name: "Publish OS-dependencies images"
-    needs: [build-info, build-os-deps-images]
+    needs: [build-info, mirror, build-os-deps-images]
     # Also after a failed build: the images that were built are published, and the job fails for the
     # rest.
     if: >-
@@ -215,6 +224,9 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.build-os-deps-images))
     runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
     timeout-minutes: 30
+    concurrency:
+      group: mirror-hardened-base-images-os-deps-publish
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
@@ -237,6 +249,8 @@ jobs:
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
       - name: "Publish OS-dependencies images"
         id: publish
+        env:
+          OS_DEPS_BASE_IMAGE_DIGESTS: ${{ needs.mirror.outputs.os-deps-base-image-digests }}
         run: breeze release-management publish-os-deps-images
   # Only main's pins: release branches move theirs on their own upgrade schedule. Also after a failed
   # mirror or publication: a tag moved before the failure stays moved, so a re-run would not see it
