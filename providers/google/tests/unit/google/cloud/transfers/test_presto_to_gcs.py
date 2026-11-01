@@ -81,6 +81,7 @@ class TestPrestoToGCSPrestoCursorAdapter:
         assert adapter.description is cursor.description
         assert adapter.initialized
         assert cursor.fetchone.call_count == 1
+        # The row peeked to load the description is buffered, so fetching it does not call the cursor.
         assert adapter.fetchone() == ROWS[0]
         assert cursor.fetchone.call_count == 1
 
@@ -118,16 +119,18 @@ class TestPrestoToGCSPrestoCursorAdapter:
         assert list(adapter) == ROWS
 
     @pytest.mark.parametrize("method", ["execute", "executemany"])
-    def test_execute_resets_peeked_rows(self, cursor, method):
+    def test_execute_drops_row_peeked_from_previous_query(self, cursor, method):
+        """A row peeked before running a new query must not be returned as a row of the new query."""
         adapter = _PrestoToGCSPrestoCursorAdapter(cursor)
-        adapter.peekone()
+        assert adapter.peekone() == ROWS[0]
 
         result = getattr(adapter, method)(SQL)
 
         assert result is getattr(cursor, method).return_value
         getattr(cursor, method).assert_called_once_with(SQL)
         assert not adapter.initialized
-        assert adapter.rows == []
+        # The next row comes from the cursor, not from the buffer.
+        assert adapter.fetchone() == ROWS[1]
 
     def test_rowcount_and_close_delegate_to_cursor(self, cursor):
         adapter = _PrestoToGCSPrestoCursorAdapter(cursor)
@@ -173,21 +176,33 @@ class TestPrestoToGCSOperator:
         assert op.field_to_bigquery(("col", field_type)) == {"name": "col", "type": expected_type}
 
     def test_convert_type_returns_value_unchanged(self):
+        """
+        The base operator passes every value it writes through ``convert_type``.
+
+        Presto values need no conversion, so they are written as the cursor returns them.
+        """
         op = PrestoToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=FILENAME)
         value = object()
 
         assert op.convert_type(value, "STRING") is value
 
+    @pytest.mark.parametrize(
+        ("export_format", "expected_mime_type", "expected_content"),
+        [
+            pytest.param("json", "application/json", b"".join(NDJSON_LINES), id="json"),
+            pytest.param("csv", "text/csv", b"".join(CSV_LINES), id="csv"),
+        ],
+    )
     @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook", autospec=True)
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
-    def test_save_as_json(self, mock_gcs_hook, mock_presto_hook):
+    def test_save(self, mock_gcs_hook, mock_presto_hook, export_format, expected_mime_type, expected_content):
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             assert bucket == BUCKET
             assert FILENAME.format(0) == obj
-            assert mime_type == "application/json"
+            assert mime_type == expected_mime_type
             assert not gzip
             with open(tmp_filename, "rb") as file:
-                assert b"".join(NDJSON_LINES) == file.read()
+                assert expected_content == file.read()
 
         mock_gcs_hook.return_value.upload.side_effect = _assert_upload
         mock_cursor = _setup_mock_cursor(mock_presto_hook)
@@ -197,6 +212,7 @@ class TestPrestoToGCSOperator:
             sql=SQL,
             bucket=BUCKET,
             filename=FILENAME,
+            export_format=export_format,
             presto_conn_id=PRESTO_CONN_ID,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -212,18 +228,44 @@ class TestPrestoToGCSOperator:
         )
         mock_gcs_hook.return_value.upload.assert_called_once()
 
+    @pytest.mark.parametrize(
+        ("export_format", "expected_mime_type", "header", "lines"),
+        [
+            pytest.param("json", "application/json", b"", NDJSON_LINES, id="json"),
+            pytest.param("csv", "text/csv", CSV_LINES[0], CSV_LINES[1:], id="csv"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("size_offset", "splits"),
+        [
+            pytest.param(-1, True, id="limit-below-two-rows"),
+            pytest.param(0, True, id="limit-at-two-rows"),
+            pytest.param(1, False, id="limit-above-two-rows"),
+        ],
+    )
     @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook", autospec=True)
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
-    def test_save_as_json_with_file_splitting(self, mock_gcs_hook, mock_presto_hook):
-        """Test that ndjson is split by approx_max_file_size_bytes param."""
-        expected_upload = {
-            FILENAME.format(0): b"".join(NDJSON_LINES[:2]),
-            FILENAME.format(1): NDJSON_LINES[2],
-        }
+    def test_save_split_by_file_size(
+        self,
+        mock_gcs_hook,
+        mock_presto_hook,
+        size_offset,
+        splits,
+        export_format,
+        expected_mime_type,
+        header,
+        lines,
+    ):
+        """A new file is started once the current one reaches ``approx_max_file_size_bytes``."""
+        two_rows = header + lines[0] + lines[1]
+        if splits:
+            expected_upload = {FILENAME.format(0): two_rows, FILENAME.format(1): header + lines[2]}
+        else:
+            expected_upload = {FILENAME.format(0): two_rows + lines[2]}
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             assert bucket == BUCKET
-            assert mime_type == "application/json"
+            assert mime_type == expected_mime_type
             assert not gzip
             with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
@@ -236,83 +278,18 @@ class TestPrestoToGCSOperator:
             sql=SQL,
             bucket=BUCKET,
             filename=FILENAME,
-            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]),
+            approx_max_file_size_bytes=len(two_rows) + size_offset,
+            export_format=export_format,
         )
 
         op.execute(None)
 
-        assert mock_gcs_hook.return_value.upload.call_count == 2
-
-    @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook", autospec=True)
-    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
-    def test_save_as_csv(self, mock_gcs_hook, mock_presto_hook):
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert bucket == BUCKET
-            assert FILENAME.format(0) == obj
-            assert mime_type == "text/csv"
-            assert not gzip
-            with open(tmp_filename, "rb") as file:
-                assert b"".join(CSV_LINES) == file.read()
-
-        mock_gcs_hook.return_value.upload.side_effect = _assert_upload
-        _setup_mock_cursor(mock_presto_hook)
-
-        op = PrestoToGCSOperator(
-            task_id=TASK_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=FILENAME,
-            export_format="csv",
-            presto_conn_id=PRESTO_CONN_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-
-        op.execute(None)
-
-        mock_presto_hook.assert_called_once_with(presto_conn_id=PRESTO_CONN_ID)
-        mock_gcs_hook.assert_called_once_with(
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
-        mock_gcs_hook.return_value.upload.assert_called_once()
-
-    @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook", autospec=True)
-    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
-    def test_save_as_csv_with_file_splitting(self, mock_gcs_hook, mock_presto_hook):
-        """Test that csv is split by approx_max_file_size_bytes param."""
-        expected_upload = {
-            FILENAME.format(0): b"".join(CSV_LINES[:3]),
-            FILENAME.format(1): b"".join([CSV_LINES[0], CSV_LINES[3]]),
-        }
-
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
-            assert bucket == BUCKET
-            assert mime_type == "text/csv"
-            assert not gzip
-            with open(tmp_filename, "rb") as file:
-                assert expected_upload[obj] == file.read()
-
-        mock_gcs_hook.return_value.upload.side_effect = _assert_upload
-        _setup_mock_cursor(mock_presto_hook, str_type="VARCHAR(20)")
-
-        op = PrestoToGCSOperator(
-            task_id=TASK_ID,
-            sql=SQL,
-            bucket=BUCKET,
-            filename=FILENAME,
-            approx_max_file_size_bytes=len(expected_upload[FILENAME.format(0)]),
-            export_format="csv",
-        )
-
-        op.execute(None)
-
-        assert mock_gcs_hook.return_value.upload.call_count == 2
+        assert mock_gcs_hook.return_value.upload.call_count == len(expected_upload)
 
     @pytest.mark.parametrize("export_format", ["json", "csv"])
     @patch("airflow.providers.google.cloud.transfers.presto_to_gcs.PrestoHook", autospec=True)
     @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook", autospec=True)
-    def test_save_with_schema_file(self, mock_gcs_hook, mock_presto_hook, export_format):
+    def test_save_schema_file(self, mock_gcs_hook, mock_presto_hook, export_format):
         """Test writing schema files."""
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
