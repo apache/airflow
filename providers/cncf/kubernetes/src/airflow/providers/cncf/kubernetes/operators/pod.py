@@ -207,6 +207,8 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param ssl_ca_cert: Path to a custom CA bundle to use for TLS verification of the
+        Kubernetes API server by the hook. When set, it overrides any CA from the kubeconfig.
     :param runtime_class_name: The name of the RuntimeClass to use for all containers in the pod.
     :param node_selector: A dict containing a group of scheduling rules. (templated)
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
@@ -358,6 +360,7 @@ class KubernetesPodOperator(BaseOperator):
         container_resources: k8s.V1ResourceRequirements | None = None,
         affinity: k8s.V1Affinity | None = None,
         config_file: str | None = None,
+        ssl_ca_cert: str | None = None,
         runtime_class_name: str | None = None,
         node_selector: dict | None = None,
         image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
@@ -478,6 +481,7 @@ class KubernetesPodOperator(BaseOperator):
         self.affinity = convert_affinity(affinity) if affinity else {}
         self.container_resources = container_resources
         self.config_file = config_file
+        self.ssl_ca_cert = ssl_ca_cert
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.automount_service_account_token = automount_service_account_token
@@ -655,6 +659,7 @@ class KubernetesPodOperator(BaseOperator):
             in_cluster=self.in_cluster,
             config_file=self.config_file,
             cluster_context=self.cluster_context,
+            ssl_ca_cert=self.ssl_ca_cert,
         )
         return hook
 

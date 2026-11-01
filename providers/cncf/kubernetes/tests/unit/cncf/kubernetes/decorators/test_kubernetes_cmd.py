@@ -64,6 +64,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         assert self.mock_create_pod.call_count == 1
 
@@ -155,6 +156,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         assert self.mock_create_pod.call_count == 1
         assert self.mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1
@@ -277,6 +279,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
         assert len(containers) == 1
@@ -308,6 +311,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
         assert len(containers) == 1
@@ -339,6 +343,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
         assert len(containers) == 1
@@ -371,6 +376,7 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
             in_cluster=False,
             cluster_context="default",
             config_file="/tmp/fake_file",
+            ssl_ca_cert=None,
         )
         containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
         assert len(containers) == 1

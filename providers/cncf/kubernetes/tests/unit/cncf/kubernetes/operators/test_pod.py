@@ -397,6 +397,29 @@ class TestKubernetesPodOperator:
             conn_id="kubernetes_default",
             config_file=file_path,
             in_cluster=None,
+            ssl_ca_cert=None,
+        )
+
+    @patch(HOOK_CLASS)
+    def test_ssl_ca_cert_passed_to_hook(self, hook_mock):
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            ssl_ca_cert="/path/to/ca.crt",
+        )
+        k.hook
+        hook_mock.assert_called_once_with(
+            cluster_context=None,
+            conn_id="kubernetes_default",
+            config_file=None,
+            in_cluster=None,
+            ssl_ca_cert="/path/to/ca.crt",
         )
 
     @pytest.mark.parametrize(
