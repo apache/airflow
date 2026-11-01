@@ -879,6 +879,22 @@ class DagRun(Base, LoggingMixin):
             .subquery()
         )
 
+        first_queued_backfill_runs = (
+            select(cls.backfill_id, func.min(BackfillDagRun.sort_ordinal).label("sort_ordinal"))
+            .join(
+                BackfillDagRun,
+                and_(BackfillDagRun.dag_run_id == cls.id, BackfillDagRun.backfill_id == cls.backfill_id),
+            )
+            .join(Backfill, Backfill.id == cls.backfill_id)
+            .where(
+                cls.state == DagRunState.QUEUED,
+                cls.run_after <= func.now(),
+                Backfill.max_active_runs == 1,
+            )
+            .group_by(cls.backfill_id)
+            .correlate(None)
+        )
+
         query = (
             select(cls)
             .where(cls.state == DagRunState.QUEUED)
@@ -899,6 +915,15 @@ class DagRun(Base, LoggingMixin):
                 isouter=True,
             )
             .join(Backfill, isouter=True)
+            .where(
+                # SKIP LOCKED must not let another scheduler overtake the first queued run
+                # of a serial backfill while its scheduler has yet to lock the Backfill.
+                or_(
+                    Backfill.max_active_runs != 1,
+                    BackfillDagRun.sort_ordinal.is_(None),
+                    tuple_(cls.backfill_id, BackfillDagRun.sort_ordinal).in_(first_queued_backfill_runs),
+                )
+            )
             .join(
                 running_drs,
                 and_(
