@@ -50,6 +50,7 @@ from airflow.models.taskinstance import clear_loop_task_instances, clear_task_in
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModelV2
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import BaseOperator, TaskGroup, task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.state.metastore import MetastoreBackend
@@ -1484,6 +1485,106 @@ class TestGetMappedTaskInstances:
             assert q.count("JOIN DAG_RUN") == 1, "dag_run must appear exactly once in JOINs"
             if "JOIN DAG_VERSION" in q:
                 assert q.count("JOIN DAG_VERSION") == 1, "dag_version must appear exactly once in JOINs"
+
+
+@pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+class TestTaskInstancePinnedBundleVersion(TestTaskInstanceEndpoint):
+    """A task of a pinned run reports the commit the run executed, not the commit its version row was moved to."""
+
+    BUNDLE_URL = "http://test_host.github.com/tree/{version}/dags"
+
+    @staticmethod
+    def _sync_dag_at(dag, bundle_version: str) -> None:
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        sync_dag_to_db(dag, bundle_name="dag_maker", bundle_version=bundle_version)
+
+    def _pinned_run(self, test_client, session, dag_maker, dag_id: str):
+        with dag_maker(
+            dag_id=dag_id, bundle_name="dag_maker", bundle_version="commit_a", session=session
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+        self._sync_dag_at(dag, "commit_a")
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "commit_a"},
+        )
+        assert response.status_code == 200
+        return dag, response.json()["dag_run_id"]
+
+    def test_task_of_pinned_run_keeps_the_run_commit(self, test_client, session, dag_maker):
+        dag_id = "pinned_run_task_bundle_version"
+        dag, run_id = self._pinned_run(test_client, session, dag_maker, dag_id)
+
+        # A code-only change: the same structure parsed at a new commit is refreshed in place.
+        self._sync_dag_at(dag, "commit_b")
+        versions = session.scalars(select(DagVersion).where(DagVersion.dag_id == dag_id)).all()
+        assert [v.bundle_version for v in versions] == ["commit_b"]
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/task_1")
+        assert response.status_code == 200
+        version = response.json()["dag_version"]
+        assert (version["bundle_version"], version["bundle_url"]) == (
+            "commit_a",
+            self.BUNDLE_URL.format(version="commit_a"),
+        )
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances")
+        assert response.status_code == 200
+        (listed,) = response.json()["task_instances"]
+        assert listed["dag_version"]["bundle_version"] == "commit_a"
+
+    def test_task_on_another_version_reports_its_row(self, test_client, session, dag_maker):
+        dag_id = "pinned_run_task_other_version"
+        _, run_id = self._pinned_run(test_client, session, dag_maker, dag_id)
+
+        # A structural change creates a second version; move the task onto it by hand, the way an
+        # uncleared task is left behind when a run is cleared onto the latest version.
+        with dag_maker(
+            dag_id=dag_id, bundle_name="dag_maker", bundle_version="commit_c", session=session
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+        self._sync_dag_at(dag, "commit_c")
+        versions = session.scalars(
+            select(DagVersion).where(DagVersion.dag_id == dag_id).order_by(DagVersion.version_number)
+        ).all()
+        assert [v.bundle_version for v in versions] == ["commit_a", "commit_c"]
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
+        )
+        ti.dag_version = versions[-1]
+        session.commit()
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/task_1")
+        assert response.status_code == 200
+        version = response.json()["dag_version"]
+        assert (version["bundle_version"], version["bundle_url"]) == (
+            "commit_c",
+            self.BUNDLE_URL.format(version="commit_c"),
+        )
+
+    def test_archived_try_of_pinned_run_keeps_the_run_commit(self, test_client, session, dag_maker):
+        dag_id = "pinned_run_try_bundle_version"
+        dag, run_id = self._pinned_run(test_client, session, dag_maker, dag_id)
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id)
+        )
+        ti.try_number = 1
+        ti.state = State.SUCCESS
+        session.flush()
+        clear_task_instances([ti], session=session)
+        session.commit()
+
+        self._sync_dag_at(dag, "commit_b")
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/taskInstances/task_1/tries/1")
+        assert response.status_code == 200
+        version = response.json()["dag_version"]
+        assert (version["bundle_version"], version["bundle_url"]) == (
+            "commit_a",
+            self.BUNDLE_URL.format(version="commit_a"),
+        )
 
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):

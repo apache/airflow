@@ -266,6 +266,38 @@ class TestDagVersion:
         assert dag_version.bundle_url == expected
         mock_manager.return_value.view_url.assert_called_once_with("removed-bundle", "abc")
 
+    def test_bundle_url_for_renders_another_commit_with_the_bundle_row(self):
+        """A pinned run reports its own commit; the URL is rendered for that commit, not the row's."""
+        bundle = mock.Mock(spec=DagBundleModel)
+        bundle.render_url.return_value = "https://example.com/tree/commit_a"
+        dag_version = DagVersion(
+            dag_id="dag_with_bundle_row", bundle_name="bundle", bundle_version="commit_b"
+        )
+        dag_version.bundle = bundle
+
+        assert dag_version.bundle_url_for("commit_a") == "https://example.com/tree/commit_a"
+        bundle.render_url.assert_called_once_with("commit_a")
+
+    def test_bundle_url_for_is_none_without_a_url_template(self):
+        bundle = mock.Mock(spec=DagBundleModel)
+        bundle.render_url.return_value = None
+        dag_version = DagVersion(
+            dag_id="dag_without_template", bundle_name="bundle", bundle_version="commit_b"
+        )
+        dag_version.bundle = bundle
+
+        assert dag_version.bundle_url_for("commit_a") is None
+
+    @mock.patch("airflow.models.dag_version.DagBundlesManager", autospec=True)
+    def test_bundle_url_for_falls_back_to_manager_without_a_bundle_row(self, mock_manager):
+        mock_manager.return_value.view_url.return_value = "https://example.com/tree/commit_a"
+        dag_version = DagVersion(
+            dag_id="dag_without_bundle_row", bundle_name="removed", bundle_version="commit_b"
+        )
+
+        assert dag_version.bundle_url_for("commit_a") == "https://example.com/tree/commit_a"
+        mock_manager.return_value.view_url.assert_called_once_with("removed", "commit_a")
+
 
 class TestResolveVersionData:
     """Unit tests for the _resolve_version_data pin-guard helper."""

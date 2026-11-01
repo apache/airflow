@@ -5391,3 +5391,110 @@ class TestBulkDagRuns:
             },
         )
         assert response.status_code == 403
+
+
+@pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+class TestDagRunPinnedBundleVersion:
+    """A pinned run reports the commit it executed, even after a code-only parse repointed its version row."""
+
+    BUNDLE_URL = "http://test_host.github.com/tree/{version}/dags"
+
+    @staticmethod
+    def _sync_same_dag_at(dag, bundle_name: str, bundle_version: str) -> None:
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        sync_dag_to_db(dag, bundle_name=bundle_name, bundle_version=bundle_version)
+
+    def _dag_versions(self, session, dag_id: str) -> list[DagVersion]:
+        from airflow.models.dag_version import DagVersion
+
+        return session.scalars(
+            select(DagVersion).where(DagVersion.dag_id == dag_id).order_by(DagVersion.version_number)
+        ).all()
+
+    def test_pinned_run_keeps_its_commit_after_code_only_refresh(self, test_client, session, dag_maker):
+        dag_id = "pinned_run_bundle_version"
+        with dag_maker(
+            dag_id=dag_id, bundle_name="dag_maker", bundle_version="commit_a", session=session
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+        self._sync_same_dag_at(dag, "dag_maker", "commit_a")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "commit_a"},
+        )
+        assert response.status_code == 200
+        run_id = response.json()["dag_run_id"]
+
+        # A code-only change: the same structure parsed at a new commit is refreshed in place.
+        self._sync_same_dag_at(dag, "dag_maker", "commit_b")
+        assert [v.bundle_version for v in self._dag_versions(session, dag_id)] == ["commit_b"]
+
+        expected = [{"bundle_version": "commit_a", "bundle_url": self.BUNDLE_URL.format(version="commit_a")}]
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["bundle_version"] == "commit_a"
+        assert [
+            {"bundle_version": v["bundle_version"], "bundle_url": v["bundle_url"]}
+            for v in body["dag_versions"]
+        ] == expected
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns")
+        assert response.status_code == 200
+        (listed,) = response.json()["dag_runs"]
+        assert [
+            {"bundle_version": v["bundle_version"], "bundle_url": v["bundle_url"]}
+            for v in listed["dag_versions"]
+        ] == expected
+
+    def test_unpinned_run_reports_the_version_row(self, test_client, session, dag_maker):
+        dag_id = "unpinned_run_bundle_version"
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name="dag_maker",
+            bundle_version="commit_a",
+            disable_bundle_versioning=True,
+            session=session,
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+        self._sync_same_dag_at(dag, "dag_maker", "commit_a")
+
+        response = test_client.post(f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z"})
+        assert response.status_code == 200
+        run_id = response.json()["dag_run_id"]
+
+        self._sync_same_dag_at(dag, "dag_maker", "commit_b")
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["bundle_version"] is None
+        assert [(v["bundle_version"], v["bundle_url"]) for v in body["dag_versions"]] == [
+            ("commit_b", self.BUNDLE_URL.format(version="commit_b"))
+        ]
+
+    def test_pinned_run_without_a_bundle_url_template_reports_no_url(self, test_client, session, dag_maker):
+        dag_id = "pinned_run_without_url"
+        # ``testing_bundle`` has a bundle row but no view URL template.
+        with dag_maker(
+            dag_id=dag_id, bundle_name="testing_bundle", bundle_version="commit_a", session=session
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+        self._sync_same_dag_at(dag, "testing_bundle", "commit_a")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "commit_a"},
+        )
+        assert response.status_code == 200
+        run_id = response.json()["dag_run_id"]
+
+        self._sync_same_dag_at(dag, "testing_bundle", "commit_b")
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert response.status_code == 200
+        assert [(v["bundle_version"], v["bundle_url"]) for v in response.json()["dag_versions"]] == [
+            ("commit_a", None)
+        ]

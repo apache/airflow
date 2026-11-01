@@ -670,6 +670,34 @@ class TestGetGridDataEndpoint:
         assert by_run_id["run_1"]["has_note"] is True
         assert by_run_id["run_2"]["has_note"] is False
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_grid_runs_pinned_run_keeps_its_commit(self, session, test_client, dag_maker):
+        """A code-only change moves the version row to a new commit; a run pinned to the old one reports it."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "grid_pinned_run"
+        with dag_maker(
+            dag_id=dag_id, bundle_name="dag_maker", bundle_version="commit_a", session=session
+        ) as dag:
+            EmptyOperator(task_id="task_1")
+        dag_maker.create_dagrun(run_id="run_a", logical_date=timezone.datetime(2024, 1, 1), session=session)
+        # The same structure parsed at a new commit is refreshed in place; the next run is pinned to it.
+        sync_dag_to_db(dag, bundle_name="dag_maker", bundle_version="commit_b")
+        dag_maker.create_dagrun(run_id="run_b", logical_date=timezone.datetime(2024, 1, 2), session=session)
+        session.commit()
+        runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.run_id)).all()
+        assert [run.bundle_version for run in runs] == ["commit_a", "commit_b"]
+
+        response = test_client.get(f"/grid/runs/{dag_id}?limit=5")
+        assert response.status_code == 200
+        assert {
+            run["run_id"]: (run["dag_versions"][-1]["bundle_version"], run["dag_versions"][-1]["bundle_url"])
+            for run in response.json()
+        } == {
+            "run_a": ("commit_a", "http://test_host.github.com/tree/commit_a/dags"),
+            "run_b": ("commit_b", "http://test_host.github.com/tree/commit_b/dags"),
+        }
+
     def test_get_grid_runs_multiple_dag_versions(self, session, test_client):
         # run_5_2 is created after version 2 exists, so its task instances run on version 2.
         # Reassign one of them to version 1 so the run spans two versions.
