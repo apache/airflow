@@ -2368,10 +2368,12 @@ export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
 * @param data.lastUpdatedAtLte
 * @param data.lastUpdatedAtLt
 * @param data.teams
+* @param data.alertIds
 * @returns DeadlineCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient, { dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
+export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient, { alertIds, dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }: {
+  alertIds?: string[];
   dagId: string;
   dagRunId: string;
   deadlineTimeGt?: string;
@@ -2387,13 +2389,14 @@ export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient
   offset?: number;
   orderBy?: string[];
   teams?: string[];
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ alertIds, dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ alertIds, dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
 /**
 * Get Dag Deadline Alerts
-* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
+* Get alerts from the latest Dag, a specified version, or a run's creation version.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
+* @param data.dagRunId
 * @param data.limit
 * @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.offset
@@ -2401,14 +2404,15 @@ export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, namePattern, offset, orderBy, versionNumber }: {
+export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, dagRunId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
+  dagRunId?: string;
   limit?: number;
   namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, namePattern, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, namePattern, offset, orderBy, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, dagRunId, limit, namePattern, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, dagRunId, limit, namePattern, offset, orderBy, versionNumber }) });
 /**
 * Get Callback Logs
 * Get the execution logs of a deadline callback.

@@ -47,18 +47,27 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
   const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
-    dagId,
-    dagRunId,
-    limit: 10,
-    orderBy: ["deadline_time"],
-  });
-
   const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
     dagId,
     dagRunId,
     limit: 100,
   });
+
+  const applicableAlerts = (alertData?.deadline_alerts ?? []).filter((deadlineAlert) =>
+    isDeadlineAlertApplicable(deadlineAlert, runType),
+  );
+  const alertIds = applicableAlerts.map((deadlineAlert) => deadlineAlert.id);
+  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines(
+    {
+      alertIds,
+      dagId,
+      dagRunId,
+      limit: 10,
+      orderBy: ["deadline_time"],
+    },
+    undefined,
+    { enabled: alertIds.length > 0 },
+  );
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
@@ -71,9 +80,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
   }
 
   const deadlines = deadlineData?.deadlines ?? [];
-  const applicableAlerts = (alertData?.deadline_alerts ?? []).filter((deadlineAlert) =>
-    isDeadlineAlertApplicable(deadlineAlert, runType),
-  );
   const hasAlerts = applicableAlerts.length > 0;
 
   if (deadlines.length === 0 && !hasAlerts) {
@@ -135,6 +141,7 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
           </Badge>
         </Button>
         <DeadlineStatusModal
+          alertIds={alertIds}
           alertMap={alertMap}
           dagId={dagId}
           dagRunId={dagRunId}
