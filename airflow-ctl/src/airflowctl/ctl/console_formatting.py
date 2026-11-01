@@ -75,7 +75,7 @@ class AirflowConsole(Console):
 
         table = SimpleTable(show_header=self.show_header)
         for col in data[0]:
-            table.add_column(col)
+            table.add_column(escape(str(col)))
 
         for row in data:
             table.add_row(*(escape(str(d)) for d in row.values()))
