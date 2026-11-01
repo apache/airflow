@@ -223,6 +223,8 @@ def test_clean_unused_keeps_trigger_deferred_onto_during_cleanup(session, create
         update(TaskInstance).where(TaskInstance.id == task_instance.id).values(trigger_id=trigger_id),
     )
 
+    # The task instance's foreign key to the trigger is ON DELETE CASCADE, so deleting the trigger
+    # would have deleted the task instance too.
     assert (
         session.scalar(
             select(func.count()).select_from(TaskInstance).where(TaskInstance.id == task_instance.id)
