@@ -188,6 +188,8 @@ def _check_flag_and_exit_if_server_response_error(func):
             if "Connection refused" in str(e):
                 raise AirflowCtlConnectionException("Connection refused. Is the API server running?")
             raise AirflowCtlConnectionException(f"Connection error: {e}")
+        except httpx.ConnectTimeout:
+            raise AirflowCtlConnectionException("Connection timed out. Is the API server running?")
 
     return wrapped
 
@@ -614,7 +616,7 @@ class DagsOperations(BaseOperations):
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         self.response = self.client.patch(
-            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json")
+            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json", exclude_none=True)
         )
         return validate_response(self.response.content, DAGResponse)
 

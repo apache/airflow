@@ -188,6 +188,16 @@ class TestBaseOperations:
         ):
             client.connections.get("1")
 
+    def test_server_connection_timed_out(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectTimeout("Connection timed out", request=request)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(
+            AirflowCtlConnectionException, match="Connection timed out. Is the API server running?"
+        ):
+            client.connections.get("1")
+
     def test_execute_list_raises_validation_error_for_non_json_response(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>login</html>")
@@ -1480,6 +1490,15 @@ class TestDagOperations:
     def test_update(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
+            return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
+        assert response == self.dag_response
+
+    def test_update_omits_none_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content.decode()) == {"is_paused": True}
             return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
