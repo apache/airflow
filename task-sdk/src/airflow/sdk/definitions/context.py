@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
 
 class CallbackSource(str, enum.Enum):
-    """Whether a callback was triggered at the DAG level or the task level."""
+    """Whether a callback was triggered at the Dag level or the task level."""
 
     DAG = "dag"
     TASK = "task"
@@ -40,7 +40,7 @@ class CallbackMeta(NamedTuple):
 
     Present in the callback context as ``context["callback"]``.
 
-    ``source`` tells whether the callback was defined on the DAG or on a task.
+    ``source`` tells whether the callback was defined on the Dag or on a task.
     More fields may be added in the future without breaking existing callbacks.
     """
 
