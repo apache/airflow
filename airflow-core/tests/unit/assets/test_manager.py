@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import itertools
 import logging
 import threading
 from collections import Counter
@@ -46,7 +45,7 @@ from airflow.models.asset import (
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
 )
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
 from airflow.models.team import Team
@@ -95,13 +94,6 @@ def clear_teams():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
-
-
-def create_mock_dag():
-    for dag_id in itertools.count(1):
-        mock_dag = mock.Mock(spec=DAG)
-        mock_dag.dag_id = dag_id
-        yield mock_dag
 
 
 def _clear_partition_db() -> None:
@@ -310,7 +302,7 @@ class TestAssetManager:
         session = mock.MagicMock(spec=Session)
         event = AssetEvent(asset_id=1)
         event.id = 99
-        with mock.patch("airflow.assets.manager.get_dialect_name", return_value=dialect_name):
+        with mock.patch("airflow.models.asset.get_dialect_name", return_value=dialect_name):
             AssetManager._queue_dagruns_nonpartitioned(
                 asset_id=1, dags_to_queue={dag}, event=event, session=session
             )
@@ -331,7 +323,7 @@ class TestAssetManager:
         session = mock.MagicMock(spec=Session)
         event = AssetEvent(asset_id=1)
         event.id = 99
-        with mock.patch("airflow.assets.manager.get_dialect_name", return_value="mysql"):
+        with mock.patch("airflow.models.asset.get_dialect_name", return_value="mysql"):
             AssetManager._queue_dagruns_nonpartitioned(
                 asset_id=1, dags_to_queue={dag}, event=event, session=session
             )

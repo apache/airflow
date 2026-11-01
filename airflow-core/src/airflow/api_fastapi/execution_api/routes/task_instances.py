@@ -197,6 +197,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.is_stub,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -288,8 +289,8 @@ def ti_run(
         )
         # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
         # queueing, so a retry and a resume from deferral each waited for a slot of their own.
-        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
-        # end_date is set), so the two disagree on retries by design.
+        # task.scheduled_duration is one sample per try (emit_state_change_metric returns early once
+        # the try has an end_date, as after a sensor reschedule), so the two disagree on resumes by design.
         # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
         emit_queued_duration = ti.queued_dttm is not None
 
@@ -302,6 +303,7 @@ def ti_run(
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
         retry_delay_override=None,
+        retry_at=None,
         retry_reason=None,
     )
 
@@ -382,7 +384,10 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        serialized_task = get_task(dag_bag, ti, session=session)
+        # Avoid loading the serialized Dag on the normal Python task path: only a lang-SDK
+        # (foreign-runtime) task needs its definition here, and ti.is_stub carries the row's own copy
+        # of the serialized flag.
+        serialized_task = get_task(dag_bag, ti, session=session) if ti.is_stub else None
 
         # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
         # spec; the route excludes unset fields, keeping regular responses lean.
@@ -404,6 +409,9 @@ def ti_run(
                     },
                 )
 
+        # Resolved here for a lang-SDK task only, since a regular task no longer loads its
+        # definition. #75387 has a Python task send its own execution_timeout to the supervisor,
+        # which is where the value for that kind of task belongs.
         if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
             context.execution_timeout = execution_timeout
 

@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
       max-parallel: 20

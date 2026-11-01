@@ -28,10 +28,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
-from airflow.providers.common.ai.utils.validation import (
-    reject_sequence_with_unsupported_feature,
-    validate_prompt,
-)
+from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     SET_DURING_EXECUTION,
     DecoratedOperator,
@@ -92,12 +89,6 @@ class _LLMSchemaCompareDecoratedOperator(DecoratedOperator, LLMSchemaCompareOper
         self.prompt = self.python_callable(*self.op_args, **kwargs)
 
         validate_prompt(self.prompt, decorator_name="@task.llm_schema_compare")
-        reject_sequence_with_unsupported_feature(
-            self.prompt,
-            decorator_name="@task.llm_schema_compare",
-            feature_name="require_approval",
-            feature_enabled=self.require_approval,
-        )
 
         self.render_template_fields(context)
         return LLMSchemaCompareOperator.execute(self, context)

@@ -28,7 +28,13 @@ import keyring
 import rich
 from keyring.errors import NoKeyringError
 
-from airflowctl.api.client import NEW_API_CLIENT, ClientKind, Credentials, provide_api_client
+from airflowctl.api.client import (
+    NEW_API_CLIENT,
+    ClientKind,
+    Credentials,
+    get_default_api_url,
+    provide_api_client,
+)
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
 
@@ -38,6 +44,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
     """Login to a provider."""
     success_message = "[green]Login successful! Welcome to airflowctl![/green]"
 
+    api_url = args.api_url or get_default_api_url()
     username = args.username
     password = args.password
     token = args.api_token or os.environ.get("AIRFLOW_CLI_TOKEN")
@@ -52,7 +59,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
                 "[blue] Alternatively, you can use --username and --password to login.[/blue]"
             )
             sys.exit(1)
-        rich.print(f"[blue]Credentials for[/blue] [bold]{args.env}[/bold] [blue]({args.api_url})[/blue]")
+        rich.print(f"[blue]Credentials for[/blue] [bold]{args.env}[/bold] [blue]({api_url})[/blue]")
         if not username:
             username = input(f"[{args.env}] Username: ")
         if not password:
@@ -64,14 +71,14 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
             rich.print("[red]The --skip-keyring is not compatible with username and password login.")
             sys.exit(1)
         credentials = Credentials(
-            api_url=args.api_url,
+            api_url=api_url,
             api_token="",
             api_environment=args.env,
             client_kind=ClientKind.AUTH,
         )
         # After logging in, the token will be saved in the credentials file
         try:
-            api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
+            api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
             login_response = api_client.login.login_with_username_and_password(
                 LoginBody(
                     username=username,
@@ -97,7 +104,7 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
         sys.exit(1)
 
     Credentials(
-        api_url=args.api_url,
+        api_url=api_url,
         api_token=token,
         api_environment=args.env,
     ).save(args.skip_keyring)
@@ -107,17 +114,46 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 @provide_api_client(kind=ClientKind.AUTH)
 def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
-    username = args.username or input("Username: ")
-    password = args.password or getpass.getpass("Password: ")
+    api_url = args.api_url or get_default_api_url()
+    username = args.username
+    password = args.password
+
+    # stdout is reserved for the token (e.g. TOKEN=$(airflowctl auth token)), so prompts
+    # and errors go to stderr.
+    if not username:
+        if not (sys.stdin and sys.stdin.isatty()):
+            rich.print("[red]No username provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--username[/blue] "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        sys.stderr.write("Username: ")
+        sys.stderr.flush()
+        username = input()
+    if not password:
+        # getpass reads from /dev/tty when available and falls back to stdin, so the
+        # password can still be piped in non-interactive runs instead of passed on argv.
+        try:
+            password = getpass.getpass("Password: ")
+        except EOFError:
+            rich.print("[red]No password provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--password[/blue] or pipe the password on stdin "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     try:
-        api_client.refresh_base_url(base_url=args.api_url, kind=ClientKind.AUTH)
+        api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
         login_response = api_client.login.login_with_username_and_password(
             LoginBody(username=username, password=password)
         )
         print(login_response.access_token)
     except Exception as e:
-        rich.print(f"[red]Token generation failed: {e}[/red]")
+        rich.print(f"[red]Token generation failed: {e}[/red]", file=sys.stderr)
         sys.exit(1)
 
 

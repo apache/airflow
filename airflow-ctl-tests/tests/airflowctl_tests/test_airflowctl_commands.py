@@ -138,13 +138,14 @@ TEST_COMMANDS = [
     "pools list",
     "pools get test_pool",
     "pools get test_pool -o yaml",
-    "pools update --pool=test_pool --slots=10",
+    "pools update --pool=test_pool --slots=10 --no-include-deferred",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
     "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
     "pools delete test_pool",
     "pools delete test_import_pool",
     # Providers commands
     "providers list",
+    "providers get apache-airflow-providers-standard",
     # Variables commands
     "variables create --key=test_key --value=test_value",
     "variables list",

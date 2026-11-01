@@ -25,7 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai import Agent, CallDeferred, DeferredToolRequests, Tool
 from pydantic_ai.exceptions import UsageLimitExceeded
-from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
@@ -47,6 +47,7 @@ from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, dum
 from airflow.providers.standard.exceptions import HITLTimeoutError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+from unit.common.ai.tool_parts import is_tool_result
 
 pytestmark = pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Per-tool approval needs Airflow 3.3+.")
 
@@ -94,7 +95,7 @@ class _Shop:
 
 
 def _returns(messages) -> list[str]:
-    return [str(p.content) for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+    return [str(p.content) for m in messages for p in m.parts if is_tool_result(p)]
 
 
 def _lookup_and_refund(messages, info: AgentInfo) -> ModelResponse:

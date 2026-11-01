@@ -33,6 +33,9 @@ Changelog
   team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
   un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
 
+.. warning::
+  The deprecated ``KubernetesExecutor.cleanup_stuck_queued_tasks`` and ``LocalKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
+
 10.25.0
 .......
 

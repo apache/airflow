@@ -298,12 +298,6 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
     session.commit()
 
 
-def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
-    _ensure_source_dag(session)
-    session.add(asset_event)
-    session.commit()
-
-
 def _create_dag_run(session, num: int = 2):
     _ensure_source_dag(session)
     dag_runs = [
@@ -382,10 +376,6 @@ class TestAssets:
     @provide_session
     def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_events_with_sensitive_extra(session=session, num=num)
-
-    @provide_session
-    def create_provided_asset_event(self, asset_event: AssetEvent, *, session):
-        _create_provided_asset_event(session=session, asset_event=asset_event)
 
     @provide_session
     def create_dag_run(self, num: int = 2, *, session):
