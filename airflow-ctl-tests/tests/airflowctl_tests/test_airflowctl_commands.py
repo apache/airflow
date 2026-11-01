@@ -105,6 +105,8 @@ TEST_COMMANDS = [
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # Tasks commands
+    "tasks get example_bash_operator runme_0",
+    "tasks list example_bash_operator",
     'tasks failed-deps example_bash_operator runme_0 "manual__{date_param}"',
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
@@ -138,7 +140,7 @@ TEST_COMMANDS = [
     "pools list",
     "pools get test_pool",
     "pools get test_pool -o yaml",
-    "pools update --pool=test_pool --slots=10",
+    "pools update --pool=test_pool --slots=10 --no-include-deferred",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
     "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
     "pools delete test_pool",
