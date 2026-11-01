@@ -1550,17 +1550,15 @@ class TestCliConfigMethods:
     @pytest.mark.parametrize(
         ("extra_argv", "expected_include_deferred"),
         [
-            pytest.param([], None, id="omitted-flag-keeps-stored-value"),
             pytest.param(["--include-deferred"], True, id="explicit-include"),
             pytest.param(["--no-include-deferred"], False, id="explicit-exclude"),
         ],
     )
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(PoolsOperations, "update", autospec=True)
-    def test_pools_update_omitted_include_deferred_stays_unset(
+    def test_pools_update_sends_given_include_deferred(
         self, mocked_update, mocked_print_as, extra_argv, expected_include_deferred
     ):
-        """Omitting ``--include-deferred`` must not send ``include_deferred=False`` and turn it off."""
         args = cli_parser.get_parser().parse_args(
             ["pools", "update", "--pool", "p", "--slots", "10", *extra_argv]
         )
@@ -1570,6 +1568,17 @@ class TestCliConfigMethods:
         assert mocked_update.call_args.kwargs["pool_body"] == PoolPatchBody(
             pool="p", slots=10, include_deferred=expected_include_deferred
         )
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(PoolsOperations, "update", autospec=True)
+    def test_pools_update_requires_include_deferred(self, mocked_update, mocked_print_as):
+        """Omitting ``--include-deferred`` must neither send ``include_deferred=False`` nor reach the server."""
+        args = cli_parser.get_parser().parse_args(["pools", "update", "--pool", "p", "--slots", "10"])
+
+        with pytest.raises(SystemExit, match="Provide --include-deferred or --no-include-deferred"):
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        mocked_update.assert_not_called()
 
     @pytest.mark.parametrize(
         ("extra_argv", "expected_run_on_latest_version"),

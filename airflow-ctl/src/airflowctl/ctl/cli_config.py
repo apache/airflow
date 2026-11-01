@@ -955,6 +955,10 @@ class CommandFactory:
             if len(provided) != 1:
                 raise SystemExit("Provide exactly one of --is-paused / --no-is-paused or --scheduling-state.")
 
+        # The server requires include_deferred on a pool PATCH without an update mask
+        if datamodel.__name__ == "PoolPatchBody" and params.get("include_deferred") is None:
+            raise SystemExit("Provide --include-deferred or --no-include-deferred.")
+
         return params
 
     def _validate_datamodel(self, datamodel: type[BaseModel], params: dict) -> Any:
