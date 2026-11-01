@@ -49,6 +49,7 @@ concurrency:
 jobs:
   detect-languages:
     name: Detect languages to scan
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     runs-on: ["ubuntu-slim"]
     permissions:
       contents: read
