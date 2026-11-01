@@ -89,7 +89,8 @@ class DatabricksGenieError(AirflowException):
 
     def __init__(self, message: str, *, status_code: int | None = None) -> None:
         super().__init__(message)
-        self.status_code = status_code
+        # AirflowException declares status_code as HTTPStatus; Genie keeps the raw code or None.
+        self.status_code = status_code  # type: ignore[assignment]
 
 
 class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
