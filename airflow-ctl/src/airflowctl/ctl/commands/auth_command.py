@@ -32,11 +32,13 @@ from airflowctl.api.client import (
     NEW_API_CLIENT,
     ClientKind,
     Credentials,
+    _read_api_url,
     get_default_api_url,
     provide_api_client,
 )
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.exceptions import AirflowCtlCredentialInvalidException
 
 
 @provide_api_client(kind=ClientKind.AUTH)
@@ -115,8 +117,36 @@ def login(args, api_client=NEW_API_CLIENT) -> None:
 def get_token(args, api_client=NEW_API_CLIENT) -> None:
     """Generate and print a JWT token for the given credentials to stdout."""
     api_url = args.api_url or get_default_api_url()
-    username = args.username or input("Username: ")
-    password = args.password or getpass.getpass("Password: ")
+    username = args.username
+    password = args.password
+
+    # stdout is reserved for the token (e.g. TOKEN=$(airflowctl auth token)), so prompts
+    # and errors go to stderr.
+    if not username:
+        if not (sys.stdin and sys.stdin.isatty()):
+            rich.print("[red]No username provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--username[/blue] "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        sys.stderr.write("Username: ")
+        sys.stderr.flush()
+        username = input()
+    if not password:
+        # getpass reads from /dev/tty when available and falls back to stdin, so the
+        # password can still be piped in non-interactive runs instead of passed on argv.
+        try:
+            password = getpass.getpass("Password: ")
+        except EOFError:
+            rich.print("[red]No password provided.[/red]", file=sys.stderr)
+            rich.print(
+                "[green]Please pass:[/green] [blue]--password[/blue] or pipe the password on stdin "
+                "to generate a token in a non-interactive context.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     try:
         api_client.refresh_base_url(base_url=api_url, kind=ClientKind.AUTH)
@@ -125,7 +155,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
         )
         print(login_response.access_token)
     except Exception as e:
-        rich.print(f"[red]Token generation failed: {e}[/red]")
+        rich.print(f"[red]Token generation failed: {e}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
@@ -159,11 +189,9 @@ def list_envs(args) -> None:
         config_status = "ok"
 
         try:
-            with open(config_path) as f:
-                config = json.load(f)
-                api_url = config.get("api_url", "unknown")
-        except (OSError, json.JSONDecodeError, KeyError) as e:
-            config_status = f"config error: {str(e)[:50]}"
+            api_url = _read_api_url(config_path)
+        except (OSError, ValueError, AirflowCtlCredentialInvalidException) as e:
+            config_status = f"config error: {e}"
             api_url = "error reading config"
 
         # Try to get token from keyring

@@ -42,7 +42,39 @@ permissions:
   packages: read
 
 jobs:
+  # Picks the runner the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true".
+  runner-info:
+    timeout-minutes: 10
+    name: "Runner info"
+    runs-on: ["ubuntu-slim"]
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          # Only what the runner choice reads: the full context would carry the dispatch inputs,
+          # and this job runs before the committer allowlist of the image build.
+          GITHUB_CONTEXT: '{"run_id": "${{ github.run_id }}", "ref_name": "${{ github.ref_name }}"}'
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   build-ci-image:
+    needs: [runner-info]
     name: "Build CI image"
     uses: ./.github/workflows/ci-image-build.yml
     permissions:
@@ -65,7 +97,7 @@ jobs:
         "vincbeck"
         ]'), github.event.sender.login)
     with:
-      runners: '["ubuntu-22.04"]'
+      runners: ${{ needs.runner-info.outputs.runner-type }}
       platform: "linux/amd64"
       push-image: "false"
       upload-image-artifact: "true"
@@ -115,8 +147,8 @@ jobs:
             >> "${GITHUB_OUTPUT}"
 
   backfill:
-    needs: [prepare, build-ci-image]
-    runs-on: ubuntu-latest
+    needs: [prepare, runner-info, build-ci-image]
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -280,8 +312,8 @@ jobs:
           done
 
   publish-versions:
-    needs: [prepare, backfill]
-    runs-on: ubuntu-latest
+    needs: [prepare, runner-info, backfill]
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '2+4', '8+16') }}
     name: "Publish versions.json"
     # Shares registry-build.yml's group, so it never runs alongside a registry publish to the same
     # bucket. Only this job: the backfill matrix writes per-version paths of its own, and putting
