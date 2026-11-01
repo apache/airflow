@@ -83,8 +83,9 @@ By default the operator runs in a *durable* mode that makes the synchronous poll
 Before polling begins the job name is persisted to :doc:`task state store
 <apache-airflow:core-concepts/task-state-store>`, so if the worker crashes and the task is
 retried, the operator reconnects to the job already running in Snowflake instead of submitting
-a duplicate. If the task is killed, ``on_kill`` drops the job service unless
-``cancel_on_kill=False``, so the retry submits a fresh job.
+a duplicate. If the task is killed, including by a graceful worker shutdown or pod eviction,
+``on_kill`` drops the job service and the retry submits a fresh job. Set ``cancel_on_kill=False``
+to keep the job running so the retry reconnects to it.
 
 On retry the operator checks the prior job's status:
 
