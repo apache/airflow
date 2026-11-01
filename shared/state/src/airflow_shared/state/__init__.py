@@ -337,3 +337,21 @@ class BaseStoreBackend(ABC):
         ``serialize_asset_state_store_to_ref`` encoding.
         """
         return json.loads(stored)
+
+    async def adeserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
+        """
+        Resolve a task state reference from an asynchronous accessor.
+
+        The default preserves the synchronous hook's instance and calling thread and may
+        block the event loop. Override this method to opt into non-blocking ref I/O.
+        """
+        return self.deserialize_task_state_store_from_ref(stored)
+
+    async def adeserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
+        """
+        Resolve an asset state reference from an asynchronous accessor.
+
+        The default preserves the synchronous hook's instance and calling thread and may
+        block the event loop. Override this method to opt into non-blocking ref I/O.
+        """
+        return self.deserialize_asset_state_store_from_ref(stored)
