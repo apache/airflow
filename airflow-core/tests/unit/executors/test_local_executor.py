@@ -598,9 +598,17 @@ class TestLocalExecutor:
 
         assert executor._put_workload(_make_task_workload()) is error
 
-    def test_process_workloads_undoes_dispatch_when_put_fails(self):
-        """A workload whose put failed was never sent, so it must not stay running or counted."""
+    @pytest.mark.parametrize(
+        ("earlier_dispatches", "still_running"),
+        [
+            pytest.param(0, False, id="no-earlier-dispatch"),
+            pytest.param(1, True, id="earlier-dispatch-still-running"),
+        ],
+    )
+    def test_process_workloads_undoes_dispatch_when_put_fails(self, earlier_dispatches, still_running):
+        """A failed put undoes only its own dispatch, so an earlier dispatch of the same key stays running."""
         executor = LocalExecutor(parallelism=1)
+        executor.workers = {}
         executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
         executor.activity_queue.put.side_effect = ValueError("unpicklable")
         executor._read_results = mock.MagicMock(spec=executor._read_results)
@@ -609,12 +617,16 @@ class TestLocalExecutor:
         workload = _make_task_workload()
         key = executor.get_workload_key(workload)
         executor.executor_queues.setdefault(workload.type, {})[key] = workload
+        if earlier_dispatches:
+            # A resumed attempt reuses the key while the earlier dispatch has not reported its result yet.
+            executor.running.add(key)
+            executor._dispatch_counts[key] = earlier_dispatches
 
         with pytest.raises(ValueError, match="unpicklable"):
             executor._process_workloads([workload])
 
-        assert key not in executor.running
-        assert key not in executor._dispatch_counts
+        assert (key in executor.running) is still_running
+        assert executor._dispatch_counts.get(key, 0) == earlier_dispatches
         assert executor.executor_queues[workload.type][key] is workload
         assert executor._unread_messages.value == 0
 
