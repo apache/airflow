@@ -79,3 +79,31 @@ with DAG(
 ) as filtered_dag:
     hello_deadline()
 # [END example_deadline_alert_run_type_filter]
+
+# [START example_deadline_alert_mixed_run_type_filters]
+with DAG(
+    dag_id="example_deadline_alert_mixed_run_type_filters",
+    description="Applies a short deadline to scheduled/manual runs and a longer deadline to all runs.",
+    schedule="@daily",
+    start_date=pendulum.datetime(2025, 1, 1, tz="UTC"),
+    catchup=False,
+    is_paused_upon_creation=True,
+    tags=["example", "deadline"],
+    deadline=[
+        DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(seconds=30),
+            callback=AsyncCallback(notify_deadline_missed),
+            name="scheduled_and_manual_runs",
+            run_type_filter={DagRunType.SCHEDULED, DagRunType.MANUAL},
+        ),
+        DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(minutes=5),
+            callback=AsyncCallback(notify_deadline_missed),
+            name="all_runs",
+        ),
+    ],
+) as mixed_filters_dag:
+    hello_deadline()
+# [END example_deadline_alert_mixed_run_type_filters]
