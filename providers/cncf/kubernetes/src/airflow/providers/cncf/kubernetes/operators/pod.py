@@ -481,7 +481,11 @@ class KubernetesPodOperator(BaseOperator):
         self.affinity = convert_affinity(affinity) if affinity else {}
         self.container_resources = container_resources
         self.config_file = config_file
-        self.ssl_ca_cert = ssl_ca_cert
+        # Stored under a different name than the parameter: GKEOperatorMixin
+        # defines ssl_ca_cert as a read-only property, so assigning to
+        # self.ssl_ca_cert here would break GKE operators that inherit
+        # from both the mixin and this operator (and mypy flags the clash).
+        self._ssl_ca_cert_path = ssl_ca_cert
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
         self.automount_service_account_token = automount_service_account_token
@@ -659,7 +663,7 @@ class KubernetesPodOperator(BaseOperator):
             in_cluster=self.in_cluster,
             config_file=self.config_file,
             cluster_context=self.cluster_context,
-            ssl_ca_cert=self.ssl_ca_cert,
+            ssl_ca_cert=self._ssl_ca_cert_path,
         )
         return hook
 
