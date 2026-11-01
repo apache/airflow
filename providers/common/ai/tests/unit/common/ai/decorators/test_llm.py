@@ -180,6 +180,42 @@ class TestLLMDecoratedOperator:
 
         assert op.prompt == "Analyze this support ticket:\n\nTotal is {{ 7 * 7 }}"
 
+    @patch("airflow.providers.common.ai.operators.llm.LLMOperator.execute", autospec=True)
+    def test_positional_argument_referenced_in_returned_prompt(self, mock_execute):
+        """A positional call, such as ``summarize("...")``, makes the argument available by name too."""
+
+        def summarize(text):
+            return "Summarize this article: {{ text }}"
+
+        op = _LLMDecoratedOperator(
+            task_id="test",
+            python_callable=summarize,
+            llm_conn_id="my_llm",
+            op_args=["Total is {{ 7 * 7 }}"],
+        )
+
+        op.execute(context={"task_instance": MagicMock()})
+
+        assert op.prompt == "Summarize this article: Total is {{ 7 * 7 }}"
+
+    @patch("airflow.providers.common.ai.operators.llm.LLMOperator.execute", autospec=True)
+    def test_default_argument_does_not_shadow_the_context(self, mock_execute):
+        """A parameter left at its default is not merged, so ``ti=None`` keeps the context's ``ti``."""
+
+        def summarize(text, ti=None):
+            return "{{ text }} from {{ ti }}"
+
+        op = _LLMDecoratedOperator(
+            task_id="test",
+            python_callable=summarize,
+            llm_conn_id="my_llm",
+            op_args=["logs"],
+        )
+
+        op.execute(context={"task_instance": MagicMock(), "ti": "the real ti"})
+
+        assert op.prompt == "logs from the real ti"
+
 
 @pytest.mark.skipif(not AIRFLOW_V_3_1_PLUS, reason="require_approval needs Airflow >= 3.1.0")
 @pytest.mark.parametrize(

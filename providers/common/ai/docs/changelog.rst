@@ -30,8 +30,9 @@ Changelog
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
   by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,
   ``op_args``, ``op_kwargs``, ...) are rendered once before ``execute()`` and are no longer
-  rendered a second time. The returned prompt is still rendered as a Jinja template; see the
-  ``@task.llm`` documentation for how to include text from function arguments in it.
+  rendered a second time. The returned prompt is still rendered as a Jinja template, and every
+  argument the task is called with, positional ones included, can be referenced in it by name;
+  see the ``@task.llm`` documentation for how to include text from function arguments in it.
 
 1.1.0
 .....

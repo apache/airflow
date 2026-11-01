@@ -28,6 +28,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_branch import LLMBranchOperator
+from airflow.providers.common.ai.utils.prompt import call_arguments
 from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     SET_DURING_EXECUTION,
@@ -92,6 +93,8 @@ class _LLMBranchDecoratedOperator(DecoratedOperator, LLMBranchOperator):
 
         # Render only the prompt the callable returned. The other template fields were already
         # rendered before execute().
+        # The arguments of the call, positional ones too, can be referenced by name in the prompt.
+        context_merge(context, call_arguments(self.python_callable, self.op_args, self.op_kwargs))
         self.prompt = self.render_template(self.prompt, context)
         return LLMBranchOperator.execute(self, context)
 
@@ -114,7 +117,7 @@ def llm_branch_task(
             system_prompt="Route support tickets to the right team.",
         )
         def route_ticket(message: str):
-            return f"Route this ticket: {message}"
+            return "Route this ticket: {{ message }}"
 
     With multiple branches::
 
@@ -124,7 +127,7 @@ def llm_branch_task(
             allow_multiple_branches=True,
         )
         def classify(text: str):
-            return f"Classify this text: {text}"
+            return "Classify this text: {{ text }}"
 
     :param python_callable: Function to decorate.
     """

@@ -211,8 +211,10 @@ argument, so ``{{ ds }}`` and other template variables work in it. Text you inse
 the returned string yourself, for example with an f-string, is rendered as part of the
 template too. To include text that comes from a function argument, such as a document or
 an upstream task's output, reference the argument by name in the template instead of
-formatting it into the string. The function's arguments are available when the prompt is
-rendered, and their values are inserted as they are:
+formatting it into the string, as the examples above do with ``{{ text }}``. Every argument
+the task is called with, positionally or by keyword, is available when the prompt is
+rendered, and its value is inserted as it is. A parameter left at its default value is not
+available; pass it explicitly to reference it:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_analysis_pipeline.py
     :language: python

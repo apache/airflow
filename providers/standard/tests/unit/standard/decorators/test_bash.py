@@ -582,6 +582,9 @@ class TestBashDecorator:
         result = op.execute(context=context)
         assert result == "test_templated_fields_task"
 
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_0_PLUS, reason="On Airflow 2, @task.bash is the decorator in Airflow core"
+    )
     def test_execute_renders_only_the_returned_command(self):
         """Fields rendered before execute() are not rendered again; only the returned value is."""
         with self.dag_maker:
