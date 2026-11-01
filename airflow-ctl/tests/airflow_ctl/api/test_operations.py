@@ -26,8 +26,9 @@ from unittest.mock import Mock
 
 import httpx
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, RootModel, ValidationError
 
+import airflowctl.api.datamodels.generated as generated_datamodels
 from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginBody, LoginResponse
 from airflowctl.api.datamodels.generated import (
@@ -69,6 +70,7 @@ from airflowctl.api.datamodels.generated import (
     DagRunState,
     DagRunTriggeredByType,
     DagRunType,
+    DagScheduleAssetReference,
     DagStatsCollectionResponse,
     DagStatsResponse,
     DagStatsStateResponse,
@@ -91,15 +93,21 @@ from airflowctl.api.datamodels.generated import (
     PoolPatchBody,
     PoolResponse,
     ProviderCollectionResponse,
+    ProviderDetailsResponse,
+    ProviderInfoResponse,
     ProviderResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
     ReprocessBehavior,
     TaskDependencyCollectionResponse,
     TaskDependencyResponse,
+    TaskInletAssetReference,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstanceState,
+    TaskOutletAssetReference,
+    TaskStateStoreCollectionResponse,
+    TaskStateStoreResponse,
     TriggerDAGRunPostBody,
     VariableBody,
     VariableCollectionResponse,
@@ -109,7 +117,7 @@ from airflowctl.api.datamodels.generated import (
     XComResponse,
     XComResponseNative,
 )
-from airflowctl.api.operations import BaseOperations, _build_query_params
+from airflowctl.api.operations import BaseOperations, _build_query_params, _tolerant_model
 from airflowctl.exceptions import AirflowCtlConnectionException
 
 if TYPE_CHECKING:
@@ -150,12 +158,43 @@ class TestBaseOperations:
             "order_by": "-id",
         }
 
+    @pytest.mark.parametrize(
+        ("operations", "args", "expected_path"),
+        [
+            ("variables", ("a#b",), "/api/v2/variables/a%23b"),
+            ("variables", ("..",), "/api/v2/variables/%2E%2E"),
+            ("connections", ("a?b",), "/api/v2/connections/a%3Fb"),
+            ("pools", ("../variables/key",), "/api/v2/pools/..%2Fvariables%2Fkey"),
+            ("dag_runs", ("dag_id", "run#1"), "/api/v2/dags/dag_id/dagRuns/run%231"),
+        ],
+    )
+    def test_delete_encodes_path_params(self, operations, args, expected_path):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode() == expected_path
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        getattr(client, operations).delete(*args)
+
     def test_server_connection_refused(self):
-        client = make_api_client(base_url="http://localhost")
+        # A real connect to localhost depends on the machine: a local web server answers, and WSL2
+        # mirrored networking turns a closed loopback port into a timeout instead of a refusal.
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("[Errno 111] Connection refused", request=request)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
         with pytest.raises(
             AirflowCtlConnectionException, match="Connection refused. Is the API server running?"
         ):
             client.connections.get("1")
+
+    def test_execute_list_raises_validation_error_for_non_json_response(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, headers={"content-type": "text/html"}, content=b"<html>login</html>")
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.pools.list()
 
     @pytest.mark.parametrize(
         ("total_entries", "limit", "expected_response"),
@@ -403,6 +442,38 @@ class TestAssetsOperations:
         response = client.assets.get(self.asset_id)
         assert response == self.asset_response
 
+    def test_get_asset_ignores_fields_added_by_newer_servers(self):
+        created_at = datetime.datetime(2024, 12, 31, 23, 59, 59)
+        updated_at = datetime.datetime(2025, 1, 1, 0, 0, 0)
+        expected = self.asset_response.model_copy(
+            update={
+                "scheduled_dags": [
+                    DagScheduleAssetReference(
+                        dag_id=self.dag_id, created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "producing_tasks": [
+                    TaskOutletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+                "consuming_tasks": [
+                    TaskInletAssetReference(
+                        dag_id=self.dag_id, task_id="task_id", created_at=created_at, updated_at=updated_at
+                    )
+                ],
+            }
+        )
+        asset_json = json.loads(expected.model_dump_json())
+        for field in ("scheduled_dags", "producing_tasks", "consuming_tasks"):
+            asset_json[field][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=asset_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.assets.get(self.asset_id) == expected
+
     def test_get_alias(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/aliases/{self.asset_alias_id}"
@@ -464,6 +535,17 @@ class TestAssetsOperations:
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
         assert response == asset_event_response
+
+    def test_create_event_ignores_fields_added_by_newer_servers(self):
+        event_json = json.loads(self.asset_event_response.model_dump_json())
+        event_json["created_dagruns"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=event_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
+        assert response == self.asset_event_response
 
     def test_materialize(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -758,6 +840,23 @@ class TestConfigOperations:
         response = client.configs.list()
         assert response == response_config
 
+    def test_get_ignores_fields_added_by_newer_servers(self):
+        response_config = Config(
+            sections=[
+                ConfigSection(name=self.section, options=[ConfigOption(key=self.option, value="config")])
+            ]
+        )
+        config_json = response_config.model_dump()
+        config_json["field_from_newer_server"] = "value"
+        config_json["sections"][0]["field_from_newer_server"] = "value"
+        config_json["sections"][0]["options"][0]["field_from_newer_server"] = "value"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=config_json)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert client.configs.get(section=self.section, option=self.option) == response_config
+
     def test_get_masked_value(self):
         """Verify that masked values from API are preserved in get() operation."""
         response_config = Config(
@@ -868,7 +967,9 @@ class TestConnectionsOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=self.connection)
+        response = client.connections.create(
+            connection=self.connection,
+        )
         assert response == self.connection_response
 
     def test_create_uses_schema_alias_in_request_body(self):
@@ -892,7 +993,9 @@ class TestConnectionsOperations:
             )
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.create(connection=connection)
+        response = client.connections.create(
+            connection=connection,
+        )
         assert response == self.connection_response
 
     def test_bulk(self):
@@ -1269,6 +1372,93 @@ class TestDagOperations:
         response = client.dags.get_details("dag_id")
         assert response == self.dag_details_response
 
+    @pytest.mark.parametrize(
+        ("operation", "path", "payload_attr"),
+        [
+            (lambda dags, patch_body: dags.get("dag_id"), "/api/v2/dags/dag_id", "dag_response"),
+            (
+                lambda dags, patch_body: dags.get_details("dag_id"),
+                "/api/v2/dags/dag_id/details",
+                "dag_details_response",
+            ),
+            (
+                lambda dags, patch_body: dags.update(dag_id="dag_id", dag_body=patch_body),
+                "/api/v2/dags/dag_id",
+                "dag_response",
+            ),
+        ],
+        ids=["get", "get_details", "update"],
+    )
+    @pytest.mark.parametrize(
+        "omitted_field",
+        ["is_backfillable", "timetable_periodic", "owners", "tags"],
+    )
+    def test_single_object_response_tolerates_field_an_older_server_omits(
+        self, operation, path, payload_attr, omitted_field
+    ):
+        """A server on an older Airflow line omits fields the generated models declare as required.
+
+        The omitted field must be left honestly ``None`` rather than filled with a
+        synthesized type default that would be indistinguishable from a real value.
+        """
+        payload = json.loads(getattr(self, payload_attr).model_dump_json())
+        del payload[omitted_field]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == path
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = operation(client.dags, self.dag_patch_body)
+
+        assert response.dag_id == self.dag_id
+        assert getattr(response, omitted_field) is None
+
+    def test_collection_response_tolerates_field_an_older_server_omits_from_an_item(self):
+        payload = json.loads(self.dag_collection_response.model_dump_json())
+        del payload["dags"][0]["owners"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags"
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.list()
+
+        assert response.dags[0].owners is None
+
+    def test_single_object_response_warns_on_stderr_about_the_fields_it_leaves_unset(self, capsys):
+        payload = json.loads(self.dag_response.model_dump_json())
+        del payload["is_backfillable"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        client.dags.get("dag_id")
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "DAGResponse" in captured.err
+        assert "is_backfillable" in captured.err
+
+    def test_single_object_response_raises_when_a_present_field_mismatches(self):
+        payload = json.loads(self.dag_response.model_dump_json())
+        del payload["is_backfillable"]
+        payload["max_active_tasks"] = "not-an-int"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError) as exc_info:
+            client.dags.get("dag_id")
+
+        assert {error["loc"] for error in exc_info.value.errors()} == {
+            ("is_backfillable",),
+            ("max_active_tasks",),
+        }
+
     def test_get_tags(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dagTags"
@@ -1623,6 +1813,267 @@ class TestDagRunOperations:
         assert response == self.dag_run_id
 
 
+class TestValidateResponseTolerance:
+    """
+    Cross-cutting coverage for ``validate_response``'s tolerant-twin fallback.
+
+    These target failure modes the old type-defaults implementation could not handle at
+    all: it had no default for a required enum or datetime field, so it produced ``None``
+    for them anyway, and the second (real) ``model_validate`` call then raised because
+    ``None`` is not a valid enum member or datetime -- the very omission the fallback was
+    supposed to tolerate blew up one call later instead.
+    """
+
+    dag_id = "dag_id"
+    dag_run_id = "dag_run_id"
+
+    def _dag_run_payload(self, dag_run_id: str | None = None) -> dict:
+        return json.loads(
+            DAGRunResponse(
+                dag_display_name=dag_run_id or self.dag_run_id,
+                dag_run_id=dag_run_id or self.dag_run_id,
+                dag_id=self.dag_id,
+                logical_date=datetime.datetime(2025, 1, 1),
+                queued_at=datetime.datetime(2025, 1, 1),
+                start_date=datetime.datetime(2025, 1, 1),
+                end_date=datetime.datetime(2025, 1, 1),
+                data_interval_start=datetime.datetime(2025, 1, 1),
+                data_interval_end=datetime.datetime(2025, 1, 1),
+                last_scheduling_decision=datetime.datetime(2025, 1, 1),
+                run_after=datetime.datetime(2025, 1, 1),
+                run_type=DagRunType.MANUAL,
+                state=DagRunState.RUNNING,
+                triggered_by=DagRunTriggeredByType.UI,
+                conf={},
+                note=None,
+                dag_versions=[],
+                duration=None,
+                triggering_user_name=None,
+                bundle_version=None,
+                partition_key=None,
+                partition_date=None,
+            ).model_dump_json()
+        )
+
+    def test_missing_required_enum_field_is_left_none(self):
+        """``DAGRunResponse.state`` is a required enum with no default -- the old
+        type-defaults fallback had no entry for it at all and produced ``None``, which the
+        second ``model_validate`` call then rejected as not being a valid enum member."""
+        payload = self._dag_run_payload()
+        del payload["state"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert response.state is None
+
+    def test_missing_required_datetime_field_is_left_none(self):
+        """``DAGRunResponse.run_after`` is a required datetime with no default."""
+        payload = self._dag_run_payload()
+        del payload["run_after"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert response.run_after is None
+
+    def test_tolerant_twin_instance_is_still_isinstance_of_the_original_model(self):
+        payload = self._dag_run_payload()
+        del payload["state"]
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dag_runs.get(dag_id=self.dag_id, dag_run_id=self.dag_run_id)
+
+        assert isinstance(response, DAGRunResponse)
+
+    def _dag_details_payload(self) -> dict:
+        return json.loads(
+            DAGDetailsResponse(
+                dag_id=self.dag_id,
+                dag_display_name=self.dag_id,
+                is_paused=False,
+                is_stale=False,
+                last_parsed_time=None,
+                last_parse_duration=None,
+                last_expired=None,
+                bundle_name=None,
+                bundle_version=None,
+                relative_fileloc=None,
+                fileloc=None,
+                description=None,
+                timetable_summary=None,
+                timetable_description=None,
+                timetable_partitioned=False,
+                timetable_periodic=True,
+                tags=[],
+                max_active_tasks=1,
+                max_active_runs=None,
+                max_consecutive_failed_dag_runs=1,
+                has_task_concurrency_limits=True,
+                has_import_errors=False,
+                next_dagrun_logical_date=None,
+                next_dagrun_data_interval_start=None,
+                next_dagrun_data_interval_end=None,
+                next_dagrun_run_after=None,
+                allowed_run_types=None,
+                owners=[],
+                catchup=False,
+                dag_run_timeout=None,
+                asset_expression=None,
+                doc_md=None,
+                start_date=None,
+                end_date=None,
+                is_paused_upon_creation=False,
+                params={},
+                render_template_as_native_obj=True,
+                template_search_path=None,
+                timezone=None,
+                last_parsed=None,
+                default_args=None,
+                is_backfillable=True,
+                file_token="file_token",
+                concurrency=1,
+                latest_dag_version=None,
+            ).model_dump_json()
+        )
+
+    def test_polymorphic_union_member_missing_a_required_field_still_raises(self, capsys):
+        """
+        Regression test for a real defect a prior version of the tolerant-twin builder had:
+        rewriting every member of a model-valued union (here
+        ``DAGDetailsResponse.asset_expression``) to its all-optional twin let pydantic's
+        smart-union match a payload shaped for one member -- but missing that member's
+        required subfields -- anyway, silently validating to an empty node instead of
+        raising. A polymorphic union (two or more non-``None`` model members) must never be
+        rewritten, so no member can swallow a malformed payload this way; only the field
+        being missing entirely may still fall back to ``None``.
+        """
+        payload = self._dag_details_payload()
+        del payload["timetable_periodic"]  # an unrelated field an older server omits
+        # Shaped like an AssetExpressionAsset leaf but missing its required "uri" and
+        # "group" -- no union member actually matches this payload.
+        payload["asset_expression"] = {"asset": {"name": "n"}}
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, json=payload)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.dags.get_details(dag_id=self.dag_id)
+
+        assert capsys.readouterr().err == ""
+
+    def test_execute_list_reassembly_tolerates_a_later_page_missing_a_field(self):
+        """
+        ``BaseOperations.execute_list`` reassembles pages by constructing a fresh
+        ``data_model`` and re-validating it. If a later page's item needed the tolerant
+        fallback for a required, non-Optional field (e.g. a missing ``bool``), that
+        reassembly must not re-raise on the very field it just tolerated.
+        """
+
+        class _StrictItem(BaseModel):
+            name: str
+            is_special: bool
+
+        class _StrictItemCollection(BaseModel):
+            items: list[_StrictItem]
+            total_entries: int
+
+        first_page = {"items": [{"name": "a", "is_special": True}], "total_entries": 2}
+        second_page_item = {"name": "b"}  # is_special omitted, as an older server would.
+
+        pages = [
+            Mock(spec=httpx.Response, content=json.dumps(first_page)),
+            Mock(spec=httpx.Response, content=json.dumps({"items": [second_page_item], "total_entries": 2})),
+        ]
+        mock_client = Mock(spec=Client)
+        mock_client.get.side_effect = pages
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="items", data_model=_StrictItemCollection, limit=1)
+
+        assert [item.name for item in response.items] == ["a", "b"]
+        assert response.items[0].is_special is True
+        assert response.items[1].is_special is None
+
+    def test_execute_list_returns_the_first_page_when_total_entries_is_omitted(self):
+        class _Item(BaseModel):
+            name: str
+
+        class _ItemCollection(BaseModel):
+            items: list[_Item]
+            total_entries: int
+
+        mock_client = Mock(spec=Client)
+        mock_client.get.return_value = Mock(
+            spec=httpx.Response, content=json.dumps({"items": [{"name": "a"}]})
+        )
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="items", data_model=_ItemCollection, limit=1)
+
+        assert [item.name for item in response.items] == ["a"]
+        assert response.total_entries is None
+        mock_client.get.assert_called_once()
+
+
+class TestTolerantModelBuilderCoversAllGeneratedModels:
+    """
+    Structural smoke test for the tolerant-twin builder itself.
+
+    Every non-``RootModel`` model in the generated datamodels must produce a tolerant twin
+    that validates an empty payload, proving the builder neither explodes nor infinitely
+    recurses on any of them -- including the two that are mutually self-referential
+    (``AssetExpressionAll`` <-> ``AssetExpressionAny``), which no longer needs a cycle guard
+    now that a polymorphic union (the only path back into either model) is never rewritten.
+    """
+
+    def test_every_generated_model_builds_a_tolerant_twin_that_validates_an_empty_payload(self):
+        models = [
+            obj
+            for obj in vars(generated_datamodels).values()
+            if isinstance(obj, type)
+            and issubclass(obj, BaseModel)
+            and not issubclass(obj, RootModel)
+            and obj.__module__ == generated_datamodels.__name__
+        ]
+        # A generous floor, not the exact count: guards against a filter bug (e.g. the
+        # RootModel exclusion swallowing everything) making this loop -- and the assertion
+        # below -- vacuously pass over zero models.
+        assert len(models) > 150
+
+        failures: dict[str, str] = {}
+        for model in models:
+            try:
+                twin = _tolerant_model(model)
+                twin.model_validate({})
+            except Exception as exc:
+                failures[model.__name__] = repr(exc)
+
+        assert failures == {}
+
+    def test_tolerant_twin_preserves_the_original_field_alias(self):
+        """
+        ``FieldInfo.merge_field_infos`` is a semi-public pydantic API; if a future pydantic
+        release changes how it copies metadata, this must fail loudly here rather than
+        silently drop the alias and only surface when a real server payload keyed by the
+        alias (``ConnectionsOperations`` reads/writes ``schema`` on the wire, see
+        ``ConnectionResponse.schema_``) fails to bind to the tolerant twin.
+        """
+        twin = _tolerant_model(ConnectionResponse)
+
+        assert twin.model_fields["schema_"].alias == "schema"
+
+
 class TestJobsOperations:
     job_response = JobResponse(
         id=1,
@@ -1859,6 +2310,26 @@ class TestProvidersOperations:
         providers=[provider_response],
         total_entries=1,
     )
+    provider_details_response = ProviderDetailsResponse(
+        package_name="package_name",
+        version="version",
+        description="description",
+        documentation_url=None,
+        provider_info=ProviderInfoResponse.model_validate(
+            {"name": "Provider", "extra_links": ["airflow.providers.package.links.Link"]}
+        ),
+    )
+
+    def test_get(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/providers/package_name"
+            return httpx.Response(
+                200, json=json.loads(self.provider_details_response.model_dump_json(by_alias=True))
+            )
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.providers.get("package_name")
+        assert response == self.provider_details_response
 
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1914,6 +2385,12 @@ class TestTaskInstancesOperations:
     task_dependency_collection_response = TaskDependencyCollectionResponse(
         dependencies=[TaskDependencyResponse(name="Trigger Rule", reason="upstream tasks not done")],
     )
+    task_state_store_response = TaskStateStoreResponse(
+        key="my_key",
+        value={"my_val": 0},  # type: ignore[arg-type]
+        updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
+        expires_at=None,
+    )
 
     def _make_client_asserting_path(self, expected_path: str, response_model) -> Client:
         def handle_request(request: httpx.Request) -> httpx.Response:
@@ -1968,6 +2445,141 @@ class TestTaskInstancesOperations:
         )
         response = client.task_instances.list(dag_id="dag_id", dag_run_id="dag_run_id")
         assert response == self.task_instance_collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_list_state_store(self, map_index):
+        collection_response = TaskStateStoreCollectionResponse(
+            task_state_store=[self.task_state_store_response],
+            total_entries=1,
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(collection_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.list_state_store(
+            "dag_id", "dag_run_id", "task_id", map_index=map_index
+        )
+        assert response == collection_response
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_get_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(200, json=json.loads(self.task_state_store_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == self.task_state_store_response
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_set_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PUT"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected, "expires_at": "default"}
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.set_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ('{"index": 0}', {"index": 0}),
+            ("hello", "hello"),
+        ],
+    )
+    def test_update_state_store(self, value, expected):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            assert json.loads(request.content) == {"value": expected}
+            return httpx.Response(200)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.update_state_store("dag_id", "dag_run_id", "task_id", key, value)
+        assert response == key
+
+    @pytest.mark.parametrize("map_index", [None, 2])
+    def test_delete_state_store(self, map_index):
+        key = self.task_state_store_response.key
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store/{key}"
+            )
+            if map_index is None:
+                assert "map_index" not in request.url.params
+            else:
+                assert request.url.params["map_index"] == str(map_index)
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.delete_state_store(
+            "dag_id", "dag_run_id", "task_id", key, map_index=map_index
+        )
+        assert response == key
+
+    @pytest.mark.parametrize(
+        ("map_index", "all_map_indices", "expected_params"),
+        [
+            (None, False, {}),
+            (2, False, {"map_index": "2"}),
+            (None, True, {"all_map_indices": "true"}),
+        ],
+    )
+    def test_clear_state_store(self, map_index, all_map_indices, expected_params):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.method == "DELETE"
+            assert request.url.path == (
+                "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/state-store"
+            )
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(204)
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.clear_state_store(
+            "dag_id",
+            "dag_run_id",
+            "task_id",
+            map_index=map_index,
+            all_map_indices=all_map_indices,
+        )
+        assert response == "task_id"
 
 
 class TestTasksOperations:

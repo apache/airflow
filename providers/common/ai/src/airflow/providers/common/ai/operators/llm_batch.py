@@ -40,6 +40,11 @@ from airflow.providers.common.ai.exceptions import (
     LLMBatchStaleStateError,
     LLMBatchTimeoutError,
 )
+from airflow.providers.common.ai.hooks.pydantic_ai import (
+    MODEL_PROVIDER_EXTRA_KEY,
+    PydanticAIHook,
+    _has_recognized_provider_prefix,
+)
 from airflow.providers.common.ai.triggers.llm_batch import LLMBatchTrigger
 from airflow.providers.common.compat.sdk import BaseHook, BaseOperator, ObjectStoragePath, conf
 
@@ -89,7 +94,8 @@ class LLMBatchOperator(BaseOperator):
         ``pydanticai`` connection today.
     :param model_id: Model identifier as ``"<provider>:<model>"`` (e.g.
         ``"openai:gpt-5"``). Falls back to the connection's Model field, as
-        ``LLMOperator`` does.
+        ``LLMOperator`` does. A bare name takes the connection's Default
+        Provider, and ``openai-chat:`` selects the OpenAI adapter.
     :param system_prompt: System-level instructions applied to every request
         that does not set its own ``system_prompt`` override.
     :param output_type: Expected output type. Default ``str``. Set to a
@@ -243,9 +249,23 @@ class LLMBatchOperator(BaseOperator):
 
     def _resolve_model_id(self, conn: Connection) -> str | None:
         """``model_id`` on the operator wins; otherwise the connection's Model field, as ``LLMOperator`` does."""
-        if self.model_id:
-            return self.model_id
-        return conn.extra_dejson.get("model") or None
+        return self._qualify_model_id(self.model_id or conn.extra_dejson.get("model") or None, conn)
+
+    @staticmethod
+    def _qualify_model_id(model_id: str | None, conn: Connection) -> str | None:
+        """
+        Prefix a bare model name with the connection's Default Model Provider, as ``PydanticAIHook`` does.
+
+        Only the generic ``pydanticai`` type reads ``extra["model_provider"]``, and a name whose
+        segment before the first ``:`` is already a pydantic-ai provider is left as is, so the
+        same connection and name select the same platform on ``@task.llm`` and here.
+        """
+        if not model_id or conn.conn_type != PydanticAIHook.conn_type:
+            return model_id
+        default_provider = conn.extra_dejson.get(MODEL_PROVIDER_EXTRA_KEY)
+        if not default_provider or _has_recognized_provider_prefix(model_id):
+            return model_id
+        return f"{default_provider}:{model_id}"
 
     def _connection(self) -> Connection:
         return BaseHook.get_connection(self.llm_conn_id)
@@ -277,6 +297,9 @@ class LLMBatchOperator(BaseOperator):
         output_schema: dict[str, Any] | str = spec.json_schema if spec.is_structured else "str"
 
         conn = self._connection()
+        for request in requests:
+            if request.get("model"):
+                request["model"] = self._qualify_model_id(request["model"], conn)
         model_id = self._resolve_model_id(conn)
         adapter_name, adapter = self._build_adapter(conn)
         _, bare_model = dispatch.split_model_id(model_id)

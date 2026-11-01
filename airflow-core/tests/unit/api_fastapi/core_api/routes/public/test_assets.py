@@ -59,6 +59,7 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
@@ -297,12 +298,6 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
     session.commit()
 
 
-def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
-    _ensure_source_dag(session)
-    session.add(asset_event)
-    session.commit()
-
-
 def _create_dag_run(session, num: int = 2):
     _ensure_source_dag(session)
     dag_runs = [
@@ -381,10 +376,6 @@ class TestAssets:
     @provide_session
     def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_events_with_sensitive_extra(session=session, num=num)
-
-    @provide_session
-    def create_provided_asset_event(self, asset_event: AssetEvent, *, session):
-        _create_provided_asset_event(session=session, asset_event=asset_event)
 
     @provide_session
     def create_dag_run(self, num: int = 2, *, session):
@@ -2062,7 +2053,9 @@ class TestQueuedEventsDagAxisAuthorization:
     @pytest.fixture
     def routes_by_path(self, test_client):
         return {
-            (r.path, tuple(sorted(r.methods))): r for r in test_client.app.routes if hasattr(r, "dependant")
+            (r.path, tuple(sorted(r.methods))): r
+            for r in iter_api_routes(test_client.app.routes)
+            if hasattr(r, "dependant")
         }
 
     @pytest.mark.parametrize(

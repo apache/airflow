@@ -783,6 +783,27 @@ class PsutilTracker(ProcessTracker):
         return self._impl.wait(timeout)
 
 
+def signal_process_tree(pid: int, sig: signal.Signals, *, fallback: Callable[[signal.Signals], None]) -> None:
+    """
+    Deliver ``sig`` to *pid*'s process group, so every process it spawned is reached too.
+
+    Calls *fallback* instead when the group cannot be resolved or signalled, and -- critically --
+    when *pid* is still in the caller's own process group, because ``killpg`` on our own group
+    would signal the caller itself and its siblings.
+    """
+    try:
+        pgid = os.getpgid(pid)
+    except (ProcessLookupError, PermissionError):
+        pgid = None
+    if pgid is not None and pgid != os.getpgid(0):
+        try:
+            os.killpg(pgid, sig)
+            return
+        except (ProcessLookupError, PermissionError):
+            pass
+    fallback(sig)
+
+
 def _validate_schema_version(instance, _, value) -> str | None:
     if value is None:
         return None
@@ -1069,12 +1090,21 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
+    @staticmethod
+    def _default_target_loggers(
+        process_log: FilteringBoundLogger, subprocess_logs_to_stdout: bool
+    ) -> tuple[FilteringBoundLogger, ...]:
+        """
+        Return the loggers child process output is forwarded to, before any subclass has its say.
+
+        Call this only where there is no instance yet. Everything else goes through
+        :meth:`_get_target_loggers`, which a subclass can override.
+        """
+        return (process_log, log) if subprocess_logs_to_stdout else (process_log,)
+
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         """Return the loggers that child process output should be forwarded to."""
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        return target_loggers
+        return self._default_target_loggers(self.process_log, self.subprocess_logs_to_stdout)
 
     def _create_log_forwarder(
         self,
@@ -1264,25 +1294,13 @@ class WatchedSubprocess:
         """
         Deliver ``sig`` to the child process, or to its whole process group when it has its own.
 
-        When ``new_process_group`` was set at ``start()`` time, the signal is sent with
-        ``os.killpg`` so subprocesses spawned by the child (venv children, bash shells, etc.)
-        are reached too (see issue #65505). Falls back to signalling the child PID alone when
-        the group cannot be resolved or signalled -- and, critically, when the child still
-        shares the supervisor's own process group (``setpgid`` failed), because ``killpg`` on
-        our own group would signal the supervisor itself and its siblings.
+        When ``new_process_group`` was set at ``start()`` time, the signal reaches the subprocesses
+        the child spawned too (venv children, bash shells, etc.); see issue #65505.
         """
         if self._new_process_group:
-            try:
-                pgid = os.getpgid(self._process.pid)
-            except (ProcessLookupError, PermissionError):
-                pgid = None
-            if pgid is not None and pgid != os.getpgid(0):
-                try:
-                    os.killpg(pgid, sig)
-                    return
-                except (ProcessLookupError, PermissionError):
-                    pass
-        self._process.send_signal(sig)
+            signal_process_tree(self._process.pid, sig, fallback=self._process.send_signal)
+        else:
+            self._process.send_signal(sig)
 
     def cleanup_sockets_after_kill(self) -> None:
         """Drain log-bearing sockets, then close every remaining socket after a forced kill."""

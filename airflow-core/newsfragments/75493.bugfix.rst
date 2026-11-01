@@ -1,0 +1,1 @@
+Fix the Task SDK client raising a bare ``HTTPStatusError`` instead of ``ServerResponseError`` when a reverse proxy rewrites the ``content-type`` of a JSON error response, for example to ``application/json; charset=utf-8``. The supervisor's and the client's status-specific handling, such as treating a 404 as a missing connection or variable, now applies to those responses.
