@@ -169,6 +169,7 @@ class OpenLineageListener:
     def __init__(self):
         self._executor: ProcessPoolExecutor | None = None
         self._thread_executor: ThreadPoolExecutor | None = None
+        self._semaphore: threading.BoundedSemaphore | None = None
         self._is_api_server_flag: bool = False
         self._pid: int = os.getpid()
         self._lock = threading.Lock()
@@ -196,6 +197,7 @@ class OpenLineageListener:
                     self._lock = new_lock
                     self._executor = None
                     self._thread_executor = None
+                    self._semaphore = None
                     _get_process_adapter.cache_clear()
                     self._pid = current_pid
 
@@ -1186,6 +1188,7 @@ class OpenLineageListener:
         self._check_pid()
         with self._lock:
             thread_executor, self._thread_executor = self._thread_executor, None
+            self._semaphore = None
             process_executor, self._executor = self._executor, None
 
         if thread_executor is not None:
@@ -1371,7 +1374,34 @@ class OpenLineageListener:
         except BaseException as e:
             self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
+    def _get_semaphore(self) -> threading.BoundedSemaphore | None:
+        if not self._is_api_server:
+            return None
+        if self._semaphore is None:
+            with self._lock:
+                if self._semaphore is None:
+                    max_pending = conf.api_server_max_pending_events()
+                    if max_pending > 0:
+                        # Capacity includes 1 actively running thread plus queue buffer
+                        self._semaphore = threading.BoundedSemaphore(max_pending)
+        return self._semaphore
+
     def submit_callable(self, callable, *args, **kwargs):
+        sem = self._get_semaphore()
+        if sem is not None and not sem.acquire(blocking=False):
+            max_pending = conf.api_server_max_pending_events()
+            self.log.warning(
+                "OpenLineage API server event queue saturated (limit=%d); dropping event to prevent memory growth under collector latency/outage.",
+                max_pending,
+            )
+            from concurrent.futures import Future
+
+            rejected_fut = Future()
+            rejected_fut.set_exception(
+                RuntimeError(f"OpenLineage API server queue saturated (limit={max_pending})")
+            )
+            return rejected_fut
+
         current_executor = self.executor
         try:
             fut = current_executor.submit(callable, *args, **kwargs)
@@ -1383,6 +1413,7 @@ class OpenLineageListener:
                         with suppress(Exception):
                             self._thread_executor.shutdown(wait=False, cancel_futures=True)
                         self._thread_executor = None
+                        self._semaphore = None
             else:
                 self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
                 with self._lock:
@@ -1391,6 +1422,9 @@ class OpenLineageListener:
                             self._executor.shutdown(wait=False)
                         self._executor = None
             fut = self.executor.submit(callable, *args, **kwargs)
+
+        if sem is not None:
+            fut.add_done_callback(lambda _: sem.release())
         fut.add_done_callback(self.log_submit_error)
         return fut
 

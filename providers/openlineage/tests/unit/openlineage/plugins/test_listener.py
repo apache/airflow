@@ -3580,3 +3580,62 @@ class TestExecuteRouting:
         assert err is None
         assert is_none is True
         assert diff_adapter is True
+
+    def test_bounded_semaphore_drops_events_when_queue_saturated(self):
+        """API server drops events when bounded semaphore capacity is reached."""
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+
+        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=2):
+            listener._semaphore = None
+
+            gate = threading.Event()
+
+            def blocking_worker():
+                gate.wait(timeout=5)
+                return "done"
+
+            # Submit task 1 - starts executing
+            fut1 = listener.submit_callable(blocking_worker)
+            assert not fut1.done()
+
+            # Submit task 2 - queued (capacity reached: 2)
+            fut2 = listener.submit_callable(blocking_worker)
+            assert not fut2.done()
+
+            # Submit task 3 - should be rejected immediately without blocking
+            start_time = time.time()
+            fut3 = listener.submit_callable(blocking_worker)
+            duration = time.time() - start_time
+            assert duration < 0.2, f"Submission took {duration:.3f}s, must not block"
+
+            assert fut3.done()
+            with pytest.raises(RuntimeError, match="OpenLineage API server queue saturated"):
+                fut3.result()
+
+            # Release the gate to let workers finish
+            gate.set()
+            assert fut1.result(timeout=2) == "done"
+            assert fut2.result(timeout=2) == "done"
+
+            # After completion, semaphore has capacity again
+            fut4 = listener.submit_callable(lambda: "success")
+            assert fut4.result(timeout=2) == "success"
+
+    def test_bounded_semaphore_disabled_when_zero(self):
+        """When api_server_max_pending_events == 0, semaphore is None (unbounded)."""
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+
+        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=0):
+            listener._semaphore = None
+            sem = listener._get_semaphore()
+            assert sem is None
+
+    def test_bounded_semaphore_not_used_in_scheduler(self):
+        """When _is_api_server is False, semaphore is not used."""
+        listener = OpenLineageListener()
+        listener._is_api_server = False
+
+        sem = listener._get_semaphore()
+        assert sem is None
