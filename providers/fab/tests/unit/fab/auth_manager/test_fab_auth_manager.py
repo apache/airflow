@@ -454,7 +454,7 @@ class TestFabAuthManager:
 
     @pytest.mark.parametrize("auth_type", [AUTH_OAUTH, AUTH_REMOTE_USER])
     def test_create_token_other_auth_types(self, auth_type, auth_manager_with_appbuilder):
-        security_manager = Mock()
+        security_manager = Mock(spec=FabAirflowSecurityManagerOverride)
         security_manager.auth_type = auth_type
         auth_manager_with_appbuilder.security_manager = security_manager
 
