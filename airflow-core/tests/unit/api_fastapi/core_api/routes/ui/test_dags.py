@@ -677,6 +677,31 @@ class TestGetDagRuns(TestPublicDagEndpoint):
             "duration": 3600.0,
         }
 
+    def test_latest_run_breaks_run_after_ties_by_id(self, test_client, session):
+        # Ids are set and the higher one is stored first, so only the id tiebreaker picks it.
+        for run_id, run_pk, state in (
+            ("higher_id", 1001, DagRunState.SUCCESS),
+            ("lower_id", 1000, DagRunState.FAILED),
+        ):
+            run = DagRun(
+                dag_id=DAG1_ID,
+                run_id=run_id,
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                run_after=pendulum.datetime(2026, 1, 1, tz="UTC"),
+                state=state,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+            run.id = run_pk
+            session.add(run)
+            session.flush()
+        session.commit()
+
+        response = test_client.get(f"/dags/{DAG1_ID}/latest_run")
+
+        assert response.status_code == 200
+        assert response.json()["run_id"] == "higher_id"
+
     def test_latest_run_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/latest_run")
         assert response.status_code == 401

@@ -456,7 +456,7 @@ def get_latest_run_info(dag_id: str, session: SessionDep) -> DAGRunLightResponse
             DagRun.state,
         )
         .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc())
+        .order_by(DagRun.run_after.desc(), DagRun.id.desc())
         .limit(1)
     )
     latest_run_info = session.execute(latest_run_info_select).one_or_none()

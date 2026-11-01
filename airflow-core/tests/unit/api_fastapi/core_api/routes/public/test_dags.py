@@ -744,6 +744,31 @@ class TestGetDags(TestDagEndpoint):
         assert response.status_code == 200
         assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG1_ID]
 
+    def test_get_dags_last_dag_run_state_breaks_run_after_ties_by_id(self, test_client, session):
+        # Ids are set and the higher one is stored first, so only the id tiebreaker picks it.
+        for run_id, run_pk, state in (
+            ("higher_id", 1001, DagRunState.FAILED),
+            ("lower_id", 1000, DagRunState.SUCCESS),
+        ):
+            run = DagRun(
+                dag_id=DAG2_ID,
+                run_id=run_id,
+                run_type=DagRunType.MANUAL,
+                logical_date=None,
+                run_after=DAG2_START_DATE + timedelta(days=5),
+                state=state,
+                triggered_by=DagRunTriggeredByType.TEST,
+            )
+            run.id = run_pk
+            session.add(run)
+            session.flush()
+        session.commit()
+
+        response = test_client.get("/dags", params={"last_dag_run_state": "failed", "exclude_stale": False})
+
+        assert response.status_code == 200
+        assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG1_ID, DAG2_ID]
+
     # Ordering of nulls values is DB specific.
     @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
