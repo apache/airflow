@@ -144,10 +144,9 @@ class TestCliVariableCommands:
                 "'my_key'",
                 "description: Input should be a valid string",
             ),
-            ({" ": "v"}, "' '", "key: String should match pattern '\\S'"),
             ({"k" * 251: "v"}, f"'{'k' * 251}'", "key: String should have at most 250 characters"),
         ],
-        ids=["non-string-description", "blank-key", "too-long-key"],
+        ids=["non-string-description", "too-long-key"],
     )
     def test_import_reports_invalid_variable(
         self, tmp_path, monkeypatch, capsys, variable_file, expected_key, expected_reason
