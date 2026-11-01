@@ -616,7 +616,7 @@ class DagsOperations(BaseOperations):
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         self.response = self.client.patch(
-            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json")
+            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json", exclude_none=True)
         )
         return validate_response(self.response.content, DAGResponse)
 

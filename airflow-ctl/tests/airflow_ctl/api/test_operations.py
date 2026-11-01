@@ -1496,6 +1496,15 @@ class TestDagOperations:
         response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
         assert response == self.dag_response
 
+    def test_update_omits_none_fields_from_request_body(self):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert json.loads(request.content.decode()) == {"is_paused": True}
+            return httpx.Response(200, json=json.loads(self.dag_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.dags.update(dag_id="dag_id", dag_body=self.dag_patch_body)
+        assert response == self.dag_response
+
     def test_delete(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/dags/dag_id"
