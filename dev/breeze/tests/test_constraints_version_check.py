@@ -24,7 +24,9 @@ from unittest import mock
 
 import pytest
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.utils.constraints_version_check import (
+    constraints_version_check,
     explain_package_upgrade,
     get_release_cutoff,
     get_table_format,
@@ -37,6 +39,144 @@ MODULE = "airflow_breeze.utils.constraints_version_check"
 OLD_UPLOAD_TIME = "2020-01-01T00:00:00.000000Z"
 # Far enough ahead to sit inside any cooldown window, whenever the test runs.
 FRESH_UPLOAD_TIME = "2099-01-01T00:00:00.000000Z"
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_saved_constraints_are_used_without_downloading_current_branch(
+    mock_overrides, mock_download, tmp_path, pypi
+):
+    constraints_file = tmp_path / "constraints.txt"
+    constraints_file.write_text("pkg-a==1.0.0\n")
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints-source-providers",
+        diff_mode="full",
+        constraints_file=constraints_file,
+    )
+    mock_download.assert_not_called()
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_missing_saved_constraints_do_not_fall_back_to_current_branch(
+    mock_overrides, mock_download, tmp_path
+):
+    with pytest.raises(FileNotFoundError):
+        constraints_version_check(
+            python="3.14",
+            airflow_constraints_mode="constraints",
+            diff_mode="full",
+            constraints_file=tmp_path / "missing.txt",
+        )
+    mock_download.assert_not_called()
+
+
+def _download(*, output_file, **_):
+    output_file.write_text("pkg-a==1.0.0\n")
+    return True
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True, side_effect=_download)
+@mock.patch(f"{MODULE}.get_branch_commit", autospec=True, return_value="c" * 40)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_downloaded_constraints_are_saved_with_the_commit_they_were_downloaded_at(
+    mock_overrides, mock_commit, mock_download, tmp_path, pypi
+):
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints",
+        diff_mode="full",
+        save_constraints_to=tmp_path / "saved",
+    )
+    assert mock_download.call_args.kwargs["constraints_reference"] == "c" * 40
+    assert (tmp_path / "saved" / "constraints.txt").read_text() == "pkg-a==1.0.0\n"
+    assert (tmp_path / "saved" / "constraints-commit.txt").read_text() == "c" * 40 + "\n"
+
+
+@mock.patch("requests.get")
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_saved_constraints_and_their_commit_come_from_constraints_github_repository(
+    mock_overrides, mock_get, monkeypatch, tmp_path, pypi
+):
+    monkeypatch.setenv("CONSTRAINTS_GITHUB_REPOSITORY", "my-org/airflow")
+    commit = "c" * 40
+    mock_get.side_effect = lambda url, **_: (
+        mock.Mock(status_code=200, text=commit)
+        if "/commits/" in url
+        else mock.Mock(status_code=200, content=b"pkg-a==1.0.0\n")
+    )
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints",
+        diff_mode="full",
+        save_constraints_to=tmp_path / "saved",
+    )
+    assert [call.args[0] for call in mock_get.call_args_list] == [
+        f"https://api.github.com/repos/my-org/airflow/commits/{DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH}",
+        f"https://api.github.com/repos/my-org/airflow/contents/constraints-3.14.txt?ref={commit}",
+    ]
+    assert (tmp_path / "saved" / "constraints-commit.txt").read_text() == commit + "\n"
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True, side_effect=_download)
+@mock.patch(f"{MODULE}.get_branch_commit", autospec=True, return_value=None)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_constraints_are_still_checked_when_their_commit_cannot_be_read(
+    mock_overrides, mock_commit, mock_download, tmp_path, pypi
+):
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints",
+        diff_mode="full",
+        save_constraints_to=tmp_path / "saved",
+    )
+    assert mock_download.call_args.kwargs["constraints_reference"] == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    assert not (tmp_path / "saved").exists()
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True, side_effect=_download)
+@mock.patch(f"{MODULE}.get_branch_commit", autospec=True, return_value="c" * 40)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_constraints_are_still_checked_when_they_cannot_be_saved(
+    mock_overrides, mock_commit, mock_download, tmp_path, pypi
+):
+    (tmp_path / "file").write_text("")
+    constraints_version_check(
+        python="3.14",
+        airflow_constraints_mode="constraints",
+        diff_mode="full",
+        save_constraints_to=tmp_path / "file" / "saved",
+    )
+    assert mock_download.call_count == 1
+
+
+@mock.patch(f"{MODULE}.download_constraints_file", autospec=True, side_effect=_download)
+@mock.patch(f"{MODULE}.get_branch_commit", autospec=True)
+@mock.patch(f"{MODULE}.load_cooldown_overrides", autospec=True, return_value={})
+def test_constraints_branch_is_not_resolved_unless_saving(mock_overrides, mock_commit, mock_download, pypi):
+    constraints_version_check(python="3.14", airflow_constraints_mode="constraints", diff_mode="full")
+    mock_commit.assert_not_called()
+    assert mock_download.call_args.kwargs["constraints_reference"] == DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+
+
+@mock.patch(f"{MODULE}.update_pyproject_dependency", autospec=True)
+@mock.patch(f"{MODULE}.sync_and_freeze", autospec=True)
+@pytest.mark.parametrize("package", ["pkg-a", "Pkg_A", "pkg.a"])
+def test_latest_baseline_version_needs_no_pinned_resolution(mock_sync, mock_update, package):
+    explanation = explain_package_upgrade(
+        pkg=package,
+        pinned_version="1.0.0",
+        latest_version="2.0.0",
+        python_version="3.14",
+        airflow_constraints_mode="constraints",
+        github_repository="apache/airflow",
+        baseline_text="successful baseline",
+        baseline_versions={"pkg-a": "2.0.0"},
+    )
+    mock_sync.assert_not_called()
+    mock_update.assert_not_called()
+    assert "already resolves to 2.0.0" in explanation
 
 
 def _pypi_payload(latest: str, *versions: str, fresh: str | None = None) -> bytes:
