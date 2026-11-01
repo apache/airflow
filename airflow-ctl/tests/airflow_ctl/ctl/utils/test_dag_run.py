@@ -23,7 +23,7 @@ from unittest.mock import Mock, sentinel
 import httpx
 import pytest
 
-from airflowctl.api.client import ServerResponseError
+from airflowctl.api.client import Client, ServerResponseError
 from airflowctl.ctl.utils.dag_run import (
     _get_dag_run_by_logical_date,
     _get_dag_run_by_run_id,
@@ -70,7 +70,7 @@ def server_error(status_code: int) -> ServerResponseError:
 
 
 def test_get_by_run_id_forwards_response_and_flags():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.get.return_value = sentinel.dag_run
 
     result = _get_dag_run_by_run_id(client, "my_dag", "run_1")
@@ -84,7 +84,7 @@ def test_get_by_run_id_forwards_response_and_flags():
 
 
 def test_get_by_run_id_404_exits(capsys):
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.get.side_effect = server_error(404)
 
     with pytest.raises(SystemExit) as exc:
@@ -95,7 +95,7 @@ def test_get_by_run_id_404_exits(capsys):
 
 
 def test_get_by_run_id_other_error_propagates():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.get.side_effect = server_error(500)
 
     with pytest.raises(ServerResponseError):
@@ -103,7 +103,7 @@ def test_get_by_run_id_other_error_propagates():
 
 
 def test_get_by_logical_date_queries_exact_timestamp():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.list.return_value = Mock(dag_runs=[sentinel.dag_run])
 
     result = _get_dag_run_by_logical_date(client, "my_dag", "2026-01-01T00:00:00Z")
@@ -117,24 +117,25 @@ def test_get_by_logical_date_queries_exact_timestamp():
 
 
 @pytest.mark.parametrize(
-    "value",
+    ("value", "expected_message"),
     [
-        pytest.param("2026-01-01T00:00:00", id="naive"),
-        pytest.param("not-a-date", id="invalid"),
+        pytest.param("2026-01-01T00:00:00", "must include a timezone offset", id="naive"),
+        pytest.param("not-a-date", "Invalid --logical-date", id="invalid"),
     ],
 )
-def test_get_by_logical_date_rejects_bad_input(value, capsys):
-    client = Mock()
+def test_get_by_logical_date_rejects_bad_input(value, expected_message, capsys):
+    client = Mock(spec=Client)
 
     with pytest.raises(SystemExit) as exc:
         _get_dag_run_by_logical_date(client, "my_dag", value)
 
     assert exc.value.code == 1
+    assert expected_message in capsys.readouterr().out
     client.dag_runs.list.assert_not_called()
 
 
 def test_get_by_logical_date_not_found_exits(capsys):
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.list.return_value = Mock(dag_runs=[])
 
     with pytest.raises(SystemExit) as exc:
@@ -145,7 +146,7 @@ def test_get_by_logical_date_not_found_exits(capsys):
 
 
 def test_resolve_dag_run_id_skips_api_for_run_id():
-    client = Mock()
+    client = Mock(spec=Client)
 
     result = resolve_dag_run_id(client, make_args(run_id="run_1"))
 
@@ -155,7 +156,7 @@ def test_resolve_dag_run_id_skips_api_for_run_id():
 
 
 def test_get_by_logical_date_404_is_treated_as_not_found(capsys):
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.list.side_effect = server_error(404)
 
     with pytest.raises(SystemExit) as exc:
@@ -166,7 +167,7 @@ def test_get_by_logical_date_404_is_treated_as_not_found(capsys):
 
 
 def test_get_by_logical_date_other_error_propagates():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.list.side_effect = server_error(500)
 
     with pytest.raises(ServerResponseError):
@@ -174,7 +175,7 @@ def test_get_by_logical_date_other_error_propagates():
 
 
 def test_resolve_dag_run_by_run_id():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.get.return_value = sentinel.dag_run
 
     result = resolve_dag_run(client, make_args(dag_id="my_dag", run_id="run_1"))
@@ -188,7 +189,7 @@ def test_resolve_dag_run_by_run_id():
 
 
 def test_resolve_dag_run_by_logical_date():
-    client = Mock()
+    client = Mock(spec=Client)
     client.dag_runs.list.return_value = Mock(dag_runs=[sentinel.dag_run])
 
     result = resolve_dag_run(client, make_args(dag_id="my_dag", logical_date="2026-01-01T00:00:00Z"))
@@ -197,7 +198,7 @@ def test_resolve_dag_run_by_logical_date():
 
 
 def test_resolve_dag_run_id_by_logical_date():
-    client = Mock()
+    client = Mock(spec=Client)
     run = Mock(dag_run_id="run_42")
     client.dag_runs.list.return_value = Mock(dag_runs=[run])
 
