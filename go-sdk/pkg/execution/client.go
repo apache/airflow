@@ -316,20 +316,21 @@ func (c *CoordinatorClient) PushXCom(
 	value any,
 ) error {
 	// Unlike a task state value, nil is allowed: it is pushed as JSON null.
-	if _, err := validateJSONRepresentable(value); err != nil {
+	encoded, _, err := validateJSONRepresentable(value)
+	if err != nil {
 		return fmt.Errorf("cannot push XCom %q: %w", key, err)
 	}
 
 	msg := genmodels.SetXCom{
 		Key:    key,
-		Value:  value,
+		Value:  encoded,
 		DagID:  ti.DagID,
 		TaskID: ti.TaskID,
 		RunID:  ti.RunID,
 	}
 	msg.MapIndex = omittedMapIndex(ti.MapIndex)
 
-	_, err := c.comm.Communicate(ctx, msg)
+	_, err = c.comm.Communicate(ctx, msg)
 	return err
 }
 
@@ -473,13 +474,13 @@ func (s taskStateStore) Set(
 
 	// The caller's value is checked first so a misconfigured deployment cannot
 	// mask a programming error in the task.
-	decoded, err := validateJSONRepresentable(value)
+	encoded, isNull, err := validateJSONRepresentable(value)
 	if err != nil {
 		return fmt.Errorf("cannot set task state key %q: %w", key, err)
 	}
-	// Checked after decoding: a typed nil such as a nil *string is not == nil,
+	// Checked after encoding: a typed nil such as a nil *string is not == nil,
 	// yet it still encodes to null, which the Execution API rejects.
-	if decoded == nil {
+	if isNull {
 		return fmt.Errorf("cannot set task state key %q: value must not be nil", key)
 	}
 
@@ -491,7 +492,7 @@ func (s taskStateStore) Set(
 	_, err = s.client.comm.Communicate(ctx, genmodels.SetTaskStateStore{
 		TIID:      s.client.tiID,
 		Key:       key,
-		Value:     value,
+		Value:     encoded,
 		ExpiresAt: expiry,
 	})
 	return err
@@ -540,23 +541,25 @@ func resolveExpiry(retention *time.Duration, now time.Time) (any, error) {
 // validateJSONRepresentable checks what the frame encoder actually emits, not
 // the Go value: a reflection walk has to mirror the encoder's field rules (tags,
 // "-", omitempty, embedding, marshalers) and misjudges values wherever it drifts.
-// On success it also returns the decoded value, which is nil when value encodes
-// to null.
-func validateJSONRepresentable(value any) (any, error) {
+// On success it returns the encoded bytes, so the caller sends them instead of
+// encoding the value a second time, and whether the value encodes to null.
+func validateJSONRepresentable(value any) (msgpack.RawMessage, bool, error) {
 	var buf bytes.Buffer
 	if err := newFrameEncoder(&buf).Encode(value); err != nil {
-		return nil, fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
-	dec := msgpack.NewDecoder(&buf)
+	encoded := msgpack.RawMessage(buf.Bytes())
+	// Decoded from its own reader so encoded keeps the whole payload.
+	dec := msgpack.NewDecoder(bytes.NewReader(encoded))
 	dec.SetMapDecoder(decodeStringKeyedMap)
 	decoded, err := dec.DecodeInterface()
 	if err != nil {
-		return nil, fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	if err := validateDecodedValue(decoded); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	return decoded, nil
+	return encoded, decoded == nil, nil
 }
 
 // decodeStringKeyedMap replaces msgpack's default map decoder, which panics on
