@@ -105,6 +105,7 @@ from airflowctl.api.datamodels.generated import (
     TaskInletAssetReference,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
     TaskInstanceState,
     TaskOutletAssetReference,
     TaskResponse,
@@ -2449,6 +2450,27 @@ class TestTaskInstancesOperations:
             dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", map_index=map_index
         )
         assert response == self.task_dependency_collection_response
+
+    @pytest.mark.parametrize(
+        ("map_index", "expected_params"),
+        [
+            pytest.param(None, {"full_content": "true"}, id="unmapped"),
+            pytest.param(2, {"full_content": "true", "map_index": "2"}, id="mapped"),
+        ],
+    )
+    def test_logs_requests_full_content(self, map_index, expected_params):
+        log_response = TaskInstancesLogResponse(content=["line"], continuation_token=None)
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/logs/1"
+            assert dict(request.url.params) == expected_params
+            return httpx.Response(200, json=json.loads(log_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.logs(
+            dag_id="dag_id", dag_run_id="dag_run_id", task_id="task_id", try_number=1, map_index=map_index
+        )
+        assert response == log_response
 
     def test_get_dependencies_with_map_index(self):
         client = self._make_client_asserting_path(

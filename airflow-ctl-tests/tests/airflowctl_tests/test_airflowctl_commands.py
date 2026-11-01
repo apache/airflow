@@ -118,6 +118,7 @@ TEST_COMMANDS = [
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances get-dependencies example_bash_operator "manual__{date_param}" runme_0',
+    'taskinstances logs example_bash_operator "manual__{date_param}" runme_0 1',
     'taskinstances list example_bash_operator "manual__{date_param}"',
     'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 test_key test_value',
     'taskinstances state-store get example_bash_operator "manual__{date_param}" runme_0 test_key',

@@ -894,7 +894,11 @@ class TaskInstancesOperations(BaseOperations):
         path = _build_task_instance_path(
             dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=None
         )
-        params = {"map_index": map_index} if map_index is not None and map_index >= 0 else None
+        # Without full_content the endpoint returns one chunk and a continuation token, so a running or
+        # remotely stored log would print only partially.
+        params: dict[str, Any] = {"full_content": True}
+        if map_index is not None and map_index >= 0:
+            params["map_index"] = map_index
         self.response = self.client.get(
             f"{path}/logs/{try_number}",
             params=params,

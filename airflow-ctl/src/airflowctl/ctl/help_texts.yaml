@@ -96,6 +96,7 @@ taskinstances:
   list: "List all task instances for a given Dag run"
   get: "Get a task instance for a given Dag run"
   get-dependencies: "Get unmet scheduler dependencies for a task instance"
+  logs: "Get the logs of a task instance for a given try number"
   # state-store is the nested subcommand group. The *-state-store keys stay because
   # help is still looked up by the operation method name, not the CLI path.
   state-store: "Manage the state store of a task instance"
