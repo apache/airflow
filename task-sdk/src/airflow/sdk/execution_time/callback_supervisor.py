@@ -642,13 +642,14 @@ def supervise_callback(
     log_file_descriptor: BinaryIO | None = None
 
     with _ensure_client(server, token, client=client) as client:
+        # Swap the single-use callback token for an execution token before any other request: the
+        # callback token can't read the connection that logging setup reads for remote logging.
+        client.callbacks.run(UUID(id))
+
         if log_path:
             logger, log_file_descriptor = _configure_logging(log_path, client)
         else:
             logger = structlog.get_logger(logger_name="callback").bind()
-
-        # Swap the single-use callback token for an execution token before any context read.
-        client.callbacks.run(UUID(id))
 
         try:
             context = None

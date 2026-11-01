@@ -24,6 +24,7 @@ import signal
 import socket
 import textwrap
 import uuid
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import timedelta
 from operator import attrgetter
@@ -1036,11 +1037,43 @@ class TestSuperviseCallbackExchangesTokenFirst:
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
 
+    @patch("airflow.sdk.execution_time.supervisor._remote_logging_conn", autospec=True)
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
+    def test_exchange_happens_before_remote_logging_reads_its_connection(
+        self, mock_start, _nondumpable, mock_remote_logging_conn, tmp_path
+    ):
+        calls: list[str] = []
+        client = _make_client()
+        client.callbacks.run.side_effect = lambda callback_id: calls.append("exchange")
+        mock_remote_logging_conn.side_effect = lambda client: (
+            calls.append("logging connection") or nullcontext()
+        )
+        mock_start.return_value = _make_process()
+
+        supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            log_path=str(tmp_path / "callback.log"),
+            client=client,
+        )
+
+        assert calls == ["exchange", "logging connection"]
+
 
 def _make_client() -> Mock:
     client = Mock(spec=Client)
     client.callbacks = create_autospec(CallbackOperations, instance=True)
     return client
+
+
+def _make_process(exit_code: int = 0, timed_out: bool = False) -> Mock:
+    process = create_autospec(CallbackSubprocess, instance=True)
+    process.wait.return_value = exit_code
+    process.timed_out = timed_out
+    return process
 
 
 class TestSuperviseRoutedCallback:
@@ -1065,8 +1098,8 @@ class TestSuperviseRoutedCallback:
             pytest.param(None, False, id="import-path"),
         ],
     )
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_context_is_read_after_the_exchange(self, mock_start, _nondumpable, fetch_method, reads_context):
         calls: list[str] = []
         client = _make_client()
@@ -1075,7 +1108,7 @@ class TestSuperviseRoutedCallback:
         client.callbacks.get_context.side_effect = lambda callback_id: (
             calls.append("context") or Mock(context=context)
         )
-        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
+        mock_start.return_value = _make_process()
 
         self._supervise(client, fetch_method=fetch_method, execution_timeout=30)
 
@@ -1109,9 +1142,7 @@ class TestSuperviseRoutedCallback:
         self, mock_start, _nondumpable, mock_stats, exit_code, timed_out, expected_state, expected_output
     ):
         client = _make_client()
-        process = create_autospec(CallbackSubprocess, instance=True)
-        process.wait.return_value = exit_code
-        process.timed_out = timed_out
+        process = _make_process(exit_code, timed_out)
         process._get_callback_execution_timeout.return_value = 30
         mock_start.return_value = process
 
@@ -1130,13 +1161,13 @@ class TestSuperviseRoutedCallback:
             mock_stats.incr.assert_not_called()
 
     @pytest.mark.parametrize("exit_code", [0, 1])
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_outcome_is_reported_before_the_logs_are_uploaded(self, mock_start, _nondumpable, exit_code):
         calls: list[str] = []
         client = _make_client()
         client.callbacks.update_state.side_effect = lambda *args: calls.append("report")
-        process = Mock(spec=CallbackSubprocess, wait=Mock(return_value=exit_code), timed_out=False)
+        process = _make_process(exit_code)
         process._upload_logs.side_effect = lambda: calls.append("upload")
         mock_start.return_value = process
 
@@ -1148,11 +1179,11 @@ class TestSuperviseRoutedCallback:
 
         assert calls == ["report", "upload"]
 
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_failing_to_report_leaves_the_outcome_to_the_executor(self, mock_start, _nondumpable):
         client = _make_client()
         client.callbacks.update_state.side_effect = RuntimeError("404 Not Found")
-        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
+        mock_start.return_value = _make_process()
 
         assert self._supervise(client) == 0

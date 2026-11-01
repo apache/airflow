@@ -391,9 +391,10 @@ class ExecutorCallback(Callback):
         """
         Store a Dag processor callback request for the scheduler to route to an executor.
 
-        The callback waits SCHEDULED until the scheduler queues it, or makes it a Dag processor
-        callback again. As an executor callback, no Dag processor claims it in the meantime, and
-        schedulers that don't route callbacks leave it alone: they only queue PENDING ones.
+        The callback waits SCHEDULED until a scheduler routes it: queues it, or fails it when no
+        executor can run it. A scheduler with routing turned off makes it a Dag processor callback
+        again instead. As an executor callback, no Dag processor claims it in the meantime, and
+        schedulers from before routing leave it alone: they only queue PENDING ones.
         """
         return cls(None, CallbackFetchMethod.DAG_ATTRIBUTE, request=request)
 
