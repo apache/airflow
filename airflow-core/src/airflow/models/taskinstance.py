@@ -218,21 +218,24 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, task_teardown_map=None
     """
     if not task_instance.dag_run:
         raise ValueError("``task_instance`` must have ``dag_run`` set")
-    tis = task_instance.dag_run.get_task_instances(session=session)
+    tis = task_instance.dag_run.get_task_instances(state=State.unfinished, session=session)
     if TYPE_CHECKING:
         assert task_instance.task
         assert task_instance.task.dag
 
     for ti in tis:
-        if ti.task_id == task_instance.task_id or ti.state in (
-            TaskInstanceState.SUCCESS,
-            TaskInstanceState.FAILED,
-        ):
+        if ti.task_id == task_instance.task_id:
             continue
-        if task_teardown_map:
-            teardown = task_teardown_map[ti.task_id]
+        if task_teardown_map is not None:
+            teardown = task_teardown_map.get(ti.task_id)
         else:
-            teardown = task_instance.task.dag.task_dict[ti.task_id].is_teardown
+            task = task_instance.task.dag.task_dict.get(ti.task_id)
+            teardown = task.is_teardown if task else None
+        if teardown is None:
+            # Unversioned bundles resolve a run to the latest Dag version, which may no longer
+            # contain a task the run already has a TI for.
+            log.info("Task %s is no longer in the Dag; not stopping it", ti.task_id)
+            continue
         if not teardown:
             if ti.state == TaskInstanceState.RUNNING:
                 log.info("Forcing task %s to fail due to dag's `fail_fast` setting", ti.task_id)
