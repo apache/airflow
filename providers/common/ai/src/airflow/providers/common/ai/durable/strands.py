@@ -34,7 +34,7 @@ try:
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.providers.common.ai.batch.state import compute_identity_key
+from airflow.providers.common.ai.batch.state import compute_identity_key_for_context
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
@@ -132,15 +132,9 @@ def invoke_durably(
             )
         storage = TaskStateStoreStorage(context["task_state_store"])
     if session_id is None:
-        ti = context["ti"]
         # A hash: short (task state store keys are at most 512 characters) and free of the
         # characters Strands refuses in a session id, whatever the Dag, run and task ids hold.
-        session_id = compute_identity_key(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=ti.run_id,
-            map_index=ti.map_index if ti.map_index is not None else -1,
-        )
+        session_id = compute_identity_key_for_context(context)
     prompt_fingerprint = _build_fingerprint(prompt)
 
     session_manager, agent = _build_agent(agent_factory, session_id, storage)
