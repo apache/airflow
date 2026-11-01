@@ -976,7 +976,7 @@ class TasksOperations(BaseOperations):
     ) -> TaskResponse | ServerResponseError:
         """Get a task for a Dag."""
         self.response = self.client.get(
-            f"dags/{dag_id}/tasks/{task_id}",
+            f"dags/{_quote_path_param(dag_id)}/tasks/{_quote_path_param(task_id)}",
             params=_build_query_params(version_number=version_number),
         )
         return validate_response(self.response.content, TaskResponse)
@@ -986,7 +986,7 @@ class TasksOperations(BaseOperations):
         # The server returns every task for the Dag in one response, so this
         # intentionally does not use execute_list's limit/offset pagination.
         self.response = self.client.get(
-            f"dags/{dag_id}/tasks",
+            f"dags/{_quote_path_param(dag_id)}/tasks",
             params=_build_query_params(order_by=order_by),
         )
         return validate_response(self.response.content, TaskCollectionResponse)

@@ -2712,6 +2712,21 @@ class TestTasksOperations:
         response = client.tasks.list(self.dag_id, order_by=order_by)
         assert response == self.task_collection_response
 
+    @pytest.mark.parametrize(
+        ("method", "args", "expected_path", "response"),
+        [
+            ("get", ("a#b", ".."), "/api/v2/dags/a%23b/tasks/%2E%2E", "task_response"),
+            ("list", ("a#b",), "/api/v2/dags/a%23b/tasks", "task_collection_response"),
+        ],
+    )
+    def test_encodes_path_params(self, method, args, expected_path, response):
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.raw_path.decode().split("?")[0] == expected_path
+            return httpx.Response(200, json=json.loads(getattr(self, response).model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        assert getattr(client.tasks, method)(*args) == getattr(self, response)
+
     def test_clear(self):
         expected_body = self.clear_task_instances.model_dump(mode="json", exclude_defaults=True)
 
