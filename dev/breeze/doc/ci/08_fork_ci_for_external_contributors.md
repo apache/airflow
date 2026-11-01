@@ -937,13 +937,17 @@ with state `success` linking the run:
 - for a gated pull request, once the fork has a run of `ci-amd.yml` for the head commit, whatever
   its state; the fork run is linked, so the contributor can follow it before the state comment
   appears.
-- for every other open pull request, once project CI has a `ci-amd.yml` `pull_request` run for the
-  head commit that is not waiting for a maintainer's approval. One GraphQL search lists the open
+- for every other open pull request, once project CI has a `pull_request` run for the head commit
+  that is not waiting for a maintainer's approval. Which workflow runs project CI depends on the
+  base branch: `ci-amd.yml` on `main` and the release branches it was backported to,
+  `ci-amd-arm.yml` on release branches cut before it, `ci.yml` on the older v2 and providers
+  release branches, and `airflow-ctl-tests.yml` on the airflow-ctl release branches; a run of any
+  of them counts. One GraphQL search lists the open
   pull requests without `fork ci required`, most recently updated first, with the head commit's
   `CI run started` status and its GitHub Actions check suites. Pull requests discovery labelled in
   the same run are skipped, since the search index can still list them without the label. When the
   last commit listed is not the head, as after a rebase that keeps old commit dates, two REST calls
-  read the head commit's statuses and latest run instead.
+  read the head commit's statuses and its `pull_request` runs instead.
 
 Folding the check into the scheduled monitor costs no runner per push, at the price of a pull
 request waiting for the next monitor run before it can merge, which a CI run takes longer than
