@@ -72,12 +72,14 @@ from airflow.models.variable import Variable
 from airflow.models.xcom import XComModel, XComModelV1, XComModelV2
 from airflow.sdk.api.client import XComOperations
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions.callback import SyncCallback
 from airflow.sdk.execution_time import request_handlers, task_runner
 from airflow.sdk.execution_time.comms import DeleteXCom, GetXCom
 from airflow.utils.state import CallbackState, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
+    clear_db_callbacks,
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_jobs,
@@ -608,10 +610,6 @@ class TestGetTeamNameDep:
     @pytest.mark.asyncio
     @pytest.mark.usefixtures("async_db_engine")
     async def test_callback_token_resolves_the_team_of_its_bundle(self, session):
-        from airflow.sdk.definitions.callback import SyncCallback
-
-        from tests_common.test_utils.db import clear_db_callbacks
-
         clear_db_callbacks()
         clear_db_dag_bundles()
         clear_db_teams()
