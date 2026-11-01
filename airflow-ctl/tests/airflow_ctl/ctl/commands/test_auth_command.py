@@ -551,6 +551,7 @@ class TestListEnvs:
         [
             pytest.param(b"\xff\xfe", "codec can't decode", id="not-utf8"),
             pytest.param(b"[]", "not a JSON object", id="not-an-object"),
+            pytest.param(b'{"api_url": null}', "does not contain an api_url", id="null-api-url"),
         ],
     )
     @patch("airflowctl.ctl.commands.auth_command.AirflowConsole", autospec=True)

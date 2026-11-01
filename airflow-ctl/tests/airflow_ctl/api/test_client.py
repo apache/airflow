@@ -382,7 +382,7 @@ class TestCredentials:
         mock_keyring.set_password = MagicMock()
         mock_keyring.get_password = MagicMock()
 
-        Credentials(client_kind=cli_client).save(skip_keyring=True)
+        Credentials(api_url="http://localhost:8080", client_kind=cli_client).save(skip_keyring=True)
 
         config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         assert os.path.exists(config_dir)
@@ -519,6 +519,9 @@ class TestCredentials:
             pytest.param(json.dumps(["a"]).encode(), None, "is not a JSON object", id="not-an-object"),
             pytest.param(
                 json.dumps({"other": 1}).encode(), None, "does not contain an api_url", id="no-api-url"
+            ),
+            pytest.param(
+                json.dumps({"api_url": None}).encode(), None, "does not contain an api_url", id="null-api-url"
             ),
         ],
     )

@@ -188,6 +188,16 @@ def _read_cli_config(path: str) -> dict:
     return config
 
 
+def _read_api_url(path: str) -> str:
+    """Read the API URL from a credentials file; the debug-credentials file has none, so it is not in _read_cli_config."""
+    api_url = _read_cli_config(path).get("api_url")
+    if not isinstance(api_url, str):
+        raise AirflowCtlCredentialInvalidException(
+            f"Credentials file {path} does not contain an api_url. Log in again to recreate it."
+        )
+    return api_url
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -279,13 +289,7 @@ class Credentials:
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
         try:
-            credentials = _read_cli_config(config_path)
-            if "api_url" not in credentials:
-                raise AirflowCtlCredentialInvalidException(
-                    f"Credentials file {config_path} does not contain an api_url. "
-                    "Log in again to recreate it."
-                )
-            self.api_url = credentials["api_url"]
+            self.api_url = _read_api_url(config_path)
             if self.client_kind == ClientKind.NO_AUTH:
                 return self
             if self.api_token is not None:
