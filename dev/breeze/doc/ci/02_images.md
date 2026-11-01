@@ -308,8 +308,8 @@ How it fits together:
 * **Marker.** The script writes a hash of everything that decides what it installs - the scripts and
   repository keys, the installation type, the apt dependency and database client build args and
   `DEPENDENCIES_EPOCH_NUMBER` - to `/usr/share/airflow/os-dependencies.sha256`. On an image whose
-  marker matches it installs nothing; otherwise it installs on top, so a PR changing any of those
-  inputs still builds and tests its change.
+  marker matches it installs nothing; otherwise it installs on top, so a build never runs on OS
+  dependencies that do not match its inputs.
 * **Building and publishing.** The "Mirror hardened base images" workflow runs
   `breeze release-management build-os-deps-images` and `publish-os-deps-images` daily, building
   each image only when one of its inputs changed. They are published as
@@ -321,8 +321,10 @@ How it fits together:
 * **Using the pins.** `breeze ci-image build` and `breeze prod-image build` pass the pinned images
   unless the build uses another base image, Debian version or flavor, custom apt dependencies or
   custom database clients. `--no-use-pinned-os-deps-images` (`USE_PINNED_OS_DEPS_IMAGES=false`)
-  turns them off; in CI the "disable image cache" label does, while the automatic cache-disabled
-  retry of a failed image build keeps them.
+  turns them off. In CI, the "disable image cache" label turns them off, and so does a PR that
+  changes the OS-dependency scripts or repository keys: installing on top of a pinned image would
+  only test additions, as a package or database client the PR drops would still be there from the
+  pinned layer. The automatic cache-disabled retry of a failed image build keeps them.
 * **Provenance.** An image records the image its OS dependencies came from in
   `AIRFLOW_OS_DEPS_IMAGE`, and the base image they were installed on in
   `/usr/share/airflow/os-dependencies.base-image` - which can be an older digest than `BASE_IMAGE`.

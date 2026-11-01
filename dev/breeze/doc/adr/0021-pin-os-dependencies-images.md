@@ -78,15 +78,17 @@ bypassed that path entirely.
 
 3. **A marker makes a pinned image a cache, not a constraint.** The script records a hash of
    everything that decides what it installs. On an image whose marker matches, it installs nothing;
-   on a mismatch it installs on top. A PR that changes the script, the apt dependencies or the
-   database clients therefore still builds and tests its own change, and the next upgrade pins a
-   fresh image.
+   on a mismatch it installs on top, so no build runs on OS dependencies that do not match its
+   inputs. A PR that changes the OS-dependency scripts or repository keys does not use the pins at
+   all in CI: installing on top would only test additions, as whatever the PR drops would still be
+   there from the pinned layer. It builds from `BASE_IMAGE` and tests its change in full, and the
+   next upgrade pins a fresh image.
 
 4. **Only the default build uses the pins.** Builds with a custom base image, a non-default Debian
    version, the legacy flavor, custom apt dependencies or custom database clients start from
    `BASE_IMAGE` and install live, as before. `--no-use-pinned-os-deps-images`
-   (`USE_PINNED_OS_DEPS_IMAGES=false`) turns the pins off, and the "disable image cache" label does
-   so in CI. A plain `docker build` of either Dockerfile is unchanged.
+   (`USE_PINNED_OS_DEPS_IMAGES=false`) turns the pins off; in CI the "disable image cache" label and
+   a change to the OS-dependency scripts or keys (point 3) do. A plain `docker build` of either Dockerfile is unchanged.
 
 5. **Only `main` carries pins.** The images are built from `main`'s script and Dockerfiles; on a
    release branch their marker would never match and the branch would ship both sets of
