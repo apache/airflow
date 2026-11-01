@@ -65,7 +65,9 @@ jobs:
     runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
         use-standard-naming: [true, false]
