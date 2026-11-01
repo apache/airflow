@@ -22,6 +22,7 @@ import (
 	"slices"
 
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // This file declares every enum type whose values a Dag author sets or reads. Each item below
@@ -110,9 +111,8 @@ const (
 
 // DagRunType says how a Dag run was created. DagRun.RunType holds it.
 //
-// DagRunType is an alias of genmodels.DagRunType for the same reason as DagRunState. The alias
-// also lets DagRun hold a DagRunType: package sdk declares DagRun and cannot import this package.
-type DagRunType = genmodels.DagRunType
+// Like DagRunState, %T and package reflect report its name as genmodels.DagRunType.
+type DagRunType = sdk.DagRunType
 
 const (
 	DagRunTypeBackfill             DagRunType = "backfill"

@@ -86,6 +86,9 @@ type TaskInstance struct {
 	TryNumber int
 }
 
+// DagRunType identifies how a Dag run was created.
+type DagRunType = genmodels.DagRunType
+
 // DagRun identifies the Dag run the current task instance belongs to and
 // carries its scheduling timestamps, how it was created, and its conf. The
 // *time.Time fields are nil when the supervisor did not provide a value (for
@@ -99,7 +102,7 @@ type DagRun struct {
 	RunAfter          time.Time
 	// RunType says how the run was created, such as
 	// [github.com/apache/airflow/go-sdk/airflow.DagRunTypeManual].
-	RunType genmodels.DagRunType
+	RunType DagRunType
 	// Conf is the run configuration, empty when none was supplied. Integers are
 	// int64, or uint64 above math.MaxInt64; floating-point values are float64.
 	Conf map[string]any
