@@ -5444,10 +5444,22 @@ def get_os_deps_image_build_args(
     return build_args
 
 
+OS_DEPS_DATABASE_CLIENT_SCRIPTS = ("common.sh", "install_mysql.sh", "install_mssql.sh", "install_postgres.sh")
+
+
 def compute_os_deps_image_inputs_hash(image_type: OsDepsImageType, build_args: dict[str, str]) -> str:
     """Hash what an OS-dependencies image is built from apart from its base image, whose tag it gets."""
     inputs = hashlib.sha256()
-    inputs.update(INSTALL_OS_DEPENDENCIES_SCRIPT_PATH.read_bytes())
+    scripts_dir = INSTALL_OS_DEPENDENCIES_SCRIPT_PATH.parent
+    # The same files the marker in install_os_dependencies.sh hashes: a change to any of them must
+    # produce a new image, not only a reinstall on top of the pinned one.
+    for path in [
+        INSTALL_OS_DEPENDENCIES_SCRIPT_PATH,
+        *(scripts_dir / name for name in OS_DEPS_DATABASE_CLIENT_SCRIPTS),
+        *sorted((scripts_dir / "keys").glob("*")),
+    ]:
+        inputs.update(f"{path.relative_to(scripts_dir)}\n".encode())
+        inputs.update(path.read_bytes())
     dockerfile_content = (AIRFLOW_ROOT_PATH / image_type.dockerfile).read_text()
     inputs.update(extract_dockerfile_stage(dockerfile_content, image_type.target).encode())
     for name, value in sorted(build_args.items()):

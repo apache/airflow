@@ -237,6 +237,8 @@ def test_os_deps_images_install_what_the_default_image_builds_pass(image_type, p
     "change",
     [
         pytest.param("script", id="script"),
+        pytest.param("client-script", id="client-script"),
+        pytest.param("key", id="key"),
         pytest.param("stage", id="stage"),
         pytest.param("build-arg", id="build-arg"),
     ],
@@ -247,6 +249,10 @@ def test_os_deps_image_inputs_hash_changes_with_its_inputs(change, tmp_path):
     )
     script = tmp_path / "install_os_dependencies.sh"
     script.write_text("echo install\n")
+    for name in ("common.sh", "install_mysql.sh", "install_mssql.sh", "install_postgres.sh"):
+        (tmp_path / name).write_text(f"echo {name}\n")
+    (tmp_path / "keys").mkdir()
+    (tmp_path / "keys" / "repo.asc").write_text("key\n")
     build_args = {"BASE_IMAGE": "base@sha256:1", "AIRFLOW_PYTHON_VERSION": "3.12.1"}
     with (
         mock.patch(f"{PATCH_PREFIX}.AIRFLOW_ROOT_PATH", tmp_path),
@@ -258,6 +264,10 @@ def test_os_deps_image_inputs_hash_changes_with_its_inputs(change, tmp_path):
         )
         if change == "script":
             script.write_text("echo install more\n")
+        elif change == "client-script":
+            (tmp_path / "install_mysql.sh").write_text("echo install_mysql.sh 8.4\n")
+        elif change == "key":
+            (tmp_path / "keys" / "repo.asc").write_text("rotated key\n")
         elif change == "stage":
             (tmp_path / "Dockerfile.ci").write_text(
                 "FROM ${CI_OS_DEPS_IMAGE} as ci-os-deps\nRUN false\nFROM x as main\n"
