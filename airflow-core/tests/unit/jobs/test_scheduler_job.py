@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import delete, event as sa_event, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import joinedload
 
@@ -1159,6 +1159,18 @@ class TestSchedulerJob:
             ],
             any_order=True,
         )
+
+    @pytest.mark.backend("sqlite")
+    def test_enqueue_executor_callbacks_uses_priority_index(self, session):
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with capture_orm_selects("callback") as statements, assert_queries_count(1, session=session):
+            self.job_runner._enqueue_executor_callbacks(session)
+
+        assert len(statements) == 1
+        plan = session.execute(text(f"EXPLAIN QUERY PLAN {statements[0]}")).all()
+        assert any("idx_callback_state_type_priority" in row[3] for row in plan), plan
+        assert not any("USE TEMP B-TREE" in row[3] for row in plan), plan
 
     def test_enqueue_executor_callbacks_only_selects_pending_state(self, dag_maker, session):
         def test_callback():
