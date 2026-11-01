@@ -1,1 +1,0 @@
-The callback context now includes a ``callback`` key whose ``source`` field tells you whether the callback ran at the Dag level or the task level.
