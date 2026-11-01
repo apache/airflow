@@ -382,7 +382,7 @@ class DagBundlesManager(LoggingMixin):
         self.log.debug("Syncing DAG bundles to the database")
 
         def _extract_and_sign_template(bundle_name: str) -> tuple[str | None, dict]:
-            bundle_instance = self.get_bundle(name)
+            bundle_instance = self.get_bundle(bundle_name)
             new_template_ = bundle_instance.view_url_template()
             new_params_ = self._extract_template_params(bundle_instance)
             if new_template_:
@@ -399,6 +399,21 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
+        # _extract_and_sign_template can read a connection from the metadata database. For example,
+        # GitDagBundle reads its connection in its constructor, and S3DagBundle and WasbDagBundle read their
+        # connections in view_url_template(). Each of these reads goes through
+        # MetastoreBackend.get_connection, whose @provide_session wrapper gets the scoped session that
+        # sync_bundles_to_db uses and closes that session after the read. Closing the scoped session detaches
+        # every row that the session loaded. A write to a detached row is lost without an error. So call
+        # _extract_and_sign_template for every bundle before loading any row.
+        templates: dict[str, tuple[str | None, dict | None]] = {}
+        for name in self._bundle_config:
+            try:
+                with self._bundle_context(name):
+                    templates[name] = _extract_and_sign_template(name)
+            except Exception as e:
+                self.log.exception("Error creating bundle '%s': %s", name, e)
+
         stored = {b.name: b for b in session.scalars(select(DagBundleModel)).all()}
         bundle_to_team = {
             bundle.name: bundle.teams[0].name if len(bundle.teams) == 1 else None
@@ -412,14 +427,18 @@ class DagBundlesManager(LoggingMixin):
                 if not team:
                     raise _bundle_item_exc(f"Team '{config.team_name}' does not exist")
 
-            try:
-                with self._bundle_context(name):
-                    new_template, new_params = _extract_and_sign_template(name)
-            except Exception as e:
-                self.log.exception("Error creating bundle '%s': %s", name, e)
+            bundle = stored.pop(name, None)
+            if name in templates:
+                new_template, new_params = templates[name]
+            elif bundle:
+                # Creating this bundle or building its URL template failed, so keep the stored URL fields.
+                # The bundle is still in the config, so the code below sets its row to active and applies
+                # the team from the config.
+                new_template, new_params = bundle.signed_url_template, bundle.template_params
+            else:
                 continue
 
-            if bundle := stored.pop(name, None):
+            if bundle:
                 bundle.active = True
                 if new_template != bundle.signed_url_template:
                     bundle.signed_url_template = new_template
