@@ -221,7 +221,7 @@ class TestGenericTransfer:
             [[3, 4], [13, 14]],
         ]
 
-        def get_records_side_effect(sql: str, parameters=None):
+        def get_records_side_effect(sql: str):
             if records:
                 if "LIMIT" not in sql:
                     return list(flatten(records))

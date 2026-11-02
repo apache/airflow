@@ -322,9 +322,12 @@ deferring when:
 - ``success``, ``failure`` or ``selector`` is set, because these Python callables only run on a worker;
 - ``silent_fail``, ``never_fail`` or ``exponential_backoff`` is set, because they only apply to pokes on a
   worker;
-- a subclass overrides ``poke``, because the triggerer would not run that condition;
+- a subclass overrides ``poke`` or ``_get_hook``, because the triggerer would not run that code;
 - it runs on Airflow 3 before 3.2.2, whose triggerer cannot safely look up connections from the thread
-  that runs the query. Deferring works on Airflow 2.11 and on 3.2.2 and later.
+  that runs the query. Deferring works on Airflow 2.11 and on 3.2.2 and later;
+- on Airflow 2, ``parameters`` holds values other than strings, numbers, booleans and ``None``.
+  Airflow 2 stores trigger arguments as JSON, so dates, datetimes and ``Decimal`` values would reach
+  the triggerer as strings.
 
 Analytics Operator
 ~~~~~~~~~~~~~~~~~~

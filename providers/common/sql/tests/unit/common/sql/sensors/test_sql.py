@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
+import copy
+from datetime import date, datetime, timedelta
+from decimal import Decimal
 from operator import itemgetter
 from unittest import mock
 
@@ -26,6 +28,7 @@ import pytest
 from airflow.models.dag import DAG
 from airflow.providers.common.compat.sdk import (
     AirflowException,
+    AirflowSensorTimeout,
     AirflowSkipException,
     TaskDeferred,
     timezone,
@@ -33,6 +36,11 @@ from airflow.providers.common.compat.sdk import (
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor, SqlSensorTriggerError
 from airflow.providers.common.sql.triggers.sql import SqlSensorTrigger
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_2_PLUS
+
+if AIRFLOW_V_3_2_2_PLUS:
+    from airflow.sdk.bases.operator import TriggerFailureReason
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_sql_dag"
@@ -327,22 +335,26 @@ def mock_get_records():
 
 
 def make_sensor(deferrable: bool = True, sensor_class: type[SqlSensor] = SqlSensor, **kwargs) -> SqlSensor:
-    return sensor_class(
-        task_id="sql_sensor_deferrable",
-        conn_id="postgres_default",
-        sql="SELECT count(*) FROM orders WHERE ds = %(ds)s",
-        parameters={"ds": "2026-01-01"},
-        hook_params={"log_sql": False},
-        poke_interval=0,
-        timeout=600,
-        deferrable=deferrable,
-        **kwargs,
-    )
+    defaults = {
+        "task_id": "sql_sensor_deferrable",
+        "conn_id": "postgres_default",
+        "sql": "SELECT count(*) FROM orders WHERE ds = %(ds)s",
+        "parameters": {"ds": "2026-01-01"},
+        "hook_params": {"log_sql": False},
+        "poke_interval": 0,
+        "timeout": 600,
+    }
+    return sensor_class(**{**defaults, **kwargs}, deferrable=deferrable)
 
 
 class PokeOverridingSensor(SqlSensor):
     def poke(self, context):
         return super().poke(context)
+
+
+class HookOverridingSensor(SqlSensor):
+    def _get_hook(self):
+        return super()._get_hook()
 
 
 class TestSqlSensorDeferrable:
@@ -363,7 +375,7 @@ class TestSqlSensorDeferrable:
         assert mock_get_records.call_count == 1
 
     def test_defers_to_trigger_when_first_poke_fails(self, mock_get_records):
-        mock_get_records.return_value = [(0,)]
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
 
         with pytest.raises(TaskDeferred) as deferred:
             make_sensor(fail_on_empty=True).execute(context={})
@@ -399,7 +411,14 @@ class TestSqlSensorDeferrable:
             pytest.param({"never_fail": True}, "silent_fail, never_fail", id="never_fail"),
             pytest.param({"exponential_backoff": True}, "silent_fail, never_fail", id="exponential_backoff"),
             pytest.param(
-                {"sensor_class": PokeOverridingSensor}, "PokeOverridingSensor overrides poke", id="poke"
+                {"sensor_class": PokeOverridingSensor},
+                "PokeOverridingSensor overrides poke or _get_hook",
+                id="poke",
+            ),
+            pytest.param(
+                {"sensor_class": HookOverridingSensor},
+                "HookOverridingSensor overrides poke or _get_hook",
+                id="get_hook",
             ),
         ],
     )
@@ -411,6 +430,20 @@ class TestSqlSensorDeferrable:
         assert make_sensor(**sensor_kwargs).execute(context={}) is None
         assert mock_get_records.call_count == 2
         assert f"Cannot defer because {reason}" in caplog.text
+
+    @pytest.mark.parametrize(
+        "build_sensor",
+        [
+            pytest.param(lambda: make_sensor(selector=itemgetter(0)), id="explicit-first-cell-selector"),
+            pytest.param(lambda: copy.deepcopy(make_sensor()), id="deep-copied-sensor"),
+        ],
+    )
+    def test_default_condition_defers_however_the_selector_was_built(self, mock_get_records, build_sensor):
+        # The second result meets the condition, so a wrong fallback to poking returns instead of hanging.
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
+
+        with pytest.raises(TaskDeferred):
+            build_sensor().execute(context={})
 
     @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", False)
     @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", True)
@@ -424,10 +457,26 @@ class TestSqlSensorDeferrable:
     @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", False)
     @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", False)
     def test_defers_on_airflow_2(self, mock_get_records):
-        mock_get_records.return_value = [(0,)]
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
 
         with pytest.raises(TaskDeferred):
-            make_sensor().execute(context={})
+            make_sensor(parameters=("2026-01-01", 3, 1.5, True, None)).execute(context={})
+
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", False)
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", False)
+    @pytest.mark.parametrize(
+        "value",
+        [date(2026, 1, 1), datetime(2026, 1, 1, 12), Decimal("1.5")],
+        ids=["date", "datetime", "decimal"],
+    )
+    def test_pokes_on_the_worker_on_airflow_2_when_parameters_would_change_in_json(
+        self, mock_get_records, caplog, value
+    ):
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
+
+        assert make_sensor(parameters={"ds": value}).execute(context={}) is None
+        assert mock_get_records.call_count == 2
+        assert "Cannot defer because Airflow 2 stores trigger arguments as JSON" in caplog.text
 
     def test_success_event_completes(self):
         assert make_sensor().execute_complete(context={}, event={"status": "success"}) is None
@@ -443,3 +492,15 @@ class TestSqlSensorDeferrable:
             make_sensor(soft_fail=True).resume_execution(
                 "execute_complete", {"event": {"status": "failure", "message": "connection refused"}}, {}
             )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_2_PLUS, reason="SqlSensor only defers on Airflow 3 from 3.2.2")
+    @pytest.mark.parametrize(
+        ("soft_fail", "expected"), [(False, AirflowSensorTimeout), (True, AirflowSkipException)]
+    )
+    def test_trigger_timeout_fails_like_a_sensor_timeout(self, soft_fail, expected):
+        with pytest.raises(expected) as excinfo:
+            make_sensor(soft_fail=soft_fail).resume_execution(
+                "__fail__", {"error": TriggerFailureReason.TRIGGER_TIMEOUT}, {}
+            )
+
+        assert excinfo.type is expected

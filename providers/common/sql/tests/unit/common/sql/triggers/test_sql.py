@@ -57,7 +57,7 @@ class TestSQLExecuteQueryTrigger:
         data = [(1, "Alice"), (2, "Bob")]
         mock_connection = mock.MagicMock(spec=Connection)
         mock_hook = mock.MagicMock(spec=DbApiHook)
-        mock_hook.get_records.side_effect = lambda sql, parameters=None: data
+        mock_hook.get_records.side_effect = lambda sql: data
         mock_get_connection.return_value = mock_connection
         mock_connection.get_hook.side_effect = lambda hook_params: mock_hook
 
@@ -74,7 +74,7 @@ class TestSQLExecuteQueryTrigger:
 
         run_trigger(SQLExecuteQueryTrigger(sql="SELECT %(id)s", conn_id="test_conn_id", parameters={"id": 1}))
 
-        db_hook.get_records.assert_called_once_with("SELECT %(id)s", parameters={"id": 1})
+        db_hook.get_records.assert_called_once_with("SELECT %(id)s", {"id": 1})
 
 
 def make_sensor_trigger(**kwargs) -> SqlSensorTrigger:
@@ -118,8 +118,7 @@ class TestSqlSensorTrigger:
         assert [event.payload for event in events] == [{"status": "success"}]
         assert (
             db_hook.get_records.call_args_list
-            == [mock.call("SELECT count(*) FROM orders WHERE ds = %(ds)s", parameters={"ds": "2026-01-01"})]
-            * 4
+            == [mock.call("SELECT count(*) FROM orders WHERE ds = %(ds)s", {"ds": "2026-01-01"})] * 4
         )
         assert sleep.await_args_list == [mock.call(30)] * 4
         assert mock_get_connection.call_count == 4

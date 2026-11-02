@@ -88,13 +88,18 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             )
         return hook
 
+    def _fetch_records(self, hook: DbApiHook) -> Any:
+        if self.parameters is None:
+            return hook.get_records(self.sql)
+        return hook.get_records(self.sql, self.parameters)
+
     async def _get_records(self) -> Any:
         hook = self.get_hook()
 
         if AIRFLOW_V_3_2_PLUS:
             # This is only supported from Airflow 3.2 or higher due to added async support in CommsDecoder
-            return await sync_to_async(hook.get_records)(self.sql, parameters=self.parameters)
-        return hook.get_records(self.sql, parameters=self.parameters)
+            return await sync_to_async(self._fetch_records)(hook)
+        return self._fetch_records(hook)
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
@@ -121,6 +126,9 @@ class SqlSensorTrigger(SQLExecuteQueryTrigger):
     deferring. Each poll, connection lookup included, runs in a thread so a slow query
     does not block other triggers. The triggerer only serves connection lookups from
     threads safely on Airflow 2 and on 3.2.2 or later, so ``SqlSensor`` only defers there.
+
+    An error during a poll ends the wait with a failure event, so the task fails and
+    retries as it would if the same error happened in poke mode.
 
     :param sql: The SQL query to poll.
     :param conn_id: The connection ID used to connect to the database.
@@ -151,7 +159,7 @@ class SqlSensorTrigger(SQLExecuteQueryTrigger):
         return classpath, {**kwargs, "poke_interval": self.poke_interval, "fail_on_empty": self.fail_on_empty}
 
     def _poll(self) -> Any:
-        return self.get_hook().get_records(self.sql, parameters=self.parameters)
+        return self._fetch_records(self.get_hook())
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
