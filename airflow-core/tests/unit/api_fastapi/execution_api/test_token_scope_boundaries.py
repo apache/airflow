@@ -40,12 +40,13 @@ from typing import get_args
 
 import pytest
 from fastapi.dependencies.models import Dependant
-from fastapi.dependencies.utils import get_flat_dependant
 from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
 from airflow.api_fastapi.execution_api.security import get_selected_dag_bundle, require_dag_in_granted_bundle
 from airflow.dag_processing.processor import ToManager
+
+from tests_common.test_utils.api_fastapi import iter_api_routes
 
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
@@ -113,11 +114,15 @@ DAG_PROCESSOR_MESSAGE_ROUTES: dict[str, str | None] = {
 }
 
 
+def _get_original_route(route) -> APIRoute:
+    """Return the ``APIRoute`` itself; custom attributes are not forwarded by FastAPI's route contexts."""
+    return getattr(route, "original_route", route)
+
+
 def _get_api_routes() -> dict[str, APIRoute]:
     return {
         f"{method} {route.path}": route
-        for route in execution_api_router.routes
-        if isinstance(route, APIRoute)
+        for route in iter_api_routes(execution_api_router.routes)
         for method in route.methods or ()
     }
 
@@ -130,10 +135,17 @@ def _get_dependency_calls(dependant: Dependant) -> set:
     return calls
 
 
+def _get_path_and_query_param_names(dependant: Dependant) -> set[str]:
+    names = {param.name for param in (*dependant.path_params, *dependant.query_params)}
+    for dependency in dependant.dependencies:
+        names |= _get_path_and_query_param_names(dependency)
+    return names
+
+
 def _all_route_policies() -> dict[str, set[str]]:
     """Return a map of all API routes and their allowed token types."""
     return {
-        key: set(getattr(route, "allowed_token_types", {"execution"}))
+        key: set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
         for key, route in _get_api_routes().items()
     }
 
@@ -198,7 +210,9 @@ class TestDagProcessorMessageRoutes:
 
     def test_only_job_completion_skips_the_open_job_check(self):
         skipping = {
-            key for key, route in _get_api_routes().items() if not getattr(route, "requires_open_job", True)
+            key
+            for key, route in _get_api_routes().items()
+            if not getattr(_get_original_route(route), "requires_open_job", True)
         }
 
         assert skipping == JOB_UNCHECKED_ROUTES
@@ -206,8 +220,7 @@ class TestDagProcessorMessageRoutes:
     @pytest.mark.parametrize("route_key", sorted(filter(None, DAG_PROCESSOR_MESSAGE_ROUTES.values())))
     def test_dag_processor_route_is_bound_to_a_granted_bundle(self, route_key):
         route = _get_api_routes()[route_key]
-        flat = get_flat_dependant(route.dependant)
-        takes_dag_id = any(param.name == "dag_id" for param in (*flat.path_params, *flat.query_params))
+        takes_dag_id = "dag_id" in _get_path_and_query_param_names(route.dependant)
         expected = require_dag_in_granted_bundle if takes_dag_id else get_selected_dag_bundle
 
         assert expected in _get_dependency_calls(route.dependant)

@@ -26,7 +26,7 @@ Requires Go 1.25 or later.
 ## Installation
 
 ```bash
-go get github.com/apache/airflow/go-sdk
+go get github.com/apache/airflow/go-sdk/airflow
 go get -tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
 ```
 

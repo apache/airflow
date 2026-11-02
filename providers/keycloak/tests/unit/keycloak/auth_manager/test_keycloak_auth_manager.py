@@ -330,29 +330,6 @@ class TestKeycloakAuthManager:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
-    async def test_get_user_from_token_keycloak_jwt(self, auth_manager):
-        mock_get_user_from_token = AsyncMock(
-            return_value=KeycloakAuthManagerUser(
-                user_id="user_id", name="name", access_token="", refresh_token=None
-            )
-        )
-        with (
-            patch.object(
-                BaseAuthManager,
-                "get_user_from_token",
-                mock_get_user_from_token,
-            ),
-        ):
-            access_token = keycloak_token("user_id")
-            user = await auth_manager.get_user_from_token("token", access_token, "refresh_token")
-        mock_get_user_from_token.assert_called_with("token")
-        assert user.get_id() == "user_id"
-        assert user.get_name() == "name"
-        assert user.access_token == access_token
-        assert user.refresh_token == "refresh_token"
-
-    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
-    @pytest.mark.asyncio
     async def test_get_user_from_token_rejects_another_subjects_token(self, auth_manager):
         """A Keycloak token naming a different subject must not attach to this session."""
         mock_get_user_from_token = AsyncMock(

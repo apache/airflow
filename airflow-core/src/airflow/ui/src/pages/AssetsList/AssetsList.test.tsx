@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
@@ -62,16 +62,14 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: ["consumer_dag"], hasEvents }));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents }));
     expect(screen.getByTestId("has_events-pill")).toBeInTheDocument();
 
-    fireEvent.click(
-      within(screen.getByTestId("has_events-pill")).getByRole("button", { name: /Remove .* filter/u }),
-    );
+    fireEvent.click(screen.getByTestId("has_events-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents: null }));
   });
@@ -155,9 +153,9 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual(["consumer_dag"]));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual([]));
     expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();

@@ -1776,6 +1776,47 @@ class TestDagDetails(TestDagEndpoint):
         assert isinstance(body["is_favorite"], bool)
         assert body["is_favorite"] is False
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_dag_details_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, session, test_client
+    ):
+        dag_model = session.get(DagModel, DAG2_ID)
+        dag_model.asset_expression = {
+            "all": [
+                {"asset": {"uri": "s3://bucket/visible", "name": "visible", "group": "asset", "id": 1}},
+                {"asset": {"uri": "s3://bucket/secret", "name": "secret", "group": "asset", "id": 2}},
+            ]
+        }
+        session.commit()
+        mock_get_authorized_assets.return_value = {1}
+
+        response = test_client.get(f"/dags/{DAG2_ID}/details")
+
+        assert response.status_code == 200
+        assert response.json()["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": 1,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+        assert "s3://bucket/secret" not in response.text
+
+        # Only the response is redacted: writing the blanked leaves back through the request
+        # session would overwrite the stored expression when that session commits.
+        session.expire_all()
+        assert session.get(DagModel, DAG2_ID).asset_expression["all"][1]["asset"]["name"] == "secret"
+
     def test_dag_details_serves_legacy_asset_expression_as_null(self, session, test_client):
         """A pre-3.0 dataset-format ``asset_expression`` that the typed model cannot describe is
         served as ``null`` instead of 500ing the endpoint (handled by ``MaybeAssetExpression``)."""

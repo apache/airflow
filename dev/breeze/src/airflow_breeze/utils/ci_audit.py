@@ -327,18 +327,6 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                     enable,
                 )
             )
-        elif required is False and state == "active":
-            # Not a failure: a committer trying fork CI with the `use fork ci` label needs it on.
-            results.append(
-                CheckResult(
-                    5,
-                    "fork workflows",
-                    CheckStatus.INFO,
-                    f"`Tests (AMD)` is enabled in {fork}, but your pull requests run project CI, so each "
-                    "push runs CI twice; disable it unless you use the `use fork ci` label",
-                    (f"gh workflow disable {CI_WORKFLOW_FILE} -R {fork}",),
-                )
-            )
         elif required is None:
             results.append(
                 CheckResult(

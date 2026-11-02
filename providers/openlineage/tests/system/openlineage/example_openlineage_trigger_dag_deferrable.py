@@ -20,7 +20,7 @@ Simple DAG that triggers another simple DAG in deferrable mode.
 It checks:
     - task's trigger_dag_id, trigger_run_id, deferrable attribute
     - DAGRun START and COMPLETE events, for the triggered DAG
-    - automatic injection of OL parent and root info to DAGRun conf
+    - automatic injection of OL parent and root info, including job types, to DAGRun conf
     - multiple levels of triggering
 """
 

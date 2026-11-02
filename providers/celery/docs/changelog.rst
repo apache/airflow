@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``CeleryExecutor.cleanup_stuck_queued_tasks`` and ``CeleryKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
+
 3.26.0
 ......
 

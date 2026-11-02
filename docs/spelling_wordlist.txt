@@ -1217,6 +1217,8 @@ oauth
 objectORfile
 objectstorage
 observability
+Obtainability
+obtainability
 od
 OData
 odbc
@@ -1699,6 +1701,8 @@ stderr
 stdin
 stdlib
 stdout
+stockout
+stockouts
 StorageClass
 storages
 StoredInfoType

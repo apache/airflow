@@ -76,6 +76,7 @@ LABELS = {
     "heroku": "Heroku",
     "huggingface": "Hugging Face",
     "litellm": "LiteLLM",
+    "meta": "Meta",
     "mistral": "Mistral AI",
     "moonshotai": "Moonshot AI",
     "nebius": "Nebius",
@@ -108,8 +109,10 @@ NON_MODULE_SERVICES: set[str] = set()
 # routes to -- `infer_model("voyageai:...")` / `infer_model("sentence-transformers:...")`
 # raise `UserError: Unknown model`, confirmed by `test_unreachable_modules_stay_unreachable`
 # below. Not listed in `LABELS`/`provider.yaml` because there is no `common.ai` code path
-# (chat or embedding) that reaches them.
-UNREACHABLE_MODULES = {"voyageai", "sentence_transformers"}
+# (chat or embedding) that reaches them. `elevenlabs` (added in pydantic-ai-slim 2.59.0) is
+# the same: its provider only backs ElevenLabs speech/realtime models, which `infer_model`
+# does not route to (`UserError: Unknown model: elevenlabs:...`, checked on 2.59.0).
+UNREACHABLE_MODULES = {"voyageai", "sentence_transformers", "elevenlabs"}
 
 # Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are
 # excluded by decision because pydantic-ai itself marks the upstream backend dead:
@@ -132,27 +135,39 @@ DEPRECATED_UPSTREAM_MODULES = {"github"}
 # only `credentials`, `credential_source`, `openai_client`, and `http_client` -- no parameter
 # exists to receive what the hook sends; confirmed empirically (as of pydantic-ai-slim 2.44.0):
 # `OpenAICodexProvider(api_key=..., base_url=...)` raises
-# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`'s
-# `_provider_factory` catches that `TypeError` and retries via `infer_provider(pname)`, i.e.
+# ``TypeError: unexpected keyword argument 'api_key'``. `PydanticAIHook.get_conn()`
+# re-raises that `TypeError` as a `ValueError` when the connection has a password or host. Only
+# a connection with neither falls through to `infer_model(model_name)`, i.e.
 # `OpenAICodexProvider()` with no arguments, which falls through to its
 # `_read_codex_cli_credentials()` helper: a read-only load of the Codex CLI's on-disk
 # `~/.codex/auth.json`, populated by the OAuth authorization-code + PKCE login flow the Codex CLI
 # itself performs (see `pydantic_ai.providers.openai_codex`'s module docstring and
 # `OpenAICodexOAuthFlow`) -- not by anything `hooks/pydantic_ai.py` can express. So credentials
 # configured on a `pydanticai` connection (password/host) can never drive this provider; only
-# the ambient Codex CLI login can, via that fallback. The services page lists only vendors a
+# the ambient Codex CLI login can, with no password/host set. The services page lists only vendors a
 # connection's credentials can drive, so these modules stay off it.
 # `test_hook_incompatible_auth_modules_stay_incompatible` below guards the reversal: if
 # pydantic-ai gives one of these providers an `api_key`/`base_url` constructor parameter, this
 # must fail so a human re-evaluates whether the module belongs back in `LABELS` and
 # `provider.yaml`, instead of it staying excluded forever on a stale rationale.
-HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex"}
+HOOK_INCOMPATIBLE_AUTH_MODULES = {"openai_codex", "openai_chatgpt"}
+
+# `openai_chatgpt` (pydantic-ai-slim 2.59.0, "Sign in with ChatGPT" plan usage) is excluded for
+# the same reason as `openai_codex`: `OpenAIChatGPTProvider.__init__` accepts only `credentials`,
+# `credential_source`, `openai_client` and `http_client`, so the `api_key`/`base_url` the hook
+# sends cannot reach it; only an OAuth sign-in flow the hook cannot express can.
 
 # `pydantic_ai.providers.openai_codex` (the sole `HOOK_INCOMPATIBLE_AUTH_MODULES` member) was
 # added in pydantic-ai-slim 2.41.0 -- absent on 2.40.0 and below (bisected empirically; the
 # provider's floor is 2.33.0, `pyproject.toml`). The guard test below imports it unconditionally,
 # so on the floor it would raise `ModuleNotFoundError` instead of testing anything.
 OPENAI_CODEX_AVAILABLE_FROM = Version("2.41.0")
+
+# First pydantic-ai-slim release carrying each `HOOK_INCOMPATIBLE_AUTH_MODULES` member.
+HOOK_INCOMPATIBLE_AUTH_MODULES_AVAILABLE_FROM = {
+    "openai_codex": OPENAI_CODEX_AVAILABLE_FROM,
+    "openai_chatgpt": Version("2.59.0"),
+}
 
 requires_openai_codex_module = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < OPENAI_CODEX_AVAILABLE_FROM,
@@ -166,14 +181,14 @@ requires_openai_codex_module = pytest.mark.skipif(
 # supports `pydantic-ai-slim>=2.33.0` (`pyproject.toml`) and CI's "Low dep tests" job installs
 # exactly that floor. Vendors upstream added after the floor are legitimately absent there --
 # bisected empirically: `vllm` landed in 2.38.0, `github_copilot` in 2.42.0, `typesafe` in
-# 2.45.0, `system_one` in 2.53.0 and `openai_decisions` in 2.55.0 (`openai_codex` also landed
+# 2.45.0, `system_one` in 2.53.0 and `openai_decisions` in 2.55.0 and `meta` in 2.59.0 (`openai_codex` also landed
 # after the floor, in 2.41.0, but is excluded from this reasoning -- see
 # `OPENAI_CODEX_AVAILABLE_FROM` above) -- so only the "installed but not declared" direction
 # holds on every supported version. The opposite direction ("declared but not installed") is a
 # real drift signal solely from the release that carries every vendor currently declared, i.e.
-# the latest of them, `openai_decisions`'s 2.55.0: raise this when a newly declared vendor lands
+# the latest of them, `meta`'s 2.59.0: raise this when a newly declared vendor lands
 # in a later release.
-ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.55.0")
+ALL_DECLARED_VENDORS_AVAILABLE_FROM = Version("2.59.0")
 
 requires_all_declared_vendors = pytest.mark.skipif(
     Version(Version(version("pydantic-ai-slim")).base_version) < ALL_DECLARED_VENDORS_AVAILABLE_FROM,
@@ -340,7 +355,10 @@ class TestPydanticAIExternalServicesDrift:
         re-evaluates whether the module belongs back in ``LABELS`` and ``provider.yaml``, instead
         of it staying excluded forever on a stale rationale.
         """
+        installed = Version(Version(version("pydantic-ai-slim")).base_version)
         for module in HOOK_INCOMPATIBLE_AUTH_MODULES:
+            if installed < HOOK_INCOMPATIBLE_AUTH_MODULES_AVAILABLE_FROM[module]:
+                continue
             mod = importlib.import_module(f"pydantic_ai.providers.{module}")
             provider_classes = _provider_classes_in_module(mod)
             for cls in provider_classes:
@@ -422,7 +440,7 @@ TOOLSET_TABLE_ENTRIES: dict[str, tuple[str, str]] = {
     "hook": ("HookToolset", "toolsets/hook"),
     "sql": ("SQLToolset", "toolsets/sql"),
     "datafusion": ("DataFusionToolset", "toolsets/datafusion"),
-    "logging": ("LoggingToolset", "toolsets/logging"),
+    "logging": ("ToolLoggingCapability", "toolsets/logging"),
     "mcp": ("MCPToolset", "toolsets/mcp"),
     "object_storage": ("ObjectStorageToolset", "toolsets/object_storage"),
     "sandbox": ("SandboxToolset", "sandbox/index"),
