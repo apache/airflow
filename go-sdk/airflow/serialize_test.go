@@ -22,8 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -337,6 +339,31 @@ func TestSerializeWritesAPointerFieldThatHoldsTheZeroValue(t *testing.T) {
 		`{"do_xcom_push": false, "priority_weight": 0, "retry_delay": 0}`,
 		withoutKeys(serializedTask(t, got, "ping"), goTaskFields...),
 	)
+}
+
+func TestSerializeCapsThePriorityWeightAsPythonDoes(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("requires 64-bit int to hold a weight outside the int32 range")
+	}
+	// int64, not int, so the file still compiles where int is 32 bits.
+	tests := []struct {
+		name   string
+		weight int64
+		want   float64
+	}{
+		{name: "above", weight: math.MaxInt32 + 1, want: math.MaxInt32},
+		{name: "below", weight: math.MinInt32 - 1, want: math.MinInt32},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dag := Dag("etl")
+			dag.Task(ping, TaskSpec{PriorityWeight: ptr(int(tt.weight))})
+
+			got := serializedTask(t, serializedDag(t, dag), "ping")
+
+			assert.Equal(t, tt.want, got["priority_weight"])
+		})
+	}
 }
 
 func TestSerializeWritesTimesAndDurationsToTheMicrosecond(t *testing.T) {

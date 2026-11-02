@@ -20,6 +20,7 @@ package airflow
 import (
 	"cmp"
 	"fmt"
+	"math"
 	"reflect"
 	"regexp"
 	"slices"
@@ -441,6 +442,12 @@ func (d *DagRef) serializeTaskLocked(task *TaskRef) map[string]any {
 	// The worker picks a runtime by queue, so a task from TriggerDagRun takes the queue of the Dag too.
 	if spec.Queue == "" {
 		spec.Queue = d.spec.Queue
+	}
+	// Python's BaseOperator caps priority_weight to a 32-bit integer, the range of the priority_weight
+	// column of task_instance.
+	if spec.PriorityWeight != nil {
+		capped := min(max(*spec.PriorityWeight, math.MinInt32), math.MaxInt32)
+		spec.PriorityWeight = &capped
 	}
 	writeSpecFields(data, spec, taskSpecRules)
 	if len(task.downstreams) > 0 {
