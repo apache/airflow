@@ -399,19 +399,8 @@ def test_clean_unused_raises_database_errors_to_the_caller_without_retrying(sess
     assert job in session
 
 
-@pytest.mark.parametrize(
-    ("event", "expected_partition_key"),
-    [
-        pytest.param(TriggerEvent("payload"), None, id="ordinary"),
-        pytest.param(
-            AssetTriggerEvent("payload", partition_key="2026-10-16"), "2026-10-16", id="partitioned"
-        ),
-    ],
-)
 @patch.object(TriggererCallback, "handle_event")
-def test_submit_event(
-    mock_callback_handle_event, session, create_task_instance, event, expected_partition_key
-):
+def test_submit_event(mock_callback_handle_event, session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
     task instances and notify associated assets and callbacks.
@@ -444,6 +433,9 @@ def test_submit_event(
         == 0
     )
 
+    # Create event
+    payload = "payload"
+    event = TriggerEvent(payload)
     # Call submit_event
     Trigger.submit_event(trigger.id, event, session=session)
     # commit changes made by submit event and expire all cache to read from db.
@@ -451,18 +443,43 @@ def test_submit_event(
     # Check that the task instance is now scheduled
     session.refresh(task_instance)
     assert task_instance.state == State.SCHEDULED
-    assert task_instance.next_kwargs == {"event": event.payload, "cheesecake": True}
+    assert task_instance.next_kwargs == {"event": payload, "cheesecake": True}
     # Check that the asset has received an event
     assert (
         session.scalar(select(func.count()).select_from(AssetEvent).where(AssetEvent.asset_id == asset.id))
         == 1
     )
     asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
-    assert asset_event.partition_key == expected_partition_key
-    assert asset_event.extra == {"from_trigger": True, "payload": event.payload}
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
     # Check that the callback's handle_event was called
     mock_callback_handle_event.assert_called_once_with(event, session)
+
+
+def test_submit_asset_event_to_shared_task_and_asset_watcher(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.datetime(2026, 10, 16), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"resume_arg": "kept"}
+    asset = AssetModel("shared-trigger-asset")
+    asset.add_trigger(trigger, "shared-trigger-watcher")
+    session.add(asset)
+    session.commit()
+    payload = {"partition_key": "payload-only", "changed": True}
+
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key="2026-10-16"), session=session)
+    session.flush()
+    session.refresh(task_instance)
+
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == {"event": payload, "resume_arg": "kept"}
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
+    assert asset_event.partition_key == "2026-10-16"
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
 
 @pytest.mark.parametrize("owner", ["task", "asset_watcher", "callback", "none"])
