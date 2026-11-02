@@ -55,7 +55,6 @@ class OzoneKeySensor(BaseSensorOperator):
         self.retry_attempts = retry_attempts
         # Keep the Ozone CLI timeout separate from BaseSensorOperator.timeout.
         self.cli_timeout = timeout
-        self.log.debug("OzoneKeySensor initialized (path=%s, conn_id=%s)", self.path, self.ozone_conn_id)
 
     def poke(self, context: Context) -> bool:
         """Return True when the target path appears in Ozone."""
