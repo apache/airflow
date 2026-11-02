@@ -36,6 +36,8 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
+from pydantic_ai.exceptions import ModelRetry
+
 from airflow.providers.common.ai.operators.llm import LLMOperator
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import BaseHook
@@ -93,11 +95,20 @@ class LLMSQLQueryOperator(LLMOperator):
         Default: ``(Select, Union, Intersect, Except)``.
     :param allowed_tables: Tables the generated SQL may reference, as ``table`` or
         ``schema.table`` entries. When set, SQL that reaches any other table, or uses a
-        construct that cannot be checked against the list (such as a table-valued
-        function), is rejected with ``SQLSafetyError``. Matching is case-insensitive;
-        an unqualified entry matches only unqualified references and catalog-qualified
-        references never match. Requires ``validate_sql=True`` and must name at least one
-        table. Default ``None`` (no restriction).
+        construct that cannot be checked against the list, is rejected with
+        ``SQLSafetyError``: this includes SQL comments, quoted identifiers, table-valued
+        functions and functions sqlglot does not recognize. The model is told the allowed
+        tables, and a refused answer is sent back to it as long as ``output_retries``
+        allows. Matching is case-insensitive; with no default schema, an unqualified entry
+        matches only unqualified references (``orders`` does not match ``sales.orders``)
+        and catalog-qualified references never match. Not a template field, so the
+        allow-list is fixed when the Dag is parsed rather than at run time. Requires
+        ``validate_sql=True`` and must name at least one table. Default ``None`` (no
+        restriction).
+    :param allowed_functions: Names of functions sqlglot does not recognize that are
+        safe to run while ``allowed_tables`` is set, e.g. ``["json_build_object"]`` or a
+        project UDF. Matching is case-insensitive. Only consulted when ``allowed_tables``
+        is set; ``None`` (default) rejects every unrecognized function.
     :param dialect: SQL dialect for parsing (``postgres``, ``mysql``, etc.).
         Auto-detected from the database hook if not set.
     :param datasource_config: A
@@ -137,6 +148,7 @@ class LLMSQLQueryOperator(LLMOperator):
         validate_sql: bool = True,
         allowed_sql_types: tuple[type[exp.Expr], ...] = DEFAULT_ALLOWED_TYPES,
         allowed_tables: list[str] | None = None,
+        allowed_functions: list[str] | None = None,
         dialect: str | None = None,
         datasource_config: DataSourceConfig | None = None,
         **kwargs: Any,
@@ -163,6 +175,7 @@ class LLMSQLQueryOperator(LLMOperator):
         self.validate_sql = validate_sql
         self.allowed_sql_types = allowed_sql_types
         self.allowed_tables = allowed_tables
+        self.allowed_functions = allowed_functions
         self.dialect = dialect
         self.datasource_config = datasource_config
 
@@ -193,6 +206,8 @@ class LLMSQLQueryOperator(LLMOperator):
         full_system_prompt = self._build_system_prompt(schema_info)
 
         agent = self._create_agent(output_type=str, instructions=full_system_prompt)
+        if self.allowed_tables is not None:
+            agent.output_validator(self._retry_unsafe_sql)
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         sql = self._strip_llm_output(result.output, dialect=self._resolved_dialect)
 
@@ -221,12 +236,24 @@ class LLMSQLQueryOperator(LLMOperator):
         self._clear_usage_budget(context)
         return output
 
+    def _retry_unsafe_sql(self, output: str) -> str:
+        """Send a refusal back to the model so ``output_retries`` lets it rewrite the query."""
+        try:
+            self._check_sql(self._strip_llm_output(output, dialect=self._resolved_dialect))
+        except SQLSafetyError as e:
+            raise ModelRetry(str(e)) from e
+        return output
+
     def _check_sql(self, sql: str) -> None:
         """Validate the statement types of ``sql`` and, when set, the tables it may reference."""
         statements = _validate_sql(sql, allowed_types=self.allowed_sql_types, dialect=self._resolved_dialect)
         if self.allowed_tables is None:
             return
-        violations = find_allowed_tables_violations(statements, canonical_allowed_tables(self.allowed_tables))
+        violations = find_allowed_tables_violations(
+            statements,
+            canonical_allowed_tables(self.allowed_tables),
+            allowed_functions=frozenset(f.casefold() for f in self.allowed_functions or ()),
+        )
         if violations.unverifiable_sources:
             raise SQLSafetyError(
                 "SQL uses a data source that cannot be checked against allowed_tables: "
@@ -325,6 +352,12 @@ class LLMSQLQueryOperator(LLMOperator):
             "(INSERT, UPDATE, DELETE, DROP, etc.)\n"
             "- Use proper syntax for the specified dialect\n"
         )
+        if self.allowed_tables is not None:
+            prompt += (
+                f"- Only reference these tables: {', '.join(self.allowed_tables)}\n"
+                "- Write table names unquoted and exactly as listed\n"
+                "- Do not include SQL comments\n"
+            )
         if self.system_prompt:
             prompt += f"\nAdditional instructions:\n{self.system_prompt}\n"
         return prompt

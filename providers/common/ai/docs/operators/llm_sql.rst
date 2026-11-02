@@ -185,29 +185,40 @@ Restricting the tables a query may reference
 generated SQL from reading other tables. Set ``allowed_tables`` to reject any query
 that references a table outside the list:
 
-.. code-block:: python
-
-    LLMSQLQueryOperator(
-        task_id="generate_sql",
-        prompt="Total order value per customer last month",
-        llm_conn_id="pydanticai_default",
-        db_conn_id="postgres_default",
-        table_names=["orders"],
-        allowed_tables=["orders"],
-    )
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_sql.py
+    :language: python
+    :start-after: [START howto_operator_llm_sql_allowed_tables]
+    :end-before: [END howto_operator_llm_sql_allowed_tables]
 
 Every table the query reaches is checked, including tables in subqueries and joins,
-while a CTE defined in the query is not mistaken for a table. Constructs that cannot
-be checked against the list, such as table-valued functions like ``dblink``, are
-rejected too. The rules match ``SQLToolset(allowed_tables=...)``: entries are
-``table`` or ``schema.table``, matching is case-insensitive, an unqualified entry
-only matches unqualified references, and catalog-qualified references never match.
-The check also applies to SQL edited by a reviewer during Human-in-the-Loop approval
-and raises :class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`.
-``allowed_tables`` requires ``validate_sql=True``.
+while a CTE defined in the query is not mistaken for a table. Entries are ``table`` or
+``schema.table`` and match case-insensitively. The operator has no default schema, so
+an unqualified entry only matches unqualified references: ``orders`` does not match
+``sales.orders``. Catalog-qualified references never match.
 
-Like ``SQLToolset``'s allow-list, the check fails closed but is only as exact as the SQL
-parser, so it is not a security boundary: pair it with least-privilege grants for the
+SQL that cannot be checked against the list is refused as well. In practice that
+mostly means:
+
+- SQL comments, such as a trailing ``-- per customer``;
+- quoted identifiers, such as ``FROM "orders"``, because a quoted name is
+  case-sensitive on the database while the list is matched case-insensitively;
+- functions sqlglot does not recognize, such as Postgres' ``age`` or
+  ``json_build_object``. List trusted ones in ``allowed_functions``;
+- table-valued functions such as ``dblink``.
+
+When ``allowed_tables`` is set, the prompt lists the allowed tables and asks for
+unquoted table names and no comments. If the model's answer is still refused, the
+refusal is sent back to the model, which can rewrite the query as many times as
+``output_retries`` allows. SQL edited by a reviewer during Human-in-the-Loop approval
+is checked too, and a refusal raises
+:class:`~airflow.providers.common.ai.utils.sql_validation.SQLSafetyError`.
+``allowed_tables`` requires ``validate_sql=True``. It is not a template field, so the
+list is fixed when the Dag is parsed.
+
+The check uses the same matching as ``SQLToolset(allowed_tables=...)``, except that
+``SQLToolset`` resolves unqualified entries through its ``schema`` argument. Like
+``SQLToolset``'s allow-list, it fails closed but is only as exact as the SQL parser,
+so it is not a security boundary: pair it with least-privilege grants for the
 database user that runs the generated query.
 
 Logging
