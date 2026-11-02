@@ -64,7 +64,7 @@ To enable event publishing you need to
   * point the plugin at an Airflow Kafka connection via ``kafka_config_id``
     (defaults to ``kafka_default``) that carries the broker address and any
     other confluent-kafka client options on its extras
-  * have a pre-existing kafka topic
+  * have pre-existing kafka topics for dagrun and task_instance (these can be the same topic)
 
 .. code-block:: ini
 
@@ -72,7 +72,8 @@ To enable event publishing you need to
     dag_run_events_enabled = True
     task_instance_events_enabled = True
     kafka_config_id = kafka_events
-    topic = airflow.events
+    dagrun_topic = airflow.dagrun
+    task_instance_topic = airflow.task_instance
 
 The connection's ``extra`` JSON accepts the full confluent-kafka client
 configuration — including SASL/TLS options and callbacks (e.g. ``error_cb``,
@@ -98,12 +99,13 @@ Environment-variable equivalents:
     AIRFLOW__KAFKA_EVENT_PRODUCER__DAG_RUN_EVENTS_ENABLED=True
     AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_EVENTS_ENABLED=True
     AIRFLOW__KAFKA_EVENT_PRODUCER__KAFKA_CONFIG_ID=kafka_events
-    AIRFLOW__KAFKA_EVENT_PRODUCER__TOPIC=airflow.events
+    AIRFLOW__KAFKA_EVENT_PRODUCER__DAGRUN_TOPIC=airflow.dagrun
+    AIRFLOW__KAFKA_EVENT_PRODUCER__TASK_INSTANCE_TOPIC=airflow.task_instance
 
 The two event flags are independent, users can opt-in to get only DagRun
 event messages or only TaskInstance event messages or both.
 
-The topic must already exist on the broker, it's not auto-created. On a missing
+The topics must already exist on the broker, they are not auto-created. On a missing
 topic, broker connection failure, or any other producer init error, the plugin
 doesn't fail, instead it logs a warning and retries the init after ``topic_check_retry_interval``
 seconds (default ``60``). Once the topic is created on the broker the plugin will pick it up.
