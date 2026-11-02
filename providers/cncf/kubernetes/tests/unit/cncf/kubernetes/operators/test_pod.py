@@ -3453,7 +3453,7 @@ class TestKubernetesPodOperatorAsync:
         k.pod.metadata.namespace = TEST_NAMESPACE
 
         ti_mock = MagicMock()
-        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
+        ti_mock.start_date = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.UTC)
         context = {"ti": ti_mock}
 
         with (
