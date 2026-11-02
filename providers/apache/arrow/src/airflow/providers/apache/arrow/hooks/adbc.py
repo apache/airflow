@@ -25,7 +25,7 @@ from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from functools import cached_property
 from importlib import resources as importlib_resources
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from adbc_driver_manager.dbapi import Connection, connect
 from more_itertools import chunked
@@ -204,14 +204,31 @@ class AdbcHook(DbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping[str, Any] | None = None,
+        *,
+        autocommit: bool | None = None,
     ) -> Any:
         """
         Execute the sql and return a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
+        :param autocommit: Whether to set autocommit before executing the query. If omitted, use the
+            driver's configured autocommit mode.
         """
-        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
+        return self.run(
+            sql=sql,
+            parameters=parameters,
+            handler=fetch_all_handler,
+            autocommit=cast("bool", autocommit),
+        )
+
+    @contextlib.contextmanager
+    def _create_autocommit_connection(self, autocommit: bool | None = False):
+        """Create a connection, leaving the driver's autocommit mode unchanged when omitted."""
+        with closing(self.get_conn()) as conn:
+            if self.supports_autocommit and autocommit is not None:
+                self.set_autocommit(conn, autocommit)
+            yield conn
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
