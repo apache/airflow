@@ -3639,3 +3639,23 @@ class TestExecuteRouting:
 
         sem = listener._get_semaphore()
         assert sem is None
+
+    def test_bounded_semaphore_permit_released_on_submission_failure(self):
+        """When executor submit throws an unhandled exception, semaphore permit is released."""
+        listener = OpenLineageListener()
+        listener._is_api_server = True
+
+        with mock.patch("airflow.providers.openlineage.conf.api_server_max_pending_events", return_value=1):
+            listener._semaphore = None
+            sem = listener._get_semaphore()
+            assert sem._value == 1
+
+            broken_executor = mock.MagicMock()
+            broken_executor.submit.side_effect = RuntimeError("Fatal worker creation failure")
+            listener._thread_executor = broken_executor
+
+            with pytest.raises(RuntimeError, match="Fatal worker creation failure"):
+                listener.submit_callable(lambda: "never")
+
+            # Verify permit was restored and not leaked
+            assert sem._value == 1

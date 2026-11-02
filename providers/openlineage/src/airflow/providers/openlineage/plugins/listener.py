@@ -1402,31 +1402,36 @@ class OpenLineageListener:
             )
             return rejected_fut
 
-        current_executor = self.executor
         try:
-            fut = current_executor.submit(callable, *args, **kwargs)
-        except RuntimeError:
-            if self._is_api_server:
-                self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
-                with self._lock:
-                    if self._thread_executor is current_executor:
-                        with suppress(Exception):
-                            self._thread_executor.shutdown(wait=False, cancel_futures=True)
-                        self._thread_executor = None
-                        self._semaphore = None
-            else:
-                self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
-                with self._lock:
-                    if self._executor is current_executor:
-                        with suppress(Exception):
-                            self._executor.shutdown(wait=False)
-                        self._executor = None
-            fut = self.executor.submit(callable, *args, **kwargs)
+            current_executor = self.executor
+            try:
+                fut = current_executor.submit(callable, *args, **kwargs)
+            except RuntimeError:
+                if self._is_api_server:
+                    self.log.warning("ThreadPoolExecutor is unusable; recreating and retrying submission.")
+                    with self._lock:
+                        if self._thread_executor is current_executor:
+                            with suppress(Exception):
+                                self._thread_executor.shutdown(wait=False, cancel_futures=True)
+                            self._thread_executor = None
+                            self._semaphore = None
+                else:
+                    self.log.warning("ProcessPoolExecutor is unusable; recreating and retrying submission.")
+                    with self._lock:
+                        if self._executor is current_executor:
+                            with suppress(Exception):
+                                self._executor.shutdown(wait=False)
+                            self._executor = None
+                fut = self.executor.submit(callable, *args, **kwargs)
 
-        if sem is not None:
-            fut.add_done_callback(lambda _: sem.release())
-        fut.add_done_callback(self.log_submit_error)
-        return fut
+            if sem is not None:
+                fut.add_done_callback(lambda _: sem.release())
+            fut.add_done_callback(self.log_submit_error)
+            return fut
+        except BaseException:
+            if sem is not None:
+                sem.release()
+            raise
 
     def log_submit_error(self, fut):
         if fut.exception():
