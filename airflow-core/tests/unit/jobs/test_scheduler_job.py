@@ -42,7 +42,7 @@ import time_machine
 from sqlalchemy import delete, event as sa_event, func, inspect, select, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 
 from airflow import settings
 from airflow._shared.module_loading import qualname
@@ -196,6 +196,8 @@ from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
@@ -16894,7 +16896,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
     runner._max_partition_dag_runs_per_loop = 1
 
     failing_session_cm = MagicMock()
-    failing_session_cm.__enter__.return_value = MagicMock(spec=Session)
+    failing_session_cm.__enter__.return_value = MagicMock(spec=session)
     failing_session_cm.__enter__.return_value.add_all.side_effect = audit_write_error
     failing_session_cm.__exit__.return_value = False
 
