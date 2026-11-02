@@ -11155,7 +11155,9 @@ class TestSchedulerJob:
         The callback must ship the manifest of the run's pinned Dag version, matching
         bundle_version, even when the TI was moved to a newer Dag version mid-run.
         """
-        with dag_maker(dag_id="ext_kill_version_data", fileloc="/test_path1/"):
+        with dag_maker(
+            dag_id="ext_kill_version_data", fileloc="/test_path1/", relative_fileloc="moved_from.py"
+        ):
             EmptyOperator(
                 task_id="t1",
                 on_failure_callback=(lambda ctx: None) if request_type is TaskCallbackRequest else None,
@@ -11178,6 +11180,7 @@ class TestSchedulerJob:
         session.add(newer_dag_version)
         session.flush()
         dr.bundle_version = "v1-sha"
+        dr.dag_model.relative_fileloc = "moved_to.py"
         ti = dr.get_task_instance(task_id="t1", session=session)
         ti.dag_version_id = newer_dag_version.id
         ti.state = State.QUEUED
@@ -11196,6 +11199,7 @@ class TestSchedulerJob:
         self.job_runner.executor.callback_sink.send.assert_called_once()
         request = self.job_runner.executor.callback_sink.send.call_args[0][0]
         assert isinstance(request, request_type)
+        assert request.filepath == "moved_from.py"
         assert request.bundle_version == "v1-sha"
         assert request.version_data == run_manifest
 
@@ -11208,7 +11212,7 @@ class TestSchedulerJob:
         Same invariant as the external-kill path, exercised through
         _find_and_purge_task_instances_without_heartbeats.
         """
-        with dag_maker(dag_id="hb_timeout_bv", fileloc="/test_path1/"):
+        with dag_maker(dag_id="hb_timeout_bv", fileloc="/test_path1/", relative_fileloc="moved_from.py"):
             EmptyOperator(task_id="t1", email="test@example.com", email_on_failure=True)
         dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
 
@@ -11220,6 +11224,7 @@ class TestSchedulerJob:
         dag_version = ti.dag_version
         dag_version.bundle_version = "abc123-sha"
         dr.bundle_version = bundle_version
+        dr.dag_model.relative_fileloc = "moved_to.py"
         ti.state = TaskInstanceState.RUNNING
         ti.queued_by_job_id = scheduler_job.id
         ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
@@ -11233,6 +11238,7 @@ class TestSchedulerJob:
         requests = [call.args[0] for call in executor.callback_sink.send.call_args_list]
         assert len(requests) == 2
         assert {type(request) for request in requests} == {TaskCallbackRequest, EmailRequest}
+        assert all(request.filepath == "moved_from.py" for request in requests)
         assert all(request.bundle_version == bundle_version for request in requests)
 
     @time_machine.travel(DEFAULT_DATE, tick=False)
@@ -11564,7 +11570,7 @@ class TestSchedulerJob:
         _handle_tasks_stuck_in_queued. With num_stuck_in_queued_retries=1, the
         first stuck detection exhausts the budget and emits the failure callback.
         """
-        with dag_maker(dag_id="stuck_bv"):
+        with dag_maker(dag_id="stuck_bv", relative_fileloc="moved_from.py"):
             EmptyOperator(task_id="op1", on_failure_callback=TestSchedulerJob.mock_failure_callback)
         run_id = str(uuid4())
         dr = dag_maker.create_dagrun(run_id=run_id, state=DagRunState.RUNNING)
@@ -11573,6 +11579,7 @@ class TestSchedulerJob:
         dag_version = ti.dag_version
         dag_version.bundle_version = "abc123-sha"
         dr.bundle_version = bundle_version
+        dr.dag_model.relative_fileloc = "moved_to.py"
         ti.state = State.QUEUED
         ti.queued_dttm = timezone.utcnow()
         session.merge(dag_version)
@@ -11598,6 +11605,7 @@ class TestSchedulerJob:
         mock_executors[0].send_callback.assert_called_once()
         request = mock_executors[0].send_callback.call_args[0][0]
         assert isinstance(request, TaskCallbackRequest)
+        assert request.filepath == "moved_from.py"
         assert request.bundle_version == bundle_version
 
     def test_stuck_in_queued_failure_callback_for_removed_mapped_task(
@@ -17346,7 +17354,7 @@ class TestRouteDagProcessorCallbacks:
         return TaskCallbackRequest(
             filepath="moved_from.py",
             bundle_name=dag_run.dag_model.bundle_name,
-            bundle_version=None,
+            bundle_version=kwargs.pop("bundle_version", None),
             ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
             **kwargs,
         )
@@ -17397,12 +17405,122 @@ class TestRouteDagProcessorCallbacks:
         (workload,) = self._queued_callbacks(default)
         assert workload.callback.id == str(callback_id)
         assert "req_data" not in workload.callback.data
-        # The run's serialized Dag locates the file, not its current location or the request's.
-        assert workload.dag_rel_path == Path(Path(__file__).name)
+        assert workload.dag_rel_path == Path(request.filepath)
         assert workload.bundle_info == BundleInfo(
             name=request.bundle_name, version="v1", version_data={"files": {"a.py": "1"}}
         )
         assert not self._queued_callbacks(other)
+
+    @pytest.mark.parametrize("callback_type", ["dag", "task"])
+    def test_waiting_callback_keeps_its_file_and_bundle_when_run_is_cleared_on_latest_version(
+        self, dag_maker, session, callback_type
+    ):
+        with dag_maker(
+            "routed_versioned_dag", relative_fileloc="moved_from.py", bundle_version="v1", session=session
+        ):
+            EmptyOperator(task_id="task", on_failure_callback=empty_callback_for_deadline)
+        dag_run = dag_maker.create_dagrun(run_id="test_run", bundle_version="v1")
+        old_version_id = dag_run.created_dag_version_id
+        old_manifest = {"files": {"moved_from.py": "v1-object"}}
+        dag_run.created_dag_version.version_data = old_manifest
+        dag_run.state = DagRunState.FAILED
+        ti = dag_run.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.FAILED
+        session.commit()
+        if callback_type == "dag":
+            request = self._dag_request(dag_run, bundle_version="v1", version_data=old_manifest)
+        else:
+            request = self._task_request(dag_run, session, bundle_version="v1", version_data=old_manifest)
+        callback_id = _add_waiting_callback(session, request)
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner([executor], **{"core.parallelism": "1"})
+        occupied_key = TaskInstanceUuid(uuid4())
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][occupied_key] = mock.sentinel.occupied_task
+
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+        assert runner._waiting_callback_executors == {callback_id: executor}
+
+        with dag_maker(dag_run.dag_id, relative_fileloc="moved_to.py", bundle_version="v2", session=session):
+            EmptyOperator(task_id="task", on_failure_callback=empty_callback_for_deadline)
+        latest_version = DagVersion.get_latest_version(dag_run.dag_id, session=session)
+        assert latest_version.id != old_version_id
+        clear_task_instances([ti], session=session, run_on_latest_version=True)
+        session.commit()
+        session.refresh(dag_run)
+        assert (dag_run.created_dag_version_id, dag_run.bundle_version) == (latest_version.id, "v2")
+        assert (
+            runner.scheduler_dag_bag.get_dag_for_run(dag_run, session=session).relative_fileloc
+            == "moved_to.py"
+        )
+
+        del executor.executor_queues[WorkloadType.EXECUTE_TASK][occupied_key]
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+
+        (workload,) = self._queued_callbacks(executor)
+        assert workload.callback.id == str(callback_id)
+        assert workload.dag_rel_path == Path("moved_from.py")
+        assert workload.bundle_info == BundleInfo(
+            name=request.bundle_name, version="v1", version_data=old_manifest
+        )
+
+    @pytest.mark.parametrize("clear_before_routing", [False, True])
+    def test_routes_callback_produced_after_its_pinned_dag_file_moves(
+        self, dag_maker, session, clear_before_routing
+    ):
+        with dag_maker(
+            "routed_moved_dag",
+            relative_fileloc="moved_from.py",
+            bundle_version="v1",
+            on_failure_callback=empty_callback_for_deadline,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        original_dag = dag_maker.serialized_dag
+        dag_run = dag_maker.create_dagrun(run_id="test_run", bundle_version="v1")
+        old_version_id = dag_run.created_dag_version_id
+        old_manifest = {"files": {"moved_from.py": "v1-object"}}
+        dag_run.created_dag_version.version_data = old_manifest
+        dag_run.state = DagRunState.FAILED
+        ti = dag_run.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.FAILED
+        session.commit()
+
+        with dag_maker(
+            dag_run.dag_id,
+            relative_fileloc="moved_to.py",
+            bundle_version="v2",
+            on_failure_callback=empty_callback_for_deadline,
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        session.refresh(dag_run)
+        assert dag_run.dag_model.relative_fileloc == "moved_to.py"
+        assert (dag_run.created_dag_version_id, dag_run.bundle_version) == (old_version_id, "v1")
+        request = dag_run.produce_dag_callback(dag=original_dag, success=False, session=session)
+        assert request is not None
+        assert request.bundle_version == "v1"
+        assert request.version_data == old_manifest
+        callback_id = _add_waiting_callback(session, request)
+
+        if clear_before_routing:
+            clear_task_instances([ti], session=session, run_on_latest_version=True)
+            session.commit()
+            session.refresh(dag_run)
+            assert dag_run.bundle_version == "v2"
+
+        executor = self._make_executor("default_exec")
+        runner = self._make_runner([executor])
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+
+        (workload,) = self._queued_callbacks(executor)
+        assert workload.callback.id == str(callback_id)
+        assert workload.dag_rel_path == Path("moved_from.py")
+        assert workload.bundle_info == BundleInfo(
+            name=request.bundle_name, version="v1", version_data=old_manifest
+        )
 
     @pytest.mark.parametrize(
         ("option", "message"),
@@ -17592,7 +17710,7 @@ class TestRouteDagProcessorCallbacks:
             return load_executor(*args, **kwargs)
 
         # Callbacks are routed oldest first, so the broken one fails.
-        with mock.patch.object(runner, "_try_to_load_executor", side_effect=fail_first):
+        with mock.patch.object(runner, "_try_to_load_executor", autospec=True, side_effect=fail_first):
             runner._route_dag_processor_callbacks(session=session)
         session.commit()
 
@@ -17694,7 +17812,7 @@ class TestRouteDagProcessorCallbacks:
         executor = self._make_executor("default_exec")
         runner = self._make_runner([executor], **{"core.parallelism": "1"})
         taken = TaskInstanceUuid(uuid4())
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][taken] = mock.MagicMock()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][taken] = mock.sentinel.occupied_task
         dag_run_id = dag_run.id
         callback_id = _add_waiting_callback(session, self._dag_request(dag_run))
 
@@ -17761,7 +17879,9 @@ class TestRouteDagProcessorCallbacks:
             **{"core.parallelism": parallelism, "callbacks.max_routed_callbacks_per_loop": per_loop},
         )
         # One slot is taken.
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = mock.MagicMock()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = (
+            mock.sentinel.occupied_task
+        )
         callback_ids = [_add_waiting_callback(session, self._dag_request(dag_run)) for _ in range(3)]
 
         runner._route_dag_processor_callbacks(session=session)
@@ -17866,7 +17986,9 @@ class TestRouteDagProcessorCallbacks:
         runner = self._make_runner(
             [executor], **{"core.parallelism": "1", "callbacks.max_routed_callbacks_per_loop": "2"}
         )
-        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = mock.MagicMock()
+        executor.executor_queues[WorkloadType.EXECUTE_TASK][TaskInstanceUuid(uuid4())] = (
+            mock.sentinel.occupied_task
+        )
         unroutable = self._dag_request(dag_run, run_id="missing_run")
         callback_ids = [
             _add_waiting_callback(session, self._dag_request(dag_run)),
@@ -17924,7 +18046,7 @@ class TestRouteDagProcessorCallbacks:
             runner = SchedulerJobRunner(
                 job=Job(), num_runs=2, executors=[self._make_executor("default_exec")]
             )
-        runner.job.heartbeat = mock.MagicMock()
+        runner.job.heartbeat = mock.create_autospec(runner.job.heartbeat)
         calls: list[str] = []
 
         def hand_back_waiting_callbacks():
@@ -18004,7 +18126,7 @@ class TestRoutedCallbackOutcomes:
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (event, "executor detail")
 
         SchedulerJobRunner.process_executor_events(
-            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
         )
         session.commit()
 
@@ -18034,7 +18156,7 @@ class TestRoutedCallbackOutcomes:
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (event, "executor detail")
 
         SchedulerJobRunner.process_executor_events(
-            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
         )
         session.commit()
 
@@ -18050,7 +18172,7 @@ class TestRoutedCallbackOutcomes:
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "worker died")
 
         SchedulerJobRunner.process_executor_events(
-            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
         )
 
         with pytest.raises(OperationalError) as error, create_session(scoped=False) as completing_session:
@@ -18075,7 +18197,7 @@ class TestRoutedCallbackOutcomes:
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "worker died")
 
         SchedulerJobRunner.process_executor_events(
-            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
         )
 
         with create_session(scoped=False) as other_session:
@@ -18256,7 +18378,9 @@ class TestRoutedCallbackOutcomes:
         running_deadline = CallbackKey(str(deadline_callback.id))
         executor = MockExecutor(do_update=False)
         executor.running.update({sent_reaped, reaped_elsewhere, claimed, waiting, running_deadline})
-        executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][unsent_reaped] = mock.MagicMock()
+        executor.executor_queues[WorkloadType.EXECUTE_CALLBACK][unsent_reaped] = (
+            mock.sentinel.unsubmitted_callback
+        )
         runner = SchedulerJobRunner(job=Job(), executors=[executor])
 
         runner._reap_routed_callbacks()
@@ -18296,7 +18420,7 @@ class TestRoutedCallbackOutcomes:
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (TaskInstanceState.FAILED, info)
 
         SchedulerJobRunner.process_executor_events(
-            executor=executor, job_id=None, scheduler_dag_bag=mock.MagicMock(), session=session
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
         )
         session.commit()
 

@@ -2427,7 +2427,7 @@ class TestAssetStateOperations:
 
 
 class TestCallbackOperations:
-    @mock.patch("airflow.sdk.api.client.get_hostname", return_value="worker-1")
+    @mock.patch("airflow.sdk.api.client.get_hostname", autospec=True, return_value="worker-1")
     def test_run_exchanges_token(self, _hostname):
         callback_id = uuid7()
         bodies = []

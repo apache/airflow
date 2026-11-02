@@ -785,17 +785,19 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     callback_type = event.task_instance_state
     should_retry = False
     dag_bag = DBDagBag()
+    dag = None
 
-    if event.task_instance_state == TaskInstanceState.FAILED:
-        # Load the serialized task so retry eligibility matches the normal task path.
+    if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
+        # A newly parsed file move must not change the path within the run's pinned bundle.
         try:
             dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
-            if dag is not None:
+            if dag is not None and event.task_instance_state == TaskInstanceState.FAILED:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
         except Exception:
             log.exception(
-                "Could not load task for %s; failing terminally without retry routing", task_instance
+                "Could not load Dag or task for %s; completing terminally without retry routing",
+                task_instance,
             )
         if should_retry:
             callback_type = TaskInstanceState.UP_FOR_RETRY
@@ -807,13 +809,16 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             TaskInstanceState.FAILED,
             TaskInstanceState.UP_FOR_RETRY,
         ):
-            if task_instance.dag_model.relative_fileloc is None:
+            callback_filepath = (
+                dag.relative_fileloc if dag is not None else None
+            ) or task_instance.dag_model.relative_fileloc
+            if callback_filepath is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
             from airflow.models.dag_version import _resolve_ti_callback_bundle_info
 
             bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(task_instance)
             request = TaskCallbackRequest(
-                filepath=task_instance.dag_model.relative_fileloc,
+                filepath=callback_filepath,
                 ti=task_instance_to_runtime(
                     task_instance,
                     model=TIDataModel,

@@ -68,13 +68,32 @@ def _get_callback(callback_id: UUID, *, session: SessionDep, for_update: bool = 
     return callback
 
 
+def _get_callback_dag_run(callback: Callback, *, session: SessionDep) -> DagRun | None:
+    """Return the callback's original Dag run, if it still exists."""
+    if not (dag_run_id := callback.data.get("dag_run_id")):
+        return None
+    if (request := callback.get_callback_request()) is None:
+        return session.get(DagRun, dag_run_id)
+
+    if isinstance(request, DagCallbackRequest):
+        dag_id, run_id = request.dag_id, request.run_id
+    else:
+        dag_id, run_id = request.ti.dag_id, request.ti.run_id
+    # SQLite can reuse a deleted run's integer ID while its callback is still queued or running.
+    return session.scalar(
+        select(DagRun).where(DagRun.id == dag_run_id, DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    )
+
+
 def _get_identity_claims(callback: Callback, *, session: SessionDep) -> dict[str, str]:
     """Return the Dag, run, and bundle a callback runs for, which resolve its team."""
-    run_id = None
-    if dag_run_id := callback.data.get("dag_run_id"):
-        run_id = session.scalar(select(DagRun.run_id).where(DagRun.id == dag_run_id))
+    dag_run = _get_callback_dag_run(callback, session=session)
     return prune_dict(
-        {"dag_id": callback.get_dag_id(), "run_id": run_id, "bundle_name": callback.bundle_name},
+        {
+            "dag_id": callback.get_dag_id(),
+            "run_id": dag_run.run_id if dag_run else None,
+            "bundle_name": callback.bundle_name,
+        },
     )
 
 
@@ -238,7 +257,7 @@ def get_callback_previous_successful_dagrun(
     """
     callback = _get_callback(callback_id, session=session)
     previous = None
-    if (dag_run_id := callback.data.get("dag_run_id")) and (dag_run := session.get(DagRun, dag_run_id)):
+    if dag_run := _get_callback_dag_run(callback, session=session):
         previous = DagRun.get_previous_dagrun(dag_run, state=DagRunState.SUCCESS, session=session)
     if previous is None:
         return PrevSuccessfulDagRunResponse()

@@ -1638,7 +1638,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Route a waiting callback, fail it if no executor can run it, or leave it waiting.
 
         A callback left waiting is only looked up again once its executor has a free slot: waiting costs
-        no queries, and the callback is queued by its current Dag run, Dag file and team.
+        no queries, and the callback is queued by its current Dag run and team.
 
         :return: The executor it was queued on, or ``None`` if it wasn't queued.
         """
@@ -1718,7 +1718,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             executor_name=executor_name,
             queue=queue,
             dag_run=dag_run,
-            dag_rel_path=Path(serialized_dag.relative_fileloc),
+            # Clearing the run onto a newer version can move its Dag file. The callback still uses
+            # the bundle version stored in its request, so its file must come from that request too.
+            dag_rel_path=Path(request.filepath),
         )
 
     def _queue_routed_callback(
@@ -2272,7 +2274,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
                     request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
+                        filepath=dag.relative_fileloc or ti.dag_model.relative_fileloc or "",
                         bundle_name=_bundle_name,
                         bundle_version=_bundle_version,
                         version_data=_version_data,
@@ -2309,7 +2311,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
                         continue
                     email_request = EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
+                        filepath=dag.relative_fileloc or ti.dag_model.relative_fileloc or "",
                         bundle_name=_email_bundle_name,
                         bundle_version=_email_bundle_version,
                         version_data=_email_version_data,
@@ -4102,7 +4104,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     # inside a loop.  If backfilling fails we simply skip the callback.
                     if _ensure_ti_has_dag_version_id(ti, session, self.log):
                         request = TaskCallbackRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
+                            filepath=dag.relative_fileloc or ti.dag_model.relative_fileloc or "",
                             bundle_name=_stuck_bundle_name,
                             bundle_version=_stuck_bundle_version,
                             version_data=_stuck_version_data,
@@ -4642,6 +4644,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # of silently skipping it, and so email/callback gating below can check the real task
             # definition. Unlike that path, there's no executor-reported state to fall back to here,
             # so a load failure still falls through to fail the TI below, just without task context.
+            dag = None
             try:
                 dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
                 if not dag:
@@ -4696,6 +4699,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 else:
                     callback_map_index = coordinates.public_map_index(ti)
             if callback_map_index is not None:
+                callback_filepath = (
+                    (dag.relative_fileloc if dag else None) or ti.dag_model.relative_fileloc or ""
+                )
                 context_from_server = TIRunContext(
                     dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
                     max_tries=ti.max_tries,
@@ -4704,7 +4710,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     xcom_keys_to_clear=[],
                 )
                 request = TaskCallbackRequest(
-                    filepath=ti.dag_model.relative_fileloc or "",
+                    filepath=callback_filepath,
                     bundle_name=bundle_name,
                     bundle_version=bundle_version,
                     version_data=version_data,
@@ -4721,7 +4727,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
                     self.executor.send_callback(
                         EmailRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
+                            filepath=callback_filepath,
                             bundle_name=bundle_name,
                             bundle_version=bundle_version,
                             version_data=version_data,

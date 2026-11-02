@@ -1765,7 +1765,7 @@ class DagRun(Base, LoggingMixin):
             # against the same version the run used.
             version_data = _resolve_version_data(self.created_dag_version, self.bundle_version)
             return DagCallbackRequest(
-                filepath=self.dag_model.relative_fileloc,
+                filepath=dag.relative_fileloc or self.dag_model.relative_fileloc,
                 dag_id=self.dag_id,
                 run_id=self.run_id,
                 bundle_name=self.dag_model.bundle_name,

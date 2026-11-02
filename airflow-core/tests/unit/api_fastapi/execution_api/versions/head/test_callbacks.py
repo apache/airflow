@@ -50,6 +50,7 @@ from airflow.models.callback import (
     CallbackType,
     ExecutorCallback,
 )
+from airflow.models.dagrun import DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import SyncCallback
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -287,6 +288,79 @@ class TestRunCallbackIdentityClaims:
         assert claims["dag_id"] == "test_dag"
         assert "run_id" not in claims
         assert "bundle_name" not in claims
+
+    @pytest.mark.parametrize(
+        "request_",
+        [
+            pytest.param(
+                DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="test_run"), id="dag"
+            ),
+            pytest.param(TaskCallbackRequest(**REQUEST_FIELDS, ti=TI), id="task"),
+            pytest.param(EmailRequest(**REQUEST_FIELDS, ti=TI, context_from_server=TI_CONTEXT), id="email"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("replacement_dag_id", "replacement_run_id"),
+        [
+            pytest.param("other_dag", "test_run", id="another-dag"),
+            pytest.param("test_dag", "another_run", id="another-run-of-the-same-dag"),
+        ],
+    )
+    @time_machine.travel(NOW, tick=False)
+    def test_reused_dag_run_primary_key_does_not_change_callback_identity_or_previous_run(
+        self, client, session, request_, replacement_dag_id, replacement_run_id
+    ):
+        previous = DagRun(
+            dag_id=replacement_dag_id,
+            run_id="previous_run",
+            logical_date=NOW - timedelta(days=1),
+            start_date=NOW - timedelta(days=1),
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+        )
+        original = DagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=NOW,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.FAILED,
+        )
+        session.add_all([previous, original])
+        session.flush()
+        original_id = original.id
+        callback = _add_routed_callback(session, request_, state=CallbackState.QUEUED)
+        callback.data = {**callback.data, "dag_id": "test_dag", "dag_run_id": original_id}
+        session.delete(original)
+        session.commit()
+
+        replacement = DagRun(
+            dag_id=replacement_dag_id,
+            run_id=replacement_run_id,
+            logical_date=NOW,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.FAILED,
+        )
+        # Explicit reuse exercises SQLite's allocation behavior on every supported test database.
+        replacement.id = original_id
+        session.add(replacement)
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{callback.id}/run")
+
+        assert response.status_code == 204
+        claims = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert claims["dag_id"] == "test_dag"
+        assert "run_id" not in claims
+
+        response = client.get(f"/execution/callbacks/{callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
 
 
 WORKER = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
