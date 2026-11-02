@@ -25,6 +25,7 @@ import time
 import uuid
 from collections import defaultdict
 from collections.abc import Callable, Collection
+from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import urlparse
 
@@ -42,6 +43,20 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context
 
 log = logging.getLogger(__name__)
+
+# Marks every log line describing why event validation failed, so whatever reads the logs of a failed check can
+# report just these lines. Every problem of a failed check is logged with it, keep the tag stable.
+VALIDATION_ERROR_TAG = "[OL_VALIDATION_ERROR]"
+
+# The key of the events being checked, which prefixes the validation errors logged meanwhile
+_validated_key: ContextVar[str | None] = ContextVar("_validated_key", default=None)
+
+
+def log_validation_error(msg: str, *args: Any) -> None:
+    text = msg % args if args else msg
+    if (key := _validated_key.get()) is not None:
+        text = f"[{key}] {text}"
+    log.error("%s %s", VALIDATION_ERROR_TAG, text)
 
 
 def any(result: Any) -> Any:
@@ -155,13 +170,15 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
     if isinstance(expected, dict):
         # Only keys present in expected are checked — extra keys in the actual event are ignored.
         if not isinstance(result, dict):
-            log.error("Path `%s`: expected a dict but got `%s` (%s)", path_str, result, type(result).__name__)
+            log_validation_error(
+                "Path `%s`: expected a dict but got `%s` (%s)", path_str, result, type(result).__name__
+            )
             return False
         for k, v in expected.items():
             # null sentinel: assert the key must NOT appear in the actual event.
             if v is None:
                 if k in result:
-                    log.error(
+                    log_validation_error(
                         "Path `%s`: key `%s` must be absent but got `%s` (%s)",
                         path_str,
                         k,
@@ -190,7 +207,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
 
             # At this point v is a plain template (dict, list, or scalar) with no sentinels.
             if k not in result:
-                log.error("Path `%s`: key `%s` not found in received event", path_str, k)
+                log_validation_error("Path `%s`: key `%s` not found in received event", path_str, k)
                 return False
             if not match(v, result[k], env, path + [k]):
                 return False
@@ -198,10 +215,14 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
         # Lists must match exactly in length and order. Each element is compared recursively,
         # so nested sentinels (null, $optional) work inside list items too.
         if not isinstance(result, list):
-            log.error("Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__)
+            log_validation_error(
+                "Path `%s`: expected a list but got `%s` (%s)", path_str, result, type(result).__name__
+            )
             return False
         if len(expected) != len(result):
-            log.error("Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result))
+            log_validation_error(
+                "Path `%s`: expected %d item(s) but got %d", path_str, len(expected), len(result)
+            )
             return False
         for i, x in enumerate(expected):
             if not match(x, result[i], env, path + [i]):
@@ -215,11 +236,11 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             try:
                 rendered = env.from_string(expected).render(result=result)
             except (ValueError, TemplateError) as e:
-                log.error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
+                log_validation_error("Path `%s`: failed to render template `%s`: %s", path_str, expected, e)
                 return False
             if str(rendered).lower() == "true" or rendered == result:
                 return True
-            log.error(
+            log_validation_error(
                 "Path `%s`: template `%s` rendered to `%s` but expected `true` or actual value `%s` (%s)",
                 path_str,
                 expected,
@@ -230,7 +251,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             return False
         # Plain string: exact equality check.
         if expected != result:
-            log.error(
+            log_validation_error(
                 "Path `%s`: expected `%s` (str) but got `%s` (%s)",
                 path_str,
                 expected,
@@ -240,7 +261,7 @@ def match(expected, result, env: Environment, path: list | None = None) -> bool:
             return False
     elif expected != result:
         # Scalar (int, bool, float, …): exact equality check.
-        log.error(
+        log_validation_error(
             "Path `%s`: expected `%s` (%s) but got `%s` (%s)",
             path_str,
             expected,
@@ -513,31 +534,42 @@ class OpenLineageTestOperator(BaseOperator):
         if self.file_path is not None:
             self.event_templates = {}
             self.log.info("Reading OpenLineage event templates from file `%s`", self.file_path)
-            with open(self.file_path) as f:
-                events = json.load(f)
-            for event in events:
-                key = event["job"]["name"] + ".event." + event["eventType"].lower()
-                if isinstance(event.get("$absent"), str):
-                    self.event_templates[key] = {"$absent": event["$absent"]}
-                else:
-                    existing = self.event_templates.get(key)
-                    if existing is None:
-                        self.event_templates[key] = event
-                    elif isinstance(existing, list):
-                        existing.append(event)
+            try:
+                with open(self.file_path) as f:
+                    events = json.load(f)
+                for event in events:
+                    key = event["job"]["name"] + ".event." + event["eventType"].lower()
+                    if isinstance(event.get("$absent"), str):
+                        self.event_templates[key] = {"$absent": event["$absent"]}
                     else:
-                        self.event_templates[key] = [existing, event]
+                        existing = self.event_templates.get(key)
+                        if existing is None:
+                            self.event_templates[key] = event
+                        elif isinstance(existing, list):
+                            existing.append(event)
+                        else:
+                            self.event_templates[key] = [existing, event]
+            except Exception as e:
+                log_validation_error(
+                    "Can't read the expected events from `%s`: %s: %s", self.file_path, type(e).__name__, e
+                )
+                raise
         errors: dict[str, str] = {}
         events_by_key: dict[str, list[dict]] = {}
         try:
             for key, template in self.event_templates.items():  # type: ignore[union-attr]
                 log.info("Checking key: `%s`", key)
+                token = _validated_key.set(key)
                 try:
                     events_by_key[key] = self._check_key(key, template)
-                except ValueError as e:
+                except Exception as e:
+                    # Not only a mismatch (ValueError): a malformed event or template must not hide the other keys
+                    log_validation_error("%s", e if type(e) is ValueError else f"{type(e).__name__}: {e}")
                     if self.fail_fast:
                         raise
-                    errors[key] = str(e)
+                    errors[key] = str(e) if type(e) is ValueError else f"{type(e).__name__}: {e}"
+                finally:
+                    _validated_key.reset(token)
             if self.check_run_ids and errors:
                 # A key that failed its template is missing from events_by_key, so its runIds would look incomplete
                 log.info("Skipping the runId integrity check until the event templates match")
@@ -546,6 +578,8 @@ class OpenLineageTestOperator(BaseOperator):
                     events_by_key,
                     repeated_start_keys={key for key in events_by_key if self._expects_repeated_events(key)},
                 ):
+                    for problem in problems:
+                        log_validation_error("%s", problem)
                     message = "\n".join(f"    {problem}" for problem in problems)
                     if self.fail_fast:
                         raise ValueError(f"runId integrity check failed:\n{message}")

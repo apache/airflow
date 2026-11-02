@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 from collections import defaultdict
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -30,6 +31,7 @@ from uuid import UUID
 
 import pendulum
 import pytest
+import time_machine
 from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
@@ -62,6 +64,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import (
     DagRun,
     DagRunNote,
+    FinishedTI,
     InvalidLoopDecision,
     clear_partition_runs,
     get_or_create_dagrun,
@@ -114,7 +117,7 @@ from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInst
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils import db
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags, clear_db_xcom
@@ -132,6 +135,8 @@ pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 TI = TaskInstance
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
+# A joined eager load of TaskInstance.dag_run aliases the table, hence the optional suffix.
+SELECTS_RUN_CONF = re.compile(r"\bdag_run(?:_\d+)?\.conf\b")
 
 
 def get_callback_ti(ti):
@@ -789,6 +794,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on success
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_succeeded2"
 
         assert dag_run.state == DagRunState.SUCCESS
@@ -823,6 +832,10 @@ class TestDagRun:
         # Make sure the correct TI is passed on failure
         call_args = execute_dag_callbacks.call_args
         ti_passed = call_args.kwargs["relevant_ti"]
+        # During scheduling, finished tis are accessed as a minimal FinishedTI view,
+        # and only the ti handed to a dag callback is fetched as a full TaskInstance.
+        # Check that the callback receives a TaskInstance and not a FinishedTI.
+        assert isinstance(ti_passed, TaskInstance)
         assert ti_passed.task_id == "test_state_failed2"
 
         assert dag_run.state == DagRunState.FAILED
@@ -1121,6 +1134,52 @@ class TestDagRun:
 
         ti = dag_run.get_task_instance("test_short_circuit_false")
         assert ti is None
+
+    def test_fetch_task_instances_does_not_select_the_run_conf(self, dag_maker, session):
+        """
+        The run's conf must not come back on every task-instance row.
+
+        ``TaskInstance.dag_run`` is a joined eager load, so a query that selected ``dag_run.conf``
+        would return and decode one copy of the conf per task instance.
+        """
+        conf = {"payload": "x" * 1024}
+        with dag_maker(session=session):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="t2")
+        dag_run = dag_maker.create_dagrun(conf=conf)
+        dag_id, run_id = dag_run.dag_id, dag_run.run_id
+        session.expunge_all()
+
+        with capture_orm_selects("task_instance") as statements:
+            tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, session=session)
+
+        assert [ti.task_id for ti in tis] == ["t1", "t2"]
+        assert statements
+        assert not any(SELECTS_RUN_CONF.search(sql) for sql in statements), statements
+        # The run is still joined, and its conf loads when read.
+        assert tis[0].dag_run.run_id == run_id
+        assert tis[0].dag_run.conf == conf
+
+    def test_scheduling_decisions_do_not_select_the_run_conf(self, dag_maker, session):
+        """
+        A scheduling pass must not load the run's conf once per task instance.
+
+        ``downstream`` waits for ``upstream``, so besides fetching the run's task instances the pass
+        re-reads the waiting ones to see whether their state changed.
+        """
+        with dag_maker(session=session):
+            EmptyOperator(task_id="upstream") >> EmptyOperator(task_id="downstream")
+        dag_run = dag_maker.create_dagrun(conf={"payload": "x" * 1024})
+
+        with capture_orm_selects("task_instance") as statements:
+            decision = dag_run.task_instance_scheduling_decisions(session=session)
+
+        assert [ti.task_id for ti in decision.schedulable_tis] == ["upstream"]
+        assert statements
+        selecting_conf = [sql for sql in statements if SELECTS_RUN_CONF.search(sql)]
+        assert not selecting_conf, (
+            f"{len(selecting_conf)} of {len(statements)} task-instance queries select the run conf"
+        )
 
     def test_get_latest_runs(self, dag_maker, session):
         with dag_maker(
@@ -3409,9 +3468,15 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
 
     decision = dr.task_instance_scheduling_decisions(session=session)
 
-    # ti1 finished execution. ti2 goes directly to finished state because it's
-    # expanded against a zero-length XCom.
-    assert decision.finished_tis == [ti1, ti2]
+    # The finished_tis list contains both FinishedTI and TaskInstance types,
+    # so compare by content rather than identity.
+    #
+    # ti1 finished execution (before the decision - FinishedTI). ti2 goes directly to finished state
+    # (during the decision - TaskInstance) because it's expanded against a zero-length XCom.
+    assert [(ti.task_id, ti.state) for ti in decision.finished_tis] == [
+        (ti1.task_id, TaskInstanceState.SUCCESS),
+        (ti2.task_id, TaskInstanceState.SKIPPED),
+    ]
 
     indices = session.execute(
         select(TI.map_index, TI.state)
@@ -4431,6 +4496,81 @@ def test_mapped_task_length_reduction_rerun_downstream_not_deadlocked(session, d
     assert finish_ti.state == TaskInstanceState.SUCCESS
 
 
+@pytest.mark.parametrize("trigger_rule", [TriggerRule.ALL_SUCCESS, TriggerRule.ONE_FAILED])
+def test_mapped_task_length_reduction_marks_removed_for_downstream_in_same_pass(
+    session, dag_maker, trigger_rule
+):
+    """
+    Shrinking a mapped task mid-pass is visible to a downstream evaluated later in the same pass.
+
+    The revise marks the surplus index REMOVED with a bulk UPDATE; the finished-row views taken
+    at the start of the pass must reflect it, or the downstream counts a stale FAILED upstream.
+    """
+
+    @task
+    def producer():
+        if get_current_context()["ti"].try_number == 1:
+            return [0, 1, 2]
+        return [0, 1]
+
+    @task
+    def work(arg):
+        return arg
+
+    @task(trigger_rule=trigger_rule)
+    def zreport():
+        return None
+
+    with dag_maker(session=session):
+        work.expand(arg=producer()) >> zreport()
+
+    dr = dag_maker.create_dagrun()
+    dag_maker.run_ti("producer", dr)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis] == [
+        ("work", 0),
+        ("work", 1),
+        ("work", 2),
+    ]
+    end_states = {0: TaskInstanceState.SUCCESS, 1: TaskInstanceState.SUCCESS, 2: TaskInstanceState.FAILED}
+    for ti in decision.schedulable_tis:
+        ti.set_state(end_states[ti.map_index], session=session)
+    session.flush()
+
+    # Clear work[0] together with its upstream producer, which now yields two items.
+    clear_task_instances(
+        [
+            dr.get_task_instance("producer", session=session),
+            dr.get_task_instance("work", map_index=0, session=session),
+        ],
+        session=session,
+    )
+    session.flush()
+    dag_maker.run_ti("producer", dr)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    work_states = session.execute(
+        select(TI.map_index, TI.state)
+        .where(TI.task_id == "work", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
+        .order_by(TI.map_index)
+    ).all()
+    assert work_states == [
+        (0, None),
+        (1, TaskInstanceState.SUCCESS),
+        (2, TaskInstanceState.REMOVED),
+    ]
+    # The downstream waits for work[0] instead of acting on the stale FAILED state of work[2].
+    assert ("zreport", -1) not in [(ti.task_id, ti.map_index) for ti in decision.schedulable_tis]
+    assert dr.get_task_instance("zreport", session=session).state is None
+
+    def _get_state_of_ti(tis, task_id, map_index):
+        return next(ti.state for ti in tis if ti.task_id == task_id and ti.map_index == map_index)
+
+    assert _get_state_of_ti(decision.finished_tis, "work", 2) == TaskInstanceState.REMOVED
+    assert _get_state_of_ti(decision.tis, "work", 2) == TaskInstanceState.REMOVED
+
+
 def test_rerun_with_upstream_task_removed(session, dag_maker):
     def _task_ids(tis):
         return [(ti.task_id, ti.map_index) for ti in tis]
@@ -5076,6 +5216,93 @@ def test_teardown_and_fail_fast(dag_maker):
         "tg_2.my_teardown": "skipped",
         "tg_2.my_work": "skipped",
     }
+
+
+def test_scheduling_decisions_mark_orphaned_finished_tis_removed(dag_maker, session):
+    """
+    A finished ti whose task no longer exists in the dag is marked REMOVED and excluded.
+
+    Only the scheduled run is touched, neither another run of the Dag nor another Dag sharing
+    the run_id and task_id loses its row.
+    """
+    with dag_maker("test_dag_1", session=session):
+        EmptyOperator(task_id="stays")
+        EmptyOperator(task_id="vanishes")
+    dag_run_1 = dag_maker.create_dagrun()
+    dag_run_1_later = dag_maker.create_dagrun_after(dag_run_1, run_id="later_run")
+    with dag_maker("test_dag_2", session=session):
+        EmptyOperator(task_id="vanishes")
+    dag_run_2 = dag_maker.create_dagrun()
+    assert dag_run_2.run_id == dag_run_1.run_id
+    for run in (dag_run_1, dag_run_1_later, dag_run_2):
+        for ti in run.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+    session.flush()
+
+    del dag_run_1.dag.task_dict["vanishes"]
+    decision = dag_run_1.task_instance_scheduling_decisions(session=session)
+
+    assert len(decision.finished_tis) == 1
+    finished_ti = decision.finished_tis[0]
+    assert isinstance(finished_ti, FinishedTI)
+    assert finished_ti.task_id == "stays"
+    assert finished_ti.state == TaskInstanceState.SUCCESS
+    assert finished_ti.task is dag_run_1.dag.task_dict["stays"]
+    # The view carries the row's identity and coordinates so that trigger-rule evaluation
+    # and the dag-callback re-fetch never need the full TaskInstance.
+    stays = dag_run_1.get_task_instance("stays", session=session)
+    assert (finished_ti.id, finished_ti.dag_id, finished_ti.run_id) == (
+        stays.id,
+        dag_run_1.dag_id,
+        dag_run_1.run_id,
+    )
+    assert (finished_ti.region_id, finished_ti.region_index) == (stays.region_id, stays.region_index)
+    assert finished_ti.dag_version_id == stays.dag_version_id
+    # This read returns the ORM copy loaded in memory, and the assertion checks
+    # that the bulk UPDATE also synchronised the session.
+    assert dag_run_1.get_task_instance("vanishes", session=session).state == TaskInstanceState.REMOVED
+    session.expire_all()
+    # After expiring the session, the following reads hit the database,
+    # and the assertions check what the UPDATE actually wrote.
+    assert dag_run_1.get_task_instance("vanishes", session=session).state == TaskInstanceState.REMOVED
+    assert dag_run_1_later.get_task_instance("vanishes", session=session).state == TaskInstanceState.SUCCESS
+    assert dag_run_2.get_task_instance("vanishes", session=session).state == TaskInstanceState.SUCCESS
+
+
+def test_scheduling_decisions_orphan_removal_covers_every_map_index_but_skips_removed_rows(
+    dag_maker, session
+):
+    """Every index of an orphaned mapped task is marked REMOVED, rows already REMOVED are not rewritten."""
+
+    @task
+    def vanishes(arg): ...
+
+    with dag_maker(session=session):
+        EmptyOperator(task_id="stays")
+        vanishes.expand(arg=[1, 2, 3])
+    dr = dag_maker.create_dagrun()
+    earlier = pendulum.datetime(2026, 1, 1, tz="UTC")
+    with time_machine.travel(earlier, tick=False):
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.REMOVED if ti.map_index == 2 else TaskInstanceState.SUCCESS
+        session.flush()
+
+    del dr.dag.task_dict["vanishes"]
+    later = earlier.add(hours=1)
+    with time_machine.travel(later, tick=False):
+        dr.task_instance_scheduling_decisions(session=session)
+
+    session.expire_all()
+    rows = session.execute(
+        select(TI.map_index, TI.state, TI.updated_at)
+        .where(TI.dag_id == dr.dag_id, TI.run_id == dr.run_id, TI.task_id == "vanishes")
+        .order_by(TI.map_index)
+    ).all()
+    assert rows == [
+        (0, TaskInstanceState.REMOVED, later),
+        (1, TaskInstanceState.REMOVED, later),
+        (2, TaskInstanceState.REMOVED, earlier),
+    ]
 
 
 class TestDagRunHandleDagCallback:
@@ -6619,3 +6846,23 @@ def test_lock_dag_runs_locks_again_after_a_savepoint_rolls_back(session, two_run
     lock_dag_runs(session, [first])
 
     assert locked_dag_run_keys == [[first], [first]]
+
+
+@mock.patch.object(TI, "are_dependencies_met", autospec=True)
+def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_met, dag_maker, session):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="retrying", retries=2, retry_delay=datetime.timedelta(minutes=10))
+    dr = dag_maker.create_dagrun(session=session)
+    ti = dr.get_task_instance("retrying", session=session)
+    ti.try_number = 1
+    ti.end_date = timezone.utcnow()
+    ti.state = TaskInstanceState.UP_FOR_RETRY
+    successor = ti.prepare_db_for_next_try(session)
+    successor.retry_at = None
+    session.flush()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert decision.schedulable_tis == []
+    mock_deps_met.assert_not_called()
+    assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)

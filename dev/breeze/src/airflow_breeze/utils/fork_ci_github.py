@@ -14,7 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""GitHub access for the fork CI reconciler (AIP-120); the only module of it that calls ``gh``."""
+"""
+GitHub access for the fork CI reconciler (AIP-120); the only module of it that calls ``gh``.
+
+Part of the fork CI gate: a pull request whose CI runs in the contributor's fork and changes
+this file is closed by the fork CI monitor. See "Gate protection" in
+dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+"""
 
 from __future__ import annotations
 
@@ -52,6 +58,8 @@ class GitHubClient:
         self.repo = repo
         self.dry_run = dry_run
         self.calls: Counter[str] = Counter()
+        # Calls GitHub answered with a rate limit, each retried or given up on.
+        self.rate_limited = 0
 
     def _gh(
         self,
@@ -88,6 +96,7 @@ class GitHubClient:
             if result.returncode == 0:
                 return json.loads(result.stdout) if result.stdout.strip() else None
             rate_limited = any(marker in result.stderr.lower() for marker in RATE_LIMIT_MARKERS)
+            self.rate_limited += rate_limited
             connection_error = bool(CONNECTION_ERROR.search(result.stderr))
             if (
                 rate_limited

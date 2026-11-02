@@ -42,7 +42,15 @@ APACHE_AIRFLOW_URL = re.compile(r"github\.com[:/]apache/airflow(\.git)?/?$")
 
 
 def _run_git(*args: str) -> CompletedProcess:
-    return run_command(["git", *args], capture_output=True, text=True, check=False, cwd=AIRFLOW_ROOT_PATH)
+    # Read-only queries: dry-run would skip them and return empty output.
+    return run_command(
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
+        dry_run_override=False,
+    )
 
 
 def find_default_base_ref() -> str | None:

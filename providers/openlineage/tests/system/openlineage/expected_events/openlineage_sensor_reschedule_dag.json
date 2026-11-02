@@ -37,7 +37,10 @@
                         "region_index": null,
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "dag_bundle_name": "{{ result is string }}",
-                        "dag_bundle_version": "{{ result is string }}"
+                        "dag_bundle_version": "{{ result is string }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": null,
+                        "duration": null
                     },
                     "dag": {
                         "dag_id": "openlineage_sensor_reschedule_dag"
@@ -86,7 +89,10 @@
                         "region_index": null,
                         "dag_version_id": "{{ is_uuid(result) }}",
                         "dag_bundle_name": "{{ result is string }}",
-                        "dag_bundle_version": "{{ result is string }}"
+                        "dag_bundle_version": "{{ result is string }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
                     },
                     "dag": {
                         "dag_id": "openlineage_sensor_reschedule_dag"

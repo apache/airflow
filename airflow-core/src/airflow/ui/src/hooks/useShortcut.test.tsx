@@ -18,8 +18,8 @@
  */
 import type { PropsWithChildren } from "react";
 
-import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   ShortcutRegistryProvider,
@@ -65,7 +65,45 @@ const renderShortcut = (initialEnabled = true) =>
     { initialProps: { enabled: initialEnabled }, wrapper },
   );
 
+const renderKeyShortcut = (callback: () => void, ignoreEventWhen?: (event: KeyboardEvent) => boolean) =>
+  renderHook(
+    () =>
+      useShortcut({
+        callback,
+        category: "logs",
+        descriptionKey: "shortcuts.descriptions.toggleWrap",
+        keys: "g",
+        options: ignoreEventWhen ? { ignoreEventWhen } : undefined,
+      }),
+    { wrapper },
+  );
+
+// Monaco's EditContext input is a plain <div>, not a form field.
+const createMonacoInput = () => {
+  const editor = document.createElement("div");
+  const input = document.createElement("div");
+
+  editor.className = "monaco-editor";
+  input.className = "native-edit-context";
+  input.tabIndex = 0;
+  editor.append(input);
+  document.body.append(editor);
+
+  return input;
+};
+
+const pressG = (target: Element) => {
+  fireEvent.keyDown(target, { code: "KeyG", key: "g" });
+  fireEvent.keyUp(target, { code: "KeyG", key: "g" });
+};
+
+const ignoreEverything = () => true;
+
 describe("useShortcut", () => {
+  afterEach(() => {
+    document.body.innerHTML = "";
+  });
+
   it("registers the shortcut while mounted", () => {
     const { result } = renderShortcut();
 
@@ -108,5 +146,27 @@ describe("useShortcut", () => {
 
     expect(result.current).toHaveLength(1);
     expect(result.current[0]?.keys).toEqual(["shift+ArrowUp", "shift+ArrowDown"]);
+  });
+
+  it("lets a key typed into a Monaco editor through instead of firing the shortcut", () => {
+    const callback = vi.fn();
+
+    renderKeyShortcut(callback);
+    pressG(createMonacoInput());
+
+    expect(callback).not.toHaveBeenCalled();
+
+    pressG(document.body);
+
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
+  it("still applies the caller's ignoreEventWhen", () => {
+    const callback = vi.fn();
+
+    renderKeyShortcut(callback, ignoreEverything);
+    pressG(document.body);
+
+    expect(callback).not.toHaveBeenCalled();
   });
 });

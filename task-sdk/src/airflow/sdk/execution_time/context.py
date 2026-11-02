@@ -31,6 +31,7 @@ from uuid import UUID
 
 import attrs
 import structlog
+from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.state import AssetScope
@@ -92,7 +93,6 @@ if TYPE_CHECKING:
 
     from pydantic.types import JsonValue
 
-    from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
@@ -105,7 +105,6 @@ if TYPE_CHECKING:
         ConnectionResult,
         OKResponse,
         ReceiveMsgType,
-        VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -159,6 +158,8 @@ NEVER_EXPIRE: timedelta = timedelta.max
 
 _EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
 
+_AWARE_DATETIME_ADAPTER = TypeAdapter(AwareDatetime)
+
 
 def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
     return {_EXTERNAL_STATE_REF_KEY: ref}
@@ -198,16 +199,6 @@ async def _amask_connection_secrets(conn: Connection) -> None:
         await amask_secret(conn.password)
     if conn.extra:
         await amask_secret(conn.extra)
-
-
-def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
-    from airflow.sdk.definitions.variable import Variable
-
-    if deserialize_json:
-        import json
-
-        var_result.value = json.loads(var_result.value)  # type: ignore
-    return Variable(**var_result.model_dump(exclude={"type"}))
 
 
 _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
@@ -1397,8 +1388,8 @@ class OutletEventAccessors(
 
 @attrs.define(init=False)
 class InletEventsAccessor(Sequence["AssetEventResult"]):
-    _after: str | datetime | None
-    _before: str | datetime | None
+    _after: datetime | None
+    _before: datetime | None
     _ascending: bool
     _limit: int | None
     _partition_key: str | None
@@ -1422,13 +1413,13 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
-    def after(self, after: str) -> Self:
-        self._after = after
+    def after(self, after: datetime | str) -> Self:
+        self._after = _AWARE_DATETIME_ADAPTER.validate_python(after)
         self._reset_cache()
         return self
 
-    def before(self, before: str) -> Self:
-        self._before = before
+    def before(self, before: datetime | str) -> Self:
+        self._before = _AWARE_DATETIME_ADAPTER.validate_python(before)
         self._reset_cache()
         return self
 

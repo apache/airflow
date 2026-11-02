@@ -69,6 +69,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Name",
+      "timestamp": "Zeit",
       "value": "Wert"
     },
     "delete": {

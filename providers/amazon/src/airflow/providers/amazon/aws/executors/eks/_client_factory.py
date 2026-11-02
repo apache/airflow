@@ -63,6 +63,12 @@ def _get_sync_token_key(kubernetes_version: str) -> str:
 _SYNC_TOKEN_KEY = _get_sync_token_key(kubernetes.__version__)
 
 
+class _EksExecutorHook(EksHook):
+    # Without this, the user agent reports KubernetesExecutor as the caller.
+    def _get_caller(self, target_function_name: str = "execute") -> str:
+        return "AwsEksExecutor"
+
+
 def _get_eks_kube_client(team_name: str | None = None) -> client.CoreV1Api:
     """Build a Kubernetes client for the team's EKS cluster, in memory and without a kubeconfig."""
     from kubernetes import client
@@ -105,7 +111,7 @@ def _configure_eks_auth(
         **team_kwargs,
     )
 
-    eks_hook = EksHook(aws_conn_id=conn_id, region_name=region_name)
+    eks_hook = _EksExecutorHook(aws_conn_id=conn_id, region_name=region_name)
     cluster = eks_hook.conn.describe_cluster(name=cluster_name)["cluster"]
     if cluster["status"] not in _USABLE_CLUSTER_STATUSES:
         raise ValueError(
