@@ -275,7 +275,7 @@ def test_green_is_not_trusted_when_ci_files_change():
     plan, _, changes = _classify(pr, GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.add_labels == ["needs project ci"]
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
@@ -286,6 +286,21 @@ def test_green_is_not_trusted_when_ci_files_change():
     assert plan.attention == []
     assert plan.ci_passed is None
     changes.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("last_draft_actor", "expected_draft"),
+    [
+        pytest.param("github-actions[bot]", False, id="bot-draft-undrafted"),
+        pytest.param("someone", None, id="author-draft-kept"),
+    ],
+)
+def test_green_unverified_does_not_keep_a_bot_draft(last_draft_actor, expected_draft):
+    plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
+
+    assert plan.state == ForkState.GREEN_UNVERIFIED
+    assert plan.draft is expected_draft
+    assert plan.add_labels == ["needs project ci"]
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -472,11 +487,18 @@ def test_find_heads_shared_across_bases():
         pytest.param([".github/workflows/ci-amd.yml"], True, id="workflow"),
         pytest.param([".github/actions/breeze/action.yml"], True, id="action"),
         pytest.param(["dev/breeze/src/airflow_breeze/utils/selective_checks.py"], True, id="breeze"),
-        pytest.param(["scripts/ci/prek/check_x.py"], True, id="ci-scripts"),
-        pytest.param(["Dockerfile.ci"], True, id="dockerfile"),
-        pytest.param(["scripts/in_container/run_ci_tests.sh"], True, id="in-container-scripts"),
-        pytest.param([".pre-commit-config.yaml"], True, id="root-prek-config"),
-        pytest.param(["dev/.pre-commit-config.yaml"], True, id="nested-prek-config"),
+        pytest.param(["dev/breeze/pyproject.toml"], True, id="breeze-project"),
+        pytest.param(["dev/breeze/uv.lock"], True, id="breeze-lock"),
+        pytest.param(["scripts/ci/install_breeze.sh"], True, id="breeze-install"),
+        pytest.param(["scripts/ci/prek/update_providers_dependencies.py"], True, id="provider-deps-script"),
+        pytest.param(["scripts/ci/prek/yaml.py"], True, id="module-next-to-provider-deps-script"),
+        pytest.param(["dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"], False, id="breeze-doc"),
+        pytest.param(["dev/breeze/tests/test_selective_checks.py"], False, id="breeze-tests"),
+        pytest.param(["scripts/ci/testing/run_unit_tests.sh"], False, id="ci-scripts"),
+        pytest.param(["Dockerfile.ci"], False, id="dockerfile"),
+        pytest.param(["scripts/docker/entrypoint_ci.sh"], False, id="docker-scripts"),
+        pytest.param(["scripts/in_container/run_ci_tests.sh"], False, id="in-container-scripts"),
+        pytest.param([".pre-commit-config.yaml"], False, id="prek-config"),
         pytest.param([f"airflow-core/f{i}.py" for i in range(3000)], True, id="too-many-files-to-list"),
     ],
 )

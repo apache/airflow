@@ -381,9 +381,9 @@ created after it are approved this way, while earlier ones, whose gate ran proje
 maintainer. One rule applies instead:
 
 - The waiting runs of the head commit are approved when the pull request's merge commit changes no
-  file that the reconciler counts as CI-defining: `.github/`, `dev/breeze/`, `scripts/ci/`,
-  `scripts/docker/`, `scripts/in_container/`, `Dockerfile*` and `.pre-commit-config.yaml` (see
-  "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
+  file that the reconciler counts as CI-defining: `.github/`, `dev/breeze/src/`,
+  `dev/breeze/pyproject.toml`, `dev/breeze/uv.lock`, `scripts/ci/install_breeze.sh` and
+  `scripts/ci/prek/` (see "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
   `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
   review) run on GitHub-hosted runners.
 - Otherwise the runs wait for a maintainer, its head commit gets a pending `Workflow approval`
@@ -394,6 +394,11 @@ maintainer. One rule applies instead:
   workflow that does run, so such a run must not start without a review. The pull request does
   not get the `need workflow approval` label, and loses it if it has it. Approving its runs does
   not start project CI. A maintainer adds `use project ci` for that.
+- A pull request that changes other files CI uses (the rest of `dev/breeze/` and `scripts/ci/`,
+  `scripts/docker/`, `scripts/in_container/`, `Dockerfile*` or `.pre-commit-config.yaml`) is not
+  held for them, but gets one comment listing them, so the reviewer checks the CI change with the
+  rest of the diff. It starts with the marker `<!-- workflow-approval: ci-modification -->` and is
+  posted once per pull request, for pull requests that run project CI as well.
 
 A run started before `use fork ci` or `use project ci` was last added or removed is approved too,
 so a committer can add `use fork ci` after the PR's first runs were created and before they are
@@ -533,7 +538,7 @@ pull requests without a fork run for their head commit, not by the total.
 | **running**: run in progress | unchanged (a rebase of an approved pull request does not draft it; a failed run does) | remove | `pending` (yellow), link to the run | update state and run link |
 | **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
 | **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
-| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | draft | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
+| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | undraft\* | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
 | setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
 | **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
 | **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | draft | remove | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
@@ -583,17 +588,26 @@ Rules that sit under the table:
 
 ### Trusting a green fork run
 
-The fork run executes the workflow files, the breeze sources and the CI scripts of the pushed
-commit. A pull request that changes them decides what its own fork CI checks, and could make it
-pass trivially. When a new head commit turns green, the reconciler lists the pull request's
+The fork run executes the workflow files and the breeze sources of the pushed commit, and the
+`build-info` job decides from them which jobs run and on which runners. A pull request that
+changes them decides what its own fork CI checks, and could make it pass trivially. CI-defining
+files are only those that change the `build-info` outputs: the workflows and actions, the breeze
+sources whose selective checks compute the outputs, the files that install breeze, and
+`scripts/ci/prek/`. Selective checks runs `scripts/ci/prek/update_providers_dependencies.py` to
+generate the gitignored `generated/provider_dependencies.json`, and the script runs with its
+directory first on `sys.path`, so any module added there would run as well. Other CI
+scripts, Dockerfiles and prek configuration change only what a selected job does, so they are
+reviewed with the rest of the diff and do not hold the pull request back. When a new head commit turns green, the reconciler lists the pull request's
 changed files once (`GET /repos/apache/airflow/pulls/<n>/files`) and then reads the head commit
 again: the files endpoint lists the current head, so when the head moved meanwhile nothing is
 decided or recorded for the old commit, and the next run decides for the new one. If any file is under `.github/`,
-`dev/breeze/`, `scripts/ci/`, `scripts/docker/` or `scripts/in_container/`, is a
-`Dockerfile*` or a `.pre-commit-config.yaml`, or the list reaches GitHub's 3000-file cap so the
-rest cannot be seen, the state is `green_unverified` instead of `green`. The pull request stays
-a draft, the status is pending, and it is labelled `needs project ci` so maintainers can list
-these pull requests, review the change and add `use project ci`. It is not posted to Slack:
+`dev/breeze/src/` or `scripts/ci/prek/`, is `dev/breeze/pyproject.toml`, `dev/breeze/uv.lock` or
+`scripts/ci/install_breeze.sh`, or the list reaches GitHub's 3000-file cap so the rest cannot be
+seen, the state is `green_unverified` instead of `green`. The pull request is not drafted (a
+draft the reconciler made earlier is undone, as for `green`), but it gets no review label, the
+status is pending, and it is labelled `needs project ci` so maintainers can list these pull
+requests, review the change and add `use project ci`. Without `CI passed` it cannot be merged
+until then. It is not posted to Slack:
 the label already lists these pull requests, and a post for every new green commit would bury
 the CI breakages that channel is for.
 The reconciler removes `needs project ci` as soon as the state is anything else. A renamed file
@@ -1260,7 +1274,8 @@ as a failed check rather than a crash.
   the conflicting-labels alert, the close clock reset (including a reopen after an inactivity
   close), a fork with a name other than `airflow`, marker round-trips, status
   desired-vs-current comparison, the unknown-failure collection, green trust (a change to
-  CI-defining files keeps the pull request a draft, decided once per commit) and the gate
+  CI-defining files keeps the status pending without drafting the pull request, decided once
+  per commit) and the gate
   tampering check: a tampered run on an earlier commit is caught after a clean push, each
   signal alone does not close, short runs and gate-only jobs do not count, an in-progress
   non-gate job, a removed, duplicated or long-running gate job and an injected workflow with a

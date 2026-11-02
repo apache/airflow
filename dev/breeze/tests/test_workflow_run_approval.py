@@ -27,7 +27,7 @@ from click.testing import CliRunner
 from airflow_breeze.commands.ci_commands import approve_workflow_runs
 from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, EstimatedJobGroup
 from airflow_breeze.utils.fork_ci_gate import GateConfig
-from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER
+from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER, CI_MODIFICATION_MARKER
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
@@ -146,11 +146,9 @@ def mock_estimate():
                 id=f"fork-ci-defining-{path}",
             )
             for path in (
-                ".pre-commit-config.yaml",
-                "airflow-core/.pre-commit-config.yaml",
-                "Dockerfile.ci",
-                "scripts/docker/entrypoint_ci.sh",
-                "scripts/in_container/run_ci_tests.sh",
+                "dev/breeze/pyproject.toml",
+                "dev/breeze/uv.lock",
+                "scripts/ci/install_breeze.sh",
             )
         ),
         pytest.param(
@@ -887,9 +885,9 @@ def _gated_pr(*, base_ref="main", author_association="CONTRIBUTOR", labels=()) -
             id="workflow change",
         ),
         pytest.param(
-            [ChangedFile("scripts/docker/entrypoint_ci.sh", 1)],
+            [ChangedFile("scripts/ci/install_breeze.sh", 1)],
             False,
-            ["scripts/docker/entrypoint_ci.sh"],
+            ["scripts/ci/install_breeze.sh"],
             id="file the fork CI reconciler counts as CI",
         ),
     ],
@@ -954,6 +952,74 @@ def test_decide_for_pull_request_running_project_ci_keeps_the_size_rules(
     decision = decide_for_pull_request(api=api, pr=pr)
 
     assert decision is mock_decide_approval.return_value
+
+
+@pytest.mark.parametrize(
+    ("changed_files", "noted_files"),
+    [
+        pytest.param(CORE_CHANGE, [], id="no CI file"),
+        pytest.param(
+            [ChangedFile("scripts/docker/entrypoint_ci.sh", 1), ChangedFile("Dockerfile.ci", 1)],
+            ["scripts/docker/entrypoint_ci.sh", "Dockerfile.ci"],
+            id="CI files outside build-info",
+        ),
+        pytest.param(
+            [ChangedFile("dev/breeze/doc/ci/04_selective_checks.md", 1)],
+            ["dev/breeze/doc/ci/04_selective_checks.md"],
+            id="breeze doc",
+        ),
+        pytest.param(
+            [ChangedFile(".github/workflows/ci-amd.yml", 1), ChangedFile("Dockerfile.ci", 1)],
+            [],
+            id="build-info change gets the approval comment instead",
+        ),
+    ],
+)
+@pytest.mark.parametrize("gated", [True, False])
+@mock.patch(f"{MODULE}.decide_approval", autospec=True)
+@mock.patch(f"{MODULE}.build_selective_checks", autospec=True)
+@mock.patch(f"{MODULE}.load_config", autospec=True)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_decide_for_pull_request_notes_ci_files_that_do_not_hold_the_runs(
+    mock_fetch,
+    mock_get_changed_files,
+    mock_load_config,
+    mock_selective_checks,
+    mock_decide_approval,
+    gated,
+    changed_files,
+    noted_files,
+):
+    mock_get_changed_files.return_value = changed_files
+    mock_load_config.return_value = GATE_ENABLED if gated else GateConfig()
+    mock_decide_approval.return_value = ApprovalDecision(approve=True)
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    decision = decide_for_pull_request(api=api, pr=_gated_pr())
+
+    if noted_files:
+        assert decision.note is not None
+        assert decision.note.startswith(CI_MODIFICATION_MARKER)
+        assert all(f"`{path}`" in decision.note for path in noted_files)
+    else:
+        assert decision.note is None
+
+
+@pytest.mark.parametrize("approve", [True, False])
+@pytest.mark.parametrize(("already_noted", "expect_note"), [(False, True), (True, False)])
+def test_apply_decision_posts_the_note_once(approve, already_noted, expect_note):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.has_bot_comment.return_value = already_noted
+    api.get_approval_status.return_value = None
+    api.is_run_waiting_for_approval.return_value = True
+    decision = ApprovalDecision(approve=approve, reasons=["reason"], note="note")
+
+    apply_decision(api=api, pr=_pr(10, "aaa"), run_ids=[1], decision=decision)
+
+    api.has_bot_comment.assert_called_once_with(10, CI_MODIFICATION_MARKER)
+    assert api.create_comment.call_args_list == ([mock.call(10, "note")] if expect_note else [])
 
 
 @pytest.mark.parametrize(("already_commented", "expect_comment"), [(False, True), (True, False)])

@@ -155,9 +155,9 @@ _STATE_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that define what CI runs (such as `.github/`, "
-    "`dev/breeze/` or `scripts/ci/`), and the fork run used those changed files. A maintainer will "
-    "review the change and run project CI for it; the pull request stays a draft until then.",
+    "fork, but this pull request changes files that decide which CI jobs run and where (`.github/`, "
+    "the breeze sources or the breeze installation), and the fork run used those changed files. A "
+    "maintainer will review the change and run project CI for it before it can be merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
@@ -275,19 +275,37 @@ def _sanitize_path(path: str) -> str:
     return "".join(char if char.isprintable() and char != "`" else "?" for char in path)
 
 
-def ci_change_approval_comment(*, ci_files: list[str]) -> str:
+def build_ci_file_list(ci_files: list[str]) -> str:
     listed = [f"- `{_sanitize_path(path)}`" for path in ci_files[:MAX_LISTED_CI_FILES]]
     if len(ci_files) > MAX_LISTED_CI_FILES:
         listed.append(f"- and {len(ci_files) - MAX_LISTED_CI_FILES} more")
+    return "\n".join(listed)
+
+
+def ci_change_approval_comment(*, ci_files: list[str]) -> str:
     return (
         f"{CI_CHANGE_MARKER}\n\n"
         "**Your CI change needs a maintainer.** CI for this pull request runs in your fork, and the "
         "workflow runs it starts in apache/airflow are approved automatically while they only run the "
         "fork CI gate. This pull request changes files that define what CI runs:\n\n"
-        + "\n".join(listed)
+        + build_ci_file_list(ci_files)
         + "\n\nSuch a change can make project CI run on the project's runners, so its workflow runs in "
         "apache/airflow wait for a maintainer to review the change and approve them. CI in your fork "
         "is not affected, and its result stays visible on this pull request. " + WHY_FORK_CI + FOOTER
+    )
+
+
+CI_MODIFICATION_MARKER = "<!-- workflow-approval: ci-modification -->"
+
+
+def ci_modification_note_comment(*, ci_files: list[str]) -> str:
+    return (
+        f"{CI_MODIFICATION_MARKER}\n\n"
+        "**This pull request changes CI files.** It changes files that CI uses:\n\n"
+        + build_ci_file_list(ci_files)
+        + "\n\nThey do not decide which CI jobs run or on which runners, so its workflow runs are not "
+        "held for this. A maintainer reviewing the pull request will check the CI change together with "
+        "the rest of it." + FOOTER
     )
 
 
