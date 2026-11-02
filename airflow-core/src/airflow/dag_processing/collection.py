@@ -954,6 +954,32 @@ def _find_active_assets(name_uri_assets: Iterable[tuple[str, str]], session: Ses
     }
 
 
+def insert_active_assets(rows: Iterable[dict[str, str]], *, session: Session) -> None:
+    """
+    Insert ``asset_active`` rows in the given order, skipping any that conflict.
+
+    When rows conflict with each other, the first one wins. Another transaction
+    may also be inserting the same rows (e.g. multiple schedulers running
+    ``_update_asset_orphanage``), so conflicts are ignored rather than raised.
+    """
+    if (dialect_name := get_dialect_name(session)) == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert as postgresql_insert
+
+        stmt: Any = postgresql_insert(AssetActive).on_conflict_do_nothing()
+    elif session.bind is not None and dialect_name == "mysql":
+        from sqlalchemy.dialects.mysql import insert as mysql_insert
+
+        # MySQL does not support "do nothing"; this updates the row in
+        # conflict with its own value to achieve the same idea.
+        stmt = mysql_insert(AssetActive).on_duplicate_key_update(name=AssetActive.name)
+    else:
+        from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+        stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
+    if values := list(rows):
+        session.execute(stmt, values)
+
+
 class AssetModelOperation(NamedTuple):
     """Collect asset/alias objects from DAGs and perform database operations for them."""
 
@@ -1056,22 +1082,7 @@ class AssetModelOperation(NamedTuple):
         there's a conflict. The scheduler makes a more comprehensive pass
         through all assets in ``_update_asset_orphanage``.
         """
-        if (dialect_name := get_dialect_name(session)) == "postgresql":
-            from sqlalchemy.dialects.postgresql import insert as postgresql_insert
-
-            stmt: Any = postgresql_insert(AssetActive).on_conflict_do_nothing()
-        elif session.bind is not None and dialect_name == "mysql":
-            from sqlalchemy.dialects.mysql import insert as mysql_insert
-
-            # MySQL does not support "do nothing"; this updates the row in
-            # conflict with its own value to achieve the same idea.
-            stmt = mysql_insert(AssetActive).on_duplicate_key_update(name=AssetActive.name)
-        else:
-            from sqlalchemy.dialects.sqlite import insert as sqlite_insert
-
-            stmt = sqlite_insert(AssetActive).on_conflict_do_nothing()
-        if values := [{"name": m.name, "uri": m.uri} for m in models]:
-            session.execute(stmt, values)
+        insert_active_assets([{"name": m.name, "uri": m.uri} for m in models], session=session)
 
     def add_dag_asset_references(
         self,

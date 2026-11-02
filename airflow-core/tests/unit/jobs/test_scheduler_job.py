@@ -10822,6 +10822,61 @@ class TestSchedulerJob:
         for i in range(100):
             assert f"it's duplicate {i}" in dag_warning.message
 
+    def test_activate_referenced_assets_skips_assets_activated_concurrently(
+        self, session, testing_dag_bundle
+    ):
+        """Another scheduler activating the same asset first must not fail this pass."""
+        assets = [Asset(name=f"asset{i}", uri=f"s3://bucket/key/{i}") for i in range(3)]
+        dag = DAG(dag_id="test_asset_dag", start_date=DEFAULT_DATE, schedule=assets)
+        sync_dag_to_db(dag, session=session)
+        session.execute(delete(AssetActive))
+        session.flush()
+
+        raced = False
+
+        def _other_scheduler_activates_first(conn, cursor, statement, *args):
+            nonlocal raced
+            if not raced and statement.lstrip().upper().startswith("INSERT INTO ASSET_ACTIVE"):
+                raced = True
+                conn.execute(AssetActive.__table__.insert().values(name="asset1", uri="s3://bucket/key/1"))
+
+        engine = session.get_bind()
+        sa_event.listen(engine, "before_cursor_execute", _other_scheduler_activates_first)
+        try:
+            SchedulerJobRunner._activate_referenced_assets(select(AssetModel).cte(), session=session)
+            session.flush()
+        finally:
+            sa_event.remove(engine, "before_cursor_execute", _other_scheduler_activates_first)
+
+        assert raced
+        assert set(session.execute(select(AssetActive.name, AssetActive.uri))) == {
+            (asset.name, asset.uri) for asset in assets
+        }
+
+    def test_activate_referenced_assets_loads_conflict_references_in_batches(
+        self, session, testing_dag_bundle
+    ):
+        schedule = [Asset(name="asset1", uri="s3://bucket/key/1")]
+        schedule.extend(Asset(name="asset1", uri=f"it's duplicate {i}") for i in range(20))
+        sync_dag_to_db(
+            DAG(dag_id="test_asset_dag", start_date=DEFAULT_DATE, schedule=schedule), session=session
+        )
+
+        statements: list[str] = []
+
+        def _record(conn, cursor, statement, *args):
+            statements.append(statement)
+
+        engine = session.get_bind()
+        sa_event.listen(engine, "before_cursor_execute", _record)
+        try:
+            SchedulerJobRunner._activate_referenced_assets(select(AssetModel).cte(), session=session)
+        finally:
+            sa_event.remove(engine, "before_cursor_execute", _record)
+
+        schedule_reference_loads = [s for s in statements if "FROM dag_schedule_asset_reference" in s]
+        assert len(schedule_reference_loads) == 1
+
     def test_scheduler_passes_context_from_server_on_heartbeat_timeout(self, dag_maker, session):
         """Test that scheduler passes context_from_server when handling heartbeat timeouts."""
         with dag_maker(dag_id="test_dag", session=session):
