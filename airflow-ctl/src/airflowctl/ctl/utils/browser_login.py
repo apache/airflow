@@ -69,11 +69,14 @@ def resolve_endpoint(api_url: str, endpoint: str) -> str:
     return url
 
 
-def _find_login_error(params: dict[str, str], state: str) -> str | None:
-    """Return why the callback parameters do not complete this login, or ``None`` if they do."""
+def _has_login_state(params: dict[str, str], state: str) -> bool:
+    """Return whether the callback parameters carry the ``state`` of this login."""
     # compare_digest raises TypeError on non-ASCII str.
-    if not secrets.compare_digest(params.get("state", "").encode(), state.encode()):
-        return "The login response does not match this login attempt."
+    return secrets.compare_digest(params.get("state", "").encode(), state.encode())
+
+
+def _find_login_error(params: dict[str, str]) -> str | None:
+    """Return why the callback parameters of this login do not complete it, or ``None`` if they do."""
     if "error" in params:
         return f"Login refused: {params.get('error_description') or params['error']}"
     if not params.get("code"):
@@ -98,13 +101,20 @@ class _CallbackHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         params = {key: values[0] for key, values in parse_qs(url.query).items()}
-        login_error = _find_login_error(params, self.server.state)
+        if not _has_login_state(params, self.server.state):
+            # Any local process can reach this port, so only the real redirect may end the wait.
+            self._send_page(400, _CALLBACK_FAILED_PAGE)
+            return
+        login_error = _find_login_error(params)
         self.server.callback_params = params
         self.server.login_error = login_error
-        self.send_response(400 if login_error else 200)
+        self._send_page(400 if login_error else 200, _CALLBACK_FAILED_PAGE if login_error else _CALLBACK_PAGE)
+
+    def _send_page(self, status: int, page: bytes) -> None:
+        self.send_response(status)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(_CALLBACK_FAILED_PAGE if login_error else _CALLBACK_PAGE)
+        self.wfile.write(page)
 
     def log_message(self, format, *args) -> None:
         # Request lines contain the authorization code.
@@ -135,7 +145,8 @@ def get_authorization_code(
                 "code_challenge_method": "S256",
             }
         )
-        login_url = f"{authorization_url}?{query}"
+        separator = "&" if urlsplit(authorization_url).query else "?"
+        login_url = f"{authorization_url}{separator}{query}"
         # `auth token --sso` prints the token on stdout.
         Console(stderr=True, soft_wrap=True).print(
             f"[blue]Log in from your browser:[/blue] {escape(login_url)}"

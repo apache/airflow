@@ -108,16 +108,6 @@ def test_get_authorization_code(mock_open, capsys):
     ("build_callback_query", "message"),
     [
         pytest.param(
-            lambda params: {"code": "the-code", "state": "forged"},
-            "does not match this login attempt",
-            id="state-mismatch",
-        ),
-        pytest.param(
-            lambda params: {"code": "the-code", "state": "forg\u00e9"},
-            "does not match this login attempt",
-            id="non-ascii-state",
-        ),
-        pytest.param(
             lambda params: {
                 "error": "access_denied",
                 "error_description": "User refused",
@@ -148,6 +138,65 @@ def test_get_authorization_code_rejects_callback(mock_open, build_callback_query
     status, page = pages.get(timeout=5)
     assert status == 400
     assert b"Login failed" in page
+
+
+@pytest.mark.parametrize(
+    "stray_query",
+    [
+        pytest.param({"code": "stray-code", "state": "forged"}, id="state-mismatch"),
+        pytest.param({"code": "stray-code", "state": "forgé"}, id="non-ascii-state"),
+        pytest.param({"code": "stray-code"}, id="no-state"),
+        pytest.param({"error": "access_denied", "state": "forged"}, id="error-with-wrong-state"),
+    ],
+)
+@patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
+def test_get_authorization_code_keeps_waiting_after_stray_callback(mock_open, stray_query):
+    stray_pages = []
+
+    def open_login_page(login_url):
+        params = {key: values[0] for key, values in parse_qs(urlsplit(login_url).query).items()}
+
+        def call_back():
+            try:
+                urllib.request.urlopen(f"{params['redirect_uri']}?{urlencode(stray_query)}")
+            except urllib.error.HTTPError as e:
+                stray_pages.append((e.code, e.read()))
+            query = urlencode({"code": "the-code", "state": params["state"]})
+            urllib.request.urlopen(f"{params['redirect_uri']}?{query}").read()
+
+        threading.Thread(target=call_back, daemon=True).start()
+        return True
+
+    mock_open.side_effect = open_login_page
+
+    result = get_authorization_code(
+        authorization_url="http://localhost:8080/auth/login/cli",
+        open_browser=True,
+        timeout=10,
+    )
+
+    assert result.code == "the-code"
+    assert len(stray_pages) == 1
+    assert stray_pages[0][0] == 400
+    assert b"Login failed" in stray_pages[0][1]
+
+
+@patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
+def test_get_authorization_code_keeps_endpoint_query(mock_open):
+    mock_open.side_effect = _fake_browser(
+        lambda params: {"code": "the-code", "state": params["state"]}, queue.Queue()
+    )
+
+    result = get_authorization_code(
+        authorization_url="https://airflow.example.com/auth/login/cli?tenant=a",
+        open_browser=True,
+        timeout=10,
+    )
+
+    assert result.code == "the-code"
+    login_params = parse_qs(urlsplit(mock_open.call_args.args[0]).query)
+    assert login_params["tenant"] == ["a"]
+    assert login_params["redirect_uri"] == [result.redirect_uri]
 
 
 @patch("airflowctl.ctl.utils.browser_login.webbrowser.open", autospec=True)
