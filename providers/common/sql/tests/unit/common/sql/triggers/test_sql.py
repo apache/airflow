@@ -106,9 +106,7 @@ class TestSQLExecuteQueryTrigger:
         "value",
         [
             pytest.param(Decimal("1234.5600"), id="numeric"),
-            pytest.param(
-                datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc), id="timestamptz"
-            ),
+            pytest.param(datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.UTC), id="timestamptz"),
             pytest.param(uuid.UUID("12345678-1234-5678-1234-567812345678"), id="uuid"),
         ],
     )
