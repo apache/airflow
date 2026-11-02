@@ -426,7 +426,7 @@ class Client(httpx.Client):
         **kwargs: Any,
     ) -> None:
         auth: httpx.Auth | None = None
-        if kind != ClientKind.NO_AUTH:
+        if kind == ClientKind.CLI:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
         # Connect stays short so an unreachable host fails fast; the rest is generous because
