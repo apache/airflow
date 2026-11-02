@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import contextlib
+import gc
 import logging
 import os
 import signal
@@ -33,6 +34,7 @@ import pytest
 import time_machine
 from celery import Celery
 from celery.result import AsyncResult
+from celery.signals import worker_ready
 from kombu.asynchronous import set_event_loop
 
 from airflow.executors.base_executor import BaseExecutor
@@ -1935,3 +1937,18 @@ def test_celery_task_and_callback_results_keep_distinct_states(identity_executor
     assert type(events[callback.key][0]) is type(callback.failure_state)
     assert not executor.running
     assert not executor.workloads
+
+
+def test_gc_stays_frozen_after_worker_ready():
+    """Pool processes forked after the worker is ready (replacements, autoscaling) must inherit frozen objects too."""
+    gc.unfreeze()
+    try:
+        celery_executor_utils.on_celery_import_modules()
+        frozen = gc.get_freeze_count()
+
+        worker_ready.send(sender=None)
+
+        assert frozen > 0
+        assert gc.get_freeze_count() == frozen
+    finally:
+        gc.unfreeze()
