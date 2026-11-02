@@ -193,17 +193,14 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
-# ``AccessView.DAG_BUNDLES`` is newer than this provider's minimum Airflow. On a core without it, a
-# bundle is shown to a user who can read a Dag that came from it, so the menu entry is gated like
-# the Dags entry. Without a mapping the lookup below falls back to the raw enum value as a resource
-# name, and the entry would vanish for every FAB deployment.
+# The Dag bundles view and menu item first ship in Airflow 3.4.0, newer than this provider's minimum
+# Airflow. Without a mapping the lookups below fall back to the raw enum value as a resource name,
+# and the entry would vanish for every FAB deployment.
 DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
 if DAG_BUNDLES_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
 if hasattr(MenuItem, "DAG_BUNDLES"):
-    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = (
-        RESOURCE_DAG_BUNDLE if DAG_BUNDLES_ACCESS_VIEW is not None else RESOURCE_DAG
-    )
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
 
 
 class FabAuthManager(BaseAuthManager[User]):

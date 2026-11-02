@@ -28,6 +28,7 @@ import { DagImportErrorModal } from "src/components/DagImportErrorModal";
 
 type Props = {
   readonly bundleName: string;
+  readonly hasImportError: boolean;
   readonly onClose: () => void;
   readonly relativeFileloc: string | undefined;
 };
@@ -40,10 +41,10 @@ type Props = {
  * error. A dialog rather than a page of its own, because a single stack trace is not worth an
  * addressable route.
  */
-export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props) => {
+export const FileImportError = ({ bundleName, hasImportError, onClose, relativeFileloc }: Props) => {
   const { t: translate } = useTranslation("browse");
 
-  const { data, isLoading } = useImportErrorServiceGetImportErrors(
+  const { data, error, isLoading } = useImportErrorServiceGetImportErrors(
     { bundleName, filename: relativeFileloc ?? "" },
     undefined,
     { enabled: relativeFileloc !== undefined },
@@ -57,9 +58,11 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
     );
   }
 
-  // The table polls, so the error can be gone by the time its badge is clicked. The count is
-  // authorized on the bundle and the error text by ``GET /importErrors``, so the caller may also
-  // be unable to read it. Say so rather than leaving the click with no visible effect.
+  // ``GET /importErrors`` leaves out errors the caller may not read, so an empty result is told
+  // apart by the file list: its count is not filtered by caller, so a file still counting an
+  // error means the error exists. Otherwise the table polled before the error was fixed.
+  const isForbidden = error !== null || hasImportError;
+
   return (
     <Modal
       headerProps={{
@@ -73,7 +76,11 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
       onOpenChange={onClose}
       open={relativeFileloc !== undefined && !isLoading}
     >
-      <Text color="fg.muted">{translate("dagBundles.files.importErrorUnavailable")}</Text>
+      <Text color="fg.muted">
+        {translate(
+          isForbidden ? "dagBundles.files.importErrorForbidden" : "dagBundles.files.importErrorGone",
+        )}
+      </Text>
     </Modal>
   );
 };

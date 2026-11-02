@@ -32,6 +32,7 @@
       "file_many": "Plików",
       "file_one": "Plik",
       "file_other": "Pliki",
+      "importErrorGone": "Ten błąd importu nie jest już rejestrowany. Prawdopodobnie został naprawiony przez ponowne przetworzenie.",
       "neverParsed": "Nigdy",
       "showImportError_few": "Zobacz {{count, number}} błędy",
       "showImportError_many": "Zobacz {{count, number}} błędów",

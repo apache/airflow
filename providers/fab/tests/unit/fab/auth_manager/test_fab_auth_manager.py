@@ -914,21 +914,18 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
-            # The menu entry follows the bundle view when core has one. On an older core a bundle
-            # is shown to whoever can read a Dag in it, so the entry is gated like the Dags entry.
-            # The mapping is needed either way: unmapped items fall back to the enum value as a
-            # resource name.
+            # The menu entry follows the bundle resource, not Dag access.
             *(
                 [
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_BUNDLE)],
-                        [MenuItem.DAG_BUNDLES] if DAG_BUNDLES_ACCESS_VIEW is not None else [],
+                        [MenuItem.DAG_BUNDLES],
                     ),
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
-                        [] if DAG_BUNDLES_ACCESS_VIEW is not None else [MenuItem.DAG_BUNDLES],
+                        [],
                     ),
                 ]
                 if hasattr(MenuItem, "DAG_BUNDLES")

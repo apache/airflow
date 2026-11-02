@@ -30,6 +30,7 @@
       },
       "file_one": "文件",
       "file_other": "文件",
+      "importErrorGone": "此导入错误已不再被记录，可能已通过重新解析修复。",
       "neverParsed": "从未",
       "showImportError_one": "查看错误",
       "showImportError_other": "查看 {{count, number}} 个错误"

@@ -127,6 +127,10 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
     <Box pt={2}>
       <FileImportError
         bundleName={bundleName}
+        hasImportError={
+          (data?.dag_bundle_files.find((file) => file.relative_fileloc === errorFileloc)
+            ?.import_error_count ?? 0) > 0
+        }
         onClose={() => {
           setErrorFileloc(undefined);
         }}

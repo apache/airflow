@@ -266,8 +266,9 @@ Some caveats:
   to a commit, read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
 * With several Dag processors the row reflects whichever refreshed last, as they share one row per
   bundle.
-* Bundles have their own permission, held by ``Op`` and ``Admin`` by default. Every file and count
-  in a bundle is shown to those users, whatever Dags they can read.
+* Bundles have their own permission rather than following Dag access, so a user who holds it sees
+  every file and count in a bundle, whatever Dags they can read. Which users hold it by default is
+  up to the auth manager.
 
 ``active`` is false when the bundle was missing from the configuration of whatever last ran a full
 sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate

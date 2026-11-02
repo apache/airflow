@@ -25,7 +25,6 @@ from keycloak import KeycloakAdmin, KeycloakError
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError, raise_error_from_response
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
-from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
@@ -65,11 +64,6 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
-# With ``AccessView.DAG_BUNDLES`` the page is checked against ``AdminView`` in multi-team mode,
-# which team roles do not get, so the entry stays out of the team sets. On a core without that
-# view, a bundle is visible to whoever can read a Dag inside it, so the entry goes with ``DAGS``.
-if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES"):
-    TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,
     MenuItem.POOLS,

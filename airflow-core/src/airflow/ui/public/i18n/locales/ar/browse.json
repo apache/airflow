@@ -34,6 +34,7 @@
       "file_other": "ملفات",
       "file_two": "ملفان",
       "file_zero": "لا يوجد أي ملف",
+      "importErrorGone": "لم يعد خطأ الاستيراد هذا مسجلاً. ربما تم إصلاحه بإعادة التحليل.",
       "neverParsed": "أبداً",
       "showImportError_few": "عرض {{count, number}} أخطاء",
       "showImportError_many": "عرض {{count, number}} خطأً",
