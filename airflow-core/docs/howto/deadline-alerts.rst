@@ -556,8 +556,7 @@ of reference points and callback types (sync or async).
 This pattern is useful for creating tiered alerting strategies — for example, a warning notification
 followed by a more urgent escalation if the Dag is still running.
 
-Each alert can also select different run types. See ``example_deadline_alert_mixed_run_type_filters``
-in ``example_deadline_alert.py`` for a runnable example.
+Each alert can also select different run types using ``run_type_filter``.
 
 **Important Notes:**
 
