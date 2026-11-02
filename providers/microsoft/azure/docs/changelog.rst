@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+
+    ``S3ToAzureBlobStorageOperator`` now verifies S3 TLS certificates by default: ``s3_verify`` defaults
+    to ``None``, deferring to the connection and botocore default. Pass ``s3_verify=False`` to keep the
+    previous behaviour.
+
 15.3.0
 ......
 
