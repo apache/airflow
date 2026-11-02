@@ -174,6 +174,9 @@ type AssetStateStoreResult struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `msgpack:"type,omitempty"`
 
+	// UpdatedAt corresponds to the JSON schema field "updated_at".
+	UpdatedAt interface{} `msgpack:"updated_at,omitempty"`
+
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }

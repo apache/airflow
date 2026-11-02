@@ -21,6 +21,7 @@ import math
 
 from pydantic import JsonValue, field_validator
 
+from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
@@ -28,6 +29,8 @@ class AssetStateStoreResponse(StrictBaseModel):
     """Asset state store value returned to a worker."""
 
     value: JsonValue
+    # None when the configured state backend does not record write times.
+    updated_at: UtcDateTime | None = None
 
 
 class AssetStateStorePutBody(StrictBaseModel):

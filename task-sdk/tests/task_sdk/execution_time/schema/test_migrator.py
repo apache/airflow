@@ -63,6 +63,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetStateStoreResult,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -607,6 +608,25 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleAssetStateStoreUpdatedAt:
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    UPDATED_AT = datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+
+    def test_downgrade_strips_updated_at_for_previous_version(self, real_migrator):
+        msg = AssetStateStoreResult(value="etag-1", updated_at=self.UPDATED_AT)
+        out = real_migrator.downgrade(msg, "2026-06-16").model_dump()
+        assert "updated_at" not in out
+        assert out["value"] == "etag-1"
+
+    def test_downgrade_keeps_updated_at_at_head(self, real_migrator):
+        msg = AssetStateStoreResult(value="etag-1", updated_at=self.UPDATED_AT)
+        out = real_migrator.downgrade(msg, "2026-10-30").model_dump()
+        assert out["updated_at"] == self.UPDATED_AT
 
 
 class TestRealBundleFirstTaskRescheduleStartDate:

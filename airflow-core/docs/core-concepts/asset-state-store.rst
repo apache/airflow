@@ -168,9 +168,11 @@ Calling the synchronous ``get``/``set``/``delete``/``clear`` from inside an ``as
 Using ``asset_state_store`` inside a Watcher Trigger
 -----------------------------------------------------
 
-:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset the trigger is watching. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
+:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset or assets this trigger watches. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
 
-Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched asset, so no subscripting is needed.
+Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched assets, so no subscripting is needed.
+
+Watchers on several assets that use the same trigger class and arguments share one trigger. The accessor then covers all of those assets: ``set`` and ``delete`` apply to every one of them, and ``get`` returns the most recently written copy of the key. ``clear`` still needs exactly one asset, because it would also remove keys that tasks wrote, so a shared trigger should ``delete`` its own keys instead. Tasks and other triggers can use the same assets, so include what the trigger watches in the key name.
 
 .. code-block:: python
 
@@ -199,14 +201,15 @@ Unlike task-based access (where the asset is identified by an inlet or outlet de
 
         async def run(self) -> AsyncIterator[TriggerEvent]:
             while True:
-                last_seen = await self.asset_state_store.aget("last_seen_id", default=0)
+                key = f"last_seen_id:{self.source}"
+                last_seen = await self.asset_state_store.aget(key, default=0)
                 new_id = self._poll_for_new_record(
                     source=self.source,
                     last_seen=last_seen,
                 )
 
                 if new_id is not None:
-                    await self.asset_state_store.aset("last_seen_id", new_id)
+                    await self.asset_state_store.aset(key, new_id)
                     yield TriggerEvent({"status": "success", "record_id": new_id})
                     return
 
@@ -234,7 +237,16 @@ The corresponding :class:`~airflow.sdk.definitions.asset.AssetWatcher` wires the
 
     ...
 
-``self.asset_state_store`` behaves identically to the per-asset accessor described in the task sections above: ``get``, ``set``, ``delete``, ``clear`` and their async counterparts ``aget``, ``aset``, ``adelete``, ``aclear`` are all available. Values written by the trigger are visible to any task that declares ``my_asset`` as an inlet or outlet, and vice versa.
+Two assets watched by the same trigger share it, and its state is written to both:
+
+.. code-block:: python
+
+    orders_trigger = PollEventsTrigger(source="orders", waiter_delay=30)
+
+    orders_eu = Asset(name="orders_eu", watchers=[AssetWatcher(name="eu_watcher", trigger=orders_trigger)])
+    orders_us = Asset(name="orders_us", watchers=[AssetWatcher(name="us_watcher", trigger=orders_trigger)])
+
+``self.asset_state_store`` behaves identically to the per-asset accessor described in the task sections above: ``get``, ``set``, ``delete``, ``clear`` and their async counterparts ``aget``, ``aset``, ``adelete``, ``aclear`` are all available (``clear`` and ``aclear`` only when the trigger watches a single asset). Values written by the trigger are visible to any task that declares ``my_asset`` as an inlet or outlet, and vice versa.
 
 .. note::
 

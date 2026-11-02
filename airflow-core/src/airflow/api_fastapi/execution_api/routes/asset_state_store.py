@@ -128,14 +128,22 @@ def get_asset_state_store_by_name(
     session: SessionDep,
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset name."""
-    asset_id = _resolve_asset_id_by_name(name, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
+    return _get_asset_state_store(AssetScope(asset_id=_resolve_asset_id_by_name(name, session)), key, session)
+
+
+def _get_asset_state_store(scope: AssetScope, key: str, session: SessionDep) -> AssetStateStoreResponse:
+    backend = get_state_backend()
+    if isinstance(backend, MetastoreBackend):
+        row = backend.get_asset_state_store_row(scope, key, session=session)
+        value, updated_at = (row.value, row.updated_at) if row is not None else (None, None)
+    else:
+        value, updated_at = backend.get(scope, key, session=session), None
     if value is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": f"Asset state store key {key!r} not found"},
         )
-    return AssetStateStoreResponse(value=json.loads(value))
+    return AssetStateStoreResponse(value=json.loads(value), updated_at=updated_at)
 
 
 def _put_asset_state_store(
@@ -220,14 +228,7 @@ def get_asset_state_store_by_uri(
     session: SessionDep,
 ) -> AssetStateStoreResponse:
     """Get an asset state store value by asset URI."""
-    asset_id = _resolve_asset_id_by_uri(uri, session)
-    value = get_state_backend().get(AssetScope(asset_id=asset_id), key, session=session)
-    if value is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={"reason": "not_found", "message": f"Asset state store key {key!r} not found"},
-        )
-    return AssetStateStoreResponse(value=json.loads(value))
+    return _get_asset_state_store(AssetScope(asset_id=_resolve_asset_id_by_uri(uri, session)), key, session)
 
 
 @router.put("/by-uri/value", status_code=status.HTTP_204_NO_CONTENT)
