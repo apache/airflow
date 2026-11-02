@@ -2918,6 +2918,38 @@ class TestTaskInstance:
             "no_state": TaskInstanceState.SKIPPED,
         }
 
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("trigger_state", [State.RUNNING, State.FAILED])
+    @pytest.mark.parametrize(
+        ("sibling_state", "expected"),
+        [(State.RUNNING, State.FAILED), (State.SCHEDULED, State.SKIPPED), (State.QUEUED, State.SKIPPED)],
+    )
+    def test_fail_fast_stops_mapped_siblings(
+        self, dag_maker, session, trigger_state, sibling_state, expected
+    ):
+        with dag_maker("fail_fast_mapped_siblings", fail_fast=True, serialized=True, session=session):
+            MockOperator.partial(task_id="mapped").expand(arg2=[0, 1, 2, 3])
+
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING, session=session)
+        expand_mapped_task_instances(dag_maker.serialized_dag.get_task("mapped"), run.run_id, session=session)
+        trigger, sibling, successful, failed = sorted(
+            run.get_task_instances(session=session), key=operator.attrgetter("map_index")
+        )
+        trigger.state = trigger_state
+        sibling.state = sibling_state
+        successful.state = State.SUCCESS
+        failed.state = State.FAILED
+        session.flush()
+
+        _stop_remaining_tasks(task_instance=trigger, dag=dag_maker.serialized_dag, session=session)
+        session.flush()
+        session.expire_all()
+
+        assert sibling.state == expected
+        assert trigger.state == trigger_state
+        assert successful.state == State.SUCCESS
+        assert failed.state == State.FAILED
+
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
