@@ -178,12 +178,12 @@ MAX_PARTITION_DAG_RUNS_PER_LOOP = 500
 # Max number of ADRQ rows deleted per statement, to keep the bind parameter count bounded.
 _ADRQ_DELETE_CHUNK_SIZE = 500
 
-# Caps how many dag_ids are rendered in the per-tick cap log/audit row. The
-# backlog's distinct dag_id count is unbounded, so writing it straight into a
-# log field/DB row without a cap risks an unbounded payload. 20 is enough for
-# an operator to diagnose which Dags are backlogged without letting the audit
-# row's payload size run away. Internal constant, not a user setting, for the
-# same reason as the constant above.
+# Caps how many dag_ids the per-tick cap log lists and how many per-Dag audit rows
+# are written per tick. The backlog's distinct dag_id count is unbounded, so
+# writing it straight into a log field or one DB row per Dag without a cap risks
+# an unbounded payload. 20 is enough for an operator to diagnose which Dags are
+# backlogged without letting the log field or the per-tick row count run away.
+# Internal constant, not a user setting, for the same reason as the constant above.
 MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED = 20
 
 MAX_TI_REFILL_QUERIES_PER_LOOP = 3
@@ -424,7 +424,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
-        # Edge-triggers the "partition Dag run cap reached" audit Log row: the dag_ids whose row
+        # Edge-triggers the "partition Dag run cap reached" audit Log rows: the dag_ids whose row
         # has been committed during the current backlog episode. Non-empty means an episode is
         # open, which is why empty and short fetches still run the unlocked count. Cleared only
         # when that count shows the backlog at or below the cap: under `skip_locked` an empty or
@@ -2581,7 +2581,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not pending_apdrs:
             # An empty fetch is as ambiguous as a short one: other schedulers may hold every
             # row lock. Only an unlocked count showing the backlog at or below the cap ends the
-            # episode, otherwise the next full fetch would re-warn and re-write the audit row.
+            # episode, otherwise the next full fetch would re-warn and re-write the audit rows.
             if self._partition_cap_reported_dag_ids:
                 pending_total = session.scalar(
                     select(func.count())
@@ -2606,7 +2606,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # same rule).
             # Per-Dag counts across the *whole* backlog, not just this tick's oldest-cap
             # slice (`pending_apdrs`) — a Dag whose partitions haven't reached the front of
-            # the FIFO queue yet would otherwise be missing from the log/audit row until its
+            # the FIFO queue yet would otherwise be missing from the log and audit rows until its
             # turn comes up.
             backlogs_per_dag = {
                 dag_id: count
@@ -2652,7 +2652,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # A separate, independently-committed session is required here: the caller
                 # (`_create_dagruns_for_dags`) runs under `@retry_db_transaction`, which rolls
                 # back *session* on a `DBAPIError` — sharing that transaction would silently
-                # discard this audit row along with the rest of the tick's work.
+                # discard these audit rows along with the rest of the tick's work.
                 # Invariant: this must run before *session* makes any writes this tick, or the
                 # new connection's commit can lock-contend with it on SQLite.
                 try:
@@ -2679,7 +2679,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 except SQLAlchemyError:
                     # Purely observational — must not fail or retry the tick's actual DagRun
                     # creation work. Leave these Dags out of the reported set so the next tick retries their rows.
-                    self.log.warning("Failed to write the partition Dag run cap audit Log row", exc_info=True)
+                    self.log.warning(
+                        "Failed to write the partition Dag run cap audit Log rows", exc_info=True
+                    )
                 else:
                     self._partition_cap_reported_dag_ids.update(new_dag_ids)
 
