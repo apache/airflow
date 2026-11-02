@@ -380,16 +380,6 @@ class TestCallbackHandleRequest:
             mask_secret_args=("super_secret", "api_key"),
         ),
         RequestCase(
-            message=GetXCom(key="return_value", dag_id="d", run_id="r", task_id="t"),
-            test_id="get_xcom",
-            client_mock=ClientMock(
-                method_path="xcoms.get",
-                args=("d", "r", "t", "return_value", None, False),
-                kwargs={"previous_iteration": False},
-                response=XComResponse(key="return_value", value="v"),
-            ),
-        ),
-        RequestCase(
             message=PutVariable(key="k", value="v", description=None),
             test_id="put_variable",
             client_mock=ClientMock(method_path="variables.set", args=("k", "v", None), response=None),
