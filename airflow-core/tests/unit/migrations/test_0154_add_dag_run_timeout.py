@@ -25,6 +25,7 @@ import pytest
 import sqlalchemy as sa
 from alembic import command
 
+from airflow.models.base import COLLATION_ARGS
 from airflow.utils.db import _get_alembic_config
 from airflow.utils.sqlalchemy import CompactUUID, UtcDateTime
 
@@ -62,7 +63,9 @@ task_instance = sa.Table(
 
 
 @pytest.fixture(params=[True, False], ids=["foreign_keys_on", "foreign_keys_off"])
-def migration_database(tmp_path, request):
+def migration_database(tmp_path, request, monkeypatch):
+    # Bootstrap migrations reuse this cached mapping even when the configured backend is MySQL.
+    monkeypatch.delitem(COLLATION_ARGS, "collation", raising=False)
     engine = sa.create_engine(f"sqlite:///{tmp_path / 'dag_run_timeout.db'}")
     try:
         with engine.connect() as connection:

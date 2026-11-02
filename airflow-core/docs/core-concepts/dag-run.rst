@@ -315,7 +315,7 @@ In addition, you can also manually trigger a Dag Run using the web UI (tab **Dag
 .. _dag-run:timeout:
 
 Dag run timeouts
----------------
+----------------
 
 The Dag's ``dagrun_timeout`` sets the default runtime limit for its runs. You can override this limit when
 you trigger a particular run. Other runs keep their own limits. The override can be shorter or longer than
