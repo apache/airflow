@@ -346,6 +346,16 @@ class PokeOverridingSensor(SqlSensor):
 
 
 class TestSqlSensorDeferrable:
+    @pytest.fixture(autouse=True)
+    def _airflow_version_that_can_defer(self):
+        # The provider's compat jobs run these tests on Airflow 3 releases before 3.2.2, where the
+        # sensor never defers; pin a version that can, and let the version tests override it.
+        with (
+            mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", True),
+            mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", True),
+        ):
+            yield
+
     def test_returns_without_deferring_when_first_poke_succeeds(self, mock_get_records):
         mock_get_records.return_value = [(5,)]
 
