@@ -76,6 +76,7 @@ var taskGroupSpecFields = map[string]schemaField{
 	"DocMD":            {key: "doc_md"},
 	"GroupDisplayName": {key: "group_display_name"},
 	"PrefixGroupID":    {key: "prefix_group_id"},
+	"Retries":          {key: "retries"},
 	"Tooltip":          {key: "tooltip"},
 	"UIColor":          {key: "ui_color"},
 	"UIFgColor":        {key: "ui_fgcolor"},
