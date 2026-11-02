@@ -21,12 +21,12 @@
 
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
-**Status:** 1.0.0-beta1 · API may change · Node 22+ · ESM-only
+**Status:** 1.0.0-beta2 · API may change · Node 22+ · ESM-only
 
 ## Installation
 
 ```bash
-npm install @apache-airflow/ts-sdk@1.0.0-beta1
+npm install @apache-airflow/ts-sdk@1.0.0-beta2
 npm install --save-dev esbuild
 ```
 
