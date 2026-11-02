@@ -71,9 +71,11 @@ def compute_identity_key(
     Uses ``\x00`` rather than ``_`` to join the components -- a plain
     ``_``-joined string collides (Dag ``etl`` + task ``load_data`` and Dag
     ``etl_load`` + task ``data`` both yield ``etl_load_data``), which would
-    let one task instance read or overwrite another's batch state. Mirrors
-    ``durable/storage.py``'s ``DurableStorage`` identity hash verbatim, for
-    the same reason.
+    let one task instance read or overwrite another's batch state. Outside a
+    task loop the key matches ``durable/storage.py``'s ``DurableStorage``
+    identity hash, which joins the same four fields for the same reason.
+    ``DurableStorage`` does not need the loop fields: task loops need Airflow
+    3.4, where the durable journal uses the task state store instead.
 
     Inside a task loop, every iteration of a task has the same Dag, task and run ids and
     ``map_index``, so ``loop_region_id`` (the loop's trajectory) and ``loop_index`` (the

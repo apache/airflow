@@ -110,10 +110,12 @@ def invoke_durably(
         twice when the saved state is from a different prompt.
     :param prompt: The prompt for the agent; ignored when resuming.
     :param session_id: Names the agent's saved state. Defaults to an id derived from the
-        task instance (Dag id, run id, task id and map index), the same on every try. Pass
-        a distinct one for each agent when a task runs more than one; it must stay the same
-        across tries, and when ``storage`` is shared across Dag runs it must differ between
-        them.
+        task instance (Dag id, run id, task id and map index, plus the loop trajectory and
+        iteration inside a task loop), the same on every try. Pass a distinct one for each
+        agent when a task runs more than one; it must stay the same across tries, and when
+        ``storage`` is shared across Dag runs or loop iterations it must differ between
+        them, for example by including ``context["loop"].region_id`` and
+        ``context["loop"].index`` inside a task loop.
     :param storage: Where the agent's state is saved. Defaults to the task instance's task
         state store, on Airflow 3.3 and later; on older versions pass a Strands storage such
         as ``S3Storage``.
