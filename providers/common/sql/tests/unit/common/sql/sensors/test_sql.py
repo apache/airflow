@@ -17,14 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+from operator import itemgetter
 from unittest import mock
 
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    TaskDeferred,
+    timezone,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-from airflow.providers.common.sql.sensors.sql import SqlSensor
+from airflow.providers.common.sql.sensors.sql import SqlSensor, SqlSensorTriggerError
+from airflow.providers.common.sql.triggers.sql import SqlSensorTrigger
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_sql_dag"
@@ -308,3 +316,120 @@ class TestSqlSensor:
         op.execute(context=mock.MagicMock())
 
         mock_get_records.assert_called_once_with("SELECT %(something)s", {"something": "1970-01-01"})
+
+
+@pytest.fixture
+def mock_get_records():
+    with mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook") as mock_base_hook:
+        hook = mock.MagicMock(spec=DbApiHook)
+        mock_base_hook.get_connection.return_value.get_hook.return_value = hook
+        yield hook.get_records
+
+
+def make_sensor(deferrable: bool = True, sensor_class: type[SqlSensor] = SqlSensor, **kwargs) -> SqlSensor:
+    return sensor_class(
+        task_id="sql_sensor_deferrable",
+        conn_id="postgres_default",
+        sql="SELECT count(*) FROM orders WHERE ds = %(ds)s",
+        parameters={"ds": "2026-01-01"},
+        hook_params={"log_sql": False},
+        poke_interval=0,
+        timeout=600,
+        deferrable=deferrable,
+        **kwargs,
+    )
+
+
+class PokeOverridingSensor(SqlSensor):
+    def poke(self, context):
+        return super().poke(context)
+
+
+class TestSqlSensorDeferrable:
+    def test_returns_without_deferring_when_first_poke_succeeds(self, mock_get_records):
+        mock_get_records.return_value = [(5,)]
+
+        assert make_sensor().execute(context={}) is None
+        assert mock_get_records.call_count == 1
+
+    def test_defers_to_trigger_when_first_poke_fails(self, mock_get_records):
+        mock_get_records.return_value = [(0,)]
+
+        with pytest.raises(TaskDeferred) as deferred:
+            make_sensor(fail_on_empty=True).execute(context={})
+
+        assert isinstance(deferred.value.trigger, SqlSensorTrigger)
+        assert deferred.value.trigger.serialize()[1] == {
+            "sql": "SELECT count(*) FROM orders WHERE ds = %(ds)s",
+            "conn_id": "postgres_default",
+            "hook_params": {"log_sql": False},
+            "parameters": {"ds": "2026-01-01"},
+            "poke_interval": 0,
+            "fail_on_empty": True,
+        }
+        assert deferred.value.method_name == "execute_complete"
+        assert deferred.value.timeout == timedelta(seconds=600)
+
+    def test_does_not_warn_when_not_deferrable(self, mock_get_records, caplog):
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
+
+        assert make_sensor(deferrable=False).execute(context={}) is None
+        assert mock_get_records.call_count == 2
+        assert "Cannot defer" not in caplog.text
+
+    @pytest.mark.parametrize(
+        ("sensor_kwargs", "reason"),
+        [
+            pytest.param(
+                {"success": lambda value: value > 10}, "success, failure and selector", id="success"
+            ),
+            pytest.param({"failure": lambda value: value < 0}, "success, failure and selector", id="failure"),
+            pytest.param({"selector": itemgetter(1)}, "success, failure and selector", id="selector"),
+            pytest.param({"silent_fail": True}, "silent_fail, never_fail", id="silent_fail"),
+            pytest.param({"never_fail": True}, "silent_fail, never_fail", id="never_fail"),
+            pytest.param({"exponential_backoff": True}, "silent_fail, never_fail", id="exponential_backoff"),
+            pytest.param(
+                {"sensor_class": PokeOverridingSensor}, "PokeOverridingSensor overrides poke", id="poke"
+            ),
+        ],
+    )
+    def test_pokes_on_the_worker_when_the_triggerer_cannot_check(
+        self, mock_get_records, caplog, sensor_kwargs, reason
+    ):
+        mock_get_records.side_effect = [[(0, 0)], [(20, 20)]]
+
+        assert make_sensor(**sensor_kwargs).execute(context={}) is None
+        assert mock_get_records.call_count == 2
+        assert f"Cannot defer because {reason}" in caplog.text
+
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", False)
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", True)
+    def test_pokes_on_the_worker_on_airflow_3_before_3_2_2(self, mock_get_records, caplog):
+        mock_get_records.side_effect = [[(0,)], [(1,)]]
+
+        assert make_sensor().execute(context={}) is None
+        assert mock_get_records.call_count == 2
+        assert "Cannot defer because the triggerer before Airflow 3.2.2" in caplog.text
+
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_2_2_PLUS", False)
+    @mock.patch("airflow.providers.common.sql.sensors.sql.AIRFLOW_V_3_0_PLUS", False)
+    def test_defers_on_airflow_2(self, mock_get_records):
+        mock_get_records.return_value = [(0,)]
+
+        with pytest.raises(TaskDeferred):
+            make_sensor().execute(context={})
+
+    def test_success_event_completes(self):
+        assert make_sensor().execute_complete(context={}, event={"status": "success"}) is None
+
+    def test_failure_event_raises(self):
+        with pytest.raises(SqlSensorTriggerError, match="connection refused"):
+            make_sensor().resume_execution(
+                "execute_complete", {"event": {"status": "failure", "message": "connection refused"}}, {}
+            )
+
+    def test_failure_event_skips_with_soft_fail(self):
+        with pytest.raises(AirflowSkipException):
+            make_sensor(soft_fail=True).resume_execution(
+                "execute_complete", {"event": {"status": "failure", "message": "connection refused"}}, {}
+            )
