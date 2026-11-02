@@ -42,24 +42,6 @@ from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.variable import Variable
 
 
-def _restore_redacted_value(new_value: str, old_value: str | None, key: str) -> str:
-    """
-    Put the stored secret back wherever ``new_value`` still holds the mask ``VariableResponse`` sent out.
-
-    The UI edit form is filled from the redacted response, so saving it unchanged would otherwise
-    write ``***`` over every sensitive field.
-    """
-    if old_value is None:
-        return new_value
-    try:
-        new_obj, old_obj = json.loads(new_value), json.loads(old_value)
-    except json.JSONDecodeError:
-        return merge(new_value, old_value, key)
-    merged = merge(new_obj, old_obj, key)
-    # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.
-    return new_value if merged == new_obj else json.dumps(merged, indent=2)
-
-
 def update_orm_from_pydantic(
     old_variable: Variable, patch_body: VariableBody, update_mask: list[str] | None
 ) -> Variable:
@@ -85,14 +67,23 @@ def update_orm_from_pydantic(
             raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
 
+    # The UI edit form is filled from the redacted response, so saving it unchanged would otherwise
+    # write ``***`` over every sensitive field.
     if (
         "value" in patch_body.model_fields_set
         and (not update_mask or "value" in update_mask)
         and isinstance(patch_body.value, str)
+        and old_variable.val is not None
     ):
-        patch_body = patch_body.model_copy(
-            update={"value": _restore_redacted_value(patch_body.value, old_variable.val, old_variable.key)}
-        )
+        try:
+            new_obj, old_obj = json.loads(patch_body.value), json.loads(old_variable.val)
+        except json.JSONDecodeError:
+            merged_value = merge(patch_body.value, old_variable.val, old_variable.key)
+        else:
+            merged = merge(new_obj, old_obj, old_variable.key)
+            # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.
+            merged_value = patch_body.value if merged == new_obj else json.dumps(merged, indent=2)
+        patch_body = patch_body.model_copy(update={"value": merged_value})
 
     # Apply patch via utility
     return cast(
