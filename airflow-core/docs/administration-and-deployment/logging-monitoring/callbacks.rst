@@ -46,8 +46,9 @@ There are three different places where callbacks can be defined.
     Dag callbacks, and the task failure and retry callbacks and emails that a task cannot run itself (for example
     after it was killed externally or stopped heartbeating), run in a Dag processor by default. Set
     :ref:`callbacks.route_dag_processor_callbacks <config:callbacks__route_dag_processor_callbacks>` to ``True`` to
-    run them on executors instead: a task's callbacks run on the task's executor and queue, and a Dag's callbacks on
-    the default executor of the Dag's team. Their logs are then written under
+    run them on executors instead: a task's callbacks run on the task's executor and queue, unless the task never
+    started, in which case they use the team's default executor and queue. A Dag's callbacks also use the team's
+    default executor. Their logs are then written under
     ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Every executor must then be able to run callbacks,
     or the scheduler doesn't start.
 
