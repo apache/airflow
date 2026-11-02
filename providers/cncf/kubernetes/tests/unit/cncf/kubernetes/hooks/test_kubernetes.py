@@ -31,6 +31,7 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
+from aiohttp import ClientConnectionError
 from kubernetes.client import V1Deployment, V1DeploymentStatus
 from kubernetes.client.rest import ApiException
 from kubernetes.config import ConfigException
@@ -46,6 +47,9 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     _TimeoutK8sApiClient,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_RETRIES,
+    API_RETRY_WAIT_MAX,
+    API_RETRY_WAIT_MIN,
     API_TIMEOUT,
     API_TIMEOUT_OFFSET_SERVER_SIDE,
 )
@@ -1634,6 +1638,138 @@ class TestAsyncKubernetesHook:
         assert len(events) == 1
         assert events[0] == mock_event
         assert hook._event_polling_fallback is True
+
+    @staticmethod
+    def _failing_stream(exc):
+        """A ``Watch.stream`` replacement that raises on first iteration."""
+
+        async def stream(*_, **__):
+            raise exc
+            yield  # pragma: no cover - makes this an async generator
+
+        return stream()
+
+    @staticmethod
+    def _event_stream(event):
+        async def stream(*_, **__):
+            yield {"object": event}
+
+        return stream()
+
+    def _watch_returning(self, mock_watch_class, streams):
+        mock_watch = mock.Mock(spec=["stream", "stop"])
+        mock_watch.stream = mock.Mock(side_effect=streams)
+        mock_watch_class.return_value = mock_watch
+        return mock_watch
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "exception",
+        [
+            pytest.param(async_client.ApiException(status=503), id="transient_status"),
+            pytest.param(ClientConnectionError("socket reset"), id="dropped_connection"),
+        ],
+    )
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_pod"))
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    async def test_async_watch_pod_events_reconnects_on_transient_error(
+        self, mock_watch_class, mock_get_pod, mock_sleep, exception, kube_config_loader
+    ):
+        mock_pod = mock.MagicMock()
+        mock_pod.status.phase = "Running"
+        mock_get_pod.return_value = mock_pod
+
+        mock_event = mock.Mock()
+        mock_event.metadata.resource_version = "99"
+        mock_watch = self._watch_returning(
+            mock_watch_class,
+            [self._failing_stream(exception), self._event_stream(mock_event)],
+        )
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        events = []
+        async for event in hook.watch_pod_events(name=POD_NAME, namespace=NAMESPACE):
+            events.append(event)
+            break
+
+        assert events == [mock_event]
+        assert mock_watch.stream.call_count == 2
+        mock_sleep.assert_awaited_once_with(API_RETRY_WAIT_MIN)
+        # The failed attempt must not restart the stream from scratch.
+        assert mock_watch.stream.call_args_list[1].kwargs["resource_version"] is None
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_pod"))
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    async def test_async_watch_pod_events_gives_up_after_retry_budget(
+        self, mock_watch_class, mock_get_pod, mock_sleep, kube_config_loader
+    ):
+        mock_pod = mock.MagicMock()
+        mock_pod.status.phase = "Running"
+        mock_get_pod.return_value = mock_pod
+
+        mock_watch = self._watch_returning(
+            mock_watch_class,
+            [self._failing_stream(async_client.ApiException(status=503)) for _ in range(API_RETRIES)],
+        )
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        with pytest.raises(async_client.ApiException) as exc_info:
+            async for _ in hook.watch_pod_events(name=POD_NAME, namespace=NAMESPACE):
+                pass
+
+        assert exc_info.value.status == 503
+        assert mock_watch.stream.call_count == API_RETRIES
+        assert mock_sleep.await_count == API_RETRIES - 1
+        # Exponential backoff, capped.
+        assert [call.args[0] for call in mock_sleep.await_args_list] == [
+            min(API_RETRY_WAIT_MIN * 2**n, API_RETRY_WAIT_MAX) for n in range(API_RETRIES - 1)
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch(HOOK_MODULE + ".asyncio.sleep", new_callable=mock.AsyncMock)
+    @mock.patch(KUBE_ASYNC_HOOK.format("get_pod"))
+    @mock.patch("kubernetes_asyncio.watch.Watch")
+    async def test_async_watch_pod_events_does_not_retry_non_transient_status(
+        self, mock_watch_class, mock_get_pod, mock_sleep, kube_config_loader
+    ):
+        """422 is neither transient nor one of the statuses the loop handles, so it must fail fast."""
+        mock_pod = mock.MagicMock()
+        mock_pod.status.phase = "Running"
+        mock_get_pod.return_value = mock_pod
+
+        mock_watch = self._watch_returning(
+            mock_watch_class, [self._failing_stream(async_client.ApiException(status=422))]
+        )
+
+        hook = AsyncKubernetesHook(
+            conn_id=None,
+            in_cluster=False,
+            config_file=None,
+            cluster_context=None,
+        )
+
+        with pytest.raises(async_client.ApiException) as exc_info:
+            async for _ in hook.watch_pod_events(name=POD_NAME, namespace=NAMESPACE):
+                pass
+
+        assert exc_info.value.status == 422
+        assert mock_watch.stream.call_count == 1
+        mock_sleep.assert_not_awaited()
 
     @pytest.mark.asyncio
     @mock.patch(KUBE_API.format("list_namespaced_event"))

@@ -40,7 +40,14 @@ from airflow.providers.cncf.kubernetes.kube_client import (
     _TimeoutAsyncK8sApiClient,
     _TimeoutK8sApiClient,
 )
-from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
+    API_RETRIES,
+    API_RETRY_WAIT_MAX,
+    API_RETRY_WAIT_MIN,
+    TRANSIENT_CONNECTION_ERRORS,
+    _should_retry_api,
+    generic_api_retry,
+)
 from airflow.providers.cncf.kubernetes.utils.container import (
     container_is_completed,
     container_is_running,
@@ -64,6 +71,13 @@ JOB_FINAL_STATUS_CONDITION_TYPES = {
 }
 
 JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
+
+# Hoisted out of the ``except`` clause in watch_pod_events: mypy rejects star-unpacking a tuple
+# of exception types inside an except expression.
+WATCH_RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
+    async_client.exceptions.ApiException,
+    *TRANSIENT_CONNECTION_ERRORS,
+)
 
 
 def _load_body_to_dict(body: str) -> dict:
@@ -1196,7 +1210,6 @@ class AsyncKubernetesHook(KubernetesHook):
                     raise KubernetesApiPermissionError("Permission denied (403) from Kubernetes API.") from e
                 raise
 
-    @generic_api_retry
     async def watch_pod_events(
         self,
         name: str,
@@ -1211,6 +1224,10 @@ class AsyncKubernetesHook(KubernetesHook):
         resourceVersion. The watch stops when the pod is terminal or deleted,
         and falls back to polling if watch access is denied.
 
+        Transient failures are retried by the reconnect loop below rather than by
+        ``@generic_api_retry``: that decorator would only wrap the construction of this
+        generator, never its iteration, and resuming a stream needs ``last_rv`` anyway.
+
         :param name: Pod name to watch events for
         :param namespace: Kubernetes namespace
         :param resource_version: Only return events not older than this resource version
@@ -1218,6 +1235,7 @@ class AsyncKubernetesHook(KubernetesHook):
                                 This does not limit the total duration of event streaming.
         """
         last_rv = resource_version
+        transient_retries = 0
 
         while True:
             # If watch is known to be unavailable, use polling fallback
@@ -1260,13 +1278,16 @@ class AsyncKubernetesHook(KubernetesHook):
                         if event.metadata.resource_version:
                             last_rv = event.metadata.resource_version
 
+                        # A delivered event means the connection works; don't let unrelated
+                        # blips hours apart add up to an exhausted budget.
+                        transient_retries = 0
                         yield event
 
             # Never swallow cancellation.
             except asyncio.CancelledError:
                 raise
 
-            except async_client.exceptions.ApiException as e:
+            except WATCH_RETRYABLE_ERRORS as e:
                 status = getattr(e, "status", None)
 
                 if status == 403:
@@ -1292,9 +1313,29 @@ class AsyncKubernetesHook(KubernetesHook):
                     last_rv = None
                     continue
 
-                # Other API errors are either transient or configuration/programming errors.
-                # Re-raise so generic_api_retry can apply centralized retry/backoff for
-                # transient failures, and fail fast for non-retryable ones.
+                # One short-lived 5xx or dropped socket should not end event logging for the
+                # rest of the pod's life. The budget matches stop_after_attempt(API_RETRIES),
+                # which counts the first try, so API_RETRIES - 1 reconnects follow it.
+                # get_pod carries its own @generic_api_retry, so a transient error arriving
+                # from it has already been retried and signals a sustained outage; letting it
+                # consume this budget too is what stops the watch instead of looping forever.
+                if _should_retry_api(e) and transient_retries < API_RETRIES - 1:
+                    transient_retries += 1
+                    delay = min(API_RETRY_WAIT_MIN * 2 ** (transient_retries - 1), API_RETRY_WAIT_MAX)
+                    self.log.warning(
+                        "Transient error while watching events for pod '%s' (attempt %d/%d), "
+                        "reconnecting in %.1fs: %s",
+                        name,
+                        transient_retries,
+                        API_RETRIES - 1,
+                        delay,
+                        e,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                # Exhausted the budget, or a configuration/programming error that retrying
+                # cannot fix.
                 raise
 
             finally:

@@ -30,6 +30,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     WaitRetryAfterOrExponential,
     _should_retry_api,
     create_unique_id,
+    generic_api_retry,
 )
 
 pod_name_regex = r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
@@ -60,6 +61,17 @@ def test_should_retry_api():
 
     exc = AsyncApiException(status=404)
     assert not _should_retry_api(exc)
+
+
+class TestGenericApiRetry:
+    def test_rejects_async_generator(self):
+        """tenacity would wrap only the generator's construction, so the retry could never fire."""
+
+        async def watcher():
+            yield 1
+
+        with pytest.raises(TypeError, match="async generator"):
+            generic_api_retry(watcher)
 
 
 class TestWaitRetryAfterOrExponential:
