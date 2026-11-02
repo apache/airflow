@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+import uuid
+from decimal import Decimal
 from unittest import mock
+
+import pytest
 
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
@@ -33,6 +38,7 @@ try:
 except ImportError:
     BASEHOOK_PATCH_PATH = "airflow.hooks.base.BaseHook"
 from tests_common.test_utils.operators.run_deferrable import run_trigger
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_2_PLUS
 
 
 class TestSQLExecuteQueryTrigger:
@@ -94,6 +100,60 @@ class TestSQLExecuteQueryTrigger:
             "results": rows,
             "descriptions": [[["col1", 23, None, None, None, None, None]]],
         }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Requires Airflow 3.2+")
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(Decimal("1234.5600"), id="numeric"),
+            pytest.param(
+                datetime.datetime(2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc), id="timestamptz"
+            ),
+            pytest.param(uuid.UUID("12345678-1234-5678-1234-567812345678"), id="uuid"),
+        ],
+    )
+    def test_run_results_survive_event_payload_round_trip(self, value):
+        from airflow.sdk.serde import deserialize, serialize
+
+        mock_hook = self._make_mock_hook()
+        mock_hook.arun.return_value = [(value,)]
+        mock_hook.descriptions = [(("col", 23, None, None, None, None, None),)]
+        trigger = self._make_trigger(fetch_results=True)
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
+            events = run_trigger(trigger)
+
+        round_tripped = deserialize(serialize({"event": events[0].payload}))
+        assert [tuple(row) for row in round_tripped["event"]["results"]] == [(value,)]
+
+    @pytest.mark.parametrize(
+        "rows",
+        [
+            pytest.param([(b"\x00\xff",)], id="bytes"),
+            pytest.param([(bytearray(b"\x00"),)], id="bytearray"),
+            pytest.param([(memoryview(b"\x00"),)], id="memoryview"),
+            pytest.param([({"k": b"\x00"},)], id="nested-in-mapping"),
+            pytest.param([[(b"\x00",)], [("a",)]], id="multiple-statements"),
+        ],
+    )
+    def test_run_yields_failure_event_for_binary_results(self, rows):
+        mock_hook = self._make_mock_hook()
+        mock_hook.arun.return_value = rows
+        trigger = self._make_trigger(fetch_results=True)
+        with mock.patch.object(trigger, "aget_hook", new=mock.AsyncMock(return_value=mock_hook)):
+            events = run_trigger(trigger)
+
+        assert len(events) == 1
+        assert events[0].payload["status"] == "failure"
+        assert "deferrable=False" in events[0].payload["message"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Requires Airflow 3.2+")
+    def test_serde_does_not_support_bytes(self):
+        from airflow.sdk.serde import serialize
+
+        # If this fails, serde now supports bytes: delete the binary-data check in
+        # SQLExecuteQueryTrigger.run and its failure-event test.
+        with pytest.raises(TypeError):
+            serialize(b"\x00")
 
     def test_run_without_fetch_results_returns_no_results(self):
         mock_hook = self._make_mock_hook()

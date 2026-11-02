@@ -122,6 +122,17 @@ class SQLExecuteQueryTrigger(BaseTrigger):
             )
         return safe
 
+    @classmethod
+    def has_binary_value(cls, value: Any) -> bool:
+        """Return whether ``value`` or any row value nested in it is binary data."""
+        if isinstance(value, (bytes, bytearray, memoryview)):
+            return True
+        if isinstance(value, Mapping):
+            value = list(value.values())
+        if isinstance(value, (list, tuple)):
+            return any(cls.has_binary_value(item) for item in value)
+        return False
+
     async def aget_hook(self) -> DbApiHook:
         """
         Return DbApiHook.
@@ -222,6 +233,14 @@ class SQLExecuteQueryTrigger(BaseTrigger):
                 # Fetch the raw rows with the built-in handler and return them with the cursor
                 # descriptions; the operator applies any user handler on the worker.
                 results = await self._run_query(hook, fetch_results=True)
+
+                # Remove if serde supports ``bytes`` in the future.
+                if self.has_binary_value(results):
+                    raise TypeError(
+                        "The query returned binary data (e.g. a bytea column), which cannot be passed"
+                        " from the triggerer to the worker. Set deferrable=False to run the query on"
+                        " the worker."
+                    )
 
                 self.log.info("Executing query from %s done!", self.conn_id)
                 self.log.debug("results: %s", results)
