@@ -53,7 +53,7 @@ else:
 
 def _make_mock_agent(output: str, make_mock_run_result):
     """Create a mock agent that returns the given output string."""
-    mock_agent = MagicMock(spec=["run_sync", "instrument"])
+    mock_agent = MagicMock(spec=["run_sync", "instrument", "output_validator"])
     mock_agent.run_sync.return_value = make_mock_run_result(output)
     return mock_agent
 
@@ -756,9 +756,6 @@ def _make_context(ti_id=None):
     return MagicMock(**{"__getitem__": lambda self, key: {"task_instance": ti}[key]})
 
 
-@pytest.mark.skipif(
-    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
-)
 class TestLLMSQLQueryOperatorAllowedTables:
     @staticmethod
     def _execute(mock_hook_cls, make_mock_run_result, sql, allowed_tables, **kwargs):
@@ -807,6 +804,7 @@ class TestLLMSQLQueryOperatorAllowedTables:
                 "SELECT * FROM orders o JOIN salaries s ON o.customer_id = s.id", "salaries", id="join"
             ),
             pytest.param("SELECT * FROM otherdb.public.orders", "otherdb.public.orders", id="catalog"),
+            pytest.param("SELECT * FROM sales.orders", "sales.orders", id="qualified-vs-unqualified-entry"),
         ],
     )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
@@ -816,17 +814,81 @@ class TestLLMSQLQueryOperatorAllowedTables:
         with pytest.raises(SQLSafetyError, match=f"not in allowed_tables: {disallowed}\\."):
             self._execute(mock_hook_cls, make_mock_run_result, sql, ["orders"])
 
+    @pytest.mark.parametrize(
+        ("sql", "dialect"),
+        [
+            pytest.param(
+                "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)", "postgres", id="dblink"
+            ),
+            pytest.param("SELECT * FROM orders -- per customer", None, id="comment"),
+            pytest.param('SELECT * FROM "orders"', None, id="quoted-identifier"),
+            pytest.param("SELECT age(created_at) FROM orders", "postgres", id="unrecognized-function"),
+        ],
+    )
     @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
-    def test_unverifiable_source_is_rejected(self, mock_hook_cls, make_mock_run_result):
+    def test_unverifiable_source_is_rejected(self, mock_hook_cls, make_mock_run_result, sql, dialect):
         with pytest.raises(SQLSafetyError, match="cannot be checked against allowed_tables"):
-            self._execute(
-                mock_hook_cls,
-                make_mock_run_result,
-                "SELECT * FROM dblink('host=evil', 'SELECT 1') AS t(x int)",
-                ["orders"],
-                dialect="postgres",
-            )
+            self._execute(mock_hook_cls, make_mock_run_result, sql, ["orders"], dialect=dialect)
 
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_allowed_functions_permits_unrecognized_functions(self, mock_hook_cls, make_mock_run_result):
+        sql = "SELECT json_build_object('id', id), age(created_at) FROM orders"
+
+        result = self._execute(
+            mock_hook_cls,
+            make_mock_run_result,
+            sql,
+            ["orders"],
+            allowed_functions=["JSON_BUILD_OBJECT", "age"],
+            dialect="postgres",
+        )
+
+        assert result == sql
+
+    @patch("airflow.providers.common.ai.operators.llm.PydanticAIHook", autospec=True)
+    def test_refused_sql_is_sent_back_to_the_model(self, mock_hook_cls):
+        answers = iter(["SELECT * FROM salaries", "SELECT * FROM orders"])
+        follow_ups = []
+
+        def respond(messages, info):
+            if len(messages) > 1:
+                follow_ups.append(" ".join(str(part.content) for part in messages[-1].parts))
+            return ModelResponse(parts=[TextPart(content=next(answers))])
+
+        mock_hook_cls.get_hook.return_value.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(respond), **kw
+        )
+        op = LLMSQLQueryOperator(
+            task_id="t",
+            prompt="p",
+            llm_conn_id="c",
+            schema_context="Table: orders",
+            allowed_tables=["orders"],
+        )
+
+        assert op.execute(context=MagicMock()) == "SELECT * FROM orders"
+        assert len(follow_ups) == 1
+        assert "not in allowed_tables: salaries. Allowed tables: orders." in follow_ups[0]
+
+    def test_system_prompt_lists_allowed_tables_and_rules(self):
+        op = LLMSQLQueryOperator(
+            task_id="t", prompt="p", llm_conn_id="c", allowed_tables=["orders", "sales.items"]
+        )
+
+        prompt = op._build_system_prompt("")
+
+        assert "- Only reference these tables: orders, sales.items\n" in prompt
+        assert "- Write table names unquoted and exactly as listed\n" in prompt
+        assert "- Do not include SQL comments\n" in prompt
+
+    def test_system_prompt_without_allowed_tables_has_no_table_rules(self):
+        op = LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c")
+
+        assert "Only reference these tables" not in op._build_system_prompt("")
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+    )
     def test_reviewer_modified_sql_is_checked(self):
         op = LLMSQLQueryOperator(
             task_id="t", prompt="p", llm_conn_id="c", allow_modifications=True, allowed_tables=["orders"]
@@ -856,6 +918,9 @@ class TestLLMSQLQueryOperatorAllowedTables:
             LLMSQLQueryOperator(task_id="t", prompt="p", llm_conn_id="c", **kwargs)
 
 
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_1_PLUS, reason="Human in the loop is only compatible with Airflow >= 3.1.0"
+)
 class TestLLMSQLQueryOperatorApproval:
     """Tests for LLMSQLQueryOperator with require_approval=True (LLMApprovalMixin integration)."""
 
