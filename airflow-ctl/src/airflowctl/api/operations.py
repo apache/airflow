@@ -346,8 +346,6 @@ class BaseOperations:
         # entries received rather than by the requested limit, or the capped-off entries are skipped.
         page_size = len(entry_list)
         offset = offset + page_size
-        if not page_size or offset >= total_entries:
-            return first_pass
         while page_size and offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
             page_entries = getattr(validate_response(self.response.content, data_model), found_key)
