@@ -170,6 +170,7 @@ const upstreamDag = {
 describe("CreateAssetEventModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    materializeSubmitParams.dagRunTimeout = undefined;
     materializeSubmitParams.drainDag = undefined;
     vi.mocked(useAssetServiceCreateAssetEvent).mockReturnValue({
       error: undefined,
@@ -336,6 +337,29 @@ describe("CreateAssetEventModal", () => {
     expect(materializeAsset).toHaveBeenCalledWith(
       expect.objectContaining({
         requestBody: expect.objectContaining({ drain_dag: true }) as unknown,
+      }),
+    );
+  });
+
+  it.each([
+    { expected: "PT1800S", value: "1800" },
+    { expected: undefined, value: "" },
+    { expected: undefined, value: undefined },
+  ])("forwards the materialization run timeout $value as $expected", async ({ expected, value }) => {
+    vi.mocked(useDependenciesServiceGetDependencies).mockReturnValue(withUpstreamDependencies);
+    vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+      data: upstreamDag,
+    } as ReturnType<typeof useDagServiceGetDagDetails>);
+    materializeSubmitParams.dagRunTimeout = value;
+
+    render(<CreateAssetEventModal asset={asset} onClose={vi.fn()} open />, { wrapper: Wrapper });
+
+    fireEvent.click(screen.getByText("createEvent.materialize.label"));
+    fireEvent.click(await screen.findByText("submit materialize"));
+
+    expect(materializeAsset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestBody: expect.objectContaining({ dag_run_timeout: expected }) as unknown,
       }),
     );
   });

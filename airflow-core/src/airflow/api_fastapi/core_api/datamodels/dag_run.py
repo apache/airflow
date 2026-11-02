@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -30,7 +30,7 @@ from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_k
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.timetables.base import DataInterval
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -170,6 +170,11 @@ class DAGRunResponse(BaseModel):
     start_date: datetime | None
     end_date: datetime | None
     duration: float | None
+    dag_run_timeout: timedelta | None = Field(
+        default=None,
+        validation_alias="dagrun_timeout_seconds",
+        description="Timeout override for this run. Null uses the Dag's timeout.",
+    )
     data_interval_start: datetime | None
     data_interval_end: datetime | None
     run_after: datetime
@@ -232,6 +237,12 @@ class TriggerDAGRunPostBody(StrictBaseModel):
     data_interval_end: AwareDatetime | None = None
     logical_date: AwareDatetime | None
     run_after: datetime | None = Field(default_factory=timezone.utcnow)
+    dag_run_timeout: timedelta | None = Field(
+        default=None,
+        gt=timedelta(0),
+        le=MAX_DAGRUN_TIMEOUT,
+        description="Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout.",
+    )
 
     conf: dict | None = Field(default_factory=dict)
     note: str | None = None

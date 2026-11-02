@@ -123,8 +123,15 @@ def test_cli_assets_alias_details(parser: ArgumentParser, stdout_capture) -> Non
     }
 
 
-def test_cli_assets_materialize(parser: ArgumentParser, stdout_capture) -> None:
-    args = parser.parse_args(["assets", "materialize", "--name=asset1_producer", "--output=json"])
+@pytest.mark.parametrize(
+    ("timeout_args", "expected_timeout"), [([], None), (["--dag-run-timeout", "90"], "PT1M30S")]
+)
+def test_cli_assets_materialize(
+    parser: ArgumentParser, stdout_capture, timeout_args, expected_timeout
+) -> None:
+    args = parser.parse_args(
+        ["assets", "materialize", "--name=asset1_producer", "--output=json", *timeout_args]
+    )
     with stdout_capture as capture:
         asset_command.asset_materialize(args)
 
@@ -154,6 +161,7 @@ def test_cli_assets_materialize(parser: ArgumentParser, stdout_capture) -> None:
         "dag_id": "asset1_producer",
         "end_date": None,
         "duration": None,
+        "dag_run_timeout": expected_timeout,
         "last_scheduling_decision": None,
         "note": None,
         "partition_date": None,

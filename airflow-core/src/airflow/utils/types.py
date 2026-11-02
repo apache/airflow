@@ -18,8 +18,12 @@
 from __future__ import annotations
 
 import enum
+from datetime import timedelta
 
 from airflow.utils.deprecation_tools import add_deprecated_classes
+
+# Keep persisted Float seconds within timedelta's range after rounding.
+MAX_DAGRUN_TIMEOUT = timedelta(days=999_999_999)
 
 
 class DagRunType(str, enum.Enum):

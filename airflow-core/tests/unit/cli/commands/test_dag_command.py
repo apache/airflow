@@ -817,6 +817,28 @@ class TestCliDags:
         assert dagrun.data_interval_start is None
         assert dagrun.data_interval_end is None
 
+    def test_trigger_dag_with_run_timeout(self):
+        dag_command.dag_trigger(
+            self.parser.parse_args(
+                [
+                    "dags",
+                    "trigger",
+                    "example_bash_operator",
+                    "--run-id=test_trigger_dag_with_run_timeout",
+                    "--dag-run-timeout=90",
+                ]
+            )
+        )
+
+        with create_session() as session:
+            dagrun = session.scalar(
+                select(DagRun).where(
+                    DagRun.dag_id == "example_bash_operator",
+                    DagRun.run_id == "test_trigger_dag_with_run_timeout",
+                )
+            )
+            assert dagrun.dagrun_timeout_seconds == 90
+
     def test_trigger_dag_empty_object_conf(self):
         dag_command.dag_trigger(
             self.parser.parse_args(

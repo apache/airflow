@@ -94,6 +94,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
       requestBody: {
         dag_id: dagId,
         dag_run_conf: data.requestBody.dag_run_conf,
+        dag_run_timeout: data.requestBody.dag_run_timeout,
         drain_dag: data.requestBody.drain_dag,
         from_date: formattedDataIntervalStart,
         max_active_runs: data.requestBody.max_active_runs,

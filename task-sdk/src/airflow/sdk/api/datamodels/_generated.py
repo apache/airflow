@@ -612,6 +612,7 @@ class TriggerDAGRunPayload(BaseModel):
     reset_dag_run: Annotated[bool | None, Field(title="Reset Dag Run")] = False
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
     note: Annotated[str | None, Field(title="Note")] = None
+    dag_run_timeout: Annotated[timedelta | None, Field(title="Dag Run Timeout")] = None
 
 
 class UpdateHITLDetailPayload(BaseModel):

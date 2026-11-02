@@ -35,6 +35,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
+    Double,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -322,6 +323,7 @@ class DagRun(Base, LoggingMixin):
     queued_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     logical_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     start_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    dagrun_timeout_seconds: Mapped[float | None] = mapped_column(Double, nullable=True)
     end_date: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     _state: Mapped[str | None] = mapped_column("state", String(50), default=DagRunState.QUEUED, nullable=True)
     run_id: Mapped[str] = mapped_column(StringID(), nullable=False)
@@ -496,6 +498,7 @@ class DagRun(Base, LoggingMixin):
         logical_date: datetime | None = None,
         run_after: datetime | None = None,
         start_date: datetime | None = None,
+        dagrun_timeout_seconds: float | None = None,
         conf: Any | None = None,
         state: DagRunState | None = None,
         run_type: str | None = None,
@@ -527,6 +530,7 @@ class DagRun(Base, LoggingMixin):
         if run_after is not None:
             self.run_after = run_after
         self.start_date = start_date
+        self.dagrun_timeout_seconds = dagrun_timeout_seconds
         self.conf = conf or {}
         self.note = note
         if state is not None:

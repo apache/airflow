@@ -21,7 +21,7 @@ import argparse
 import datetime
 import json
 from argparse import BooleanOptionalAction
-from datetime import UTC
+from datetime import UTC, timedelta
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
@@ -44,6 +44,7 @@ from airflowctl.api.datamodels.generated import (
     PoolResponse,
 )
 from airflowctl.api.operations import (
+    AssetsOperations,
     BackfillOperations,
     ConnectionsOperations,
     DagRunOperations,
@@ -142,6 +143,16 @@ def test_args_create():
                 "action": None,
                 "default": None,
                 "type": json_dict_type,
+                "dest": None,
+            },
+        ),
+        (
+            "--dag-run-timeout",
+            {
+                "help": "dag_run_timeout for backfill operation",
+                "action": None,
+                "default": None,
+                "type": str,
                 "dest": None,
             },
         ),
@@ -1426,6 +1437,31 @@ class TestCliConfigMethods:
         call_kwargs = self._call_generated_command(monkeypatch, DagRunOperations, "list")
 
         assert call_kwargs["state"] is None
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "trigger", autospec=True)
+    def test_dags_trigger_parses_run_timeout(self, mocked_trigger, mocked_print_as):
+        mocked_trigger.return_value = {"dag_run_id": "example"}
+        args = cli_parser.get_parser().parse_args(
+            ["dags", "trigger", "example", "--dag-run-timeout", "PT30M"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        body = mocked_trigger.call_args.kwargs["trigger_dag_run"]
+        assert body.dag_run_timeout == timedelta(minutes=30)
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(AssetsOperations, "materialize", autospec=True)
+    def test_assets_materialize_passes_run_timeout(self, mocked_materialize, mocked_print_as):
+        mocked_materialize.return_value = {"dag_run_id": "example"}
+        args = cli_parser.get_parser().parse_args(
+            ["assets", "materialize", "123", "--dag-run-timeout", "PT30M"]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_materialize.call_args.kwargs["dag_run_timeout"] == "PT30M"
 
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(ConnectionsOperations, "test", autospec=True)

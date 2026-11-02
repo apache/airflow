@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import signal
+from datetime import timedelta
 
 from tabulate import tabulate
 
@@ -116,6 +117,9 @@ def create_backfill(args) -> None:
             reverse=args.run_backwards,
             dag_run_conf=dag_run_conf,
             triggering_user_name=user,
+            dagrun_timeout=timedelta(seconds=args.dag_run_timeout)
+            if args.dag_run_timeout is not None
+            else None,
             reprocess_behavior=reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
         )

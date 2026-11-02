@@ -42,6 +42,7 @@ from cadwyn import (
     VersionBundle,
     VersionChange,
     convert_request_to_next_version_for,
+    generate_versioned_models,
     schema,
 )
 from pydantic import BaseModel
@@ -70,12 +71,14 @@ from airflow.sdk.execution_time.comms import (
     PreviousTIResult,
     StartupDetails,
     TaskState,
+    TriggerDagRun,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
     get_schema_version_migrator,
     resolve_body_class,
 )
+from airflow.sdk.execution_time.schema.versions import get_bundle
 
 
 class _MockBody(BaseModel):
@@ -85,6 +88,33 @@ class _MockBody(BaseModel):
     ti_id: str
     queue_capacity: int | None = None
     sentry_trace_id: str | None = None
+
+
+@pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])
+def test_trigger_dag_run_timeout_follows_supervisor_version(version):
+    versioned_model = generate_versioned_models(get_bundle())[version][TriggerDagRun]
+
+    assert ("dag_run_timeout" in versioned_model.model_fields) == (version == "2026-10-30")
+
+
+def test_current_trigger_dag_run_preserves_timeout_when_upgraded():
+    result = get_schema_version_migrator().upgrade(
+        {"type": "TriggerDagRun", "dag_id": "child", "run_id": "run", "dag_run_timeout": "PT30M"},
+        TriggerDagRun,
+        "2026-10-30",
+    )
+
+    assert result["dag_run_timeout"] == datetime.timedelta(minutes=30)
+
+
+def test_old_trigger_dag_run_inherits_timeout_when_upgraded():
+    result = get_schema_version_migrator().upgrade(
+        {"type": "TriggerDagRun", "dag_id": "child", "run_id": "run"},
+        TriggerDagRun,
+        "2026-06-16",
+    )
+
+    assert result["dag_run_timeout"] is None
 
 
 @pytest.mark.parametrize("version", ["2026-06-16", "2026-10-30"])

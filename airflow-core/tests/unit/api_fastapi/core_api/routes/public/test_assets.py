@@ -2525,6 +2525,7 @@ class TestPostAssetMaterialize(TestAssets):
             "start_date": None,
             "end_date": None,
             "duration": None,
+            "dag_run_timeout": None,
             "data_interval_start": None,
             "data_interval_end": None,
             "last_scheduling_decision": None,
@@ -2620,6 +2621,7 @@ class TestPostAssetMaterialize(TestAssets):
         payload = {
             "conf": {"foo": "bar"},
             "dag_run_id": "asset_materialization_run_1",
+            "dag_run_timeout": "PT30M",
             "data_interval_end": "2026-03-24T00:00:00Z",
             "data_interval_start": "2026-03-23T00:00:00Z",
             "logical_date": "2026-03-23T00:00:00Z",
@@ -2631,6 +2633,7 @@ class TestPostAssetMaterialize(TestAssets):
         assert response.status_code == 200
         assert response.json()["conf"] == {"foo": "bar"}
         assert response.json()["dag_run_id"] == "asset_materialization_run_1"
+        assert response.json()["dag_run_timeout"] == "PT30M"
         assert response.json()["data_interval_start"] == "2026-03-23T00:00:00Z"
         assert response.json()["data_interval_end"] == "2026-03-24T00:00:00Z"
         assert response.json()["logical_date"] == "2026-03-23T00:00:00Z"

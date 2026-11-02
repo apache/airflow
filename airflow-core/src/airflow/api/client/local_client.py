@@ -43,6 +43,7 @@ class Client:
         logical_date=None,
         triggering_user_name=None,
         replace_microseconds=True,
+        dagrun_timeout=None,
     ) -> dict | None:
         dag_run = trigger_dag.trigger_dag(
             dag_id=dag_id,
@@ -50,6 +51,7 @@ class Client:
             triggering_user_name=triggering_user_name,
             run_id=run_id,
             conf=conf,
+            dagrun_timeout=dagrun_timeout,
             logical_date=logical_date,
             replace_microseconds=replace_microseconds,
         )

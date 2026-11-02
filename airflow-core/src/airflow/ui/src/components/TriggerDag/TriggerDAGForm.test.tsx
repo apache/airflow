@@ -221,6 +221,62 @@ describe("TriggerDAGForm", () => {
     },
   );
 
+  it.each([
+    { dagRunTimeout: "", initialValue: "" },
+    { dagRunTimeout: "1800", initialValue: "" },
+    { dagRunTimeout: "", initialValue: "1800" },
+  ])(
+    "submits timeout $dagRunTimeout after editing $initialValue",
+    async ({ dagRunTimeout, initialValue }) => {
+      const onSubmitTrigger = vi.fn();
+
+      render(
+        <TriggerDAGForm
+          dagId="example_dag"
+          hasSchedule={false}
+          isPartitioned={false}
+          isPaused={false}
+          onSubmitTrigger={onSubmitTrigger}
+          open
+        />,
+        { wrapper: Wrapper },
+      );
+
+      const timeoutInput = screen.getByLabelText("dagDetails.dagRunTimeout");
+
+      expect(timeoutInput).toHaveValue(null);
+      fireEvent.change(timeoutInput, { target: { value: initialValue } });
+      fireEvent.change(timeoutInput, { target: { value: dagRunTimeout } });
+      fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+      await waitFor(() =>
+        expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ dagRunTimeout })),
+      );
+    },
+  );
+
+  it.each(["0", "-1", "1.5"])("rejects the invalid per-run timeout %s", async (value) => {
+    const onSubmitTrigger = vi.fn();
+
+    render(
+      <TriggerDAGForm
+        dagId="example_dag"
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    fireEvent.change(screen.getByLabelText("dagDetails.dagRunTimeout"), { target: { value } });
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    expect(await screen.findByText("components:triggerDag.dagRunTimeoutInvalid")).toBeVisible();
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+  });
+
   it("propagates the selected run's conf to the JSON editor when the Dag has no declared params", async () => {
     useDagParamsMock.mockReturnValue({ paramsDict: {} });
 

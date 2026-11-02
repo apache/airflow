@@ -109,6 +109,89 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
         assert b is not None
 
 
+@pytest.mark.parametrize("partitioned", [False, True])
+def test_backfill_run_timeout_applies_to_new_runs(partitioned, dag_maker, session):
+    schedule = CronPartitionTimetable("@daily", timezone="UTC") if partitioned else "@daily"
+    with dag_maker(schedule=schedule) as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    backfill = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-02"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+        dagrun_timeout=timedelta(minutes=10),
+    )
+
+    runs = session.scalars(select(DagRun).where(DagRun.backfill_id == backfill.id)).all()
+    assert len(runs) == 2
+    assert all(run.dagrun_timeout_seconds == 600 for run in runs)
+
+
+def test_backfill_run_timeout_preserves_reused_run(dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    existing = dag_maker.create_dagrun(
+        run_id="existing",
+        logical_date=pendulum.parse("2021-01-01"),
+        state=DagRunState.FAILED,
+        session=session,
+    )
+    existing.dagrun_timeout_seconds = 120
+    session.commit()
+
+    backfill = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-02"),
+        max_active_runs=2,
+        reverse=False,
+        triggering_user_name="pytest",
+        dag_run_conf=None,
+        dagrun_timeout=timedelta(minutes=10),
+        reprocess_behavior=ReprocessBehavior.FAILED,
+    )
+
+    session.expire_all()
+    runs = session.scalars(select(DagRun).where(DagRun.backfill_id == backfill.id)).all()
+    assert len(runs) == 2
+    assert existing.dagrun_timeout_seconds == 120
+    assert next(run for run in runs if run.id != existing.id).dagrun_timeout_seconds == 600
+
+
+@pytest.mark.parametrize(
+    ("timeout", "error"),
+    [
+        (timedelta(0), ValueError),
+        (timedelta(seconds=-1), ValueError),
+        (timedelta(days=999_999_999, seconds=1), ValueError),
+        (60, TypeError),
+    ],
+)
+def test_backfill_invalid_run_timeout_does_not_create_backfill(timeout, error, dag_maker, session):
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    session.commit()
+
+    with pytest.raises(error, match="dagrun_timeout must"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-02"),
+            max_active_runs=2,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+            dagrun_timeout=timeout,
+        )
+
+    assert session.scalar(select(func.count()).select_from(Backfill)) == 0
+
+
 @pytest.mark.parametrize("reverse", [True, False])
 @pytest.mark.parametrize("existing", [["2021-01-02", "2021-01-03"], []])
 def test_create_backfill_simple(reverse, existing, dag_maker, session):

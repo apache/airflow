@@ -70,6 +70,7 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
     values: {
       conf,
       dag_id: dag.dag_id,
+      dagRunTimeout: "",
       from_date: "",
       max_active_runs: 1,
       reprocess_behavior: "none",
@@ -135,6 +136,7 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
       requestBody: {
         ...fdata,
         dag_run_conf: overrideParams ? (JSON.parse(fdata.conf) as Record<string, unknown>) : null,
+        dag_run_timeout: (fdata.dagRunTimeout ?? "") === "" ? undefined : `PT${Number(fdata.dagRunTimeout)}S`,
         drain_dag: dag.is_paused && pausedDagAction === "drain",
       },
     });
@@ -245,6 +247,25 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
               <Flex>{translate("backfill.maxRuns")}</Flex>
             </HStack>
           )}
+        />
+        <Spacer />
+        <Controller
+          control={control}
+          name="dagRunTimeout"
+          render={({ field, fieldState }) => (
+            <Field.Root invalid={Boolean(fieldState.error)}>
+              <Field.Label>{translate("common:dagDetails.dagRunTimeout")}</Field.Label>
+              <Input {...field} min={1} size="sm" step={1} type="number" />
+              <Field.HelperText>{translate("backfill.dagRunTimeoutHelp")}</Field.HelperText>
+              <Field.ErrorText>{fieldState.error?.message}</Field.ErrorText>
+            </Field.Root>
+          )}
+          rules={{
+            validate: (value) =>
+              (value ?? "") === "" ||
+              (Number.isSafeInteger(Number(value)) && Number(value) > 0) ||
+              translate("triggerDag.dagRunTimeoutInvalid"),
+          }}
         />
         <Spacer />
         <Controller

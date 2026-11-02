@@ -6,6 +6,7 @@
     "allRuns": "All Runs",
     "backwards": "Run Backwards",
     "completed": "Completed",
+    "dagRunTimeoutHelp": "Time limit in seconds for each new run, starting when it begins running. Leave blank to use the Dag's default timeout. Reused runs keep their existing timeout.",
     "dateRange": "Date Range",
     "errorStartDateBeforeEndDate": "Start Date must be before the End Date",
     "exceptionReason": {
@@ -174,6 +175,8 @@
   "toggleTableView": "Show table view",
   "triggerDag": {
     "button": "Trigger",
+    "dagRunTimeoutHelp": "Time limit in seconds for this run, starting when it begins running. Leave blank to use the Dag's default timeout.",
+    "dagRunTimeoutInvalid": "Enter a positive whole number of seconds.",
     "dagStartEndDate": {
       "both": "Dag start date: {{startDate}}, end date: {{endDate}}",
       "end": "Dag end date: {{endDate}}",

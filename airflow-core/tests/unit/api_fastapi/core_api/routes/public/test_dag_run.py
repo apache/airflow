@@ -314,6 +314,7 @@ def get_dag_run_dict(run: DagRun):
         "start_date": from_datetime_to_zulu_without_ms(run.start_date) if run.start_date else None,
         "end_date": from_datetime_to_zulu_without_ms(run.end_date) if run.end_date else None,
         "duration": run.duration,
+        "dag_run_timeout": None,
         "data_interval_start": from_datetime_to_zulu_without_ms(run.data_interval_start)
         if run.data_interval_start
         else None,
@@ -3575,6 +3576,50 @@ class TestClearPartitions:
 
 
 class TestTriggerDagRun:
+    @pytest.mark.parametrize(
+        ("timeout_body", "expected_seconds", "expected_duration"),
+        [
+            ({}, None, None),
+            ({"dag_run_timeout": None}, None, None),
+            ({"dag_run_timeout": "PT1M30.5S"}, 90.5, "PT1M30.5S"),
+            (
+                {"dag_run_timeout": "P999999999D"},
+                timedelta(days=999_999_999).total_seconds(),
+                "P2739726Y9D",
+            ),
+        ],
+    )
+    def test_trigger_with_run_timeout(
+        self, test_client, session, timeout_body, expected_seconds, expected_duration
+    ):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"dag_run_id": "timeout_run", "logical_date": None, **timeout_body},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["dag_run_timeout"] == expected_duration
+        run = session.scalar(select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == "timeout_run"))
+        assert run.dagrun_timeout_seconds == expected_seconds
+
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/timeout_run")
+        assert response.status_code == 200
+        assert response.json()["dag_run_timeout"] == expected_duration
+        existing_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+        )
+        assert existing_run.dagrun_timeout_seconds is None
+
+    @pytest.mark.parametrize("timeout", ["PT0S", "-PT1S", "P999999999DT1S", "invalid"])
+    def test_trigger_rejects_invalid_run_timeout(self, test_client, timeout):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": None, "dag_run_timeout": timeout},
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "dag_run_timeout"]
+
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
             dag_id="inactive",
@@ -3677,6 +3722,7 @@ class TestTriggerDagRun:
             "run_after": fixed_now.replace("+00:00", "Z"),
             "start_date": None,
             "duration": None,
+            "dag_run_timeout": None,
             "run_type": "manual",
             "state": "queued",
             "data_interval_end": expected_data_interval_end,
@@ -3942,6 +3988,7 @@ class TestTriggerDagRun:
             "start_date": None,
             "end_date": None,
             "duration": None,
+            "dag_run_timeout": None,
             "run_after": now,
             "data_interval_start": now,
             "data_interval_end": now,
@@ -4107,6 +4154,7 @@ class TestTriggerDagRun:
             "start_date": None,
             "end_date": None,
             "duration": None,
+            "dag_run_timeout": None,
             "data_interval_start": mock.ANY,
             "data_interval_end": mock.ANY,
             "last_scheduling_decision": None,

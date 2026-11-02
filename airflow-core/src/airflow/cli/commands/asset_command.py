@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import typing
+from datetime import timedelta
 
 from sqlalchemy import select
 
@@ -165,6 +166,7 @@ def asset_materialize(args, *, session: Session = NEW_SESSION) -> None:
         triggered_by=DagRunTriggeredByType.CLI,
         run_type=DagRunType.ASSET_MATERIALIZATION,
         triggering_user_name=user,
+        dagrun_timeout=timedelta(seconds=args.dag_run_timeout) if args.dag_run_timeout is not None else None,
         session=session,
     )
     if dagrun is not None:

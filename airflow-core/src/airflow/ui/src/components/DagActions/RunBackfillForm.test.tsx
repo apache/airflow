@@ -192,6 +192,45 @@ describe("RunBackfillForm", () => {
     await waitFor(() => expect(resetErrorMock).toHaveBeenCalledOnce());
   });
 
+  it.each([
+    { expected: undefined, initialValue: "", value: "" },
+    { expected: "PT1800S", initialValue: "", value: "1800" },
+    { expected: undefined, initialValue: "1800", value: "" },
+  ])("submits timeout $value after editing $initialValue", async ({ expected, initialValue, value }) => {
+    vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+      data: { backfills: [{ logical_date: "2024-01-01T00:00:00Z" }], total_entries: 1 },
+      isPending: false,
+    } as ReturnType<typeof useCreateBackfillDryRun>);
+    render(<RunBackfillForm dag={baseDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+    const timeoutInput = screen.getByLabelText("common:dagDetails.dagRunTimeout");
+
+    expect(timeoutInput).toHaveValue(null);
+    fireEvent.change(timeoutInput, { target: { value: initialValue } });
+    fireEvent.change(timeoutInput, { target: { value } });
+    fireEvent.click(screen.getByText("Run Backfill"));
+
+    await waitFor(() =>
+      expect(createBackfillMock).toHaveBeenCalledWith({
+        requestBody: expect.objectContaining({ dag_run_timeout: expected }) as unknown,
+      }),
+    );
+  });
+
+  it.each(["0", "-1", "1.5"])("rejects invalid new-run timeout %s", async (value) => {
+    vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+      data: { backfills: [{ logical_date: "2024-01-01T00:00:00Z" }], total_entries: 1 },
+      isPending: false,
+    } as ReturnType<typeof useCreateBackfillDryRun>);
+    render(<RunBackfillForm dag={baseDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+    fireEvent.change(screen.getByLabelText("common:dagDetails.dagRunTimeout"), { target: { value } });
+    fireEvent.click(screen.getByText("Run Backfill"));
+
+    expect(await screen.findByText("triggerDag.dagRunTimeoutInvalid")).toBeVisible();
+    expect(createBackfillMock).not.toHaveBeenCalled();
+  });
+
   it("does not submit or unpause while the Dag is being refreshed", () => {
     vi.mocked(useCreateBackfillDryRun).mockReturnValue({
       data: { backfills: [{ logical_date: "2024-01-01T00:00:00Z" }], total_entries: 1 },

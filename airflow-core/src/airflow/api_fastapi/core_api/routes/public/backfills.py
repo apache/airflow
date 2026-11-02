@@ -324,6 +324,7 @@ def create_backfill(
             max_active_runs=backfill_request.max_active_runs,
             reverse=backfill_request.run_backwards,
             dag_run_conf=backfill_request.dag_run_conf,
+            dagrun_timeout=backfill_request.dag_run_timeout,
             triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,

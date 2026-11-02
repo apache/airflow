@@ -113,12 +113,14 @@ export const useTrigger = ({ dagId, onSuccessConfirm }: { dagId: string; onSucce
 
     const checkDagRunId = dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId;
     const checkNote = dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note;
+    const dagRunTimeout = dagRunRequestBody.dagRunTimeout ?? "";
 
     mutate({
       dagId,
       requestBody: {
         conf: parsedConfig,
         dag_run_id: checkDagRunId,
+        dag_run_timeout: dagRunTimeout === "" ? undefined : `PT${Number(dagRunTimeout)}S`,
         data_interval_end: formattedDataIntervalEnd,
         data_interval_start: formattedDataIntervalStart,
         drain_dag: dagRunRequestBody.drainDag,

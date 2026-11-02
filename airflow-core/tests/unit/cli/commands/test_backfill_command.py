@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import argparse
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import mock
 
 import pendulum
@@ -107,6 +107,7 @@ class TestCliBackfill:
             reprocess_behavior=expected_repro,
             triggering_user_name="root",
             run_on_latest_version=True,
+            dagrun_timeout=None,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
@@ -134,6 +135,7 @@ class TestCliBackfill:
             reprocess_behavior=None,
             run_on_latest_version=True,
             triggering_user_name="root",
+            dagrun_timeout=None,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
@@ -196,6 +198,7 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="root",
             run_on_latest_version=True,
+            dagrun_timeout=None,
         )
 
     def test_backfill_with_invalid_dag_run_conf(self):
@@ -269,7 +272,29 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="test_user",
             run_on_latest_version=True,
+            dagrun_timeout=None,
         )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill", autospec=True)
+    def test_backfill_with_run_timeout(self, mock_create):
+        args = self.parser.parse_args(
+            [
+                "backfill",
+                "create",
+                "--dag-id",
+                "example_bash_operator",
+                "--from-date",
+                DEFAULT_DATE.isoformat(),
+                "--to-date",
+                DEFAULT_DATE.isoformat(),
+                "--dag-run-timeout",
+                "600",
+            ]
+        )
+
+        airflow.cli.commands.backfill_command.create_backfill(args)
+
+        assert mock_create.call_args.kwargs["dagrun_timeout"] == timedelta(minutes=10)
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run", autospec=True)
     def test_backfill_dry_run_passes_dag_run_conf(self, mock_dry_run):

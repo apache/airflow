@@ -17,6 +17,7 @@
  * under the License.
  */
 import { Flex, HStack, StackSeparator, Table, Text, VStack } from "@chakra-ui/react";
+import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { useParams } from "react-router-dom";
 
@@ -108,6 +109,12 @@ export const Details = () => {
           <Table.Cell>{translate("duration")}</Table.Cell>
           <Table.Cell>{formatElapsed(dagRun.start_date, dagRun.end_date)}</Table.Cell>
         </Table.Row>
+        {dagRun.dag_run_timeout !== undefined && dagRun.dag_run_timeout !== null ? (
+          <Table.Row>
+            <Table.Cell>{translate("dagDetails.dagRunTimeout")}</Table.Cell>
+            <Table.Cell>{renderDuration(dayjs.duration(dagRun.dag_run_timeout))}</Table.Cell>
+          </Table.Row>
+        ) : undefined}
         {dagRunStats?.duration ? (
           <Table.Row>
             <Table.Cell>{translate("dagRun.expectedDuration")}</Table.Cell>

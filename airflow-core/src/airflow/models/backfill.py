@@ -24,7 +24,7 @@ Internal classes for management of dag backfills.
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
@@ -58,7 +58,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -424,6 +424,7 @@ def _create_backfill_dag_run_non_partitioned(
     backfill_sort_ordinal: int,
     triggering_user_name: str | None,
     run_on_latest_version: bool,
+    dagrun_timeout: timedelta | None = None,
     session: Session,
 ) -> None:
     from airflow.models.dagrun import DagRun
@@ -488,6 +489,7 @@ def _create_backfill_dag_run_non_partitioned(
                 data_interval=info.data_interval if info.logical_date else None,
                 run_after=info.run_after,
                 conf=dag_run_conf,
+                dagrun_timeout=dagrun_timeout,
                 run_type=DagRunType.BACKFILL_JOB,
                 triggered_by=DagRunTriggeredByType.BACKFILL,
                 triggering_user_name=triggering_user_name,
@@ -535,6 +537,7 @@ def _create_backfill_dag_run_partitioned(
     dag_run_conf: dict | None,
     backfill_sort_ordinal: int,
     triggering_user_name: str | None,
+    dagrun_timeout: timedelta | None = None,
     session: Session,
 ) -> None:
     stmt = _get_latest_dag_run_row_query(dag_id=dag.dag_id, info=info)
@@ -574,6 +577,7 @@ def _create_backfill_dag_run_partitioned(
         data_interval=info.data_interval if info.logical_date else None,
         run_after=info.run_after,
         conf=dag_run_conf,
+        dagrun_timeout=dagrun_timeout,
         run_type=DagRunType.BACKFILL_JOB,
         triggered_by=DagRunTriggeredByType.BACKFILL,
         triggering_user_name=triggering_user_name,
@@ -670,12 +674,21 @@ def _create_backfill(
     reverse: bool,
     dag_run_conf: dict | None,
     triggering_user_name: str | None,
+    dagrun_timeout: timedelta | None = None,
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
     drain_dag: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
+
+    if dagrun_timeout is not None:
+        if not isinstance(dagrun_timeout, timedelta):
+            raise TypeError("dagrun_timeout must be a datetime.timedelta")
+        if dagrun_timeout <= timedelta(0):
+            raise ValueError("dagrun_timeout must be positive")
+        if dagrun_timeout > MAX_DAGRUN_TIMEOUT:
+            raise ValueError("dagrun_timeout must not exceed 999999999 days")
 
     with create_session() as session:
         serdag = session.scalar(SerializedDagModel.latest_item_select_object(dag_id))
@@ -755,6 +768,7 @@ def _create_backfill(
                     backfill=backfill,
                     dag=dag,
                     dagrun_info_list=dagrun_info_list,
+                    dagrun_timeout=dagrun_timeout,
                     session=session,
                 )
             else:
@@ -763,6 +777,7 @@ def _create_backfill(
                     dag=dag,
                     dagrun_info_list=dagrun_info_list,
                     run_on_latest_version=run_on_latest_version,
+                    dagrun_timeout=dagrun_timeout,
                     session=session,
                 )
             if drain_dag:
@@ -796,6 +811,7 @@ def _create_runs_partitioned(
     backfill: Backfill,
     dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
+    dagrun_timeout: timedelta | None = None,
     session: Session,
 ) -> None:
     for info in dagrun_info_list:
@@ -810,6 +826,7 @@ def _create_runs_partitioned(
             reprocess_behavior=ReprocessBehavior(backfill.reprocess_behavior),
             backfill_sort_ordinal=backfill_sort_ordinal,
             triggering_user_name=backfill.triggering_user_name,
+            dagrun_timeout=dagrun_timeout,
             session=session,
         )
         log.info(
@@ -826,6 +843,7 @@ def _create_runs_non_partitioned(
     dag: SerializedDAG,
     dagrun_info_list: list[DagRunInfo],
     run_on_latest_version: bool,
+    dagrun_timeout: timedelta | None = None,
     session: Session,
 ) -> None:
     for info in dagrun_info_list:
@@ -842,6 +860,7 @@ def _create_runs_non_partitioned(
             backfill_sort_ordinal=backfill_sort_ordinal,
             triggering_user_name=backfill.triggering_user_name,
             run_on_latest_version=run_on_latest_version,
+            dagrun_timeout=dagrun_timeout,
             session=session,
         )
         log.info(

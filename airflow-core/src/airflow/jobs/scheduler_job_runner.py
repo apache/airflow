@@ -3339,10 +3339,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.error("Couldn't find DAG %s in DAG bag!", dag_run.dag_id)
             return callback
 
+        dagrun_timeout_seconds = dag_run.dagrun_timeout_seconds
+        if dagrun_timeout_seconds is None and dag.dagrun_timeout is not None:
+            dagrun_timeout_seconds = dag.dagrun_timeout.total_seconds()
         if (
             dag_run.start_date
-            and dag.dagrun_timeout
-            and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
+            and dagrun_timeout_seconds
+            and (timezone.utcnow() - dag_run.start_date).total_seconds() > dagrun_timeout_seconds
         ):
             dag_run.set_state(DagRunState.FAILED)
             unfinished_task_instances = session.scalars(

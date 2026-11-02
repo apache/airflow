@@ -52,6 +52,31 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
         )}
       />
 
+      <Controller
+        control={control}
+        name="dagRunTimeout"
+        render={({ field, fieldState }) => (
+          <Field.Root invalid={Boolean(fieldState.error)} mt={6} orientation="horizontal">
+            <Stack>
+              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                {translate("dagDetails.dagRunTimeout")}
+              </Field.Label>
+            </Stack>
+            <Stack css={{ flexBasis: "70%" }}>
+              <Input {...field} min={1} size="sm" step={1} type="number" />
+              <Field.HelperText>{translate("components:triggerDag.dagRunTimeoutHelp")}</Field.HelperText>
+              <Field.ErrorText>{fieldState.error?.message}</Field.ErrorText>
+            </Stack>
+          </Field.Root>
+        )}
+        rules={{
+          validate: (value) =>
+            (value ?? "") === "" ||
+            (Number.isSafeInteger(Number(value)) && Number(value) > 0) ||
+            translate("components:triggerDag.dagRunTimeoutInvalid"),
+        }}
+      />
+
       {isPartitioned ? (
         <Controller
           control={control}

@@ -979,6 +979,19 @@ export const $BackfillPostBody = {
             ],
             title: 'Dag Run Conf'
         },
+        dag_run_timeout: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'duration'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Timeout',
+            description: "Maximum runtime for each newly created run, as an ISO 8601 duration. Null uses the Dag's timeout. Existing runs keep their timeout when reprocessed."
+        },
         reprocess_behavior: {
             '$ref': '#/components/schemas/ReprocessBehavior',
             default: 'none'
@@ -4177,6 +4190,19 @@ export const $DAGRunResponse = {
             ],
             title: 'Duration'
         },
+        dag_run_timeout: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'duration'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Timeout',
+            description: "Timeout override for this run. Null uses the Dag's timeout."
+        },
         data_interval_start: {
             anyOf: [
                 {
@@ -6831,6 +6857,19 @@ export const $MaterializeAssetBody = {
                 }
             ],
             title: 'Run After'
+        },
+        dag_run_timeout: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'duration'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Timeout',
+            description: "Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout."
         },
         conf: {
             anyOf: [
@@ -10556,6 +10595,19 @@ export const $TriggerDAGRunPostBody = {
                 }
             ],
             title: 'Run After'
+        },
+        dag_run_timeout: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'duration'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Dag Run Timeout',
+            description: "Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout."
         },
         conf: {
             anyOf: [

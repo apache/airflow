@@ -73,6 +73,24 @@ describe("useTrigger", () => {
     });
   });
 
+  it.each([
+    { dagRunTimeout: "1800", expected: "PT1800S" },
+    { dagRunTimeout: "1", expected: "PT1S" },
+    { dagRunTimeout: "", expected: undefined },
+    { dagRunTimeout: undefined, expected: undefined },
+  ])("sends timeout $dagRunTimeout as $expected", ({ dagRunTimeout, expected }) => {
+    const { result } = renderHook(() => useTrigger({ dagId: DAG_ID, onSuccessConfirm: vi.fn() }), {
+      wrapper: Wrapper,
+    });
+
+    result.current.triggerDagRun({ ...triggerParams, dagRunTimeout });
+
+    expect(mutate).toHaveBeenCalledWith({
+      dagId: DAG_ID,
+      requestBody: expect.objectContaining({ dag_run_timeout: expected }) as unknown,
+    });
+  });
+
   it.each([true, false])("sets Dag-state refresh to %s according to drain_dag", async (drainDag) => {
     const invalidateSpy = vi.spyOn(QueryClient.prototype, "invalidateQueries").mockResolvedValue();
 

@@ -97,6 +97,7 @@ const TriggerDAGForm = ({
     defaultValues: {
       conf,
       dagRunId: "",
+      dagRunTimeout: "",
       dataIntervalEnd: "",
       dataIntervalMode: "auto",
       dataIntervalStart: "",
@@ -147,6 +148,7 @@ const TriggerDAGForm = ({
       reset({
         conf: confString,
         dagRunId: "",
+        dagRunTimeout: "",
         dataIntervalEnd: "",
         dataIntervalMode: "auto",
         dataIntervalStart: "",

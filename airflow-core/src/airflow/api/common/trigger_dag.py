@@ -32,7 +32,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     from sqlalchemy.orm.session import Session
 
@@ -59,6 +59,7 @@ def _trigger_dag(
     run_id: str | None = None,
     conf: dict | str | None | ArgNotSet = NOTSET,
     logical_date: datetime | None = None,
+    dagrun_timeout: timedelta | None = None,
     replace_microseconds: bool = True,
     note: str | None = None,
     partition_key: str | None = None,
@@ -76,6 +77,7 @@ def _trigger_dag(
     :param run_id: ID of the run
     :param conf: configuration
     :param logical_date: logical date of the run
+    :param dagrun_timeout: runtime limit for this run, or None to inherit the Dag's limit
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
@@ -129,6 +131,7 @@ def _trigger_dag(
         data_interval=data_interval,
         run_after=run_after,
         conf=run_conf,
+        dagrun_timeout=dagrun_timeout,
         run_type=run_type,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
@@ -153,6 +156,7 @@ def trigger_dag(
     run_id: str | None = None,
     conf: dict | str | None | ArgNotSet = NOTSET,
     logical_date: datetime | None = None,
+    dagrun_timeout: timedelta | None = None,
     replace_microseconds: bool = True,
     note: str | None = None,
     partition_key: str | None = None,
@@ -169,6 +173,7 @@ def trigger_dag(
     :param run_id: ID of the dag_run
     :param conf: configuration
     :param logical_date: date of execution
+    :param dagrun_timeout: runtime limit for this run, or None to inherit the Dag's limit
     :param replace_microseconds: whether microseconds should be zeroed
     :param session: Unused. Only added in compatibility with database isolation mode
     :return: first dag run triggered - even if more than one Dag Runs were triggered or None
@@ -189,6 +194,7 @@ def trigger_dag(
         run_after=run_after or timezone.utcnow(),
         conf=conf,
         logical_date=logical_date,
+        dagrun_timeout=dagrun_timeout,
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,

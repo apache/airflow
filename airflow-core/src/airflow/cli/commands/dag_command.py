@@ -97,6 +97,9 @@ def dag_trigger(args) -> None:
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
+            dagrun_timeout=datetime.timedelta(seconds=args.dag_run_timeout)
+            if args.dag_run_timeout is not None
+            else None,
             logical_date=args.logical_date,
             triggering_user_name=user,
             replace_microseconds=args.replace_microseconds,

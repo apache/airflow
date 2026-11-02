@@ -155,10 +155,12 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     const dataIntervalEnd = dagRunRequestBody.dataIntervalEnd
       ? new Date(dagRunRequestBody.dataIntervalEnd)
       : undefined;
+    const dagRunTimeout = dagRunRequestBody.dagRunTimeout ?? "";
 
     const requestBody: MaterializeAssetBody = {
       conf: parsedConfig,
       dag_run_id: dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId,
+      dag_run_timeout: dagRunTimeout === "" ? undefined : `PT${Number(dagRunTimeout)}S`,
       data_interval_end: dataIntervalEnd?.toISOString() ?? null,
       data_interval_start: dataIntervalStart?.toISOString() ?? null,
       drain_dag: dagRunRequestBody.drainDag,

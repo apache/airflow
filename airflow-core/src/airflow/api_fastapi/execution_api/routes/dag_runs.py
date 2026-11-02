@@ -15,7 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import annotations
+# Cadwyn needs evaluated endpoint annotations to generate versioned request models.
+# See https://github.com/zmievsa/cadwyn/pull/413
+# ruff: noqa: I002
 
 import logging
 from typing import Annotated
@@ -148,6 +150,7 @@ def trigger_dag_run(
             replace_microseconds=False,
             partition_key=payload.partition_key,
             note=payload.note,
+            dagrun_timeout=payload.dag_run_timeout,
             session=session,
         )
     except DagRunAlreadyExists:
