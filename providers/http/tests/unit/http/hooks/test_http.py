@@ -46,6 +46,7 @@ from airflow.providers.http.hooks.http import (
     HttpHook,
     _order_srv_targets,
     _process_extra_options_from_connection,
+    _url_from_endpoint,
 )
 
 from tests_common.test_utils.aiohttp import MockAiohttpClientResponse
@@ -625,6 +626,17 @@ class TestHttpHook:
         hook.base_url = base_url
         hook._base_url_initialized = True  # Mark as initialized to prevent lazy loading
         assert hook.url_from_endpoint(endpoint) == expected_url
+
+    @pytest.mark.parametrize(
+        ("base_url", "endpoint", "expected_url"),
+        [
+            pytest.param(None, "/v1/test", "/v1/test", id="base-url-none"),
+            pytest.param("https://example.org/", None, "https://example.org/", id="endpoint-none"),
+            pytest.param(None, None, "", id="both-none"),
+        ],
+    )
+    def test_url_from_endpoint_with_none(self, base_url: str | None, endpoint: str | None, expected_url: str):
+        assert _url_from_endpoint(base_url, endpoint) == expected_url
 
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.get_connection")
     def test_url_from_endpoint_lazy_initialization(self, mock_get_connection):
