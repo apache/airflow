@@ -64,6 +64,7 @@ apache-airflow-providers-apache-cassandra = false
 apache-airflow-providers-apache-drill = false
 apache-airflow-providers-apache-druid = false
 apache-airflow-providers-apache-flink = false
+apache-airflow-providers-apache-hbase = false
 apache-airflow-providers-apache-hdfs = false
 apache-airflow-providers-apache-hive = false
 apache-airflow-providers-apache-iceberg = false
@@ -211,6 +212,7 @@ members = [
     "apache-airflow-providers-apache-drill",
     "apache-airflow-providers-apache-druid",
     "apache-airflow-providers-apache-flink",
+    "apache-airflow-providers-apache-hbase",
     "apache-airflow-providers-apache-hdfs",
     "apache-airflow-providers-apache-hive",
     "apache-airflow-providers-apache-iceberg",
@@ -3873,6 +3875,56 @@ dev = [
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "apache-airflow-providers-cncf-kubernetes", editable = "providers/cncf/kubernetes" },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-task-sdk", editable = "task-sdk" },
+]
+docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
+
+[[package]]
+name = "apache-airflow-providers-apache-hbase"
+version = "1.1.0"
+source = { editable = "providers/apache/hbase" }
+dependencies = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "thrift" },
+    { name = "thrift-sasl" },
+]
+
+[package.optional-dependencies]
+openlineage = [
+    { name = "apache-airflow-providers-openlineage" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "apache-airflow" },
+    { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-providers-common-compat" },
+    { name = "apache-airflow-providers-openlineage" },
+    { name = "apache-airflow-shared-secrets-masker" },
+    { name = "apache-airflow-task-sdk" },
+]
+docs = [
+    { name = "apache-airflow-devel-common", extra = ["docs"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "thrift", specifier = ">=0.13.0" },
+    { name = "thrift-sasl", specifier = ">=0.4.3" },
+]
+provides-extras = ["openlineage"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "apache-airflow", editable = "." },
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
+    { name = "apache-airflow-providers-openlineage", editable = "providers/openlineage" },
+    { name = "apache-airflow-shared-secrets-masker", editable = "shared/secrets_masker" },
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]

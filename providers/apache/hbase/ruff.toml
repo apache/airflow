@@ -1,0 +1,4 @@
+extend = "../../../pyproject.toml"
+extend-exclude = [
+    "src/airflow/providers/apache/hbase/hbase_thrift2_generated",
+]
