@@ -146,6 +146,18 @@ class GateConfig:
                 return joined_at
         return None
 
+    def find_pilot_join_after(self, login: str, created_at: datetime | None) -> datetime | None:
+        """
+        The pilot join instant of an author whose pull request was created before it, else None.
+
+        Such a pull request is gated from its first CI run at or after that instant, so deciding
+        needs the creation time of that run.
+        """
+        joined_at = self.pilot_joined_at(login)
+        if joined_at is None or created_at is None or created_at >= joined_at:
+            return None
+        return joined_at
+
 
 def _require_aware_datetime(value: Any, name: str) -> datetime:
     if not isinstance(value, datetime) or value.tzinfo is None:
@@ -206,6 +218,11 @@ class GateEvent:
     author_association: str = ""
     created_at: datetime | None = None
     labels: tuple[str, ...] = ()
+    # When the ci-amd.yml run deciding for the pull request was created: a pilot's pull request
+    # created before they joined is gated from its first run at or after joining, such as the run
+    # of a push, a rebase or a reopen. The run's time, unlike the event's `updated_at`, is what the
+    # reconciler can read back for the same decision.
+    ci_run_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -216,6 +233,10 @@ class Decision:
 
 class LabelsUnavailableError(RuntimeError):
     """The current labels of a pull request could not be read."""
+
+
+class RunTimeUnavailableError(RuntimeError):
+    """The creation time of the gate's own workflow run could not be read."""
 
 
 def _is_canonical_branch(ref: str) -> bool:
@@ -244,7 +265,9 @@ def decide(event: GateEvent, config: GateConfig) -> Decision:
     if LABEL_USE_FORK_CI in event.labels:
         return Decision(run=False, reason=Reason.LABEL_FORK_CI)
     joined_at = config.pilot_joined_at(event.author_login)
-    if joined_at is not None and event.created_at is not None and event.created_at >= joined_at:
+    if joined_at is not None and any(
+        moment is not None and moment >= joined_at for moment in (event.created_at, event.ci_run_at)
+    ):
         return Decision(run=False, reason=Reason.PILOT)
     if not config.enabled:
         return Decision(run=True, reason=Reason.GATE_DISABLED)
@@ -290,6 +313,18 @@ def fetch_pull_request_labels(repository: str, number: str) -> tuple[str, ...] |
     return tuple(labels)
 
 
+def fetch_run_created_at(repository: str, run_id: str) -> datetime | None:
+    """The creation time of a workflow run, which stays the same across its re-runs."""
+    output = _run_gh("api", f"repos/{repository}/actions/runs/{run_id}", "--jq", ".created_at")
+    if output is None:
+        return None
+    try:
+        return parse_github_datetime(output.strip())
+    except ValueError:
+        print(f"Unexpected created_at of run {run_id}: {output!r}", file=sys.stderr)
+        return None
+
+
 def _write_line(env_var: str, line: str, env: Mapping[str, str]) -> None:
     path = env.get(env_var)
     if path:
@@ -311,6 +346,16 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
                 f"Could not read the labels of pull request #{env.get('PR_NUMBER', '')}; re-run the job"
             )
         labels = fetched
+    config = load_config(Path(env.get("GATE_CONFIG", ".github/fork-ci-gate.toml")))
+    created_at = parse_github_datetime(env.get("PR_CREATED_AT", ""))
+    ci_run_at = None
+    if event_name == "pull_request" and config.find_pilot_join_after(env.get("PR_AUTHOR", ""), created_at):
+        ci_run_at = fetch_run_created_at(repository, env.get("GITHUB_RUN_ID", ""))
+        if ci_run_at is None:
+            # Project CI would run for a pull request the reconciler may treat as gated.
+            raise RunTimeUnavailableError(
+                f"Could not read the creation time of run {env.get('GITHUB_RUN_ID', '')}; re-run the job"
+            )
     event = GateEvent(
         event_name=event_name,
         repository=repository,
@@ -318,10 +363,10 @@ def evaluate_from_env(env: Mapping[str, str]) -> Decision:
         head_repository=env.get("PR_HEAD_REPO", ""),
         author_login=env.get("PR_AUTHOR", ""),
         author_association=env.get("PR_AUTHOR_ASSOCIATION", ""),
-        created_at=parse_github_datetime(env.get("PR_CREATED_AT", "")),
+        created_at=created_at,
         labels=labels,
+        ci_run_at=ci_run_at,
     )
-    config = load_config(Path(env.get("GATE_CONFIG", ".github/fork-ci-gate.toml")))
     return decide(event, config)
 
 
@@ -329,7 +374,7 @@ def main(env: Mapping[str, str] | None = None) -> int:
     env = os.environ if env is None else env
     try:
         decision = evaluate_from_env(env)
-    except LabelsUnavailableError as e:
+    except (LabelsUnavailableError, RunTimeUnavailableError) as e:
         print(e, file=sys.stderr)
         return 1
     project_ci = "true" if decision.run else "false"

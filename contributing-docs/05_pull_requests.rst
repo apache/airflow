@@ -269,7 +269,8 @@ and approves them automatically when all of these hold:
   at them first.
 
 If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
-``apache/airflow`` only checks that, so none of the rules above apply. Its runs are approved
+``apache/airflow`` only checks that, so none of the rules above apply. The ``CI run started`` check
+waits until the fork CI monitor sees your fork's run, usually within 15 minutes, and then links it. Its runs are approved
 automatically unless the PR changes files that define CI: anything under ``.github/``,
 ``dev/breeze/``, ``scripts/ci/``, ``scripts/docker/`` or ``scripts/in_container/``, a top-level
 ``Dockerfile*``, or a ``.pre-commit-config.yaml`` in any directory. Then the runs wait for a maintainer and a comment on the PR explains

@@ -86,6 +86,9 @@ Example usage:
      # Fix translations for a specific language
      breeze ui check-translation-completeness --language de --add-missing --remove-unused
 
+     # Print the report as machine-readable JSON (stdout carries only the JSON document)
+     breeze ui check-translation-completeness --language de --json
+
 
 -----
 

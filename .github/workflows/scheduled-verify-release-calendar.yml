@@ -27,6 +27,7 @@ permissions:
 jobs:
   verify-release-calendar:
     name: "Verify release calendar"
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 10
     steps:
