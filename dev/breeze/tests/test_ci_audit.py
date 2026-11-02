@@ -25,7 +25,14 @@ import pytest
 from click.testing import CliRunner
 
 from airflow_breeze.commands.ci_commands import audit
-from airflow_breeze.utils.ci_audit import CheckResult, CheckStatus, Role, run_audit, run_tool
+from airflow_breeze.utils.ci_audit import (
+    CheckResult,
+    CheckStatus,
+    Role,
+    find_idle_fork_workflows,
+    run_audit,
+    run_tool,
+)
 from airflow_breeze.utils.confirm import Answer
 from airflow_breeze.utils.fork_ci_gate import GateConfig
 
@@ -42,6 +49,10 @@ NOT_A_MEMBER: Output = (1, "", "gh: Not Found (HTTP 404)")
 
 ACTIONS_ALLOWED: Output = (0, json.dumps({"enabled": True, "allowed_actions": "all"}))
 
+NO_REF: Output = (1, "", "gh: No ref found for: breeze-ci-audit..probe (HTTP 422)")
+
+PAUSED: Output = (1, "", "gh: Actions has been disabled for this repository. (HTTP 422)")
+
 
 def _machine(**overrides: Output | None) -> dict[str, Output | None]:
     """Outputs of every command the audit runs, keyed by a short name."""
@@ -54,6 +65,8 @@ def _machine(**overrides: Output | None) -> dict[str, Output | None]:
         "private_membership": (1, ""),
         "workflow": (0, "active"),
         "actions": ACTIONS_ALLOWED,
+        "dispatch": NO_REF,
+        "fork_workflows": (0, ".github/workflows/ci-amd.yml\n"),
         "behind": (0, "12"),
         "branch": (0, "my-change"),
         "tracking": (0, "origin/my-change"),
@@ -77,7 +90,11 @@ def _runner(machine):
         command = tuple(command)
         key = keys.get(command)
         if key is None and command[:2] == ("gh", "api"):
-            if "/actions/workflows/" in command[2]:
+            if command[2].endswith("/dispatches"):
+                key = "dispatch"
+            elif command[2].endswith("/actions/workflows"):
+                key = "fork_workflows"
+            elif "/actions/workflows/" in command[2]:
                 key = "workflow"
             elif command[2].endswith("/actions/permissions"):
                 key = "actions"
@@ -96,10 +113,12 @@ def _runner(machine):
 ENABLED = GateConfig(enabled=True)
 
 
-def _audit(machine, config=ENABLED, collaborators=frozenset()):
+def _audit(machine, config=ENABLED, collaborators=frozenset(), idle_workflows=frozenset({"stale.yml"})):
     return {
         result.number: result
-        for result in run_audit(run=_runner(machine), config=config, collaborators=collaborators)
+        for result in run_audit(
+            run=_runner(machine), config=config, collaborators=collaborators, idle_workflows=idle_workflows
+        )
     }
 
 
@@ -114,6 +133,7 @@ def test_healthy_external_setup():
         CheckStatus.OK,
         CheckStatus.OK,
         CheckStatus.INFO,
+        CheckStatus.OK,
     ]
     assert results[4].finding == f"you are a {Role.EXTERNAL.value}"
 
@@ -421,6 +441,115 @@ def test_actions_disabled_reported_whatever_the_workflow_state(workflow, finding
     results = _audit(_machine(workflow=workflow, actions=(0, json.dumps({"enabled": False}))))
 
     assert (results[5].status, results[5].finding, results[5].fix) == (CheckStatus.FAIL, finding, fix)
+
+
+@pytest.mark.parametrize(
+    ("membership", "dispatch", "status", "finding", "fix"),
+    [
+        pytest.param(
+            NOT_A_MEMBER,
+            PAUSED,
+            CheckStatus.FAIL,
+            "GitHub has paused GitHub Actions in someone/airflow, so `Tests (AMD)` never runs although "
+            "the settings allow it; turn it back on from the banner on the fork's Actions page",
+            ("echo Open https://github.com/someone/airflow/actions and enable the workflows",),
+            id="paused",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (1, "", "HTTP 502: Bad Gateway"),
+            CheckStatus.INFO,
+            "`Tests (AMD)` is active in someone/airflow, but could not check whether GitHub has paused "
+            "GitHub Actions there",
+            (),
+            id="probe-failed",
+        ),
+        pytest.param(
+            (0, ""),
+            PAUSED,
+            CheckStatus.OK,
+            "`Tests (AMD)` is active in someone/airflow",
+            (),
+            id="committer-not-probed",
+        ),
+    ],
+)
+def test_actions_paused_by_github(membership, dispatch, status, finding, fix):
+    results = _audit(_machine(membership=membership, dispatch=dispatch))
+
+    assert (results[5].status, results[5].finding, results[5].fix) == (status, finding, fix)
+
+
+@pytest.mark.parametrize(
+    ("membership", "fork_workflows", "expected"),
+    [
+        pytest.param(
+            NOT_A_MEMBER,
+            (0, ".github/workflows/ci-amd.yml\n.github/workflows/stale.yml\n.github/workflows/ci-arm.yml\n"),
+            (
+                CheckStatus.FAIL,
+                "someone/airflow has workflows that start only on a schedule or after another workflow, so "
+                "every run they start there is wasted; GitHub pauses GitHub Actions in forks that waste runs",
+                (
+                    "gh workflow disable ci-arm.yml -R someone/airflow",
+                    "gh workflow disable stale.yml -R someone/airflow",
+                ),
+            ),
+            id="idle-workflows-active",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (0, ".github/workflows/ci-amd.yml\n"),
+            (CheckStatus.OK, "no workflow in someone/airflow starts runs that fork CI does not need", ()),
+            id="idle-workflows-disabled",
+        ),
+        pytest.param(
+            NOT_A_MEMBER,
+            (1, "", "HTTP 502: Bad Gateway"),
+            (
+                CheckStatus.INFO,
+                "could not list the workflows of someone/airflow: HTTP 502: Bad Gateway",
+                (),
+            ),
+            id="listing-failed",
+        ),
+    ],
+)
+def test_idle_fork_workflows(membership, fork_workflows, expected):
+    results = _audit(
+        _machine(membership=membership, fork_workflows=fork_workflows),
+        idle_workflows=frozenset({"stale.yml", "ci-arm.yml"}),
+    )
+
+    assert (results[8].status, results[8].finding, results[8].fix) == expected
+
+
+def test_idle_fork_workflows_not_checked_for_committers():
+    results = _audit(_machine(membership=(0, ""), fork_workflows=(0, ".github/workflows/stale.yml\n")))
+
+    assert 8 not in results
+
+
+def test_find_idle_fork_workflows(tmp_path):
+    workflows = {
+        "cron.yml": "on:\n  schedule:\n    - cron: '0 0 * * *'\n",
+        "cron-or-manual.yml": "on:\n  schedule:\n    - cron: '0 0 * * *'\n  workflow_dispatch:\n",
+        "after-ci.yml": "on:\n  workflow_run:\n    workflows: ['Tests (AMD)']\n",
+        "quoted-on.yaml": '"on": [schedule]\n',
+        "cron-and-push.yml": "on:\n  schedule:\n    - cron: '0 0 * * *'\n  push:\n",
+        "reusable.yml": "on:\n  workflow_call:\n  schedule:\n    - cron: '0 0 * * *'\n",
+        "manual-only.yml": "on: workflow_dispatch\n",
+        "push.yml": "on: push\n",
+    }
+    for name, text in workflows.items():
+        (tmp_path / name).write_text(f"{text}jobs: {{}}\n")
+
+    assert find_idle_fork_workflows(tmp_path) == {
+        "cron.yml",
+        "cron-or-manual.yml",
+        "after-ci.yml",
+        "quoted-on.yaml",
+    }
 
 
 @pytest.mark.parametrize(

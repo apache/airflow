@@ -162,6 +162,14 @@ Set up your checkout and fork once:
    your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
    monitor comments on your pull requests with the commands to turn it back on.
 
+   GitHub can also pause GitHub Actions in your fork to reduce wasted compute, and it sends no
+   email when it does. Your pushes then start no run, and the fork CI monitor cannot tell this from
+   a commit you have not pushed yet. ``breeze ci audit`` reports it. The banner on your fork's
+   Actions page turns GitHub Actions back on, and a push made while it was paused must be pushed
+   again. To make the pause less likely,
+   ``breeze ci audit --fix`` disables the workflows in your fork that only run on a schedule or
+   after another workflow. Fork CI does not need them.
+
 3. Check everything at once. ``breeze ci audit`` prints one row per check and the command that fixes
    anything missing; ``--fix`` runs those commands after asking:
 
