@@ -35,6 +35,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.definitions.context import CallbackSource
 from airflow.sdk.execution_time.dag_attribute_callbacks import run_dag_attribute_callbacks
 
 from tests_common.test_utils.config import conf_vars
@@ -137,6 +138,7 @@ class TestDagCallbacks:
         assert template_context["dag"] is dag
         assert template_context["run_id"] == "test_run"
         assert template_context["reason"] == "task_failure"
+        assert template_context["callback"].source is CallbackSource.DAG
 
     @pytest.mark.parametrize(
         ("dag_run", "expected_tags"),
@@ -184,6 +186,7 @@ class TestDagCallbacks:
         assert template_context["ti"].task_id == "task"
         assert template_context["dag_run"].run_id == "test_run"
         assert template_context["reason"] == "success"
+        assert template_context["callback"].source is CallbackSource.DAG
 
     def test_a_removed_last_task_leaves_a_minimal_context(self, dag, calls):
         context = DagCallbackContext(
@@ -198,6 +201,7 @@ class TestDagCallbacks:
         assert _run(context, dag) == []
         ((_, template_context),) = calls
         assert "ti" not in template_context
+        assert template_context["callback"].source is CallbackSource.DAG
 
     def test_a_dag_without_callbacks_succeeds(self, calls):
         with DAG(dag_id="test_dag") as dag:
@@ -226,6 +230,7 @@ class TestTaskCallbacks:
         assert name == expected
         assert template_context["ti"].task_id == "task"
         assert template_context["ti"].max_tries == 1
+        assert template_context["callback"].source is CallbackSource.TASK
 
     def test_runs_without_the_task_run_context(self, dag, calls):
         context = TaskCallbackContext(type="TaskCallback", ti=TI)
@@ -234,6 +239,7 @@ class TestTaskCallbacks:
         ((name, template_context),) = calls
         assert name == "task_failure"
         assert template_context["ti"].task_id == "task"
+        assert template_context["callback"].source is CallbackSource.TASK
 
     def test_a_non_failure_callback_type_runs_nothing(self, dag, calls):
         context = TaskCallbackContext(

@@ -38,6 +38,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstanceState,
     TIRunContext,
 )
+from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.exceptions import TaskNotFound
 
@@ -166,6 +167,8 @@ def _run_dag_callbacks(context: DagCallbackContext, dag: DAG, log: FilteringBoun
             template_context = runtime_ti.get_template_context()
             template_context["reason"] = context.msg
 
+    template_context["callback"] = CallbackMeta(source=CallbackSource.DAG)
+
     log.info(
         "Executing on_%s Dag callbacks",
         "failure" if context.is_failure_callback else "success",
@@ -212,7 +215,9 @@ def _run_task_callbacks(context: TaskCallbackContext, dag: DAG, log: FilteringBo
         )
     else:
         runtime_ti = RuntimeTaskInstance.model_construct(**ti.model_dump(exclude_unset=True), task=task)
-    return _run_callbacks(callbacks, runtime_ti.get_template_context(), log)
+    template_context = runtime_ti.get_template_context()
+    template_context["callback"] = CallbackMeta(source=CallbackSource.TASK)
+    return _run_callbacks(callbacks, template_context, log)
 
 
 def _send_task_email(context: EmailCallbackContext, dag: DAG, log: FilteringBoundLogger) -> list[str]:

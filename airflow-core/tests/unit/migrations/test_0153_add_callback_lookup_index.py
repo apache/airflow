@@ -36,7 +36,7 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 pytestmark = pytest.mark.db_test
 
-_migration = import_module("airflow.migrations.versions.0152_3_5_0_add_callback_lookup_index")
+_migration = import_module("airflow.migrations.versions.0153_3_5_0_add_callback_lookup_index")
 PREVIOUS_REVISION = _migration.down_revision
 
 metadata = sa.MetaData()
