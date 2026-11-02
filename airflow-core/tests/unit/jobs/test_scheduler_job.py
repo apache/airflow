@@ -14201,8 +14201,8 @@ def clear_audit_log_rows() -> Iterator:
     """
     Isolate ``Log`` rows for tests that assert on audit entries.
 
-    The partition-cap audit row is written through an independent, self-committing session, so
-    it escapes the test session's rollback in both directions: leftovers from earlier tests
+    The partition-cap audit rows are written through an independent, self-committing session, so
+    they escape the test session's rollback in both directions: leftovers from earlier tests
     would be counted here, and rows written here would leak into later ones.
     """
     clear_db_logs()
@@ -16496,11 +16496,11 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
     dag_maker: DagMaker, session: Session, caplog
 ):
     """
-    The cap-reached audit row is written once per backlog episode, not once per tick.
+    The cap-reached audit rows are written once per backlog episode, not once per tick.
 
     A persistent backlog re-hits the cap on every tick; only the first tick of the episode
-    should write the audit row. Draining below the cap and then hitting it again starts a new
-    episode and writes a second row.
+    should write the audit rows. Draining below the cap and then hitting it again starts a new
+    episode and writes them again.
     """
     asset = Asset(name="asset-cap-episode")
     apdrs = _make_n_satisfied_apdrs(
@@ -16526,13 +16526,13 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 3 pending, still over cap
     assert _count_audit_log(session) == 1, (
-        "backlog persisted across two ticks; audit row must only be written once"
+        "backlog persisted across two ticks; audit rows must only be written once"
     )
     assert [row.dag_id for row in _get_audit_logs(session)] == ["cap-consumer-episode"]
     assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 1 pending, drains below cap
-    assert _count_audit_log(session) == 1, "draining below the cap must not write another audit row"
+    assert _count_audit_log(session) == 1, "draining below the cap must not write any more audit rows"
     assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
 
     # A fresh backlog episode for the same consumer: three more satisfied APDRs push
@@ -16554,7 +16554,7 @@ def test_partition_cap_backlog_audit_row_written_once_per_episode(
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 4: new episode, 3 pending
     assert _count_audit_log(session) == 2, (
-        "a fresh backlog episode after draining should write a second audit row"
+        "a fresh backlog episode after draining should write audit rows again"
     )
     assert _get_cap_reached_levels(caplog) == ["warning", "debug", "warning"]
 
@@ -16609,7 +16609,7 @@ def test_partition_cap_dag_joining_mid_episode_gets_audit_row(dag_maker: DagMake
 
     runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 3: 3 pending, still over cap
     assert _get_cap_reached_levels(caplog) == ["warning", "warning", "debug"]
-    assert _count_audit_log(session) == 2, "no new Dag joined, so no further audit row"
+    assert _count_audit_log(session) == 2, "no new Dag joined, so no further audit rows"
 
 
 @pytest.mark.need_serialized_dag
@@ -16622,7 +16622,7 @@ def test_partition_cap_short_fetch_under_row_lock_keeps_episode(
 
     In HA another scheduler can hold the row locks on part of the backlog, so this scheduler's
     fetch returns fewer rows than the cap while the unlocked count still shows a backlog above
-    it. Clearing the reported set there would re-warn and re-write the audit row on the next tick.
+    it. Clearing the reported set there would re-warn and re-write the audit rows on the next tick.
     """
     asset = Asset(name="asset-cap-short-fetch")
     apdrs = _make_n_satisfied_apdrs(
@@ -16728,7 +16728,7 @@ def test_partition_cap_empty_fetch_under_row_lock_needs_count_to_end_episode(
     assert _count_audit_log(session) == 1
 
     if expect_episode_kept:
-        # The next normal full fetch belongs to the same episode: debug, no second audit row.
+        # The next normal full fetch belongs to the same episode: debug, no audit rows rewritten.
         runner._create_dagruns_for_partitioned_asset_dags(session=session)
         assert _get_cap_reached_levels(caplog) == ["warning", "debug"]
         assert _count_audit_log(session) == 1
@@ -16747,8 +16747,8 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
     pending APDR of an episode gets resolved by something other than this function's own firing
     (e.g. a concurrent HA scheduler winning the ``skip_locked`` race), the very next tick sees an
     empty ``pending_apdrs``, the count is zero, and the reported set must clear — otherwise a brand new
-    backlog that re-crosses the cap is wrongly logged at ``debug`` and skips writing a second
-    audit row.
+    backlog that re-crosses the cap is wrongly logged at ``debug`` and skips writing audit
+    rows again.
     """
     asset = Asset(name="asset-cap-drain-empty")
     apdrs = _make_n_satisfied_apdrs(
@@ -16788,7 +16788,7 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
 
     result = runner._create_dagruns_for_partitioned_asset_dags(session=session)  # tick 2: 0 pending
     assert result == set()
-    assert _count_audit_log(session) == 1, "the zero-pending tick itself must not write another audit row"
+    assert _count_audit_log(session) == 1, "the zero-pending tick itself must not write any more audit rows"
     assert runner._partition_cap_reported_dag_ids == set(), (
         "reported Dag ids must clear when the empty-fetch count is zero"
     )
@@ -16815,7 +16815,7 @@ def test_partition_cap_backlog_reset_on_full_drain_to_empty(dag_maker: DagMaker,
         "a new episode after a full drain-to-zero must warn, not silently log at debug"
     )
     assert _count_audit_log(session) == 2, (
-        "a new episode after a full drain-to-zero must write a second audit row"
+        "a new episode after a full drain-to-zero must write audit rows again"
     )
 
 
@@ -16826,7 +16826,7 @@ def test_partition_cap_audit_row_survives_outer_rollback(dag_maker: DagMaker, se
     The audit `Log` row is committed in its own session, independent of the caller's.
 
     Rolling back *session* afterwards — as `_create_dagruns_for_dags`'s `@retry_db_transaction`
-    would on a `DBAPIError` — must not undo the audit row, and the Dag must stay in the reported set: it
+    would on a `DBAPIError` — must not undo the audit rows, and the Dag must stay in the reported set: it
     reflects a row that is already durably persisted, not in-flight work tied to *session*.
     """
     _make_n_satisfied_apdrs(
@@ -16871,7 +16871,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
     dag_maker: DagMaker, session: Session, caplog, audit_write_error: Exception
 ):
     """
-    A `SQLAlchemyError` while writing the cap-reached audit row must not escape the tick.
+    A `SQLAlchemyError` while writing the cap-reached audit rows must not escape the tick.
 
     The audit write is purely observational, so any SQLAlchemy-layer failure — not just a
     `DBAPIError` — must be caught and logged, leaving `_partition_cap_reported_dag_ids`
@@ -16902,7 +16902,7 @@ def test_partition_cap_audit_row_write_failure_is_swallowed(
         runner._create_dagruns_for_partitioned_asset_dags(session=session)
         runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert "Failed to write the partition Dag run cap audit Log row" in caplog
+    assert "Failed to write the partition Dag run cap audit Log rows" in caplog
     assert runner._partition_cap_reported_dag_ids == set()
     audit_rows = session.scalars(select(Log).where(Log.event == "partition Dag run cap reached")).all()
     assert audit_rows == []
