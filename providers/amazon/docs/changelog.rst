@@ -32,6 +32,15 @@ Changelog
     section and no longer falls back to the global one. Set ``cluster_name`` for each team, and
     ``region_name`` and ``conn_id`` too if the team needs them.
 
+.. note::
+
+    ``SageMakerTrainingOperator`` supports durable execution and ``durable`` defaults to ``True``.
+    A retry now reconnects to the training job the previous try submitted instead of submitting a
+    new one, so a worker crash no longer leaves a duplicate job running and billing. This applies
+    to the synchronous path only; a deferrable run is unchanged. Pass ``durable=False`` to keep
+    submitting a new job on every try. Reconnecting needs Airflow 3.3 or later; below that the
+    operator behaves as with ``durable=False``.
+
 9.39.0
 ......
 
