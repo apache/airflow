@@ -494,6 +494,27 @@ def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monke
     assert NEED_WORKFLOW_APPROVAL_LABEL not in text
 
 
+def test_write_step_summary_does_not_show_the_label_on_a_pull_request_left_without_it(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    write_step_summary(
+        [
+            PullRequestResult(
+                pr_number=10,
+                head_sha="abcdef0123456789",
+                run_ids=[1],
+                decision=ApprovalDecision(approve=False, reasons=["it changes CI"], add_approval_label=False),
+            )
+        ],
+        "apache/airflow",
+    )
+
+    text = summary.read_text()
+    assert "| `abcdef0123` | waits for a maintainer |" in text
+    assert NEED_WORKFLOW_APPROVAL_LABEL not in text
+
+
 @pytest.mark.parametrize(
     ("paths", "approve"),
     [
@@ -900,6 +921,7 @@ def test_decide_for_pull_request_gated_to_fork_ci(
     else:
         assert decision.comment is not None
         assert all(f"`{path}`" in decision.comment for path in ci_files)
+        assert decision.add_approval_label is False
 
 
 @pytest.mark.parametrize(
@@ -1293,6 +1315,22 @@ def test_apply_decision_does_not_recheck_the_runs_when_nothing_was_written():
 
     api.is_run_waiting_for_approval.assert_not_called()
     api.set_approval_status.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("labels", "expected_remove_label_calls"),
+    [((), []), ((NEED_WORKFLOW_APPROVAL_LABEL,), [mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL)])],
+)
+def test_apply_decision_without_the_approval_label_removes_it(labels, expected_remove_label_calls):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = _status("pending", "Waits for a maintainer: it changes CI")
+    decision = ApprovalDecision(approve=False, reasons=["it changes CI"], add_approval_label=False)
+
+    apply_decision(api=api, pr=_pr(10, "aaa", labels=labels), run_ids=[1], decision=decision)
+
+    api.add_label.assert_not_called()
+    assert api.remove_label.call_args_list == expected_remove_label_calls
+    api.is_run_waiting_for_approval.assert_not_called()
 
 
 @mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
