@@ -341,7 +341,9 @@ class SecretsMasker(logging.Filter):
         *,
         replacement: str = "***",
     ) -> Redacted:
-        if depth > max_depth or isinstance(item, str):
+        # The key is sensitive, so every leaf is replaced whatever its type: a numeric secret
+        # (e.g. a PIN that json.loads() turned into an int) must not come back in the clear.
+        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
             return replacement
         if isinstance(item, dict):
             return {
@@ -357,7 +359,8 @@ class SecretsMasker(logging.Filter):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        return item
+        # Fail closed if a container type is added to the walk above without a branch here.
+        return replacement
 
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
