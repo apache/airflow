@@ -52,6 +52,7 @@ beforeEach(() => {
   structure.nodes = nodes;
 });
 afterEach(() => {
+  vi.restoreAllMocks();
   localStorage.clear();
 });
 
@@ -108,5 +109,14 @@ describe("task group defaults", () => {
     const next = renderHook(useGroups, { wrapper });
 
     expect(next.result.current.openGroupIds).toEqual([]);
+  });
+  it("toggles a group when localStorage is full", async () => {
+    vi.spyOn(localStorage, "setItem").mockImplementation(() => {
+      throw new DOMException("Quota exceeded", "QuotaExceededError");
+    });
+    const { result } = renderHook(useGroups, { wrapper });
+
+    act(() => result.current.toggleGroupId("group"));
+    await waitFor(() => expect(result.current.openGroupIds).toEqual(["group"]));
   });
 });
