@@ -95,8 +95,20 @@ class JournalStep:
     replayable: bool = True
     replayed: bool = False
     payload: Any = None
+    # Whether this step's replay is in ``stats.replayed``; see :meth:`DurableRun.reserve`.
+    _replay_counted: bool = field(default=False, init=False, repr=False)
     # Agent runs started while this step executes; they are numbered under it.
     nested_runs: int = field(default=0, repr=False)
+
+    def take(self) -> None:
+        """
+        Count this step as replayed, once.
+
+        For a step from :meth:`DurableRun.reserve`; a step from :meth:`DurableRun.claim` is already counted.
+        """
+        if self.replayed and not self._replay_counted:
+            self._replay_counted = True
+            self.durable_run.journal.stats.replayed[self.kind] += 1
 
     async def run(
         self, body: Callable[[], Awaitable[Any]], *, to_record: Callable[[Any], Any] | None = None
@@ -246,6 +258,15 @@ class DurableRun:
             self._peeked[position] = self.journal.storage.load_step(build_step_key(self.key, position))
         return self._peeked[position]
 
+    def reserve(self, name: str, *, kind: StepKind, fingerprint: str | None) -> JournalStep:
+        """
+        Take the next position and look it up like :meth:`claim`, without counting a replay yet.
+
+        For an adapter that has to number steps before it knows whether they will run. A
+        replay counts in the stats only once the caller calls :meth:`JournalStep.take`.
+        """
+        return self._claim(name, kind=kind, fingerprint=fingerprint, replayable=True, count_replay=False)
+
     def claim(
         self, name: str, *, kind: StepKind, fingerprint: str | None, replayable: bool = True
     ) -> JournalStep:
@@ -262,6 +283,11 @@ class DurableRun:
             whose effect Airflow cannot observe. It still takes a position, so the steps
             after it keep theirs, but nothing is looked up or recorded for it.
         """
+        return self._claim(name, kind=kind, fingerprint=fingerprint, replayable=replayable, count_replay=True)
+
+    def _claim(
+        self, name: str, *, kind: StepKind, fingerprint: str | None, replayable: bool, count_replay: bool
+    ) -> JournalStep:
         position = self._position
         self._position += 1
         step = JournalStep(self, position, name, kind, fingerprint, replayable=replayable)
@@ -288,7 +314,9 @@ class DurableRun:
                 return step
             step.replayed = self._previous_replayed = True
             step.payload = entry.get("payload")
-            self.journal.stats.replayed[kind] += 1
+            if count_replay:
+                step._replay_counted = True
+                self.journal.stats.replayed[kind] += 1
             log.debug("Durable: replayed step", position=position, step=name)
             return step
         self._diverge(
@@ -398,7 +426,9 @@ class DurableRun:
         step.replayed = False
         step.payload = None
         self._previous_replayed = False
-        self.journal.stats.replayed[step.kind] -= 1
+        if step._replay_counted:
+            step._replay_counted = False
+            self.journal.stats.replayed[step.kind] -= 1
         self._diverge(step.position, step.name, reason=reason)
 
     def _diverge(self, position: int, name: str, *, reason: str) -> None:

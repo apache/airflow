@@ -324,6 +324,33 @@ class TestReject:
         assert retry.journal.stats.replayed.total() == 0
 
 
+class TestReserve:
+    @pytest.mark.asyncio
+    async def test_a_reserved_step_counts_as_replayed_only_once_taken(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("t", kind="tool", fingerprint="t", body=lambda: ok("old"))
+
+        retry = DurableJournal(memory_storage).start_run()
+        step = retry.reserve("t", kind="tool", fingerprint="t")
+
+        assert (step.replayed, step.payload) == (True, "old")
+        assert retry.journal.stats.replayed.total() == 0
+        step.take()
+        step.take()
+        assert dict(retry.journal.stats.replayed) == {"tool": 1}
+
+    @pytest.mark.asyncio
+    async def test_rejecting_a_reserved_step_that_was_never_taken_uncounts_nothing(self, memory_storage):
+        first = DurableJournal(memory_storage).start_run()
+        await first.run("t", kind="tool", fingerprint="t", body=lambda: ok("old"))
+
+        retry = DurableJournal(memory_storage).start_run()
+        step = retry.reserve("t", kind="tool", fingerprint="t")
+        retry.reject(step, reason="the recorded result no longer loads")
+
+        assert dict(retry.journal.stats.replayed) == {}
+
+
 class TestFailuresDuringReplay:
     @pytest.mark.asyncio
     async def test_an_attempt_killed_while_replaying_leaves_the_earlier_steps_replayable(

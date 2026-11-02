@@ -260,6 +260,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             step = None
         if step is None:
             step = durable_run.claim(name, kind="tool", fingerprint=fingerprint)
+        step.take()
         if step.replayed:
             return step.payload
         try:
@@ -404,9 +405,7 @@ class _DurableModel(Model):
         Claim a position for each of the response's tool calls, in the order the model made them.
 
         A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
-        empty, which a retry runs live without disturbing the positions after it. A position
-        that replays is counted in ``stats.replayed`` when reserved, so one whose tool never runs
-        is over-counted.
+        empty, which a retry runs live without disturbing the positions after it.
         """
         durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
         reserved = _RESERVED_TOOL_STEPS.setdefault(self.durable_run, {})
@@ -416,7 +415,7 @@ class _DurableModel(Model):
                 and item.name in durable_names
                 and item.call_id not in reserved
             ):
-                reserved[item.call_id] = self.durable_run.claim(
+                reserved[item.call_id] = self.durable_run.reserve(
                     f"tool:{item.name}",
                     kind="tool",
                     fingerprint=_build_tool_fingerprint(item.name, item.arguments, item.call_id),

@@ -658,15 +658,18 @@ def _attempt_parallel(
     *,
     agent_hooks: AgentHooks | None = None,
     guardrail_delays: dict[str, float] | None = None,
+    rejected_calls: set[str] | None = None,
     **kwargs: Any,
 ):
     """Run one attempt of an agent whose model asks for several tools at once."""
     function_tools = tools.tools()
-    if guardrail_delays is not None:
+    if guardrail_delays is not None or rejected_calls is not None:
 
         @tool_input_guardrail
         async def wait(data):
-            await asyncio.sleep(guardrail_delays[data.context.tool_call_id])
+            await asyncio.sleep((guardrail_delays or {}).get(data.context.tool_call_id, 0))
+            if rejected_calls and data.context.tool_call_id in rejected_calls:
+                return ToolGuardrailFunctionOutput.reject_content("stopped by a guardrail")
             return ToolGuardrailFunctionOutput.allow()
 
         for function_tool_ in function_tools:
@@ -711,6 +714,22 @@ class TestParallelToolCalls:
 
         assert tools.calls == {"a": 1, "b": 2, "c": 1}
         assert journal.stats.replayed == {"model": 1, "tool": 2}
+        assert retry_model.calls == 1
+
+    def test_a_replayed_tool_call_a_guardrail_stops_is_not_counted_as_replayed(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+        rejected: set[str] = set()
+        with pytest.raises(RuntimeError, match="worker lost"):
+            _attempt_parallel(storage, _ParallelModel(fail_on_answer=True), tools, rejected_calls=rejected)
+        assert tools.calls == {"a": 1, "b": 1}
+
+        rejected.add("call-b")
+        retry_model = _ParallelModel()
+        _, journal = _attempt_parallel(storage, retry_model, tools, rejected_calls=rejected)
+
+        assert journal.stats.replayed == {"model": 1, "tool": 1}
+        assert tools.calls == {"a": 1, "b": 1}
         assert retry_model.calls == 1
 
     @pytest.mark.asyncio
