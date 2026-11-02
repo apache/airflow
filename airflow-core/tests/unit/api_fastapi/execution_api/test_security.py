@@ -51,6 +51,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
     TokenScope,
 )
 from airflow.api_fastapi.execution_api.security import (
+    ASSET_WATCHER_ID,
     DAG_BUNDLE_HEADER,
     DagInGrantedBundle,
     ExecutionAPIRoute,
@@ -1110,6 +1111,18 @@ class TestAttemptLiveness:
         key = f"attempt-liveness-{uuid4()}"
         try:
             response = client.put(f"/execution/variables/{key}", json={"value": "unowned"})
+            assert response.status_code == 404
+            with pytest.raises(KeyError):
+                Variable.get(key)
+        finally:
+            Variable.delete(key)
+
+    def test_asset_watcher_identity_only_writes_asset_state(self, client, caller):
+        _, token = caller
+        token.id = ASSET_WATCHER_ID
+        key = f"attempt-liveness-{uuid4()}"
+        try:
+            response = client.put(f"/execution/variables/{key}", json={"value": "watcher"})
             assert response.status_code == 404
             with pytest.raises(KeyError):
                 Variable.get(key)

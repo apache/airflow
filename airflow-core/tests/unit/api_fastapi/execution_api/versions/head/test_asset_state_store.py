@@ -24,7 +24,7 @@ from fastapi import Request
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
-from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.security import ASSET_WATCHER_ID, _jwt_bearer, require_auth
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dynamic_region import DynamicRegion
@@ -434,19 +434,18 @@ class TestInactiveAssetRejected:
         assert response.status_code == 404
 
 
-class TestPutAssetStateWatcherWrite:
-    """PUT routes record WATCHER kind when no TI backs the token (WATCHER/triggerer path)."""
+class TestAssetStateWatcherWrite:
+    """An asset watcher token, which has no task instance behind it, can mutate asset state."""
 
     @pytest.fixture(autouse=True)
-    def setup_null_uuid_auth(self, exec_app: FastAPI):
-        from uuid import UUID
+    def setup_watcher_auth(self, exec_app: FastAPI, monkeypatch):
+        """Authenticate as a watcher while keeping the real ``require_auth`` checks."""
 
-        async def _watcher_auth(request: Request) -> TIToken:
-            return TIToken(
-                id=UUID("00000000-0000-0000-0000-000000000000"), claims=TIClaims(scope="execution")
-            )
+        async def _watcher_token() -> TIToken:
+            return TIToken(id=ASSET_WATCHER_ID, claims=TIClaims(scope="execution"))
 
-        exec_app.dependency_overrides[require_auth] = _watcher_auth
+        monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+        monkeypatch.setitem(exec_app.dependency_overrides, _jwt_bearer, _watcher_token)
 
     def test_put_by_name_creates_row(self, client: TestClient, asset: AssetModel, session):
         response = client.put(
@@ -504,3 +503,12 @@ class TestPutAssetStateWatcherWrite:
         assert row.last_updated_by_run_id is None
         assert row.last_updated_by_task_id is None
         assert row.last_updated_by_map_index is None
+
+    def test_delete_and_clear(self, client: TestClient, asset: AssetModel):
+        for k in ("watermark", "last_id"):
+            _create_asset_store_row(asset.id, k, "x")
+
+        assert client.delete(_BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"}).status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}).status_code == 404
+        assert client.delete(_BY_NAME_CLEAR, params={"name": asset.name}).status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "last_id"}).status_code == 404
