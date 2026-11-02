@@ -87,7 +87,7 @@ PIP package                                 Version required
 ``google-cloud-automl``                     ``>=2.19.0``
 ``google-cloud-bigquery``                   ``>=3.41.0``
 ``google-cloud-bigquery-datatransfer``      ``>=3.22.0``
-``google-cloud-bigtable``                   ``>=2.36.0``
+``google-cloud-bigtable``                   ``>=2.37.0``
 ``google-cloud-build``                      ``>=3.36.0``
 ``google-cloud-compute``                    ``>=1.47.0``
 ``google-cloud-container``                  ``>=2.64.0``
