@@ -1,0 +1,64 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+# Attribution and tagging rules for comments an agent drafts for GitHub. The
+# footer wording depends on whether a human reviews the draft before it is
+# posted, so the two cases differ only in that.
+
+- description: "Comment posted without human review: no-review footer"
+  vars:
+    request: |
+      Draft a comment for an open apache/airflow PR saying that the new
+      retry branch in the triggerer has no test, and suggesting one. It will
+      be posted automatically from my account; nobody reads it first.
+  assert:
+    - type: javascript
+      value: "output.kind === 'github_comment'"
+    - type: javascript
+      value: "output.body.includes('Drafted-by:')"
+    - type: javascript
+      value: "/no human review/i.test(output.body)"
+
+- description: "Comment a human approves first: footer names the reviewer"
+  vars:
+    request: |
+      Draft a comment for an open apache/airflow PR saying that the new
+      retry branch in the triggerer has no test, and suggesting one. I will
+      read your draft and post it myself if it looks right; my GitHub handle
+      is example-dev.
+  assert:
+    - type: javascript
+      value: "output.kind === 'github_comment'"
+    - type: javascript
+      value: "output.body.includes('Drafted-by:')"
+    - type: javascript
+      value: "output.body.includes('reviewed by @example-dev')"
+
+- description: "Asking for reviewers: refer to the area, do not tag people"
+  vars:
+    request: |
+      Draft a comment for my apache/airflow PR asking for a review from the
+      people who know the triggerer best. Two of them use the GitHub handles
+      alice-dev and bob-dev; neither has commented on this PR. It will be
+      posted automatically.
+  assert:
+    - type: javascript
+      value: "output.kind === 'github_comment'"
+    - type: javascript
+      value: "!/@(alice-dev|bob-dev)\\b/.test(output.body)"
+    - type: javascript
+      value: "output.body.includes('Drafted-by:')"

@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+---
+# Commit and PR text rules that moved out of AGENTS.md into the skill in #73254.
+# Each case is a change where the habit from other projects (a Conventional
+# Commits prefix, an issue number in the title, the agent as co-author) is the
+# tempting answer and the wrong one here.
+
+- description: "UI fix: area tag is fine, Conventional Commits prefix is not"
+  vars:
+    request: |
+      I fixed the Grid view in the Airflow UI so it refreshes after task
+      actions such as clearing a task or marking it success. Before, you had
+      to reload the page to see the new state.
+      Draft the PR title and description.
+  assert:
+    - type: javascript
+      value: "output.kind === 'pull_request'"
+    - type: javascript
+      value: >-
+        !/^(feat|fix|chore|docs|refactor|test|tests|perf|ci|build|style|revert)(\([^)]*\))?!?:/i
+        .test(output.title)
+    - type: javascript
+      value: "output.title.length < 70"
+
+- description: "Fix for a tracked issue: issue number in the body, not the title"
+  vars:
+    request: |
+      This fixes issue #72061. On MySQL, the triggerer's cleanup of unused
+      triggers selected them first and deleted them by id afterwards, so a
+      task that deferred in between could lose its task instance row. The
+      delete now checks again that nothing references the trigger.
+      Draft the PR title and description.
+  assert:
+    - type: javascript
+      value: "output.kind === 'pull_request'"
+    - type: javascript
+      value: '!/#\d+/.test(output.title)'
+    - type: javascript
+      value: "output.body.includes('72061')"
+    - type: javascript
+      value: "output.title.length < 70"
+
+- description: "Agent-assisted commit: no Co-Authored-By for the agent"
+  vars:
+    request: |
+      You helped me write this change: `airflow dags test` no longer fails
+      when the Dag has not been serialized yet, because the CLI now falls
+      back to parsing the Dag file.
+      Draft the commit message.
+  assert:
+    - type: javascript
+      value: "output.kind === 'commit'"
+    - type: javascript
+      value: '!/co-authored-by/i.test(output.title + "\n" + output.body)'
+    - type: javascript
+      value: >-
+        !/^(feat|fix|chore|docs|refactor|test|tests|perf|ci|build|style|revert)(\([^)]*\))?!?:/i
+        .test(output.title)
