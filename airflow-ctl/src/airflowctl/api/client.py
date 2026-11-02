@@ -64,6 +64,7 @@ from airflowctl.api.operations import (
     XComOperations,
 )
 from airflowctl.exceptions import (
+    AirflowCtlCredentialInvalidException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlException,
     AirflowCtlKeyringException,
@@ -162,6 +163,41 @@ def _safe_path_under_airflow_home(airflow_home: str, filename: str) -> str:
     return str(target)
 
 
+def _read_cli_config(path: str) -> dict:
+    """Read a credentials file, so an unusable one reaches the user as a message and not a traceback."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            config = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        # Callers already treat an absent file and malformed JSON as missing credentials.
+        raise
+    except OSError as e:
+        # `auth login` writes to the same path, so logging in again cannot fix this.
+        raise AirflowCtlCredentialInvalidException(
+            f"Credentials file {path} could not be read: {e}. Check its permissions."
+        ) from e
+    except ValueError as e:
+        # Non-UTF-8 bytes; malformed JSON was re-raised above.
+        raise AirflowCtlCredentialInvalidException(
+            f"Credentials file {path} could not be read: {e}. Log in again to recreate it."
+        ) from e
+    if not isinstance(config, dict):
+        raise AirflowCtlCredentialInvalidException(
+            f"Credentials file {path} is not a JSON object. Log in again to recreate it."
+        )
+    return config
+
+
+def _read_api_url(path: str) -> str:
+    """Read the API URL from a credentials file; the debug-credentials file has none, so it is not in _read_cli_config."""
+    api_url = _read_cli_config(path).get("api_url")
+    if not isinstance(api_url, str):
+        raise AirflowCtlCredentialInvalidException(
+            f"Credentials file {path} does not contain an api_url. Log in again to recreate it."
+        )
+    return api_url
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -253,57 +289,57 @@ class Credentials:
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
         try:
-            with open(config_path) as f:
-                credentials = json.load(f)
-                self.api_url = credentials["api_url"]
-                if self.client_kind == ClientKind.NO_AUTH:
-                    return self
-                if self.api_token is not None:
-                    return self
-                if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                    debug_creds_path = _safe_path_under_airflow_home(
-                        default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+            self.api_url = _read_api_url(config_path)
+            if self.client_kind == ClientKind.NO_AUTH:
+                return self
+            if self.api_token is not None:
+                return self
+            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+                debug_creds_path = _safe_path_under_airflow_home(
+                    default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+                )
+                try:
+                    debug_credentials = _read_cli_config(debug_creds_path)
+                    self.api_token = debug_credentials.get(
+                        self.token_key_for_environment(self.api_environment)
                     )
-                    try:
-                        with open(debug_creds_path) as df:
-                            debug_credentials = json.load(df)
-                            self.api_token = debug_credentials.get(
-                                self.token_key_for_environment(self.api_environment)
-                            )
-                    except FileNotFoundError as e:
-                        if self.client_kind == ClientKind.CLI:
-                            raise AirflowCtlCredentialNotFoundException(
-                                f"Debug credentials file not found: {debug_creds_path}. "
-                                "Set AIRFLOW_CLI_DEBUG_MODE=false or log in with debug mode enabled first."
-                            ) from e
-                        self.api_token = None
-                else:
-                    try:
-                        self.api_token = keyring.get_password(
-                            "airflowctl", self.token_key_for_environment(self.api_environment)
-                        )
-                    except ValueError as e:
-                        # Incorrect keyring password
-                        log.warning(
-                            "Could not access keyring for environment %s: %s", self.api_environment, e
-                        )
-                        if self.client_kind == ClientKind.CLI:
-                            raise AirflowCtlKeyringException(
-                                f"Incorrect keyring password for environment {self.api_environment}"
-                            ) from e
-                        self.api_token = None
-                    except NoKeyringError as e:
-                        # No keyring backend available
-                        log.error("No keyring backend available: %s", e)
-                        if self.client_kind == ClientKind.CLI:
-                            raise AirflowCtlKeyringException("Keyring backend is not available") from e
-                        self.api_token = None
+                except FileNotFoundError as e:
+                    if self.client_kind == ClientKind.CLI:
+                        raise AirflowCtlCredentialNotFoundException(
+                            f"Debug credentials file not found: {debug_creds_path}. "
+                            "Set AIRFLOW_CLI_DEBUG_MODE=false or log in with debug mode enabled first."
+                        ) from e
+                    self.api_token = None
+            else:
+                try:
+                    self.api_token = keyring.get_password(
+                        "airflowctl", self.token_key_for_environment(self.api_environment)
+                    )
+                except ValueError as e:
+                    # Incorrect keyring password
+                    log.warning("Could not access keyring for environment %s: %s", self.api_environment, e)
+                    if self.client_kind == ClientKind.CLI:
+                        raise AirflowCtlKeyringException(
+                            f"Incorrect keyring password for environment {self.api_environment}"
+                        ) from e
+                    self.api_token = None
+                except NoKeyringError as e:
+                    # No keyring backend available
+                    log.error("No keyring backend available: %s", e)
+                    if self.client_kind == ClientKind.CLI:
+                        raise AirflowCtlKeyringException("Keyring backend is not available") from e
+                    self.api_token = None
         except (FileNotFoundError, json.JSONDecodeError):
             # This is expected during the auth login command.
             # Also allow token-only usage without local config (for commands like `version --remote`).
             # JSONDecodeError handles the case where the credentials file exists but is empty or corrupted.
             if self.client_kind not in (ClientKind.AUTH, ClientKind.NO_AUTH) and self.api_token is None:
                 raise AirflowCtlCredentialNotFoundException("No credentials file found. Please login first.")
+        except AirflowCtlCredentialInvalidException:
+            # `auth login` has to be able to replace an unusable file, and it is the recovery the
+            # message recommends. Every other kind would silently fall back to the default API URL.
+            if self.client_kind != ClientKind.AUTH:
+                raise
 
         return self
 
@@ -318,12 +354,35 @@ class BearerAuth(httpx.Auth):
         yield request
 
 
-def _should_retry_api_request(exception: BaseException) -> bool:
-    """Determine if an API request should be retried based on the exception type."""
-    if isinstance(exception, httpx.HTTPStatusError):
-        return exception.response.status_code >= 500
+_REPLAY_SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
-    return isinstance(exception, httpx.RequestError)
+
+def _request_method(error: httpx.HTTPError) -> str | None:
+    """
+    Return the method of the request behind ``error``.
+
+    httpx leaves ``.request`` unset for some errors and reading it then raises, so return None for those.
+    """
+    try:
+        return error.request.method
+    except RuntimeError:
+        return None
+
+
+def _should_retry_api_request(exception: BaseException) -> bool:
+    """
+    Determine if an API request can be sent again after it failed.
+
+    A request that never reached the server can always be sent again. Otherwise the server may
+    already have applied it, so only read-only methods are sent again.
+    """
+    if isinstance(exception, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)):
+        return True
+    if not isinstance(exception, (httpx.HTTPStatusError, httpx.RequestError)):
+        return False
+    if isinstance(exception, httpx.HTTPStatusError) and exception.response.status_code < 500:
+        return False
+    return _request_method(exception) in _REPLAY_SAFE_METHODS
 
 
 def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
@@ -352,6 +411,7 @@ def _get_int_env(name: str, default: int, minimum: int = 0) -> int:
 API_RETRIES = _get_int_env("AIRFLOW_CLI_API_RETRIES", 3, minimum=1)
 API_RETRY_WAIT_MIN = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MIN", 1)
 API_RETRY_WAIT_MAX = _get_int_env("AIRFLOW_CLI_API_RETRY_WAIT_MAX", 10)
+API_TIMEOUT = _get_int_env("AIRFLOW_CLI_API_TIMEOUT", 30, minimum=1)
 
 
 class Client(httpx.Client):
@@ -369,6 +429,9 @@ class Client(httpx.Client):
         if kind != ClientKind.NO_AUTH:
             auth = BearerAuth(token)
         kwargs["base_url"] = self._get_base_url(base_url=base_url, kind=kind)
+        # Connect stays short so an unreachable host fails fast; the rest is generous because
+        # write requests are not retried after a timeout.
+        kwargs.setdefault("timeout", httpx.Timeout(API_TIMEOUT, connect=5.0))
         pyver = f"{'.'.join(map(str, sys.version_info[:3]))}"
         super().__init__(
             auth=auth,
@@ -511,6 +574,10 @@ class Client(httpx.Client):
         return PluginsOperations(self)
 
 
+def get_default_api_url() -> str:
+    return os.getenv("AIRFLOW_CLI_API_URL") or "http://localhost:8080"
+
+
 # API Client Decorator for CLI Actions
 @contextlib.contextmanager
 def get_client(
@@ -526,7 +593,8 @@ def get_client(
     api_client = None
     api_token = api_token or os.getenv("AIRFLOW_CLI_TOKEN", None)
     try:
-        # API URL always loaded from the config file, please save with it if you are using other than ClientKind.CLI
+        # The stored API URL wins; otherwise AIRFLOW_CLI_API_URL or the localhost default is used.
+        # Save the URL with the credentials if you are using other than ClientKind.CLI
         if kind == ClientKind.NO_AUTH:
             credentials = Credentials(client_kind=kind, api_environment=api_environment).load()
             resolved_token = None
@@ -536,7 +604,7 @@ def get_client(
             ).load()
             resolved_token = api_token or credentials.api_token
         api_client = Client(
-            base_url=credentials.api_url or "http://localhost:8080",
+            base_url=credentials.api_url or get_default_api_url(),
             limits=httpx.Limits(max_keepalive_connections=1, max_connections=1),
             token=resolved_token,
             kind=kind,

@@ -412,3 +412,62 @@ jobs:
           steps.stashed-image.outputs.reusable != 'true'
       - name: "Check disk space after build"
         run: df -H
+
+      # Snapshot only after cache publication: pruning removes the mount-cache image.
+      - name: "Snapshot CI image ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        id: snapshot-export
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          PLATFORM: ${{ inputs.platform }}
+          # Docker is bind-mounted from /mnt on AMD; write the archive on the root disk.
+          SNAPSHOT_FILE: >-
+            ${{ runner.temp }}/ci-image-snapshot-${{
+            inputs.platform == 'linux/amd64' && 'linux_amd64' || 'linux_arm64'
+            }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst
+        run: >
+          breeze ci-image save --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}"
+          --snapshot-file "${SNAPSHOT_FILE}"
+        shell: bash
+        if: >
+          github.event_name == 'pull_request' && runner.environment == 'github-hosted' &&
+          inputs.upload-image-artifact == 'true' && inputs.image-stash-ref == '' &&
+          (inputs.checkout-ref == '' || inputs.checkout-ref == github.sha)
+      - name: "Upload CI image snapshot ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        id: snapshot-upload
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: >-
+            ci-image-snapshot-v1-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{
+            inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}
+          path: "${{ runner.temp }}/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst"
+          if-no-files-found: 'error'
+          compression-level: '0'
+          # Read only within this run; once it expires, consumers fall back to the stash.
+          retention-days: '1'
+          # A rerun replaces the snapshot of its earlier attempt instead of failing to upload.
+          overwrite: true
+        if: steps.snapshot-export.outcome == 'success'
+      # The export wrote metadata for a complete archive; without the uploaded archive it would point
+      # consumers at the snapshot of an earlier attempt.
+      - name: "Retire CI image snapshot metadata ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        run: >
+          for meta in "${RUNNER_TEMP}"/ci-image-snapshot-*-"${PYTHON_MAJOR_MINOR_VERSION}".tar.zst.meta;
+          do echo "unavailable" > "${meta}"; done
+        shell: bash
+        if: steps.snapshot-export.outcome == 'success' && steps.snapshot-upload.outcome != 'success'
+      # Uploaded even when the export fails, so its "unavailable" marker retires the snapshot of an
+      # earlier attempt; consumers read it before downloading the snapshot.
+      - name: "Upload CI image snapshot metadata ${{ inputs.platform }}:${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: >-
+            ci-image-snapshot-v1-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-${{
+            inputs.platform == 'linux/amd64' && 'amd64' || 'arm64' }}-meta
+          path: "${{ runner.temp }}/ci-image-snapshot-*-${{ env.PYTHON_MAJOR_MINOR_VERSION }}.tar.zst.meta"
+          if-no-files-found: 'error'
+          retention-days: '1'
+          overwrite: true
+        if: steps.snapshot-export.outcome != 'skipped'

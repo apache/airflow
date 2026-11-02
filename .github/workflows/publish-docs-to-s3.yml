@@ -72,10 +72,42 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 jobs:
+  # Picks the runner the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true". A job of its own because build-info checks out the ref
+  # being published, whose breeze may predate RunsOn; this one runs the workflow's own breeze.
+  runner-info:
+    timeout-minutes: 10
+    name: "Runner info"
+    runs-on: ["ubuntu-slim"]
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          # Only what the runner choice reads: the full context would carry the dispatch inputs,
+          # and this job runs before build-info's committer allowlist.
+          GITHUB_CONTEXT: '{"run_id": "${{ github.run_id }}", "ref_name": "${{ github.ref_name }}"}'
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ["ubuntu-24.04"]
+    runs-on: ["ubuntu-slim"]
     env:
       VERBOSE: true
       REF: ${{ inputs.ref }}
@@ -282,10 +314,10 @@ jobs:
           echo "publish-dag-schema=${PUBLISH_DAG}" >> ${GITHUB_OUTPUT}
 
   build-docs:
-    needs: [build-info]
+    needs: [build-info, runner-info]
     timeout-minutes: 150
     name: "Build documentation"
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '8+16', '32+64') }}
     permissions:
       contents: read
       packages: read
@@ -473,10 +505,10 @@ jobs:
           overwrite: 'true'
 
   build-java-sdk-docs:
-    needs: [build-info]
+    needs: [build-info, runner-info]
     timeout-minutes: 30
     name: "Build Java SDK Javadoc"
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
     permissions:
       contents: read
       packages: read
@@ -505,14 +537,22 @@ jobs:
           # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
           # automatically — a providers-only publish should not suddenly refresh the
           # java-sdk docs as a side effect.
+          #
+          # Between Java SDK releases java-sdk/gradle.properties carries a -SNAPSHOT development
+          # version. Its Javadoc must not be published: it would become a versioned folder and the
+          # stable docs of the Java SDK, for example when an Airflow release publishes all docs.
           if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
-          elif [[ -f "java-sdk/gradlew" ]]; then
-            echo "exists=true" >> "${GITHUB_OUTPUT}"
-          else
+          elif [[ ! -f "java-sdk/gradlew" ]]; then
             echo "exists=false" >> "${GITHUB_OUTPUT}"
             echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
+          elif grep -Eq '^[[:space:]]*projectVersion[[:space:]]*=[[:space:]]*[^[:space:]]+-SNAPSHOT[[:space:]]*$' \
+              java-sdk/gradle.properties; then
+            echo "exists=false" >> "${GITHUB_OUTPUT}"
+            echo "The Java SDK at ref ${REF} has a -SNAPSHOT development version — skipping Javadoc build."
+          else
+            echo "exists=true" >> "${GITHUB_OUTPUT}"
           fi
       - name: "Install Breeze"
         if: steps.sdk-present.outputs.exists == 'true'
@@ -531,10 +571,10 @@ jobs:
           overwrite: 'true'
 
   build-ts-sdk-docs:
-    needs: [build-info]
+    needs: [build-info, runner-info]
     timeout-minutes: 30
     name: "Build TypeScript SDK API reference"
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
     permissions:
       contents: read
       packages: read
@@ -596,7 +636,7 @@ jobs:
           overwrite: 'true'
 
   publish-docs-to-s3:
-    needs: [build-docs, build-java-sdk-docs, build-ts-sdk-docs, build-info, update-registry]
+    needs: [build-docs, build-java-sdk-docs, build-ts-sdk-docs, build-info, runner-info, update-registry]
     # `update-registry` is skipped for non-provider distributions, and a job whose dependency was
     # skipped is skipped in turn, so its result is checked rather than implied - which means the
     # two that are not conditional have to be asserted here as well.
@@ -618,7 +658,7 @@ jobs:
       id-token: write
       contents: read
       packages: write
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -767,7 +807,7 @@ jobs:
             --destination-location "${SCHEMAS_DESTINATION}" "${args[@]}"
 
   update-packages-metadata:
-    needs: [build-info, publish-docs-to-s3]
+    needs: [build-info, runner-info, publish-docs-to-s3]
     # Keyed on the sync step rather than the job, so a schema publish failing after a complete sync
     # still gets its docs into the metadata, while a partial sync is not advertised.
     if: ${{ !cancelled() && needs.publish-docs-to-s3.outputs.docs-synced == 'true' }}
@@ -781,7 +821,7 @@ jobs:
       cancel-in-progress: false
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '2+4', '8+16') }}
     steps:
       - name: "Cleanup repo"
         shell: bash

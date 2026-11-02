@@ -68,13 +68,19 @@ is explainable from a file inside this module and a standalone checkout — a pu
 ASF source release — can regenerate and test without the monorepo around it. `ts-sdk` and `java-sdk`
 vendor theirs the same way.
 
-Two prek hooks split the work that keeps the copies honest. `sync-go-sdk-schemas` copies an original
-over its copy when the two differ and fails, since copying is mechanical; it is a **manual** hook, so
-re-vendoring is a deliberate step here rather than something a change to a Python schema forces on
-whoever made it — which also means nothing announces on its own that a copy has gone stale.
-`check-go-sdk-generated-drift` runs on every commit and regenerates from the copies, failing when the
-committed Go differs, since what to do about a new schema construct — a generator rule, an authoring
-exclusion — is a decision.
+Two prek hooks split the work that keeps the copies honest, and both run on every commit.
+`sync-go-sdk-schemas` copies an original over its copy when the two differ and fails, since copying
+is mechanical. `check-go-sdk-generated-drift` runs after it and regenerates from the copies, failing
+when the committed Go differs, since what to do about a new schema construct — a generator rule, an
+authoring exclusion — is a decision.
+
+Both are triggered by the Python originals as well as the copies, so a schema change made on the
+Python side fails on the commit that made it rather than on whoever next touches this module. That
+check is the only warning there is: a model generated from a stale copy fails at run time by not
+failing — msgpack drops a message field the Go struct does not declare, so the Go side quietly sees
+one field fewer. A release branch is a partial set of cherry-picks, so each commit can pass this
+check on main and still land here in a combination that does not hold; run both hooks over the whole
+tree before tagging a release.
 
 ## Regenerating the coordinator-protocol models
 
@@ -83,8 +89,9 @@ module's vendored copy of the supervisor schema snapshot the Python Task SDK own
 (`task-sdk/src/airflow/sdk/execution_time/schema/schema.json`); do not edit either by hand. To move
 the SDK to a newer schema version:
 
-1. Refresh the copy: `prek run sync-go-sdk-schemas --hook-stage manual`, which overwrites
-   `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review.
+1. Refresh the copy: `prek run sync-go-sdk-schemas`, which overwrites
+   `schema/supervisor-schema.json` from task-sdk's and fails so the change lands in review. A commit
+   that touches the task-sdk snapshot runs this for you.
 2. Set `SupervisorSchemaVersion` in [`pkg/execution/messages.go`](./pkg/execution/messages.go) to the
    copy's `api_version` date.
 3. Run `just generate-models`, and commit the copy with what it generated.
@@ -106,8 +113,8 @@ the models adds, renames or removes a `DagRunState` constant. The test keeps fai
 [`airflow/spec.gen.go`](./airflow/spec.gen.go) are generated from `schema/dag-schema.json`, this
 module's vendored copy of airflow-core's Dag serialization schema
 (`airflow-core/src/airflow/serialization/schema.json`), which Python owns; do not edit any of them
-by hand. Refresh the copy with `prek run sync-go-sdk-schemas --hook-stage manual`,
-then run `just generate-specs` after changing the schema or the generator.
+by hand. Refresh the copy with `prek run sync-go-sdk-schemas`, then run `just generate-specs` after
+changing the schema or the generator.
 
 The schema is the serialized shape rather than the authoring one, so
 [`internal/genspec/authoring.go`](./internal/genspec/authoring.go) holds the three tables that turn
