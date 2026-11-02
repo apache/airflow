@@ -250,11 +250,16 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     async def on_invoke_tool(ctx: ToolContext[Any], arguments: str) -> Any:
         if _is_inside_a_call(durable_run):
             return await invoke(ctx, arguments)
-        step = _RESERVED_TOOL_STEPS.get(durable_run, {}).pop(ctx.tool_call_id, None) or durable_run.claim(
-            f"tool:{tool.name}",
-            kind="tool",
-            fingerprint=_build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id),
-        )
+        name = f"tool:{tool.name}"
+        fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
+        reserved = _RESERVED_TOOL_STEPS.get(durable_run, {})
+        step = reserved.pop(ctx.tool_call_id, None)
+        if step is not None and (step.name, step.fingerprint) != (name, fingerprint):
+            # Calls that share an id (some non-OpenAI adapters) leave the reservation to another call.
+            reserved[ctx.tool_call_id] = step
+            step = None
+        if step is None:
+            step = durable_run.claim(name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
             return step.payload
         try:
@@ -406,7 +411,11 @@ class _DurableModel(Model):
         durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
         reserved = _RESERVED_TOOL_STEPS.setdefault(self.durable_run, {})
         for item in response.output:
-            if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names:
+            if (
+                isinstance(item, ResponseFunctionToolCall)
+                and item.name in durable_names
+                and item.call_id not in reserved
+            ):
                 reserved[item.call_id] = self.durable_run.claim(
                     f"tool:{item.name}",
                     kind="tool",

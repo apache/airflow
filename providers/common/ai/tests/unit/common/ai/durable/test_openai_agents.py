@@ -48,6 +48,7 @@ from agents import (
 )
 from agents.exceptions import MaxTurnsExceeded, ModelBehaviorError
 from agents.retry import ModelRetryBackoffSettings, ModelRetrySettings
+from agents.tool_context import ToolContext
 from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from pydantic import BaseModel
 
@@ -711,6 +712,56 @@ class TestParallelToolCalls:
         assert tools.calls == {"a": 1, "b": 2, "c": 1}
         assert journal.stats.replayed == {"model": 1, "tool": 2}
         assert retry_model.calls == 1
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("call_id", ["call-shared", ""], ids=["duplicate-id", "empty-id"])
+    async def test_tool_calls_sharing_a_call_id_each_replay_their_own_result(self, call_id):
+        """The SDK rejects a repeated id itself, but a model that emitted one must not make the calls trade steps."""
+        storage = MemoryStorage()
+        tools = _SleepingTools()
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id=f"fc-{key}",
+                    call_id=call_id,
+                    name="lookup",
+                    arguments=json.dumps({"key": key}),
+                    type="function_call",
+                )
+                for key in ("a", "b")
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+
+        async def attempt(order: tuple[str, ...]) -> tuple[dict[str, Any], DurableJournal]:
+            journal = DurableJournal(storage)
+            durable_run = journal.start_run()
+            durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
+            _DurableModel(mock.create_autospec(Model, instance=True), durable_run)._reserve_tool_steps(
+                response, durable_tools
+            )
+            outputs = {}
+            for key in order:
+                context = ToolContext(
+                    context=None,
+                    usage=Usage(),
+                    tool_name="lookup",
+                    tool_call_id=call_id,
+                    tool_arguments=json.dumps({"key": key}),
+                )
+                outputs[key] = await durable_tools[0].on_invoke_tool(context, json.dumps({"key": key}))
+            _RESERVED_TOOL_STEPS.pop(durable_run, None)
+            return outputs, journal
+
+        await attempt(("a", "b"))
+        assert tools.calls == {"a": 1, "b": 1}
+
+        outputs, journal = await attempt(("b", "a"))
+
+        assert tools.calls == {"a": 1, "b": 1}
+        assert outputs == {"a": "a=42", "b": "b=42"}
+        assert journal.stats.replayed["tool"] == 2
 
     def test_a_finished_run_does_not_keep_its_reserved_tool_steps(self):
         @function_tool(needs_approval=True)
