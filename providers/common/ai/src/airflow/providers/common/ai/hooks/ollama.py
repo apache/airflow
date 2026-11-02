@@ -81,8 +81,10 @@ class OllamaBackend:
 
         :raises TimeoutError: If the server cannot be reached or does not finish loading within *timeout*.
         """
-        # Without keep_alive this call blocks until the model is loaded; callers still poll
-        # is_ready() afterwards rather than trusting the response alone.
+        # A /api/generate request with no prompt and stream=False returns once the model is
+        # loaded. keep_alive only controls how long the model stays loaded afterwards. The caller
+        # still checks /api/ps once: that confirms the server lists the model under the name
+        # is_ready() compares, and that it was not unloaded right away (e.g. a zero keep-alive).
         try:
             with httpx2.Client(transport=self._transport, timeout=timeout) as client:
                 response = client.post(
