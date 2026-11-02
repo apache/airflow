@@ -171,8 +171,8 @@ Use Grid View to:
   Shift + click selects every cell between the last one picked and the clicked one. The selected task instances can
   then be cleared, marked, or deleted together, and the actions of the details panel are hidden meanwhile. A mapped
   task's cell stands for all of its mapped task instances, and a task group's cell for every task instance inside the
-  group in that run. Loops, the tasks inside them, and task groups that contain or sit inside a loop cannot be
-  selected this way.
+  group in that run. The cell of a task inside a loop stands for every pass of that task in the run, and a loop's
+  cell for every pass of the loop.
 - **Filter tasks** by name or partial ID
 - **Select a run range**, like "last 25 runs" using the dropdown above the grid
 
