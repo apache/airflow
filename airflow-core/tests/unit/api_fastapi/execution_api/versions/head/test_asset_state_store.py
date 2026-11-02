@@ -329,6 +329,14 @@ class TestClearAssetStateByName:
 
 
 class TestGetAssetStateByUri:
+    def test_get_stored_null_returns_404(self, client: TestClient, asset: AssetModel):
+        _create_asset_store_row(asset.id, "watermark", None)
+
+        response = client.get(_BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"})
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
     def test_get_returns_value(self, client: TestClient, asset: AssetModel):
         _create_asset_store_row(asset.id, "watermark", "2026-04-29")
 
