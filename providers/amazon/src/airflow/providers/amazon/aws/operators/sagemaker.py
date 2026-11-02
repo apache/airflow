@@ -1223,8 +1223,10 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         This is only relevant if check_if_job_exists is True.
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
-    :param stop_training_job_on_kill: If True, the operator stops the training job when the task is killed.
-        Without it the job keeps running, and billing, after the task is gone.
+    :param stop_training_job_on_kill: If True, the training job is stopped when the task is killed.
+        Without it the job keeps running, and billing, after the task is gone. A deferred task is
+        stopped from the Triggerer, which needs Airflow 3.3 or later; below that the flag only
+        applies while the task holds a worker slot.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
@@ -1360,6 +1362,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                     region_name=self.region_name,
                     verify=self.verify,
                     botocore_config=self.botocore_config,
+                    cancel_on_kill=self.stop_training_job_on_kill,
                 ),
                 method_name="execute_complete",
             )

@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import time
 from datetime import UTC, datetime
 from unittest import mock
@@ -738,7 +739,7 @@ class TestSageMakerHook:
         mock_conn().stop_training_job.assert_called_once_with(TrainingJobName="job_name")
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
-    def test_stop_training_job_swallows_validation_exception(self, mock_conn):
+    def test_stop_training_job_swallows_validation_exception(self, mock_conn, cap_structlog):
         mock_conn().stop_training_job.side_effect = ClientError(
             error_response={"Error": {"Code": "ValidationException", "Message": "already Completed"}},
             operation_name="StopTrainingJob",
@@ -747,6 +748,12 @@ class TestSageMakerHook:
         hook = SageMakerHook(aws_conn_id="aws_default")
 
         hook.stop_training_job(training_job_name="job_name")
+
+        mock_conn().stop_training_job.assert_called_once_with(TrainingJobName="job_name")
+        assert {
+            "event": re.compile(r"Could not stop training job job_name"),
+            "log_level": "warning",
+        } in cap_structlog
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_training_job_raises_other_client_errors(self, mock_conn):
