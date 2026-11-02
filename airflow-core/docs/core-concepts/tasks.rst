@@ -358,11 +358,10 @@ Mapped tasks
 ~~~~~~~~~~~~
 
 Policies work with task mapping. The policy applies per mapped task
-instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently:
+instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently. Using
+``STANDARD_RETRY_POLICY`` from the previous example:
 
 .. code-block:: python
-
-    from policies import STANDARD_RETRY_POLICY
 
     from airflow.sdk import task
 
@@ -376,8 +375,6 @@ instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently:
 For a classic operator, pass the policy to ``.partial()``:
 
 .. code-block:: python
-
-    from policies import STANDARD_RETRY_POLICY
 
     from airflow.providers.standard.operators.bash import BashOperator
 
