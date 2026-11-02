@@ -991,6 +991,47 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_fail_writes_logs(self, mock_hook, mocked_write_logs):
+        """When the Job fails, pod logs are still written before the error is raised."""
+        event = {
+            "job": mock.MagicMock(),
+            "status": "error",
+            "message": "Job failed with error: BackoffLimitExceeded",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+        }
+
+        with pytest.raises(AirflowException, match="BackoffLimitExceeded"):
+            KubernetesJobOperator(task_id="test_task_id", get_logs=True).execute_complete(
+                context={"ti": mock.MagicMock()}, event=event
+            )
+
+        mocked_write_logs.assert_called_once_with(mock_hook.get_pod.return_value)
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
+    def test_execute_complete_fail_log_error_keeps_job_error(self, mock_hook, mocked_write_logs):
+        """A failure while writing logs does not replace the Job's own error."""
+        mocked_write_logs.side_effect = Exception("cannot read logs")
+        event = {
+            "job": mock.MagicMock(),
+            "status": "error",
+            "message": "Job failed with error: BackoffLimitExceeded",
+            "pod_names": [POD_NAME],
+            "pod_namespace": POD_NAMESPACE,
+        }
+
+        with pytest.raises(AirflowException, match="BackoffLimitExceeded"):
+            KubernetesJobOperator(task_id="test_task_id", get_logs=True).execute_complete(
+                context={"ti": mock.MagicMock()}, event=event
+            )
+
+        mocked_write_logs.assert_called_once()
+
+    @pytest.mark.non_db_test_override
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator._write_logs"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.hook"))
     def test_execute_complete_pod_not_found_skips_logs(self, mock_hook, mocked_write_logs):
         """When a pod is deleted before log retrieval, the task should succeed instead of failing."""
         from kubernetes.client.rest import ApiException

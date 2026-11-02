@@ -338,8 +338,6 @@ class KubernetesJobOperator(KubernetesPodOperator):
         try:
             ti = context["ti"]
             ti.xcom_push(key="job", value=event["job"])
-            if event["status"] == "error":
-                raise AirflowException(event["message"])
 
             if self.get_logs:
                 for pod_name in event.get("pod_names") or []:
@@ -347,7 +345,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
                         # Pod was reported by the trigger but missing now (e.g. 404)
                         self.log.warning("Skipping log retrieval for pod %s (not found).", pod_name)
                         continue
-                    self._write_logs(pods_by_name[pod_name])
+                    try:
+                        self._write_logs(pods_by_name[pod_name])
+                    except Exception as e:
+                        self.log.warning("Failed to write logs for pod %s: %s", pod_name, e)
+
+            if event["status"] == "error":
+                raise AirflowException(event["message"])
 
             if self.do_xcom_push:
                 xcom_results: list[Any | None] = []
