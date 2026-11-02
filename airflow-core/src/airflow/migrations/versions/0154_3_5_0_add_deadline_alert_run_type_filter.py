@@ -20,7 +20,7 @@
 Add run type filtering to deadline alerts.
 
 Revision ID: c89136af204b
-Revises: 38c8df3fcb9c
+Revises: 16d7301f124b
 Create Date: 2026-10-25 00:00:00.000000
 """
 
@@ -32,7 +32,7 @@ from alembic import op
 from airflow.migrations.utils import disable_sqlite_fkeys
 
 revision = "c89136af204b"
-down_revision = "38c8df3fcb9c"
+down_revision = "16d7301f124b"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"
