@@ -23,9 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[4] / "scripts" / "ci" / "prek"))
-
-from common_prek_utils import AIRFLOW_ROOT_PATH
+AIRFLOW_ROOT_PATH = Path(__file__).resolve().parents[3]
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(

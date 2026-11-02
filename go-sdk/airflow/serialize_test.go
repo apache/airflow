@@ -925,6 +925,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 	assertJSON(t, `{
 		"task_id": "trigger",
 		"task_type": "TriggerDagRunOperator",
+		"is_stub": true,
 		"_task_module": "airflow.providers.standard.operators.trigger_dagrun",
 		"ui_color": "#ffefeb",
 		"template_fields": [
@@ -1012,7 +1013,7 @@ func TestSerializeWritesOnlyTheTriggerDagRunOptionsThatAreSet(t *testing.T) {
 		"skip_when_already_exists": false
 	}`, withoutKeys(serializedTask(t, got, "trigger"),
 		"task_id", "task_type", "_task_module", "ui_color", "template_fields",
-		"template_fields_renderers", "_operator_extra_links",
+		"template_fields_renderers", "_operator_extra_links", "is_stub",
 	))
 	// An empty FailedStates means that no Dag run state fails the task.
 	assertJSON(t, `[]`, serializedTask(t, got, "trigger_never_fails")["failed_states"])

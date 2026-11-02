@@ -1181,6 +1181,19 @@ class KubernetesPodOperator(BaseOperator):
             # keep this for any subclass override that returns None instead.
             raise PodNotFoundException("Could not find pod after resuming from deferral")
 
+        # Must stay ahead of the re-defer branch below so every resume is observable,
+        # including the ones that defer again (``_redefer_count``) -- those carry the
+        # only record of why the trigger reported an error for a still-live pod.
+        for callback in self.callbacks:
+            callback.on_operator_resuming(
+                pod=self.pod,
+                event=event,
+                client=self.client,
+                mode=ExecutionMode.SYNC,
+                context=context,
+                operator=self,
+            )
+
         follow = self.logging_interval is None
         last_log_time = event.get("last_log_time")
 

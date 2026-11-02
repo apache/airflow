@@ -27,6 +27,7 @@ from tests_common.test_utils.api_fastapi import iter_api_routes
 NO_AUTH_PATHS = {
     "/api/v2/auth/login",
     "/api/v2/auth/logout",
+    "/api/v2/auth/cli/metadata",
     "/api/v2/version",
     "/api/v2/monitor/health",
 }

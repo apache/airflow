@@ -284,6 +284,10 @@ Stable API Permissions
      - PUT
      - Assets.can_edit
      - Op
+   * - ``/api/v2/auth/cli/metadata``
+     - GET
+     - None
+     - Public
    * - ``/api/v2/auth/login``
      - GET
      - None
@@ -753,6 +757,10 @@ Stable API Permissions
      - Pools.can_edit
      - Op
    * - ``/api/v2/providers``
+     - GET
+     - Providers.can_read
+     - Op
+   * - ``/api/v2/providers/{provider_name}``
      - GET
      - Providers.can_read
      - Op

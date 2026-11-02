@@ -35,8 +35,8 @@ features the SDK has, as a comma-separated list or ``all``, and the copy of test
 the Dags whose features are all among them. A Dag that requires nothing is always in it, and the SDK
 has to write exactly the Dags of the copy.
 
-Each SDK's own prek hook runs it this way, such as
-java-sdk/scripts/ci/prek/check_serialization_conformance.py for the Java SDK.
+Each SDK's check script next to this file runs it this way, such as check_java_sdk.py for the
+Java SDK.
 
 On a failure the files are kept, and their directory is printed.
 """

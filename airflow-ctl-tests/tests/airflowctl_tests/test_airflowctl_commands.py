@@ -105,16 +105,20 @@ TEST_COMMANDS = [
     # Dag Run commands
     "dagrun list --dag-id example_bash_operator --state success --limit=1",
     # Tasks commands
+    "tasks get example_bash_operator runme_0",
+    "tasks list example_bash_operator",
     'tasks failed-deps example_bash_operator runme_0 "manual__{date_param}"',
     'tasks failed-deps example_bash_operator runme_0 --logical-date "{date_param}"',
     'tasks states-for-dag-run example_bash_operator "manual__{date_param}"',
     'tasks states-for-dag-run example_bash_operator --logical-date "{date_param}"',
     'tasks state example_bash_operator runme_0 "manual__{date_param}"',
     'tasks state example_bash_operator runme_0 --logical-date "{date_param}"',
+    'tasks logs example_bash_operator "manual__{date_param}" runme_0 --try-number 1',
     'tasks clear example_bash_operator --dag-run-id "manual__{date_param}" --task-ids runme_0 -o json',
     # Task Instances commands
     'taskinstances get example_bash_operator "manual__{date_param}" runme_0',
     'taskinstances get-dependencies example_bash_operator "manual__{date_param}" runme_0',
+    'taskinstances logs example_bash_operator "manual__{date_param}" runme_0 1',
     'taskinstances list example_bash_operator "manual__{date_param}"',
     'taskinstances state-store set example_bash_operator "manual__{date_param}" runme_0 test_key test_value',
     'taskinstances state-store get example_bash_operator "manual__{date_param}" runme_0 test_key',
@@ -138,13 +142,14 @@ TEST_COMMANDS = [
     "pools list",
     "pools get test_pool",
     "pools get test_pool -o yaml",
-    "pools update --pool=test_pool --slots=10",
+    "pools update --pool=test_pool --slots=10 --no-include-deferred",
     "pools import tests/airflowctl_tests/fixtures/test_pools.json",
     "pools export tests/airflowctl_tests/fixtures/pools_export.json --output=json",
     "pools delete test_pool",
     "pools delete test_import_pool",
     # Providers commands
     "providers list",
+    "providers get apache-airflow-providers-standard",
     # Variables commands
     "variables create --key=test_key --value=test_value",
     "variables list",
