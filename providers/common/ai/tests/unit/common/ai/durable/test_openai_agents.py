@@ -201,7 +201,11 @@ class _ParallelModel(Model):
 
 
 class _SleepingTools:
-    """A ``lookup`` tool that sleeps ``body_delays[key]`` seconds, fails for the keys in ``failing``, and counts the calls per key."""
+    """
+    A ``lookup`` tool with controllable timing and failures.
+
+    It sleeps ``body_delays[key]`` seconds, fails for the keys in ``failing``, and counts the calls per key.
+    """
 
     def __init__(self, body_delays: dict[str, float] | None = None, failing: set[str] | None = None) -> None:
         self.body_delays = body_delays or {}
