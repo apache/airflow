@@ -264,15 +264,15 @@ Ollama loads a model into memory on the first request, which can take long
 enough to time out that request. To load the model ahead of time, call
 :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.ensure_model_ready`
 before the task builds its agent. It asks Ollama which models are loaded,
-sends a load request if this connection's model is missing, and polls until the
-model is ready:
+sends a load request if this connection's model is missing, waits for the load
+to finish, then checks once that Ollama lists the model:
 
 .. code-block:: python
 
     from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 
     hook = PydanticAIHook(llm_conn_id="pydanticai_default")
-    hook.ensure_model_ready(timeout=300, poll_interval=2)
+    hook.ensure_model_ready(timeout=300)
     agent = hook.create_agent(instructions="Answer briefly.")
 
 Nothing calls it for you; it is opt-in. It has these limits:
@@ -280,16 +280,15 @@ Nothing calls it for you; it is opt-in. It has these limits:
 - Only Ollama is supported. Any other model prefix raises ``NotImplementedError``.
 - Only the hook's own connection is checked. Models behind ``fallback_conn_ids``
   are not loaded.
-- Polling uses ``time.sleep`` and holds the worker slot for the whole wait.
+- The call blocks and holds the worker slot for the whole wait.
 - The connection's password is not sent, so an Ollama server behind
   authentication is not supported.
 
-``timeout`` is the total wait. The first readiness check and the load request
-fail fast, so a wrong host or a server error is raised right away. After the
-load request, connection failures, 5xx responses and single-request timeouts
-are logged and retried until ``timeout`` is used up, which ends in a
-``TimeoutError`` naming the model. Other HTTP error responses (anything but 5xx)
-are raised as is.
+``timeout`` is the total budget for the readiness check, the load request and
+the confirming check. Running out ends in a ``TimeoutError`` naming the model.
+Nothing is retried, so a wrong host, a server error or a single request timing
+out is raised right away. If the load finishes but Ollama still does not list
+the model, ``RuntimeError`` is raised.
 
 Routing through an AI gateway
 --------------------------------

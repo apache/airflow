@@ -26,7 +26,6 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-import httpx2
 import pydantic_ai
 from pydantic_ai import Agent
 from pydantic_ai.exceptions import ModelAPIError
@@ -572,9 +571,13 @@ class PydanticAIHook(BaseHook):
             "hook or the Model field on the connection."
         )
 
-    def ensure_model_ready(self, *, timeout: float = 300.0, poll_interval: float = 2.0) -> None:
+    def ensure_model_ready(self, *, timeout: float = 300.0) -> None:
         """
         Block until this connection's local model is loaded, asking the server to load it if needed.
+
+        Asks the server whether the model is loaded; if not, sends a load request that returns once
+        the model is loaded, then checks once more that the server lists it. Any error from the
+        server is raised as is.
 
         Only Ollama is supported. Only this hook's own connection is checked -- connections in
         ``fallback_conn_ids`` are not, so a fallback model is never loaded ahead of need.
@@ -582,34 +585,21 @@ class PydanticAIHook(BaseHook):
         The connection password is not sent to Ollama, so a server behind authentication is not
         supported.
 
-        Polling uses ``time.sleep`` and holds the worker slot for the whole wait.
-
-        The first readiness check and the load request fail fast: a wrong host or a server
-        error is raised as is. Once the load request has been sent, polling retries
-        connection failures, 5xx responses and single-request timeouts (logging a warning)
-        until *timeout* is used up; non-5xx error responses and malformed responses are raised as is.
+        Blocks and holds the worker slot for the whole wait.
 
         :param timeout: Seconds to wait in total for the model to become ready.
-        :param poll_interval: Seconds between readiness checks after the load request.
-        :raises ValueError: If *timeout* or *poll_interval* is not a positive finite number,
-            no model is configured, or the connection has no host.
+        :raises ValueError: If *timeout* is not a positive finite number, no model is configured,
+            or the connection has no host.
         :raises NotImplementedError: If the model's provider prefix is not ``ollama``.
-        :raises TimeoutError: If the model is not ready within *timeout*, or the first
-            readiness check or the load request times out.
-        :raises httpx2.TransportError: If the first readiness check or the load request cannot
-            reach the server.
-        :raises httpx2.HTTPStatusError: If the server answers with an error status that is not
-            retried (see above).
+        :raises TimeoutError: If the time runs out before the model is confirmed ready, or a
+            request times out.
+        :raises RuntimeError: If the load request finishes but the server does not list the model
+            as loaded.
+        :raises httpx2.TransportError: If a request cannot reach the server.
+        :raises httpx2.HTTPStatusError: If the server answers with an error status.
         """
-        if (
-            not (math.isfinite(timeout) and math.isfinite(poll_interval))
-            or timeout <= 0
-            or poll_interval <= 0
-        ):
-            raise ValueError(
-                f"timeout and poll_interval must be positive and finite, got timeout={timeout}, "
-                f"poll_interval={poll_interval}."
-            )
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError(f"timeout must be positive and finite, got {timeout}.")
         if not (configured_name := self._get_configured_model_name()):
             raise self._build_missing_model_error()
         model_name = self._qualify_model_name(configured_name)
@@ -631,16 +621,12 @@ class PydanticAIHook(BaseHook):
         remaining = self._get_remaining_seconds(deadline, model_name, timeout)
         self.log.info("Loading model '%s' on %s", model_name, conn.host)
         backend.load(timeout=remaining)
-        while True:
-            remaining = self._get_remaining_seconds(deadline, model_name, timeout)
-            try:
-                if backend.is_ready(timeout=min(remaining, DEFAULT_REQUEST_TIMEOUT)):
-                    break
-            except (httpx2.TransportError, TimeoutError, httpx2.HTTPStatusError) as e:
-                if isinstance(e, httpx2.HTTPStatusError) and e.response.status_code < 500:
-                    raise
-                self.log.warning("Readiness check for model '%s' failed: %s; retrying", model_name, e)
-            time.sleep(min(poll_interval, remaining))
+        remaining = self._get_remaining_seconds(deadline, model_name, timeout)
+        if not backend.is_ready(timeout=min(remaining, DEFAULT_REQUEST_TIMEOUT)):
+            raise RuntimeError(
+                f"Model '{model_name}' on connection '{self.llm_conn_id}' finished loading but the "
+                "server does not list it as loaded; the server may have unloaded it right away."
+            )
         self.log.info("Model '%s' is ready after %.1f seconds", model_name, time.monotonic() - started)
 
     @staticmethod
