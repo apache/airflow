@@ -990,16 +990,16 @@ class TestSuperviseCallbackExchangesTokenFirst:
             client=client,
         )
 
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_exchange_happens_before_the_subprocess_starts(self, mock_start, _nondumpable):
         calls: list[str] = []
-        client = Mock()
+        client = _make_client()
         client.callbacks.run.side_effect = lambda callback_id: calls.append("exchange")
 
         def record_start(**kwargs):
             calls.append("start")
-            return Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
+            return _make_process()
 
         mock_start.side_effect = record_start
 
@@ -1007,10 +1007,10 @@ class TestSuperviseCallbackExchangesTokenFirst:
         client.callbacks.run.assert_called_once_with(uuid.UUID(self.CALLBACK_ID))
         assert calls == ["exchange", "start"]
 
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_rejected_exchange_prevents_the_subprocess_from_starting(self, mock_start, _nondumpable):
-        client = Mock()
+        client = _make_client()
         client.callbacks.run.side_effect = RuntimeError("409 Conflict: token already exchanged")
 
         with pytest.raises(RuntimeError, match="already exchanged"):
@@ -1019,12 +1019,12 @@ class TestSuperviseCallbackExchangesTokenFirst:
         mock_start.assert_not_called()
 
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
-    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
-    @patch.object(CallbackSubprocess, "start")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable", autospec=True)
+    @patch.object(CallbackSubprocess, "start", autospec=True)
     def test_kwargs_encoding_is_passed_to_the_subprocess(
         self, mock_start, _nondumpable, callback_kwargs_encoding
     ):
-        mock_start.return_value = Mock(spec=CallbackSubprocess, wait=Mock(return_value=0), timed_out=False)
+        mock_start.return_value = _make_process()
 
         supervise_callback(
             id=self.CALLBACK_ID,
@@ -1032,7 +1032,7 @@ class TestSuperviseCallbackExchangesTokenFirst:
             callback_kwargs={},
             dag_rel_path=Path("dag.py"),
             callback_kwargs_encoding=callback_kwargs_encoding,
-            client=Mock(),
+            client=_make_client(),
         )
 
         assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding
