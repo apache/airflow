@@ -33,7 +33,7 @@ import httpx
 import keyring
 import structlog
 from httpx import URL
-from keyring.errors import NoKeyringError
+from keyring.errors import KeyringError, NoKeyringError, PasswordDeleteError
 from tenacity import (
     before_sleep_log,
     retry,
@@ -241,15 +241,29 @@ class Credentials:
 
         Skip saving the token to keyring if skip_keyring is True, in this case,
         only the config file with the API URL is created.
+
+        The token already stored in keyring for the environment is removed first,
+        so a failure later on cannot leave it paired with the new API URL.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
+        debug_mode = os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
+        if not debug_mode:
+            try:
+                keyring.delete_password("airflowctl", self.token_key_for_environment(self.api_environment))
+            except (PasswordDeleteError, NoKeyringError):
+                pass
+            except KeyringError as e:
+                raise AirflowCtlKeyringException(
+                    f"Could not remove the keyring token of environment {self.api_environment}: {e}. "
+                    "The API URL was not changed."
+                ) from e
         with open(config_path, "w") as f:
             json.dump({"api_url": self.api_url}, f)
 
         try:
-            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
+            if debug_mode:
                 debug_path = _safe_path_under_airflow_home(
                     default_config_dir, f"debug_creds_{self.input_cli_config_file}"
                 )
