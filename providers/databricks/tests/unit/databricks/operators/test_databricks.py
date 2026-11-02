@@ -5267,3 +5267,105 @@ class TestDatabricksTaskOperator:
 
         operator.monitor_databricks_job()
         assert mock_databricks_hook.return_value.get_run.call_count == 3
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
+)
+class TestDatabricksTaskBaseOperatorDurable:
+    @pytest.fixture(params=["notebook", "task"])
+    def make_operator(self, request):
+        def _make(**kwargs):
+            if request.param == "notebook":
+                return DatabricksNotebookOperator(
+                    task_id=TASK_ID,
+                    notebook_path="/test",
+                    source="WORKSPACE",
+                    new_cluster=NEW_CLUSTER,
+                    **kwargs,
+                )
+            return DatabricksTaskOperator(
+                task_id=TASK_ID,
+                task_config={"notebook_task": NOTEBOOK_TASK},
+                new_cluster=NEW_CLUSTER,
+                **kwargs,
+            )
+
+        return _make
+
+    @staticmethod
+    def _task_store(stored_run_id=None):
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = stored_run_id
+        return task_store
+
+    @staticmethod
+    def _state(lifecycle: str, result: str = ""):
+        return {"state": {"life_cycle_state": lifecycle, "result_state": result, "state_message": ""}}
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_persists_run_id_on_fresh_submit(self, db_mock_class, make_operator):
+        op = make_operator()
+        op.monitor_databricks_job = MagicMock()
+        db_mock_class.return_value.submit_run.return_value = RUN_ID
+        task_store = self._task_store()
+
+        op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        op.monitor_databricks_job.assert_called_once()
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_reconnects_to_active_run_without_resubmitting(self, db_mock_class, make_operator):
+        op = make_operator()
+        op.monitor_databricks_job = MagicMock()
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.return_value = self._state("RUNNING")
+        task_store = self._task_store(RUN_ID)
+
+        op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        db_mock.submit_run.assert_not_called()
+        task_store.set.assert_not_called()
+        op.monitor_databricks_job.assert_called_once()
+        assert op.databricks_run_id == RUN_ID
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_already_succeeded_pushes_xcoms_without_monitoring(self, db_mock_class, make_operator):
+        op = make_operator()
+        op.monitor_databricks_job = MagicMock()
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.return_value = self._state("TERMINATED", "SUCCESS")
+        db_mock.get_run_page_url.return_value = RUN_PAGE_URL
+        ti = MagicMock(stats_tags={})
+
+        op.execute({"ti": ti, "task_state_store": self._task_store(RUN_ID)})
+
+        db_mock.submit_run.assert_not_called()
+        op.monitor_databricks_job.assert_not_called()
+        ti.xcom_push.assert_any_call(key="run_id", value=RUN_ID)
+        ti.xcom_push.assert_any_call(key="run_page_url", value=RUN_PAGE_URL)
+
+    @mock.patch("airflow.providers.databricks.operators.databricks.store_databricks_job_run_link")
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks.DatabricksTaskBaseOperator._databricks_workflow_task_group",
+        new_callable=mock.PropertyMock,
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_workflow_task_group_does_not_use_task_state_store(
+        self, db_mock_class, mock_tg, _, make_operator
+    ):
+        mock_tg.return_value = MagicMock()
+        op = make_operator(
+            workflow_run_metadata={"conn_id": "databricks_default", "job_id": 1, "run_id": RUN_ID}
+        )
+        op.monitor_databricks_job = MagicMock()
+        task_store = self._task_store()
+
+        op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
+
+        task_store.get.assert_not_called()
+        task_store.set.assert_not_called()
+        db_mock_class.return_value.submit_run.assert_not_called()
+        op.monitor_databricks_job.assert_called_once()
+        assert op.databricks_run_id == RUN_ID

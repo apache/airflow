@@ -67,7 +67,8 @@ whole Airflow task:
     )
 
 Airflow ``retries`` behaves differently depending on where the operator runs. For a standalone
-operator, each retry submits a new Databricks run. Inside a
+operator, a retry reconnects to the run it already submitted (see `Durable execution`_ below).
+Inside a
 :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
 the Airflow task monitors a sub-run that was already submitted by the workflow launch task, so a
 retry only re-polls the terminal sub-run. Use ``max_retries`` to retry Databricks work inside a
@@ -80,3 +81,35 @@ attempt is observed, so downstream failure handling is not delayed by long-runni
 Only unlimited retries (``max_retries=-1``) keep the Airflow task waiting (or deferring) until the
 parent workflow run reaches a terminal state, because Databricks may still launch a retry attempt
 under the same ``task_key`` until then. Sibling tasks in the run continue independently.
+
+
+Durable execution
+-----------------
+
+Outside a
+:class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
+this operator submits a run and polls it to completion on the worker. By default it runs in a
+*durable* mode: the Databricks run id is persisted to
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>` before polling begins, so if
+the worker crashes or is preempted and the task is retried, the operator reconnects to the run that
+is already executing on Databricks instead of submitting a duplicate.
+
+On retry the operator checks the prior run's state:
+
+* if it is still running, the operator reconnects and continues polling
+* if it already succeeded, the operator returns immediately without resubmitting
+* if it failed terminally, the operator submits a fresh run
+
+Pass ``durable=False`` to always submit a fresh run on retry.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
+earlier Airflow versions the flag is a no-op and the operator always submits a fresh run on retry.
+If the task state store is unavailable at runtime, the operator logs that crash recovery is
+disabled and behaves the same way.
+
+Inside a ``DatabricksWorkflowTaskGroup`` nothing changes: the run is submitted by the workflow
+launch task and this operator only monitors its own task within that shared run, so a retry already
+reconnects rather than resubmitting.
+
+See :doc:`apache-airflow:core-concepts/resumable-tasks` for how clearing a task interacts with the
+stored run id, and for the retention caveats around ``airflow state-store clean``.

@@ -1794,7 +1794,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         )
 
 
-class DatabricksTaskBaseOperator(BaseOperator, ABC):
+class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
     """
     Base class for operators that are run as Databricks job tasks or tasks within a Databricks workflow.
 
@@ -1820,7 +1820,11 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
     :param min_retry_interval_millis: Minimum interval between Databricks task retries.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
+
+    external_id_key = "databricks_task_run_id"
 
     template_fields: Sequence[str] = ("databricks_conn_id",)
 
@@ -1842,8 +1846,13 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ):
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         self.caller = caller
         self.databricks_conn_id = databricks_conn_id
         self._databricks_task_key = databricks_task_key
@@ -1862,6 +1871,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.retry_on_timeout = retry_on_timeout
 
         self.databricks_run_id: int | None = None
+        self._run_xcoms_pushed = False
 
         super().__init__(**kwargs)
 
@@ -1995,15 +2005,15 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         """Get run json to be used for task submissions."""
         if self.new_cluster and self.existing_cluster_id:
             raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
-        cluster: dict[str, Any]
+        # LOCAL MANUAL-TEST HACK -- NOT PART OF THIS PR. Allows no compute spec so the run
+        # lands on serverless. Revert before pushing.
+        cluster: dict[str, Any] = {}
         if self.new_cluster:
             cluster = {"new_cluster": self.new_cluster}
         elif self.existing_cluster_id:
             cluster = {"existing_cluster_id": self.existing_cluster_id}
-        else:
-            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
 
-        if not self._has_retry_settings():
+        if cluster and not self._has_retry_settings():
             # No retry settings: keep the legacy single-task runs/submit shape unchanged.
             return {"run_name": self.databricks_task_key, **self._get_task_base_json(), **cluster}
 
@@ -2027,6 +2037,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         if self.do_xcom_push and context is not None:
             context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
             context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+            self._run_xcoms_pushed = True
 
         return self.databricks_run_id
 
@@ -2275,6 +2286,51 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         errors = extract_failed_task_errors(self._hook, run, run_state)
         self._handle_terminal_run_state(run_state, errors)
 
+    def submit_job(self, context: Context) -> int | None:
+        return self._launch_job(context=context)
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.databricks_run_id = cast("int", external_id)
+        try:
+            run = self._hook.get_run(external_id)
+        except DatabricksApiError as e:
+            # Run history expired or was deleted: neither active nor succeeded, so the mixin
+            # resubmits fresh instead of failing the task.
+            if e.http_status_code == 404:
+                return "NOT_FOUND:"
+            raise
+        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
+        # interface is a single string, so encode both and decode them in the predicates below.
+        state = RunState(**run["state"])
+        return f"{state.life_cycle_state}:{state.result_state}"
+
+    def is_job_active(self, status: str) -> bool:
+        return status.split(":", 1)[0] in (
+            "PENDING",
+            "QUEUED",
+            "RUNNING",
+            "TERMINATING",
+            "BLOCKED",
+            "WAITING_FOR_RETRY",
+        )
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "TERMINATED:SUCCESS"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.databricks_run_id = cast("int", external_id)
+        if self.wait_for_termination:
+            self.monitor_databricks_job()
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.databricks_run_id = cast("int", external_id)
+        # The already-succeeded retry path never launches, so push the run xcoms here for parity.
+        ti = context.get("ti") if context else None
+        if not self._run_xcoms_pushed and self.do_xcom_push and ti is not None:
+            ti.xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            ti.xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=self._hook.get_run_page_url(self.databricks_run_id))
+        return None
+
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
         if self._databricks_workflow_task_group:
@@ -2294,10 +2350,13 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                     metadata=workflow_run_metadata,
                     logger=self.log,
                 )
-        else:
-            self._launch_job(context=context)
-        if self.wait_for_termination:
-            self.monitor_databricks_job()
+            # The run id comes from the upstream launch task's xcom, so a retry already reconnects
+            # to the shared run rather than submitting anything.
+            if self.wait_for_termination:
+                self.monitor_databricks_job()
+            return
+
+        self.execute_resumable(context)
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
@@ -2367,6 +2426,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
     :param min_retry_interval_millis: Minimum interval between Databricks task retries.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
 
     template_fields = (
@@ -2399,6 +2460,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
@@ -2422,6 +2484,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
             max_retries=max_retries,
             min_retry_interval_millis=min_retry_interval_millis,
             retry_on_timeout=retry_on_timeout,
+            durable=durable,
             **kwargs,
         )
 
@@ -2523,6 +2586,8 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param max_retries: Databricks task retry count, overriding ``task_config`` when set.
     :param min_retry_interval_millis: Minimum retry interval, overriding ``task_config`` when set.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks, overriding ``task_config`` when set.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
 
     CALLER = "DatabricksTaskOperator"
@@ -2552,6 +2617,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs,
     ):
         self.task_config = task_config
@@ -2572,6 +2638,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             max_retries=max_retries,
             min_retry_interval_millis=min_retry_interval_millis,
             retry_on_timeout=retry_on_timeout,
+            durable=durable,
             **kwargs,
         )
 
