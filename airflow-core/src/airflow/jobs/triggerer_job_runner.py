@@ -34,7 +34,18 @@ from contextlib import contextmanager, suppress
 from datetime import datetime
 from socket import socket
 from traceback import format_exception
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, NamedTuple, TextIO, TypedDict
+from typing import (
+    TYPE_CHECKING,
+    Annotated,
+    Any,
+    BinaryIO,
+    ClassVar,
+    Literal,
+    NamedTuple,
+    NotRequired,
+    TextIO,
+    TypedDict,
+)
 from uuid import uuid4
 
 import anyio
@@ -1366,6 +1377,7 @@ class TriggerDetails(TypedDict):
     is_watcher: bool
     name: str
     events: int
+    on_kill_started: NotRequired[bool]
 
 
 @attrs.define(kw_only=True)
@@ -1732,6 +1744,7 @@ class TriggerRunner:
                 "is_watcher": isinstance(trigger_instance, BaseEventTrigger),
                 "name": trigger_name,
                 "events": 0,
+                "on_kill_started": False,
             }
 
         if has_work:
@@ -1749,8 +1762,13 @@ class TriggerRunner:
         ):
             while queue:
                 trigger_id = queue.popleft()
-                if trigger_id in self.triggers:
-                    self.triggers[trigger_id]["task"].cancel(cancel_msg)
+                details = self.triggers.get(trigger_id)
+                if details is None or details.get("on_kill_started"):
+                    # The supervisor resends every trigger it is still waiting on once per state
+                    # sync (~1s). Once on_kill() is running, another cancel would interrupt it
+                    # before ``[triggerer] on_kill_timeout`` expires.
+                    continue
+                details["task"].cancel(cancel_msg)
                 await asyncio.sleep(0)
 
     async def cleanup_finished_triggers(self) -> list[int]:
@@ -2020,6 +2038,8 @@ class TriggerRunner:
                     )
                 elif e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
                     await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
+                    if details := self.triggers.get(trigger_id):
+                        details["on_kill_started"] = True
                     try:
                         await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:

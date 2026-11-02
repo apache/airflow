@@ -1674,6 +1674,7 @@ class TestTriggerRunner:
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
         mock_trigger.on_kill.assert_awaited_once()
+        assert trigger_runner.triggers[1]["on_kill_started"] is True
         assert {
             "event": "Trigger cancelled by user action, invoking on_kill",
             "log_level": "info",
@@ -1740,6 +1741,23 @@ class TestTriggerRunner:
         reassigned_task.cancel.assert_called_once_with(_REASSIGNED_CANCEL_MSG)
         assert not trigger_runner.to_cancel
         assert not trigger_runner.to_release
+
+    @pytest.mark.asyncio
+    async def test_cancel_triggers_is_idempotent_across_state_syncs(self) -> None:
+        """A repeated cancel from the next state sync must not interrupt a running on_kill()."""
+        trigger_runner = TriggerRunner()
+        task = MagicMock(spec=asyncio.Task)
+        trigger_runner.triggers = {1: {"task": task, "is_watcher": False, "name": "user", "events": 0}}
+
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+        # run_trigger() marks the trigger as soon as it enters the on_kill() branch.
+        trigger_runner.triggers[1]["on_kill_started"] = True
+        # The supervisor keeps resending every trigger it is still waiting on.
+        trigger_runner.to_cancel.append(1)
+        await trigger_runner.cancel_triggers()
+
+        task.cancel.assert_called_once_with(_USER_ACTION_CANCEL_MSG)
 
     @pytest.mark.asyncio
     async def test_sync_state_to_supervisor_queues_released_triggers(self) -> None:
