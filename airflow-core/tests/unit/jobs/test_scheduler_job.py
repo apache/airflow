@@ -151,6 +151,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.timetables.assets import AssetTriggeredTimetable, PartitionedAssetTimetable
+from airflow.serialization.definitions import dag as serialized_dag_definitions
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
@@ -7810,6 +7811,50 @@ class TestSchedulerJob:
         with (
             caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
             patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag),
+        ):
+            self.job_runner._start_queued_dagruns(session)
+        session.flush()
+
+        states = dict(session.execute(select(DagRun.dag_id, DagRun.state)).all())
+        assert states == {"good_dag": DagRunState.RUNNING, "bad_dag": DagRunState.QUEUED}
+        assert any(r.levelno >= logging.ERROR and "bad_dag" in r.getMessage() for r in caplog.records)
+
+    def test_start_queued_dagruns_does_not_crash_on_lazy_timetable_error(self, dag_maker, caplog, session):
+        """The timetable is decoded lazily, so a failing one must be caught when the Dag is loaded."""
+        with dag_maker(dag_id="bad_dag", schedule="@once"):
+            EmptyOperator(task_id="bad_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+
+        with dag_maker(dag_id="good_dag", schedule="@once"):
+            EmptyOperator(task_id="good_task")
+        dag_maker.create_dagrun(state=DagRunState.QUEUED)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        get_dag_for_run = self.job_runner.scheduler_dag_bag.get_dag_for_run
+        broken_timetable = {"__type": "broken"}
+        decode_timetable = serialized_dag_definitions.decode_timetable
+
+        def break_bad_dag_timetable(dag_run, session):
+            dag = get_dag_for_run(dag_run=dag_run, session=session)
+            if dag_run.dag_id == "bad_dag":
+                dag._encoded_timetable = broken_timetable
+            return dag
+
+        def fail_for_broken_timetable(encoded):
+            if encoded is broken_timetable:
+                raise RuntimeError("Variable not found")
+            return decode_timetable(encoded)
+
+        caplog.clear()
+        with (
+            caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
+            patch.object(
+                self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=break_bad_dag_timetable
+            ),
+            patch.object(
+                serialized_dag_definitions, "decode_timetable", side_effect=fail_for_broken_timetable
+            ),
         ):
             self.job_runner._start_queued_dagruns(session)
         session.flush()
