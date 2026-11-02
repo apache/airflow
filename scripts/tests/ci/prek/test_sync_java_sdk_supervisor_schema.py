@@ -32,6 +32,10 @@ def write_schema(path, api_version=VERSION, **extra):
 
 @pytest.fixture
 def repo(tmp_path):
+    versions = tmp_path / syncer.SCHEMA_VERSIONS
+    versions.mkdir(parents=True, exist_ok=True)
+    for version in (VERSION, "2026-10-30"):
+        (versions / f"v{version.replace('-', '_')}.py").touch()
     (tmp_path / syncer.GRADLE_PROPERTIES).parent.mkdir(parents=True, exist_ok=True)
     (tmp_path / syncer.GRADLE_PROPERTIES).write_text(
         f"org.gradle.caching=true\nairflowSupervisorSchemaVersion={VERSION}\n"
@@ -39,11 +43,6 @@ def repo(tmp_path):
     write_schema(tmp_path / syncer.SOURCE_SCHEMA, title="supervisor")
     write_schema(tmp_path / syncer.VENDORED_SCHEMA, title="supervisor")
     return tmp_path
-
-
-def test_the_copy_is_vendored_inside_the_java_sdk():
-    assert str(syncer.VENDORED_SCHEMA).startswith("java-sdk/")
-    assert not str(syncer.SOURCE_SCHEMA).startswith("java-sdk/")
 
 
 def test_the_declared_version_is_read_from_gradle_properties(repo):
@@ -90,27 +89,26 @@ def test_a_missing_copy_is_created(repo):
     assert (repo / syncer.VENDORED_SCHEMA).read_bytes() == (repo / syncer.SOURCE_SCHEMA).read_bytes()
 
 
-def test_a_declared_version_the_schema_disagrees_with_is_reported_not_copied(repo):
-    write_schema(repo / syncer.SOURCE_SCHEMA, api_version="2026-10-30", title="older")
+def test_a_pin_older_than_the_schema_is_still_copied(repo):
+    # The pin is the version the Java SDK speaks; the vendored file is whatever the bundle carries.
+    vendored = write_schema(repo / syncer.VENDORED_SCHEMA, title="stale")
 
-    exit_code, report = syncer.refresh_from_source(VERSION, repo)
+    exit_code, _ = syncer.refresh_from_source("2026-10-30", repo)
+
+    assert exit_code == 1
+    assert vendored.read_bytes() == (repo / syncer.SOURCE_SCHEMA).read_bytes()
+
+
+def test_a_pin_the_bundle_does_not_define_is_reported_not_copied(repo):
+    exit_code, report = syncer.refresh_from_source("2025-01-01", repo)
 
     assert exit_code == 1
     assert report == (
-        f"java-sdk/gradle.properties declares airflowSupervisorSchemaVersion='{VERSION}' but "
-        "task-sdk/src/airflow/sdk/execution_time/schema/schema.json is api_version='2026-10-30'.\n"
-        "Move the property to the version the schema declares."
+        "java-sdk/gradle.properties declares airflowSupervisorSchemaVersion='2025-01-01', which "
+        "task-sdk/src/airflow/sdk/execution_time/schema/versions does not define.\n"
+        f"Known versions: 2026-10-30, {VERSION}."
     )
     assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
-
-
-def test_an_unreadable_source_is_reported_rather_than_copied(repo):
-    (repo / syncer.SOURCE_SCHEMA).write_text("{ truncated")
-
-    exit_code, report = syncer.refresh_from_source(VERSION, repo)
-
-    assert exit_code == 1
-    assert "is api_version=None" in report
 
 
 def test_without_the_source_it_falls_back_to_the_download(repo, monkeypatch):

@@ -19,10 +19,11 @@
 Copy the Task SDK supervisor schema into the Java SDK's vendored ``schema.json``.
 
 The copy is compared by content, so any change to the source reaches it. The declared
-``airflowSupervisorSchemaVersion`` must match the source ``api_version``. Outside the monorepo,
+``airflowSupervisorSchemaVersion`` is the version the Java SDK speaks, which is checked to be one
+the schema bundle defines rather than the source's newest ``api_version``. Outside the monorepo,
 it falls back to the Gradle download.
 
-Exits 0 when the copy is in sync, 1 when it was refreshed or the versions disagree.
+Exits 0 when the copy is in sync, 1 when it was refreshed or the declared version is unknown.
 """
 
 from __future__ import annotations
@@ -39,8 +40,10 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 GRADLE_PROPERTIES = Path("java-sdk/gradle.properties")
 VENDORED_SCHEMA = Path("java-sdk/sdk/schema/schema.json")
 SOURCE_SCHEMA = Path("task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
+SCHEMA_VERSIONS = Path("task-sdk/src/airflow/sdk/execution_time/schema/versions")
 
 VERSION_PATTERN = re.compile(r"^airflowSupervisorSchemaVersion\s*=\s*(\S+)\s*$", re.MULTILINE)
+VERSION_MODULE_PATTERN = re.compile(r"^v(\d{4})_(\d{2})_(\d{2})\.py$")
 
 
 def configured_version(repo_root: Path = REPO_ROOT) -> str:
@@ -61,18 +64,32 @@ def api_version_of(path: Path) -> str | None:
         return None
 
 
+def known_versions(repo_root: Path = REPO_ROOT) -> list[str]:
+    """The supervisor schema versions the bundle defines, oldest first."""
+    versions = [
+        "-".join(match.groups())
+        for path in (repo_root / SCHEMA_VERSIONS).glob("v*.py")
+        if (match := VERSION_MODULE_PATTERN.match(path.name))
+    ]
+    return sorted(versions)
+
+
 def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int, str]:
     source = repo_root / SOURCE_SCHEMA
     vendored = repo_root / VENDORED_SCHEMA
-    source_version = api_version_of(source)
-    if source_version != expected:
+    # The pin is the version the Java SDK speaks, not the newest one the bundle carries, so it only
+    # has to be a version the bundle defines.
+    if expected not in (versions := known_versions(repo_root)):
         return 1, (
-            f"{GRADLE_PROPERTIES} declares airflowSupervisorSchemaVersion={expected!r} but "
-            f"{SOURCE_SCHEMA} is api_version={source_version!r}.\n"
-            "Move the property to the version the schema declares."
+            f"{GRADLE_PROPERTIES} declares airflowSupervisorSchemaVersion={expected!r}, which "
+            f"{SCHEMA_VERSIONS} does not define.\n"
+            f"Known versions: {', '.join(versions) or 'none'}."
         )
     if vendored.is_file() and vendored.read_bytes() == source.read_bytes():
-        return 0, f"{VENDORED_SCHEMA} matches the schema it is vendored from (api_version={expected})."
+        return 0, (
+            f"{VENDORED_SCHEMA} matches the schema it is vendored from "
+            f"(api_version={api_version_of(source)})."
+        )
     vendored.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, vendored)
     return 1, (

@@ -194,10 +194,12 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
         // Prefer the in-repo schema, compared by content: the remote only serves released versions.
+        // The declared version is the one this SDK speaks, not the schema's own api_version, so the
+        // copy does not depend on the two agreeing.
         val source = sourceFile.asFile.orNull
-        if (source != null && apiVersionOf(source) == version) {
+        if (source != null && source.exists()) {
             if (file.exists() && file.readBytes().contentEquals(source.readBytes())) {
-                logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
+                logger.lifecycle("Supervisor Schema is up-to-date (api_version=${apiVersionOf(source)}).")
                 return
             }
             logger.lifecycle("Refreshing Supervisor Schema from $source")
