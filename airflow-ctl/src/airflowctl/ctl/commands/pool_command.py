@@ -23,6 +23,7 @@ from json import JSONDecodeError
 from pathlib import Path
 
 import rich
+from pydantic import ValidationError
 
 from airflowctl.api.client import NEW_API_CLIENT, Client, ClientKind, provide_api_client
 from airflowctl.api.datamodels.generated import (
@@ -32,6 +33,7 @@ from airflowctl.api.datamodels.generated import (
     PoolBody,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.ctl.utils.validation import split_validation_errors
 
 
 @provide_api_client(kind=ClientKind.CLI)
@@ -84,6 +86,25 @@ def export(args, api_client: Client = NEW_API_CLIENT) -> None:
         raise SystemExit(f"Failed to export pools: {e}")
 
 
+def _build_pool_body(pool_config: dict, filepath: Path) -> PoolBody:
+    """Build a ``PoolBody``, exiting with a readable message naming the pool if it is invalid."""
+    try:
+        return PoolBody(
+            name=pool_config["name"],
+            slots=pool_config["slots"],
+            description=pool_config.get("description", ""),
+            include_deferred=pool_config.get("include_deferred", False),
+            team_name=pool_config.get("team_name"),
+        )
+    except ValidationError as e:
+        missing, invalid = split_validation_errors(PoolBody, e, str)
+        messages = []
+        if missing:
+            messages.append(f"missing required field(s): {', '.join(missing)}")
+        messages.extend(invalid)
+        raise SystemExit(f"Invalid pool {pool_config['name']!r} in {filepath}: " + "; ".join(messages))
+
+
 def _import_helper(api_client: Client, filepath: Path, action_on_existence: BulkActionOnExistence):
     """Help import pools from the json file."""
     try:
@@ -100,15 +121,7 @@ def _import_helper(api_client: Client, filepath: Path, action_on_existence: Bulk
         if not isinstance(pool_config, dict) or "name" not in pool_config or "slots" not in pool_config:
             raise SystemExit(f"Invalid pool configuration: {pool_config}")
 
-        pools_to_update.append(
-            PoolBody(
-                name=pool_config["name"],
-                slots=pool_config["slots"],
-                description=pool_config.get("description", ""),
-                include_deferred=pool_config.get("include_deferred", False),
-                team_name=pool_config.get("team_name"),
-            )
-        )
+        pools_to_update.append(_build_pool_body(pool_config, filepath))
 
     bulk_body = BulkBodyPoolBody(
         actions=[

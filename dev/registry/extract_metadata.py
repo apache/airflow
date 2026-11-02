@@ -610,17 +610,24 @@ def main():
     # Skipped entirely when --allow-unreleased is set: staging builds and
     # local dev want to preview unreleased provider pages so maintainers
     # can verify them before tagging.
+    skipped_unreleased: list[str] = []
     if args.allow_unreleased:
         release_tags: set[str] = set()
     else:
         release_tags = load_release_tags()
         if not release_tags:
+            # registry-build.yml refuses a live build without tags; locally this is a
+            # clone without the providers-* tags, such as a fork.
             print(
                 "  Warning: no providers-* git tags found; "
-                "phantom version filter is disabled (falling back to versions[0]). "
-                "If this is a CI run, ensure the checkout step uses fetch-tags: true."
+                "phantom version filter is disabled (falling back to versions[0])."
             )
-    skipped_unreleased: list[str] = []
+        # A not-ready provider is not released yet (breeze release tooling skips it too).
+        not_ready = {pid for pid in extraction_ids if all_provider_yamls[pid].get("state") == "not-ready"}
+        for provider_id in sorted(not_ready):
+            print(f"  Skipping {provider_id}: state is not-ready")
+        skipped_unreleased.extend(not_ready)
+        extraction_ids -= not_ready
 
     # Pre-fetch PyPI download stats and release dates for every provider in
     # parallel. This used to be ~2N sequential urlopen calls inside the loop
@@ -686,7 +693,7 @@ def main():
                 )
                 continue
         else:
-            # No tag information available -- fall back to old behaviour.
+            # --allow-unreleased, or no tags found: keep every version listed in provider.yaml.
             versions = list(raw_versions)
             version = versions[0] if versions else "0.0.0"
 
@@ -851,7 +858,7 @@ def main():
     if skipped_unreleased:
         print(
             f"\nSkipped {len(skipped_unreleased)} unreleased provider(s) "
-            f"(no matching git tag): {sorted(skipped_unreleased)}"
+            f"(not-ready, or no matching git tag): {sorted(skipped_unreleased)}"
         )
 
     # Find related providers
@@ -899,9 +906,8 @@ def main():
     providers_json = validate_providers_catalog({"providers": new_providers})
 
     # Write output files to all output directories.
-    # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
-    # SCRIPT_DIR (dev/registry/) is always mounted, so the other extraction
-    # scripts can pick up providers.json from there.
+    # The SCRIPT_DIR (dev/registry/) copy is the first place the other extraction
+    # scripts, which run inside breeze, look for providers.json.
     output_dirs = [OUTPUT_DIR, SCRIPT_DIR]
 
     for out_dir in output_dirs:

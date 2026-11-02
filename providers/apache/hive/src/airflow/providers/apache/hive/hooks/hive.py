@@ -28,9 +28,7 @@ from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Literal, overload
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
@@ -1161,20 +1159,6 @@ class HiveServer2Hook(DbApiHook):
             return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
         if df_type == "polars":
             return self._get_polars_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(  # type: ignore
-        self,
-        sql: str,
-        schema: str = "default",
-        hive_conf: dict[Any, Any] | None = None,
-        **kwargs,
-    ) -> pd.DataFrame:
-        return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
 
     @property
     def sqlalchemy_url(self) -> URL:

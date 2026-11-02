@@ -37,6 +37,7 @@ concurrency:
 jobs:
   dependency-submission:
     name: Submit resolved Gradle dependencies
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     runs-on: ubuntu-latest
     permissions:
       contents: write

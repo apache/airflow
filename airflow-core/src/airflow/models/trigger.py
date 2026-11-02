@@ -22,9 +22,9 @@ from collections.abc import Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import JSON, ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -33,7 +33,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.manager import AssetManager
 from airflow.configuration import conf
 from airflow.models.asset import AssetWatcherModel
-from airflow.models.base import Base
+from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.triggers.base import BaseTaskEndEvent
@@ -56,6 +56,26 @@ Internal use only.
 """
 
 log = logging.getLogger(__name__)
+
+
+class RecordedFailure(NamedTuple):
+    """
+    A trigger failure, as recorded on its trigger row.
+
+    :meta private:
+    """
+
+    consecutive_failures: int
+    # Exception type and message only, already redacted and truncated
+    error: str
+
+
+class TriggerKind(str, Enum):
+    """What a trigger runs for, worked out from its owner rather than stored."""
+
+    TASK = "task"
+    CALLBACK = "callback"
+    ASSET_WATCHER = "asset_watcher"
 
 
 class TriggerFailureReason(str, Enum):
@@ -100,6 +120,20 @@ class Trigger(Base):
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
 
+    # What the triggerer records for every trigger, whatever its kind, and only when it changes: a failure,
+    # a recovery (clears the count and its start; last_failed_at and last_error survive it) or an event.
+    consecutive_failures: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_failed_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_failed_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    last_event_at: Mapped[datetime.datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
+    # Who the trigger runs for, written once by whoever creates it: ``dag_id`` is the owner's Dag and
+    # ``owner_ref`` the owner within it, ``{"ti_id": ...}`` or ``{"callback_id": ...}``. Both stay empty for
+    # asset watchers, whose owners are the asset_watcher rows, shared and changing as Dags are parsed.
+    dag_id: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    owner_ref: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+
     # Denormalized from dag_bundle_team to keep the triggerer's ~1s polling queries join-free,
     # especially since it's eventually consistent and trigger rows are ephemeral.
     # Without this, filtering by team requires 2-3 joins depending on trigger type.
@@ -132,6 +166,9 @@ class Trigger(Base):
         created_date: datetime.datetime | None = None,
         queue: str | None = None,
         team_name: str | None = None,
+        *,
+        dag_id: str | None = None,
+        owner_ref: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.classpath = classpath
@@ -139,6 +176,8 @@ class Trigger(Base):
         self.created_date = created_date or timezone.utcnow()
         self.queue = queue
         self.team_name = team_name
+        self.dag_id = dag_id
+        self.owner_ref = owner_ref
 
     @property
     def kwargs(self) -> dict[str, Any]:
@@ -208,7 +247,13 @@ class Trigger(Base):
 
     @classmethod
     def from_serialized_kwargs(
-        cls, classpath: str, serialized_kwargs: dict[str, Any], queue: str | None = None
+        cls,
+        classpath: str,
+        serialized_kwargs: dict[str, Any],
+        queue: str | None = None,
+        *,
+        dag_id: str | None = None,
+        owner_ref: dict[str, Any] | None = None,
     ) -> Trigger:
         """
         Create a trigger row from kwargs that are already in their serde-encoded form.
@@ -216,7 +261,7 @@ class Trigger(Base):
         The kwargs are stored exactly as given and decoded by the triggerer when it creates
         the trigger, the same as kwargs stored by :meth:`from_object`.
         """
-        trigger = cls(classpath=classpath, kwargs={}, queue=queue)
+        trigger = cls(classpath=classpath, kwargs={}, queue=queue, dag_id=dag_id, owner_ref=owner_ref)
         trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
         return trigger
 
@@ -322,17 +367,28 @@ class Trigger(Base):
             )
         if trigger.callback:
             trigger.callback.handle_event(event, session)
+        # Recorded for every kind of trigger; written with the rest of this transaction.
+        trigger.last_event_at = timezone.utcnow()
 
     @classmethod
     @provide_session
     def submit_failure(
-        cls, trigger_id, exc=None, *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+        cls,
+        trigger_id,
+        exc=None,
+        *,
+        triggerer_id: int | None = None,
+        failure: RecordedFailure | None = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """
         When a trigger has failed unexpectedly, mark everything that depended on it as failed.
 
         With ``triggerer_id``, only act while that triggerer still owns the trigger: a reassigned
         trigger is being run elsewhere, so a failure from its previous owner must not fail the task.
+
+        ``failure`` is recorded on the trigger row for every kind of trigger, so the failure shows the same
+        way whether a task depended on the trigger or not (an asset watcher has no task to fail).
 
         Notably, we have to actually run the failure code from a worker as it may
         have linked callbacks, so hilariously we have to re-schedule the task
@@ -363,6 +419,37 @@ class Trigger(Base):
             # Finally, mark it as scheduled so it gets re-queued
             task_instance.state = TaskInstanceState.SCHEDULED
             task_instance.scheduled_dttm = timezone.utcnow()
+
+        if failure is not None:
+            now = timezone.utcnow()
+            stmt = update(cls).where(cls.id == trigger_id)
+            if triggerer_id is not None:
+                stmt = stmt.where(cls.triggerer_id == triggerer_id)
+            session.execute(
+                stmt.values(
+                    consecutive_failures=failure.consecutive_failures,
+                    first_failed_at=now
+                    if failure.consecutive_failures == 1
+                    else coalesce(cls.first_failed_at, now),
+                    last_failed_at=now,
+                    last_error=failure.error,
+                ).execution_options(synchronize_session=False)
+            )
+
+    @classmethod
+    @provide_session
+    def clear_recorded_failures(
+        cls, trigger_ids: Iterable[int], *, triggerer_id: int | None = None, session: Session = NEW_SESSION
+    ) -> None:
+        """Record that these triggers recovered; their last error is kept."""
+        stmt = update(cls).where(cls.id.in_(trigger_ids), cls.consecutive_failures.is_not(None))
+        if triggerer_id is not None:
+            stmt = stmt.where(cls.triggerer_id == triggerer_id)
+        session.execute(
+            stmt.values(consecutive_failures=None, first_failed_at=None).execution_options(
+                synchronize_session=False
+            )
+        )
 
     @classmethod
     @provide_session
