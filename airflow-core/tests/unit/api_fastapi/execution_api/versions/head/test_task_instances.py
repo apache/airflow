@@ -88,6 +88,7 @@ from tests_common.test_utils.db import (
     clear_db_serialized_dags,
     clear_rendered_ti_fields,
 )
+from tests_common.test_utils.mapping import expand_mapped_task_instances
 from tests_common.test_utils.mock_executor import MockExecutor
 from unit.listeners import asset_listener
 
@@ -4779,6 +4780,32 @@ class TestTIUpdateState:
         session.expire_all()
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
+
+    @pytest.mark.parametrize(
+        ("sibling_state", "expected"),
+        [(State.RUNNING, State.FAILED), (State.SCHEDULED, State.SKIPPED)],
+    )
+    def test_failed_mapped_instance_stops_siblings(self, client, session, dag_maker, sibling_state, expected):
+        with dag_maker("api_fail_fast_mapped", fail_fast=True, serialized=True, session=session):
+            PythonOperator.partial(task_id="mapped", python_callable=print).expand(op_args=[[0], [1]])
+
+        run = dag_maker.create_dagrun(state=DagRunState.RUNNING, session=session)
+        expand_mapped_task_instances(dag_maker.serialized_dag.get_task("mapped"), run.run_id, session=session)
+        trigger, sibling = sorted(run.get_task_instances(session=session), key=lambda ti: ti.map_index)
+        trigger.state = State.RUNNING
+        trigger.start_date = DEFAULT_START_DATE
+        sibling.state = sibling_state
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{trigger.id}/state",
+            json={"state": TerminalTIState.FAILED, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert trigger.state == State.FAILED
+        assert sibling.state == expected
 
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
