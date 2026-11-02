@@ -21,7 +21,7 @@ import json
 import time
 import urllib
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 from botocore.exceptions import ClientError
 
@@ -1265,6 +1265,7 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
             )
         self.deferrable = deferrable
         self.serialized_training_data: dict
+        self._result: dict[str, dict] | None = None
 
     def expand_role(self) -> None:
         """Expand an IAM role name into an ARN."""
@@ -1281,8 +1282,6 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         ]
 
     def execute(self, context: Context) -> dict:
-        self.preprocess_config()
-
         if self.deferrable and not self.wait_for_completion:
             self.log.warning(
                 "Setting deferrable to True does not have effect when wait_for_completion is set to False."
@@ -1291,9 +1290,16 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         if self.deferrable and self.wait_for_completion:
             return self._execute_deferrable(context)
 
-        return self.execute_resumable(context)
+        self.execute_resumable(context)
+        # On reconnect the mixin returns poll_until_complete's value and never calls
+        # get_job_result, so the result is read off the operator instead.
+        return cast("dict[str, dict]", self._result)
 
     def submit_job(self, context: Context) -> str:
+        # Not in execute(): on a reconnecting retry the S3Operations uploads would raise on the
+        # existing key, or overwrite the inputs of the job still running.
+        self.preprocess_config()
+
         if self.check_if_job_exists:
             self.config["TrainingJobName"] = self._get_unique_job_name(
                 self.config["TrainingJobName"],
@@ -1317,7 +1323,13 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
         return job_name
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        return self.hook.describe_training_job(str(external_id))["TrainingJobStatus"]
+        """Query the raw job status; a job name SageMaker no longer knows degrades to NOT_FOUND."""
+        try:
+            return self.hook.describe_training_job(str(external_id))["TrainingJobStatus"]
+        except ClientError as e:
+            if e.response["Error"]["Code"] in ("ValidationException", "ResourceNotFound"):
+                return "NOT_FOUND"
+            raise
 
     def is_job_active(self, status: str) -> bool:
         return status in self.hook.non_terminal_states
@@ -1328,34 +1340,20 @@ class SageMakerTrainingOperator(ResumableJobMixin, SageMakerBaseOperator):
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         job_name = str(external_id)
 
-        if self.print_log:
-            self.hook.check_training_status_with_log(
-                job_name,
-                self.hook.non_terminal_states,
-                self.hook.training_failed_states,
-                self.wait_for_completion,
-                self.check_interval,
-                self.max_ingestion_time,
-            )
-        elif self.wait_for_completion:
-            description = self.hook.check_status(
-                job_name,
-                "TrainingJobStatus",
-                self.hook.describe_training_job,
-                self.check_interval,
-                self.max_ingestion_time,
-            )
-            self.log.info(
-                "Billable seconds: %d",
-                SageMakerHook.count_billable_seconds(
-                    training_start_time=description["TrainingStartTime"],
-                    training_end_time=description["TrainingEndTime"],
-                    instance_count=description["ResourceConfig"]["InstanceCount"],
-                ),
-            )
+        self.hook.wait_for_training_job(
+            job_name,
+            wait_for_completion=self.wait_for_completion,
+            print_log=self.print_log,
+            check_interval=self.check_interval,
+            max_ingestion_time=self.max_ingestion_time,
+        )
+
+        self._result = self.serialize_result(job_name)
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> dict[str, dict]:
-        return self.serialize_result(str(external_id))
+        if self._result is None:
+            self._result = self.serialize_result(str(external_id))
+        return self._result
 
     def _execute_deferrable(self, context: Context) -> dict:
         job_name = self.submit_job(context)
