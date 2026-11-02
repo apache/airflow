@@ -316,7 +316,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # If the user interrupts/terms again, _graceful_exit will allow them
             # to force-kill here. trigger_runner may be None if start() raised.
             if self.trigger_runner is not None:
-                self.trigger_runner.kill(escalation_delay=10, force=True)
+                try:
+                    self.trigger_runner.kill(escalation_delay=10, force=True)
+                finally:
+                    self.trigger_runner.close()
             self.log.info("Exited trigger loop")
             if _prev_ctx is None:
                 os.environ.pop("_AIRFLOW_PROCESS_CONTEXT", None)
@@ -738,15 +741,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
-                if factory := self.logger_cache.pop(id, None):
-                    try:
-                        factory.upload_to_remote()
-                    except Exception:
-                        log.exception("Failed to upload trigger logs to remote", trigger_id=id)
-                    finally:
-                        # Close the FD explicitly even if upload raised, otherwise the file
-                        # handle leaks for every failed upload.
-                        factory.close()
+                self._close_trigger_log(id)
 
             # Drain the persist confirmations accumulated since the last sync.
             events_persisted: list[int] = []
@@ -848,6 +843,24 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     def run_context(self) -> Iterator[None]:
         """Wrap the run loop. Subclasses can override to install setup/teardown."""
         yield
+
+    def close(self) -> None:
+        """Drain subprocess logs and upload remaining trigger logs after shutdown."""
+        self.cleanup_sockets_after_kill()
+        # Pending trigger tasks are cancelled after the runner's last state sync,
+        # so their log factories do not receive a finished-trigger notification.
+        for trigger_id in list(self.logger_cache):
+            self._close_trigger_log(trigger_id)
+
+    def _close_trigger_log(self, trigger_id: int) -> None:
+        if factory := self.logger_cache.pop(trigger_id, None):
+            try:
+                factory.upload_to_remote()
+            except Exception:
+                log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
+            finally:
+                # Upload failures must not leak the underlying file descriptor.
+                factory.close()
 
     def should_stop(self) -> bool:
         """Return True when the run loop should exit."""
