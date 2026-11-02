@@ -104,7 +104,7 @@ class TriggerStatus(str, Enum):
     ORPHANED = "orphaned"
 
 
-def triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnElement[bool], ...]:
+def get_triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnElement[bool], ...]:
     """Conditions under which a triggerer job still owns its triggers; otherwise any triggerer may take them."""
     from airflow.jobs.job import Job  # To avoid circular import
 
@@ -543,7 +543,7 @@ class Trigger(Base):
         threshold = conf.getfloat("triggerer", "triggerer_health_check_threshold")
         # Positive conditions only: a NULL from the outer join (job row gone, no heartbeat) is not true, so
         # it falls through to "orphaned" as it does in Python.
-        alive = and_(*triggerer_alive_clauses(threshold))
+        alive = and_(*get_triggerer_alive_clauses(threshold))
         return case(
             (cls.triggerer_id.is_(None), TriggerStatus.PENDING.value),
             (and_(alive, cls.consecutive_failures > 0), TriggerStatus.FAILING.value),
@@ -644,7 +644,7 @@ class Trigger(Base):
             return
 
         alive_triggerer_ids = select(Job.id).where(
-            *triggerer_alive_clauses(health_check_threshold),
+            *get_triggerer_alive_clauses(health_check_threshold),
             Job.job_type == "TriggererJob",
         )
 

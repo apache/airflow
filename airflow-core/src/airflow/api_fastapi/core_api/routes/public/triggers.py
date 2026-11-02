@@ -67,7 +67,7 @@ def _sort_null_as_smallest(column: ColumnElement) -> list[ColumnElement]:
     return [column.is_not(None).label(f"has_{column.key}"), column]
 
 
-def _triggers_select() -> Select:
+def _build_triggers_select() -> Select:
     # Only triggers their owner still refers to: the rest are deleted on the triggerer's next cleanup. The
     # kwargs are never returned, so they are not even loaded.
     return (
@@ -215,7 +215,7 @@ def get_triggers(
         # Which triggers watch an asset is the asset's to show.
         return TriggerCollectionResponse(triggers=[], total_entries=0)
     triggers_select, total_entries = paginated_select(
-        statement=_triggers_select(),
+        statement=_build_triggers_select(),
         filters=[
             kind,
             trigger_status,
@@ -258,7 +258,7 @@ def get_trigger(
 ) -> TriggerDetailResponse:
     """Get a trigger, who it runs for, and how it is doing."""
     trigger = session.scalars(
-        readable_triggers_filter.to_orm(_triggers_select()).where(Trigger.id == trigger_id).limit(1)
+        readable_triggers_filter.to_orm(_build_triggers_select()).where(Trigger.id == trigger_id).limit(1)
     ).one_or_none()
     response = (
         None

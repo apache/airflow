@@ -1208,7 +1208,7 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
 ]
 
 
-def _triggers_watching(asset_ids: set[int]) -> Select:
+def _select_triggers_watching(asset_ids: set[int]) -> Select:
     # Uncorrelated, as in Trigger.owner_still_refers_expression.
     return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
 
@@ -1228,7 +1228,7 @@ class PermittedTriggerFilter(OrmClause[None]):
 
     def to_orm(self, select: Select) -> Select:
         return select.where(
-            or_(Trigger.dag_id.in_(self.dag_ids), Trigger.id.in_(_triggers_watching(self.asset_ids)))
+            or_(Trigger.dag_id.in_(self.dag_ids), Trigger.id.in_(_select_triggers_watching(self.asset_ids)))
         )
 
 
