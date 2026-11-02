@@ -32,14 +32,25 @@ import pytest
 
 from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
+    BackfillPostBody,
     ClearTaskInstancesBody,
     ConnectionBody,
     ConnectionTestResponse,
+    DAGPatchBody,
+    DagSchedulingState,
     PoolBody,
     PoolCollectionResponse,
+    PoolPatchBody,
     PoolResponse,
 )
-from airflowctl.api.operations import ConnectionsOperations, DagRunOperations, ServerResponseError
+from airflowctl.api.operations import (
+    BackfillOperations,
+    ConnectionsOperations,
+    DagRunOperations,
+    DagsOperations,
+    PoolsOperations,
+    ServerResponseError,
+)
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.cli_config import (
     ARG_AUTH_TOKEN,
@@ -59,6 +70,7 @@ from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.ctl.utils.yaml import safe_load
 from airflowctl.exceptions import (
     AirflowCtlConnectionException,
+    AirflowCtlCredentialInvalidException,
     AirflowCtlCredentialNotFoundException,
     AirflowCtlKeyringException,
     AirflowCtlNotFoundException,
@@ -664,6 +676,10 @@ class TestCliConfigMethods:
             (httpx.ReadTimeout, True),
             (httpx.ReadError, True),
             (httpx.RemoteProtocolError, True),
+            (httpx.ConnectTimeout, False),
+            (httpx.PoolTimeout, False),
+            (httpx.WriteTimeout, True),
+            (httpx.WriteError, True),
             ("json-500", True),
             ("plain-503", True),
             ("json-400", False),
@@ -707,11 +723,18 @@ class TestCliConfigMethods:
         "raised_exception",
         [
             AirflowCtlCredentialNotFoundException("missing credentials"),
+            AirflowCtlCredentialInvalidException("unusable credentials"),
             AirflowCtlConnectionException("connection failed"),
             AirflowCtlKeyringException("keyring failure"),
             AirflowCtlNotFoundException("resource not found"),
         ],
-        ids=["credential-not-found", "connection-error", "keyring-error", "not-found"],
+        ids=[
+            "credential-not-found",
+            "credential-invalid",
+            "connection-error",
+            "keyring-error",
+            "not-found",
+        ],
     )
     def test_safe_call_command_exits_non_zero_for_airflowctl_exceptions(self, raised_exception):
         def raise_error(_args):
@@ -727,8 +750,9 @@ class TestCliConfigMethods:
         [
             httpx.RemoteProtocolError("remote protocol error"),
             httpx.ReadError("read error"),
+            httpx.WriteError("write error"),
         ],
-        ids=["remote-protocol-error", "read-error"],
+        ids=["remote-protocol-error", "read-error", "write-error"],
     )
     def test_safe_call_command_exits_non_zero_for_httpx_protocol_errors(self, raised_exception):
         def raise_error(_args):
@@ -739,9 +763,19 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
 
-    def test_safe_call_command_exits_non_zero_for_httpx_read_timeout(self):
+    @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            httpx.ReadTimeout("timed out"),
+            httpx.ConnectTimeout("timed out"),
+            httpx.WriteTimeout("timed out"),
+            httpx.PoolTimeout("timed out"),
+        ],
+        ids=["read-timeout", "connect-timeout", "write-timeout", "pool-timeout"],
+    )
+    def test_safe_call_command_exits_non_zero_for_httpx_timeouts(self, raised_exception):
         def raise_error(_args):
-            raise httpx.ReadTimeout("timed out")
+            raise raised_exception
 
         with pytest.raises(SystemExit) as ctx:
             safe_call_command(raise_error, args=argparse.Namespace())
@@ -1158,6 +1192,37 @@ class TestCliConfigMethods:
         assert args_by_flag["--task-ids"].kwargs["type"] is str
         assert "--output" in args_by_flag
 
+    def test_tasks_get_and_list_args_parse(self):
+        """``tasks get`` and ``tasks list`` parse positionals and optional flags, and reject missing required args."""
+        command_factory = CommandFactory()
+        tasks_group = next(
+            group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
+        )
+        sub_commands = {sub_command.name: sub_command for sub_command in tasks_group.subcommands}
+
+        get_parser = argparse.ArgumentParser()
+        for arg in sub_commands["get"].args:
+            arg.add_to_parser(get_parser)
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.task_id == "runme_0"
+        assert namespace.version_number is None
+        namespace = get_parser.parse_args(["example_bash_operator", "runme_0", "--version-number", "3"])
+        assert namespace.version_number == 3
+        with pytest.raises(SystemExit):
+            get_parser.parse_args(["example_bash_operator"])
+
+        list_parser = argparse.ArgumentParser()
+        for arg in sub_commands["list"].args:
+            arg.add_to_parser(list_parser)
+        namespace = list_parser.parse_args(["example_bash_operator"])
+        assert namespace.dag_id == "example_bash_operator"
+        assert namespace.order_by is None
+        namespace = list_parser.parse_args(["example_bash_operator", "--order-by=-start_date"])
+        assert namespace.order_by == "-start_date"
+        with pytest.raises(SystemExit):
+            list_parser.parse_args([])
+
     @pytest.mark.parametrize(
         ("field", "raw_value", "expected_value"),
         [
@@ -1278,6 +1343,8 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("taskinstances", "state-store", "Manage the state store of a task instance"),
+            ("tasks", "get", "Retrieve a task for a Dag by its ID and task ID"),
+            ("tasks", "list", "List tasks for a Dag"),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
@@ -1478,6 +1545,115 @@ class TestCliConfigMethods:
         rows = json.loads(capsys.readouterr().out)
         assert [row["dag_run_id"] for row in rows] == ["manual_run"]
         assert rows[0]["conf"] == ["a", "b"]
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_body"),
+        [
+            pytest.param(
+                ["--scheduling-state", "paused"],
+                DAGPatchBody(scheduling_state=DagSchedulingState.PAUSED),
+                id="scheduling-state-alone",
+            ),
+            pytest.param(["--is-paused"], DAGPatchBody(is_paused=True), id="explicit-pause"),
+            pytest.param(["--no-is-paused"], DAGPatchBody(is_paused=False), id="explicit-unpause"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_sends_only_given_state(
+        self, mocked_update, mocked_print_as, extra_argv, expected_body
+    ):
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["dag_body"] == expected_body
+
+    @pytest.mark.parametrize(
+        "extra_argv",
+        [
+            pytest.param([], id="no-state-does-not-unpause"),
+            pytest.param(["--is-paused", "--scheduling-state", "paused"], id="both-states"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(DagsOperations, "update", autospec=True)
+    def test_dags_update_requires_exactly_one_state(self, mocked_update, mocked_print_as, extra_argv):
+        args = cli_parser.get_parser().parse_args(["dags", "update", "my_dag", *extra_argv])
+
+        with pytest.raises(
+            SystemExit, match="exactly one of --is-paused / --no-is-paused or --scheduling-state"
+        ):
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        mocked_update.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_include_deferred"),
+        [
+            pytest.param(["--include-deferred"], True, id="explicit-include"),
+            pytest.param(["--no-include-deferred"], False, id="explicit-exclude"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(PoolsOperations, "update", autospec=True)
+    def test_pools_update_sends_given_include_deferred(
+        self, mocked_update, mocked_print_as, extra_argv, expected_include_deferred
+    ):
+        args = cli_parser.get_parser().parse_args(
+            ["pools", "update", "--pool", "p", "--slots", "10", *extra_argv]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert mocked_update.call_args.kwargs["pool_body"] == PoolPatchBody(
+            pool="p", slots=10, include_deferred=expected_include_deferred
+        )
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(PoolsOperations, "update", autospec=True)
+    def test_pools_update_requires_include_deferred(self, mocked_update, mocked_print_as):
+        """Omitting ``--include-deferred`` must neither send ``include_deferred=False`` nor reach the server."""
+        args = cli_parser.get_parser().parse_args(["pools", "update", "--pool", "p", "--slots", "10"])
+
+        with pytest.raises(SystemExit, match="Provide --include-deferred or --no-include-deferred"):
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        mocked_update.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("extra_argv", "expected_run_on_latest_version"),
+        [
+            pytest.param([], None, id="omitted-flag-stays-unset"),
+            pytest.param(["--run-on-latest-version"], True, id="explicit-run-on-latest"),
+            pytest.param(["--no-run-on-latest-version"], False, id="explicit-run-on-original"),
+        ],
+    )
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(BackfillOperations, "create", autospec=True)
+    def test_backfill_create_omitted_run_on_latest_version_stays_unset(
+        self, mocked_create, mocked_print_as, extra_argv, expected_run_on_latest_version
+    ):
+        """Omitting ``--run-on-latest-version`` must not send ``run_on_latest_version=False``."""
+        args = cli_parser.get_parser().parse_args(
+            [
+                "backfill",
+                "create",
+                "--dag-id",
+                "d",
+                "--from-date",
+                "2024-01-01T00:00:00Z",
+                "--to-date",
+                "2024-01-02T00:00:00Z",
+                *extra_argv,
+            ]
+        )
+
+        args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        backfill = mocked_create.call_args.kwargs["backfill"]
+        assert isinstance(backfill, BackfillPostBody)
+        assert backfill.run_on_latest_version is expected_run_on_latest_version
 
     def test_parser_resolves_nested_subcommand(self):
         """The parser descends into the state-store subgroup, binds the func, and keeps the auth token."""

@@ -39,6 +39,7 @@ import { useRevealedDagCards } from "./DagsListCountsContext";
 import { RecentRuns } from "./RecentRuns";
 import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
+import { RECENT_RUNS_WIDTH } from "./recentRunsLayout";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
@@ -58,6 +59,7 @@ export const DagCard = ({
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
+  const infoColumns = multiTeamEnabled ? 4 : 3;
   const revealedKeys = useRevealedDagCards();
   const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>({
     revealedKeys,
@@ -92,8 +94,8 @@ export const DagCard = ({
         gap={1}
         px={3}
         py={2}
-        templateColumns={multiTeamEnabled ? "repeat(5, 1fr)" : "repeat(4, 1fr)"}
-        templateRows="auto auto"
+        templateColumns={`repeat(${infoColumns}, 1fr) auto`}
+        templateRows="1fr auto"
       >
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
@@ -147,15 +149,15 @@ export const DagCard = ({
         <GridItem
           alignItems="flex-end"
           display="flex"
-          gridColumn={multiTeamEnabled ? 5 : 4}
+          gridColumn={infoColumns + 1}
           gridRow="1 / 3"
           justifyContent="flex-end"
         >
-          <Box minHeight="65px">
+          <Box minHeight="65px" width={RECENT_RUNS_WIDTH}>
             {isNearViewport ? <RecentRuns latestRuns={dag.latest_dag_runs} /> : undefined}
           </Box>
         </GridItem>
-        <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
+        <GridItem alignSelf="start" gridColumn="1 / 3" gridRow={2}>
           <Box minHeight="22px">
             {isNearViewport ? (
               <DagRunStateCounts
@@ -168,7 +170,7 @@ export const DagCard = ({
           </Box>
         </GridItem>
         {recentTasks.show ? (
-          <GridItem alignSelf="end" gridColumn="2 / 4" gridRow={2}>
+          <GridItem alignSelf="start" gridColumn={`3 / ${infoColumns + 1}`} gridRow={2}>
             <Box minHeight="22px">
               {isNearViewport ? (
                 <RecentTaskStateCounts

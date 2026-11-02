@@ -111,6 +111,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix durable streaming with pydantic-ai 2.60+ and egress-policy errors with OpenSandbox 1.2 (#75270)``
 * ``Report invalid Common AI hook configuration instead of silently changing authentication (#74451)``
 * ``Load Common AI plugin tabs when the browser reaches Airflow on another origin (#75522)``
 * ``Fix Common AI's AI Model tab for tasks inside a task loop (#75518)``
@@ -135,6 +136,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare deferred providers RC2 for 2026-10-29 (#75947)``
    * ``Fix flaky OpenShell background-child wrapper test (#75823)``
    * ``Prepare providers release 2026-10-20 (#75209)``
    * ``Number task loop iterations from one instead of zero (#74773)``

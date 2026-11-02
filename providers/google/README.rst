@@ -73,7 +73,7 @@ PIP package                                 Version required
 ``google-ads``                              ``>=26.0.0,!=28.0.0.post2``
 ``google-analytics-admin``                  ``>=0.9.0``
 ``google-api-core``                         ``>=2.30.3``
-``google-api-python-client``                ``>=2.194.0``
+``google-api-python-client``                ``>=2.195.0``
 ``google-auth``                             ``>=2.29.0``
 ``google-auth-httplib2``                    ``>=0.0.1``
 ``google-genai``                            ``>=2.8.0``

@@ -76,7 +76,7 @@ dependencies = [
     # - https://github.com/apache/airflow/issues/62373
     # - https://github.com/googleapis/google-cloud-python/issues/15015
     "google-api-core>=2.30.3",
-    "google-api-python-client>=2.194.0",
+    "google-api-python-client>=2.195.0",
     "google-auth>=2.29.0",
     "google-auth-httplib2>=0.0.1",
     "google-genai>=2.8.0",

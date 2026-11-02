@@ -168,6 +168,10 @@ AMD_ONLY_GATE_BLOCK = """  gate:
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
+    permissions:
+      contents: read
+      # Reads the creation time of this run, which decides for a pilot's older pull request.
+      actions: read
     outputs:
       project-ci: ${{ steps.gate.outputs.project-ci }}
       reason: ${{ steps.gate.outputs.reason }}
