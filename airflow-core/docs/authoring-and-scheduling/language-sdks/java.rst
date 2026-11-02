@@ -759,41 +759,98 @@ is still running after a grace period, the supervisor sends ``SIGKILL``. When a 
 instance failed or success, or clears it, the grace period is
 :ref:`core.killed_task_cleanup_time <config:core__killed_task_cleanup_time>` seconds.
 
-A task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
-would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as
-soon as Airflow asks the task to stop. Once a task has called either method, the SDK catches the first
-``SIGTERM`` or ``SIGINT`` and the JVM keeps running. The task can then stop its work, such as a process
-it started, and throw. Keep checking until the task returns, because the first signal no longer stops
-the JVM:
+By default the JVM handles the signal as it does without the SDK: shutdown hooks run and the JVM exits.
+A process the task started gets the same signals, because the supervisor signals the JVM's whole process
+group. So a task does not need to stop a process that exits on ``SIGTERM`` and stays in that group.
+
+To stop anything else, such as a job in an external system, implement ``StoppableTask``. This interface
+adds ``onKill``, the Java counterpart of an operator's ``on_kill``:
 
 .. code-block:: java
 
-    public class ReportTask implements Task {
+    public class ReportTask implements StoppableTask {
+      private final ReportService service = new ReportService();
+      private volatile String jobId;
+
       @Override
       public void execute(Context context, Client client) throws Exception {
-        Process report = new ProcessBuilder("./build-report.sh").inheritIO().start();
-        while (!context.isCancelled()) {
-          if (report.waitFor(1, TimeUnit.SECONDS)) {
-            if (report.exitValue() != 0) {
-              throw new IllegalStateException("build-report.sh failed");
-            }
-            return;
-          }
+        jobId = service.submit();
+        if (context.isCancelled()) {
+          service.cancel(jobId);
+          throw new IllegalStateException("Airflow asked the task to stop");
         }
-        report.destroy();
-        throw new IllegalStateException("Airflow asked the task to stop");
+        service.waitFor(jobId); // Throws if the job fails or is cancelled.
+      }
+
+      @Override
+      public void onKill(Context context) throws Exception {
+        if (jobId != null) {
+          service.cancel(jobId);
+        }
       }
     }
 
-Throw rather than return when the task stops early, because returning reports success for work the
-task did not finish. If a user changed the task instance's state while the task ran, for example by
-marking the task instance failed, Airflow keeps that state whatever the task reports.
+With annotations, mark the method that stops the task with ``@Airflow.OnKill`` and name the task. The
+method can take a ``Context``, and the annotation processor generates a ``StoppableTask`` that calls it on
+the same object as the task method:
 
-A task that has never checked cannot stop on its own, so for that task the JVM handles the signal as it
-does without the SDK: shutdown hooks run and the JVM exits. The JVM handles a second signal the same
-way, so sending the signal a second time stops a task that does not stop when asked. For a task that
-has checked, shutdown hooks run when the JVM exits after the task returns. The shutdown hooks do not run
-at all if the supervisor has to kill the JVM with ``SIGKILL``.
+.. code-block:: java
+
+    private final ReportService service = new ReportService();
+    private volatile String jobId;
+
+    @Airflow.Task(id = "build_report", retries = 2)
+    public void buildReport(Context context) throws Exception {
+      jobId = service.submit();
+      if (context.isCancelled()) {
+        service.cancel(jobId);
+        throw new IllegalStateException("Airflow asked the task to stop");
+      }
+      service.waitFor(jobId); // Throws if the job fails or is cancelled.
+    }
+
+    @Airflow.OnKill(task = "build_report")
+    public void stopReport() throws Exception {
+      if (jobId != null) {
+        service.cancel(jobId);
+      }
+    }
+
+Once the SDK has started such a task, it catches the first ``SIGTERM`` or ``SIGINT`` and the JVM keeps
+running. ``Context.isCancelled()`` then returns true and the SDK calls ``onKill``:
+
+* ``onKill`` runs once, on its own daemon thread, while the task keeps running. So ``onKill`` can stop a task
+  that is blocked in a call. Anything ``onKill`` and the task share, such as a ``volatile`` field, must be
+  safe to use from two threads.
+* ``onKill`` can run before the task has started the work that ``onKill`` should stop. That is why
+  ``ReportTask`` checks ``isCancelled`` right after it stores the job ID. The SDK makes ``isCancelled``
+  return true before it calls ``onKill``, so the check sees the stop request, ``onKill`` sees the job ID, or
+  both. ``onKill`` can also run just after the task has returned. So ``service.cancel`` must tolerate a
+  second call and a job that has finished.
+* ``onKill`` does not end the task. In this example, cancelling the job makes ``service.waitFor`` throw. If the
+  task is still running after the grace period, the supervisor kills the JVM with ``SIGKILL`` and shutdown
+  hooks do not run.
+* The SDK reports the task's result after ``onKill`` returns. Throw rather than return when the task stops
+  early, because returning reports success for work the task did not finish. If a user changed the task
+  instance's state while the task ran, for example by marking the task instance failed, Airflow keeps that
+  state whatever the task reports.
+* If ``onKill`` throws, the SDK logs the exception and the JVM handles the signal: shutdown hooks run and
+  the JVM exits without reporting a result.
+
+Two things differ from ``on_kill`` in Python. ``on_kill`` runs on the task's own thread. ``onKill`` runs on a
+separate thread while the task keeps running. And Python calls ``on_kill`` as soon as ``execution_timeout``
+passes, while the Java SDK has no timer for ``execution_timeout``. ``onKill`` runs when the supervisor sends
+``SIGTERM``, which is ``killed_task_cleanup_time`` seconds after the timeout.
+
+Any other signal goes to the JVM, as every signal does for a task that is not a ``StoppableTask``. These other
+signals include a signal that arrives before the SDK starts the task, and a second signal. So sending a second
+signal stops a task that does not stop when asked.
+
+A task that can check for a stop request in a loop can leave ``onKill``, or its ``@Airflow.OnKill`` method,
+empty. The task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
+would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as soon as
+Airflow asks the task to stop. Only a ``StoppableTask`` can see the stop request. For any other task,
+``isCancelled`` stays false until the JVM exits, and the SDK logs a warning the first time the task calls it.
 
 .. _java-sdk/task-state-store:
 

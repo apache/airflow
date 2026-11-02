@@ -204,14 +204,11 @@ data class Context(
    * the JVM, then sends the JVM SIGTERM. If the JVM is still running after a
    * grace period, the supervisor sends SIGKILL.
    *
-   * Once a task has called this method or [awaitCancellation], the SDK catches
-   * the first SIGTERM or SIGINT. The SDK records the stop request instead of
-   * letting the JVM exit, so the task can stop its work before SIGKILL arrives.
-   * From then on the task must keep checking until it returns.
-   *
-   * If a task has called neither method, or if a second signal arrives, the JVM
-   * handles the signal as it would without the SDK. By default the JVM runs its
-   * shutdown hooks and exits.
+   * Only a [StoppableTask] can see a stop request, because the SDK catches the
+   * stop signal only for that type of task. For any other task, the JVM handles
+   * the signal as it would without the SDK: by default the JVM runs its shutdown
+   * hooks and exits. This method therefore returns false until the JVM exits, and
+   * the SDK logs a warning the first time such a task calls it.
    *
    * Every context made while the task runs sees the same stop request,
    * including a context made with `copy()`, and keeps seeing it after the task

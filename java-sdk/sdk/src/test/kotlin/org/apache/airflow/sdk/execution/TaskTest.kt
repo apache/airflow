@@ -24,6 +24,7 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.StoppableTask
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
@@ -39,10 +40,14 @@ import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import sun.misc.Signal
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.time.OffsetDateTime
 import java.util.UUID
+import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 
 class TaskTest {
   @Test
@@ -52,6 +57,27 @@ class TaskTest {
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
   }
+
+  @Test
+  @DisplayName("Should return failed when a task throws CancellationException, as a future it waits for does")
+  fun shouldReturnFailedWhenTaskThrowsCancellationException() {
+    val result = runTask(bundleWith("cancelled", CancelledTask::class.java), startupDetails(taskId = "cancelled"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should leave signals alone when a stoppable task runs without a server")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun shouldLeaveSignalsAloneWithoutServer() =
+    withSignalRecorder("TERM") { recorded ->
+      val result = runTask(bundleWith("stoppable", StoppableSuccessTask::class.java), startupDetails(taskId = "stoppable"), noOpClient())
+
+      Assertions.assertInstanceOf(SucceedTask::class.java, result)
+      Signal.raise(Signal("TERM"))
+      Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "running the task should not leave a trap open")
+    }
 
   @Test
   @DisplayName("Should return removed when task is missing")
@@ -599,6 +625,23 @@ class TaskTest {
       client: Client,
     ) {
     }
+  }
+
+  class StoppableSuccessTask : StoppableTask {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+    }
+
+    override fun onKill(context: Context) = Unit
+  }
+
+  class CancelledTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw CancellationException("the future this task waits for was cancelled")
   }
 
   class FailingTask : Task {
