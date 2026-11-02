@@ -412,6 +412,41 @@ class TestListBackfillDagRuns(TestBackfillEndpoint):
 
 
 class TestCreateBackfill(TestBackfillEndpoint):
+    def test_create_backfill_with_run_timeout(self, session, dag_maker, test_client):
+        with dag_maker(session=session, schedule="@daily") as dag:
+            EmptyOperator(task_id="mytask")
+        session.commit()
+
+        response = test_client.post(
+            "/backfills",
+            json={
+                "dag_id": dag.dag_id,
+                "from_date": "2024-01-01T00:00:00Z",
+                "to_date": "2024-01-02T00:00:00Z",
+                "dag_run_timeout": "PT10M",
+            },
+        )
+
+        assert response.status_code == 200
+        runs = session.scalars(select(DagRun).where(DagRun.backfill_id == response.json()["id"])).all()
+        assert len(runs) == 2
+        assert all(run.dagrun_timeout_seconds == 600 for run in runs)
+
+    @pytest.mark.parametrize("timeout", ["PT0S", "-PT1S", "P999999999DT1S"])
+    def test_create_backfill_rejects_invalid_run_timeout(self, test_client, timeout):
+        response = test_client.post(
+            "/backfills",
+            json={
+                "dag_id": "test_dag",
+                "from_date": "2024-01-01T00:00:00Z",
+                "to_date": "2024-01-02T00:00:00Z",
+                "dag_run_timeout": timeout,
+            },
+        )
+
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["body", "dag_run_timeout"]
+
     @pytest.mark.parametrize(
         ("repro_act", "repro_exp"),
         [

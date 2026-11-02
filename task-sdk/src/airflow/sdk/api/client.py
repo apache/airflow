@@ -111,7 +111,7 @@ from airflow.sdk.execution_time.comms import (
 )
 
 if TYPE_CHECKING:
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from typing import ParamSpec
 
     P = ParamSpec("P")
@@ -989,6 +989,7 @@ class DagRunOperations:
         run_after: datetime | None = None,
         reset_dag_run: bool = False,
         note: str | None = None,
+        dag_run_timeout: timedelta | None = None,
     ) -> OKResponse | ErrorResponse:
         """Trigger a Dag run via the API server."""
         body = TriggerDAGRunPayload(
@@ -997,6 +998,7 @@ class DagRunOperations:
             reset_dag_run=reset_dag_run,
             note=note,
             run_after=run_after,
+            dag_run_timeout=dag_run_timeout,
         )
 
         try:
@@ -1006,6 +1008,10 @@ class DagRunOperations:
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
                 if reset_dag_run:
+                    if dag_run_timeout is not None:
+                        raise ValueError(
+                            "A timeout override cannot be set when resetting an existing Dag run"
+                        )
                     log.info("Dag Run already exists; Resetting Dag Run.", dag_id=dag_id, run_id=run_id)
                     return self.clear(run_id=run_id, dag_id=dag_id)
 

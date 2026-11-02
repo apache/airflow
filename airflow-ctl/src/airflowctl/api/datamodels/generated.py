@@ -1116,6 +1116,13 @@ class MaterializeAssetBody(BaseModel):
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")] = None
     run_after: Annotated[datetime | None, Field(title="Run After")] = None
+    dag_run_timeout: Annotated[
+        timedelta | None,
+        Field(
+            description="Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout.",
+            title="Dag Run Timeout",
+        ),
+    ] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
@@ -1635,6 +1642,13 @@ class TriggerDAGRunPostBody(BaseModel):
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")] = None
     logical_date: Annotated[datetime | None, Field(title="Logical Date")]
     run_after: Annotated[datetime | None, Field(title="Run After")] = None
+    dag_run_timeout: Annotated[
+        timedelta | None,
+        Field(
+            description="Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout.",
+            title="Dag Run Timeout",
+        ),
+    ] = None
     conf: Annotated[dict[str, Any] | None, Field(title="Conf")] = None
     note: Annotated[str | None, Field(title="Note")] = None
     partition_key: Annotated[str | None, Field(title="Partition Key")] = None
@@ -1958,6 +1972,13 @@ class BackfillPostBody(BaseModel):
     to_date: Annotated[datetime, Field(title="To Date")]
     run_backwards: Annotated[bool | None, Field(title="Run Backwards")] = False
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
+    dag_run_timeout: Annotated[
+        timedelta | None,
+        Field(
+            description="Maximum runtime for each newly created run, as an ISO 8601 duration. Null uses the Dag's timeout. Existing runs keep their timeout when reprocessed.",
+            title="Dag Run Timeout",
+        ),
+    ] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(ge=1, title="Max Active Runs")] = 10
     run_on_latest_version: Annotated[
@@ -2425,6 +2446,12 @@ class DAGRunResponse(BaseModel):
     start_date: Annotated[datetime | None, Field(title="Start Date")]
     end_date: Annotated[datetime | None, Field(title="End Date")]
     duration: Annotated[float | None, Field(title="Duration")]
+    dag_run_timeout: Annotated[
+        timedelta | None,
+        Field(
+            description="Timeout override for this run. Null uses the Dag's timeout.", title="Dag Run Timeout"
+        ),
+    ] = None
     data_interval_start: Annotated[datetime | None, Field(title="Data Interval Start")]
     data_interval_end: Annotated[datetime | None, Field(title="Data Interval End")]
     run_after: Annotated[datetime, Field(title="Run After")]

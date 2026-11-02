@@ -852,6 +852,7 @@ def trigger_dag_run(
             logical_date=params["logical_date"],
             data_interval=params["data_interval"],
             run_after=params["run_after"],
+            dagrun_timeout=body.dag_run_timeout,
             conf=params["conf"],
             run_type=DagRunType.MANUAL,
             triggered_by=triggered_by,

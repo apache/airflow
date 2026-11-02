@@ -124,6 +124,38 @@ class TestDagRunTrigger:
         assert dag_run.logical_date == logical_date
         assert dag_run.partition_key == partition_key
 
+    @pytest.mark.parametrize("timeout", ["PT30M", 1800])
+    def test_trigger_dag_run_with_timeout(self, client, session, dag_maker, timeout):
+        with dag_maker(dag_id="timeout_override", session=session, serialized=True):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+
+        response = client.post(
+            "/execution/dag-runs/timeout_override/with_timeout",
+            json={"dag_run_timeout": timeout},
+        )
+
+        assert response.status_code == 204
+        run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == "timeout_override", DagRun.run_id == "with_timeout")
+        )
+        assert run.dagrun_timeout_seconds == 1800
+
+    @pytest.mark.parametrize("timeout", ["PT0S", "-PT1S", "invalid", "P999999999DT1S"])
+    def test_trigger_dag_run_rejects_invalid_timeout(self, client, session, timeout):
+        response = client.post(
+            "/execution/dag-runs/timeout_override/invalid_timeout",
+            json={"dag_run_timeout": timeout},
+        )
+
+        assert response.status_code == 422
+        assert (
+            session.scalar(
+                select(DagRun).where(DagRun.dag_id == "timeout_override", DagRun.run_id == "invalid_timeout")
+            )
+            is None
+        )
+
     def test_trigger_dag_run_partition_key_for_non_partitioned_dag(self, client, session, dag_maker):
         """partition_key on a non-partitioned Dag via Execution API must return 400."""
         dag_id = "test_trigger_non_partitioned_partition_key"

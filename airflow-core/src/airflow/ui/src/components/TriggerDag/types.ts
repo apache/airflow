@@ -25,6 +25,7 @@ export type PausedDagAction = "drain" | "keepPaused" | "unpause";
 export type DagRunTriggerParams = {
   conf: string;
   dagRunId: string;
+  dagRunTimeout?: string;
   dataIntervalEnd: string;
   dataIntervalMode: DataIntervalMode;
   dataIntervalStart: string;

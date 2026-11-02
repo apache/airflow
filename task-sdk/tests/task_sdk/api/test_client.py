@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 import pickle
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -1649,7 +1649,8 @@ class TestAssetOperations:
 
 
 class TestDagRunOperations:
-    def test_trigger(self):
+    @pytest.mark.parametrize("dag_run_timeout", [None, timedelta(minutes=30)])
+    def test_trigger(self, dag_run_timeout):
         # Simulate a successful response from the server when triggering a dag run
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/dag-runs/test_trigger/test_run_id":
@@ -1659,6 +1660,10 @@ class TestDagRunOperations:
 
                 # Since the value for `reset_dag_run` is default, it should not be present in the request body
                 assert "reset_dag_run" not in actual_body
+                if dag_run_timeout is None:
+                    assert "dag_run_timeout" not in actual_body
+                else:
+                    assert actual_body["dag_run_timeout"] == "PT30M"
                 return httpx2.Response(status_code=204)
             return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
@@ -1668,6 +1673,7 @@ class TestDagRunOperations:
             run_id="test_run_id",
             logical_date=timezone.datetime(2025, 1, 1),
             run_after=timezone.datetime(2025, 1, 2),
+            dag_run_timeout=dag_run_timeout,
         )
 
         assert result == OKResponse(ok=True)
@@ -1719,6 +1725,20 @@ class TestDagRunOperations:
         )
 
         assert result == OKResponse(ok=True)
+
+    def test_trigger_conflict_reset_rejects_timeout_override(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.url.path == "/dag-runs/test_trigger_conflict_reset/test_run_id"
+            return httpx2.Response(status_code=409, json={"detail": "Run already exists"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ValueError, match="timeout override cannot be set when resetting"):
+            client.dag_runs.trigger(
+                dag_id="test_trigger_conflict_reset",
+                run_id="test_run_id",
+                reset_dag_run=True,
+                dag_run_timeout=timedelta(minutes=30),
+            )
 
     def test_clear(self):
         """Test that the client can clear a dag run"""

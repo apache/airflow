@@ -635,6 +635,7 @@ export type Conf2 = {
 export type ResetDagRun = boolean | null;
 export type PartitionKey7 = string | null;
 export type Note2 = string | null;
+export type DagRunTimeout = string | null;
 export type DagId22 = string;
 export type DagRunId = string;
 export type Type82 = "TriggerDagRun";
@@ -1956,6 +1957,7 @@ export interface TriggerDagRun {
   reset_dag_run?: ResetDagRun;
   partition_key?: PartitionKey7;
   note?: Note2;
+  dag_run_timeout?: DagRunTimeout;
   dag_id: DagId22;
   run_id: DagRunId;
   type?: Type82;

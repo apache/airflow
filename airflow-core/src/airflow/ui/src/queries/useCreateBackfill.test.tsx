@@ -96,4 +96,19 @@ describe("useCreateBackfill", () => {
       }
     }
   });
+
+  it.each(["PT1800S", undefined])("preserves the new-run timeout %s in the API request", (timeout) => {
+    const { result } = renderHook(() => useCreateBackfill({ onSuccessConfirm: vi.fn() }), {
+      wrapper: Wrapper,
+    });
+    const request = buildRequest(false);
+
+    result.current.createBackfill({
+      requestBody: { ...request.requestBody, dag_run_timeout: timeout },
+    });
+
+    expect(mutate).toHaveBeenCalledWith({
+      requestBody: expect.objectContaining({ dag_run_timeout: timeout }) as unknown,
+    });
+  });
 });

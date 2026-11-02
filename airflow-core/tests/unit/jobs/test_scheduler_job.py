@@ -165,7 +165,7 @@ from airflow.timetables.simple import (
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import CommitProhibitorGuard, with_row_locks
 from airflow.utils.state import CallbackState, DagRunState, DagSchedulingState, State, TaskInstanceState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT, DagRunTriggeredByType, DagRunType
 
 from tests_common.pytest_plugin import AIRFLOW_ROOT_PATH
 from tests_common.test_utils.asserts import assert_queries_count, capture_orm_selects, count_queries
@@ -5307,6 +5307,54 @@ class TestSchedulerJob:
 
         session.rollback()
         session.close()
+
+    @pytest.mark.parametrize(
+        ("default_timeout", "run_timeout", "expected_state"),
+        [
+            (timedelta(seconds=60), timedelta(seconds=30), DagRunState.FAILED),
+            (timedelta(seconds=30), timedelta(seconds=60), DagRunState.RUNNING),
+            (None, timedelta(seconds=30), DagRunState.FAILED),
+            (None, MAX_DAGRUN_TIMEOUT, DagRunState.RUNNING),
+        ],
+    )
+    @time_machine.travel("2026-11-02T12:00:00Z", tick=False)
+    def test_dagrun_timeout_override(self, dag_maker, session, default_timeout, run_timeout, expected_state):
+        with dag_maker(session=session, dagrun_timeout=default_timeout):
+            BashOperator(task_id="task", bash_command="true")
+
+        dag_run = dag_maker.create_dagrun(
+            start_date=timezone.utcnow() - timedelta(seconds=45),
+            dagrun_timeout=run_timeout,
+        )
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._schedule_dag_run(dag_run, session)
+        session.flush()
+        session.refresh(dag_run)
+
+        assert dag_run.state == expected_state
+
+    @time_machine.travel("2026-11-02T12:00:00Z", tick=False)
+    def test_dagrun_timeout_override_is_isolated_to_run(self, dag_maker, session):
+        with dag_maker(session=session, dagrun_timeout=timedelta(minutes=10)):
+            BashOperator(task_id="task", bash_command="true")
+
+        runs = [
+            dag_maker.create_dagrun(
+                run_id=f"manual__timeout_{seconds}",
+                logical_date=None,
+                start_date=timezone.utcnow() - timedelta(seconds=60),
+                dagrun_timeout=timedelta(seconds=seconds),
+            )
+            for seconds in (30, 90)
+        ]
+        self.job_runner = SchedulerJobRunner(job=Job())
+        for dag_run in runs:
+            self.job_runner._schedule_dag_run(dag_run, session)
+        session.flush()
+
+        for dag_run, expected_state in zip(runs, (DagRunState.FAILED, DagRunState.RUNNING)):
+            session.refresh(dag_run)
+            assert dag_run.state == expected_state
 
     def test_dagrun_timeout_skips_running_task_with_end_date_and_duration(self, dag_maker):
         """A task still running when its Dag run times out must be skipped with an end_date and duration."""

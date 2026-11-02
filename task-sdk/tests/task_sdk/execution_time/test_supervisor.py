@@ -30,7 +30,7 @@ import sys
 import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from operator import attrgetter
 from random import randint
 from textwrap import dedent
@@ -3394,6 +3394,7 @@ REQUEST_TEST_CASES = [
             logical_date=timezone.datetime(2025, 1, 1),
             run_after=timezone.datetime(2025, 1, 1, 12, 0, 0),
             reset_dag_run=True,
+            dag_run_timeout=timedelta(minutes=30),
         ),
         expected_body={"ok": True, "type": "OKResponse"},
         client_mock=ClientMock(
@@ -3407,6 +3408,7 @@ REQUEST_TEST_CASES = [
                 True,
                 None,
             ),
+            kwargs={"dag_run_timeout": timedelta(minutes=30)},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger_with_run_after",
@@ -3432,6 +3434,7 @@ REQUEST_TEST_CASES = [
                 True,
                 "Test Note",
             ),
+            kwargs={"dag_run_timeout": None},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -3448,6 +3451,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
             args=("test_dag", "test_run", {"key": "value"}, timezone.datetime(2025, 1, 1), None, True, None),
+            kwargs={"dag_run_timeout": None},
             response=OKResponse(ok=True),
         ),
         test_id="dag_run_trigger",
@@ -3458,6 +3462,7 @@ REQUEST_TEST_CASES = [
         client_mock=ClientMock(
             method_path="dag_runs.trigger",
             args=("test_dag", "test_run", None, None, None, False, None),
+            kwargs={"dag_run_timeout": None},
             response=ErrorResponse(error=ErrorType.DAGRUN_ALREADY_EXISTS),
         ),
         test_id="dag_run_trigger_already_exists",

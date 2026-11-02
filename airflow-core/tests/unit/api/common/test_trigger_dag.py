@@ -16,18 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import InvalidPartitionKeyError
-from airflow.models import DagModel
+from airflow.models import DagModel, DagRun
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.timetables.simple import PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT, DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
@@ -85,6 +85,66 @@ def test_trigger_dag_with_custom_run_type(dag_maker, session):
     )
 
     assert dag_run.run_type == DagRunType.ASSET_MATERIALIZATION
+
+
+@pytest.mark.parametrize(
+    "dagrun_timeout",
+    [
+        None,
+        timedelta(minutes=30),
+        timedelta(microseconds=250_000),
+        timedelta(seconds=90, microseconds=123456),
+        MAX_DAGRUN_TIMEOUT,
+    ],
+)
+def test_trigger_dag_persists_timeout_override(dag_maker, session, dagrun_timeout):
+    with dag_maker(session=session, dagrun_timeout=timedelta(hours=1)):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    dag_run = trigger_dag(
+        dag_id=dag_maker.dag.dag_id,
+        triggered_by=DagRunTriggeredByType.REST_API,
+        dagrun_timeout=dagrun_timeout,
+        session=session,
+    )
+    run_id = dag_run.id
+    session.flush()
+    session.expire_all()
+
+    stored_run = session.get(DagRun, run_id)
+    expected_seconds = dagrun_timeout.total_seconds() if dagrun_timeout is not None else None
+    assert stored_run.dagrun_timeout_seconds == expected_seconds
+    assert dag_maker.serialized_dag.dagrun_timeout == timedelta(hours=1)
+
+
+@pytest.mark.parametrize(
+    ("dagrun_timeout", "exception", "message"),
+    [
+        (timedelta(0), ValueError, "dagrun_timeout must be positive"),
+        (timedelta(seconds=-1), ValueError, "dagrun_timeout must be positive"),
+        (30, TypeError, "dagrun_timeout must be a datetime.timedelta"),
+        (
+            MAX_DAGRUN_TIMEOUT + timedelta(microseconds=1),
+            ValueError,
+            "dagrun_timeout must not exceed 999999999 days",
+        ),
+    ],
+)
+def test_trigger_dag_rejects_invalid_timeout(dag_maker, session, dagrun_timeout, exception, message):
+    with dag_maker(session=session):
+        EmptyOperator(task_id="mytask")
+    session.commit()
+
+    with pytest.raises(exception, match=message):
+        trigger_dag(
+            dag_id=dag_maker.dag.dag_id,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            dagrun_timeout=dagrun_timeout,
+            session=session,
+        )
+
+    assert session.scalar(select(DagRun).where(DagRun.dag_id == dag_maker.dag.dag_id)) is None
 
 
 def test_trigger_dag_populates_partition_date_for_cron_partition_timetable(dag_maker, session):

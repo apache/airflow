@@ -519,6 +519,7 @@ def materialize_asset(
             logical_date=params["logical_date"],
             data_interval=params["data_interval"],
             run_after=params["run_after"],
+            dagrun_timeout=body.dag_run_timeout,
             conf=params["conf"],
             run_type=DagRunType.ASSET_MATERIALIZATION,
             triggered_by=DagRunTriggeredByType.REST_API,

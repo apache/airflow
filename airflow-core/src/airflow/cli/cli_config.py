@@ -36,6 +36,7 @@ from airflow.configuration import conf
 from airflow.jobs.job import JobState
 from airflow.utils.cli import ColorMode
 from airflow.utils.state import DagRunState
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
@@ -127,6 +128,14 @@ def positive_int(*, allow_zero):
         raise argparse.ArgumentTypeError(f"invalid positive int value: '{value}'")
 
     return _check
+
+
+def parse_dag_run_timeout(value: str) -> int:
+    """Parse a positive run timeout in seconds within the supported duration range."""
+    seconds = positive_int(allow_zero=False)(value)
+    if seconds > MAX_DAGRUN_TIMEOUT.total_seconds():
+        raise argparse.ArgumentTypeError("Dag run timeout must not exceed 999999999 days")
+    return seconds
 
 
 def string_list_type(val):
@@ -516,6 +525,11 @@ ARG_IMGCAT = Arg(("--imgcat",), help="Displays graph using the imgcat tool.", ac
 # trigger_dag
 ARG_RUN_ID = Arg(("-r", "--run-id"), help="Helps to identify this run")
 ARG_CONF = Arg(("-c", "--conf"), help="JSON string that gets pickled into the DagRun's conf attribute")
+ARG_DAG_RUN_TIMEOUT = Arg(
+    ("--dag-run-timeout",),
+    type=parse_dag_run_timeout,
+    help="Maximum runtime for this run in seconds. Defaults to the Dag's timeout.",
+)
 ARG_REPLACE_MICRO = Arg(
     ("--no-replace-microseconds",),
     help="whether microseconds should be zeroed",
@@ -1215,7 +1229,7 @@ ASSETS_COMMANDS = (
         name="materialize",
         help="Materialize an asset",
         func=lazy_load_command("airflow.cli.commands.asset_command.asset_materialize"),
-        args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_OUTPUT, ARG_VERBOSE),
+        args=(ARG_ASSET_NAME, ARG_ASSET_URI, ARG_DAG_RUN_TIMEOUT, ARG_OUTPUT, ARG_VERBOSE),
     ),
 )
 BACKFILL_COMMANDS = (
@@ -1229,6 +1243,7 @@ BACKFILL_COMMANDS = (
             ARG_BACKFILL_FROM_DATE,
             ARG_BACKFILL_TO_DATE,
             ARG_DAG_RUN_CONF,
+            ARG_DAG_RUN_TIMEOUT,
             ARG_RUN_BACKWARDS,
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
@@ -1366,6 +1381,7 @@ DAGS_COMMANDS = (
             ARG_DAG_ID,
             ARG_RUN_ID,
             ARG_CONF,
+            ARG_DAG_RUN_TIMEOUT,
             ARG_LOGICAL_DATE,
             ARG_VERBOSE,
             ARG_REPLACE_MICRO,

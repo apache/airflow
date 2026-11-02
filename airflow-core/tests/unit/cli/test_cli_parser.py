@@ -538,6 +538,21 @@ class TestCli:
         with pytest.raises(argparse.ArgumentTypeError):
             cli_config.positive_int(allow_zero=True)("-1")
 
+    @pytest.mark.parametrize("seconds", ["1", "86399999913600"])
+    def test_dag_run_timeout(self, seconds):
+        args = cli_parser.get_parser().parse_args(
+            ["dags", "trigger", "example", "--dag-run-timeout", seconds]
+        )
+
+        assert args.dag_run_timeout == int(seconds)
+
+    @pytest.mark.parametrize(
+        "seconds", ["0", "-1", "1.5", "invalid", "86399999913601", "99999999999999999999"]
+    )
+    def test_dag_run_timeout_rejects_invalid_duration(self, seconds):
+        with pytest.raises(SystemExit, match="2"):
+            cli_parser.get_parser().parse_args(["dags", "trigger", "example", "--dag-run-timeout", seconds])
+
     def test_variables_import_help_message_consistency(self):
         """
         Test that ARG_VAR_IMPORT help message accurately reflects supported file formats.

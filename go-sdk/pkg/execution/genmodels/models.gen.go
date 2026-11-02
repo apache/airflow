@@ -1922,6 +1922,9 @@ type TriggerDagRun struct {
 	// DagID corresponds to the JSON schema field "dag_id".
 	DagID string `msgpack:"dag_id"`
 
+	// DagRunTimeout corresponds to the JSON schema field "dag_run_timeout".
+	DagRunTimeout interface{} `msgpack:"dag_run_timeout,omitempty"`
+
 	// LogicalDate corresponds to the JSON schema field "logical_date".
 	LogicalDate interface{} `msgpack:"logical_date,omitempty"`
 
@@ -1944,8 +1947,6 @@ type TriggerDagRun struct {
 	Type string `msgpack:"type,omitempty"`
 }
 
-type TriggerKwargs map[string]interface{}
-
 type Warnings []interface{}
 
 // Variable schema for responses with fields that are needed for Runtime.
@@ -1956,6 +1957,8 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value interface{} `msgpack:"value"`
 }
+
+type TriggerKwargs map[string]interface{}
 
 type UpdateDagRunNote struct {
 	// Note corresponds to the JSON schema field "note".

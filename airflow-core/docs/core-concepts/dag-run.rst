@@ -312,6 +312,56 @@ The default is the current date in the UTC timezone.
 
 In addition, you can also manually trigger a Dag Run using the web UI (tab **Dags** -> column **Links** -> button **Trigger Dag**)
 
+.. _dag-run:timeout:
+
+Dag run timeouts
+----------------
+
+The Dag's ``dagrun_timeout`` sets the default runtime limit for its runs. You can override this limit when
+you trigger a particular run. Other runs keep their own limits. The override can be shorter or longer than
+the Dag's default, and also works when the Dag has no default timeout.
+
+In the REST API, provide ``dag_run_timeout`` as an ISO 8601 duration. For example, send this request body to
+``POST /api/v2/dags/example/dagRuns`` to set a 30-minute limit:
+
+.. code-block:: json
+
+    {
+      "logical_date": null,
+      "dag_run_timeout": "PT30M"
+    }
+
+With the ``airflow`` CLI, provide the limit in seconds:
+
+.. code-block:: bash
+
+    airflow dags trigger --dag-run-timeout 1800 example
+
+In the UI trigger form, enter the limit in seconds under **Dag Run Timeout**.
+Leave the field empty to use the Dag's default.
+
+For an asset materialization run, use the same ``dag_run_timeout`` field in
+``POST /api/v2/assets/{asset_id}/materialize`` or ``--dag-run-timeout 1800`` with
+``airflow assets materialize``. The UI materialization form also accepts the limit in seconds.
+The ``airflowctl`` commands accept ISO 8601 durations, for example
+``airflowctl assets materialize 123 --dag-run-timeout PT30M``.
+
+Omitting ``dag_run_timeout``, or setting it to ``null``, uses the default from the Dag version selected for
+the run. It does not disable that default. Overrides must be positive; zero and negative durations are invalid.
+The run's details show its explicit override, when present.
+
+The limit starts when the run enters the ``running`` state. Time in the run queue does not count.
+The scheduler enforces the limit, so it remains in effect after the triggering client disconnects.
+When the scheduler detects an expired run, it marks the run ``failed`` and unfinished task instances ``skipped``.
+This includes teardown tasks. Stopping jobs in external services depends on each operator's cleanup behavior.
+Enforcement follows scheduler processing and can be delayed while the scheduler is unavailable or the Dag is paused.
+
+Task retries do not restart the run's timeout. Clearing a finished run keeps its override and starts a new
+timeout period when the run starts again. Clearing tasks in an active run keeps the original start time and budget.
+Runs without an override continue to use the default from their selected Dag version.
+
+Backfills can also set a limit for each new run. See :ref:`backfill:run-timeout`.
+
 .. _dagrun:parameters:
 
 Passing Parameters when triggering Dags

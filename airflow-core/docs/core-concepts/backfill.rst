@@ -50,6 +50,33 @@ is therefore the primary lever for controlling how much of your scheduling capac
 backfill consumes at once — lower it to leave more room for time-sensitive scheduled work
 while the backfill is in progress.
 
+.. _backfill:run-timeout:
+
+Run timeouts
+------------
+
+Set ``dag_run_timeout`` when creating a backfill to override the Dag's default timeout for each new run.
+The limit applies separately to each run, starting when that run enters the ``running`` state.
+It does not limit the duration of the whole backfill. See :ref:`dag-run:timeout` for timeout behavior.
+
+The REST API accepts an ISO 8601 duration in requests to ``POST /api/v2/backfills``. For example:
+
+.. code-block:: json
+
+    {
+      "dag_id": "tutorial",
+      "from_date": "2015-06-01T00:00:00Z",
+      "to_date": "2015-06-07T00:00:00Z",
+      "dag_run_timeout": "PT30M"
+    }
+
+Use ``--dag-run-timeout 1800`` with ``airflow backfill create`` for the same 30-minute limit.
+In the UI backfill form, enter a positive number of seconds under **Dag Run Timeout**.
+Omit the option, use ``null`` in the API, or leave the UI field empty to inherit the Dag's timeout.
+
+The override applies only to newly created runs. If reprocessing clears and reuses an existing run,
+that run keeps its previous override or inherited default.
+
 Run ordering
 ------------
 
@@ -89,6 +116,7 @@ For UI, follow the following steps:
    - **Date range**: set "From" and "To" logical datetimes for the backfill window.
    - **Reprocess behavior**: choose one of ``Missing Runs``, ``Missing and Errored Runs``, or ``All Runs``.
    - **Max active runs**: limit concurrent backfill runs for this backfill.
+   - **Dag Run Timeout**: optionally set the runtime limit in seconds for each new run.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
    - If the Dag is paused, choose under **Dag is paused** what happens to the Dag: **Unpause** (the

@@ -560,15 +560,19 @@ class TestAssetsOperations:
         response = client.assets.create_event(asset_event_body=self.asset_create_event_body)
         assert response == self.asset_event_response
 
-    def test_materialize(self):
+    @pytest.mark.parametrize(
+        ("timeout_kwargs", "expected_body"),
+        [({}, {}), ({"dag_run_timeout": "PT30M"}, {"dag_run_timeout": "PT30M"})],
+    )
+    def test_materialize(self, timeout_kwargs, expected_body):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/assets/{self.asset_id}/materialize"
             # The endpoint requires a request body, so the client must send one.
-            assert json.loads(request.content) == {}
+            assert json.loads(request.content) == expected_body
             return httpx.Response(200, json=json.loads(self.dag_run_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.assets.materialize(asset_id=self.asset_id)
+        response = client.assets.materialize(asset_id=self.asset_id, **timeout_kwargs)
         assert response == self.dag_run_response
 
     def test_get_queued_events(self):
@@ -736,7 +740,16 @@ class TestBackfillOperations:
     )
     @pytest.mark.parametrize(
         ("request_fields", "expected_fields"),
-        [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
+        [
+            ({}, {}),
+            ({"drain_dag": False}, {}),
+            ({"drain_dag": True}, {"drain_dag": True}),
+            ({"dag_run_timeout": None}, {}),
+            (
+                {"dag_run_timeout": datetime.timedelta(minutes=10)},
+                {"dag_run_timeout": "PT10M"},
+            ),
+        ],
     )
     def test_create(self, operation, path, request_fields, expected_fields):
         expected_body = {
@@ -1584,6 +1597,11 @@ class TestDagOperations:
             ({"drain_dag": False, "bundle_version": None}, {}),
             ({"drain_dag": True}, {"drain_dag": True}),
             ({"bundle_version": "version-1"}, {"bundle_version": "version-1"}),
+            ({"dag_run_timeout": None}, {}),
+            (
+                {"dag_run_timeout": datetime.timedelta(minutes=30)},
+                {"dag_run_timeout": "PT30M"},
+            ),
         ],
     )
     def test_trigger(self, request_fields, expected_fields):

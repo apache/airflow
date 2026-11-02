@@ -34,6 +34,7 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TIRunContext,
     TISuccessStatePayload,
+    TriggerDAGRunPayload,
 )
 from airflow.sdk.execution_time.comms import (
     GetXCom,
@@ -147,4 +148,14 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+
+class AddTimeoutToTriggerDagRun(VersionChange):
+    """Allow a triggered Dag run to override its Dag's timeout."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("dag_run_timeout").didnt_exist,
     )

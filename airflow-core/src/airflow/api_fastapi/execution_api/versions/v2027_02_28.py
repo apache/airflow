@@ -17,7 +17,19 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, endpoint
+from cadwyn import VersionChange, endpoint, schema
+
+from airflow.api_fastapi.execution_api.datamodels.dagrun import TriggerDAGRunPayload
+
+
+class AddDagRunTimeout(VersionChange):
+    """Allow a triggered Dag run to override its Dag's timeout."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TriggerDAGRunPayload).field("dag_run_timeout").didnt_exist,
+    )
 
 
 class AddDagProcessorJobEndpoints(VersionChange):

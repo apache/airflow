@@ -397,9 +397,12 @@ class AssetsOperations(BaseOperations):
         )
         return validate_response(self.response.content, AssetEventResponse)
 
-    def materialize(self, asset_id: str) -> DAGRunResponse | ServerResponseError:
-        """Materialize an asset."""
-        self.response = self.client.post(f"assets/{_quote_path_param(asset_id)}/materialize", json={})
+    def materialize(
+        self, asset_id: str, dag_run_timeout: str | None = None
+    ) -> DAGRunResponse | ServerResponseError:
+        """Materialize an asset with an optional run timeout as an ISO 8601 duration."""
+        body = {"dag_run_timeout": dag_run_timeout} if dag_run_timeout is not None else {}
+        self.response = self.client.post(f"assets/{_quote_path_param(asset_id)}/materialize", json=body)
         return validate_response(self.response.content, DAGRunResponse)
 
     def get_queued_events(self, asset_id: str) -> QueuedEventCollectionResponse | ServerResponseError:

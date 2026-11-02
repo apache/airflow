@@ -281,6 +281,10 @@ export type BackfillPostBody = {
     dag_run_conf?: {
     [key: string]: unknown;
 } | null;
+    /**
+     * Maximum runtime for each newly created run, as an ISO 8601 duration. Null uses the Dag's timeout. Existing runs keep their timeout when reprocessed.
+     */
+    dag_run_timeout?: string | null;
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     /**
@@ -1138,6 +1142,10 @@ export type DAGRunResponse = {
     start_date: string | null;
     end_date: string | null;
     duration: number | null;
+    /**
+     * Timeout override for this run. Null uses the Dag's timeout.
+     */
+    dag_run_timeout?: string | null;
     data_interval_start: string | null;
     data_interval_end: string | null;
     run_after: string;
@@ -1859,6 +1867,10 @@ export type MaterializeAssetBody = {
     data_interval_end?: string | null;
     logical_date?: string | null;
     run_after?: string | null;
+    /**
+     * Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout.
+     */
+    dag_run_timeout?: string | null;
     conf?: {
     [key: string]: unknown;
 } | null;
@@ -2646,6 +2658,10 @@ export type TriggerDAGRunPostBody = {
     data_interval_end?: string | null;
     logical_date: string | null;
     run_after?: string | null;
+    /**
+     * Maximum runtime for this run, as an ISO 8601 duration. Null uses the Dag's timeout.
+     */
+    dag_run_timeout?: string | null;
     conf?: {
     [key: string]: unknown;
 } | null;

@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
@@ -26,6 +26,7 @@ from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.models.backfill import ReprocessBehavior
 from airflow.utils.state import DagRunState
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT
 
 
 class BackfillPostBody(StrictBaseModel):
@@ -36,6 +37,13 @@ class BackfillPostBody(StrictBaseModel):
     to_date: datetime
     run_backwards: bool = False
     dag_run_conf: dict | None = None
+    dag_run_timeout: timedelta | None = Field(
+        default=None,
+        gt=timedelta(0),
+        le=MAX_DAGRUN_TIMEOUT,
+        description="Maximum runtime for each newly created run, as an ISO 8601 duration. "
+        "Null uses the Dag's timeout. Existing runs keep their timeout when reprocessed.",
+    )
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = Field(default=10, ge=1)
     run_on_latest_version: bool | None = Field(

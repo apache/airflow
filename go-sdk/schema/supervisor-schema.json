@@ -4498,6 +4498,19 @@
           "default": null,
           "title": "Note"
         },
+        "dag_run_timeout": {
+          "anyOf": [
+            {
+              "format": "duration",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dag Run Timeout"
+        },
         "dag_id": {
           "title": "Dag Id",
           "type": "string"

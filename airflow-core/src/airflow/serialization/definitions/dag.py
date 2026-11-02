@@ -24,6 +24,7 @@ import itertools
 import operator
 import re
 import weakref
+from datetime import timedelta
 from typing import TYPE_CHECKING, TypedDict, cast, overload
 
 import attrs
@@ -64,7 +65,7 @@ from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import PROHIBIT_COMMIT_ERROR_MESSAGE
 from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT, DagRunType
 
 if TYPE_CHECKING:
     import datetime
@@ -624,6 +625,7 @@ class SerializedDAG:
         triggering_user_name: str | None = None,
         state: DagRunState,
         start_date: datetime.datetime | None = None,
+        dagrun_timeout: timedelta | None = None,
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
@@ -643,6 +645,7 @@ class SerializedDAG:
         :param triggered_by: the entity which triggers the dag_run
         :param triggering_user_name: the user name who triggers the dag_run
         :param start_date: the date this dag run should be evaluated
+        :param dagrun_timeout: runtime limit for this run, or None to inherit the Dag's limit
         :param creating_job_id: ID of the job creating this DagRun
         :param backfill_id: ID of the backfill run if one exists
         :param session: Unused. Only added in compatibility with database isolation mode
@@ -651,6 +654,14 @@ class SerializedDAG:
         :meta private:
         """
         from airflow.models.dagrun import RUN_ID_REGEX
+
+        if dagrun_timeout is not None:
+            if not isinstance(dagrun_timeout, timedelta):
+                raise TypeError("dagrun_timeout must be a datetime.timedelta")
+            if dagrun_timeout <= timedelta(0):
+                raise ValueError("dagrun_timeout must be positive")
+            if dagrun_timeout > MAX_DAGRUN_TIMEOUT:
+                raise ValueError("dagrun_timeout must not exceed 999999999 days")
 
         log.info(
             "creating dag run",
@@ -728,6 +739,7 @@ class SerializedDAG:
             data_interval=data_interval,
             run_after=coerce_datetime(run_after),
             start_date=coerce_datetime(start_date),
+            dagrun_timeout=dagrun_timeout,
             conf=conf,
             state=state,
             run_type=run_type,
@@ -1447,6 +1459,7 @@ def _create_orm_dagrun(
     creating_job_id: int | None,
     backfill_id: NonNegativeInt | None,
     triggered_by: DagRunTriggeredByType,
+    dagrun_timeout: timedelta | None = None,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
     bundle_version: str | None = None,
@@ -1476,6 +1489,7 @@ def _create_orm_dagrun(
         run_id=run_id,
         logical_date=logical_date,
         start_date=start_date,
+        dagrun_timeout_seconds=dagrun_timeout.total_seconds() if dagrun_timeout is not None else None,
         run_after=run_after,
         conf=conf,
         state=state,

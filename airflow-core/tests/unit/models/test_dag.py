@@ -1541,6 +1541,29 @@ class TestDag:
         )
         assert dr.note == note
 
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.SUCCESS])
+    @time_machine.travel("2026-11-02T12:00:00Z", tick=False)
+    def test_clear_preserves_dagrun_timeout_override(self, dag_maker, session, state):
+        with dag_maker(session=session, dagrun_timeout=timedelta(hours=1)):
+            EmptyOperator(task_id="task")
+
+        started_at = timezone.utcnow() - timedelta(minutes=10)
+        dag_run = dag_maker.create_dagrun(
+            state=state,
+            start_date=started_at,
+            dagrun_timeout=timedelta(minutes=30),
+        )
+        task_instance = dag_run.get_task_instance("task", session=session)
+        task_instance.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        dag_maker.serialized_dag.clear(run_id=dag_run.run_id, session=session)
+        session.flush()
+        session.refresh(dag_run)
+
+        assert dag_run.dagrun_timeout_seconds == 1800
+        assert dag_run.start_date == (started_at if state == DagRunState.RUNNING else None)
+
     @pytest.mark.parametrize(
         ("partition_key", "expected_cm"),
         [

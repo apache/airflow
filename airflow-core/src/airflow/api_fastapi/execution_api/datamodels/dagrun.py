@@ -17,12 +17,15 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 from pydantic import Field, field_validator
 
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.utils.state import DagRunState
+from airflow.utils.types import MAX_DAGRUN_TIMEOUT
 
 
 class TriggerDAGRunPayload(StrictBaseModel):
@@ -34,6 +37,7 @@ class TriggerDAGRunPayload(StrictBaseModel):
     reset_dag_run: bool = False
     partition_key: str | None = None
     note: str | None = None
+    dag_run_timeout: timedelta | None = Field(default=None, gt=timedelta(0), le=MAX_DAGRUN_TIMEOUT)
 
     @field_validator("conf")
     @classmethod
