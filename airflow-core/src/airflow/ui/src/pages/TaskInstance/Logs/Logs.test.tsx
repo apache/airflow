@@ -319,8 +319,8 @@ describe("Task log search", () => {
 
     // Navigation buttons should become enabled once matches are found
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
-      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /nextMatch/u })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /previousMatch/u })).not.toBeDisabled();
     });
   });
 
@@ -337,7 +337,7 @@ describe("Task log search", () => {
 
     await waitFor(() => {
       // Navigation buttons should be disabled with zero matches
-      const nextBtn = screen.getByRole("button", { name: /next match/iu });
+      const nextBtn = screen.getByRole("button", { name: /nextMatch/u });
 
       expect(nextBtn).toBeDisabled();
     });
@@ -354,7 +354,7 @@ describe("Task log search", () => {
 
     fireEvent.change(searchInput, { target: { value: "running" } });
 
-    await waitFor(() => expect(screen.queryByRole("button", { name: /next match/iu })).toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("button", { name: /nextMatch/u })).toBeInTheDocument());
 
     fireEvent.keyDown(searchInput, { key: "Escape" });
 
@@ -376,13 +376,13 @@ describe("Task log search", () => {
     fireEvent.change(searchInput, { target: { value: "state" } });
 
     // Wait for matches to be found (navigation buttons become enabled)
-    await waitFor(() => expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /nextMatch/u })).not.toBeDisabled());
 
     // Navigate forward — buttons remain enabled
     fireEvent.keyDown(searchInput, { key: "Enter" });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /nextMatch/u })).not.toBeDisabled();
     });
   });
 
@@ -398,13 +398,13 @@ describe("Task log search", () => {
     fireEvent.change(searchInput, { target: { value: "state" } });
 
     // Wait for matches to be found
-    await waitFor(() => expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled());
+    await waitFor(() => expect(screen.getByRole("button", { name: /previousMatch/u })).not.toBeDisabled());
 
     // Navigate backward — buttons remain enabled
     fireEvent.keyDown(searchInput, { key: "Enter", shiftKey: true });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /previous match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /previousMatch/u })).not.toBeDisabled();
     });
   });
 
@@ -422,13 +422,13 @@ describe("Task log search", () => {
     fireEvent.change(searchInput, { target: { value: "INFO" } });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /next match/iu })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /nextMatch/u })).not.toBeDisabled();
     });
 
     // Verify per-line search by navigating through matches.
     // With the old code (1 match per group), there were only 3 matches for "INFO".
     // Now each line is a separate match, so we can navigate through many more.
-    const nextBtn = screen.getByRole("button", { name: /next match/iu });
+    const nextBtn = screen.getByRole("button", { name: /nextMatch/u });
 
     // Navigate forward 4 times — if only 3 matches existed, the 4th click would wrap to #1
     // We just verify it stays enabled (which it always does with >0 matches).
@@ -456,7 +456,7 @@ describe("Task log search", () => {
     fireEvent.change(searchInput, { target: { value: "starting attempt" } });
 
     await waitFor(() => {
-      const nextBtn = screen.getByRole("button", { name: /next match/iu });
+      const nextBtn = screen.getByRole("button", { name: /nextMatch/u });
 
       expect(nextBtn).not.toBeDisabled();
     });

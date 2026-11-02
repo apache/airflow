@@ -3973,6 +3973,7 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
+            assert (t[0].dag_id, t[0].owner_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):
@@ -4333,6 +4334,7 @@ class TestTIUpdateState:
         assert ti.state == State.UP_FOR_RETRY
         assert ti.retry_delay_override == 42.5
         assert ti.retry_reason == "Rate limit: backing off"
+        assert ti.retry_at == DEFAULT_END_DATE + timedelta(seconds=42.5)
 
     def test_ti_update_state_retry_policy_overrides_persisted_in_history(
         self, client, session, create_task_instance

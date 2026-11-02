@@ -548,6 +548,16 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   they trigger the TypeScript SDK E2E tests too. Shared Dag processing files such as `manager.py`
   are left to `canary` runs. Like the other
   deployed e2e suites, enabling them forces `PROD Image building`.
+* `YAML Dag E2E tests` (the `yaml_dag` mode of the deployed-stack tests, exposed as the
+  `run-yaml-dag-e2e-tests` output) run when the YAML Dag fixture or its suite change
+  (`airflow-e2e-tests/yaml-dags/`, `airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/`,
+  `airflow-e2e-tests/docker/yaml-dag.yml`), when the Go example bundle's handler for that Dag changes
+  (`go-sdk/example/bundle/yamldag/`, `go-sdk/example/bundle/main.go` — the mode runs the Dag's one
+  code task on that bundle, so the rest of the Go SDK is left to the Go SDK E2E tests), when the
+  executable coordinator changes (`task-sdk/src/airflow/sdk/coordinators/executable/`,
+  `_subprocess.py`), or when the native Lang-SDK Dag parsing sources listed above change — the YAML
+  importer itself lives in `task-sdk/src/airflow/sdk/importers/`. Like the other deployed e2e
+  suites, enabling them forces `PROD Image building`.
 * `OpenLineage E2E tests` (the `openlineage` mode of the deployed-stack tests under
   `airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests`, exposed as the
   `run-openlineage-e2e-tests` output) run when the `openlineage` or `common` providers or the
@@ -671,7 +681,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | all-versions                                            | If set to true, then all python, k8s, DB versions are used for tests.                                   | false                                    |      |
 | basic-checks-only                                       | Whether to run all static checks ("false") or only basic set of static checks ("true")                  | false                                    |      |
 | ci-image-build                                          | Whether CI image build is needed                                                                        | true                                     |      |
-| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core                                                  | API Always Providers                     | *    |
+| core-test-types-list-as-strings-in-json                 | Which test types should be run for unit tests for core (2 slices; 1 on RunsOn)                          | API Always Providers                     | *    |
 | debug-resources                                         | Whether resources usage should be printed during parallel job execution ("true"/ "false")               | false                                    |      |
 | default-branch                                          | Which branch is default for the build ("main" for main branch, "v2-4-test" for 2.4 line etc.)           | main                                     |      |
 | default-constraints-branch                              | Which branch is default for the build ("constraints-main" for main branch, "constraints-2-4" etc.)      | constraints-main                         |      |
@@ -691,11 +701,11 @@ GitHub Actions to pass the list of parameters to a command to execute
 | generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                            | false                                    |      |
 | has-migrations                                          | Whether the PR has migrations ("true"/"false")                                                          | false                                    |      |
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
-| helm-test-packages-list-as-string                       | List of helm packages to test as JSON array                                                             | \["airflow_aux", "airflow_core"\]        | *    |
+| helm-test-packages                                      | List of helm packages to test as JSON array (`["All"]` on RunsOn: one job runs them all)              | \["airflow_aux", "airflow_core"\]        | *    |
 | helm-version                                            | Which Helm version to use for tests                                                                     | v3.15.3                                  |      |
 | in-memory-runner-type                                   | Like runner-type, but the RunsOn template puts docker in RAM (`extras=tmpfs`) unless disabled           | \["ubuntu-22.04"\]                       |      |
 | include-success-outputs                                 | Whether to include outputs of successful parallel tests ("true"/"false")                                | false                                    |      |
-| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed)                       | Providers[\amazon\] Providers\[google\]  | *    |
+| individual-providers-test-types-list-as-strings-in-json | Which test types should be run for unit tests for providers (individually listed; 5 slices, 3 on RunsOn)| Providers[\amazon\] Providers\[google\]  | *    |
 | is-committer-build                                      | Whether the build is triggered by a committer                                                           | false                                    |      |
 | is-legacy-ui-api-labeled                                | Whether the PR is labeled as legacy UI/API                                                              | false                                    |      |
 | java-sdk-version                                        | JDK version used to build the lang-SDK Java artifacts natively in CI                                     | 17                                       |      |
@@ -713,6 +723,8 @@ GitHub Actions to pass the list of parameters to a command to execute
 | prod-image-build                                        | Whether PROD image build is needed                                                                      | true                                     |      |
 | providers-compatibility-tests-matrix                    | Matrix of providers compatibility tests: (python_version, airflow_version, removed_providers). Excludes unbuilt python versions and the entry whose airflow_version equals the current branch version (unreleased on a vX-Y-test branch until GA) | \[{}\]                                   |      |
 | providers-test-types-list-as-strings-in-json            | Which test types should be run for unit tests for providers                                             | Providers Providers\[-google\]           | *    |
+| providers-split-test-types-list-as-strings-in-json      | Provider test types for the jobs running them in parallel in the CI image (one per provider on RunsOn)  | Providers Providers\[-google\]           | *    |
+| providers-xdist-test-types-list-as-strings-in-json      | Which test types the Non-DB (xdist) provider tests run, with no provider split out                      | Providers                                | *    |
 | pyproject-toml-changed                                  | When pyproject.toml changed in the PR.                                                                  | false                                    |      |
 | python-versions                                         | List of python versions to use for that build                                                           | \['3.11'\]                               |      |
 | python-versions-list-as-string                          | Which versions of MySQL to use for tests as space-separated string                                      | 3.11                                     | *    |
@@ -733,6 +745,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
 | run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
+| run-yaml-dag-e2e-tests                                  | Whether YAML Dag e2e tests should be run — on YAML Dag fixture/suite, its Go handler, executable coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |
 | arm-runners                                             | List of labels assigned for runners for that build for public ARM runners                               | \["ubuntu-22.04-arm"\]                   |      |
 | runner-type                                             | Runner labels for the CI jobs on this platform: public, or a RunsOn template jobs fill with cpu/ram     | \["ubuntu-22.04"\]                       |      |
@@ -788,12 +801,43 @@ picks its size class with `format(fromJSON(inputs.runners)[0], <cpu>, <ram>)` (`
 `'8+16', '32+64'` or `'32+64', '128+256'`), or, for a single-job reusable workflow, its caller passes
 `format(<runners>, <cpu>, <ram>)`. Each class is a range up to twice its size, so Spot can come from
 the larger instance types too; xdist follows the host's CPUs, so a larger runner runs more test workers.
+Jobs using `--run-in-parallel` (the DB, lowest-dependencies and special tests) run one serial pytest per
+test type instead, so they never use more CPUs than they have test types, and jobs running a single pytest
+(integration and system tests) use one. The size classes follow that: the xdist jobs and every job
+running provider tests in parallel take `'32+64', '128+256'`, the others `'8+16', '32+64'` or smaller:
+a job running one process (an end-to-end test against one Airflow stack, a Gradle test run) takes
+`'8+16', '32+64'`, and a job with a minute or two of work takes `'4+8', '16+32'`. On RunsOn the Helm unit
+tests run all their packages in one job per Kubernetes version, since each package takes about a minute
+under xdist against two to three minutes of preparing the image.
+On RunsOn `providers-split-test-types-list-as-strings-in-json`, which the provider jobs running in the CI
+image read, lists each provider as its own test type, in one job, instead of the long-running providers
+plus one group of all the others, so the job is not left waiting on that group. The provider
+compatibility tests keep the grouped `providers-test-types-list-as-strings-in-json`, because each of their
+test types installs an Airflow version first. The Non-DB xdist jobs read
+`providers-xdist-test-types-list-as-strings-in-json` instead, which never splits the providers: xdist runs
+them all in one pytest anyway.
+The matrix slices follow it too. On public runners the core test types are split into
+`NUMBER_OF_CORE_SLICES` (2) jobs, to keep the Non-DB xdist collection inside the runner's memory, and
+the individually listed providers into `NUMBER_OF_LOW_DEP_SLICES` (5). On RunsOn the core test types
+stay in one job (`NUMBER_OF_CORE_SLICES_ON_RUNS_ON`), because a core DB job lasts as long as its
+slowest test type whichever slice it is in, and the providers are split into jobs of about 40 test types
+(`LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON`), which the heaviest-first ordering keeps the 32 CPUs busy with:
+3 jobs for all providers, one for a change touching a few. On RunsOn the longest-running providers
+(`PROVIDER_TEST_SPLITS`: amazon, google and standard) are also split into several test types such as
+`Providers[amazon:hooks]`, with `Providers[amazon:other]` running the rest of the provider's tests, so
+none of them leaves the job waiting on one long serial pytest.
 `spot=co` takes Spot from the pools with the most capacity regardless of price, which is cheaper than
 the on-demand launch and whole-job rerun a capacity miss or interruption costs;
 on a public label the same call returns the label unchanged. Steps that only make sense on RunsOn are
 gated on `runner.environment == 'self-hosted'`:
 
-* The EC2 cost summary of each job.
+* The EC2 cost summary of each job, with charts of the job's CPU and memory use (`metrics: cpu,memory` of
+  `runs-on/action`), the measurements to size a job's runner class by.
+* The runner settings for parallel tests (`scripts/ci/configure_runner_for_parallel_tests.sh`). Every test
+  type of a parallel run is a docker compose project with a network and a database of its own. Docker's
+  default address pools fit about 30 networks, fewer than a RunsOn runner runs test types at once, so the
+  script splits the same range into `/24` subnets; and it raises `fs.aio-max-nr`, which a few dozen MySQL
+  servers exhaust.
 * The image stashes (`.github/actions/stash-restore` / `stash-save`). On RunsOn the image tarballs go to
   the stack's S3 cache bucket, named by their sha256, and only the digest is stashed as a GitHub artifact.
   Any RunsOn job can write to the bucket, so a tarball is used only if it matches the digest stashed by

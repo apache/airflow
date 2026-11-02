@@ -134,6 +134,9 @@ export const AssetLayout = () => {
               display="flex"
               flexDirection="column"
               gap={3}
+              height="100%"
+              minH={0}
+              minW={0}
               paddingInlineStart={2} // not 3 because the transparent resize handle is 1 unit wide
             >
               <Header asset={asset} />

@@ -82,7 +82,9 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         if not isinstance(self.bash_command, str) or self.bash_command.strip() == "":
             raise TypeError("The returned value from the TaskFlow callable must be a non-empty string.")
 
-        self.render_template_fields(context)
+        # Render only the command the callable returned. The other template fields were already
+        # rendered before execute().
+        self.bash_command = self.render_template(self.bash_command, context)
         return super().execute(context)
 
 

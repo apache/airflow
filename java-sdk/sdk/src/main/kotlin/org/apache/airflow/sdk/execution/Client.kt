@@ -61,7 +61,8 @@ import java.util.UUID
 interface Client {
   fun getConnection(id: String): ConnectionResult
 
-  fun getVariable(key: String): VariableResult
+  /** Returns `null` when the variable does not exist. */
+  fun getVariable(key: String): VariableResult?
 
   fun setVariable(
     key: String,
@@ -164,7 +165,10 @@ class CoordinatorClient(
 
   override fun getVariable(key: String) =
     runBlocking {
-      exec.communicate<VariableResult>(GetVariable().also { it.key = key })
+      exec.communicateOrNullIf<VariableResult>(
+        GetVariable().also { it.key = key },
+        ErrorResponse.ErrorType.VARIABLE_NOT_FOUND,
+      )
     }
 
   override fun setVariable(

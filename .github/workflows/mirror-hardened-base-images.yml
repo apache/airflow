@@ -27,31 +27,80 @@ name: Mirror hardened base images
 #
 # `docker buildx imagetools create` copies the multi-platform manifest between registries without
 # pulling the layers into the runner, so a refresh of all Python versions is cheap.
+#
+# The builds do not use these moving tags: they are pinned to digests that only "breeze ci upgrade"
+# moves, in a PR that has to pass the full CI. Docker rebuilds the images in place and moves the
+# dhi.io apt repository on together with them, so a pin left behind soon stops matching what apt
+# installs. A run that moves a tag past its pin therefore triggers that upgrade check, and the pins
+# follow Docker's rebuilds within hours.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
+    inputs:
+      trigger-upgrade-check:
+        description: >-
+          Run the main upgrade check when a tag moves past its pin. "breeze ci upgrade" for main turns
+          it off, as it is the upgrade that pins the images.
+        type: boolean
+        default: true
   schedule:
-    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags. Re-running
-    # weekly is what picks those rebuilds up.
-    - cron: '27 4 * * 1'
+    - cron: '27 */6 * * *'
 permissions:
   contents: read
 concurrency:
   group: mirror-hardened-base-images
   cancel-in-progress: false
 jobs:
+  # Picks the runner the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true".
+  build-info:
+    name: "Build info"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Save github context to file"
+        # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
+        # the single-quoted heredoc disables every shell expansion of the JSON anyway.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   mirror:
     name: "Mirror hardened base images"
-    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    # Copies manifests registry-to-registry without pulling layers, so the smallest class is enough.
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
+    timeout-minutes: 30
     # Never runs on forks - they have neither the credentials nor the package to push to. Only main
-    # and the v3-*-test release branches may push: the mirror is the default BASE_IMAGE of every
-    # build, so a manual dispatch from any other branch must not be able to replace it.
-    if: >-
-      github.repository == 'apache/airflow' && (
-        github.ref == 'refs/heads/main' || (
-          startsWith(github.ref, 'refs/heads/v3-') && endsWith(github.ref, '-test')
-        )
-      )
+    # pushes: the mirror is the default BASE_IMAGE of every build, so a manual dispatch from any other
+    # branch must not be able to replace it. Main mirrors every Python version an active release
+    # branch still builds on, so the release branches need no runs of their own.
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
     permissions:
+      actions: write
       contents: read
       packages: write
     steps:
@@ -77,4 +126,15 @@ jobs:
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
       - name: "Mirror base images"
+        id: mirror
         run: breeze release-management mirror-base-images
+      # Only main's pins: release branches move theirs on their own upgrade schedule. Also after a
+      # failed mirror step: a tag it moved before failing stays moved, so a re-run would not see it
+      # move again.
+      - name: "Trigger the upgrade check to move the pinned base images"
+        if: >-
+          !cancelled() && steps.mirror.outputs.moved-past-pins == 'true' &&
+          (github.event_name == 'schedule' || inputs.trigger-upgrade-check)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run scheduled-upgrade-check-main.yml --repo "${GITHUB_REPOSITORY}" --ref main
