@@ -22,7 +22,7 @@
 Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 
 > **Note**
-> This package is **1.0.0-beta1**: the API may change, it requires **Node 22+**, and
+> This package is **1.0.0-beta2**: the API may change, it requires **Node 22+**, and
 > it is **ESM-only**.
 
 ## Quick Start
@@ -30,7 +30,7 @@ Write Apache Airflow Dags in TypeScript, and run them on Node.js.
 Install the beta package from npm, and `esbuild` to build the bundle:
 
 ```bash
-npm install @apache-airflow/ts-sdk@1.0.0-beta1
+npm install @apache-airflow/ts-sdk@1.0.0-beta2
 npm install --save-dev esbuild
 ```
 
