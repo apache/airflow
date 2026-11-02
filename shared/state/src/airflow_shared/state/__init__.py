@@ -280,7 +280,8 @@ class BaseStoreBackend(ABC):
         stores values natively, rather than as JSON strings, can override this to skip
         the round trip.
         """
-        if (value := self.get(scope, key, session=session)) is None:
+        kwargs = {"session": session} if session is not None else {}
+        if (value := self.get(scope, key, **kwargs)) is None:
             return None
         return json.loads(value)
 
