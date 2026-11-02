@@ -385,13 +385,14 @@ maintainer. One rule applies instead:
   "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
   `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
   review) run on GitHub-hosted runners.
-- Otherwise the runs wait for a maintainer, the pull request is labelled `need workflow approval`,
-  its head commit gets a pending `Workflow approval` status naming the CI files (as for every
-  pull request whose runs wait), and the workflow posts one comment explaining that the change to the listed CI files needs a
+- Otherwise the runs wait for a maintainer, its head commit gets a pending `Workflow approval`
+  status naming the CI files (as for every pull request whose runs wait), and the workflow posts one comment explaining that the change to the listed CI files needs a
   maintainer to review it and approve the runs. The comment starts with the marker
   `<!-- workflow-approval: ci-change -->` and is posted once per pull request; only comments by
   `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
-  workflow that does run, so such a run must not start without a review.
+  workflow that does run, so such a run must not start without a review. The pull request does
+  not get the `need workflow approval` label, and loses it if it has it. Approving its runs does
+  not start project CI. A maintainer adds `use project ci` for that.
 
 A run started before `use fork ci` or `use project ci` was last added or removed is approved too,
 so a committer can add `use fork ci` after the PR's first runs were created and before they are
