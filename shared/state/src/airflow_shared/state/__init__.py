@@ -278,7 +278,7 @@ class BaseStoreBackend(ABC):
         The default implementation decodes what :meth:`get` returns. A stored JSON ``null``
         breaks the :meth:`set` contract, so it is treated as a missing key. A backend that
         stores values natively, rather than as JSON strings, can override this to skip
-        the round trip.
+        decoding on reads.
         """
         kwargs = {"session": session} if session is not None else {}
         if (value := self.get(scope, key, **kwargs)) is None:
