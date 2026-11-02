@@ -467,6 +467,10 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         exit_code: int = event.get("exit_code", 1)
 
+        # The trigger does not stream the container output, so write it to the task log here,
+        # before the container group may be removed.
+        logs = self._log_container_output()
+
         if event["status"] == "error":
             if self.remove_on_error:
                 self.on_kill()
@@ -479,7 +483,6 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         try:
             if self.xcom_all is not None:
-                logs = self.hook.get_logs(self.resource_group, self.name)
                 if logs is None:
                     context["ti"].xcom_push(key="logs", value=[])
                 elif self.xcom_all:
@@ -562,6 +565,18 @@ class AzureContainerInstancesOperator(BaseOperator):
                 self.log.exception("Exception while getting container groups")
 
             time.sleep(1)
+
+    def _log_container_output(self) -> list | None:
+        """Write the container group's logs to the task log and return them."""
+        try:
+            logs = self.hook.get_logs(self.resource_group, self.name)
+        except Exception as e:
+            self.log.warning(
+                "Failed to fetch logs for container group %s/%s: %s", self.resource_group, self.name, e
+            )
+            return None
+        self._log_last(logs, None)
+        return logs
 
     def _log_last(self, logs: list | None, last_line_logged: Any) -> Any | None:
         if logs:
