@@ -2424,6 +2424,31 @@ execution_api:
 
     The ExecutionAPI also uses a lot of settings from the :ref:`config:api_auth` section.
   options:
+    dag_processor_workload_identity:
+      description: |
+        JSON trust configuration for exchanging OIDC workload identity for an in-memory
+        Dag processor session token. Empty disables the exchange.
+
+        Requires issuer, HTTPS jwks_url, a dedicated audience, an instance_id_claim path
+        (a list of keys into the signed identity claims), and grants mapping exact subjects
+        to allowed Dag bundle names. If a grant names a Dag bundle the API server does not have
+        configured, the API server logs an error at startup and refuses that subject's exchanges.
+        The optional algorithm defaults to RS256; ES256 and EdDSA are also supported. Use a
+        signed, per-replica instance claim: a service account shared by replicas is not
+        sufficient on its own.
+
+        Only one issuer is supported. Dag processors whose identities come from different
+        issuers, such as separate Kubernetes clusters, cannot all use the same API server.
+        The JWKS endpoint must accept unauthenticated HTTPS requests and have a certificate
+        trusted by the API server's HTTPX environment. Per-issuer CA and JWKS authentication
+        settings are not supported.
+
+        Configure this only on API servers. Changes take effect when the API server restarts.
+        See :doc:`/security/jwt_token_authentication` for deployment examples.
+      version_added: 3.5.0
+      type: string
+      example: ~
+      default: ""
     jwt_expiration_time:
       description: |
         Number in seconds until the JWT used for authentication expires. When the token expires,

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import pathlib
 from datetime import datetime, timedelta
@@ -33,6 +34,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import (
     JWKS,
     InvalidClaimError,
+    JWKSUnavailableError,
     JWTGenerator,
     JWTValidator,
     generate_private_key,
@@ -58,6 +60,194 @@ def private_key(request):
 
 
 class TestJWKS:
+    @pytest.mark.parametrize("refresh_on_unknown_kid", [False, True])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_refresh_unknown_key_before_regular_interval(
+        self, clock, ed25519_private_key, refresh_on_unknown_kid
+    ):
+        keys = [key_to_jwk_dict(ed25519_private_key, "old")]
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            return httpx2.Response(200, json={"keys": keys})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys", client=client, refresh_on_unknown_kid=refresh_on_unknown_kid
+            )
+            await jwks.get_key("old")
+            keys.append(key_to_jwk_dict(generate_private_key("Ed25519"), "new"))
+            clock.return_value = 111
+            if refresh_on_unknown_kid:
+                assert (await jwks.get_key("new")).key_id == "new"
+                assert len(requests) == 2
+            else:
+                with pytest.raises(KeyError):
+                    await jwks.get_key("new")
+                assert len(requests) == 1
+
+    @pytest.mark.parametrize("status", [200, 503])
+    @pytest.mark.parametrize("raise_on_fetch_error", [False, True])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_concurrent_unknown_keys_share_fetch_and_cooldown(
+        self, clock, ed25519_private_key, status, raise_on_fetch_error
+    ):
+        requests = []
+
+        async def handle(request):
+            requests.append(request)
+            await asyncio.sleep(0)
+            return httpx2.Response(status, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=raise_on_fetch_error,
+            )
+            results = await asyncio.gather(
+                *(jwks.get_key(f"unknown-{index}") for index in range(8)), return_exceptions=True
+            )
+            error = JWKSUnavailableError if status == 503 and raise_on_fetch_error else KeyError
+            assert all(isinstance(result, error) for result in results)
+            assert len(requests) == 1
+            clock.return_value = 111
+            expected_requests = 1 if status == 200 else 2
+            status = 200
+            assert (await jwks.get_key("known")).key_id == "known"
+            assert len(requests) == expected_requests
+            results = await asyncio.gather(
+                *(jwks.get_key(f"unknown-{index}") for index in range(8)), return_exceptions=True
+            )
+            assert all(isinstance(result, KeyError) for result in results)
+            assert len(requests) == 2
+
+    @pytest.mark.parametrize("raise_on_fetch_error", [False, True])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_failed_unknown_key_refresh_keeps_cached_keys_and_rate_limits(
+        self, clock, ed25519_private_key, raise_on_fetch_error
+    ):
+        keys = [key_to_jwk_dict(ed25519_private_key, "old")]
+        status = 200
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            return httpx2.Response(status, json={"keys": keys})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=raise_on_fetch_error,
+            )
+            old = await jwks.get_key("old")
+            clock.return_value = 111
+            status = 503
+            error = JWKSUnavailableError if raise_on_fetch_error else KeyError
+            with pytest.raises(error):
+                await jwks.get_key("new")
+            clock.return_value = 112
+            with pytest.raises(error):
+                await jwks.get_key("another")
+            assert await jwks.get_key("old") is old
+            assert len(requests) == 2
+            clock.return_value = 122
+            status = 200
+            keys.append(key_to_jwk_dict(generate_private_key("Ed25519"), "new"))
+            assert (await jwks.get_key("new")).key_id == "new"
+            assert len(requests) == 3
+
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_slow_unknown_key_refresh_does_not_delay_cached_keys(self, clock, ed25519_private_key):
+        fetching = asyncio.Event()
+        release = asyncio.Event()
+        requests = []
+
+        async def handle(request):
+            requests.append(request)
+            if len(requests) > 1:
+                fetching.set()
+                await release.wait()
+            return httpx2.Response(200, json={"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(url="https://example.com/keys", client=client, refresh_on_unknown_kid=True)
+            known = await jwks.get_key("known")
+            clock.return_value = 111
+            refresh = asyncio.create_task(jwks.get_key("unknown"))
+            # The patched clock also freezes the event loop's, so check progress instead of using timeouts.
+            fetch_started = asyncio.create_task(fetching.wait())
+            await asyncio.wait({refresh, fetch_started}, return_when=asyncio.FIRST_COMPLETED)
+            lookup = asyncio.create_task(jwks.get_key("known"))
+            await asyncio.sleep(0)
+            try:
+                assert fetching.is_set()
+                assert lookup.done()
+                assert lookup.result() is known
+            finally:
+                release.set()
+                fetch_started.cancel()
+            with pytest.raises(KeyError):
+                await refresh
+            assert len(requests) == 2
+
+    @pytest.mark.parametrize("body", [[{"kty": "OKP"}], {"keys": [None]}, {"keys": ["invalid"]}])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_malformed_jwks_is_a_failed_fetch(self, clock, ed25519_private_key, body):
+        bodies = [body]
+
+        def handle(request):
+            return httpx2.Response(200, json=bodies[-1])
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=True,
+            )
+            with pytest.raises(JWKSUnavailableError):
+                await jwks.get_key("known")
+            clock.return_value = 111
+            bodies.append({"keys": [key_to_jwk_dict(ed25519_private_key, "known")]})
+            known = await jwks.get_key("known")
+            # Once the hourly refresh is due, a bad body must not stop the cached key from validating.
+            clock.return_value = 111 + jwks.refresh_interval_secs + 1
+            bodies.append(body)
+            assert await jwks.get_key("known") is known
+
+    @pytest.mark.parametrize("refresh", ["initial", "scheduled", "unknown-key"])
+    @patch("airflow.api_fastapi.auth.tokens.time.monotonic", autospec=True, return_value=100)
+    async def test_empty_jwks_removes_cached_keys(self, clock, ed25519_private_key, refresh):
+        keys = [] if refresh == "initial" else [key_to_jwk_dict(ed25519_private_key, "known")]
+        requests = []
+
+        def handle(request):
+            requests.append(request)
+            return httpx2.Response(200, json={"keys": keys})
+
+        async with httpx2.AsyncClient(transport=httpx2.MockTransport(handle)) as client:
+            jwks = JWKS(
+                url="https://example.com/keys",
+                client=client,
+                refresh_on_unknown_kid=True,
+                raise_on_fetch_error=True,
+            )
+            if refresh != "initial":
+                await jwks.get_key("known")
+                keys.clear()
+                clock.return_value += jwks.refresh_interval_secs + 1 if refresh == "scheduled" else 11
+            if refresh == "unknown-key":
+                with pytest.raises(KeyError):
+                    await jwks.get_key("unknown")
+            with pytest.raises(KeyError):
+                await jwks.get_key("known")
+            assert len(requests) == (1 if refresh == "initial" else 2)
+
     @pytest.mark.parametrize("private_key", ["rsa_private_key", "ed25519_private_key"], indirect=True)
     async def test_fetch_jwks_success(self, private_key):
         jwk_content = json.dumps({"keys": [key_to_jwk_dict(private_key, "kid")]})

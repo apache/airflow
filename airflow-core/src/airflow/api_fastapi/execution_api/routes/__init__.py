@@ -31,6 +31,7 @@ from airflow.api_fastapi.execution_api.routes import (
     health,
     hitl,
     jobs,
+    session_tokens,
     task_instances,
     task_reschedules,
     task_state_store,
@@ -45,6 +46,7 @@ execution_api_router = APIRouter()
 # prefix=... raises "Prefix and path cannot be both empty" once FastAPI switched to lazy router
 # inclusion (>=0.137); see https://github.com/apache/airflow/issues/68562. Don't reintroduce a prefix here.
 execution_api_router.include_router(health.router, tags=["Health"])
+execution_api_router.include_router(session_tokens.router, tags=["Dag Processor Identity"])
 
 # _Every_ single endpoint under here must be authenticated. Some do further checks on top of these
 authenticated_router = VersionedAPIRouter(dependencies=[Security(require_auth)])

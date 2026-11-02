@@ -16,12 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import time
 import uuid
 from base64 import urlsafe_b64encode
 from collections.abc import Callable, Sequence
+from contextlib import nullcontext
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, overload
 
@@ -45,6 +47,7 @@ log = structlog.get_logger(logger_name=__name__)
 __all__ = [
     "InvalidClaimError",
     "JWKS",
+    "JWKSUnavailableError",
     "JWTGenerator",
     "JWTValidator",
     "generate_private_key",
@@ -99,9 +102,19 @@ def _guess_best_algorithm(key: AllowedPrivateKeys):
     raise ValueError(f"Unknown key object {type(key)}")
 
 
+class JWKSUnavailableError(RuntimeError):
+    """The required signing key could not be loaded because a JWKS fetch failed."""
+
+
 @attrs.define(repr=False)
 class JWKS:
-    """A class to fetch and sync a set of JSON Web Keys."""
+    """
+    Fetch and cache a set of JSON Web Keys.
+
+    With ``raise_on_fetch_error``, missing keys raise ``JWKSUnavailableError`` after a failed
+    fetch. Cached matching keys remain usable, and a successfully fetched set with no matching key
+    still raises ``KeyError``.
+    """
 
     url: str
     fetched_at: float = 0
@@ -113,6 +126,10 @@ class JWKS:
     refresh_jwks: bool = True
     refresh_interval_secs: int = 3600
     refresh_retry_interval_secs: int = 10
+    refresh_on_unknown_kid: bool = False
+    raise_on_fetch_error: bool = False
+    _fetch_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, init=False)
+    _fetch_failed: bool = attrs.field(default=False, init=False)
 
     def __repr__(self) -> str:
         return f"JWKS(url={self.url}, fetched_at={self.fetched_at})"
@@ -128,19 +145,40 @@ class JWKS:
         obj._jwks = jwt.PyJWKSet(keyset)
         return obj
 
-    async def fetch_jwks(self) -> None:
-        if not self._should_fetch_jwks():
+    async def fetch_jwks(self, *, force: bool = False) -> None:
+        # A usable cache skips the lock, so a slow refresh for an unknown key does not delay known keys.
+        if not force and self._jwks and not self._should_fetch_jwks():
             return
-        if self.url.startswith("http"):
-            data = await self._fetch_remote_jwks()
-        else:
-            data = self._fetch_local_jwks()
+        lock = self._fetch_lock if self.refresh_on_unknown_kid else nullcontext()
+        async with lock:
+            if not self._should_fetch_jwks(force=force):
+                return
+            self._fetch_failed = True
+            if self.url.startswith("http"):
+                data = await self._fetch_remote_jwks()
+            else:
+                data = self._fetch_local_jwks()
 
-        if not data:
-            return
+            if not data:
+                return
 
-        self._jwks = jwt.PyJWKSet.from_dict(data)
-        log.debug("Fetched JWKS", url=self.url, keys=len(self._jwks.keys))
+            try:
+                # Older PyJWT versions assume the body and every key are objects.
+                if not isinstance(data, dict):
+                    raise TypeError(f"JWKS must be a JSON object, not {type(data).__name__}")
+                keys = data.get("keys")
+                if not isinstance(keys, list) or any(not isinstance(key, dict) for key in keys):
+                    raise TypeError("JWKS keys must be an array of JSON objects")
+                # PyJWT rejects empty sets, but an issuer can remove all keys with an empty array.
+                keyset = jwt.PyJWKSet.from_dict(data) if keys else None
+            except (jwt.PyJWKError, jwt.PyJWKSetError, KeyError, TypeError, ValueError):
+                if not self.raise_on_fetch_error:
+                    raise
+                log.warning("Unable to load JWKS response", url=self.url, exc_info=True)
+                return
+            self._jwks = keyset
+            self._fetch_failed = False
+            log.debug("Fetched JWKS", url=self.url, keys=len(keyset.keys) if keyset is not None else 0)
 
     async def _fetch_remote_jwks(self) -> dict[str, Any] | None:
         try:
@@ -151,7 +189,7 @@ class JWKS:
             )
             if TYPE_CHECKING:
                 assert self.url
-            self.last_fetch_attempt_at = int(time.monotonic())
+            self.last_fetch_attempt_at = time.monotonic()
             response = await self.client.get(self.url)
             response.raise_for_status()
             self.fetched_at = int(time.monotonic())
@@ -172,7 +210,7 @@ class JWKS:
             log.exception("Failed to read local JWKS", url=self.url)
             return None
 
-    def _should_fetch_jwks(self) -> bool:
+    def _should_fetch_jwks(self, *, force: bool = False) -> bool:
         """
         Check if we need to fetch the JWKS based on the last fetch time and the refresh interval.
 
@@ -188,8 +226,16 @@ class JWKS:
         # For remote fetches we check if the JWKS is not loaded (fetched_at = 0) or if the last fetch was more than
         # refresh_interval_secs ago and the last fetch attempt was more than refresh_retry_interval_secs ago
         now = time.monotonic()
+        # Unknown keys are untrusted input; bound fetches even for an empty cache or a failed refresh.
+        if (
+            self.refresh_on_unknown_kid
+            and self.last_fetch_attempt_at
+            and now - self.last_fetch_attempt_at < self.refresh_retry_interval_secs
+        ):
+            return False
         return self.refresh_jwks and (
-            not self._jwks
+            force
+            or not self._jwks
             or (
                 self.fetched_at == 0
                 or (
@@ -204,9 +250,20 @@ class JWKS:
         await self.fetch_jwks()
 
         if self._jwks:
-            return self._jwks[kid]
+            try:
+                return self._jwks[kid]
+            except KeyError:
+                if self.refresh_on_unknown_kid:
+                    await self.fetch_jwks(force=True)
+                    if self._jwks is not None:
+                        try:
+                            return self._jwks[kid]
+                        except KeyError:
+                            pass
 
-        # It didn't load!
+        if self.raise_on_fetch_error and self._fetch_failed:
+            raise JWKSUnavailableError("Unable to load the required signing key")
+
         raise KeyError(f"Key ID {kid} not found in keyset")
 
     def status(self):

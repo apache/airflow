@@ -22,16 +22,19 @@ queues (Celery messages, K8s pod specs).  Its security value depends on being
 accepted by as few routes as possible.  See PR #62582 (foundation) and PR #66989
 (two-token mechanism).
 
-This test checks the real API router and enforces two rules:
+This test checks the real API router and enforces three rules:
 
 1. Routes not listed in NON_DEFAULT_TOKEN_POLICY accept only ``token:execution``.
 2. Routes listed in NON_DEFAULT_TOKEN_POLICY accept exactly the declared types.
+3. Only HEALTH_ROUTES and WORKLOAD_IDENTITY_ROUTES skip ``require_auth``, and the latter
+   authenticate a workload identity instead. Rules 1 and 2 apply to every other route.
 
 Maintenance:
 - New route with default (execution-only) scope: no test change needed.
 - New route with non-default scope: add it to NON_DEFAULT_TOKEN_POLICY.
 - Route removed: remove it from NON_DEFAULT_TOKEN_POLICY (if present).
 - New token type: add it to the relevant entries in NON_DEFAULT_TOKEN_POLICY.
+- New route outside ``require_auth``: add it to HEALTH_ROUTES or WORKLOAD_IDENTITY_ROUTES.
 """
 
 from __future__ import annotations
@@ -43,10 +46,21 @@ from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute
 
 from airflow.api_fastapi.execution_api.routes import execution_api_router
-from airflow.api_fastapi.execution_api.security import get_selected_dag_bundle, require_dag_in_granted_bundle
+from airflow.api_fastapi.execution_api.routes.session_tokens import require_workload_identity
+from airflow.api_fastapi.execution_api.security import (
+    get_selected_dag_bundle,
+    require_auth,
+    require_dag_in_granted_bundle,
+)
 from airflow.dag_processing.processor import ToManager
 
 from tests_common.test_utils.api_fastapi import iter_api_routes
+
+# Routes that take no credential at all.
+HEALTH_ROUTES = {"GET /health", "GET /health/ping"}
+# Routes that authenticate a deployment workload identity instead of an Airflow runtime token.
+WORKLOAD_IDENTITY_ROUTES = {"POST /dag-processor/session-token"}
+
 
 # Routes that intentionally deviate from the default (execution-only) policy.
 # Any route NOT listed here must accept only {"execution"}.
@@ -143,15 +157,28 @@ def _get_path_and_query_param_names(dependant: Dependant) -> set[str]:
 
 
 def _all_route_policies() -> dict[str, set[str]]:
-    """Return a map of all API routes and their allowed token types."""
+    """Return a map of the runtime-authenticated API routes and their allowed token types."""
     return {
         key: set(getattr(_get_original_route(route), "allowed_token_types", {"execution"}))
         for key, route in _get_api_routes().items()
+        if key not in HEALTH_ROUTES | WORKLOAD_IDENTITY_ROUTES
     }
 
 
 class TestTokenScopeBoundaries:
     """Execution API routes must not silently gain or lose token type access."""
+
+    def test_only_allowlisted_routes_skip_require_auth(self):
+        unauthenticated = {
+            key
+            for key, route in _get_api_routes().items()
+            if require_auth not in _get_dependency_calls(route.dependant)
+        }
+        assert unauthenticated == HEALTH_ROUTES | WORKLOAD_IDENTITY_ROUTES
+
+    @pytest.mark.parametrize("route", sorted(WORKLOAD_IDENTITY_ROUTES))
+    def test_workload_identity_routes_authenticate_the_identity(self, route):
+        assert require_workload_identity in _get_dependency_calls(_get_api_routes()[route].dependant)
 
     def test_all_default_routes_are_execution_only(self):
         actual = _all_route_policies()

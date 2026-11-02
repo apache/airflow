@@ -60,6 +60,13 @@ class JobRegisterResponse(StrictBaseModel):
     expires_in: int = Field(gt=0, description="Seconds until the token expires.")
 
 
+class DagProcessorSessionTokenResponse(StrictBaseModel):
+    """A session credential issued after workload identity verification."""
+
+    token: str = Field(min_length=1, repr=False)
+    expires_in: int = Field(gt=0, description="Seconds until the session credential expires.")
+
+
 class JobHeartbeatResponse(StrictBaseModel):
     """Current state of the Job; ``restarting`` asks the processor to stop."""
 

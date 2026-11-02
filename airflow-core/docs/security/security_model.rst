@@ -540,6 +540,12 @@ potentially still executes with direct database access in the Dag File Processor
      and callback credentials, or ``DagProcessorSessionClaims``, ``DagProcessorClaims``, or
      ``DagParseClaims`` for processor credentials. Unknown scopes, invalid subjects, and missing
      required scope-specific claims are rejected before any route handler runs.
+   * **Workload identity provisioning.** The optional Dag processor session exchange validates
+     deployment-issued JWTs against separately configured issuer, audience, and JWKS settings.
+     Bundle grants come from the API server configuration. Exchanged sessions stay in the client's
+     memory, but workload identity and runtime credentials remain accessible to code with access
+     to that process. This does not add isolation between the processor and user code; see
+     :doc:`jwt_token_authentication` for configuration and expiry limitations.
 
 **Token signing key might be a shared secret**
    In symmetric key mode (``[api_auth] jwt_secret``), the same secret key is used to both generate and
