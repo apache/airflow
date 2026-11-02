@@ -82,51 +82,6 @@ class EdgeModifier(DependencyMixin):
                     f"Cannot use edge labels with {type(node).__name__}, only tasks, XComArg or TaskGroups"
                 )
 
-    def _convert_streams_to_task_groups(self):
-        """
-        Convert a node to a TaskGroup or leave it as a DAGNode.
-
-        Requires both self._upstream and self._downstream.
-
-        To do this, we keep a set of group_ids seen among the streams. If we find that
-        the nodes are from the same TaskGroup, we will leave them as DAGNodes and not
-        convert them to TaskGroups
-        """
-        from airflow.sdk.definitions._internal.node import DAGNode
-        from airflow.sdk.definitions.taskgroup import TaskGroup
-        from airflow.sdk.definitions.xcom_arg import XComArg
-
-        group_ids = set()
-        for node in [*self._upstream, *self._downstream]:
-            if isinstance(node, DAGNode) and node.task_group:
-                if node.task_group.is_root:
-                    group_ids.add("root")
-                else:
-                    group_ids.add(node.task_group.group_id)
-            elif isinstance(node, TaskGroup):
-                group_ids.add(node.group_id)
-            elif isinstance(node, XComArg):
-                if isinstance(node.operator, DAGNode) and node.operator.task_group:
-                    if node.operator.task_group.is_root:
-                        group_ids.add("root")
-                    else:
-                        group_ids.add(node.operator.task_group.group_id)
-
-        # If all nodes originate from the same TaskGroup, we will not convert them
-        if len(group_ids) != 1:
-            self._upstream = self._convert_stream_to_task_groups(self._upstream)
-            self._downstream = self._convert_stream_to_task_groups(self._downstream)
-
-    def _convert_stream_to_task_groups(self, stream: Sequence[DependencyMixin]) -> Sequence[DependencyMixin]:
-        from airflow.sdk.definitions._internal.node import DAGNode
-
-        return [
-            node.task_group
-            if isinstance(node, DAGNode) and node.task_group and not node.task_group.is_root
-            else node
-            for node in stream
-        ]
-
     def set_upstream(
         self,
         other: DependencyMixin | Sequence[DependencyMixin],
@@ -138,9 +93,6 @@ class EdgeModifier(DependencyMixin):
         Providing this also provides << via DependencyMixin.
         """
         self._save_nodes(other, self._upstream)
-        if self._upstream and self._downstream:
-            # Convert _upstream and _downstream to task_groups only after both are set
-            self._convert_streams_to_task_groups()
         for node in self._downstream:
             node.set_upstream(other, edge_modifier=self)
 
@@ -153,11 +105,14 @@ class EdgeModifier(DependencyMixin):
         Set the given task/list onto the downstream attribute, then attempt to resolve the relationship.
 
         Providing this also provides >> via DependencyMixin.
+
+        Tasks are wired exactly as given: a task inside a TaskGroup must not be
+        promoted to its TaskGroup, otherwise the downstream task would depend on
+        every leaf (or root) of the group instead of only on the task the user
+        picked. Only explicit TaskGroup objects passed by the user create
+        group-level (join id) edges.
         """
         self._save_nodes(other, self._downstream)
-        if self._upstream and self._downstream:
-            # Convert _upstream and _downstream to task_groups only after both are set
-            self._convert_streams_to_task_groups()
         for node in self._upstream:
             node.set_downstream(other, edge_modifier=self)
 
