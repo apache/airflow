@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import json
+import os
 import pickle
+import uuid
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -37,7 +39,9 @@ from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
     AssetStateStoreResponse,
+    CallbackState,
     ConnectionResponse,
+    DagCallbackContext,
     DagResponse,
     DagRunState,
     DagRunStateResponse,
@@ -45,12 +49,13 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailResponse,
     HITLUser,
     LoopDecisionPayload,
+    PrevSuccessfulDagRunResponse,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
     XComResponse,
 )
-from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
+from airflow.sdk.exceptions import CallbackAlreadyStartedError, ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
     DeferTask,
@@ -2422,22 +2427,31 @@ class TestAssetStateOperations:
 
 
 class TestCallbackOperations:
-    def test_run_exchanges_token(self):
+    @mock.patch("airflow.sdk.api.client.get_hostname", autospec=True, return_value="worker-1")
+    def test_run_exchanges_token(self, _hostname):
         callback_id = uuid7()
+        bodies = []
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             assert request.method == "PATCH"
             assert request.url.path == f"/callbacks/{callback_id}/run"
-            return httpx2.Response(
-                status_code=204,
-                headers={"Refreshed-API-Token": "execution-token"},
-            )
+            bodies.append(json.loads(request.read()))
+            if len(bodies) == 1:
+                return httpx2.Response(status_code=500)
+            return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        client.callbacks.run(callback_id)
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            client.callbacks.run(callback_id)
+            client.callbacks.run(callback_id)
 
         assert client.auth is not None
         assert client.auth.token == "execution-token"
+        first_attempt, retried, second_attempt = bodies
+        assert first_attempt == {"hostname": "worker-1", "pid": os.getpid(), "attempt_id": mock.ANY}
+        assert uuid.UUID(first_attempt["attempt_id"])
+        assert retried == first_attempt
+        assert second_attempt["attempt_id"] != first_attempt["attempt_id"]
 
     def test_run_raises_on_conflict(self):
         callback_id = uuid7()
@@ -2449,6 +2463,81 @@ class TestCallbackOperations:
             )
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        with pytest.raises(ServerResponseError) as err:
+        with pytest.raises(CallbackAlreadyStartedError) as err:
             client.callbacks.run(callback_id)
-        assert err.value.response.status_code == 409
+        # What the Celery executor ignores when a callback's message is delivered twice.
+        assert isinstance(err.value, TaskAlreadyRunningError)
+
+    def test_run_lets_a_rejected_token_fail_the_workload(self):
+        """Only a 409 means the callback started elsewhere; any other refusal fails this delivery."""
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=403, json={"detail": "Invalid auth token"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as err:
+            client.callbacks.run(uuid7())
+        assert err.value.response.status_code == 403
+        assert not isinstance(err.value, CallbackAlreadyStartedError)
+
+    def test_get_previous_successful_dagrun_asks_the_callback_endpoint(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/callbacks/{callback_id}/previous-successful-dagrun"
+            return httpx2.Response(status_code=200, json={"start_date": "2025-01-18T00:30:00Z"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        previous = client.callbacks.get_previous_successful_dagrun(callback_id)
+
+        assert previous == PrevSuccessfulDagRunResponse(start_date=datetime(2025, 1, 18, 0, 30, tzinfo=UTC))
+
+    def test_get_context_returns_the_callback_context(self):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "GET"
+            assert request.url.path == f"/callbacks/{callback_id}/context"
+            return httpx2.Response(
+                status_code=200,
+                json={
+                    "context": {
+                        "type": "DagCallback",
+                        "dag_id": "test_dag",
+                        "run_id": "test_run",
+                        "is_failure_callback": False,
+                    }
+                },
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        context = client.callbacks.get_context(callback_id).context
+
+        assert context == DagCallbackContext(
+            type="DagCallback", dag_id="test_dag", run_id="test_run", is_failure_callback=False
+        )
+
+    @pytest.mark.parametrize(
+        ("state", "output", "expected_body"),
+        [
+            pytest.param(CallbackState.SUCCESS, None, {"state": "success", "output": None}, id="success"),
+            pytest.param(
+                CallbackState.FAILED,
+                "x" * 2001,
+                {"state": "failed", "output": "x" * 2000},
+                id="failed-truncated",
+            ),
+        ],
+    )
+    def test_update_state_reports_the_terminal_state(self, state, output, expected_body):
+        callback_id = uuid7()
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            assert request.method == "PATCH"
+            assert request.url.path == f"/callbacks/{callback_id}/state"
+            assert json.loads(request.read()) == expected_body
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.update_state(callback_id, state, output)

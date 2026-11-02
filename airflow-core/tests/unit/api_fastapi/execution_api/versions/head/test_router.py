@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
+import jwt
 import pytest
 import svcs
 from fastapi import Depends, FastAPI
@@ -71,6 +72,27 @@ def test_expiring_token_is_reissued(jwt_bearer_client, time_machine, age, validi
         assert "Refreshed-API-Token" not in response.headers
     # avalidated_claims must be called exactly once — by JWTBearer only, not by the middleware.
     auth.avalidated_claims.assert_awaited_once_with("dummy", {})
+
+
+@pytest.mark.db_test
+def test_reissued_callback_token_keeps_the_callback_identity(jwt_bearer_client, time_machine):
+    """A callback has no task instance: its team comes from the bundle signed into its token."""
+    moment = 1743451846
+    identity = {"dag_id": "test_dag", "run_id": "test_run", "bundle_name": "testing"}
+    auth = AsyncMock(spec=JWTValidator)
+    auth.avalidated_claims.return_value = {
+        "sub": "edb09971-4e0e-4221-ad3f-800852d38085",
+        "iat": moment,
+        "exp": moment + 600,
+        **identity,
+    }
+    time_machine.move_to(moment + 590, tick=False)
+    lifespan.registry.register_value(JWTValidator, auth)
+
+    response = jwt_bearer_client.get("/execution/variables/key1", headers={"Authorization": "Bearer dummy"})
+
+    refreshed = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+    assert refreshed.items() >= identity.items()
 
 
 @pytest.mark.parametrize(

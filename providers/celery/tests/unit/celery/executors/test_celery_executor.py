@@ -1886,6 +1886,64 @@ def test_uuid_publish_timeout_keeps_task_queued_for_retry(identity_executor, ide
     assert executor.get_event_buffer() == {}
 
 
+@pytest.mark.skipif(
+    not hasattr(BaseExecutor, "release_callback"),
+    reason="BaseExecutor.release_callback not available in this Airflow version",
+)
+@pytest.mark.parametrize("published", [False, True])
+def test_release_callback_stops_celery_tracking(identity_executor, identity_workload, published, mocker):
+    executor = identity_executor
+    callback = workloads.ExecuteCallback(
+        callback={
+            "id": str(identity_workload.ti.id),
+            "fetch_method": "dag_attribute",
+            "data": {},
+        },
+        dag_rel_path="dag.py",
+        bundle_info=workloads.BundleInfo(name="bundle"),
+        token="",
+        log_path=None,
+    )
+    task_key = (
+        TaskInstanceUuid(identity_workload.ti.id)
+        if executor.supports_task_instance_uuid
+        else identity_workload.ti.key
+    )
+    results = {
+        task_key: executor.celery_app.AsyncResult("celery-task"),
+        callback.key: executor.celery_app.AsyncResult("celery-callback"),
+    }
+    mocker.patch.object(
+        executor,
+        "_send_workloads_to_celery",
+        autospec=True,
+        side_effect=lambda items: [(item[0], None, results[item[0]]) for item in items],
+    )
+    for workload in (identity_workload, callback):
+        executor.queue_workload(workload, session=None)
+    executor._process_workloads([identity_workload, callback] if published else [identity_workload])
+    if not published:
+        executor.workload_publish_retries[callback.key] = 1
+    executor.get_event_buffer()
+    fetcher = mocker.patch.object(
+        executor.bulk_state_fetcher,
+        "get_many",
+        autospec=True,
+        return_value={"celery-task": ("PENDING", None), "celery-callback": ("PENDING", None)},
+    )
+
+    executor.release_callback(callback.key)
+    executor.sync()
+
+    fetcher.assert_called_once()
+    assert list(fetcher.call_args.args[0]) == [results[task_key]]
+    assert executor.workloads == {task_key: results[task_key]}
+    assert executor.running == {task_key}
+    assert not executor.workload_publish_retries
+    assert not executor.executor_queues[celery_executor.WorkloadType.EXECUTE_CALLBACK]
+    assert executor.get_event_buffer() == {}
+
+
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Callback keys require Airflow 3.3+")
 def test_celery_task_and_callback_results_keep_distinct_states(identity_executor, identity_workload, mocker):
     executor = identity_executor

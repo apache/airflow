@@ -16,18 +16,48 @@
 # under the License.
 from __future__ import annotations
 
+import uuid
+from datetime import timedelta
+from typing import Any
 from unittest import mock
 
 import jwt
 import pytest
+import time_machine
+from pydantic import BaseModel
+from sqlalchemy import update
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.execution_api.app import lifespan
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+    DagRun as DRDataModel,
+    TaskInstance as TIDataModel,
+    TIRunContext,
+)
 from airflow.api_fastapi.execution_api.security import require_auth
-from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
+from airflow.callbacks.callback_requests import (
+    DagCallbackRequest,
+    DagRunContext,
+    EmailRequest,
+    TaskCallbackRequest,
+)
+from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, START_DEADLINE_KEY
+from airflow.models.callback import (
+    Callback,
+    CallbackFetchMethod,
+    CallbackState,
+    CallbackType,
+    ExecutorCallback,
+)
+from airflow.models.dagrun import DagRun
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import SyncCallback
+from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.types import DagRunType
 
-from tests_common.test_utils.db import clear_db_callbacks
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import clear_db_callbacks, clear_db_runs
 
 pytestmark = pytest.mark.db_test
 
@@ -77,13 +107,30 @@ class TestRunCallback:
         assert detail["reason"] == "invalid_state"
         assert detail["previous_state"] == CallbackState.RUNNING
 
-    @pytest.mark.parametrize("state", [CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.PENDING])
+    @pytest.mark.parametrize(
+        "state",
+        [CallbackState.SCHEDULED, CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.PENDING],
+    )
     def test_run_rejects_non_queued_state(self, client, session, queued_callback, state):
         """The token can only be exchanged while the callback is QUEUED."""
         queued_callback.state = state
         session.commit()
 
         response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+    def test_run_refuses_a_callback_handed_back_to_the_dag_processor(self, client, session, queued_callback):
+        """A late delivery of a handed-back workload can't start what a Dag processor now runs."""
+        session.execute(
+            update(Callback)
+            .where(Callback.id == queued_callback.id)
+            .values(type=CallbackType.DAG_PROCESSOR, state=None)
+        )
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
         assert response.status_code == 409
         assert response.json()["detail"]["reason"] == "invalid_state"
 
@@ -129,3 +176,515 @@ def test_run_validates_token_scope_and_sub(client, queued_callback, token_sub, t
 
     resp = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
     assert resp.status_code == expected_status, resp.json()
+
+
+NOW = timezone.datetime(2026, 10, 22, 12, 0, 0)
+
+DAG_RUN = DRDataModel(
+    dag_id="test_dag",
+    run_id="test_run",
+    logical_date=NOW,
+    data_interval_start=NOW,
+    data_interval_end=NOW,
+    run_after=NOW,
+    start_date=NOW,
+    end_date=None,
+    run_type=DagRunType.MANUAL,
+    state=DagRunState.FAILED,
+    consumed_asset_events=[],
+    partition_key=None,
+)
+TI = TIDataModel(
+    id=uuid.UUID("01890a5d-ac70-7a5b-b7d5-0dd5b1c7be47"),
+    dag_id="test_dag",
+    task_id="test_task",
+    run_id="test_run",
+    try_number=1,
+    dag_version_id=uuid.UUID("01890a5d-ac70-7a5b-b7d5-0dd5b1c7be48"),
+)
+TI_CONTEXT = TIRunContext(dag_run=DAG_RUN, max_tries=2, variables=[], connections=[], xcom_keys_to_clear=[])
+REQUEST_FIELDS: dict[str, Any] = {"filepath": "test_dag.py", "bundle_name": "testing", "bundle_version": None}
+
+
+def _add_routed_callback(session, request, state=CallbackState.RUNNING) -> Callback:
+    """Store a Dag processor callback as the scheduler leaves it once routed."""
+    callback = ExecutorCallback.from_dag_processor_request(request)
+    callback.state = state
+    session.add(callback)
+    session.commit()
+    return callback
+
+
+class TestRunCallbackStartDeadline:
+    @time_machine.travel(NOW, tick=False)
+    @pytest.mark.parametrize(
+        ("deadline_offset", "expected_status", "expected_state"),
+        [
+            pytest.param(timedelta(seconds=1), 204, CallbackState.RUNNING, id="before-deadline"),
+            pytest.param(timedelta(0), 409, CallbackState.QUEUED, id="at-deadline"),
+            pytest.param(timedelta(seconds=-1), 409, CallbackState.QUEUED, id="past-deadline"),
+        ],
+    )
+    def test_run_honors_start_deadline(
+        self, client, session, queued_callback, deadline_offset, expected_status, expected_state
+    ):
+        queued_callback.data = {
+            **queued_callback.data,
+            START_DEADLINE_KEY: (NOW + deadline_offset).isoformat(),
+        }
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
+        assert response.status_code == expected_status
+        if expected_status == 409:
+            assert response.json()["detail"]["reason"] == "start_deadline_passed"
+        session.expire_all()
+        assert session.get_one(Callback, queued_callback.id).state == expected_state
+
+    @time_machine.travel(NOW, tick=False)
+    def test_run_records_the_start(self, client, session, queued_callback):
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get_one(Callback, queued_callback.id).started_at == NOW
+
+
+class TestRunCallbackIdentityClaims:
+    @pytest.fixture(autouse=True)
+    def _clean_runs(self):
+        clear_db_runs()
+        yield
+        clear_db_runs()
+
+    def test_run_signs_the_dag_run_and_bundle_of_the_callback(self, client, session, dag_maker):
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="test_task")
+        dag_run = dag_maker.create_dagrun(run_id="test_run")
+        callback = ExecutorCallback(
+            callback_def=SyncCallback(sync_callback, kwargs={}),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        )
+        callback.data |= {"dag_id": "test_dag", "dag_run_id": dag_run.id}
+        callback.bundle_name = "testing"
+        callback.state = CallbackState.QUEUED
+        session.add(callback)
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{callback.id}/run")
+
+        assert response.status_code == 204
+        claims = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert claims["dag_id"] == "test_dag"
+        assert claims["run_id"] == "test_run"
+        assert claims["bundle_name"] == "testing"
+
+    def test_run_omits_identity_the_callback_does_not_have(self, client, queued_callback):
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
+        assert response.status_code == 204
+        claims = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert claims["dag_id"] == "test_dag"
+        assert "run_id" not in claims
+        assert "bundle_name" not in claims
+
+    @pytest.mark.parametrize(
+        "request_",
+        [
+            pytest.param(
+                DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="test_run"), id="dag"
+            ),
+            pytest.param(TaskCallbackRequest(**REQUEST_FIELDS, ti=TI), id="task"),
+            pytest.param(EmailRequest(**REQUEST_FIELDS, ti=TI, context_from_server=TI_CONTEXT), id="email"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("replacement_dag_id", "replacement_run_id"),
+        [
+            pytest.param("other_dag", "test_run", id="another-dag"),
+            pytest.param("test_dag", "another_run", id="another-run-of-the-same-dag"),
+        ],
+    )
+    @time_machine.travel(NOW, tick=False)
+    def test_reused_dag_run_primary_key_does_not_change_callback_identity_or_previous_run(
+        self, client, session, request_, replacement_dag_id, replacement_run_id
+    ):
+        previous = DagRun(
+            dag_id=replacement_dag_id,
+            run_id="previous_run",
+            logical_date=NOW - timedelta(days=1),
+            start_date=NOW - timedelta(days=1),
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.SUCCESS,
+        )
+        original = DagRun(
+            dag_id="test_dag",
+            run_id="test_run",
+            logical_date=NOW,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.FAILED,
+        )
+        session.add_all([previous, original])
+        session.flush()
+        original_id = original.id
+        callback = _add_routed_callback(session, request_, state=CallbackState.QUEUED)
+        callback.data = {**callback.data, "dag_id": "test_dag", "dag_run_id": original_id}
+        session.delete(original)
+        session.commit()
+
+        replacement = DagRun(
+            dag_id=replacement_dag_id,
+            run_id=replacement_run_id,
+            logical_date=NOW,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.FAILED,
+        )
+        # Explicit reuse exercises SQLite's allocation behavior on every supported test database.
+        replacement.id = original_id
+        session.add(replacement)
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{callback.id}/run")
+
+        assert response.status_code == 204
+        claims = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert claims["dag_id"] == "test_dag"
+        assert "run_id" not in claims
+
+        response = client.get(f"/execution/callbacks/{callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
+
+
+WORKER = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
+
+
+class TestRunCallbackRetriedExchange:
+    def test_the_same_worker_can_repeat_its_exchange(self, client, session, queued_callback):
+        """A worker that lost the response to its exchange retries it, and still runs the callback once."""
+        url = f"/execution/callbacks/{queued_callback.id}/run"
+
+        first = client.patch(url, json=WORKER)
+        retried = client.patch(url, json=WORKER)
+
+        assert first.status_code == retried.status_code == 204
+        payload = jwt.decode(retried.headers["Refreshed-API-Token"], options={"verify_signature": False})
+        assert payload["sub"] == str(queued_callback.id)
+        assert payload["scope"] == "execution"
+        session.expire_all()
+        callback = session.get_one(Callback, queued_callback.id)
+        assert callback.state == CallbackState.RUNNING
+        assert callback.started_by == WORKER
+
+    @pytest.mark.parametrize(
+        "retry_body",
+        [
+            pytest.param(None, id="unidentified"),
+            pytest.param({**WORKER, "hostname": "worker-2"}, id="other-host"),
+            pytest.param(
+                {**WORKER, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be50"},
+                id="redelivered-to-the-same-process",
+            ),
+        ],
+    )
+    def test_any_other_exchange_of_a_started_callback_is_refused(self, client, queued_callback, retry_body):
+        """A second delivery of the workload must not run the callback again."""
+        url = f"/execution/callbacks/{queued_callback.id}/run"
+        client.patch(url, json=WORKER)
+
+        response = client.patch(url, json=retry_body) if retry_body else client.patch(url)
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+
+@pytest.mark.parametrize(
+    ("data", "expected_lifetime"),
+    [
+        pytest.param({EXECUTION_TIMEOUT_KEY: 3600}, 3600 + 1800, id="outlasts-the-report-window"),
+        pytest.param({}, 600, id="default-without-timeout"),
+    ],
+)
+@conf_vars({("execution_api", "jwt_expiration_time"): "600"})
+def test_run_token_lasts_until_the_callback_must_report(
+    client, session, queued_callback, data, expected_lifetime
+):
+    """A callback doesn't heartbeat, so nothing refreshes its token while it runs."""
+    queued_callback.data = {**queued_callback.data, **data}
+    session.commit()
+
+    response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
+
+    assert response.status_code == 204
+    payload = jwt.decode(response.headers["Refreshed-API-Token"], options={"verify_signature": False})
+    assert payload["exp"] - payload["iat"] == expected_lifetime
+
+
+class TestGetCallbackContext:
+    @pytest.mark.parametrize(
+        ("request_", "expected_context"),
+        [
+            pytest.param(
+                DagCallbackRequest(
+                    **REQUEST_FIELDS,
+                    dag_id="test_dag",
+                    run_id="test_run",
+                    context_from_server=DagRunContext(dag_run=DAG_RUN, last_ti=TI),
+                    msg="task_failure",
+                ),
+                {
+                    "type": "DagCallback",
+                    "dag_id": "test_dag",
+                    "run_id": "test_run",
+                    "is_failure_callback": True,
+                    "msg": "task_failure",
+                    "dag_run": DAG_RUN,
+                    "last_ti": TI,
+                },
+                id="dag-failure",
+            ),
+            pytest.param(
+                DagCallbackRequest(
+                    **REQUEST_FIELDS, dag_id="test_dag", run_id="test_run", is_failure_callback=False
+                ),
+                {
+                    "type": "DagCallback",
+                    "dag_id": "test_dag",
+                    "run_id": "test_run",
+                    "is_failure_callback": False,
+                    "msg": None,
+                    "dag_run": None,
+                    "last_ti": None,
+                },
+                id="dag-success-without-run-context",
+            ),
+            pytest.param(
+                TaskCallbackRequest(
+                    **REQUEST_FIELDS,
+                    ti=TI,
+                    task_callback_type=TaskInstanceState.UP_FOR_RETRY,
+                    context_from_server=TI_CONTEXT,
+                    msg="heartbeat timeout",
+                ),
+                {
+                    "type": "TaskCallback",
+                    "ti": TI,
+                    "task_callback_type": "up_for_retry",
+                    "msg": "heartbeat timeout",
+                    "ti_context": TI_CONTEXT,
+                },
+                id="task-retry",
+            ),
+            pytest.param(
+                EmailRequest(**REQUEST_FIELDS, ti=TI, email_type="retry", context_from_server=TI_CONTEXT),
+                {
+                    "type": "EmailCallback",
+                    "ti": TI,
+                    "email_type": "retry",
+                    "msg": None,
+                    "ti_context": TI_CONTEXT,
+                },
+                id="email-retry",
+            ),
+        ],
+    )
+    def test_returns_the_context_of_the_stored_request(self, client, session, request_, expected_context):
+        callback = _add_routed_callback(session, request_)
+
+        response = client.get(f"/execution/callbacks/{callback.id}/context")
+
+        assert response.status_code == 200
+        context = response.json()["context"]
+        assert context.keys() == expected_context.keys()
+        for key, expected in expected_context.items():
+            if isinstance(expected, BaseModel):
+                assert type(expected).model_validate(context[key]) == expected
+            else:
+                assert context[key] == expected
+
+    @pytest.mark.parametrize(
+        "state", [CallbackState.QUEUED, CallbackState.SUCCESS, CallbackState.FAILED, CallbackState.PENDING]
+    )
+    def test_only_a_running_callback_reads_its_context(self, client, session, state):
+        callback = _add_routed_callback(
+            session, DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="test_run"), state=state
+        )
+
+        response = client.get(f"/execution/callbacks/{callback.id}/context")
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+
+    def test_import_path_callback_has_no_context(self, client, session, queued_callback):
+        queued_callback.state = CallbackState.RUNNING
+        session.commit()
+
+        response = client.get(f"/execution/callbacks/{queued_callback.id}/context")
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "no_context"
+
+    def test_returns_404_for_nonexistent(self, client):
+        response = client.get("/execution/callbacks/00000000-0000-0000-0000-000000000000/context")
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
+
+class TestGetPreviousSuccessfulDagRun:
+    @pytest.fixture(autouse=True)
+    def _clean_runs(self):
+        clear_db_runs()
+        yield
+        clear_db_runs()
+
+    def test_returns_the_last_successful_run_before_the_callbacks_own(self, client, session, dag_maker):
+        with dag_maker("test_dag", session=session):
+            EmptyOperator(task_id="test_task")
+        for day, state in ((17, DagRunState.SUCCESS), (18, DagRunState.SUCCESS), (19, DagRunState.FAILED)):
+            dag_run = dag_maker.create_dagrun(
+                run_id=f"run_{day}",
+                logical_date=timezone.datetime(2025, 1, day),
+                run_type=DagRunType.SCHEDULED,
+                state=state,
+                start_date=timezone.datetime(2025, 1, day, 0, 30),
+                session=session,
+            )
+            dag_run.end_date = timezone.datetime(2025, 1, day, 1)
+        callback = _add_routed_callback(
+            session, DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="run_19")
+        )
+        callback.data = {**callback.data, "dag_run_id": dag_run.id}
+        session.commit()
+
+        response = client.get(f"/execution/callbacks/{callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": "2025-01-18T00:00:00Z",
+            "data_interval_end": "2025-01-19T00:00:00Z",
+            "start_date": "2025-01-18T00:30:00Z",
+            "end_date": "2025-01-18T01:00:00Z",
+        }
+
+    def test_a_callback_without_a_dag_run_has_no_previous_run(self, client, queued_callback):
+        response = client.get(f"/execution/callbacks/{queued_callback.id}/previous-successful-dagrun")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "data_interval_start": None,
+            "data_interval_end": None,
+            "start_date": None,
+            "end_date": None,
+        }
+
+    def test_returns_404_for_nonexistent(self, client):
+        response = client.get(
+            "/execution/callbacks/00000000-0000-0000-0000-000000000000/previous-successful-dagrun"
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
+
+class TestUpdateCallbackState:
+    @pytest.mark.parametrize(
+        ("state", "output"),
+        [
+            pytest.param(CallbackState.SUCCESS, None, id="success"),
+            pytest.param(CallbackState.FAILED, "on_failure: ValueError: boom", id="failed"),
+        ],
+    )
+    def test_records_the_terminal_state_of_a_running_callback(
+        self, client, session, queued_callback, state, output
+    ):
+        queued_callback.state = CallbackState.RUNNING
+        session.commit()
+
+        response = client.patch(
+            f"/execution/callbacks/{queued_callback.id}/state", json={"state": state, "output": output}
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        callback = session.get_one(Callback, queued_callback.id)
+        assert callback.state == state
+        assert callback.output == output
+
+    @pytest.mark.parametrize("state", [CallbackState.QUEUED, CallbackState.SUCCESS, CallbackState.FAILED])
+    def test_rejects_a_callback_that_is_not_running(self, client, session, queued_callback, state):
+        queued_callback.state = state
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/state", json={"state": "success"})
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["reason"] == "invalid_state"
+        session.expire_all()
+        assert session.get_one(Callback, queued_callback.id).state == state
+
+    @pytest.mark.parametrize("state", ["running", "queued"])
+    def test_rejects_a_non_terminal_state(self, client, session, queued_callback, state):
+        queued_callback.state = CallbackState.RUNNING
+        session.commit()
+
+        response = client.patch(f"/execution/callbacks/{queued_callback.id}/state", json={"state": state})
+
+        assert response.status_code == 422
+
+    def test_returns_404_for_nonexistent(self, client):
+        response = client.patch(
+            "/execution/callbacks/00000000-0000-0000-0000-000000000000/state", json={"state": "success"}
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"]["reason"] == "not_found"
+
+
+@pytest.mark.usefixtures("_use_real_jwt_bearer")
+@pytest.mark.parametrize(
+    ("token_sub", "token_scope", "expected_status"),
+    [
+        pytest.param("self", "execution", None, id="execution-token-matching-sub-accepted"),
+        pytest.param("other", "execution", 403, id="execution-token-for-other-callback"),
+        pytest.param("self", "callback", 403, id="unexchanged-callback-token-rejected"),
+    ],
+)
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        pytest.param("GET", "context", None, id="context"),
+        pytest.param("GET", "previous-successful-dagrun", None, id="previous-successful-dagrun"),
+        pytest.param("PATCH", "state", {"state": "success"}, id="state"),
+    ],
+)
+def test_context_and_state_require_the_exchanged_token(
+    client, session, token_sub, token_scope, expected_status, method, path, body
+):
+    """Only the execution token a callback exchanged for reads its context or reports its state."""
+    request = DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="test_run")
+    callback = _add_routed_callback(session, request)
+    other_callback = _add_routed_callback(session, request)
+    validator = mock.AsyncMock(spec=JWTValidator)
+    validator.avalidated_claims.return_value = {
+        "sub": str(callback.id if token_sub == "self" else other_callback.id),
+        "scope": token_scope,
+        "exp": 9999999999,
+        "iat": 1000000000,
+        "nbf": 1000000000,
+    }
+    lifespan.registry.register_value(JWTValidator, validator)
+
+    resp = client.request(method, f"/execution/callbacks/{callback.id}/{path}", json=body)
+
+    if expected_status is None:
+        assert resp.status_code in (200, 204), resp.json()
+    else:
+        assert resp.status_code == expected_status, resp.json()

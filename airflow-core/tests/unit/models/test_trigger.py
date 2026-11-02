@@ -47,6 +47,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
     BaseEventTrigger,
     BaseTrigger,
+    StartTriggerArgs,
     TaskFailedEvent,
     TaskSkippedEvent,
     TaskSuccessEvent,
@@ -861,6 +862,46 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     assert request.version_data == version_data
 
 
+@pytest.mark.parametrize("rescheduled", [False, True])
+@pytest.mark.parametrize(
+    "worker_heartbeat_offset",
+    [
+        pytest.param(None, id="not-on-a-worker"),
+        pytest.param(datetime.timedelta(0), id="resumed-on-a-worker"),
+        # The scheduler stamps the start of a direct deferral and the API server the heartbeat, so a
+        # scheduler clock ahead of the API server's puts the heartbeat first.
+        pytest.param(datetime.timedelta(seconds=-1), id="resumed-on-a-worker-behind-the-scheduler-clock"),
+    ],
+)
+@time_machine.travel("2026-10-22 12:00:00+00:00", tick=False)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
+def test_submit_event_callback_records_whether_a_trigger_started_attempt_ran_on_a_worker(
+    mock_send, session, create_task_instance, rescheduled, worker_heartbeat_offset
+):
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(trigger_cls="does.not.matter", next_method="execute_complete"),
+    )
+    if rescheduled:
+        # A reschedule keeps the attempt, and the heartbeat of its run on a worker.
+        task_instance.state = TaskInstanceState.UP_FOR_RESCHEDULE
+        task_instance.pid = 4242
+        task_instance.start_date = timezone.utcnow() - datetime.timedelta(minutes=2)
+        task_instance.last_heartbeat_at = timezone.utcnow() - datetime.timedelta(minutes=1)
+    assert task_instance.defer_task(session=session)
+    if worker_heartbeat_offset is not None:
+        task_instance.pid = 4343
+        task_instance.last_heartbeat_at = task_instance.start_date + worker_heartbeat_offset
+    session.commit()
+
+    Trigger.submit_event(task_instance.trigger_id, TaskFailedEvent(), session=session)
+
+    mock_send.assert_called_once()
+    assert mock_send.call_args.kwargs["callback"].task_started is (worker_heartbeat_offset is not None)
+
+
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
 def test_submit_event_task_end_callback_uses_run_bundle_after_code_only_update(
     mock_send, session, create_task_instance
@@ -881,6 +922,74 @@ def test_submit_event_task_end_callback_uses_run_bundle_after_code_only_update(
 
     mock_send.assert_called_once()
     assert mock_send.call_args.kwargs["callback"].bundle_version == "v1-sha"
+
+
+@pytest.mark.parametrize(
+    ("event_cls", "retries", "expected_state"),
+    [
+        (TaskSuccessEvent, 0, TaskInstanceState.SUCCESS),
+        (TaskFailedEvent, 0, TaskInstanceState.FAILED),
+        (TaskFailedEvent, 1, TaskInstanceState.UP_FOR_RETRY),
+    ],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
+def test_submit_event_callback_uses_file_from_pinned_run(
+    mock_send, session, create_task_instance, event_cls, retries, expected_state
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        state=State.DEFERRED,
+        relative_fileloc="original.py",
+        bundle_version="v1",
+        default_args={"retries": retries},
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = retries
+    task_instance.dag_model.relative_fileloc = "moved.py"
+    session.commit()
+
+    Trigger.submit_event(trigger.id, event_cls(), session=session)
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.filepath == "original.py"
+    assert request.bundle_version == "v1"
+    assert request.task_callback_type == expected_state
+    assert session.scalar(select(TaskInstance)).state == expected_state
+
+
+@pytest.mark.parametrize("event_cls", [TaskSuccessEvent, TaskFailedEvent])
+@pytest.mark.parametrize("unavailable", ["dag", "path", "load_error"])
+@patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
+def test_submit_event_callback_falls_back_when_serialized_path_is_unavailable(
+    mock_send, mock_get_dag, session, create_task_instance, dag_maker, event_cls, unavailable
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(session=session, state=State.DEFERRED, relative_fileloc="current.py")
+    task_instance.trigger_id = trigger.id
+    session.commit()
+    if unavailable == "path":
+        dag = dag_maker.serialized_dag
+        dag.relative_fileloc = None
+        mock_get_dag.return_value = dag
+    else:
+        mock_get_dag.return_value = None
+        if unavailable == "load_error":
+            mock_get_dag.side_effect = ValueError("Serialized Dag is unavailable")
+
+    event = event_cls()
+    Trigger.submit_event(trigger.id, event, session=session)
+
+    mock_send.assert_called_once()
+    request = mock_send.call_args.kwargs["callback"]
+    assert request.filepath == "current.py"
+    assert request.task_callback_type == event.task_instance_state
+    assert task_instance.state == event.task_instance_state
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")

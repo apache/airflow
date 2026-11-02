@@ -1827,3 +1827,32 @@ class TestXComTeamAccess:
 
         assert forbidden.status_code == 403, forbidden.json()
         assert allowed.status_code == 200, allowed.json()
+
+    @pytest.mark.parametrize(
+        ("target_team", "expected_status"),
+        [pytest.param("team_a", 200, id="own-team"), pytest.param("team_b", 403, id="other-team")],
+    )
+    def test_callback_token_is_scoped_by_its_signed_bundle(
+        self, client, exec_app, session, dag_maker, target_team, expected_status
+    ):
+        """A callback has no task instance: its token's signed bundle resolves its team."""
+        requester_dag = f"req_{uuid4().hex}"
+        self._make_dag(session, dag_maker, requester_dag, "team_a")
+        target_dag = f"tgt_{uuid4().hex}"
+        target_dr, _ = self._make_dag(session, dag_maker, target_dag, target_team)
+        self._insert_xcom(session, target_dr)
+
+        async def _auth(request: Request) -> TIToken:
+            return TIToken(
+                id=uuid4(),
+                claims=TIClaims(
+                    scope="execution", dag_id=requester_dag, bundle_name=f"bundle-{requester_dag}"
+                ),
+            )
+
+        exec_app.dependency_overrides[require_auth] = _auth
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            response = client.get(self._url(target_dag))
+
+        assert response.status_code == expected_status, response.json()

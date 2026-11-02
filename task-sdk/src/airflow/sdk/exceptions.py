@@ -403,6 +403,14 @@ class TaskAlreadyRunningError(AirflowException):
     """Raised when a task is already running on another worker."""
 
 
+class CallbackAlreadyStartedError(TaskAlreadyRunningError):
+    """
+    Raised when a callback started elsewhere, or can no longer start, so this delivery must not run it.
+
+    A subclass of :class:`TaskAlreadyRunningError` so executors that drop redelivered tasks drop it too.
+    """
+
+
 class FailFastDagInvalidTriggerRule(AirflowException):
     """Raise when a dag has 'fail_fast' enabled yet has a non-default trigger rule."""
 

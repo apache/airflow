@@ -40,7 +40,11 @@ from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import (
     CALLBACK_KWARGS_ENCODING_KEY,
+    CALLBACK_REQUEST_DATA_KEY,
     SERDE_KWARGS_ENCODING,
+    START_DEADLINE_KEY,
+    STARTED_AT_KEY,
+    STARTED_BY_KEY,
     CallbackFetchMethod,
 )
 from airflow.models import Base
@@ -78,6 +82,10 @@ def _format_kwargs_for_display(kwargs: dict | None) -> Any:
     from airflow.serialization.decoders import format_encoded_value_for_display
 
     return format_encoded_value_for_display(kwargs) if kwargs else ""
+
+
+def _get_request_data(request: CallbackRequest) -> dict[str, str]:
+    return {"req_class": request.__class__.__name__, CALLBACK_REQUEST_DATA_KEY: request.to_json()}
 
 
 class CallbackType(str, Enum):
@@ -167,6 +175,8 @@ class Callback(Base, BaseWorkload):
             postgresql_where=trigger_id.is_not(None),
             sqlite_where=trigger_id.is_not(None),
         ),
+        # Every scheduler loop looks callbacks up by type and state, and routed ones by fetch method too.
+        Index("idx_callback_type_state_fetch_method", "type", "state", "fetch_method"),
     )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
@@ -228,6 +238,34 @@ class Callback(Base, BaseWorkload):
     def get_executor_name(self) -> str | None:
         """Return the executor name for scheduler routing."""
         return self.data.get("executor")
+
+    @property
+    def start_deadline(self) -> datetime | None:
+        """Return when a routed callback must have started by, or ``None`` if it has no deadline."""
+        value = self.data.get(START_DEADLINE_KEY)
+        return datetime.fromisoformat(value) if value else None
+
+    @property
+    def started_at(self) -> datetime | None:
+        """Return when the callback's worker exchanged its token, if it recorded that."""
+        value = self.data.get(STARTED_AT_KEY)
+        return datetime.fromisoformat(value) if value else None
+
+    @property
+    def started_by(self) -> dict[str, Any] | None:
+        """Return the worker process that exchanged the callback's token, if it identified itself."""
+        return self.data.get(STARTED_BY_KEY)
+
+    def mark_started(self, when: datetime, *, started_by: dict[str, Any] | None = None) -> None:
+        # Reassigned rather than mutated so the JSON column is flagged as changed.
+        self.data = {**self.data, STARTED_AT_KEY: when.isoformat(), STARTED_BY_KEY: started_by}
+
+    def get_callback_request(self) -> CallbackRequest | None:
+        """Return the Dag processor callback request this callback stores, or ``None`` if it has none."""
+        if (req_class := self.data.get("req_class")) is None:
+            return None
+        request_class = getattr(import_module("airflow.callbacks.callback_requests"), req_class)
+        return request_class.from_json(self.data[CALLBACK_REQUEST_DATA_KEY])
 
     @staticmethod
     def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
@@ -317,26 +355,55 @@ class ExecutorCallback(Callback):
     __mapper_args__ = {"polymorphic_identity": CallbackType.EXECUTOR}
 
     def __init__(
-        self, callback_def: ImportPathExecutorCallbackDefProtocol, fetch_method: CallbackFetchMethod, **kwargs
+        self,
+        callback_def: ImportPathExecutorCallbackDefProtocol | None,
+        fetch_method: CallbackFetchMethod,
+        *,
+        request: CallbackRequest | None = None,
+        **kwargs,
     ):
         """
-        Initialize an ExecutorCallback from a callback definition and fetch method.
+        Initialize an ExecutorCallback from a callback definition, or from a Dag processor callback request.
 
-        :param callback_def: Callback definition with path, kwargs, and executor
+        :param callback_def: Callback definition with path, kwargs, and executor; ``None`` with ``request``
         :param fetch_method: Method to fetch the callback at runtime
+        :param request: Dag processor callback request, for a callback the scheduler routes to an executor
         :param kwargs: Passed to parent Callback.__init__ (see base class for details)
         """
         from airflow.serialization.encoders import encode_stored_callback_kwargs
 
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
+        if request is not None:
+            self.bundle_name = request.bundle_name
+            self.data |= _get_request_data(request)
+            return
+        if callback_def is None:
+            raise TypeError("An ExecutorCallback needs a callback definition or a callback request")
         self.data |= callback_def.serialize()
         # The kwargs are decoded by the callback runner on the worker, which needs the marker
         # to tell them apart from the already-decoded kwargs of callbacks stored before it.
         self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
         self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
 
+    @classmethod
+    def from_dag_processor_request(cls, request: CallbackRequest) -> ExecutorCallback:
+        """
+        Store a Dag processor callback request for the scheduler to route to an executor.
+
+        The callback waits SCHEDULED until a scheduler routes it: queues it, or fails it when no
+        executor can run it. A scheduler with routing turned off makes it a Dag processor callback
+        again instead. As an executor callback, no Dag processor claims it in the meantime, and
+        schedulers from before routing leave it alone: they only queue PENDING ones.
+        """
+        return cls(None, CallbackFetchMethod.DAG_ATTRIBUTE, request=request)
+
     def __repr__(self):
+        if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+            return (
+                f"{self.data.get('req_class')} for Dag {self.get_dag_id()} "
+                f"on {self.data.get('executor') or 'default'} executor"
+            )
         return (
             f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) "
             f"on {self.data.get('executor', 'default')} executor"
@@ -355,11 +422,9 @@ class DagProcessorCallback(Callback):
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
         self.bundle_name = callback.bundle_name
-        self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
+        self.data |= _get_request_data(callback)
 
     def get_callback_request(self) -> CallbackRequest:
-        module = import_module("airflow.callbacks.callback_requests")
-        callback_request_class = getattr(module, self.data["req_class"])
-        # Get the function (from the instance) that we need to call
-        from_json = getattr(callback_request_class, "from_json")
-        return from_json(self.data["req_data"])
+        if (request := super().get_callback_request()) is None:
+            raise ValueError(f"Dag processor callback {self.id} stores no callback request")
+        return request

@@ -47,6 +47,9 @@ from tests_common.test_utils.version_compat import (
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
 
+if hasattr(BaseExecutor, "release_callback"):
+    from airflow.models.callback import CallbackKey
+
 airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
 DEFAULT_QUEUE_URL = "queue-url"
@@ -111,6 +114,140 @@ def mock_executor(set_env_vars) -> AwsLambdaExecutor:
 
 
 class TestAwsLambdaExecutor:
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize("submitted", [False, True], ids=["pending", "submitted"])
+    def test_release_callback_stops_submission_and_active_tracking(
+        self, mock_executor, submitted, time_machine
+    ):
+        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
+
+        time_machine.move_to("2026-10-27T00:00:00Z", tick=False)
+        callback_key = CallbackKey(str(uuid4()))
+        pending_key, active_key, queued_key = (TaskInstanceUuid(uuid4()) for _ in range(3))
+        command = ["unrelated", "task"]
+        queued_workload = mock.Mock(spec=ExecuteTask)
+        task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[queued_key] = queued_workload
+        mock_executor.execute_async(pending_key, command)
+        mock_executor.running_workloads[str(active_key)] = active_key
+        mock_executor.running.update((callback_key, pending_key, active_key))
+        if submitted:
+            mock_executor.running_workloads[str(callback_key)] = callback_key
+        else:
+            mock_executor.execute_async(callback_key, ["callback", "command"])
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+
+        mock_executor.release_callback(callback_key)
+        mock_executor.release_callback(callback_key)
+
+        assert [task.key for task in mock_executor.pending_workloads] == [pending_key]
+        assert mock_executor.running_workloads == {str(active_key): active_key}
+        assert set(mock_executor._released_callbacks) == ({str(callback_key)} if submitted else set())
+        assert mock_executor.running == {pending_key, active_key}
+        assert task_queue == {queued_key: queued_workload}
+        assert callback_key not in mock_executor.event_buffer
+
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
+        mock_executor.sync()
+
+        mock_executor.lambda_client.invoke.assert_called_once()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        assert payload["task_key"] == str(pending_key)
+        assert payload["command"] == command
+        assert mock_executor.running_workloads == {str(active_key): active_key, str(pending_key): pending_key}
+        assert callback_key not in mock_executor.event_buffer
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize(
+        ("queue_url", "result"),
+        [
+            pytest.param(DEFAULT_QUEUE_URL, {"return_code": 0}, id="success"),
+            pytest.param(DEFAULT_QUEUE_URL, {"return_code": 1}, id="failure"),
+            pytest.param(DEFAULT_DLQ_URL, {"command": ["callback"]}, id="dead-letter"),
+        ],
+    )
+    @pytest.mark.parametrize("retry_delete", [False, True], ids=["acknowledged", "acknowledgment-retried"])
+    def test_released_callback_acknowledges_late_result_without_another_event(
+        self, mock_executor, queue_url, result, retry_delete
+    ):
+        callback_key = CallbackKey(str(uuid4()))
+        transport_key = str(callback_key)
+        mock_executor.running_workloads[transport_key] = callback_key
+        mock_executor.running.add(callback_key)
+
+        mock_executor.release_callback(callback_key)
+
+        response = {
+            "Messages": [
+                {
+                    "ReceiptHandle": "late-result",
+                    "Body": json.dumps({"task_key": transport_key, **result}),
+                }
+            ]
+        }
+        responses = [{}, response] if queue_url == DEFAULT_DLQ_URL else [response]
+        mock_executor.sqs_client.receive_message.side_effect = responses * (2 if retry_delete else 1)
+        if retry_delete:
+            mock_executor.sqs_client.delete_message.side_effect = [
+                ClientError({"Error": {"Code": "InternalError", "Message": "Try again"}}, "DeleteMessage"),
+                None,
+            ]
+            with pytest.raises(ClientError, match="InternalError"):
+                mock_executor.sync_running_workloads()
+            assert transport_key in mock_executor._released_callbacks
+            assert not mock_executor.event_buffer
+
+        mock_executor.sync_running_workloads()
+
+        assert not mock_executor.running_workloads
+        assert not mock_executor._released_callbacks
+        assert not mock_executor.running
+        assert not mock_executor.event_buffer
+        assert mock_executor.slots_available == mock_executor.parallelism
+        mock_executor.sqs_client.change_message_visibility.assert_not_called()
+        assert mock_executor.sqs_client.delete_message.call_args_list == [
+            mock.call(QueueUrl=queue_url, ReceiptHandle="late-result")
+        ] * (2 if retry_delete else 1)
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.time", autospec=True)
+    def test_released_callbacks_expire_without_blocking_shutdown(
+        self, mock_time, mock_executor, time_machine
+    ):
+        time_machine.move_to("2026-10-30T00:00:00Z", tick=False)
+        first, second = (CallbackKey(str(uuid4())) for _ in range(2))
+        mock_time.monotonic.return_value = 1000
+        mock_executor.running_workloads[str(first)] = first
+        mock_executor.release_callback(first)
+
+        mock_time.monotonic.return_value += lambda_executor._RELEASED_CALLBACK_RETENTION / 2
+        mock_executor.running_workloads[str(second)] = second
+        mock_executor.release_callback(second)
+        mock_executor.release_callback(first)
+
+        mock_executor.end()
+
+        mock_time.sleep.assert_not_called()
+        assert set(mock_executor._released_callbacks) == {str(first), str(second)}
+        mock_time.monotonic.return_value = 1000 + lambda_executor._RELEASED_CALLBACK_RETENTION
+        mock_executor.sync_running_workloads()
+        assert set(mock_executor._released_callbacks) == {str(second)}
+
+        mock_time.monotonic.return_value += lambda_executor._RELEASED_CALLBACK_RETENTION / 2
+        mock_executor.sqs_client.receive_message.reset_mock()
+        mock_executor.sync_running_workloads()
+
+        assert not mock_executor._released_callbacks
+        mock_executor.sqs_client.receive_message.assert_not_called()
+        assert not mock_executor.event_buffer
+
     @mock.patch(
         "airflow.providers.amazon.aws.executors.aws_lambda.lambda_executor.AwsLambdaExecutor.change_state"
     )

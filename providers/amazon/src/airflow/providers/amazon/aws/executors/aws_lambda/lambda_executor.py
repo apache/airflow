@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 import warnings
-from collections import deque
+from collections import OrderedDict, deque
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, TypeAlias, cast
 from uuid import UUID
@@ -63,6 +63,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
+    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
 
     if AIRFLOW_V_3_3_PLUS:
@@ -71,6 +72,10 @@ if TYPE_CHECKING:
         WorkloadKey: TypeAlias = _WorkloadKey
     else:
         WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+
+
+# Allow for Lambda's asynchronous retries before SQS's maximum 14-day message retention.
+_RELEASED_CALLBACK_RETENTION = 15 * 24 * 60 * 60
 
 
 class AwsLambdaExecutor(BaseExecutor):
@@ -95,6 +100,7 @@ class AwsLambdaExecutor(BaseExecutor):
         super().__init__(*args, **kwargs)
         self.pending_workloads: deque = deque()
         self.running_workloads: dict[str, WorkloadKey] = {}
+        self._released_callbacks: OrderedDict[str, float] = OrderedDict()
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
@@ -443,6 +449,16 @@ class AwsLambdaExecutor(BaseExecutor):
         )
         return self.attempt_workload_runs()
 
+    def release_callback(self, key: CallbackKey) -> None:
+        """Release a settled callback's slot, retaining ownership of any late Lambda result."""
+        self.pending_workloads = deque(task for task in self.pending_workloads if task.key != key)
+        # A terminal API report can precede the Lambda result. Keep ownership until SQS acknowledges it.
+        for transport_key, workload_key in list(self.running_workloads.items()):
+            if workload_key == key:
+                self._released_callbacks[transport_key] = time.monotonic()
+                del self.running_workloads[transport_key]
+        super().release_callback(key)
+
     def sync_running_workloads(self):
         """
         Poll the SQS queue for messages indicating workload completion.
@@ -450,12 +466,19 @@ class AwsLambdaExecutor(BaseExecutor):
         Each message is expected to contain a JSON payload with 'task_key' and 'return_code'.
         Based on the return code, update the workload state accordingly.
         """
-        if not len(self.running_workloads):
+        now = time.monotonic()
+        while self._released_callbacks:
+            released_at = next(iter(self._released_callbacks.values()))
+            if now - released_at < _RELEASED_CALLBACK_RETENTION:
+                break
+            self._released_callbacks.popitem(last=False)
+
+        if not self.running_workloads and not self._released_callbacks:
             self.log.debug("No running workloads to process.")
             return
 
         self.process_queue(self.sqs_queue_url)
-        if self.dlq_url and self.running_workloads:
+        if self.dlq_url and (self.running_workloads or self._released_callbacks):
             self.process_queue(self.dlq_url)
 
     def sync_running_tasks(self):
@@ -514,6 +537,10 @@ class AwsLambdaExecutor(BaseExecutor):
                 continue
             return_code = body.get("return_code")
             ser_task_key = body.get("task_key")
+            if ser_task_key in self._released_callbacks:
+                self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+                del self._released_callbacks[ser_task_key]
+                continue
             # Fetch the real task key from the running_workloads dict, using the serialized task key.
             try:
                 workload_key = self.running_workloads[ser_task_key]

@@ -20,44 +20,43 @@ from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Response, Security, status
+from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.execution_api.datamodels.callback import (
+    CallbackContextResponse,
+    CallbackRunPayload,
+    CallbackTerminalStatePayload,
+    DagCallbackContext,
+    EmailCallbackContext,
+    TaskCallbackContext,
+)
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import PrevSuccessfulDagRunResponse
 from airflow.api_fastapi.execution_api.deps import DepContainer
 from airflow.api_fastapi.execution_api.security import (
     ExecutionAPIRoute,
     issue_execution_token,
     require_auth,
 )
+from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
+from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, get_callback_report_window
 from airflow.models.callback import Callback
-from airflow.utils.state import CallbackState
+from airflow.models.dagrun import DagRun
+from airflow.utils.helpers import prune_dict
+from airflow.utils.state import CallbackState, DagRunState
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
     dependencies=[
-        Security(require_auth, scopes=["cb:self", "token:callback"]),
+        Security(require_auth, scopes=["cb:self"]),
     ],
 )
 
 
-@router.patch(
-    "/{callback_id}/run",
-    status_code=status.HTTP_204_NO_CONTENT,
-    responses=create_openapi_http_exception_doc(
-        [
-            (status.HTTP_404_NOT_FOUND, "Callback not found"),
-            (status.HTTP_409_CONFLICT, "The callback token was already exchanged"),
-        ]
-    ),
-)
-def run_callback(
-    callback_id: UUID,
-    response: Response,
-    session: SessionDep,
-    services=DepContainer,
-) -> None:
-    """Exchange a single-use callback token for a short-lived execution token."""
-    callback = session.get(Callback, callback_id, with_for_update=True)
+def _get_callback(callback_id: UUID, *, session: SessionDep, for_update: bool = False) -> Callback:
+    callback = session.get(Callback, callback_id, with_for_update=for_update)
     if callback is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -66,6 +65,76 @@ def run_callback(
                 "message": f"Callback {callback_id} not found",
             },
         )
+    return callback
+
+
+def _get_callback_dag_run(callback: Callback, *, session: SessionDep) -> DagRun | None:
+    """Return the callback's original Dag run, if it still exists."""
+    if not (dag_run_id := callback.data.get("dag_run_id")):
+        return None
+    if (request := callback.get_callback_request()) is None:
+        return session.get(DagRun, dag_run_id)
+
+    if isinstance(request, DagCallbackRequest):
+        dag_id, run_id = request.dag_id, request.run_id
+    else:
+        dag_id, run_id = request.ti.dag_id, request.ti.run_id
+    # SQLite can reuse a deleted run's integer ID while its callback is still queued or running.
+    return session.scalar(
+        select(DagRun).where(DagRun.id == dag_run_id, DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+    )
+
+
+def _get_identity_claims(callback: Callback, *, session: SessionDep) -> dict[str, str]:
+    """Return the Dag, run, and bundle a callback runs for, which resolve its team."""
+    dag_run = _get_callback_dag_run(callback, session=session)
+    return prune_dict(
+        {
+            "dag_id": callback.get_dag_id(),
+            "run_id": dag_run.run_id if dag_run else None,
+            "bundle_name": callback.bundle_name,
+        },
+    )
+
+
+@router.patch(
+    "/{callback_id}/run",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(require_auth, scopes=["token:callback"])],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Callback not found"),
+            (
+                status.HTTP_409_CONFLICT,
+                "The callback token was already exchanged, or the callback's start deadline passed",
+            ),
+        ]
+    ),
+)
+def run_callback(
+    callback_id: UUID,
+    response: Response,
+    session: SessionDep,
+    services=DepContainer,
+    body: CallbackRunPayload | None = None,
+) -> None:
+    """
+    Exchange a single-use callback token for a short-lived execution token.
+
+    An attempt that identifies itself can repeat its own exchange, as when it never got the response,
+    and gets a new execution token. Any other exchange of a callback that already started is refused,
+    including a second delivery of its workload.
+    """
+    callback = _get_callback(callback_id, session=session, for_update=True)
+    started_by = body.model_dump(mode="json") if body is not None else None
+
+    if (
+        callback.state == CallbackState.RUNNING
+        and started_by is not None
+        and callback.started_by == started_by
+    ):
+        _issue_callback_token(callback, response, services, session=session)
+        return
 
     if callback.state != CallbackState.QUEUED:
         raise HTTPException(
@@ -80,6 +149,149 @@ def run_callback(
             },
         )
 
-    callback.state = CallbackState.RUNNING
+    now = timezone.utcnow()
+    if (start_deadline := callback.start_deadline) is not None and now >= start_deadline:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "start_deadline_passed",
+                "message": f"Callback {callback_id} had to start by {start_deadline.isoformat()}",
+            },
+        )
 
-    issue_execution_token(services, response, sub=str(callback_id))
+    callback.state = CallbackState.RUNNING
+    callback.mark_started(now, started_by=started_by)
+    _issue_callback_token(callback, response, services, session=session)
+
+
+def _issue_callback_token(callback: Callback, response: Response, services, *, session: SessionDep) -> None:
+    # A callback doesn't heartbeat, so its token must last until it reports its outcome.
+    timeout = callback.data.get(EXECUTION_TIMEOUT_KEY)
+    issue_execution_token(
+        services,
+        response,
+        sub=str(callback.id),
+        claims=_get_identity_claims(callback, session=session),
+        min_valid_for=get_callback_report_window(timeout) if timeout else None,
+    )
+
+
+@router.get(
+    "/{callback_id}/context",
+    dependencies=[Security(require_auth, scopes=["token:execution"])],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Callback not found, or it has no Dag-attribute context"),
+            (status.HTTP_409_CONFLICT, "The callback is not running"),
+        ]
+    ),
+)
+def get_callback_context(callback_id: UUID, session: SessionDep) -> CallbackContextResponse:
+    """Return the context of the Dag success, failure, task, or email callback this token runs."""
+    callback = _get_callback(callback_id, session=session)
+
+    if (request := callback.get_callback_request()) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "reason": "no_context",
+                "message": f"Callback {callback_id} does not run a Dag or task attribute",
+            },
+        )
+    if callback.state != CallbackState.RUNNING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "invalid_state",
+                "message": f"Callback {callback_id} is in state {callback.state}, not running",
+                "previous_state": callback.state,
+            },
+        )
+
+    context: DagCallbackContext | TaskCallbackContext | EmailCallbackContext
+    if isinstance(request, DagCallbackRequest):
+        run_context = request.context_from_server
+        context = DagCallbackContext(
+            type="DagCallback",
+            dag_id=request.dag_id,
+            run_id=request.run_id,
+            is_failure_callback=bool(request.is_failure_callback),
+            msg=request.msg,
+            dag_run=run_context.dag_run if run_context else None,
+            last_ti=run_context.last_ti if run_context else None,
+        )
+    elif isinstance(request, TaskCallbackRequest):
+        context = TaskCallbackContext(
+            type="TaskCallback",
+            ti=request.ti,
+            task_callback_type=request.task_callback_type,
+            msg=request.msg,
+            ti_context=request.context_from_server,
+        )
+    elif isinstance(request, EmailRequest):
+        context = EmailCallbackContext(
+            type="EmailCallback",
+            ti=request.ti,
+            email_type=request.email_type,
+            msg=request.msg,
+            ti_context=request.context_from_server,
+        )
+    else:
+        raise TypeError(f"Unknown callback request type: {type(request).__name__}")
+    return CallbackContextResponse(context=context)
+
+
+@router.get(
+    "/{callback_id}/previous-successful-dagrun",
+    dependencies=[Security(require_auth, scopes=["token:execution"])],
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "Callback not found")]),
+)
+def get_callback_previous_successful_dagrun(
+    callback_id: UUID, session: SessionDep
+) -> PrevSuccessfulDagRunResponse:
+    """
+    Return the last successful run of the callback's Dag before its own Dag run, for its template context.
+
+    A callback's token names the callback, not a task instance, so it can't read this from the
+    task-instance endpoint a task uses.
+    """
+    callback = _get_callback(callback_id, session=session)
+    previous = None
+    if dag_run := _get_callback_dag_run(callback, session=session):
+        previous = DagRun.get_previous_dagrun(dag_run, state=DagRunState.SUCCESS, session=session)
+    if previous is None:
+        return PrevSuccessfulDagRunResponse()
+    return PrevSuccessfulDagRunResponse.model_validate(previous)
+
+
+@router.patch(
+    "/{callback_id}/state",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(require_auth, scopes=["token:execution"])],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Callback not found"),
+            (status.HTTP_409_CONFLICT, "The callback is not running"),
+        ]
+    ),
+)
+def update_callback_state(
+    callback_id: UUID,
+    body: CallbackTerminalStatePayload,
+    session: SessionDep,
+) -> None:
+    """Record the terminal state of a running callback, which executor events no longer overwrite."""
+    callback = _get_callback(callback_id, session=session, for_update=True)
+
+    if callback.state != CallbackState.RUNNING:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "reason": "invalid_state",
+                "message": f"Callback {callback_id} is in state {callback.state}, not running",
+                "previous_state": callback.state,
+            },
+        )
+
+    callback.state = body.state
+    callback.output = body.output

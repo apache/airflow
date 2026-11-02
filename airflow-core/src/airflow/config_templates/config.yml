@@ -3673,3 +3673,48 @@ callbacks:
       type: integer
       example: "300"
       default: "0"
+    route_dag_processor_callbacks:
+      description: |
+        Run Dag success and failure callbacks, task failure and retry callbacks, and the task emails
+        that a task could not send itself on executors instead of in a Dag processor.
+
+        A task's callbacks and emails run on the task's executor and queue, and a Dag's callbacks on
+        the default executor of the Dag's team. Callbacks for a task that never started, such as one
+        failed while stuck in the queue, run on the team's default executor and queue. The worker
+        parses the Dag file at the Dag run's bundle version.
+
+        No Dag processor runs these callbacks while this is on, so every executor must be able to run
+        callbacks: the scheduler doesn't start otherwise. Callbacks no executor can run, such as those
+        of Lang-SDK Dags, fail with the reason. One that never starts is routed again, up to three tries.
+        Callbacks stored before this was turned on still run in a Dag processor.
+
+        Enable this only once schedulers, API servers and workers run a version that supports it:
+        callbacks stored for routing wait until a scheduler that routes them runs. Turning it off
+        hands callbacks not yet routed back to the Dag processor; routed ones still run on their
+        executors.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "False"
+    routed_callback_execution_timeout:
+      description: |
+        Maximum time in seconds a callback routed by ``[callbacks] route_dag_processor_callbacks``
+        may take on its worker, including preparing its Dag bundle and parsing its Dag file. The
+        worker terminates a callback that takes longer, and the scheduler fails a routed callback
+        whose worker has not reported it finished within this time plus a grace period. Must be at
+        least 1.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "300"
+    max_routed_callbacks_per_loop:
+      description: |
+        The maximum number of Dag processor callbacks each scheduler loop routes to executors, and
+        the size of each scan window. A loop checks up to two windows for callbacks to route, or to
+        fail when no executor can run them.
+        Callbacks take at most half the free slots globally and on each executor per loop, but one
+        while any is free, and tasks the rest. Must be at least 1.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "20"

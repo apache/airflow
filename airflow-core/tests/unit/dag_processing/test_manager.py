@@ -67,6 +67,7 @@ from airflow.dag_processing.processor import (
 )
 from airflow.models import DagModel, DbCallbackRequest
 from airflow.models.asset import TaskOutletAssetReference
+from airflow.models.callback import ExecutorCallback
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
@@ -2769,6 +2770,28 @@ class TestDagFileProcessorManager:
             with create_session() as session:
                 manager.run()
                 assert len(session.scalars(select(DbCallbackRequest)).all()) == 1
+
+    @conf_vars({("core", "load_examples"): "False"})
+    def test_fetch_callbacks_leaves_callbacks_waiting_to_be_routed(self, configure_testing_dag_bundle):
+        """A callback stored for the scheduler to route to an executor never runs in a Dag processor too."""
+        request = DagCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            bundle_name="testing",
+            bundle_version=None,
+            filepath="test_on_failure_callback_dag.py",
+            run_id="routed",
+        )
+        with create_session() as session:
+            session.add(ExecutorCallback.from_dag_processor_request(request))
+
+        with configure_testing_dag_bundle(TEST_DAG_FOLDER / "test_on_failure_callback_dag.py"):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+
+            with create_session() as session:
+                assert manager._fetch_callbacks_from_db(session=session) == []
+                (remaining,) = session.scalars(select(ExecutorCallback))
+                assert remaining.get_callback_request() == request
 
     @conf_vars({("core", "load_examples"): "False"})
     def test_fetch_callbacks_ignores_other_bundles(self, configure_testing_dag_bundle):
