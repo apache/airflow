@@ -94,6 +94,23 @@ def test_get_by_run_id_404_exits(capsys):
     assert "not found" in capsys.readouterr().out
 
 
+def test_get_by_run_id_404_prints_run_id_containing_markup(capsys):
+    client = Mock(spec=Client)
+    client.dag_runs.get.side_effect = server_error(404)
+
+    with pytest.raises(SystemExit):
+        _get_dag_run_by_run_id(client, "my_dag", "run_[/x]")
+
+    assert "run_[/x]" in capsys.readouterr().out
+
+
+def test_get_by_logical_date_prints_invalid_value_containing_markup(capsys):
+    with pytest.raises(SystemExit):
+        _get_dag_run_by_logical_date(Mock(spec=Client), "my_dag", "[/x]")
+
+    assert "[/x]" in capsys.readouterr().out
+
+
 def test_get_by_run_id_other_error_propagates():
     client = Mock(spec=Client)
     client.dag_runs.get.side_effect = server_error(500)

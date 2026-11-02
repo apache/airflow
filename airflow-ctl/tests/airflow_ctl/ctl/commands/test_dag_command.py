@@ -228,6 +228,21 @@ class TestDagCommands:
                 api_client=api_client,
             )
 
+    def test_pause_fail_prints_server_error_containing_markup(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "bad [/x] value"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.pause(
+                self.parser.parse_args(["dags", "pause", self.dag_id]),
+                api_client=api_client,
+            )
+
+        assert "[/x]" in capsys.readouterr().err
+
     def test_unpause_dag(self, api_client_maker, monkeypatch):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",

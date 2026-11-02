@@ -23,6 +23,7 @@ import sys
 from typing import Literal
 
 import rich
+from rich.markup import escape
 from rich.text import Text
 
 from airflowctl.api.client import (
@@ -55,7 +56,10 @@ def update_dag_state(
     try:
         response = api_client.dags.update(dag_id=dag_id, dag_body=dag_body)
     except ServerResponseError as e:
-        rich.print(f"[red]Error while trying to {operation} Dag {dag_id}: {e}[/red]", file=sys.stderr)
+        rich.print(
+            f"[red]Error while trying to {operation} Dag {escape(dag_id)}: {escape(str(e))}[/red]",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     response_dict = response.model_dump(mode="json")
@@ -116,7 +120,7 @@ def next_execution(args, api_client=NEW_API_CLIENT) -> dict | None:
     try:
         response = api_client.dags.get(dag_id=args.dag_id)
     except ServerResponseError as e:
-        rich.print(f"[red]Error retrieving Dag {args.dag_id}: {e}[/red]")
+        rich.print(f"[red]Error retrieving Dag {escape(args.dag_id)}: {escape(str(e))}[/red]")
         sys.exit(1)
 
     response_dict = response.model_dump(mode="json")
