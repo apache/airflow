@@ -5628,7 +5628,6 @@ export class DeadlinesService {
      * @param data.lastUpdatedAtLte
      * @param data.lastUpdatedAtLt
      * @param data.teams
-     * @param data.alertIds
      * @returns DeadlineCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -5653,8 +5652,7 @@ export class DeadlinesService {
                 last_updated_at_gt: data.lastUpdatedAtGt,
                 last_updated_at_lte: data.lastUpdatedAtLte,
                 last_updated_at_lt: data.lastUpdatedAtLt,
-                teams: data.teams,
-                alert_ids: data.alertIds
+                teams: data.teams
             },
             errors: {
                 400: 'Bad Request',

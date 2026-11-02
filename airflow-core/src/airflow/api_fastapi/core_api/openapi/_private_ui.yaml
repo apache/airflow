@@ -1459,17 +1459,6 @@ paths:
           items:
             type: string
           title: Teams
-      - name: alert_ids
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: array
-            items:
-              type: string
-              format: uuid
-          - type: 'null'
-          title: Alert Ids
       responses:
         '200':
           description: Successful Response
