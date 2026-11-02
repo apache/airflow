@@ -31,11 +31,18 @@ import java.util.concurrent.ConcurrentHashMap
 // moves a date-time that carries an offset to UTC. For example,
 // 2024-01-31T02:00+08:00 would become 2024-01-30T18:00Z and fall on another
 // date. This mapper keeps the offset as written instead.
+//
+// FAIL_ON_NULL_FOR_PRIMITIVES stops Jackson from turning a null into 0, for
+// example in an int[]. It also rejects a record whose primitive component has
+// no key, because Jackson handles the missing value as null. matchFields still
+// checks a key that holds null, because its message names the key and the
+// matching field.
 private val confMapper: ObjectMapper by lazy {
   JsonMapper
     .builder()
     .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
     .disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
+    .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
     .build()
     .findAndRegisterModules()
 }

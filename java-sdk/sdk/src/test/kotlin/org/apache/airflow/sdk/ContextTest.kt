@@ -105,9 +105,28 @@ private class CreatorConf
   @JsonCreator
   constructor(
     @JsonProperty("targetTable") targetTable: String?,
+    @JsonProperty("rowLimit") rowLimit: Int,
   ) {
     val stored = targetTable
+    val storedLimit = rowLimit
   }
+
+private class CountsConf {
+  @JvmField
+  var counts: IntArray? = null
+
+  @JvmField
+  var matrix: Array<IntArray>? = null
+
+  @JvmField
+  var boxedCounts: List<Int?>? = null
+}
+
+private class PinnedConf {
+  @JvmField
+  @JsonProperty("target-table")
+  var table: String? = null
+}
 
 private class GetterOnlyTables {
   private val backingList = mutableListOf<EtlTable>()
@@ -119,6 +138,18 @@ private class GetterOnlyTables {
 }
 
 private fun dagRunWithConf(conf: Map<String, Any?>) = DagRun("d", "r", null, null, null, null, null, conf)
+
+private fun assertConfFailsOnField(
+  conf: Map<String, Any?>,
+  type: Class<*>,
+  field: String,
+) {
+  val error = Assertions.assertThrows(IllegalArgumentException::class.java) { dagRunWithConf(conf).getConf(type) }
+
+  val message = error.message.orEmpty()
+  Assertions.assertTrue(message.startsWith("Cannot convert the Dag run conf to ${type.name}: ")) { message }
+  Assertions.assertTrue(message.contains("[\"$field\"]")) { message }
+}
 
 class ContextTest {
   @Test
@@ -286,10 +317,42 @@ class ContextTest {
 
   @Test
   fun getConfMatchesKeysToSettersAndConstructorParameters() {
-    val conf = dagRunWithConf(mapOf("target_table" to "sales"))
+    val conf = dagRunWithConf(mapOf("target_table" to "sales", "row_limit" to 5L))
 
     Assertions.assertEquals("sales", conf.getConf(SetterConf::class.java).stored())
     Assertions.assertEquals("sales", conf.getConf(CreatorConf::class.java).stored)
+    Assertions.assertEquals(5, conf.getConf(CreatorConf::class.java).storedLimit)
+  }
+
+  @Test
+  fun getConfRejectsAPrimitiveConstructorParameterWithNoKey() {
+    Assertions.assertNull(dagRunWithConf(mapOf("row_limit" to 5L)).getConf(CreatorConf::class.java).stored)
+
+    assertConfFailsOnField(emptyMap(), CreatorConf::class.java, "rowLimit")
+  }
+
+  @Test
+  fun getConfRejectsAnEmptyStringForAPrimitiveField() {
+    listOf("", "  ").forEach { assertConfFailsOnField(mapOf("limit" to it), EtlConf::class.java, "limit") }
+  }
+
+  @Test
+  fun getConfMatchesKeysToNamesFromJsonProperty() {
+    listOf("target-table", "TARGET-TABLE").forEach { key ->
+      Assertions.assertEquals("sales", dagRunWithConf(mapOf(key to "sales")).getConf(PinnedConf::class.java).table)
+    }
+    Assertions.assertNull(dagRunWithConf(mapOf("table" to "sales")).getConf(PinnedConf::class.java).table)
+  }
+
+  @Test
+  fun getConfRejectsNullElementsOnlyForPrimitiveArrays() {
+    Assertions.assertEquals(
+      listOf(1, null),
+      dagRunWithConf(mapOf("boxed_counts" to listOf(1L, null))).getConf(CountsConf::class.java).boxedCounts,
+    )
+
+    assertConfFailsOnField(mapOf("counts" to listOf(1L, null)), CountsConf::class.java, "counts")
+    assertConfFailsOnField(mapOf("matrix" to listOf(listOf(1L, null))), CountsConf::class.java, "matrix")
   }
 
   @Test

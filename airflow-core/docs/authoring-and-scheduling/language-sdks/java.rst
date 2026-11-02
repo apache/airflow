@@ -747,24 +747,31 @@ For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-
 * Each key goes to the field, setter or record component with the same name when case and underscores are
   ignored, so ``target_table`` reaches ``targetTable``. Objects nested in the conf follow the same rule. The keys
   of a ``Map`` field stay as written.
-* ``@ArgName`` has no effect on ``getConf``. Read a key that no Java name can match, such as ``target-table``,
-  from ``context.dagRun.conf``.
+* ``@ArgName`` has no effect on ``getConf``. To set a field from a key that no Java name can match, such as
+  ``target-table``, add ``@JsonProperty("target-table")`` to that field. The annotation needs
+  ``com.fasterxml.jackson.core:jackson-annotations`` in your build, because the SDK keeps Jackson off your compile
+  classpath. You can also read the key from ``context.dagRun.conf``.
 * Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
-  key keeps its Java default.
+  key keeps its default value.
 * The conf holds only the values that the run was triggered with. In a Python task, ``params`` combines the conf
-  with the defaults of the Dag's params. ``getConf`` does not add those defaults, so in a scheduled run, every
-  field keeps its Java default.
+  with the defaults of the Dag's params. ``getConf`` does not add those defaults, so in a scheduled run, no field
+  has a matching key.
 * The class needs a no-argument constructor and public fields or setters, so a nested class must be ``static``.
-  A record also works. In Kotlin, declare the fields with ``@JvmField``, so that a property such as
-  ``isEnabled`` keeps its name.
-* ``getConf`` throws ``IllegalArgumentException`` when a value cannot be converted to the type of its field. It
-  also throws when two keys, such as ``target_table`` and ``TARGET_TABLE``, match the same field after case and
-  underscores are ignored but neither key matches the field name exactly. A primitive field cannot hold ``null``,
-  so ``getConf`` throws the same exception when a key holds ``null`` for a primitive field. To let a field
-  receive ``null``, declare it with a boxed type, such as ``Integer``.
-* ``getConf`` also throws ``IllegalArgumentException`` when the class has two fields whose names differ only in
-  case or underscores, such as ``targetTable`` and ``target_table``. It checks the class even when the conf is
-  empty, so a task that passes such a class fails in a scheduled run too.
+  A record also works. A record component with no matching key is ``null``, unless it has a primitive type. In
+  that case, ``getConf`` throws. A task that calls ``getConf`` with a record that has a primitive component
+  therefore fails in a scheduled run. In Kotlin, declare the fields with ``@JvmField`` so that a property such
+  as ``isEnabled`` keeps its name.
+* ``getConf`` throws ``IllegalArgumentException`` in these cases:
+
+  * A value, such as an empty string for an ``int`` field, cannot be converted to the type of its field.
+  * A key holds ``null`` for a primitive field, a list holds ``null`` for a primitive array such as ``int[]``, or
+    a primitive record component has no matching key. To let a field or a component receive ``null``, declare it
+    with a boxed type, such as ``Integer``.
+  * Two keys, such as ``target_table`` and ``TARGET_TABLE``, match the same field after case and underscores are
+    ignored, but neither key matches the field name exactly.
+  * The class has two fields whose names differ only in case or underscores, such as ``targetTable`` and
+    ``target_table``. ``getConf`` checks the class even when the conf is empty, so a task that passes such a
+    class fails in a scheduled run too.
 
 .. _java-sdk/task-state-store:
 

@@ -118,18 +118,23 @@ data class DagRun(
    * Keys that match no field are ignored, because other tasks in the run may
    * read them. A field with no matching key keeps its default value. The class
    * needs a no-argument constructor and public fields or setters. A record also
-   * works. In Kotlin, declare the fields with `@JvmField`, so that a property
-   * such as `isEnabled` keeps its name.
+   * works. A record component with no matching key is null, and this method
+   * throws if that component has a primitive type. In Kotlin, declare the fields
+   * with `@JvmField` so that a property such as `isEnabled` keeps its name.
    *
-   * Annotating a field with [ArgName] has no effect here. Read a key that no
-   * Java name can match, such as `target-table`, from [conf] instead.
+   * Annotating a field with [ArgName] has no effect here. To set a field from a
+   * key that no Java name can match, such as `target-table`, add Jackson's
+   * `@JsonProperty` to that field. The annotation needs `jackson-annotations` on
+   * your compile classpath. You can also read the key from [conf].
    *
    * @param type Class to read the conf into.
    * @throws IllegalArgumentException if a value cannot be converted to the type
-   *    of its field, or if a key holds null for a primitive field. It is also
-   *    thrown if two keys match the same field only when case and underscores
-   *    are ignored, or if two fields of a class differ only in case or
-   *    underscores.
+   *    of its field. It is also thrown if a key holds null for a primitive
+   *    field, or if a list holds null for a primitive array such as `int[]`. It
+   *    is also thrown if a primitive record component has no matching key. It is
+   *    also thrown if two keys match the same field only when case and
+   *    underscores are ignored, or if two fields of a class differ only in case
+   *    or underscores.
    */
   fun <T : Any> getConf(type: Class<T>): T = bindConf(conf, type)
 }
