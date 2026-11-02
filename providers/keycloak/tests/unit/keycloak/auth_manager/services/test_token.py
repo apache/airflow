@@ -118,6 +118,48 @@ class TestTokenService:
                 expiration_time_in_seconds=conf.getint("api_auth", "jwt_cli_expiration_time"),
             )
 
+    @conf_vars({("api_auth", "jwt_expiration_time"): "10"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_requires_preferred_username(self, mock_get_keycloak_client, mock_get_auth_manager):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": self.test_access_token}
+        mock_keycloak_client.userinfo.return_value = {"sub": "sub", "clientId": "client"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(KeyError, match="preferred_username"):
+            create_token_for(username=self.test_username, password=self.test_password)
+
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("userinfo", "expected_name"),
+        [
+            pytest.param({"sub": "sub", "clientId": "client"}, "client", id="client_id"),
+            pytest.param({"sub": "sub"}, "service-account", id="default"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "test_client",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_client_credentials_name_fallback(
+        self, mock_get_keycloak_client, mock_get_auth_manager, userinfo, expected_name
+    ):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": self.test_access_token}
+        mock_keycloak_client.userinfo.return_value = userinfo
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        create_client_credentials_token(client_id="test_client", client_secret="test_secret")
+
+        user = mock_get_auth_manager.return_value.generate_api_jwt.call_args.args[0]
+        assert user.get_name() == expected_name
+
     @conf_vars(
         {
             ("api_auth", "jwt_expiration_time"): "10",
@@ -264,6 +306,46 @@ class TestCreateJwtFederatedToken:
         )
         mock_keycloak_client.userinfo.assert_called_once_with(self.test_assertion)
         mock_auth_manager.generate_api_jwt.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("userinfo", "expected_name"),
+        [
+            pytest.param({"sub": "sub", "clientId": "client"}, "client", id="client_id"),
+            pytest.param({"sub": "sub"}, "service-account", id="default"),
+        ],
+    )
+    @conf_vars(
+        {
+            ("api_auth", "jwt_expiration_time"): "10",
+            ("keycloak_auth_manager", "client_id"): "airflow",
+            ("keycloak_auth_manager", "realm"): "airflow",
+            ("keycloak_auth_manager", "server_url"): "https://keycloak.example.com",
+            ("keycloak_auth_manager", "jwt_federated_client_ids"): "team-platform-admin-sa",
+        }
+    )
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.jwt.decode")
+    @patch("airflow.providers.keycloak.auth_manager.services.token._get_jwks_client")
+    def test_create_jwt_federated_token_name_fallback(
+        self,
+        mock_jwks_client_cls,
+        mock_jwt_decode,
+        mock_get_keycloak_client,
+        mock_get_auth_manager,
+        userinfo,
+        expected_name,
+    ):
+        mock_jwks_client_cls.return_value.get_signing_key_from_jwt.return_value = Mock(key="fake-key")
+        mock_jwt_decode.return_value = {"azp": "team-platform-admin-sa", "aud": ["airflow"]}
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.userinfo.return_value = userinfo
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        create_jwt_federated_token(assertion=self.test_assertion)
+
+        user = mock_get_auth_manager.return_value.generate_api_jwt.call_args.args[0]
+        assert user.get_name() == expected_name
 
     @conf_vars(
         {
@@ -462,6 +544,24 @@ class TestCliTokenService:
             user, expiration_time_in_seconds=10
         )
 
+    @conf_vars({("keycloak_auth_manager", "cli_authorization_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_from_authorization_code_requires_preferred_username(
+        self, mock_get_keycloak_client, mock_get_auth_manager
+    ):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": "access"}
+        mock_keycloak_client.userinfo.return_value = {"sub": "sub", "clientId": "client"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(KeyError, match="preferred_username"):
+            create_token_from_authorization_code(
+                "code", self.code_verifier, self.redirect_uri, expiration_time_in_seconds=10
+            )
+
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+
     @pytest.mark.parametrize(
         ("enabled", "redirect_uri", "expected_detail"),
         [
@@ -500,7 +600,28 @@ class TestCliTokenService:
 
         assert exc_info.value.status_code == 403
 
+    @patch("airflow.providers.keycloak.auth_manager.services.token.AIRFLOW_V_3_2_PLUS", False)
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_refresh_cli_token_before_airflow_3_2_does_not_revoke(
+        self, mock_get_keycloak_client, mock_get_auth_manager
+    ):
+        mock_auth_manager = mock_get_auth_manager.return_value
+        mock_auth_manager.get_user_from_token = AsyncMock(
+            return_value=KeycloakAuthManagerUser(
+                user_id="sub", name="username", access_token="old_access", refresh_token="old_refresh"
+            )
+        )
+        mock_auth_manager.generate_api_jwt.return_value = self.token
+        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
+        mock_get_keycloak_client.return_value.refresh_token.return_value = {"access_token": "new_access"}
+
+        assert refresh_cli_token(self.cli_token(expires_in=600)) == self.token
+
+        mock_auth_manager.revoke_token.assert_not_called()
+
     @time_machine.travel("2026-01-01 00:00:00", tick=False)
+    @patch("airflow.providers.keycloak.auth_manager.services.token.AIRFLOW_V_3_2_PLUS", True)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     def test_refresh_cli_token_keeps_original_expiry(self, mock_get_keycloak_client, mock_get_auth_manager):

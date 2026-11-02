@@ -43,6 +43,7 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     is_cli_authorization_code_enabled,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
+from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_2_PLUS
 
 # RFC 8252 section 7.3 loopback redirects. ``localhost`` is left out because it can resolve
 # to a non-loopback interface.
@@ -69,14 +70,23 @@ def is_cli_loopback_redirect_uri(redirect_uri: str) -> bool:
     )
 
 
-def _build_user_from_userinfo(client: KeycloakOpenID, tokens: dict) -> KeycloakAuthManagerUser:
+def _build_user_from_userinfo(
+    client: KeycloakOpenID, tokens: dict, *, is_service_account: bool = False
+) -> KeycloakAuthManagerUser:
     """Build the Airflow user that Keycloak's UserInfo endpoint describes for ``tokens``."""
     userinfo_raw: dict | bytes = client.userinfo(tokens["access_token"])
     userinfo: dict = json.loads(userinfo_raw) if isinstance(userinfo_raw, bytes) else userinfo_raw
 
+    # The fallback is for machine clients only: a real user must never appear as "service-account".
+    name = (
+        userinfo.get("preferred_username", userinfo.get("clientId", "service-account"))
+        if is_service_account
+        else userinfo["preferred_username"]
+    )
+
     return KeycloakAuthManagerUser(
         user_id=userinfo["sub"],
-        name=userinfo.get("preferred_username", userinfo.get("clientId", "service-account")),
+        name=name,
         access_token=tokens["access_token"],
         # Absent for client_credentials and clients with "Use Refresh Tokens" off.
         refresh_token=tokens.get("refresh_token"),
@@ -84,9 +94,13 @@ def _build_user_from_userinfo(client: KeycloakOpenID, tokens: dict) -> KeycloakA
 
 
 def _create_api_jwt_from_keycloak_tokens(
-    client: KeycloakOpenID, tokens: dict, expiration_time_in_seconds: int
+    client: KeycloakOpenID,
+    tokens: dict,
+    expiration_time_in_seconds: int,
+    *,
+    is_service_account: bool = False,
 ) -> str:
-    user = _build_user_from_userinfo(client, tokens)
+    user = _build_user_from_userinfo(client, tokens, is_service_account=is_service_account)
     return get_auth_manager().generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
 
 
@@ -174,7 +188,7 @@ def create_jwt_federated_token(
     # own claims alone.
     client = KeycloakAuthManager.get_keycloak_client()
     try:
-        user = _build_user_from_userinfo(client, {"access_token": assertion})
+        user = _build_user_from_userinfo(client, {"access_token": assertion}, is_service_account=True)
     except KeycloakError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -226,7 +240,9 @@ def create_client_credentials_token(
             detail="Client credentials authentication failed",
         )
 
-    return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+    return _create_api_jwt_from_keycloak_tokens(
+        client, tokens, expiration_time_in_seconds, is_service_account=True
+    )
 
 
 def create_token_from_authorization_code(
@@ -268,8 +284,9 @@ def refresh_cli_token(token: str) -> str:
     """
     Create a CLI token with fresh Keycloak tokens from a CLI token that is still valid.
 
-    The new token expires with the old one, so refreshing never extends a CLI session, and the old
-    token is revoked. Expired and revoked tokens are refused by ``get_user_from_token``.
+    The new token expires with the old one, so refreshing never extends a CLI session. On Airflow 3.2+
+    the old token is revoked; earlier versions have no token revocation, so it stays usable until it
+    expires. Expired and revoked tokens are refused by ``get_user_from_token``.
     """
     auth_manager = get_auth_manager()
     try:
@@ -300,6 +317,7 @@ def refresh_cli_token(token: str) -> str:
     # RFC 6749 section 6: a refresh response may omit a new refresh token, and the old one stays valid.
     user.refresh_token = tokens.get("refresh_token", user.refresh_token)
     new_token = auth_manager.generate_api_jwt(user, expiration_time_in_seconds=expiration_time_in_seconds)
-    # Otherwise the old token stays usable and refreshable until it expires.
-    auth_manager.revoke_token(token)
+    if AIRFLOW_V_3_2_PLUS:
+        # Otherwise the old token stays usable and refreshable until it expires.
+        auth_manager.revoke_token(token)
     return new_token
