@@ -56,18 +56,12 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
   const applicableAlerts = (alertData?.deadline_alerts ?? []).filter((deadlineAlert) =>
     isDeadlineAlertApplicable(deadlineAlert, runType),
   );
-  const alertIds = applicableAlerts.map((deadlineAlert) => deadlineAlert.id);
-  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines(
-    {
-      alertIds,
-      dagId,
-      dagRunId,
-      limit: 10,
-      orderBy: ["deadline_time"],
-    },
-    undefined,
-    { enabled: alertIds.length > 0 },
-  );
+  const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
+    dagId,
+    dagRunId,
+    limit: 10,
+    orderBy: ["deadline_time"],
+  });
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
@@ -86,8 +80,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
     return undefined;
   }
 
-  // Alerts are configured but no active deadline instances exist therefore all deadlines were met.
-  // Show a tooltip listing each alert's completion rule.
   if (deadlines.length === 0 && hasAlerts) {
     const tooltipContent = (
       <VStack alignItems="flex-start" gap={0.5}>
@@ -141,7 +133,6 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
           </Badge>
         </Button>
         <DeadlineStatusModal
-          alertIds={alertIds}
           alertMap={alertMap}
           dagId={dagId}
           dagRunId={dagRunId}
