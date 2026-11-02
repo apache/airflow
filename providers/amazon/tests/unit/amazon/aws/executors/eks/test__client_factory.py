@@ -22,10 +22,11 @@ import signal
 import tempfile
 import threading
 import time
-from base64 import b64encode
+from base64 import b64encode, urlsafe_b64decode
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
+from urllib.parse import parse_qs, urlsplit
 
 import boto3
 import pytest
@@ -273,6 +274,139 @@ async def test_async_client_refreshes_bearer_token(mock_time, _, mock_aws):
         auth = await auth
     assert auth["BearerToken"]["value"] == "Bearer k8s-aws-v1.token-2"
     await core_v1.api_client.close()
+
+
+def _signing_key_id(configuration: client.Configuration) -> str:
+    """Return the access key ID that signed the client's current EKS token."""
+    token = configuration.auth_settings()["BearerToken"]["value"].removeprefix("Bearer k8s-aws-v1.")
+    url = urlsafe_b64decode(token + "=" * (-len(token) % 4)).decode()
+    return parse_qs(urlsplit(url).query)["X-Amz-Credential"][0].split("/")[0]
+
+
+@mock.patch.object(_client_factory, "time", autospec=True)
+@mock.patch.object(_client_factory, "StsHook", autospec=True)
+@mock.patch("botocore.client.BaseClient._make_api_call", autospec=True)
+def test_new_token_is_signed_with_rotated_credentials(
+    mock_api_call, mock_sts_hook, mock_time, tmp_path, monkeypatch
+):
+    """Static keys in a credentials file that is rewritten while the executor runs."""
+    credentials_file = tmp_path / "credentials"
+
+    def write_keys(access_key_id):
+        credentials_file.write_text(
+            f"[rotating]\naws_access_key_id = {access_key_id}\naws_secret_access_key = secret\n"
+        )
+
+    for var in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(credentials_file))
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "config"))
+    monkeypatch.setenv("AWS_PROFILE", "rotating")
+    monkeypatch.setenv("AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME", CLUSTER_NAME)
+    monkeypatch.setenv("AIRFLOW__AWS_EKS_EXECUTOR__REGION_NAME", "us-east-1")
+    monkeypatch.setenv("AIRFLOW_CONN_AWS_DEFAULT", "aws://")
+    mock_api_call.return_value = {
+        "cluster": {
+            "status": "ACTIVE",
+            "endpoint": CLUSTER_ENDPOINT,
+            "certificateAuthority": {"data": b64encode(CA_PEM).decode()},
+        }
+    }
+    mock_sts_hook.return_value.conn_client_meta.endpoint_url = "https://sts.us-east-1.amazonaws.com"
+    mock_time.monotonic.return_value = 1000.0
+    write_keys("AKIAFIRSTKEY")
+    configuration = _get_eks_kube_client().api_client.configuration
+    assert _signing_key_id(configuration) == "AKIAFIRSTKEY"
+
+    write_keys("AKIASECONDKEY")
+    mock_time.monotonic.return_value = 1000.0 + TOKEN_REFRESH_SECONDS
+
+    assert _signing_key_id(configuration) == "AKIASECONDKEY"
+
+
+def _unauthorized(api_exception_cls):
+    error = api_exception_cls(status=401, reason="Unauthorized")
+    # The client decodes the body of a failed response before raising it.
+    error.body = b'{"kind":"Status","code":401,"reason":"Unauthorized"}'
+    return error
+
+
+@pytest.mark.parametrize(
+    ("factory", "api_exception_cls"),
+    [(_get_eks_kube_client, client.ApiException), (_get_eks_async_kube_client, async_client.ApiException)],
+    ids=["sync", "async"],
+)
+@pytest.mark.parametrize(
+    ("unauthorized_responses", "succeeds"),
+    [pytest.param(1, True, id="retried-with-new-token"), pytest.param(2, False, id="retried-only-once")],
+)
+@pytest.mark.asyncio
+# kubernetes_asyncio loads the CA eagerly and the fake PEM is not loadable.
+@mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
+async def test_rejected_token_is_replaced_and_request_retried_once(
+    _, mock_aws, factory, api_exception_cls, unauthorized_responses, succeeds
+):
+    core_v1 = factory()
+    mock_aws["fetch_token"].side_effect = ["k8s-aws-v1.token-2", "k8s-aws-v1.token-3"]
+    sent_tokens = []
+    responses: list = [_unauthorized(api_exception_cls) for _ in range(unauthorized_responses)]
+    responses.append(mock.sentinel.pods)
+
+    def respond(method, url, headers=None, **kwargs):
+        sent_tokens.append(headers["authorization"])
+        response = responses.pop(0)
+        if isinstance(response, Exception):
+            raise response
+        return response
+
+    with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond):
+        try:
+            result = core_v1.list_namespaced_pod("default", _preload_content=False)
+            if inspect.isawaitable(result):
+                result = await result
+        except api_exception_cls as e:
+            result = e.status
+
+    assert sent_tokens == ["Bearer k8s-aws-v1.token-1", "Bearer k8s-aws-v1.token-2"]
+    assert result == (mock.sentinel.pods if succeeds else 401)
+    if inspect.iscoroutinefunction(core_v1.api_client.close):
+        await core_v1.api_client.close()
+
+
+@pytest.mark.parametrize(
+    ("factory", "api_exception_cls"),
+    [(_get_eks_kube_client, client.ApiException), (_get_eks_async_kube_client, async_client.ApiException)],
+    ids=["sync", "async"],
+)
+@pytest.mark.parametrize("status", [403, 500])
+@pytest.mark.asyncio
+# kubernetes_asyncio loads the CA eagerly and the fake PEM is not loadable.
+@mock.patch.object(_client_factory, "_write_cluster_ca_file", return_value=None)
+async def test_other_errors_are_raised_without_a_new_token_or_retry(
+    _, mock_aws, factory, api_exception_cls, status
+):
+    core_v1 = factory()
+    sent_tokens = []
+
+    def respond(method, url, headers=None, **kwargs):
+        sent_tokens.append(headers["authorization"])
+        error = api_exception_cls(status=status, reason="Error")
+        error.body = b'{"kind":"Status"}'
+        raise error
+
+    with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond):
+        try:
+            result = core_v1.list_namespaced_pod("default", _preload_content=False)
+            if inspect.isawaitable(result):
+                result = await result
+        except api_exception_cls as e:
+            result = e
+
+    assert result.status == status
+    assert sent_tokens == ["Bearer k8s-aws-v1.token-1"]
+    mock_aws["fetch_token"].assert_called_once()
+    if inspect.iscoroutinefunction(core_v1.api_client.close):
+        await core_v1.api_client.close()
 
 
 class TestWriteClusterCaFile:
