@@ -31,7 +31,6 @@
       "file_many": "Fichiers",
       "file_one": "Fichier",
       "file_other": "Fichiers",
-      "importErrorGone": "Cette erreur d'import n'est plus enregistrée. Elle a probablement été corrigée par une nouvelle analyse.",
       "neverParsed": "Jamais",
       "showImportError_many": "Voir {{count, number}} erreurs",
       "showImportError_one": "Voir {{count, number}} erreur",

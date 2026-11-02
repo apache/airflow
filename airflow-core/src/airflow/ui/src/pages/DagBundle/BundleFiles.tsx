@@ -83,7 +83,7 @@ const createColumns = (
     cell: ({ row: { original } }: FileRow) =>
       // Only worth clicking when there is an error behind the count. A bare badge reads as a
       // status rather than a control, so the clickable form carries an icon and its own label.
-      original.import_error_count === null || original.import_error_count === 0 ? (
+      original.import_error_count === 0 ? (
         <ImportErrorCount count={original.import_error_count} />
       ) : (
         <Button

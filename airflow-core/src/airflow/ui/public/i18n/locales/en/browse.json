@@ -30,7 +30,7 @@
       },
       "file_one": "File",
       "file_other": "Files",
-      "importErrorGone": "This import error is no longer recorded. It was probably fixed by a reparse.",
+      "importErrorUnavailable": "This import error can't be shown. A reparse may have fixed it, or reading it may need permissions you don't have.",
       "neverParsed": "Never",
       "showImportError_one": "View error",
       "showImportError_other": "View {{count, number}} errors"

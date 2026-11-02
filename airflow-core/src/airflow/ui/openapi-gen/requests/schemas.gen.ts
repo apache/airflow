@@ -4867,7 +4867,7 @@ export const $DagBundleDetailResponse = {
                 }
             ],
             title: 'Bundle Url',
-            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+            description: 'A link to view the bundle at ``version``, when the bundle is configured with one.'
         },
         team_name: {
             anyOf: [
@@ -4882,21 +4882,14 @@ export const $DagBundleDetailResponse = {
             description: 'The team owning the bundle, in a multi-team deployment.'
         },
         import_error_count: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Import Error Count',
-            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+            description: 'Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.'
         },
         dag_count: {
             type: 'integer',
             title: 'Dag Count',
-            description: 'Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.'
+            description: 'Number of live Dags recorded against the bundle, including Dags the caller may not read.'
         }
     },
     type: 'object',
@@ -4934,7 +4927,7 @@ export const $DagBundleFileResponse = {
         dag_count: {
             type: 'integer',
             title: 'Dag Count',
-            description: 'Number of live Dags the file defines that the caller may read.'
+            description: 'Number of live Dags the file defines, including Dags the caller may not read.'
         },
         last_parsed_time: {
             anyOf: [
@@ -4962,16 +4955,9 @@ export const $DagBundleFileResponse = {
             description: 'How long the last successful parse of the file took, in seconds.'
         },
         import_error_count: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Import Error Count',
-            description: 'Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.'
+            description: 'Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.'
         }
     },
     type: 'object',
@@ -5033,7 +5019,7 @@ export const $DagBundleResponse = {
                 }
             ],
             title: 'Bundle Url',
-            description: 'A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.'
+            description: 'A link to view the bundle at ``version``, when the bundle is configured with one.'
         },
         team_name: {
             anyOf: [
@@ -5048,16 +5034,9 @@ export const $DagBundleResponse = {
             description: 'The team owning the bundle, in a multi-team deployment.'
         },
         import_error_count: {
-            anyOf: [
-                {
-                    type: 'integer'
-                },
-                {
-                    type: 'null'
-                }
-            ],
+            type: 'integer',
             title: 'Import Error Count',
-            description: 'Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.'
+            description: 'Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.'
         }
     },
     type: 'object',
@@ -12269,6 +12248,19 @@ export const $DAGsRunStateCountsCollectionResponse = {
     required: ['dags', 'state_count_limit'],
     title: 'DAGsRunStateCountsCollectionResponse',
     description: 'Collection of per-Dag DagRun-state counts for the Dag list page.'
+} as const;
+
+export const $DagBundleCountResponse = {
+    properties: {
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        }
+    },
+    type: 'object',
+    required: ['total_entries'],
+    title: 'DagBundleCountResponse',
+    description: 'Number of Dag bundles holding a Dag the caller may read.'
 } as const;
 
 export const $DagFolderCollectionResponse = {

@@ -30,7 +30,6 @@
       },
       "file_one": "Datei",
       "file_other": "Dateien",
-      "importErrorGone": "Der Importfehler ist nicht mehr aufgetreten. Vermutlich durch ein Wiedereinlesen behoben.",
       "neverParsed": "Nie",
       "showImportError_one": "{{count, number}} Importfehler ansehen",
       "showImportError_other": "{{count, number}} Importfehler ansehen"

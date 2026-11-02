@@ -57,8 +57,9 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
     );
   }
 
-  // The table polls, so the error can be gone by the time its badge is clicked. Say so rather
-  // than leaving the click with no visible effect.
+  // The table polls, so the error can be gone by the time its badge is clicked. The count is
+  // authorized on the bundle and the error text by ``GET /importErrors``, so the caller may also
+  // be unable to read it. Say so rather than leaving the click with no visible effect.
   return (
     <Modal
       headerProps={{
@@ -72,7 +73,7 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
       onOpenChange={onClose}
       open={relativeFileloc !== undefined && !isLoading}
     >
-      <Text color="fg.muted">{translate("dagBundles.files.importErrorGone")}</Text>
+      <Text color="fg.muted">{translate("dagBundles.files.importErrorUnavailable")}</Text>
     </Modal>
   );
 };

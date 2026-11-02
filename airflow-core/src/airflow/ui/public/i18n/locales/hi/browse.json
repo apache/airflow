@@ -30,7 +30,6 @@
       },
       "file_one": "फ़ाइल",
       "file_other": "फ़ाइलें",
-      "importErrorGone": "यह इम्पोर्ट त्रुटि अब दर्ज नहीं है। संभवतः इसे पुनः पार्स द्वारा ठीक कर दिया गया था।",
       "neverParsed": "कभी नहीं",
       "showImportError_one": "त्रुटि देखें",
       "showImportError_other": "{{count, number}} त्रुटियां देखें"

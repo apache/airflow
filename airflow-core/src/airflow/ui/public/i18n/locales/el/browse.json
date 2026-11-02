@@ -30,7 +30,6 @@
       },
       "file_one": "Αρχείο",
       "file_other": "Αρχεία",
-      "importErrorGone": "Αυτό το σφάλμα εισαγωγής πλέον δεν καταγράφεται. Πιθανότατα διορθώθηκε από μια επανανάλυση.",
       "neverParsed": "Ποτέ",
       "showImportError_one": "Προβολή σφάλματος",
       "showImportError_other": "Προβολή {{count, number}} σφαλμάτων"

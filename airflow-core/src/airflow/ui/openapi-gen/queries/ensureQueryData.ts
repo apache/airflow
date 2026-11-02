@@ -630,11 +630,8 @@ export const ensureUseDagSourceServiceGetDagSourceData = (queryClient: QueryClie
 * Reports the version of each bundle Airflow currently holds and when a Dag processor last
 * refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
 *
-* A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
-* holding no registered Dag at all has nothing to authorize against, so it is listed only for a
-* user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
-* the same view, scoped the same way, that governs import errors for a file that never
-* registered a Dag.
+* Needs ``AccessView.DAG_BUNDLES``. In a multi-team deployment it is checked against each
+* bundle's team, and bundles of a team the caller cannot see are left out.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -662,10 +659,9 @@ export const ensureUseDagBundleServiceGetDagBundleData = (queryClient: QueryClie
 * Get Dag Bundle Files
 * List the files in a Dag bundle, ordered by path.
 *
-* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
-* import error without registering any Dag is listed too, on the same admin-by-default terms as
-* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
-* and it is the case this page most needs to show.
+* Every file the bundle holds is listed, with counts covering the whole file: the bundle is
+* authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
+* file's Dags contain, and the text of its import error, stay behind their own permissions.
 *
 * ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
 * has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
@@ -687,6 +683,17 @@ export const ensureUseDagBundleServiceGetDagBundleFilesData = (queryClient: Quer
   limit?: number;
   offset?: number;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
+/**
+* Get Dag Bundle Count
+* Count the Dag bundles holding a Dag the caller may read.
+*
+* Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI can tell whether a
+* bundle name is worth showing next to an import error. A bundle holding only stale Dags is
+* counted too: that is a bundle whose every file fails to import, where the name matters most.
+* @returns DagBundleCountResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDagBundleServiceGetDagBundleCountData = (queryClient: QueryClient) => queryClient.ensureQueryData({ queryKey: Common.UseDagBundleServiceGetDagBundleCountKeyFn(), queryFn: () => DagBundleService.getDagBundleCount() });
 /**
 * Get Dag Stats
 * Get Dag statistics.

@@ -91,9 +91,11 @@ log = logging.getLogger(__name__)
 
 RESOURCE_ID_ATTRIBUTE_NAME = "resource_id"
 
-# ``AccessView`` values covering records that carry no per-Dag or per-team key to authorize on. They
-# are admin-by-default in core. Compared by value because older Airflow versions lack some members.
-ADMIN_ACCESS_VIEW_NAMES = frozenset({"AUDIT_LOGS_ALL", "IMPORT_ERRORS_ALL", "REPARSE_ALL"})
+# ``AccessView`` values that show records whatever Dags the caller may read, so team roles do not
+# get them in multi-team mode. ``DAG_BUNDLES`` lists every file a bundle deploys; the others cover
+# records with no per-Dag key at all. Compared by value because older Airflow versions lack some
+# members.
+ADMIN_ACCESS_VIEW_NAMES = frozenset({"AUDIT_LOGS_ALL", "DAG_BUNDLES", "IMPORT_ERRORS_ALL", "REPARSE_ALL"})
 
 
 TEAM_SCOPED_RESOURCES = frozenset(

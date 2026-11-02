@@ -378,16 +378,16 @@ Stable API Permissions
      - Op
    * - ``/api/v2/dagBundles``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagBundles/{bundle_name}``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagBundles/{bundle_name}/files``
      - GET
-     - DAGs.can_read
-     - Viewer
+     - Dag Bundles.can_read
+     - Op
    * - ``/api/v2/dagSources/{dag_id}``
      - GET
      - DAGs.can_read, DAG Code.can_read
