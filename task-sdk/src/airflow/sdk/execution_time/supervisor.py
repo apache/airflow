@@ -322,6 +322,8 @@ STATES_SENT_DIRECTLY: frozenset[TaskInstanceState | str] = frozenset(
 # that is big enough to handle small to medium messages while not enforcing hard latency issues
 BUFFER_SIZE = 4096
 
+EXIT_POLL_INTERVAL = 0.05
+
 SIGSEGV_MESSAGE = """
 ******************************************* Received SIGSEGV *******************************************
 SIGSEGV (Segmentation Violation) signal indicates Segmentation Fault error which refers to
@@ -1438,6 +1440,17 @@ class WatchedSubprocess:
         """
         # Ensure minimum timeout to prevent CPU spike with tight loop when timeout is 0 or negative
         timeout = max(0.01, max_wait_time)
+        if self._exit_code is None and not self.selector.get_map():
+            # A task closes its sockets before its interpreter finishes tearing down. select() on no sockets
+            # would sleep out the whole timeout after the process has exited, so poll for the exit instead.
+            deadline = time.monotonic() + timeout
+            while (
+                self._check_subprocess_exit(expect_signal=expect_signal) is None
+                and (remaining := deadline - time.monotonic()) > 0
+            ):
+                time.sleep(min(EXIT_POLL_INTERVAL, remaining))
+            return self._check_subprocess_exit(raise_on_timeout=raise_on_timeout, expect_signal=expect_signal)
+
         events = self.selector.select(timeout=timeout)
         for key, _ in events:
             # Retrieve the handler responsible for processing this file object (e.g., stdout, stderr)
