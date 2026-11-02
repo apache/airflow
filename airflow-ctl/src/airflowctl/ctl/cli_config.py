@@ -1087,6 +1087,11 @@ class CommandFactory:
                 ),
                 output=args.output,
             )
+            if (
+                isinstance(method_output, generated_datamodels.ConnectionTestResponse)
+                and not method_output.status
+            ):
+                raise SystemExit(1)
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(

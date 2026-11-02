@@ -481,7 +481,7 @@ class TestAgentOperatorToolsetTemplating:
         assert "Rendered toolset sql-tenant_acme" in caplog.messages
 
     def test_rendering_twice_logs_once(self, caplog):
-        """@task.agent renders a second time; by then the id no longer changes."""
+        """On a second render the id no longer changes."""
         op = AgentOperator(
             task_id="t",
             prompt="p",
