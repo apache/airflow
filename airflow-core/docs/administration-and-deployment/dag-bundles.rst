@@ -64,16 +64,29 @@ invalid, or blank reads retain the last accepted configuration. A successful rea
 cannot recover one from another process; an invalid or unavailable source prevents startup,
 while ``[]`` starts with no bundles.
 
-Use a new bundle name when changing a bundle's configuration. Publish complete lists atomically;
-a valid list that accidentally omits a bundle is treated as an intentional removal. Commands
-must report failures with a nonzero exit status, rather than returning ``[]``. Unchanged
-bundle instances are reused. Failed bundle construction is retried without treating that bundle
-as removed. Database synchronization is retried before applying changes to the runtime list.
+Only additions and removals are supported during reload. Changing an existing bundle's
+configuration rejects the entire list, including unrelated additions and removals. Each rejected
+read is logged and retried on the next check. Revert the changed entry or publish it under a new
+bundle name to allow the list to be accepted.
+
+The last accepted list is held only in memory. A restarted process accepts the current valid
+source as its initial configuration, including definitions rejected before restart. To change an
+existing definition without renaming the bundle, stop the affected components before publishing
+the change and restart them together. During a rolling restart, old and new Dag processors can
+use different definitions. If the list also adds or removes bundles, those processors can
+repeatedly overwrite each other's bundle active state.
+
+Publish complete lists atomically; a valid list that accidentally omits a bundle is treated as
+an intentional removal. Commands must report failures with a nonzero exit status, rather than
+returning ``[]``. Unchanged bundle instances are reused. Failed bundle construction is retried
+without treating that bundle as removed. Database synchronization is retried before applying
+changes to the runtime list.
 
 Unfiltered Dag processors reconcile bundle active state in the database on every check. Removed
-bundles are marked inactive, and the existing stale-Dag scan marks their Dags stale. Processors
-can temporarily see different lists; they converge when surviving processors see the same list
-and continue reconciling. This does not provide immediate agreement across processors.
+bundles are marked inactive, and the existing stale-Dag scan marks their Dags stale. For supported
+additions and removals, processors can temporarily see different lists; they converge when
+surviving processors see the same list and continue reconciling. This does not provide immediate
+agreement across processors.
 
 Processors started with ``--bundle-name`` stop processing removed bundles locally, but never
 mark missing bundles inactive globally because their configuration may be partial. A processor

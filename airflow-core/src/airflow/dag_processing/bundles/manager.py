@@ -204,7 +204,9 @@ def _refresh_bundle_config_snapshot(
                 if existing is not None:
                     if existing != config:
                         raise _bundle_item_exc(
-                            f"Use a new bundle name when changing configuration for '{config.name}'"
+                            f"Configuration for bundle '{config.name}' has changed. Rejecting the entire "
+                            "configuration list and keeping the last accepted list. "
+                            "Revert this entry or use a new bundle name."
                         )
                     continue
                 if not metadata_only:

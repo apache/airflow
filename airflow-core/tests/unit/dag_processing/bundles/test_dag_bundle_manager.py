@@ -1956,6 +1956,42 @@ def test_invalid_classpath_reload_keeps_last_snapshot(dynamic_bundle_config, cha
     assert set(DagBundlesManager().get_all_bundle_names()) == {"my-test-bundle"}
 
 
+@pytest.mark.parametrize("restart", [False, True], ids=["corrected-list", "restart"])
+def test_changed_bundle_rejects_whole_list_until_corrected_or_restarted(
+    dynamic_bundle_config, caplog, restart
+):
+    dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG))
+    manager = DagBundlesManager()
+    assert manager.get_all_bundle_names() == ["my-test-bundle", "second-bundle"]
+
+    changed_bundle = {**BASIC_BUNDLE_CONFIG[0], "kwargs": {"refresh_interval": 2}}
+    dynamic_bundle_config.write_text(json.dumps([*OTHER_BUNDLE_CONFIG, changed_bundle]))
+    for _ in range(2):
+        _expire_bundle_config_snapshot()
+        assert manager.get_all_bundle_names() == ["my-test-bundle", "second-bundle"]
+        assert manager.get_bundle("my-test-bundle").refresh_interval == 1
+
+    error = next(
+        event["exc_info"][1]
+        for event in caplog
+        if event["event"] == "Could not reload Dag bundle configuration; keeping the last accepted list"
+    )
+    assert (
+        "Configuration for bundle 'my-test-bundle' has changed. Rejecting the entire configuration list"
+        in str(error)
+    )
+
+    if restart:
+        _get_cached_bundle_config_snapshot.cache_clear()
+        manager = DagBundlesManager()
+    else:
+        dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG + OTHER_BUNDLE_CONFIG))
+        _expire_bundle_config_snapshot()
+
+    assert manager.get_all_bundle_names() == ["my-test-bundle", "other-test-bundle"]
+    assert manager.get_bundle("my-test-bundle").refresh_interval == (2 if restart else 1)
+
+
 @mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
 @mock.patch("airflow.dag_processing.bundles.manager.run_command", autospec=True)
 def test_command_reads_shared_between_managers_and_rate_limited(
