@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
@@ -27,40 +29,96 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { FileImportError } from "./FileImportError";
 
-const renderFor = (hasImportError: boolean) =>
+const FORBIDDEN = "dagBundles.files.importErrorForbidden";
+const GONE = "dagBundles.files.importErrorGone";
+
+/** Renders the dialog for a file whose row shows an error until a recheck, which a fixed file clears. */
+const Harness = ({
+  fixedOnRecheck,
+  hasImportError,
+  onRecheck,
+}: {
+  readonly fixedOnRecheck: boolean;
+  readonly hasImportError: boolean;
+  readonly onRecheck: () => void;
+}) => {
+  const [rowHasError, setRowHasError] = useState(hasImportError);
+
+  return (
+    <FileImportError
+      bundleName="dags-folder"
+      hasImportError={rowHasError}
+      onClose={vi.fn()}
+      recheckImportError={() => {
+        onRecheck();
+        if (fixedOnRecheck) {
+          setRowHasError(false);
+        }
+
+        return Promise.resolve();
+      }}
+      relativeFileloc="broken.py"
+    />
+  );
+};
+
+const renderWith = ({
+  fixedOnRecheck = false,
+  hasImportError,
+  status,
+}: {
+  readonly fixedOnRecheck?: boolean;
+  readonly hasImportError: boolean;
+  readonly status: number;
+}) => {
+  server.use(
+    http.get("/api/v2/importErrors", () =>
+      status === 200
+        ? HttpResponse.json({ import_errors: [], total_entries: 0 })
+        : HttpResponse.json({ detail: "boom" }, { status }),
+    ),
+  );
+  const onRecheck = vi.fn();
+
   render(
     // The app does not retry a 4xx; the shared wrapper's client would, and outlast the assertion.
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <FileImportError
-        bundleName="dags-folder"
-        hasImportError={hasImportError}
-        onClose={vi.fn()}
-        relativeFileloc="broken.py"
-      />
+      <Harness fixedOnRecheck={fixedOnRecheck} hasImportError={hasImportError} onRecheck={onRecheck} />
     </QueryClientProvider>,
     { wrapper: Wrapper },
   );
 
+  return onRecheck;
+};
+
+// i18n resources are not loaded in unit tests, so messages render as their keys.
 describe("FileImportError", () => {
-  it.each([
-    { expected: "dagBundles.files.importErrorForbidden", hasImportError: false, status: 403 },
-    { expected: "dagBundles.files.importErrorForbidden", hasImportError: true, status: 200 },
-    { expected: "dagBundles.files.importErrorGone", hasImportError: false, status: 200 },
-  ])(
-    "says $expected when the lookup returns $status and the file still has an error: $hasImportError",
-    async ({ expected, hasImportError, status }) => {
-      server.use(
-        http.get("/api/v2/importErrors", () =>
-          status === 200
-            ? HttpResponse.json({ import_errors: [], total_entries: 0 })
-            : HttpResponse.json({ detail: "Forbidden" }, { status }),
-        ),
-      );
+  it("says forbidden on a 403 without rechecking the file list", async () => {
+    const onRecheck = renderWith({ hasImportError: true, status: 403 });
 
-      renderFor(hasImportError);
+    expect(await screen.findByText(FORBIDDEN)).toBeInTheDocument();
+    expect(onRecheck).not.toHaveBeenCalled();
+  });
 
-      // i18n resources are not loaded in unit tests, so the message renders as its key.
-      expect(await screen.findByText(expected)).toBeInTheDocument();
-    },
-  );
+  it("says forbidden when the file still counts the error after a recheck", async () => {
+    const onRecheck = renderWith({ hasImportError: true, status: 200 });
+
+    expect(await screen.findByText(FORBIDDEN)).toBeInTheDocument();
+    expect(onRecheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("says gone when the recheck shows the error was fixed since the last poll", async () => {
+    const onRecheck = renderWith({ fixedOnRecheck: true, hasImportError: true, status: 200 });
+
+    expect(await screen.findByText(GONE)).toBeInTheDocument();
+    expect(onRecheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows other failures as errors rather than as a missing permission", async () => {
+    renderWith({ hasImportError: true, status: 500 });
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText(FORBIDDEN)).not.toBeInTheDocument();
+    expect(screen.queryByText(GONE)).not.toBeInTheDocument();
+  });
 });

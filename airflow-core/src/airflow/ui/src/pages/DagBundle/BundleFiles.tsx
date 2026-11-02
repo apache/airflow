@@ -113,7 +113,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
   const { pagination } = tableURLState;
   const [errorFileloc, setErrorFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isLoading } = useDagBundleServiceGetDagBundleFiles(
+  const { data, error, isLoading, refetch } = useDagBundleServiceGetDagBundleFiles(
     {
       bundleName,
       limit: pagination.pageSize,
@@ -134,6 +134,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         onClose={() => {
           setErrorFileloc(undefined);
         }}
+        recheckImportError={refetch}
         relativeFileloc={errorFileloc}
       />
       <DataTable
