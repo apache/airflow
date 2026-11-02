@@ -4016,7 +4016,6 @@ main {
 /* External services table (one row per connection type). */
 .provider-detail-page .external-services-card .external-services-table {
   width: 100%;
-  margin-top: var(--space-4);
   border-collapse: collapse;
 }
 
