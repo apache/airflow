@@ -592,12 +592,12 @@ source code so it stays up to date as endpoints are added or changed.
      - ``PROVIDERS``
    * - ``GET``
      - ``/api/v2/triggers``
-     - ``Public``
-     - ``No Airflow permission required``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/triggers/{trigger_id}``
-     - ``Public``
-     - ``No Airflow permission required``
+     - ``DAG.TASK_INSTANCE or DAG.RUN or Asset``
+     - ``GET``
    * - ``GET``
      - ``/api/v2/variables``
      - ``Variable``

@@ -10854,8 +10854,8 @@ paths:
         is doing.
 
 
-        A trigger is visible to whoever can see its owner: the Dag of its task instance
-        or callback, or an asset
+        A trigger is visible to whoever can see its owner: the task instance or Dag
+        run of its Dag, or an asset
 
         one of its watchers watches.'
       operationId: get_triggers

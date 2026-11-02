@@ -24,6 +24,7 @@ import time_machine
 from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.core_api.routes.public.triggers import _get_public_map_indexes
 from airflow.jobs.job import Job
 from airflow.models.asset import AssetActive, AssetModel, AssetWatcherModel
@@ -422,6 +423,54 @@ class TestGetTriggers:
         assert {_name(t) for t in body["triggers"]} == expected
         assert body["total_entries"] == len(expected)
 
+    @pytest.mark.parametrize(
+        ("unreadable", "expected"),
+        [
+            pytest.param(
+                {DagAccessEntity.TASK_INSTANCE},
+                {"callback", "failing", "pending"},
+                id="no-task-instance-read",
+            ),
+            pytest.param(
+                {DagAccessEntity.RUN}, {"sensor", "queued", "failing", "pending"}, id="no-dag-run-read"
+            ),
+            pytest.param(
+                {DagAccessEntity.TASK_INSTANCE, DagAccessEntity.RUN}, {"failing", "pending"}, id="assets-only"
+            ),
+        ],
+    )
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_a_trigger_needs_read_on_its_owner_as_the_owner_routes_check_it(
+        self, mock_is_authorized_dag, test_client, triggers, unreadable, expected
+    ):
+        mock_is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity not in unreadable
+        )
+
+        body = test_client.get("/triggers").json()
+        detail_codes = {
+            name: test_client.get(f"/triggers/{triggers[name].id}").status_code
+            for name in ("sensor", "queued", "failing", "pending")
+        }
+
+        assert {_name(t) for t in body["triggers"]} == expected
+        assert body["total_entries"] == len(expected)
+        assert detail_codes == {name: 200 if name in expected else 404 for name in detail_codes}
+
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_dag", autospec=True)
+    def test_a_task_trigger_is_not_shown_through_an_asset_it_also_watches(
+        self, mock_is_authorized_dag, test_client, session, triggers
+    ):
+        _watcher(session, "sensor", triggers["sensor"])
+        session.commit()
+        mock_is_authorized_dag.side_effect = lambda _self, *, method, user, access_entity=None, details=None: (
+            access_entity != DagAccessEntity.TASK_INSTANCE
+        )
+
+        body = test_client.get("/triggers", params={"kind": "task"}).json()
+
+        assert body == {"triggers": [], "total_entries": 0}
+
     @mock.patch(f"{SIMPLE_AUTH}.is_authorized_asset", return_value=False)
     @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets")
     def test_assets_listed_without_asset_read_show_no_watchers(self, mock_assets, _, test_client, triggers):
@@ -583,11 +632,9 @@ class TestGetTriggers:
     def test_should_respond_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get("/triggers").status_code == 401
 
-    def test_a_user_who_can_see_no_owner_sees_no_triggers(self, unauthorized_test_client, triggers):
-        response = unauthorized_test_client.get("/triggers")
-
-        assert response.status_code == 200
-        assert response.json() == {"triggers": [], "total_entries": 0}
+    def test_should_respond_403_to_a_user_who_can_read_no_owner(self, unauthorized_test_client, triggers):
+        assert unauthorized_test_client.get("/triggers").status_code == 403
+        assert unauthorized_test_client.get(f"/triggers/{triggers['sensor'].id}").status_code == 403
 
 
 class TestGetTrigger:

@@ -42,7 +42,7 @@ from airflow.api_fastapi.core_api.datamodels.trigger import (
     TriggerTaskInstanceReferenceResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
-from airflow.api_fastapi.core_api.security import ReadableTriggersFilterDep
+from airflow.api_fastapi.core_api.security import ReadableTriggersFilterDep, requires_access_trigger
 from airflow.models.asset import AssetWatcherModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
@@ -177,7 +177,11 @@ def _build_response(
     )
 
 
-@triggers_router.get("", responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]))
+@triggers_router.get(
+    "",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+    dependencies=[Depends(requires_access_trigger(method="GET"))],
+)
 def get_triggers(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -212,7 +216,7 @@ def get_triggers(
     """
     Get the triggers the caller can see, of every kind, and how each is doing.
 
-    A trigger is visible to whoever can see its owner: the Dag of its task instance or callback, or an asset
+    A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
     one of its watchers watches.
     """
     if asset_id.value is not None and asset_id.value not in readable_triggers_filter.asset_ids:
@@ -253,7 +257,9 @@ def get_triggers(
 
 
 @triggers_router.get(
-    "/{trigger_id}", responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND])
+    "/{trigger_id}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[Depends(requires_access_trigger(method="GET"))],
 )
 def get_trigger(
     trigger_id: int,

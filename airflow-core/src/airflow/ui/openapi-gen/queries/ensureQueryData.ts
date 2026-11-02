@@ -2064,7 +2064,7 @@ export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagI
 * Get Triggers
 * Get the triggers the caller can see, of every kind, and how each is doing.
 *
-* A trigger is visible to whoever can see its owner: the Dag of its task instance or callback, or an asset
+* A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
 * one of its watchers watches.
 * @param data The data for the request.
 * @param data.limit

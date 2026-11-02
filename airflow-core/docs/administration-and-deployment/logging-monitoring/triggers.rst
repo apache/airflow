@@ -92,13 +92,20 @@ last descending, on every database.
 Who can see a trigger
 ---------------------
 
-A trigger is listed for whoever can see its owner: read access to the Dag of its task instance or callback, or
-read access to an asset one of its watchers watches. There is no permission of its own, so the generated
-permission tables show the routes as needing none. With ``[core] multi_team`` on, team access comes with the
-Dag; assets have no team, so an asset's watchers are listed for whoever can read the asset. A trigger shared
-by several assets lists only the watchers on assets the caller can read. ``last_error`` holds only the
-exception type and message, with known secrets masked and cut to 1,000 characters; the full traceback stays in
-the logs.
+Each trigger is gated like the route that shows its owner:
+
+* A deferred task's trigger needs read access to the Dag's task instances.
+* A callback's trigger needs read access to the Dag's runs.
+* An asset watcher's trigger needs read access to one of the assets it watches.
+  A trigger shared by several assets lists only the watchers on assets the caller can read.
+
+A caller who can read none of these gets a 403. There is no trigger permission of its own.
+
+With ``[core] multi_team`` on, team access comes with the Dag. Assets have no team, so an
+asset's watchers are listed for whoever can read the asset.
+
+``last_error`` holds only the exception type and message, with known secrets masked and cut
+to 1,000 characters. The full traceback stays in the logs.
 
 Identity
 --------
