@@ -132,6 +132,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused
           isPending={false}
           onSubmitTrigger={onSubmitTrigger}
@@ -167,6 +168,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -209,6 +211,7 @@ describe("TriggerDAGForm", () => {
           error={undefined}
           hasSchedule={false}
           isPartitioned={false}
+          isPartitionedAtRuntime={false}
           isPaused={false}
           isPending={false}
           onSubmitTrigger={vi.fn()}
@@ -230,6 +233,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -261,6 +265,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -305,6 +310,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -324,6 +330,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -343,6 +350,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -382,6 +390,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -416,6 +425,7 @@ describe("TriggerDAGForm", () => {
         error={undefined}
         hasSchedule={false}
         isPartitioned={false}
+        isPartitionedAtRuntime={false}
         isPaused={false}
         isPending={false}
         onSubmitTrigger={vi.fn()}
@@ -435,5 +445,93 @@ describe("TriggerDAGForm", () => {
       ),
     );
     expect(screen.queryByTestId("recent-config-select")).not.toBeInTheDocument();
+  });
+
+  it("shows the partition key field for partitioned_at_runtime Dags even though isPartitioned is false", async () => {
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_at_runtime_dag"
+        error={undefined}
+        hasSchedule
+        isPartitioned={false}
+        isPartitionedAtRuntime
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByText("dagRun.partitionKey")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeyHelp")).toBeInTheDocument();
+  });
+
+  it("pre-fills the suggested partition key for an asset-driven Dag and warns the value is a suggestion", async () => {
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPartitionedAtRuntime={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2024-01-01"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeySuggestedHelp")).toBeInTheDocument();
+  });
+
+  it("pre-fills the suggested partition key for a partitioned_at_runtime Dag and warns the value is a suggestion", async () => {
+    render(
+      <TriggerDAGForm
+        dagId="example_partitioned_at_runtime_dag"
+        error={undefined}
+        hasSchedule
+        isPartitioned={false}
+        isPartitionedAtRuntime
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        suggestedPartitionKey="2024-01-01"
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
+    expect(screen.getByText("components:triggerDag.partitionKeySuggestedHelp")).toBeInTheDocument();
+  });
+
+  it("applies a suggested partition key that arrives after the form first rendered", async () => {
+    const form = (suggestedPartitionKey?: string) => (
+      <TriggerDAGForm
+        dagId="example_partitioned_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned
+        isPartitionedAtRuntime={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+        prefillConfig={{ conf: { key: "value" }, logicalDate: undefined, runId: "prior_run" }}
+        suggestedPartitionKey={suggestedPartitionKey}
+      />
+    );
+
+    // The Dag query resolves after mount, so defaultValues captured no suggestion;
+    // only the prefill effect can still apply it.
+    const { rerender } = render(form(undefined), { wrapper: Wrapper });
+
+    rerender(form("2024-01-01"));
+
+    await waitFor(() => expect(screen.getByDisplayValue("2024-01-01")).toBeInTheDocument());
   });
 });
