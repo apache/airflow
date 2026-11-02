@@ -19,6 +19,7 @@
 
 package org.apache.airflow.sdk
 
+import com.google.testing.compile.Compilation
 import com.google.testing.compile.CompilationSubject.assertThat
 import com.google.testing.compile.Compiler
 import com.google.testing.compile.JavaFileObjectSubject
@@ -3071,5 +3072,502 @@ class AirflowProcessorTest {
     Server.create(arrayOf("--describe-sources", target.path)).serve(bundle)
 
     Assertions.assertEquals("""{"orders":"org.apache.airflow.example.TestExample"}""", target.readText())
+  }
+
+  private fun loadGeneratedClasses(compilation: Compilation): ClassLoader {
+    val classes =
+      compilation
+        .generatedFiles()
+        .filter { it.kind == JavaFileObject.Kind.CLASS }
+        .associate {
+          it.name
+            .removePrefix("/CLASS_OUTPUT/")
+            .removeSuffix(".class")
+            .replace('/', '.') to it.openInputStream().readBytes()
+        }
+    return object : ClassLoader(javaClass.classLoader) {
+      override fun findClass(name: String): Class<*> {
+        val bytes = classes[name] ?: throw ClassNotFoundException(name)
+        return defineClass(name, bytes, 0, bytes.size)
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("generate a stoppable task that makes its instance in execute and calls the hook on it")
+  fun generateStoppableTaskForOnKillMethod() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Context;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task(id = "build_report")
+          public int buildReport(Context context, int instance) { return instance; }
+
+          @Airflow.OnKill(task = "build_report")
+          public void stopReport() throws Exception {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { buildReport(lit(1)); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleBuilder")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleBuilder",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.IllegalStateException;
+         import java.lang.Integer;
+         import java.lang.Override;
+         import java.util.List;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.DagDef;
+         import org.apache.airflow.sdk.StoppableTask;
+         import org.apache.airflow.sdk.internal.DagSource;
+         import org.apache.airflow.sdk.internal.Refs;
+         import org.apache.airflow.sdk.internal.TaskArgs;
+
+         public final class TestExampleBuilder {
+           public static DagDef build() {
+             var dag = DagSource.declaredBy(new DagDef("TestExample"), TestExample.class);
+             return Refs.record(dag, List.of("build_report"), List.of(), new TestExample.Wiring()::depends);
+           }
+
+           public static final class BuildReport implements StoppableTask {
+             private volatile TestExample instance;
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               TaskArgs args = TaskArgs.of(context, client, 1);
+               int instance = args.require(0, Integer.class);
+               this.instance = new TestExample();
+               if (context.isCancelled()) {
+                 throw new IllegalStateException("Airflow asked the task to stop before it started");
+               }
+               client.setXCom(this.instance.buildReport(context, instance));
+             }
+
+             @Override
+             public void onKill(Context context) throws Exception {
+               TestExample target = this.instance;
+               if (target != null) {
+                 target.stopReport();
+               }
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("match a hook to a handler by the task id the handler names or derives, and pass it a context")
+  fun generateStoppableHandlers() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Context;
+        public class TestExample {
+          @Airflow.TaskHandler(dag = "etl", task = "score")
+          public void computeScore() {}
+
+          @Airflow.OnKill(task = "score")
+          public void stopScore(Context context) {}
+
+          @Airflow.TaskHandler(dag = "etl")
+          public void audit() {}
+
+          @Airflow.OnKill(task = "audit")
+          public void stopAudit() {}
+
+          @Airflow.TaskHandler(dag = "etl")
+          public void plain() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    assertThat(compilation)
+      .generatedSourceFile("org.apache.airflow.example.TestExampleHandlers")
+      .hasSourceEquivalentTo(
+        "org.apache.airflow.example.TestExampleHandlers",
+        """
+         package org.apache.airflow.example;
+
+         import java.lang.Exception;
+         import java.lang.IllegalStateException;
+         import java.lang.Override;
+         import org.apache.airflow.sdk.Bundle;
+         import org.apache.airflow.sdk.Client;
+         import org.apache.airflow.sdk.Context;
+         import org.apache.airflow.sdk.StoppableTask;
+         import org.apache.airflow.sdk.Task;
+
+         /**
+          * Registers {@link TestExample}'s task handlers against the Dags the Python file owns.
+          */
+         public final class TestExampleHandlers {
+           public static void registerInto(Bundle bundle) {
+             bundle.register("etl", "score", ComputeScore.class);
+             bundle.register("etl", "audit", Audit.class);
+             bundle.register("etl", "plain", Plain.class);
+           }
+
+           public static final class ComputeScore implements StoppableTask {
+             private volatile TestExample instance;
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               this.instance = new TestExample();
+               if (context.isCancelled()) {
+                 throw new IllegalStateException("Airflow asked the task to stop before it started");
+               }
+               this.instance.computeScore();
+             }
+
+             @Override
+             public void onKill(Context context) throws Exception {
+               TestExample target = this.instance;
+               if (target != null) {
+                 target.stopScore(context);
+               }
+             }
+           }
+
+           public static final class Audit implements StoppableTask {
+             private volatile TestExample instance;
+
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               this.instance = new TestExample();
+               if (context.isCancelled()) {
+                 throw new IllegalStateException("Airflow asked the task to stop before it started");
+               }
+               this.instance.audit();
+             }
+
+             @Override
+             public void onKill(Context context) throws Exception {
+               TestExample target = this.instance;
+               if (target != null) {
+                 target.stopAudit();
+               }
+             }
+           }
+
+           public static final class Plain implements Task {
+             @Override
+             public void execute(Context context, Client client) throws Exception {
+               new TestExample().plain();
+             }
+           }
+         }
+        """,
+      )
+  }
+
+  @Test
+  @DisplayName("make deciders and tasks in a group stoppable, matching a group's task by its local id")
+  fun generateStoppableDecidersAndGroupTasks() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.Task;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task public void yes() {}
+          @Airflow.Task public void no() {}
+          @Airflow.Task public void other() {}
+
+          @Airflow.If(id = "has_rows")
+          public boolean hasRows() { return true; }
+
+          @Airflow.OnKill(task = "has_rows")
+          public void stopCheck() {}
+
+          @Airflow.Switch(id = "pick")
+          public Class<? extends Task> pick() { return TestExampleBuilder.Other.class; }
+
+          @Airflow.OnKill(task = "pick")
+          public void stopPick() {}
+
+          @Airflow.TaskGroup(id = "checks")
+          static class Checks {
+            @Airflow.Task(id = "audit") public void audit() {}
+
+            @Airflow.OnKill(task = "audit")
+            public void stopAudit() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() {
+              hasRows().Then(yes()).Else(no());
+              pick().Case(other());
+              checks().audit();
+            }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    val loader = loadGeneratedClasses(compilation)
+    val generated = { name: String -> loader.loadClass("org.apache.airflow.example.TestExampleBuilder\$$name") }
+    Assertions.assertTrue(ConditionTask::class.java.isAssignableFrom(generated("HasRows")), "a condition should stay a condition")
+    Assertions.assertTrue(SwitchTask::class.java.isAssignableFrom(generated("Pick")), "a switch should stay a switch")
+    listOf("HasRows", "Pick", "Checks_Audit").forEach {
+      Assertions.assertTrue(StoppableTask::class.java.isAssignableFrom(generated(it)), "$it should be stoppable")
+    }
+    Assertions.assertFalse(StoppableTask::class.java.isAssignableFrom(generated("Yes")), "a task without a hook should stay plain")
+  }
+
+  @Test
+  @DisplayName("run the hook of a generated task on the instance that runs the task, and only once there is one")
+  fun generatedTaskCallsHookOnItsInstance() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import java.util.ArrayList;
+        import java.util.List;
+        import org.apache.airflow.sdk.Airflow;
+        public class TestExample {
+          public static final List<String> EVENTS = new ArrayList<>();
+          private boolean ran;
+
+          @Airflow.TaskHandler(dag = "etl", task = "run")
+          public void run() {
+            ran = true;
+            EVENTS.add("run");
+          }
+
+          @Airflow.OnKill(task = "run")
+          public void stop() { EVENTS.add("stop, after run on this instance: " + ran); }
+        }
+      """,
+      )
+
+    assertThat(compilation).succeeded()
+    val loader = loadGeneratedClasses(compilation)
+    val events = loader.loadClass("org.apache.airflow.example.TestExample").getField("EVENTS").get(null) as List<*>
+    val task =
+      loader
+        .loadClass("org.apache.airflow.example.TestExampleHandlers\$Run")
+        .getDeclaredConstructor()
+        .newInstance() as StoppableTask
+    val context =
+      Context(
+        dagRun = DagRun("d", "r", null, null, null, null, null, emptyMap()),
+        ti = TaskInstance("d", "r", "t", null, 1),
+      )
+
+    task.onKill(context)
+    Assertions.assertEquals(emptyList<String>(), events, "there is no instance to stop before the task starts")
+
+    // The generated method does not use its client, and a real one needs a running server.
+    task.javaClass.getMethod("execute", Context::class.java, Client::class.java).invoke(task, context, null)
+    task.onKill(context)
+    Assertions.assertEquals(listOf("run", "stop, after run on this instance: true"), events)
+  }
+
+  @Test
+  @DisplayName("reject a hook that names a task its class does not declare")
+  fun rejectOnKillForUnknownTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        public class TestExample {
+          @Airflow.TaskHandler(dag = "etl", task = "score")
+          public void score() {}
+
+          @Airflow.OnKill(task = "scores")
+          public void stop() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Airflow.OnKill method 'stop' names task 'scores', but class TestExample declares no such task; " +
+        "the method must be in the class that declares the task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a hook in a class that declares no tasks, which no other annotation would process")
+  fun rejectOnKillInClassWithoutTasks() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        public class TestExample {
+          @Airflow.OnKill(task = "score")
+          public void stop() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Airflow.OnKill method 'stop' names task 'score', but class TestExample declares no such task",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a hook that names a group's task by its full id")
+  fun rejectOnKillWithGroupPrefix() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.TaskGroup(id = "checks")
+          static class Checks {
+            @Airflow.Task(id = "audit") public void audit() {}
+
+            @Airflow.OnKill(task = "checks.audit")
+            public void stop() {}
+          }
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { checks().audit(); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("names task 'checks.audit', but class Checks declares no such task")
+  }
+
+  @Test
+  @DisplayName("reject two hooks for one task")
+  fun rejectTwoOnKillMethodsForOneTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        public class TestExample {
+          @Airflow.TaskHandler(dag = "etl", task = "score")
+          public void score() {}
+
+          @Airflow.OnKill(task = "score")
+          public void stopOne() {}
+
+          @Airflow.OnKill(task = "score")
+          public void stopTwo() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining("Class TestExample declares more than one @Airflow.OnKill method for task 'score'")
+  }
+
+  @Test
+  @DisplayName("reject a hook that names two handlers, which share a task id across Dags")
+  fun rejectOnKillForAmbiguousHandlers() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        public class TestExample {
+          @Airflow.TaskHandler(dag = "etl", task = "score")
+          public void etlScore() {}
+
+          @Airflow.TaskHandler(dag = "ml", task = "score")
+          public void mlScore() {}
+
+          @Airflow.OnKill(task = "score")
+          public void stop() {}
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Airflow.OnKill method 'stop' names task 'score', but class TestExample declares more than one such " +
+        "task; move the handlers into separate classes",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a hook for a task that triggers a Dag run")
+  fun rejectOnKillForTriggerTask() {
+    val compilation =
+      compile(
+        """
+        package org.apache.airflow.example;
+        import org.apache.airflow.sdk.Airflow;
+        import org.apache.airflow.sdk.TriggerDagRun;
+        @Airflow.Dag
+        public class TestExample {
+          @Airflow.Task(id = "trigger")
+          public TriggerDagRun triggerDownstream() { return new TriggerDagRun("downstream"); }
+
+          @Airflow.OnKill(task = "trigger")
+          public void stop() {}
+
+          @Airflow.Deps
+          static class Wiring implements TestExampleDeps {
+            void depends() { triggerDownstream(); }
+          }
+        }
+      """,
+      )
+
+    assertThat(compilation).failed()
+    assertThat(compilation).hadErrorContaining(
+      "@Airflow.OnKill method 'stop' names task 'trigger', which returns a TriggerDagRun; that task has no body to stop",
+    )
+  }
+
+  @Test
+  @DisplayName("reject a hook whose parameters are anything but one context")
+  fun rejectOnKillWithOtherParameters() {
+    listOf("String reason", "Context context, Context other").forEach { parameters ->
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          import org.apache.airflow.sdk.Context;
+          public class TestExample {
+            @Airflow.TaskHandler(dag = "etl", task = "score")
+            public void score() {}
+
+            @Airflow.OnKill(task = "score")
+            public void stop($parameters) {}
+          }
+        """,
+        )
+
+      assertThat(compilation).hadErrorContaining("@Airflow.OnKill method 'stop' can take a Context and no other parameter")
+    }
   }
 }

@@ -22,6 +22,7 @@ package org.apache.airflow.sdk
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonProperty
 import org.apache.airflow.sdk.execution.CoordinatorComm
+import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.byteArrayFromHexString
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.comm.TIRunContext
@@ -443,11 +444,13 @@ class ContextTest {
   @Test
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun contextBuiltByHandIsNeverCancelled() {
+    LogSender.messages.clear()
     val context = taskContext()
     val start = System.nanoTime()
 
     Assertions.assertFalse(context.isCancelled())
     Assertions.assertFalse(context.awaitCancellation(Duration.ofMillis(200)), "the wait should end at the timeout")
     Assertions.assertTrue(System.nanoTime() - start >= Duration.ofMillis(200).toNanos(), "the wait should last the whole timeout")
+    Assertions.assertEquals(emptyList<String>(), LogSender.messages.map { it.event }, "a unit test of a task should not get a warning")
   }
 }

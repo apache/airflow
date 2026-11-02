@@ -589,6 +589,7 @@ class TaskDef(
  * @see Airflow.Dag
  * @see Airflow.Task
  * @see InputTask
+ * @see StoppableTask
  */
 interface Task {
   /**

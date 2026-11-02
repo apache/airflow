@@ -19,6 +19,10 @@
 
 package org.apache.airflow.sdk.execution
 
+import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.StoppableTask
+import org.apache.airflow.sdk.taskContext
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.DisplayName
@@ -27,8 +31,10 @@ import org.junit.jupiter.api.Timeout
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.util.concurrent.BlockingQueue
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Runs [block] while the named [signals], such as "TERM", go to a recorder instead of the JVM's own
@@ -92,6 +98,39 @@ object TrapProbe {
 }
 
 class CancellationTest {
+  @Test
+  @DisplayName("Should wait for a running onKill on an interrupted thread, and leave the thread interrupted")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun finishWaitsForOnKillOnInterruptedThread() =
+    withSignalRecorder("TERM") { _ ->
+      val started = CountDownLatch(1)
+      val returned = AtomicBoolean()
+      val task =
+        object : StoppableTask {
+          override fun execute(
+            context: Context,
+            client: Client,
+          ) = Unit
+
+          override fun onKill(context: Context) {
+            started.countDown()
+            Thread.sleep(300)
+            returned.set(true)
+          }
+        }
+      Cancellation().use { cancellation ->
+        cancellation.hold(task, taskContext())
+        Signal.raise(Signal("TERM"))
+        Assertions.assertTrue(started.await(10, TimeUnit.SECONDS), "onKill should start")
+
+        Thread.currentThread().interrupt()
+        cancellation.finish()
+
+        Assertions.assertTrue(Thread.interrupted(), "the wait should keep the thread's interrupt flag")
+        Assertions.assertTrue(returned.get(), "finish should return only after onKill does")
+      }
+    }
+
   @Test
   @DisplayName("Should pass SIGINT and SIGTERM to the callback until closed, then hand them back")
   @Timeout(value = 60, unit = TimeUnit.SECONDS)

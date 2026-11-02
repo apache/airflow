@@ -26,6 +26,7 @@ import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DeciderDef
 import org.apache.airflow.sdk.SKIPMIXIN_SKIPPED
 import org.apache.airflow.sdk.SKIPMIXIN_XCOM_KEY
+import org.apache.airflow.sdk.StoppableTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.execution.comm.AssetProfile
@@ -143,12 +144,14 @@ internal object TaskRunner {
       }
     return try {
       val context = Context.from(request, taskDef)
+      if (instance is StoppableTask) Cancellation.running?.hold(instance, context)
       val decider = taskDef.decider
       if (decider == null) instance.execute(context, client) else decide(decider, taskDef, instance, context, client)
       TaskResult.success()
-    } catch (e: CancellationException) {
-      throw e // Let coroutine cancellation propagate so the task coroutine unwinds.
     } catch (e: Throwable) {
+      // Throwable includes CancellationException, which a task gets from a future that onKill cancelled.
+      // The serve coroutine's own cancellation cannot reach this blocking call, so the exception comes
+      // from the task.
       logger.error("Error executing task", mapOf("ti" to request.ti, "error" to e, "trace" to e.stackTraceToString()))
       TaskResult.failure(request.tiContext.shouldRetry)
     }
