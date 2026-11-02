@@ -30,7 +30,6 @@ from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.headers import HeaderAcceptJsonOrNdjson
 from airflow.api_fastapi.common.parameters import (
-    FilterOptionEnum,
     FilterParam,
     QueryLimit,
     QueryOffset,
@@ -118,14 +117,6 @@ def get_deadlines(
         RangeFilter, Depends(datetime_range_filter_factory("last_updated_at", Deadline))
     ],
     teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
-    alert_ids: Annotated[
-        FilterParam[list[UUID] | None],
-        Depends(
-            filter_param_factory(
-                Deadline.deadline_alert_id, list[UUID] | None, FilterOptionEnum.IN, "alert_ids"
-            )
-        ),
-    ],
 ) -> DeadlineCollectionResponse:
     """
     Get deadlines for a Dag run.
@@ -159,7 +150,7 @@ def get_deadlines(
 
     deadlines_select, total_entries = paginated_select(
         statement=query,
-        filters=[readable_dag_runs_filter, missed, deadline_time, last_updated_at, teams, alert_ids],
+        filters=[readable_dag_runs_filter, missed, deadline_time, last_updated_at, teams],
         order_by=order_by,
         offset=offset,
         limit=limit,

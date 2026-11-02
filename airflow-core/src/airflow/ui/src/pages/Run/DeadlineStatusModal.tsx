@@ -37,7 +37,6 @@ import { translateCompletionRule } from "src/utils/deadlines";
 const PAGE_LIMIT = 10;
 
 type DeadlineStatusModalProps = {
-  readonly alertIds: Array<string>;
   readonly alertMap: Map<string, DeadlineAlertResponse>;
   readonly dagId: string;
   readonly dagRunId: string;
@@ -47,7 +46,6 @@ type DeadlineStatusModalProps = {
 };
 
 export const DeadlineStatusModal = ({
-  alertIds,
   alertMap,
   dagId,
   dagRunId,
@@ -62,7 +60,6 @@ export const DeadlineStatusModal = ({
 
   const { data, error, isLoading } = useDeadlinesServiceGetDeadlines(
     {
-      alertIds,
       dagId,
       dagRunId,
       limit: PAGE_LIMIT,

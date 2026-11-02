@@ -80,14 +80,6 @@ const baseDagRun = {
   triggering_user_name: null,
 } satisfies Partial<DAGRunResponse> as unknown as DAGRunResponse;
 
-const filterDeadlineRecords = <T extends { alert_id: string }>(
-  records: Array<T>,
-  alertIds?: Array<string> | null,
-) =>
-  records.filter(
-    (record) => alertIds === undefined || alertIds === null || alertIds.includes(record.alert_id),
-  );
-
 describe("Header", () => {
   beforeEach(() => {
     mockConfig.multi_team = false;
@@ -171,101 +163,90 @@ describe("Header", () => {
     },
   );
 
-  it.each([
-    { filter: ["scheduled"], visible: false },
-    { filter: ["backfill"], visible: true },
-    { filter: null, visible: true },
-  ])("shows stored deadline status=$visible for backfill with $filter", ({ filter, visible }) => {
+  it.each([{ filter: ["scheduled"] }, { filter: ["backfill"] }, { filter: null }])(
+    "shows stored deadlines for backfill with $filter",
+    ({ filter }) => {
+      vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
+        data: {
+          deadline_alerts: [
+            {
+              id: "alert",
+              interval: 25,
+              reference_type: "DagRunQueuedAtDeadline",
+              run_type_filter: filter,
+            },
+          ],
+          total_entries: 1,
+        },
+        isLoading: false,
+      } as unknown as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
+      vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
+        data: {
+          deadlines: [
+            { alert_id: "alert", deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true },
+          ],
+          total_entries: 1,
+        },
+        isLoading: false,
+      } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
+
+      render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+
+      expect(screen.getByText(i18n.t("dag:deadlineStatus.label"))).toBeInTheDocument();
+      expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
+    },
+  );
+
+  it.each(["excluded", "included"])("shows stored %s history with mixed run type filters", (storedAlert) => {
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: {
         deadline_alerts: [
           {
-            id: "alert",
+            id: "excluded",
             interval: 25,
             reference_type: "DagRunQueuedAtDeadline",
-            run_type_filter: filter,
+            run_type_filter: ["scheduled"],
           },
+          { id: "included", interval: 3600, reference_type: "DagRunQueuedAtDeadline", run_type_filter: null },
         ],
-        total_entries: 1,
+        total_entries: 2,
       },
       isLoading: false,
     } as unknown as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
     vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
       data: {
         deadlines: [
-          { alert_id: "alert", deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true },
+          { alert_id: storedAlert, deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true },
         ],
         total_entries: 1,
       },
       isLoading: false,
     } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
-
     render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
-
-    expect(screen.queryByText(i18n.t("dag:deadlineStatus.label")))[
-      visible ? "toBeInTheDocument" : "toBeNull"
-    ]();
-    expect(screen.queryByText(i18n.t("dag:deadlineStatus.missed")))[
-      visible ? "toBeInTheDocument" : "toBeNull"
-    ]();
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
+    expect(screen.queryByText(i18n.t("dag:deadlineStatus.met"))).not.toBeInTheDocument();
+    expect(useDeadlinesServiceGetDeadlines).toHaveBeenCalledWith({
+      dagId: baseDagRun.dag_id,
+      dagRunId: baseDagRun.dag_run_id,
+      limit: 10,
+      orderBy: ["deadline_time"],
+    });
   });
 
-  it.each([
-    { status: "met", storedAlert: "excluded" },
-    { status: "missed", storedAlert: "included" },
-  ])(
-    "shows $status for a stored $storedAlert alert with mixed run type filters",
-    ({ status, storedAlert }) => {
-      vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
-        data: {
-          deadline_alerts: [
-            {
-              id: "excluded",
-              interval: 25,
-              reference_type: "DagRunQueuedAtDeadline",
-              run_type_filter: ["scheduled"],
-            },
-            {
-              id: "included",
-              interval: 3600,
-              reference_type: "DagRunQueuedAtDeadline",
-              run_type_filter: null,
-            },
-          ],
-          total_entries: 2,
-        },
-        isLoading: false,
-      } as unknown as ReturnType<typeof useDeadlinesServiceGetDagDeadlineAlerts>);
-      vi.mocked(useDeadlinesServiceGetDeadlines).mockImplementation(({ alertIds }) => {
-        const records = [
-          { alert_id: storedAlert, deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true },
-        ];
-        const deadlines = filterDeadlineRecords(records, alertIds);
+  it("shows stored deadlines when the run's alert definitions are unavailable", () => {
+    vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
+      data: {
+        deadlines: [{ alert_id: "old", deadline_time: "2025-01-01T00:00:25Z", id: "deadline", missed: true }],
+        total_entries: 1,
+      },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
+    render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.label"))).toBeInTheDocument();
+    expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
+  });
 
-        return {
-          data: { deadlines, total_entries: deadlines.length },
-          isLoading: false,
-        } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>;
-      });
-
-      render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
-
-      expect(screen.getByText(i18n.t(`dag:deadlineStatus.${status}`))).toBeInTheDocument();
-      expect(useDeadlinesServiceGetDeadlines).toHaveBeenCalledWith(
-        {
-          alertIds: ["included"],
-          dagId: baseDagRun.dag_id,
-          dagRunId: baseDagRun.dag_run_id,
-          limit: 10,
-          orderBy: ["deadline_time"],
-        },
-        undefined,
-        { enabled: true },
-      );
-    },
-  );
-
-  it("keeps excluded history out of the header and both modal pages", async () => {
+  it("shows all stored history in the header and across modal pages", async () => {
     vi.mocked(useDeadlinesServiceGetDagDeadlineAlerts).mockReturnValue({
       data: {
         deadline_alerts: [
@@ -303,36 +284,35 @@ describe("Header", () => {
       })),
     ];
 
-    vi.mocked(useDeadlinesServiceGetDeadlines).mockImplementation(({ alertIds, limit = 10, offset = 0 }) => {
-      const filtered = filterDeadlineRecords(records, alertIds);
-
-      return {
-        data: { deadlines: filtered.slice(offset, offset + limit), total_entries: filtered.length },
-        isLoading: false,
-      } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>;
-    });
+    vi.mocked(useDeadlinesServiceGetDeadlines).mockImplementation(
+      ({ limit = 10, offset = 0 }) =>
+        ({
+          data: { deadlines: records.slice(offset, offset + limit), total_entries: records.length },
+          isLoading: false,
+        }) as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>,
+    );
 
     render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
 
-    expect(screen.queryByText(i18n.t("dag:deadlineStatus.mixedCount"))).not.toBeInTheDocument();
     fireEvent.click(
-      screen.getByRole("button", { name: i18n.t("dag:deadlineStatus.upcomingCount", { count: 10 }) }),
+      screen.getByRole("button", { name: i18n.t("dag:deadlineStatus.missedCount", { count: 10 }) }),
     );
     const dialog = await screen.findByRole("dialog");
 
-    expect(within(dialog).getByText("included_0")).toBeInTheDocument();
-    expect(within(dialog).queryByText("excluded_history")).not.toBeInTheDocument();
+    expect(within(dialog).getAllByText("excluded_history")).toHaveLength(10);
+    expect(within(dialog).queryByText("included_0")).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "next page" }));
+    await waitFor(() => expect(within(dialog).getByText("included_0")).toBeInTheDocument());
+    expect(within(dialog).getAllByText("excluded_history")).toHaveLength(2);
     fireEvent.click(within(dialog).getByRole("button", { name: "next page" }));
     await waitFor(() => expect(within(dialog).getByText("included_10")).toBeInTheDocument());
-    expect(within(dialog).queryByText("included_0")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("excluded_history")).not.toBeInTheDocument();
     expect(useDeadlinesServiceGetDeadlines).toHaveBeenCalledWith(
       {
-        alertIds: ["included"],
         dagId: baseDagRun.dag_id,
         dagRunId: baseDagRun.dag_run_id,
         limit: 10,
-        offset: 10,
+        offset: 20,
         orderBy: ["deadline_time"],
       },
       undefined,
