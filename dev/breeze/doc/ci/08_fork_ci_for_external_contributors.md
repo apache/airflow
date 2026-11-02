@@ -169,7 +169,8 @@ Actions gets all of their crons too. Their jobs carry a job-level
 `if: github.repository == 'apache/airflow'` guard, combined with
 `github.event_name != 'schedule'` when the workflow has other triggers that should still run
 in a fork. A new scheduled workflow needs the same guard. The guard skips the jobs but not
-the run itself, so the frequent crons still leave an empty run in every enabled fork.
+the run itself, so the frequent crons still leave an empty run in every enabled fork. Check 8 of
+`breeze ci audit` offers to disable these workflows in the fork.
 
 | Rule | Decision | Reason |
 |---|---|---|
@@ -1102,9 +1103,10 @@ prints one row: status, finding, and the command that fixes it.
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds or repoints it |
 | 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]`; when the membership call fails for any reason but a 404, the role is reported as not checked and checks 2, 3 and 5 stay informational | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>` |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`, GitHub Actions is enabled in the fork and allows all actions (`GET /repos/<fork>/actions/permissions`, readable by the fork's owner), and GitHub has not paused GitHub Actions in the fork (see below); committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>`; `gh api -X PUT repos/<fork>/actions/permissions -F enabled=true -f allowed_actions=all`; for a paused fork, the banner on its Actions page |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than 200 commits (`MAX_FORK_MAIN_BEHIND`) | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
+| 8 | Idle fork workflows | external or pilot participant: no workflow in `.github/workflows` of the checkout that only `schedule` or `workflow_run` starts (`workflow_dispatch` aside) is `active` in the fork | `gh workflow disable <file> -R <fork>` for each |
 
 The role is determined before checks 2 and 3, though printed as check 4. For a committer,
 collaborator or exempted contributor, whose pull requests run project CI, checks 2 and 3 are
@@ -1113,6 +1115,26 @@ informational: working from an `apache/airflow` clone without a fork is fine for
 is enabled or not. The audit never suggests disabling it: a committer trying fork CI with the
 `use fork ci` label needs it enabled, and a workflow disabled while a pull request waits for its
 fork CI leaves that pull request stuck until the workflow is enabled again.
+
+A workflow can be `active` while nothing in the fork runs. GitHub Actions can be disabled for the
+whole fork: then a push starts no run. Or it can allow only the owner's actions or a selected list:
+`ci-amd.yml` uses actions from other repositories, so its runs fail before any job starts. Only the
+fork's owner can read these settings, which is why check 5 reads them and the reconciler cannot.
+
+GitHub can also pause GitHub Actions in a fork on its own, to reduce wasted compute. The fork's
+Actions page then shows a banner, and GitHub sends no email. The settings still read as enabled
+and the workflow as `active`, so the reads above do not see it. Check 5 dispatches `ci-amd.yml`
+to the ref `breeze-ci-audit..probe` instead. Git does not allow `..` in a ref name, so the ref
+never exists and the dispatch never starts a run. GitHub answers "No ref found" when Actions
+can run, and "Actions has been disabled" when it is paused. The settings API cannot undo the
+pause, since it already reads as enabled; the banner on the fork's Actions page does. A push made
+while the fork was paused starts no run, also after that, so push again.
+
+Check 8 makes the pause less likely. Fork CI runs on push, so a workflow that only a schedule or
+another workflow's run starts has nothing to do in a fork, and every run it starts there is
+empty. The check reads the triggers from `.github/workflows` of the checkout and offers to disable
+those workflows where they are still `active` in the fork. Committers, collaborators and
+exempted contributors do not get check 8, and check 5 does not dispatch for them.
 
 A failed API call is reported as "could not check" rather than as a finding: a failed fork
 lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".
