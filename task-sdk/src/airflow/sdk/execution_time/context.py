@@ -188,7 +188,7 @@ def _warn_if_oversized(kind: str, key: str, stored: JsonValue) -> None:
     limit = conf.getint("state_store", "max_value_storage_bytes")
     if limit > 0 and _json_size_exceeds(stored, limit):
         log.warning(
-            "%s store value for key %r exceeds configured max_value_storage_bytes=%d. "
+            "%s state store value for key %r exceeds configured max_value_storage_bytes=%d. "
             "Consider configuring [workers] state_store_backend to offload large payloads.",
             kind,
             key,
