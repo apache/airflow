@@ -334,6 +334,19 @@ class TestBaseOperations:
         assert [hello.name for hello in response.hellos] == ["a"]
         assert mock_client.get.call_count == 2
 
+    def test_execute_list_returns_first_page_when_response_has_no_entries_list(self):
+        class _CountOnlyResponse(BaseModel):
+            total_entries: int
+
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(content=json.dumps({"total_entries": 5}))
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=_CountOnlyResponse, limit=2)
+
+        assert response == _CountOnlyResponse(total_entries=5)
+        assert mock_client.get.call_count == 1
+
     def test_execute_list_sends_offset_to_server(self):
         """``offset`` must reach the server on the first request, not only on subsequent pages."""
         rows = [{"name": name} for name in "abcdef"]
