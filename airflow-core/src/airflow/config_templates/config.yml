@@ -3077,6 +3077,15 @@ scheduler:
       type: boolean
       example: ~
       default: "False"
+    max_dag_load_failures_per_queued_run:
+      description: |
+        Number of consecutive times the scheduler can fail to load the Dag of a queued Dag run
+        before marking that run as failed. Failing the run lets
+        ``[core] max_consecutive_failed_dag_runs_per_dag`` pause the Dag. Set to 0 to disable.
+      version_added: 3.4.0
+      type: integer
+      example: ~
+      default: "0"
 connection_test:
   description: |
     Configuration for the deferred connection-test workflow that dispatches

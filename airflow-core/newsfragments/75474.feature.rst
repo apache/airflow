@@ -1,0 +1,1 @@
+Add ``[scheduler] max_dag_load_failures_per_queued_run`` to fail a queued Dag run whose Dag repeatedly fails to load, so ``max_consecutive_failed_dag_runs`` can pause the Dag.
