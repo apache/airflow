@@ -92,13 +92,29 @@ def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
     yield from children
 
 
-def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path | None = None) -> str:
-    """Return the classpath of every JAR under *roots*. *primary*, when given, goes first."""
+def _calculate_classpath(
+    roots: Sequence[pathlib.Path], *, cwd: pathlib.Path, primary: pathlib.Path | None = None
+) -> str:
+    """
+    Return the classpath of every JAR under *roots*, relative to *cwd*. *primary*, when given, goes first.
+
+    The JVM splits a classpath on ``os.pathsep`` and has no way to escape it, so a JAR whose
+    absolute path holds one, such as a bundle version directory named after a timestamp, could
+    not be loaded. Relative to *cwd* that part of the path is gone.
+
+    :raises ValueError: when a path relative to *cwd* still holds ``os.pathsep``.
+    """
     jars = sorted(_find_jars(roots), key=lambda p: p.as_posix())
     if primary is not None:
         target = primary.resolve()
         jars = [primary, *(p for p in jars if p.resolve() != target)]
-    return os.pathsep.join(p.as_posix() for p in jars)
+    entries = [pathlib.Path(os.path.relpath(p, cwd)).as_posix() for p in jars]
+    if bad := [e for e in entries if os.pathsep in e]:
+        raise ValueError(
+            f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "
+            f"entries: {', '.join(bad)}. Rename them, or the directories under {os.fspath(cwd)} holding them."
+        )
+    return os.pathsep.join(entries)
 
 
 @attrs.define
@@ -280,10 +296,14 @@ class JavaCoordinator(SubprocessCoordinator):
         return [
             self.java_executable,
             "-classpath",
-            _calculate_classpath(roots, primary=primary),
+            _calculate_classpath(roots, cwd=self._get_working_directory(), primary=primary),
             *self.jvm_args,
             main_class,
         ]
+
+    def _get_working_directory(self) -> pathlib.Path:
+        # The classpath is relative to this, which keeps os.pathsep in the bundle's own path off it.
+        return self._get_scan_roots()[0]
 
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         # Without main_class, the first executable JAR in path order wins; tracked at
