@@ -854,7 +854,6 @@ def _build_request_error(exc: Exception) -> ErrorResponse:
 
 
 def _get_xcom_backend() -> type[BaseXCom]:
-    # Lazy: resolving the configured backend imports it, which only a worker that runs a task needs.
     from airflow.sdk.execution_time import xcom
 
     return xcom.XCom

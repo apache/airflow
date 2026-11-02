@@ -206,7 +206,12 @@ class XComBackendProcess(WatchedSubprocess):
             return
         call, self._running_call = self._queued_calls.popleft()
         request_id, self._call_request_id = self._call_request_id, None
-        self.send_msg(call, request_id=request_id)
+        try:
+            self.send_msg(call, request_id=request_id)
+        except OSError as e:
+            # The process has died and the close of its stdin has not been handled yet, so the call
+            # fails here rather than leaving the runtime waiting for an answer.
+            self._fail_waiting_calls(f"The XCom backend process could not be sent a call: {e}")
 
     def _fail_waiting_calls(self, error: str) -> None:
         """Answer every call the process has not answered with ``error``."""
@@ -219,17 +224,17 @@ class XComBackendProcess(WatchedSubprocess):
 
     def stop(self) -> None:
         """Let the helper process exit, and kill it if it does not exit in time."""
-        # The caller gives up on the calls it has not answered, so they are dropped rather than failed.
-        self._queued_calls.clear()
-        self._running_call = None
-        if self._exit_code is None and self._call_request_id is not None:
-            # The process may be dead already, such as when the task it serves was killed.
-            with contextlib.suppress(OSError):
-                self.send_msg(XComBackendCall(hook="exit"), request_id=self._call_request_id)
-            self._call_request_id = None
+        request_id, self._call_request_id = self._call_request_id, None
         deadline = time.monotonic() + _EXIT_TIMEOUT
-        while self._open_sockets and (now := time.monotonic()) < deadline:
-            self._service_subprocess(max_wait_time=deadline - now)
+        if self.can_run_a_call:
+            if self._exit_code is None and request_id is not None:
+                # The process may be dead already, such as when the task it serves was killed.
+                with contextlib.suppress(OSError):
+                    self.send_msg(XComBackendCall(hook="exit"), request_id=request_id)
+            # Servicing the selector also dispatches the requests of the task it is shared with, which
+            # can start another helper, so a process already known to be gone is reaped without it.
+            while self._open_sockets and (now := time.monotonic()) < deadline:
+                self._service_subprocess(max_wait_time=deadline - now)
         if self._exit_code is None:
             with contextlib.suppress(self._process.TimeoutExpired):
                 self._exit_code = self._process.wait(timeout=max(0.0, deadline - time.monotonic()))
@@ -239,6 +244,8 @@ class XComBackendProcess(WatchedSubprocess):
         for sock in list(self._open_sockets):
             self._on_socket_closed(sock)
             sock.close()
+        # Nothing answers what is left, so the callers fail rather than wait for an answer forever.
+        self._fail_waiting_calls("The XCom backend process was stopped")
 
     def _on_socket_closed(self, sock: socket) -> None:
         super()._on_socket_closed(sock)
@@ -274,7 +281,6 @@ class XComBackendProcess(WatchedSubprocess):
 
 def run_xcom_backend() -> None:
     """Run the XCom backend calls that the supervisor sends, until it sends ``exit``."""
-    # Lazy: these load the task runtime and the configured backend, which only the helper process needs.
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import CommsDecoder
     from airflow.sdk.execution_time.xcom import XCom
@@ -306,7 +312,6 @@ class _HookRunner:
             return XComBackendResult(error=f"{type(e).__name__}: {e}")
 
     def store(self, call: XComBackendCall) -> XComBackendResult:
-        # Lazy: only the helper process decodes and encodes XCom values.
         from airflow.sdk.serde import deserialize
 
         if call.coordinate is None:

@@ -288,6 +288,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
+   * - ``custom-xcom-backend`` (MAY)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
    * - ``connection-read`` (MUST)
      - ✓ 1.0.0
      - ✓ 1.0.0

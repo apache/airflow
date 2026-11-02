@@ -386,11 +386,45 @@ class TestXComBackendProcessSendCall:
         exited = XComBackendResult(error="The XCom backend process exited before it answered")
         assert on_result.call_args_list == [call(exited), call(exited)]
 
-    def test_a_stopped_process_answers_no_call(self, backend, on_result):
-        """Nothing waits for a call once the task the process serves is over."""
+    def test_a_stopped_process_fails_the_calls_it_never_answered(self, backend, on_result):
+        """A caller is told the call will not be answered rather than waiting for it forever."""
         backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
         backend._exit_code = 0
 
         backend.stop()
 
-        on_result.assert_not_called()
+        on_result.assert_called_once_with(XComBackendResult(error="The XCom backend process was stopped"))
+
+    def test_a_dead_process_is_reaped_without_servicing_the_shared_selector(self, backend):
+        """The selector belongs to the task, so servicing it would dispatch the task's own requests."""
+        backend._exit_code = 0
+
+        with patch.object(XComBackendProcess, "_service_subprocess") as service:
+            backend.stop()
+
+        service.assert_not_called()
+
+    def test_a_live_process_is_serviced_until_its_sockets_close(self, backend):
+        backend._open_sockets[backend.stdin] = "requests"
+        logs = MagicMock(spec=socket.socket)
+        backend._open_sockets[logs] = "logs"
+        backend._exit_code = 0
+
+        def close_one_socket(**_):
+            backend._open_sockets.pop(next(iter(backend._open_sockets)))
+
+        with patch.object(XComBackendProcess, "_service_subprocess", side_effect=close_one_socket) as service:
+            backend.stop()
+
+        assert service.call_count == 2
+
+    def test_a_call_that_cannot_be_sent_fails_rather_than_waits(self, backend, on_result):
+        """The process can die between its stdin closing and that close being handled."""
+        cast("MagicMock", backend.stdin).sendall.side_effect = BrokenPipeError("Broken pipe")
+        backend._handle_await_call(AwaitXComBackendCall(), structlog.get_logger(logger_name="task"), req_id=1)
+
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
+
+        on_result.assert_called_once_with(
+            XComBackendResult(error="The XCom backend process could not be sent a call: Broken pipe")
+        )
