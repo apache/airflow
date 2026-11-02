@@ -259,6 +259,11 @@ func serveForSupervisor(t *testing.T, b *BundleRef) (*execution.CoordinatorComm,
 // A fake supervisor sends StartupDetails over the comm socket, as the Python
 // ExecutableCoordinator does after it starts the bundle with --comm and --logs.
 func TestServeInjectsDagRunMetadata(t *testing.T) {
+	// msgpack decodes a timestamp in time.Local, so a worker outside UTC
+	// would otherwise get RunAfter in its own zone.
+	local := time.Local
+	time.Local = time.FixedZone("UTC+8", 8*60*60)
+	t.Cleanup(func() { time.Local = local })
 	runAfter := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
 	cases := []struct {
 		name     string
@@ -335,7 +340,7 @@ func TestServeInjectsDagRunMetadata(t *testing.T) {
 				t.Fatal("Serve did not return after the task finished")
 			}
 			assert.Equal(t, DagRunTypeManual, got.RunType)
-			assert.True(t, got.RunAfter.Equal(runAfter))
+			assert.Equal(t, runAfter, got.RunAfter)
 			assert.Equal(t, tc.want, got.Conf)
 		})
 	}

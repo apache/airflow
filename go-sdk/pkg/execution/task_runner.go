@@ -88,7 +88,7 @@ func RunTask(
 			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
 			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
 			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
-			RunAfter:          dagRun.RunAfter,
+			RunAfter:          dagRun.RunAfter.UTC(), // msgpack decodes it in the local zone.
 			RunType:           dagRun.RunType,
 			Conf:              conf,
 		},
