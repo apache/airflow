@@ -191,9 +191,7 @@ using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity
     DatabricksRunNowOperator(
         task_id="run_now",
         job_id=jobs_create_named.output,
-        outlets=[
-            table.to_asset()
-        ],
+        outlets=[table.to_asset()],
     )
 
 An outlet is a declared output asset and does not automatically verify that the
@@ -206,7 +204,7 @@ The operator emits a warning when outlets are configured in this mode.
 With synchronous or deferrable execution, task success follows successful remote
 completion. A declared outlet does not prove that a new Delta commit was written.
 If downstream tasks need the table to be ready, use ``wait_for_termination=True``
-or a Delta table sensor. Remote failure or cancellation does not produce a
+or ``DatabricksSqlSensor``. Remote failure or cancellation does not produce a
 successful outlet event.
 
 

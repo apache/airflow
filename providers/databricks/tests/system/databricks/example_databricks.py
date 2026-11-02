@@ -170,7 +170,6 @@ with DAG(
         databricks_conn_id="databricks_default",
         statement="select * from default.my_airflow_table",
         warehouse_id=WAREHOUSE_ID,
-        outlets=[UNITY_TABLE.to_asset()],
         # deferrable=True, # For using the operator in deferrable mode
     )
     # [END howto_operator_sql_statements]

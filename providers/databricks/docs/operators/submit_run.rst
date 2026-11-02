@@ -268,9 +268,7 @@ using :class:`~airflow.providers.databricks.assets.databricks.UnityTableIdentity
         new_cluster=new_cluster,
         spark_jar_task={"main_class_name": "com.example.ProcessData"},
         libraries=[{"jar": "dbfs:/lib/etl-0.1.jar"}],
-        outlets=[
-            table.to_asset()
-        ],
+        outlets=[table.to_asset()],
     )
 
 An outlet is a declared output asset. It does not automatically verify that the
@@ -283,5 +281,5 @@ refreshed. The operator emits a warning when outlets are configured in this mode
 With synchronous or deferrable execution, task success follows successful remote
 completion. A declared outlet does not prove that a new Delta commit was written.
 If downstream tasks need the table to be ready, use ``wait_for_termination=True``
-or a Delta table sensor. Remote failure or cancellation does not produce a
+or ``DatabricksSqlSensor``. Remote failure or cancellation does not produce a
 successful outlet event.
