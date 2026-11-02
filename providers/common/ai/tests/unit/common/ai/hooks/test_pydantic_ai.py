@@ -27,7 +27,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from pathlib import Path
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, call, create_autospec, patch
 
 import httpx2
 import pytest
@@ -45,6 +45,7 @@ from pydantic_ai.providers import infer_provider_class
 from airflow.models.connection import Connection
 from airflow.providers.common.ai.get_provider_info import get_provider_info
 from airflow.providers.common.ai.hooks.pydantic_ai import (
+    ModelReadinessBackend,
     PydanticAIAzureHook,
     PydanticAIBedrockHook,
     PydanticAIHook,
@@ -1847,7 +1848,10 @@ class TestPydanticAIHookEnsureModelReady:
 
     @staticmethod
     def _install_fake_clock(module: str):
-        """Return a patch of the hook module's ``time`` onto a clock that tests (or a patched ``sleep``) advance by hand.
+        """
+        Return a patch of the hook module's ``time`` onto a clock that tests advance by hand.
+
+        A patched ``sleep`` may advance it too.
 
         ``time_machine`` does not move ``time.monotonic``, which the hook uses for its deadline.
         Returns ``(patcher, now)``; ``now[0]`` is the fake clock and may be advanced by tests.
@@ -1974,10 +1978,48 @@ class TestPydanticAIHookEnsureModelReady:
         hook, conn = self._build_hook(model_id=model_id)
 
         with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(NotImplementedError, match="Ollama"):
+            with pytest.raises(NotImplementedError, match=r"Ollama.*backend="):
                 hook.ensure_model_ready()
 
         mock_backend_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("ready_results", "expected_load_calls"),
+        [([True], []), ([False, True], [call(timeout=60.0)])],
+        ids=["already-ready", "load-then-confirm"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_injected_backend_is_used_instead_of_ollama(
+        self, mock_ollama_cls, ready_results, expected_load_calls
+    ):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        stub.is_ready.side_effect = ready_results
+        hook, conn = self._build_hook()
+        clock, now = self._install_fake_clock(self._HOOK_MODULE)
+
+        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
+            self._wire_fake_clock(mock_time, now)
+            hook.ensure_model_ready(timeout=60.0, backend=stub)
+
+        assert stub.load.call_args_list == expected_load_calls
+        mock_ollama_cls.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("model_id", "host"),
+        [("openai:gpt-5", "http://ollama:11434/v1"), ("ollama:llama3", None)],
+        ids=["non-ollama-prefix", "no-host"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_injected_backend_skips_prefix_and_host_checks(self, mock_ollama_cls, model_id, host):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        stub.is_ready.return_value = True
+        hook, conn = self._build_hook(model_id=model_id, host=host)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(backend=stub)
+
+        stub.is_ready.assert_called_once()
+        mock_ollama_cls.assert_not_called()
 
     @pytest.mark.parametrize("host", [None, ""])
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)

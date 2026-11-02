@@ -24,7 +24,7 @@ import math
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
 
 import pydantic_ai
 from pydantic_ai import Agent
@@ -50,6 +50,27 @@ pydantic_ai.BANNER_ENABLED = False
 OutputT = TypeVar("OutputT")
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class ModelReadinessBackend(Protocol):
+    """
+    Server-specific half of :meth:`PydanticAIHook.ensure_model_ready`.
+
+    Any object with these two methods works; it does not need to subclass this class.
+
+    ``is_ready`` returns whether the model is loaded, waiting at most *timeout* seconds for the
+    server. ``load`` returns once the model is loaded, waiting at most *timeout* seconds; afterwards
+    ``ensure_model_ready`` calls ``is_ready`` once to confirm.
+
+    Raise ``TimeoutError`` when a call exceeds *timeout*. Every exception (``TimeoutError``,
+    ``httpx2.TransportError``, ``httpx2.HTTPStatusError`` or any other) is raised out of
+    ``ensure_model_ready`` as is, and nothing is retried.
+    """
+
+    def is_ready(self, *, timeout: float) -> bool: ...
+
+    def load(self, *, timeout: float) -> None: ...
+
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -571,7 +592,23 @@ class PydanticAIHook(BaseHook):
             "hook or the Model field on the connection."
         )
 
-    def ensure_model_ready(self, *, timeout: float = 300.0) -> None:
+    def _resolve_readiness_backend(self, model_name: str) -> ModelReadinessBackend:
+        """Build the built-in readiness backend for *model_name*, which only exists for Ollama."""
+        prefix, _, ollama_model = model_name.partition(":")
+        if prefix != "ollama":
+            raise NotImplementedError(
+                f"ensure_model_ready has no built-in readiness backend for '{model_name}' on "
+                f"connection '{self.llm_conn_id}'; only Ollama is built in. "
+                "Pass backend= an object with is_ready() and load()."
+            )
+        conn, _ = self._get_conn_and_extra()
+        if not conn.host:
+            raise ValueError(f"Connection '{self.llm_conn_id}' needs a host to check model readiness.")
+        return OllamaBackend(conn.host, ollama_model)
+
+    def ensure_model_ready(
+        self, *, timeout: float = 300.0, backend: ModelReadinessBackend | None = None
+    ) -> None:
         """
         Block until this connection's local model is loaded, asking the server to load it if needed.
 
@@ -579,18 +616,24 @@ class PydanticAIHook(BaseHook):
         the model is loaded, then checks once more that the server lists it. Any error from the
         server is raised as is.
 
-        Only Ollama is supported. Only this hook's own connection is checked -- connections in
-        ``fallback_conn_ids`` are not, so a fallback model is never loaded ahead of need.
+        Ollama is built in; for any other server pass *backend*. Only this hook's own connection is
+        checked -- connections in ``fallback_conn_ids`` are not, so a fallback model is never loaded
+        ahead of need.
 
-        The connection password is not sent to Ollama, so a server behind authentication is not
-        supported.
+        The built-in Ollama backend does not send the connection password, so a server behind
+        authentication is not supported.
 
         Blocks and holds the worker slot for the whole wait.
 
         :param timeout: Seconds to wait in total for the model to become ready.
+        :param backend: Object with is_ready() and load() (see ModelReadinessBackend) to check and
+            load the model; when given, only the model prefix and connection host checks are skipped.
+            The model name is still resolved from the hook argument or the connection, and a
+            missing model still raises ``ValueError``.
         :raises ValueError: If *timeout* is not a positive finite number, no model is configured,
-            or the connection has no host.
-        :raises NotImplementedError: If the model's provider prefix is not ``ollama``.
+            or *backend* is not given and the connection has no host.
+        :raises NotImplementedError: If *backend* is not given and the model's provider prefix has
+            no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If the time runs out before the model is confirmed ready, or a
             request times out.
         :raises RuntimeError: If the load request finishes but the server does not list the model
@@ -603,23 +646,15 @@ class PydanticAIHook(BaseHook):
         if not (configured_name := self._get_configured_model_name()):
             raise self._build_missing_model_error()
         model_name = self._qualify_model_name(configured_name)
-        prefix, _, ollama_model = model_name.partition(":")
-        if prefix != "ollama":
-            raise NotImplementedError(
-                f"ensure_model_ready only supports Ollama models, got '{model_name}' on connection "
-                f"'{self.llm_conn_id}'."
-            )
-        conn, _ = self._get_conn_and_extra()
-        if not conn.host:
-            raise ValueError(f"Connection '{self.llm_conn_id}' needs a host to check model readiness.")
+        if backend is None:
+            backend = self._resolve_readiness_backend(model_name)
 
-        backend = OllamaBackend(conn.host, ollama_model)
         started = time.monotonic()
         deadline = started + timeout
         if backend.is_ready(timeout=min(timeout, DEFAULT_REQUEST_TIMEOUT)):
             return
         remaining = self._get_remaining_seconds(deadline, model_name, timeout)
-        self.log.info("Loading model '%s' on %s", model_name, conn.host)
+        self.log.info("Loading model '%s' for connection '%s'", model_name, self.llm_conn_id)
         backend.load(timeout=remaining)
         remaining = self._get_remaining_seconds(deadline, model_name, timeout)
         if not backend.is_ready(timeout=min(remaining, DEFAULT_REQUEST_TIMEOUT)):

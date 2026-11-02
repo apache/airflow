@@ -277,18 +277,38 @@ to finish, then checks once that Ollama lists the model:
 
 Nothing calls it for you; it is opt-in. It has these limits:
 
-- Only Ollama is supported. Any other model prefix raises ``NotImplementedError``.
+- Only Ollama is built in. For any other model prefix pass ``backend=`` (see below);
+  without it, ``NotImplementedError`` is raised.
 - Only the hook's own connection is checked. Models behind ``fallback_conn_ids``
   are not loaded.
 - The call blocks and holds the worker slot for the whole wait.
-- The connection's password is not sent, so an Ollama server behind
-  authentication is not supported.
+- The built-in Ollama backend does not send the connection's password, so an Ollama
+  server behind authentication is not supported.
 
 ``timeout`` is the total budget for the readiness check, the load request and
 the confirming check. Running out ends in a ``TimeoutError`` naming the model.
 Nothing is retried, so a wrong host, a server error or a single request timing
 out is raised right away. If the load finishes but Ollama still does not list
 the model, ``RuntimeError`` is raised.
+
+Using your own readiness backend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``ensure_model_ready`` accepts any object with keyword-only ``is_ready(*, timeout)``
+and ``load(*, timeout)`` methods, described by
+:class:`~airflow.providers.common.ai.hooks.pydantic_ai.ModelReadinessBackend`.
+``load`` should return once the model is loaded. With ``backend=``, the model
+prefix and the connection host are not checked, and errors are raised as is.
+
+.. code-block:: python
+
+    class MyServerBackend:
+        def is_ready(self, *, timeout: float) -> bool: ...
+
+        def load(self, *, timeout: float) -> None: ...
+
+
+    hook.ensure_model_ready(backend=MyServerBackend(...))
 
 Routing through an AI gateway
 --------------------------------
