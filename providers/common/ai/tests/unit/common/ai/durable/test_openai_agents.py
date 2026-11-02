@@ -782,6 +782,45 @@ class TestParallelToolCalls:
         assert outputs == {"a": "a=42", "b": "b=42"}
         assert journal.stats.replayed["tool"] == 2
 
+    def test_only_wrapped_tools_get_a_reserved_step(self):
+        """
+        A tool the model is handed but the durable run does not wrap never takes a reserved step.
+
+        MCP tools and a handoff agent's tools reach the model this way, so reserving for them would leave
+        positions nobody takes.
+        """
+
+        @function_tool
+        def plain_lookup(key: str) -> str:
+            """Look a key up."""
+            return key
+
+        journal = DurableJournal(MemoryStorage())
+        durable_run = journal.start_run()
+        durable_tool = _get_durable_tool(_SleepingTools().tools()[0], durable_run)
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id=f"fc-{call_id}",
+                    call_id=call_id,
+                    name=name,
+                    arguments=json.dumps({"key": "a"}),
+                    type="function_call",
+                )
+                for call_id, name in (("call-durable", "lookup"), ("call-plain", "plain_lookup"))
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+
+        _DurableModel(mock.create_autospec(Model, instance=True), durable_run)._reserve_tool_steps(
+            response, [durable_tool, plain_lookup]
+        )
+
+        assert list(_RESERVED_TOOL_STEPS[durable_run]) == ["call-durable"]
+        assert durable_run.position == 1
+        _RESERVED_TOOL_STEPS.pop(durable_run, None)
+
     def test_a_finished_run_does_not_keep_its_reserved_tool_steps(self):
         @function_tool(needs_approval=True)
         def lookup(key: str) -> str:
