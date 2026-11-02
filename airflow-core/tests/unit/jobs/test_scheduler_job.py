@@ -17656,10 +17656,17 @@ class TestRouteDagProcessorCallbacks:
             CallbackState.QUEUED,
         ]
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_HAND_BACK_BATCHES_PER_CALL", 2)
     @mock.patch("airflow.jobs.scheduler_job_runner.ROUTED_CALLBACKS_BATCH_SIZE", 2)
-    def test_hands_back_every_waiting_callback_a_batch_at_a_time(self, dag_run, session):
-        requests = [self._dag_request(dag_run, msg=str(i)) for i in range(3)]
+    @mock.patch("airflow.jobs.scheduler_job_runner.create_session", autospec=True, side_effect=create_session)
+    def test_hands_back_waiting_callbacks_a_committed_batch_at_a_time(self, sessions, dag_run, session):
+        requests = [self._dag_request(dag_run, msg=str(i)) for i in range(5)]
         callback_ids = [_add_waiting_callback(session, request) for request in requests]
+
+        SchedulerJobRunner._hand_back_waiting_callbacks()
+
+        assert sessions.call_count == 2
+        assert self._get_states(session, callback_ids).count(CallbackState.SCHEDULED) == 1
 
         SchedulerJobRunner._hand_back_waiting_callbacks()
 
@@ -17671,15 +17678,18 @@ class TestRouteDagProcessorCallbacks:
         [
             pytest.param(False, CallbackState.QUEUED, None, id="queued"),
             pytest.param(
-                True,
-                CallbackState.FAILED,
-                "Its Dag run was deleted while it waited for a slot",
-                id="dag-run-deleted",
+                True, CallbackState.FAILED, "Dag run test_run of routed_dag not found", id="dag-run-deleted"
             ),
         ],
     )
-    def test_looks_up_a_waiting_callback_once_while_it_waits_for_a_slot(
-        self, dag_run, session, delete_dag_run, expected_state, expected_output
+    @mock.patch.object(
+        SchedulerJobRunner,
+        "_get_callback_target",
+        autospec=True,
+        side_effect=SchedulerJobRunner._get_callback_target,
+    )
+    def test_looks_up_a_waiting_callback_again_only_once_its_executor_has_a_free_slot(
+        self, lookups, dag_run, session, delete_dag_run, expected_state, expected_output
     ):
         executor = self._make_executor("default_exec")
         runner = self._make_runner([executor], **{"core.parallelism": "1"})
@@ -17687,27 +17697,26 @@ class TestRouteDagProcessorCallbacks:
         executor.executor_queues[WorkloadType.EXECUTE_TASK][taken] = mock.MagicMock()
         dag_run_id = dag_run.id
         callback_id = _add_waiting_callback(session, self._dag_request(dag_run))
-        get_callback_target = SchedulerJobRunner._get_callback_target
 
-        with mock.patch.object(
-            SchedulerJobRunner, "_get_callback_target", autospec=True, side_effect=get_callback_target
-        ) as lookups:
-            for _ in range(2):
-                runner._route_dag_processor_callbacks(session=session)
-                session.commit()
-            if delete_dag_run:
-                session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
-                session.commit()
-            del executor.executor_queues[WorkloadType.EXECUTE_TASK][taken]
+        for _ in range(2):
             runner._route_dag_processor_callbacks(session=session)
             session.commit()
-
         assert lookups.call_count == 1
+        assert runner._waiting_callback_executors == {callback_id: executor}
+
+        if delete_dag_run:
+            session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
+            session.commit()
+        del executor.executor_queues[WorkloadType.EXECUTE_TASK][taken]
+        runner._route_dag_processor_callbacks(session=session)
+        session.commit()
+
+        assert lookups.call_count == 2
         session.expunge_all()
         callback = session.get_one(Callback, callback_id)
         assert (callback.state, callback.output) == (expected_state, expected_output)
         assert len(self._queued_callbacks(executor)) == (not delete_dag_run)
-        assert runner._callback_targets == {}
+        assert runner._waiting_callback_executors == {}
 
     @pytest.mark.parametrize(
         ("waiting", "expected_scans"),
@@ -17716,25 +17725,23 @@ class TestRouteDagProcessorCallbacks:
             pytest.param(2, 2, id="full-first-window"),
         ],
     )
+    @mock.patch.object(
+        SchedulerJobRunner,
+        "_select_waiting_callbacks",
+        autospec=True,
+        side_effect=SchedulerJobRunner._select_waiting_callbacks,
+    )
     def test_checks_a_second_window_only_after_a_full_first_one(
-        self, dag_run, session, waiting, expected_scans
+        self, scans, dag_run, session, waiting, expected_scans
     ):
         executor = self._make_executor("default_exec")
         runner = self._make_runner([executor], **{"callbacks.max_routed_callbacks_per_loop": "2"})
         for _ in range(waiting):
             _add_waiting_callback(session, self._dag_request(dag_run))
-        select_waiting_callbacks = SchedulerJobRunner._select_waiting_callbacks
 
-        with mock.patch.object(
-            SchedulerJobRunner,
-            "_select_waiting_callbacks",
-            autospec=True,
-            side_effect=select_waiting_callbacks,
-        ) as scans:
-            runner._route_dag_processor_callbacks(session=session)
+        runner._route_dag_processor_callbacks(session=session)
 
         assert scans.call_count == expected_scans
-        assert len(self._queued_callbacks(executor)) == waiting
 
     @pytest.mark.parametrize(
         ("parallelism", "per_loop", "expected_queued"),
@@ -17897,21 +17904,33 @@ class TestRouteDagProcessorCallbacks:
         assert callback.state == CallbackState.SCHEDULED
 
     @pytest.mark.parametrize(
-        ("enabled", "expected_calls"),
+        ("enabled", "hand_back_error", "expected_calls"),
         [
-            pytest.param(True, ["route", "schedule"], id="routing-on"),
-            pytest.param(False, ["hand back", "schedule"], id="routing-off"),
+            pytest.param(True, None, ["route", "schedule", "route", "schedule"], id="routing-on"),
+            pytest.param(False, None, ["hand back", "schedule", "schedule"], id="routing-off"),
+            pytest.param(
+                False,
+                OperationalError("UPDATE callback", {}, Exception("lock wait timeout")),
+                ["hand back", "schedule", "schedule"],
+                id="routing-off-hand-back-fails",
+            ),
         ],
     )
+    @conf_vars({("scheduler", "task_queued_timeout_check_interval"): "77"})
     def test_loop_routes_before_scheduling_tasks_or_hands_back_with_routing_off(
-        self, enabled, expected_calls
+        self, enabled, hand_back_error, expected_calls
     ):
         with conf_vars({("callbacks", "route_dag_processor_callbacks"): str(enabled)}):
             runner = SchedulerJobRunner(
-                job=Job(), num_runs=1, executors=[self._make_executor("default_exec")]
+                job=Job(), num_runs=2, executors=[self._make_executor("default_exec")]
             )
         runner.job.heartbeat = mock.MagicMock()
         calls: list[str] = []
+
+        def hand_back_waiting_callbacks():
+            calls.append("hand back")
+            if hand_back_error:
+                raise hand_back_error
 
         with (
             mock.patch.object(
@@ -17924,7 +17943,7 @@ class TestRouteDagProcessorCallbacks:
                 SchedulerJobRunner,
                 "_hand_back_waiting_callbacks",
                 autospec=True,
-                side_effect=lambda: calls.append("hand back"),
+                side_effect=hand_back_waiting_callbacks,
             ) as hand_back,
             mock.patch.object(
                 SchedulerJobRunner,
@@ -17943,8 +17962,12 @@ class TestRouteDagProcessorCallbacks:
         ]
         # The reaper runs even with routing off, to settle callbacks routed before it was.
         assert runner._reap_routed_callbacks in scheduled_actions
-        assert (runner._callback_targets.clear in scheduled_actions) is enabled
-        assert (hand_back in scheduled_actions) is not enabled
+        if enabled:
+            assert mock.call(mock.ANY, 77.0, runner._waiting_callback_executors.clear) in schedule.mock_calls
+            assert hand_back not in scheduled_actions
+        else:
+            assert mock.call(mock.ANY, 77.0, hand_back, non_fatal=True) in schedule.mock_calls
+            assert runner._waiting_callback_executors.clear not in scheduled_actions
 
 
 class TestRoutedCallbackOutcomes:
