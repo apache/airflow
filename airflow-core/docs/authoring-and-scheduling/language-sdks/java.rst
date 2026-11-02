@@ -742,36 +742,11 @@ an instance of a class with typed fields instead:
     }
 
 For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31"}``, ``etl.targetTable`` is
-``"sales"``, ``etl.since`` is ``LocalDate.of(2024, 1, 31)``, and ``etl.limit`` stays ``100``.
-
-* Each key goes to the field, setter or record component with the same name when case and underscores are
-  ignored, so ``target_table`` reaches ``targetTable``. Objects nested in the conf follow the same rule. The keys
-  of a ``Map`` field stay as written.
-* ``@ArgName`` has no effect on ``getConf``. To set a field from a key that no Java name can match, such as
-  ``target-table``, add ``@JsonProperty("target-table")`` to that field. The annotation needs
-  ``com.fasterxml.jackson.core:jackson-annotations`` in your build, because the SDK keeps Jackson off your compile
-  classpath. You can also read the key from ``context.dagRun.conf``.
-* Keys that match no field are ignored, because other tasks in the run may read them. A field with no matching
-  key keeps its default value.
-* The conf holds only the values that the run was triggered with. In a Python task, ``params`` combines the conf
-  with the defaults of the Dag's params. ``getConf`` does not add those defaults, so in a scheduled run, no field
-  has a matching key.
-* The class needs a no-argument constructor and public fields or setters, so a nested class must be ``static``.
-  A record also works. A record component with no matching key is ``null``, unless it has a primitive type. In
-  that case, ``getConf`` throws. A task that calls ``getConf`` with a record that has a primitive component
-  therefore fails in a scheduled run. In Kotlin, declare the fields with ``@JvmField`` so that a property such
-  as ``isEnabled`` keeps its name.
-* ``getConf`` throws ``IllegalArgumentException`` in these cases:
-
-  * A value, such as an empty string for an ``int`` field, cannot be converted to the type of its field.
-  * A key holds ``null`` for a primitive field, a list holds ``null`` for a primitive array such as ``int[]``, or
-    a primitive record component has no matching key. To let a field or a component receive ``null``, declare it
-    with a boxed type, such as ``Integer``.
-  * Two keys, such as ``target_table`` and ``TARGET_TABLE``, match the same field after case and underscores are
-    ignored, but neither key matches the field name exactly.
-  * The class has two fields whose names differ only in case or underscores, such as ``targetTable`` and
-    ``target_table``. ``getConf`` checks the class even when the conf is empty, so a task that passes such a
-    class fails in a scheduled run too.
+``"sales"``, ``etl.since`` is ``LocalDate.of(2024, 1, 31)``, and ``etl.limit`` stays ``100``. Keys match field
+names when case and underscores are ignored, and keys that match no field are ignored. ``getConf`` does not add
+the defaults of the Dag's params, and the conf of a scheduled run is empty. For the classes that ``getConf``
+accepts and the cases where it throws, see ``DagRun.getConf`` in the `Java SDK API reference
+<https://airflow.apache.org/docs/java-sdk/stable/>`__.
 
 .. _java-sdk/task-state-store:
 
