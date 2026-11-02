@@ -21,8 +21,10 @@ from unittest import mock
 
 import pytest
 import time_machine
+from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.core_api.routes.public.triggers import _get_public_map_indexes
 from airflow.jobs.job import Job
 from airflow.models.asset import AssetActive, AssetModel, AssetWatcherModel
 from airflow.models.deadline import Deadline
@@ -32,6 +34,7 @@ from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.sdk import task
 from airflow.sdk.definitions.callback import AsyncCallback
+from airflow.utils.session import create_session
 from airflow.utils.state import TaskInstanceState
 
 from tests_common.test_utils.asserts import assert_queries_count, count_queries
@@ -187,6 +190,46 @@ def triggers(session, create_task_instance):
 
 def _by_id(body):
     return {t["id"]: t for t in body["triggers"]}
+
+
+def _mapped_task_triggers(session, dag_maker, job, mapped):
+    """Deferred task instances of one mapped task, each with its trigger on ``job``."""
+    with dag_maker("dag_mapped_wait", serialized=True, session=session) as dag:
+
+        @task
+        def values():
+            return [0]
+
+        @task
+        def wait(value):
+            return value
+
+        wait.expand(value=values())
+    dr = dag_maker.create_dagrun(session=session)
+    region = DynamicRegion.get_or_create(dag_id=dr.dag_id, run_id=dr.run_id, node_id="wait", session=session)
+    session.add(region)
+    session.flush()
+    for i in range(mapped):
+        trigger = _trigger(session, f"mapped{i}", job=job)
+        ti = TaskInstance(
+            task=dag.get_task("wait"),
+            run_id=dr.run_id,
+            dag_version_id=dr.created_dag_version_id,
+            region_id=region.id,
+            map_index=i,
+        )
+        ti.try_number, ti.state, ti.trigger_id = 1, TaskInstanceState.DEFERRED, trigger.id
+        session.add(ti)
+        session.flush()
+        trigger.dag_id, trigger.owner_ref = ti.dag_id, {"ti_id": str(ti.id)}
+    session.commit()
+
+
+def _delete_mapped_task_instances_then_get_public_map_indexes(page, *, session):
+    """Another session deletes the task instances after the page and its task instances were read."""
+    with create_session() as other:
+        other.execute(delete(TaskInstance).where(TaskInstance.dag_id == "dag_mapped_wait"))
+    return _get_public_map_indexes(page, session=session)
 
 
 class TestGetTriggers:
@@ -509,37 +552,7 @@ class TestGetTriggers:
         self, test_client, session, triggers, dag_maker
     ):
         mapped = 4
-        with dag_maker("dag_mapped_wait", serialized=True, session=session) as dag:
-
-            @task
-            def values():
-                return [0]
-
-            @task
-            def wait(value):
-                return value
-
-            wait.expand(value=values())
-        dr = dag_maker.create_dagrun(session=session)
-        region = DynamicRegion.get_or_create(
-            dag_id=dr.dag_id, run_id=dr.run_id, node_id="wait", session=session
-        )
-        session.add(region)
-        session.flush()
-        for i in range(mapped):
-            trigger = _trigger(session, f"mapped{i}", job=triggers["live"])
-            ti = TaskInstance(
-                task=dag.get_task("wait"),
-                run_id=dr.run_id,
-                dag_version_id=dr.created_dag_version_id,
-                region_id=region.id,
-                map_index=i,
-            )
-            ti.try_number, ti.state, ti.trigger_id = 1, TaskInstanceState.DEFERRED, trigger.id
-            session.add(ti)
-            session.flush()
-            trigger.dag_id, trigger.owner_ref = ti.dag_id, {"ti_id": str(ti.id)}
-        session.commit()
+        _mapped_task_triggers(session, dag_maker, triggers["live"], mapped)
 
         with count_queries() as one:
             test_client.get("/triggers", params={"dag_id": "dag_mapped_wait", "limit": 1})
@@ -551,6 +564,21 @@ class TestGetTriggers:
         assert response.status_code == 200
         map_indexes = sorted(t["task_instance"]["map_index"] for t in response.json()["triggers"])
         assert map_indexes == list(range(mapped))
+
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.triggers._get_public_map_indexes",
+        autospec=True,
+        side_effect=_delete_mapped_task_instances_then_get_public_map_indexes,
+    )
+    def test_a_task_instance_deleted_while_the_page_is_read_is_left_out(
+        self, _, test_client, session, triggers, dag_maker
+    ):
+        _mapped_task_triggers(session, dag_maker, triggers["live"], 2)
+
+        response = test_client.get("/triggers", params={"dag_id": "dag_mapped_wait"})
+
+        assert response.status_code == 200
+        assert response.json()["triggers"] == []
 
     def test_should_respond_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get("/triggers").status_code == 401

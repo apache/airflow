@@ -124,7 +124,20 @@ def _build_response(
     """
     if (kind := trigger.kind) is None:
         return None
-    ti = trigger.task_instance if kind == TriggerKind.TASK else None
+    task_instance = None
+    if kind == TriggerKind.TASK:
+        ti = trigger.task_instance
+        if ti is None or (map_index := public_map_indexes.get(ti.id)) is None:
+            # Its task instance was deleted (with its Dag or run) after the page was read.
+            return None
+        task_instance = TriggerTaskInstanceReferenceResponse(
+            dag_id=ti.dag_id,
+            dag_run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=map_index,
+            try_number=ti.try_number,
+            state=ti.state,
+        )
     callback = trigger.callback if kind == TriggerKind.CALLBACK else None
     job = trigger.triggerer_job
     return TriggerDetailResponse(
@@ -142,16 +155,7 @@ def _build_response(
         last_error=trigger.last_error,
         last_event_at=trigger.last_event_at,
         dag_id=trigger.dag_id,
-        task_instance=None
-        if ti is None
-        else TriggerTaskInstanceReferenceResponse(
-            dag_id=ti.dag_id,
-            dag_run_id=ti.run_id,
-            task_id=ti.task_id,
-            map_index=public_map_indexes[ti.id],
-            try_number=ti.try_number,
-            state=ti.state,
-        ),
+        task_instance=task_instance,
         callback=None
         if callback is None
         else TriggerCallbackReferenceResponse(
