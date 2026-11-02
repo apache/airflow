@@ -419,7 +419,7 @@ class TestCliAuthCommands:
 
     @pytest.mark.parametrize("extra_args", [["--username", "user"], ["--password", "pass"]])
     @patch("airflowctl.ctl.commands.auth_command.get_authorization_code", autospec=True)
-    def test_get_token_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args):
+    def test_get_token_with_sso_incompatible_args(self, mock_get_authorization_code, extra_args, capsys):
         with pytest.raises(SystemExit):
             auth_command.get_token(
                 self.parser.parse_args(
@@ -429,6 +429,9 @@ class TestCliAuthCommands:
             )
 
         mock_get_authorization_code.assert_not_called()
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "--sso is not compatible" in captured.err
 
     @pytest.mark.parametrize(
         ("command", "subcommand"),

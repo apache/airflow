@@ -176,7 +176,7 @@ def get_token(args, api_client=NEW_API_CLIENT) -> None:
 
     if args.sso:
         if args.username or args.password:
-            rich.print("[red]--sso is not compatible with --username or --password.")
+            rich.print("[red]--sso is not compatible with --username or --password.", file=sys.stderr)
             sys.exit(1)
         try:
             print(_get_token_with_browser(args, api_client, api_url))
