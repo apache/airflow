@@ -424,14 +424,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._multi_team = conf.getboolean("core", "multi_team")
         self._dag_tags_in_metrics = conf.getboolean("metrics", "dag_tags_in_metrics", fallback=False)
         self._max_partition_dag_runs_per_loop = MAX_PARTITION_DAG_RUNS_PER_LOOP
-        # Edge-triggers the "partition Dag run cap reached" audit Log row: True once that row
-        # has been committed for the current backlog episode. Reset only when an unlocked count
-        # shows the backlog at or below the cap: under `skip_locked` an empty or short fetch
-        # can just mean other schedulers hold the rest.
-        # Process-local: each scheduler in an HA deployment writes at most one audit row per
-        # episode; cross-process de-duplication would need a per-tick DB read, defeating the
+        # Edge-triggers the "partition Dag run cap reached" audit Log row: the dag_ids whose row
+        # has been committed during the current backlog episode. Non-empty means an episode is
+        # open, which is why empty and short fetches still run the unlocked count. Cleared only
+        # when that count shows the backlog at or below the cap: under `skip_locked` an empty or
+        # short fetch can just mean other schedulers hold the rest.
+        # Process-local: each scheduler in an HA deployment writes at most one audit row per Dag
+        # per episode; cross-process de-duplication would need a per-tick DB read, defeating the
         # point of edge-triggering.
-        self._partition_cap_backlog_reported = False
+        self._partition_cap_reported_dag_ids: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2581,7 +2582,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # An empty fetch is as ambiguous as a short one: other schedulers may hold every
             # row lock. Only an unlocked count showing the backlog at or below the cap ends the
             # episode, otherwise the next full fetch would re-warn and re-write the audit row.
-            if self._partition_cap_backlog_reported:
+            if self._partition_cap_reported_dag_ids:
                 pending_total = session.scalar(
                     select(func.count())
                     .select_from(AssetPartitionDagRun)
@@ -2589,14 +2590,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(*_build_pending_partitioned_apdr_filters())
                 )
                 if (pending_total or 0) <= self._max_partition_dag_runs_per_loop:
-                    self._partition_cap_backlog_reported = False
+                    self._partition_cap_reported_dag_ids.clear()
             return set()
 
         sorted_dag_ids: list[str] = []
         backlogs_per_dag: dict[str, int] = {}
         if (
             len(pending_apdrs) >= self._max_partition_dag_runs_per_loop
-            or self._partition_cap_backlog_reported
+            or self._partition_cap_reported_dag_ids
         ):
             # A full fetch alone can't tell us whether that's the entire backlog or just
             # this tick's slice of a larger one, and a short fetch can't either while other
@@ -2623,13 +2624,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Postgres/MySQL in production) isn't a contract worth trusting — sort explicitly.
             sorted_dag_ids = sorted(backlogs_per_dag, key=lambda dag_id: (-backlogs_per_dag[dag_id], dag_id))
             if backlog_total <= self._max_partition_dag_runs_per_loop:
-                self._partition_cap_backlog_reported = False
+                self._partition_cap_reported_dag_ids.clear()
         else:
             backlog_total = len(pending_apdrs)
 
         if backlog_total > self._max_partition_dag_runs_per_loop:
             displayed_dag_ids = sorted_dag_ids[:MAX_PARTITION_CAP_BACKLOG_DAG_IDS_LOGGED]
-            log_cap_reached = self.log.debug if self._partition_cap_backlog_reported else self.log.warning
+            new_dag_ids = [
+                dag_id for dag_id in displayed_dag_ids if dag_id not in self._partition_cap_reported_dag_ids
+            ]
+            log_cap_reached = self.log.warning if new_dag_ids else self.log.debug
             log_cap_reached(
                 (
                     "Reached the per-tick cap on pending partitioned Dag runs; only the oldest "
@@ -2639,11 +2643,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 backlog_total=backlog_total,
                 dag_ids=displayed_dag_ids,
             )
-            # Edge-trigger the audit row: a persistent backlog re-hits this branch every tick,
-            # and writing a `Log` row that often would flood the audit table. Write it once per
-            # backlog episode; `_partition_cap_backlog_reported` is cleared above, only when
-            # an unlocked count shows the backlog at or below the cap.
-            if not self._partition_cap_backlog_reported:
+            # Edge-trigger the audit rows: a persistent backlog re-hits this branch every tick,
+            # and writing a `Log` row per Dag that often would flood the audit table. Each Dag
+            # gets one row per backlog episode, written on the tick it first appears in
+            # `displayed_dag_ids`, which may be later than the episode's first tick. See the
+            # `__init__` comment for when the reported set is cleared.
+            if new_dag_ids:
                 # A separate, independently-committed session is required here: the caller
                 # (`_create_dagruns_for_dags`) runs under `@retry_db_transaction`, which rolls
                 # back *session* on a `DBAPIError` — sharing that transaction would silently
@@ -2669,14 +2674,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                     f"pending across all Dags."
                                 ),
                             )
-                            for dag_id in displayed_dag_ids
+                            for dag_id in new_dag_ids
                         )
                 except SQLAlchemyError:
                     # Purely observational — must not fail or retry the tick's actual DagRun
-                    # creation work. Leave the flag False so the next tick retries the write.
+                    # creation work. Leave these Dags out of the reported set so the next tick retries their rows.
                     self.log.warning("Failed to write the partition Dag run cap audit Log row", exc_info=True)
                 else:
-                    self._partition_cap_backlog_reported = True
+                    self._partition_cap_reported_dag_ids.update(new_dag_ids)
 
         # Pre-fetch all required serialized Dags in one query. The same map
         # serves the stale-version cleanup below and the downstream rollup
