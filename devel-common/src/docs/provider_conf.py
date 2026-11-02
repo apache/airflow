@@ -311,6 +311,13 @@ autoapi_ignore.extend(
     )
 )
 
+# Per-provider autoapi exclusions for vendored/generated code
+_PROVIDER_AUTOAPI_EXCLUDES: dict[str, list[str]] = {
+    "apache-airflow-providers-apache-hbase": ["*/hbase_thrift2_generated/*"],
+}
+if PACKAGE_NAME in _PROVIDER_AUTOAPI_EXCLUDES:
+    autoapi_ignore.extend(_PROVIDER_AUTOAPI_EXCLUDES[PACKAGE_NAME])
+
 # Here we remove all other providers from the autoapi list, only leaving the current provider,
 # Otherwise all the other provider indexes will no be found in any TOC.
 
