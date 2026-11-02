@@ -56,8 +56,8 @@ def _restore_redacted_value(new_value: str, old_value: str | None, key: str) -> 
     except json.JSONDecodeError:
         return merge(new_value, old_value, key)
     merged = merge(new_obj, old_obj, key)
-    # Keep the caller's formatting when there was nothing to restore.
-    return new_value if merged == new_obj else json.dumps(merged)
+    # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.
+    return new_value if merged == new_obj else json.dumps(merged, indent=2)
 
 
 def update_orm_from_pydantic(

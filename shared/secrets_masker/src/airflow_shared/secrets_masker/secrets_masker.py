@@ -455,11 +455,9 @@ class SecretsMasker(logging.Filter):
         replacement: str,
     ) -> Redacted:
         """Merge a redacted item with its original unredacted counterpart."""
-        if depth > max_depth:
-            if isinstance(new_item, str) and new_item == "***":
-                return old_item
-            return new_item
-
+        # Walk containers at any depth, as _redact does, or a deeply nested secret is saved as "***".
+        # A subtree _redact_all cut off at max_depth arrives as "***" with force_sensitive set, and the
+        # last branch below restores it.
         try:
             # Determine if we should treat this as sensitive
             is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
@@ -529,7 +527,7 @@ class SecretsMasker(logging.Filter):
                 return old_item
             return new_item
 
-        except (TypeError, AttributeError, ValueError):
+        except (TypeError, AttributeError, ValueError, RecursionError):
             return new_item
 
     def redact(
