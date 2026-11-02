@@ -17,7 +17,8 @@
  * under the License.
  */
 import { useQuery } from "@tanstack/react-query";
-import ELK, { type ElkNode } from "elkjs";
+import type { ElkNode } from "elkjs";
+import ELK from "elkjs/lib/elk-api.js";
 // ?raw imports the file content as a plain string without any transformation.
 // We create a blob: URL from it so the Worker is always same-origin to the
 // page — avoiding the cross-origin SecurityError that occurs in Airflow's dev

@@ -60,6 +60,7 @@ import { DagsFilters } from "./DagsFilters";
 import { createColumns, getRowKey } from "./DagsListColumns";
 import { DagsListCountsProvider, useDagsListCounts, type RunStateCounts } from "./DagsListCountsContext";
 import { SortSelect } from "./SortSelect";
+import { MAX_RECENT_RUNS } from "./recentRunsLayout";
 
 const {
   DAG_BUNDLE,
@@ -67,6 +68,7 @@ const {
   DAG_RUN_STATE,
   DAG_RUN_STATE_WITHIN_HOURS,
   FAVORITE,
+  HAS_IMPORT_ERRORS,
   LAST_DAG_RUN_STATE,
   NAME_PATTERN,
   NEEDS_REVIEW,
@@ -142,13 +144,14 @@ export const DagsList = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const [display, setDisplay] = useLocalStorage<"card" | "table">(DAGS_LIST_DISPLAY_KEY, "card");
-  const dagRunsLimit = display === "card" ? 14 : 1;
+  const dagRunsLimit = display === "card" ? MAX_RECENT_RUNS : 1;
 
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Derived through the pill's own mapping so the query can never filter on more than the pill shows.
   const { paused, schedulingState } = pausedStateToQuery(pausedStateFromSearchParams(searchParams));
   const showFavorites = searchParams.get(FAVORITE);
+  const importErrors = searchParams.get(HAS_IMPORT_ERRORS);
 
   const lastDagRunState = searchParams.get(LAST_DAG_RUN_STATE) as DagRunState;
   const dagRunState = searchParams.get(DAG_RUN_STATE) as DagRunState;
@@ -216,12 +219,19 @@ export const DagsList = () => {
   };
 
   let isFavorite = undefined;
+  let hasImportErrors = undefined;
   let pendingHitl = undefined;
 
   if (showFavorites === "true") {
     isFavorite = true;
   } else if (showFavorites === "false") {
     isFavorite = false;
+  }
+
+  if (importErrors === "true") {
+    hasImportErrors = true;
+  } else if (importErrors === "false") {
+    hasImportErrors = false;
   }
 
   if (pendingReviews === "true") {
@@ -237,6 +247,8 @@ export const DagsList = () => {
     dagRunsLimit,
     dagRunState,
     dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
+    excludeStale: hasImportErrors !== true,
+    hasImportErrors,
     isFavorite,
     lastDagRunState,
     limit: pagination.pageSize,

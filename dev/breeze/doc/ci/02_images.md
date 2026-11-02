@@ -429,7 +429,7 @@ can be used for CI images:
 
 | Build argument                    | Default value               | Description                                                                                                       |
 |-----------------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<AIRFLOW_PYTHON_VERSION>-debian13-dev` | Mirror of the hardened base image Python comes from                                           |
+| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<X.Y.Z>-debian13-dev@<digest>`                  | Mirror of the hardened base image Python comes from, pinned to a digest by `breeze ci upgrade` |
 | `PYTHON_MAJOR_MINOR_VERSION`      | `3.11`                      | major/minor version of Python (should match base image)                                                           |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                         | increasing this number will reinstall all apt dependencies                                                        |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                             | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                |
@@ -450,9 +450,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.2.1`                    | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.13.4`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.5.5`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PIP_VERSION`             | `26.2.2`                    | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.13.6`                    | `uv` version used.                                                                                                |
+| `AIRFLOW_PREK_VERSION`            | `0.5.7`                     | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 

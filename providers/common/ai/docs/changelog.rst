@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+.. note::
+  ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
+  ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
+  by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,
+  ``op_args``, ``op_kwargs``, ...) are rendered once before ``execute()`` and are no longer
+  rendered a second time. The returned prompt is still rendered as a Jinja template, and every
+  argument the task is called with, positional ones included, can be referenced in it by name;
+  see the ``@task.llm`` documentation for how to include text from function arguments in it.
+
 1.1.0
 .....
 
@@ -111,6 +120,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix durable streaming with pydantic-ai 2.60+ and egress-policy errors with OpenSandbox 1.2 (#75270)``
 * ``Report invalid Common AI hook configuration instead of silently changing authentication (#74451)``
 * ``Load Common AI plugin tabs when the browser reaches Airflow on another origin (#75522)``
 * ``Fix Common AI's AI Model tab for tasks inside a task loop (#75518)``
@@ -135,6 +145,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare deferred providers RC2 for 2026-10-29 (#75947)``
    * ``Fix flaky OpenShell background-child wrapper test (#75823)``
    * ``Prepare providers release 2026-10-20 (#75209)``
    * ``Number task loop iterations from one instead of zero (#74773)``

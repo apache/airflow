@@ -107,7 +107,7 @@ describe("public API", () => {
     Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Bundle"), { value: true });
     const detached = Bundle.prototype.serve;
     await expect(detached.call(foreign as unknown as Bundle)).rejects.toThrow(
-      /different copy of apache-airflow-ts-sdk/,
+      /different copy of @apache-airflow\/ts-sdk/,
     );
   });
 
