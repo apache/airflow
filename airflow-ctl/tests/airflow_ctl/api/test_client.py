@@ -19,16 +19,18 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 from urllib.parse import urlparse
 
 import httpx
+import keyring
 import pytest
 import structlog.testing
 import tenacity
@@ -404,13 +406,14 @@ class TestCredentials:
             if stored.pop((service, username), None) is None:
                 raise PasswordDeleteError("Password not found")
 
-        with patch("airflowctl.api.client.keyring", autospec=True) as mock_keyring:
-            mock_keyring.set_password.side_effect = lambda service, username, token: stored.update(
-                {(service, username): token}
-            )
-            mock_keyring.get_password.side_effect = lambda service, username: stored.get((service, username))
-            mock_keyring.delete_password.side_effect = delete_password
-            yield mock_keyring
+        mock_keyring = create_autospec(keyring)
+        mock_keyring.set_password.side_effect = lambda service, username, token: stored.update(
+            {(service, username): token}
+        )
+        mock_keyring.get_password.side_effect = lambda service, username: stored.get((service, username))
+        mock_keyring.delete_password.side_effect = delete_password
+        monkeypatch.setattr("airflowctl.api.client.keyring", mock_keyring)
+        return mock_keyring
 
     def test_save_skip_keyring_removes_token_of_earlier_login(self, keyring_store):
         """Pointing an environment at a new URL with --skip-keyring must not send the old token there."""
@@ -469,7 +472,9 @@ class TestCredentials:
 
         with pytest.raises(
             AirflowCtlKeyringException,
-            match="Could not remove the keyring token of environment prod: locked. The API URL was not changed.",
+            match=re.escape(
+                "Could not remove the keyring token of environment prod: locked. The API URL was not changed."
+            ),
         ):
             Credentials(api_url="http://new:8080", api_environment="prod").save(skip_keyring=True)
 
