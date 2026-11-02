@@ -31,11 +31,17 @@ removed when the toolset context exits.
 from __future__ import annotations
 
 import dataclasses
+import logging
+import os
+from collections import Counter, defaultdict
 from importlib import metadata
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.ai.skills import SkillSource, _materialize_skills
+from airflow.providers.common.ai.skills import SkillSource, _materialize_skills, _SkillsLocation
+from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
 from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
+from airflow.providers.common.compat.sdk import get_current_context
 
 # pydantic-ai-skills 2.0 removed SkillsToolset, leaving only SkillsCapability, so the
 # ``skills`` extra caps it below 2.
@@ -52,6 +58,31 @@ if TYPE_CHECKING:
     from pydantic_ai._run_context import RunContext
     from pydantic_ai.messages import InstructionPart
     from pydantic_ai.toolsets.abstract import ToolsetTool
+
+log = logging.getLogger(__name__)
+
+# The pydantic-ai-skills tools that act on one skill, named by their ``skill_name`` argument.
+_PER_SKILL_TOOLS = frozenset({"load_skill", "read_skill_resource", "run_skill_script"})
+
+
+def _describe_skill_source(skill_uri: str, locations: list[_SkillsLocation]) -> dict[str, Any]:
+    """Name where a discovered skill came from: its local path, or its repository, path and commit."""
+    skill_dir = os.path.realpath(skill_uri)
+    # Nested sources can both contain the skill; the deepest one is where it came from.
+    owner, owner_root = None, ""
+    for location in locations:
+        root = os.path.realpath(location.directory)
+        if os.path.commonpath([skill_dir, root]) == root and len(root) > len(owner_root):
+            owner, owner_root = location, root
+    if owner is None or owner.git is None:
+        return {"path": skill_dir}
+    return {
+        # GitSkills rejects a repo_url carrying credentials, so it is safe to publish.
+        "repo_url": owner.git.repo_url,
+        "path": PurePosixPath(owner.git.path, Path(skill_dir).relative_to(owner_root).as_posix()).as_posix(),
+        "branch": owner.git.branch,
+        "commit": owner.commit,
+    }
 
 
 class AgentSkillsToolset(AbstractToolset):
@@ -101,6 +132,10 @@ class AgentSkillsToolset(AbstractToolset):
         self._max_retries = validate_max_retries(max_retries)
         self._inner: Any = None
         self._cleanup: Callable[[], None] | None = None
+        self._locations: list[_SkillsLocation] = []
+        # Shared with every per-run copy, so several agent runs through this toolset add up in
+        # the XCom rather than each replacing it.
+        self._skill_calls: defaultdict[str, Counter[str]] = defaultdict(Counter)
 
     @property
     def id(self) -> str | None:
@@ -110,12 +145,14 @@ class AgentSkillsToolset(AbstractToolset):
         # Per-run isolation: pydantic-ai shares one toolset instance across runs,
         # but we hold per-run clone/cleanup state on __aenter__/__aexit__. Hand
         # each run its own instance so concurrent runs never clobber each other.
-        return AgentSkillsToolset(
+        run_toolset = AgentSkillsToolset(
             self._sources,
             exclude_tools=self._exclude_tools,
             exclude_resources=self._exclude_resources,
             max_retries=self._max_retries,
         )
+        run_toolset._skill_calls = self._skill_calls
+        return run_toolset
 
     async def __aenter__(self) -> AgentSkillsToolset:
         # Resolve + clone at run time, on the worker -- not at DAG-parse time.
@@ -136,10 +173,11 @@ class AgentSkillsToolset(AbstractToolset):
             )
         SkillsToolset = pydantic_ai_skills.SkillsToolset
 
-        directories, cleanup = _materialize_skills(self._sources)
+        locations, cleanup = _materialize_skills(self._sources)
         self._cleanup = cleanup
+        self._locations = locations
         try:
-            kwargs: dict[str, Any] = {"directories": directories}
+            kwargs: dict[str, Any] = {"directories": [location.directory for location in locations]}
             if self._exclude_tools:
                 kwargs["exclude_tools"] = self._exclude_tools
             if self._exclude_resources:
@@ -156,6 +194,7 @@ class AgentSkillsToolset(AbstractToolset):
     async def __aexit__(self, *args: Any) -> bool | None:
         try:
             if self._inner is not None:
+                self._push_skills_xcom()
                 return await self._inner.__aexit__(*args)
             return None
         finally:
@@ -163,6 +202,30 @@ class AgentSkillsToolset(AbstractToolset):
                 self._cleanup()
             self._inner = None
             self._cleanup = None
+
+    def _push_skills_xcom(self) -> None:
+        """Publish the skills offered to the agent and the skill tools it called, for the AI Model tab."""
+        try:
+            context = get_current_context()
+        except RuntimeError:
+            # Used outside an Airflow task: there is no task instance to publish on.
+            return
+        if not context["ti"].task.do_xcom_push:
+            return
+        # Telemetry only: a failure here must not fail the run or skip the clean-up after it.
+        try:
+            skills = [
+                {
+                    "name": name,
+                    "description": skill.description,
+                    "source": _describe_skill_source(skill.uri, self._locations),
+                    "calls": dict(self._skill_calls.get(name, {})),
+                }
+                for name, skill in sorted(self._inner.skills.items())
+            ]
+            context["ti"].xcom_push(key=SKILLS_XCOM_KEY, value=skills)
+        except Exception:
+            log.warning("Failed to push the skills XCom", exc_info=True)
 
     def _require_inner(self) -> Any:
         if self._inner is None:
@@ -182,7 +245,10 @@ class AgentSkillsToolset(AbstractToolset):
     async def call_tool(
         self, name: str, tool_args: dict[str, Any], ctx: RunContext, tool: ToolsetTool
     ) -> Any:
-        return await self._require_inner().call_tool(name, tool_args, ctx, tool)
+        result = await self._require_inner().call_tool(name, tool_args, ctx, tool)
+        if name in _PER_SKILL_TOOLS and isinstance(skill_name := tool_args.get("skill_name"), str):
+            self._skill_calls[skill_name][name] += 1
+        return result
 
     async def get_instructions(
         self, ctx: RunContext

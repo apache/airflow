@@ -81,11 +81,11 @@ test("an older host without task instance context reads without a region", async
 
   await plugin.render(taskProps);
 
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
   for (const url of calls) assert.equal(url.searchParams.has("region_id"), false);
 });
 
-test("the selected loop pass reaches both XCom reads and a pass switch rereads", async (t) => {
+test("the selected loop pass reaches every XCom read and a pass switch rereads", async (t) => {
   const calls = serveXComs();
   const plugin = mountPlugin(t);
 
@@ -97,8 +97,10 @@ test("the selected loop pass reaches both XCom reads and a pass switch rereads",
     [
       ["__AIRFLOW__COMMON_AI_MODEL_NAME__", regionId, "2"],
       ["usage", regionId, "2"],
+      ["__AIRFLOW__COMMON_AI_SKILLS__", regionId, "2"],
       ["__AIRFLOW__COMMON_AI_MODEL_NAME__", regionId, "3"],
       ["usage", regionId, "3"],
+      ["__AIRFLOW__COMMON_AI_SKILLS__", regionId, "3"],
     ],
   );
   assert.match(plugin.text(), /model-for-pass-3/);
@@ -118,4 +120,42 @@ test("a slow read for the previous loop pass does not replace the current pass",
 
   assert.match(plugin.text(), /model-for-pass-3/);
   assert.doesNotMatch(plugin.text(), /model-for-pass-2/);
+});
+
+test("the skills section lists every available skill with its source, loaded ones first", async (t) => {
+  const skills = [
+    {
+      name: "unused",
+      description: "Never loaded.",
+      source: { path: "/opt/airflow/skills/unused" },
+      calls: {},
+    },
+    {
+      name: "sql-review",
+      description: "Reviews SQL.",
+      source: {
+        repo_url: "https://github.com/org/skills.git",
+        path: "skills/sql-review",
+        branch: "main",
+        commit: "0123456789abcdef",
+      },
+      calls: { load_skill: 1 },
+    },
+  ];
+  mock.method(globalThis, "fetch", async (input) => {
+    const key = new URL(input, "http://localhost").pathname.split("/").at(-1);
+    const value = key === "__AIRFLOW__COMMON_AI_SKILLS__" ? skills : key === "usage" ? { requests: 1 } : "model";
+    return new Response(JSON.stringify({ value }), { status: 200 });
+  });
+  const plugin = mountPlugin(t);
+
+  await plugin.render(taskProps);
+
+  const text = plugin.text();
+  assert.match(text, /1 of 2 loaded/);
+  assert.ok(text.indexOf("sql-review") < text.indexOf("unused"));
+  assert.match(text, /github\.com\/org\/skills · skills\/sql-review · 0123456/);
+  assert.match(text, /\/opt\/airflow\/skills\/unused/);
+  const link = document.querySelector('a[href="https://github.com/org/skills/tree/0123456789abcdef/skills/sql-review"]');
+  assert.ok(link);
 });
