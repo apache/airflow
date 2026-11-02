@@ -79,24 +79,24 @@ Non-goals:
 ## Overview
 
 ```
-                 contributor fork                          apache/airflow
-   ┌──────────────────────────────────┐      ┌──────────────────────────────────────────┐
+             contributor fork                               apache/airflow
+   ┌──────────────────────────────────┐      ┌───────────────────────────────────────────┐
    │ git push feature-branch          │      │ pull_request event                        │
    │   └─ ci-amd.yml (push trigger)   │      │   └─ ci-amd.yml                           │
-   │        gate job: fork -> run     │      │        gate job: eligibility -> skip      │
-   │        build-info: fork mode     │      │        (build-info and everything after   │
-   │          changed files from      │      │         are skipped for gated PRs)        │
-   │          compare API vs upstream │      │                                           │
-   │        public runners only       │      │ fork-ci-monitor.yml (every 15 minutes)    │
+   │      ├─ gate job: fork -> run    │      │      └─ gate job: eligibility -> skip     │
+   │      ├─ build-info: fork mode    │      │         (build-info and everything after  │
+   │      │  changed files from       │      │          are skipped for gated PRs)       │
+   │      │  compare API vs upstream  │      │                                           │
+   │      └─ public runners only      │      │ fork-ci-monitor.yml (every 15 minutes)    │
    └──────────────────────────────────┘      │   └─ breeze ci fork-ci-reconcile          │
-                     ▲                        │        discover new gated PRs -> label    │
-                     │ GraphQL: checkSuites   │        per labelled PR: fork state ->     │
-                     │ REST: workflow state   │          draft/undraft, labels, comment,  │
-                     └────────────────────────│          commit status with run link,     │
-                                              │          close after 7 days or when the   │
-                                              │          PR tampered with the gate        │
-                                              │        unknown failures -> Slack          │
-                                              └──────────────────────────────────────────┘
+                     ▲                       │      ├─ discover new gated PRs -> label   │
+                     │ GraphQL: checkSuites  │      ├─ per labelled PR: fork state ->    │
+                     │ REST: workflow state  │      │    draft/undraft, labels, comment, │
+                     └───────────────────────│      │    commit status with run link,    │
+                                             │      │    close after 7 days or when the  │
+                                             │      │    PR tampered with the gate       │
+                                             │      └─ unknown failures -> Slack         │
+                                             └───────────────────────────────────────────┘
 ```
 
 Four pieces, in dependency order:
