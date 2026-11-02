@@ -3360,6 +3360,7 @@ class TestTriggererMessageTypes:
             "CreateHITLDetailPayload",
             "SetRenderedMapIndex",
             "StartExecutionTimeout",
+            "StartTaskFinalization",
             "GetDag",
             # AIP-103 task store — triggerer has no task execution context.
             "GetTaskStateStore",

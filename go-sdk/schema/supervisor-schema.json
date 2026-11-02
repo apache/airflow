@@ -3997,6 +3997,25 @@
       "title": "StartExecutionTimeout",
       "type": "object"
     },
+    "StartTaskFinalization": {
+      "description": "Start bounded task finalization without reporting a task outcome.",
+      "properties": {
+        "retry": {
+          "$ref": "#/$defs/RetryTask"
+        },
+        "type": {
+          "const": "StartTaskFinalization",
+          "default": "StartTaskFinalization",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "retry"
+      ],
+      "title": "StartTaskFinalization",
+      "type": "object"
+    },
     "StartupDetails": {
       "properties": {
         "ti": {

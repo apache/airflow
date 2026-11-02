@@ -136,6 +136,7 @@ from airflow.sdk.execution_time.comms import (
     SetXCom,
     SkipDownstreamTasks,
     StartExecutionTimeout,
+    StartTaskFinalization,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -1668,6 +1669,8 @@ class ActivitySubprocess(WatchedSubprocess):
         TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
     ) = attrs.field(default=None, init=False)
 
+    _retry_callback_fallback: RetryTask | None = attrs.field(default=None, init=False)
+
     _last_successful_heartbeat: float = attrs.field(default=0, init=False)
     _last_heartbeat_attempt: float = attrs.field(default=0, init=False)
 
@@ -1819,6 +1822,11 @@ class ActivitySubprocess(WatchedSubprocess):
         return self._exit_code
 
     def update_task_state_if_needed(self):
+        if self._terminal_state is None and self._retry_callback_fallback is not None:
+            self._terminal_state = self._retry_callback_fallback.state
+            self._pending_terminal_state_msg = self._retry_callback_fallback
+            self._rendered_map_index = self._retry_callback_fallback.rendered_map_index
+        self._retry_callback_fallback = None
         if self._terminal_state != SERVER_TERMINATED and self._pending_terminal_state_msg is not None:
             if isinstance(self._pending_terminal_state_msg, (TaskState, RetryTask)):
                 self._send_terminal_state_msg(self._pending_terminal_state_msg)
@@ -2134,9 +2142,11 @@ class ActivitySubprocess(WatchedSubprocess):
         self, msg: TaskState | RetryTask, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         if self._terminal_state != SERVER_TERMINATED:
+            self._retry_callback_fallback = None
             self._terminal_state = msg.state
             self._pending_terminal_state_msg = msg
-            self._task_end_time_monotonic = time.monotonic()
+            if self._task_end_time_monotonic is None:
+                self._task_end_time_monotonic = time.monotonic()
             self._rendered_map_index = msg.rendered_map_index
         return None, {}
 
@@ -2171,6 +2181,16 @@ class ActivitySubprocess(WatchedSubprocess):
         self, msg: StartExecutionTimeout, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
         self._arm_execution_timeout()
+        return None, {}
+
+    def _handle_start_task_finalization(
+        self, msg: StartTaskFinalization, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult:
+        if self._terminal_state != SERVER_TERMINATED:
+            self._retry_callback_fallback = msg.retry
+        if self._task_end_time_monotonic is None:
+            self._task_end_time_monotonic = time.monotonic()
+        self._execution_timeout_enforce_at = None
         return None, {}
 
     def _arm_execution_timeout(self) -> None:
@@ -2479,6 +2499,7 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
                 register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
                 register_request_method(StartExecutionTimeout, _handle_start_execution_timeout),
+                register_request_method(StartTaskFinalization, _handle_start_task_finalization),
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),

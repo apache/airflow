@@ -96,6 +96,7 @@ const (
 	TypeSetXCom                     = "SetXCom"
 	TypeSkipDownstreamTasks         = "SkipDownstreamTasks"
 	TypeStartExecutionTimeout       = "StartExecutionTimeout"
+	TypeStartTaskFinalization       = "StartTaskFinalization"
 	TypeStartupDetails              = "StartupDetails"
 	TypeSucceedTask                 = "SucceedTask"
 	TypeTICount                     = "TICount"
@@ -338,6 +339,9 @@ func EnsureType(m any) any {
 		return b
 	case StartExecutionTimeout:
 		b.Type = TypeStartExecutionTimeout
+		return b
+	case StartTaskFinalization:
+		b.Type = TypeStartTaskFinalization
 		return b
 	case StartupDetails:
 		b.Type = TypeStartupDetails

@@ -2381,6 +2381,7 @@ class TestDagProcessingMessageTypes:
             "GetHITLDetailResponse",
             "SetRenderedMapIndex",
             "StartExecutionTimeout",
+            "StartTaskFinalization",
             # AIP-103 task/asset store — Dag processor has no task execution context.
             "GetTaskStateStore",
             "SetTaskStateStore",

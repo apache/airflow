@@ -598,10 +598,11 @@ export type Type71 = "SetXCom";
 export type Tasks = (string | [unknown, unknown])[];
 export type Type72 = "SkipDownstreamTasks";
 export type Type73 = "StartExecutionTimeout";
+export type Type74 = "StartTaskFinalization";
 export type DagRelPath = string;
 export type StartDate6 = string;
 export type SentryIntegration = string;
-export type Type74 = "StartupDetails";
+export type Type75 = "StartupDetails";
 export type State7 = "success";
 export type EndDate7 = string;
 export type TaskOutlets = AssetProfile[] | null;
@@ -611,22 +612,22 @@ export type OutletEvents =
     }[]
   | null;
 export type RenderedMapIndex4 = string | null;
-export type Type75 = "SucceedTask";
+export type Type76 = "SucceedTask";
 export type Count1 = number;
-export type Type76 = "TICount";
+export type Type77 = "TICount";
 export type Breadcrumbs = {
   [k: string]: unknown;
 }[];
-export type Type77 = "TaskBreadcrumbsResult";
+export type Type78 = "TaskBreadcrumbsResult";
 export type StartDate7 = string | null;
-export type Type78 = "TaskRescheduleStartDate";
+export type Type79 = "TaskRescheduleStartDate";
 export type State8 = "failed" | "skipped" | "removed";
 export type EndDate8 = string | null;
-export type Type79 = "TaskState";
+export type Type80 = "TaskState";
 export type RenderedMapIndex5 = string | null;
 export type RetryReason1 = string | null;
-export type Type80 = "TaskStateStoreResult";
-export type Type81 = "TaskStatesResult";
+export type Type81 = "TaskStateStoreResult";
+export type Type82 = "TaskStatesResult";
 export type LogicalDate6 = string | null;
 export type RunAfter2 = string | null;
 export type Conf2 = {
@@ -637,10 +638,10 @@ export type PartitionKey7 = string | null;
 export type Note2 = string | null;
 export type DagId22 = string;
 export type DagRunId = string;
-export type Type82 = "TriggerDagRun";
+export type Type83 = "TriggerDagRun";
 export type TiId9 = string;
 export type Note3 = string | null;
-export type Type83 = "UpdateDagRunNote";
+export type Type84 = "UpdateDagRunNote";
 export type TiId10 = string;
 /**
  * @minItems 1
@@ -649,22 +650,22 @@ export type ChosenOptions = [string, ...string[]];
 export type ParamsInput = {
   [k: string]: unknown;
 } | null;
-export type Type84 = "UpdateHITLDetail";
+export type Type85 = "UpdateHITLDetail";
 export type TiId11 = string;
-export type Type85 = "ValidateInletsAndOutlets";
+export type Type86 = "ValidateInletsAndOutlets";
 export type Keys = string[];
 export type TotalEntries = number;
-export type Type86 = "VariableKeysResult";
+export type Type87 = "VariableKeysResult";
 export type Key19 = string;
 export type Value2 = string | null;
-export type Type87 = "VariableResult";
+export type Type88 = "VariableResult";
 export type Len = number;
-export type Type88 = "XComCountResponse";
+export type Type89 = "XComCountResponse";
 export type Key20 = string;
-export type Type89 = "XComResult";
-export type Type90 = "XComSequenceIndexResult";
+export type Type90 = "XComResult";
+export type Type91 = "XComSequenceIndexResult";
 export type Root = JsonValue[];
-export type Type91 = "XComSequenceSliceResult";
+export type Type92 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
 /**
@@ -1851,6 +1852,16 @@ export interface StartExecutionTimeout {
   type?: Type73;
 }
 /**
+ * Start bounded task finalization without reporting a task outcome.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "StartTaskFinalization".
+ */
+export interface StartTaskFinalization {
+  retry: RetryTask;
+  type?: Type74;
+}
+/**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "StartupDetails".
  */
@@ -1861,7 +1872,7 @@ export interface StartupDetails {
   start_date: StartDate6;
   ti_context: TIRunContext;
   sentry_integration: SentryIntegration;
-  type?: Type74;
+  type?: Type75;
 }
 /**
  * Update a task's state to success. Includes task_outlets and outlet_events for registering asset events.
@@ -1876,7 +1887,7 @@ export interface SucceedTask {
   outlet_events?: OutletEvents;
   rendered_map_index?: RenderedMapIndex4;
   loop_decision?: LoopDecisionPayload | null;
-  type?: Type75;
+  type?: Type76;
 }
 /**
  * Response containing count of Task Instances matching certain filters.
@@ -1886,7 +1897,7 @@ export interface SucceedTask {
  */
 export interface TICount {
   count: Count1;
-  type?: Type76;
+  type?: Type77;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1894,7 +1905,7 @@ export interface TICount {
  */
 export interface TaskBreadcrumbsResult {
   breadcrumbs: Breadcrumbs;
-  type?: Type77;
+  type?: Type78;
 }
 /**
  * Response containing the first reschedule date for a task instance.
@@ -1904,7 +1915,7 @@ export interface TaskBreadcrumbsResult {
  */
 export interface TaskRescheduleStartDate {
   start_date: StartDate7;
-  type?: Type78;
+  type?: Type79;
 }
 /**
  * Update a task's state.
@@ -1919,7 +1930,7 @@ export interface TaskRescheduleStartDate {
 export interface TaskState {
   state: State8;
   end_date?: EndDate8;
-  type?: Type79;
+  type?: Type80;
   rendered_map_index?: RenderedMapIndex5;
   retry_reason?: RetryReason1;
   loop_decision?: LoopDecisionPayload | null;
@@ -1932,7 +1943,7 @@ export interface TaskState {
  */
 export interface TaskStateStoreResult {
   value: JsonValue | null;
-  type?: Type80;
+  type?: Type81;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1940,7 +1951,7 @@ export interface TaskStateStoreResult {
  */
 export interface TaskStatesResult {
   task_states: TaskStates;
-  type?: Type81;
+  type?: Type82;
 }
 export interface TaskStates {
   [k: string]: unknown;
@@ -1958,7 +1969,7 @@ export interface TriggerDagRun {
   note?: Note2;
   dag_id: DagId22;
   run_id: DagRunId;
-  type?: Type82;
+  type?: Type83;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1967,7 +1978,7 @@ export interface TriggerDagRun {
 export interface UpdateDagRunNote {
   ti_id: TiId9;
   note: Note3;
-  type?: Type83;
+  type?: Type84;
 }
 /**
  * Update the response content part of an existing Human-in-the-loop response.
@@ -1979,7 +1990,7 @@ export interface UpdateHITLDetail {
   ti_id: TiId10;
   chosen_options: ChosenOptions;
   params_input?: ParamsInput;
-  type?: Type84;
+  type?: Type85;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1987,7 +1998,7 @@ export interface UpdateHITLDetail {
  */
 export interface ValidateInletsAndOutlets {
   ti_id: TiId11;
-  type?: Type85;
+  type?: Type86;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1996,7 +2007,7 @@ export interface ValidateInletsAndOutlets {
 export interface VariableKeysResult {
   keys: Keys;
   total_entries: TotalEntries;
-  type?: Type86;
+  type?: Type87;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2005,7 +2016,7 @@ export interface VariableKeysResult {
 export interface VariableResult {
   key: Key19;
   value: Value2;
-  type?: Type87;
+  type?: Type88;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2013,7 +2024,7 @@ export interface VariableResult {
  */
 export interface XComCountResponse {
   len: Len;
-  type?: Type88;
+  type?: Type89;
 }
 /**
  * Response to ReadXCom request.
@@ -2024,7 +2035,7 @@ export interface XComCountResponse {
 export interface XComResult {
   key: Key20;
   value: JsonValue | null;
-  type?: Type89;
+  type?: Type90;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2032,7 +2043,7 @@ export interface XComResult {
  */
 export interface XComSequenceIndexResult {
   root: JsonValue;
-  type?: Type90;
+  type?: Type91;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2040,7 +2051,7 @@ export interface XComSequenceIndexResult {
  */
 export interface XComSequenceSliceResult {
   root: Root;
-  type?: Type91;
+  type?: Type92;
 }
 
 /** Cadwyn schema version this SDK was generated against.
