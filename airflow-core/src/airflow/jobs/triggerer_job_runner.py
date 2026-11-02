@@ -1072,9 +1072,16 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 callback_data = callback.data or {}
                 dag_run_data = self._fetch_callback_dag_run_data(callback_data, session=session)
                 if dag_run_data is None and callback_data.get("run_id"):
-                    # The Dag run could not be loaded; skip the trigger so it is retried on the next loop.
-                    log.warning(
-                        "Skipping callback trigger, Dag run not found for context", trigger_id=trigger.id
+                    from airflow.models.callback import CallbackState
+                    from airflow.triggers.callback import PAYLOAD_BODY_KEY, PAYLOAD_STATUS_KEY
+
+                    # The Dag run is gone, so a retry would not find it either. Fail the callback, as the
+                    # executor path does; this also detaches the trigger, so it is cleaned up as unused.
+                    error = f"Dag run {callback_data.get('dag_id')}/{callback_data['run_id']} not found"
+                    log.error("Failing callback trigger, no Dag run for context", trigger_id=trigger.id)
+                    callback.handle_event(
+                        TriggerEvent({PAYLOAD_STATUS_KEY: CallbackState.FAILED, PAYLOAD_BODY_KEY: error}),
+                        session,
                     )
                     return None
                 # Log callback triggers to a file the UI callback logs endpoint can read. Callbacks

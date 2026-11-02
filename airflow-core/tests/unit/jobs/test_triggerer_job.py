@@ -1081,6 +1081,10 @@ def test_run_trigger_workload_watched_assets_defaults_to_none():
     assert workload.watched_assets is None
 
 
+async def _noop_async_callback():
+    pass
+
+
 class TestCreateWorkloadCallbackContext:
     """_create_workload() for deadline callback triggers that carry the ids of their Dag run."""
 
@@ -1133,18 +1137,31 @@ class TestCreateWorkloadCallbackContext:
             == f"triggerer_callbacks/{dr.dag_id}/{dr.run_id}/{callback_trigger.callback.id}/callback.log"
         )
 
-    def test_workload_skipped_when_dagrun_missing(self, jobless_supervisor, callback_trigger, session):
-        """The Dag run is not found: skip so the trigger is retried on the next loop."""
-        callback_trigger.callback.data = {"dag_id": "no_such_dag", "run_id": "no_such_run"}
+    def test_callback_failed_when_dagrun_missing(self, jobless_supervisor, session):
+        """The Dag run is gone: fail the callback, as the executor path does, rather than retry forever."""
+        from airflow.models.callback import CallbackState, TriggererCallback
+        from airflow.sdk.definitions.callback import AsyncCallback
+
+        callback = TriggererCallback(
+            AsyncCallback(_noop_async_callback), dag_id="no_such_dag", run_id="no_such_run"
+        )
+        callback.queue(session=session)
+        session.add(callback)
+        session.flush()
+        trigger = callback.trigger
 
         workload = jobless_supervisor._create_workload(
-            trigger=callback_trigger,
+            trigger=trigger,
             dag_bag=mock.Mock(),
             render_log_fname=mock.Mock(),
             session=session,
         )
+        session.flush()
 
         assert workload is None
+        assert callback.state == CallbackState.FAILED
+        assert callback.output == "Dag run no_such_dag/no_such_run not found"
+        assert callback.trigger_id is None
 
     def test_workload_without_routing_data_has_no_dag_run_data(
         self, jobless_supervisor, callback_trigger, session
