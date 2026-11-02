@@ -108,7 +108,8 @@ def _calculate_classpath(
     if primary is not None:
         target = primary.resolve()
         jars = [primary, *(p for p in jars if p.resolve() != target)]
-    entries = [pathlib.Path(os.path.relpath(p, cwd)).as_posix() for p in jars]
+    # "./" stops the launcher reading a classpath that starts with "@" as an @argfile.
+    entries = [f"./{pathlib.Path(os.path.relpath(p, cwd)).as_posix()}" for p in jars]
     if bad := [e for e in entries if os.pathsep in e]:
         raise ValueError(
             f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "

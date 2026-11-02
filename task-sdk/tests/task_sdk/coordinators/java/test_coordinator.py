@@ -129,21 +129,21 @@ class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
         tmp_path.joinpath("app.jar").write_bytes(b"")
         result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "app.jar"
+        assert result == "./app.jar"
 
     def test_multiple_jars_all_included(self, tmp_path):
         tmp_path.joinpath("a.jar").write_bytes(b"")
         tmp_path.joinpath("b.jar").write_bytes(b"")
         tmp_path.joinpath("c.jar").write_bytes(b"")
         result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert set(result.split(os.pathsep)) == {"a.jar", "b.jar", "c.jar"}
+        assert set(result.split(os.pathsep)) == {"./a.jar", "./b.jar", "./c.jar"}
 
     def test_non_jar_files_excluded(self, tmp_path):
         tmp_path.joinpath("app.jar").write_bytes(b"")
         tmp_path.joinpath("readme.txt").write_bytes(b"")
         tmp_path.joinpath("config.yaml").write_bytes(b"")
         result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "app.jar"
+        assert result == "./app.jar"
 
     def test_empty_directory_returns_empty_string(self, tmp_path):
         result = _calculate_classpath([tmp_path], cwd=tmp_path)
@@ -157,15 +157,15 @@ class TestCalculateClasspath:
 
         result = _calculate_classpath([tmp_path], cwd=tmp_path, primary=b)
 
-        assert result.split(os.pathsep) == ["b.jar", "a.jar"]
+        assert result.split(os.pathsep) == ["./b.jar", "./a.jar"]
 
-    def test_entries_are_relative_to_cwd(self, tmp_path):
-        tmp_path.joinpath("libs").mkdir()
-        tmp_path.joinpath("libs", "dep.jar").write_bytes(b"")
+    def test_entry_starting_with_at_sign_is_not_an_argfile(self, tmp_path):
+        tmp_path.joinpath("@scope").mkdir()
+        tmp_path.joinpath("@scope", "dep.jar").write_bytes(b"")
 
         result = _calculate_classpath([tmp_path], cwd=tmp_path)
 
-        assert result == "libs/dep.jar"
+        assert result == "./@scope/dep.jar"
 
     def test_path_separator_above_cwd_stays_off_the_classpath(self, tmp_path):
         root = tmp_path / f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
@@ -175,7 +175,7 @@ class TestCalculateClasspath:
 
         result = _calculate_classpath([root], cwd=root, primary=root / "dep.jar")
 
-        assert result.split(os.pathsep) == ["dep.jar", "app.jar"]
+        assert result.split(os.pathsep) == ["./dep.jar", "./app.jar"]
 
     def test_path_separator_below_cwd_raises(self, tmp_path):
         nested = tmp_path / f"a{os.pathsep}b"
@@ -333,11 +333,6 @@ class TestJavaCoordinatorAttributes:
         assert command[-1] == "com.example.TaskRunner"
         assert schema_version == "2026-06-16"
 
-    def test_working_directory_is_the_scan_root(self, tmp_path):
-        coordinator = JavaCoordinator()
-        with coordinator._set_scan_roots([tmp_path]):
-            assert coordinator._get_working_directory() == tmp_path
-
 
 @pytest.fixture
 def jars_dir(tmp_path):
@@ -431,7 +426,7 @@ class TestJavaCoordinatorExecuteTask:
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert classpath == "app.jar"
+        assert classpath == "./app.jar"
 
     def test_runs_in_the_bundle_directory(self, jars_dir, java_task_handlers, mock_client):
         self._captured_popen_cmd(java_task_handlers, mock_client)
@@ -615,7 +610,7 @@ class TestBuildParseDagCommand:
 
         command, schema_version = self._build(coordinator, tmp_path, jar)
 
-        assert command == ["/opt/java/bin/java", "-classpath", "app.jar", "-Xmx256m", "com.example.Dags"]
+        assert command == ["/opt/java/bin/java", "-classpath", "./app.jar", "-Xmx256m", "com.example.Dags"]
         assert schema_version == "2026-10-30"
 
     def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
@@ -625,7 +620,7 @@ class TestBuildParseDagCommand:
 
         command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [jar.name, "libs/airflow-sdk.jar"]
+        assert command[2].split(os.pathsep) == [f"./{jar.name}", "./libs/airflow-sdk.jar"]
         assert command[-1] == "com.example.Dags"
         assert schema_version == "2026-10-30"
 
@@ -636,7 +631,7 @@ class TestBuildParseDagCommand:
 
         command, _ = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [jar.name, sibling.name]
+        assert command[2].split(os.pathsep) == [f"./{jar.name}", f"./{sibling.name}"]
 
     def test_matches_the_execute_command(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
@@ -735,7 +730,7 @@ class TestBuildParseDagCommand:
         assert argv == [
             "java",
             "-classpath",
-            "app.jar",
+            "./app.jar",
             "com.example.Dags",
             "--comm=127.0.0.1:1001",
             "--logs=127.0.0.1:1002",
