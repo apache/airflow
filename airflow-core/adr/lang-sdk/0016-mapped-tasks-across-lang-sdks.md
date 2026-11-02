@@ -81,21 +81,52 @@ loops need no mapping story of their own.
 ## What the serialized Dag carries
 
 The expand input holds the items themselves when the author wrote a literal, and only a reference
-when the author expanded over another task. Expanding over a literal therefore needs no producer
-at all, and the scheduler can create every instance when the Dag run is created.
+when the author expanded over another task. Expanding over a literal therefore needs no producer,
+and the scheduler creates every instance when the Dag run is created.
 
 ```jsonc
-// .expand(bash_command=[1, 2, {"a": "b"}])     items inline
-"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict",
-  "__var": {"bash_command": [1, 2, {"__type": "dict", "__var": {"a": "b"}}]}}}
+// .expand(bash_command=[1, 2, {"a": "b"}])
+"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict", "__var": {
+  "bash_command": [1, 2, {"__type": "dict", "__var": {"a": "b"}}]}}}
 
-// .expand(arg2=op1.output)                     reference only
-"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict",
-  "__var": {"arg2": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}}}}}
+// .expand(arg2=op1.output)
+"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict", "__var": {
+  "arg2": {"__type": "xcomref", "__var": {"task_id": "op1", "key": "return_value"}}}}}
+
+// .expand(x=op1.output.map(clean))
+"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict", "__var": {
+  "x": {"__type": "xcomref", "__var": {
+    "type": "map",
+    "arg": {"task_id": "op1", "key": "return_value"},
+    "callables": ["def clean(row):\n    return row.strip()\n"]}}}}}
+
+// .expand(x=op1.output.zip(op2.output, fillvalue=0))
+"expand_input": {"type": "dict-of-lists", "value": {"__type": "dict", "__var": {
+  "x": {"__type": "xcomref", "__var": {
+    "type": "zip",
+    "args": [{"task_id": "op1", "key": "return_value"},
+             {"task_id": "op2", "key": "return_value"}],
+    "fillvalue": 0}}}}}
 ```
 
-`zip`, `concat` and `map` nest inside that `value` the same way, and a `map()` callable is stored
-as its own source text, for display only.
+Two details an SDK emitter has to get right:
+
+- The outer `type` is the expand input's, `dict-of-lists` or `list-of-dicts`. The inner `type` is the XCom argument's, one of `map`, `zip` and `concat`; a plain argument omits it.
+- Only the outermost argument is wrapped in `xcomref`. A nested one — `map`'s `arg`, `zip`'s and `concat`'s `args` — is the bare dict, because [`serialize_xcom_arg`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L590) recurses without re-wrapping.
+
+### How a `map()` callable is serialized
+
+| Author wrote it in | Stored as | Applied by |
+|---|---|---|
+| Python | `inspect.getsource(f)`, one string per callable, in call order | the Python task process, or the `map()` helper when the consumer is not Python |
+| an SDK's own language | that language's source for the same closure, same field, same order | that SDK's runtime |
+
+Neither form is executed from the serialized Dag. Core never deserializes the strings, so execution
+always re-enters the real Dag: Python imports the Dag file, an SDK runtime takes the closure from
+its own bundle. The strings exist so the UI can show what the transform was.
+
+That is why no binding carries a callable or a reference to one. A runtime knows which callables to
+apply from its own bundle, keyed by the argument name the binding already names.
 
 ## Write path
 
@@ -104,8 +135,8 @@ as its own source text, for display only.
  ────────────                 ─────────────          ─────────                  ──────────────────────
  task.expand(items)    ──▶ serialize:                                           result = handler()
                              _is_mapped                                         SetXCom(return_value) ─┐
-                             partial_kwargs                                                           │
-                             expand_input      ──▶ literal items:           SUPERVISOR                │
+                             partial_kwargs                                                            │
+                             expand_input      ──▶ literal items:           SUPERVISOR                 │
                                                      N instances at once      length needed? ◀─────────┘
                                                    reference:                   len(value) ──▶ xcom.mapped_length
                                                      one placeholder (-1)
@@ -162,22 +193,75 @@ A Dag definition and a Python Dag with stub TaskHandler differ in nothing else.
 
 ## Wire changes
 
-On top of the per-map-index bindings in
-[#70570](https://github.com/apache/airflow/pull/70570), which add `map_index` and `element_index`
-to an XCom binding:
+[#70570](https://github.com/apache/airflow/pull/70570) already adds `map_index` and `element_index`
+to an XCom binding. On top of that, two binding kinds:
 
-| Change | Where | Why |
-|---|---|---|
-| `needs_mapped_length: bool` | [`TIRunContext`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/api_fastapi/execution_api/datamodels/taskinstance.py#L495) | The supervisor cannot see the Dag, so the server states whether this producer's return value needs measuring (decision 3). |
-| `kind: "sequence"` with `task_id` | `TaskArgBinding` | Reduce. No existing kind names a whole output rather than one row (decision 8). |
-| `kind: "tuple"` with `parts` | `TaskArgBinding` | A `zip` element is several rows in one argument, so one `task_id` cannot express it. |
-| `expand_input` declared as a property | `serialization/schema.json` | It exists today only as a `dependencies` entry, so the key validates by accident. |
+```python
+class XComSequenceArgBinding(_ArgBindingBase):
+    """A producing task's whole output, as a lazy sequence (decision 8)."""
+
+    kind: Literal["sequence"]
+
+    task_id: str
+    """Task whose ``return_value`` rows make up the sequence. The server decides which rows
+    are live and in what order; the runtime asks only for offsets."""
+
+
+class TupleArgBinding(_ArgBindingBase):
+    """One ``zip`` element: several rows gathered into a single argument."""
+
+    kind: Literal["tuple"]
+
+    parts: list[XComArgBinding | LiteralArgBinding]
+    """One part per zipped argument, in the order they were zipped. A ``fillvalue`` standing
+    in at this index arrives as a ``LiteralArgBinding`` part."""
+
+
+TaskArgBinding = TypeAliasType(
+    "TaskArgBinding",
+    Annotated[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding,
+        Field(discriminator="kind", title="TaskArgBinding"),
+    ],
+)
+```
+
+and one field on the run context:
+
+```python
+class TIRunContext(BaseModel):
+    ...
+    needs_mapped_length: bool = False
+    """True when this task's return value is expanded over downstream, so the supervisor has
+    to measure it. Derived from ``not ti.is_mapped and any(task.iter_mapped_dependants())``."""
+```
 
 `concat` needs no new kind: the server knows each argument's length already, so it emits an
-ordinary XCom binding for whichever argument owns this index. A Dag definition's `map()` callables
-need no field either, because that SDK reads them from its own bundle.
+ordinary `XComArgBinding` for whichever argument owns this index. `serialization/schema.json` also
+gains `expand_input` as a declared property, which exists today only as a `dependencies` entry, so
+the key validates by accident.
 
 Each change ships behind an Execution API version with a mirrored supervisor wire-schema version.
+
+### Acting on `needs_mapped_length`
+
+| Process | What it does |
+|---|---|
+| API server | Sets the flag at `ti_run`, off the serialized task it already loads for the bindings. |
+| Supervisor | On `SetXCom` for `return_value`, requires a sized value, computes `len(value)` and passes it as `mapped_length`; an unsized value fails the task. At task end with no `return_value` push, fails the task, because the mapped consumer would otherwise be `UPSTREAM_FAILED` with nothing to explain it. Then drops the field before forwarding the context, as it already does for `xcom_keys_to_clear`. |
+| SDK runtime | Nothing. It never receives the flag and never sends a length. |
+
+### Acting on `expanded_ti_count`
+
+| Process | What it does |
+|---|---|
+| API server | Counts the live instances in this instance's region, so inside a loop it counts one iteration. |
+| Supervisor | Nothing; forwards it. |
+| SDK runtime | Exposes it to the handler read-only, so a handler can say "index 3 of 10". It is **not** used to resolve arguments. |
+
+Python reads it for one further thing, picking which upstream map indexes a member of a mapped task
+group pulls. That is only because Python resolves locally; under decision 5 the server does that
+arithmetic, so no SDK implements it.
 
 ## Runtime steps
 
