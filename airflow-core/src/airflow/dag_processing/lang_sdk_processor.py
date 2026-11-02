@@ -40,8 +40,9 @@ from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_execu
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
-    DagFileParseRequest,
+    DagFileParseRequest as BaseDagFileParseRequest,
     DagFileParsingResult,
+    ToDagProcessorResponse,
     ToManagerMessage,
 )
 from airflow.exceptions import DeserializationError
@@ -57,6 +58,7 @@ from airflow.sdk.execution_time.supervisor import (
     register_request_method,
 )
 from airflow.sdk.importers import DagSourceCode, FilesystemDagDefinition
+from airflow.serialization.encoders import encode_timezone
 from airflow.serialization.enums import Encoding
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 
@@ -71,6 +73,27 @@ if TYPE_CHECKING:
 
 # How long a runtime may keep running after its parse result, as Node does while a handle stays open.
 _EXIT_GRACE_PERIOD = 5.0
+
+
+class DagSerializationOptions(BaseModel):
+    """Configuration resolved by core, required by language SDK serializers."""
+
+    create_cron_data_intervals: bool
+    default_timezone: str | int
+    """IANA timezone name (including ``UTC``), or a fixed UTC offset in seconds."""
+
+
+class DagFileParseRequest(BaseDagFileParseRequest):
+    """Language SDK parse request; retains the existing wire discriminator."""
+
+    serialization_options: DagSerializationOptions
+
+
+LangSDKToDagProcessor = Annotated[
+    DagFileParseRequest | ToDagProcessorResponse,
+    Field(discriminator="type"),
+]
+
 
 _IMPORT_TIMEOUT_SETTING = "[core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
 _PROCESSOR_TIMEOUT_SETTING = "[dag_processor] dag_file_processor_timeout"
@@ -194,7 +217,13 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             for listener in listeners.values():
                 listener.setblocking(False)
             parse_request = DagFileParseRequest(
-                file=os.fspath(path), bundle_path=bundle_path, bundle_name=bundle_name
+                file=os.fspath(path),
+                bundle_path=bundle_path,
+                bundle_name=bundle_name,
+                serialization_options=DagSerializationOptions(
+                    create_cron_data_intervals=conf.getboolean("scheduler", "create_cron_data_intervals"),
+                    default_timezone=encode_timezone(settings.TIMEZONE),
+                ),
             )
             proc = super().start(
                 target=_start_runtime_entrypoint,

@@ -76,6 +76,20 @@ func decodeIncomingBody(raw msgpack.RawMessage) (any, error) {
 		}
 		return &msg, nil
 	case genmodels.TypeDagFileParseRequest:
+		// A missing bool otherwise decodes as false, concealing an incomplete core request.
+		var required struct {
+			Options *struct {
+				CreateCronDataIntervals *bool `msgpack:"create_cron_data_intervals"`
+			} `msgpack:"serialization_options"`
+		}
+		if err := msgpack.Unmarshal(raw, &required); err != nil {
+			return nil, fmt.Errorf("decoding DagFileParseRequest.serialization_options: %w", err)
+		}
+		if required.Options == nil || required.Options.CreateCronDataIntervals == nil {
+			return nil, fmt.Errorf(
+				"DagFileParseRequest.serialization_options.create_cron_data_intervals is required",
+			)
+		}
 		var msg genmodels.DagFileParseRequest
 		if err := msgpack.Unmarshal(raw, &msg); err != nil {
 			return nil, fmt.Errorf("decoding DagFileParseRequest: %w", err)

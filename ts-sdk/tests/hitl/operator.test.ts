@@ -27,7 +27,12 @@ import { Dag } from "../../src/sdk/dag.js";
 type Json = Record<string, unknown>;
 
 function serializedTasks(dag: Dag) {
-  const tasks = (serializeDag(dag, "", ".") as Json)["tasks"] as { __var: Json }[];
+  const tasks = (
+    serializeDag(dag, "", ".", {
+      create_cron_data_intervals: false,
+      default_timezone: "UTC",
+    }) as Json
+  )["tasks"] as { __var: Json }[];
   return new Map(tasks.map(({ __var }) => [__var["task_id"] as string, __var]));
 }
 

@@ -284,6 +284,8 @@ export type EmailType = "failure" | "retry";
 export type Type14 = "EmailRequest";
 export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
 export type Type15 = "DagFileParseRequest";
+export type CreateCronDataIntervals = boolean;
+export type DefaultTimezone = string | number;
 export type Fileloc = string;
 export type LastLoaded = string | null;
 export type SerializedDags = LazyDeserializedDAG[];
@@ -1012,10 +1014,7 @@ export interface TaskInstance {
   queue?: Queue;
 }
 /**
- * Request for DAG File Parsing.
- *
- * This is the request that the manager will send to the DAG parser with the dag file and
- * any other necessary metadata.
+ * Language SDK parse request; retains the existing wire discriminator.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "DagFileParseRequest".
@@ -1026,6 +1025,7 @@ export interface DagFileParseRequest {
   bundle_name: BundleName1;
   callback_requests?: CallbackRequests;
   type?: Type15;
+  serialization_options: DagSerializationOptions;
 }
 /**
  * Task callback status information.
@@ -1146,6 +1146,16 @@ export interface EmailRequest {
   email_type?: EmailType;
   context_from_server: TIRunContext;
   type?: Type14;
+}
+/**
+ * Configuration resolved by core, required by language SDK serializers.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "DagSerializationOptions".
+ */
+export interface DagSerializationOptions {
+  create_cron_data_intervals: CreateCronDataIntervals;
+  default_timezone: DefaultTimezone;
 }
 /**
  * Result of DAG File Parsing.

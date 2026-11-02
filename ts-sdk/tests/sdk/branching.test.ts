@@ -66,8 +66,12 @@ describe("dag.switch", () => {
     const { dag, long, short, decider } = branchedDag();
     decider.case(long).case(short);
 
-    const tasks = (serializeDag(dag, "", ".") as { tasks: { __var: Record<string, unknown> }[] })
-      .tasks;
+    const tasks = (
+      serializeDag(dag, "", ".", {
+        create_cron_data_intervals: false,
+        default_timezone: "UTC",
+      }) as { tasks: { __var: Record<string, unknown> }[] }
+    ).tasks;
     const byId = new Map(tasks.map(({ __var }) => [__var["task_id"] as string, __var]));
     expect(byId.get("pick_path")?.["_can_skip_downstream"]).toBe(true);
     expect(byId.get("handle_long")).not.toHaveProperty("_can_skip_downstream");

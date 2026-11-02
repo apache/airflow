@@ -33,6 +33,7 @@
 // it is the bundle's job, once the coordinator has a parse request to answer.
 
 import { relative as relativePath } from "node:path";
+import type { DagFileParseRequest } from "../generated/supervisor.js";
 
 import {
   DAG_SCHEMA_FIELDS,
@@ -175,13 +176,23 @@ const NULL_TIMETABLE = "airflow.timetables.simple.NullTimetable";
 const ONCE_TIMETABLE = "airflow.timetables.simple.OnceTimetable";
 const CONTINUOUS_TIMETABLE = "airflow.timetables.simple.ContinuousTimetable";
 const CRON_TIMETABLE = "airflow.timetables.trigger.CronTriggerTimetable";
+const CRON_DATA_INTERVAL_TIMETABLE = "airflow.timetables.interval.CronDataIntervalTimetable";
+
+type DagSerializationOptions = DagFileParseRequest["serialization_options"];
 
 /** Serialize one Dag to the `dag` object of a DagSerialization v3 payload. */
 export function serializeDag(
   dag: Dag,
   fileloc: string,
   relativeFileloc: string,
+  options: DagSerializationOptions,
 ): Record<string, SerializedValue> {
+  // A Date carries an instant, not its original timezone. Python derives the
+  // zone from an aware start date; JavaScript Dates therefore imply UTC.
+  const timezone =
+    dag.spec.startDate === undefined && options.default_timezone !== 0
+      ? options.default_timezone
+      : "UTC";
   const graph = buildDagGraph(dag);
   const inputs = getDagTaskInputs(dag);
   const dagDependencies: SerializedValue[] = [];
@@ -189,12 +200,11 @@ export function serializeDag(
     dag_id: dag.dagId,
     fileloc,
     relative_fileloc: relativeFileloc,
-    // Python derives this from `start_date.tzinfo`, so a cron schedule there
-    // runs in the zone the start date was written in. `startDate` is a Date,
-    // which is an instant and carries no zone, so there is nothing to derive:
-    // a native TypeScript Dag's cron is read in UTC.
-    timezone: "UTC",
-    timetable: serializeTimetable(dag.spec.schedule, dag.dagId),
+    timezone,
+    timetable: serializeTimetable(dag.spec.schedule, dag.dagId, {
+      ...options,
+      default_timezone: timezone,
+    }),
     tasks: [...getDagTaskRecords(dag)].map(([taskId, record]) => {
       dagDependencies.push(...serializeDagDependencies(dag.dagId, taskId, record));
       return serializeTask(
@@ -381,7 +391,11 @@ const GROUP_SEPARATOR = ".";
  * scheduler has to import, which a TypeScript bundle cannot name, so it is
  * rejected here rather than serialized into a Dag that fails to deserialize.
  */
-function serializeTimetable(schedule: unknown, dagId: string): SerializedValue {
+function serializeTimetable(
+  schedule: unknown,
+  dagId: string,
+  options: DagSerializationOptions,
+): SerializedValue {
   if (schedule === undefined || schedule === null) {
     return simpleTimetable(NULL_TIMETABLE);
   }
@@ -406,14 +420,15 @@ function serializeTimetable(schedule: unknown, dagId: string): SerializedValue {
         "scheduler cannot parse would leave the Dag unschedulable",
     );
   }
-  // TODO: honour [scheduler] create_cron_data_intervals, which switches Python
-  // to CronDataIntervalTimetable. A bundle cannot read airflow.cfg, so the
-  // supervisor has to send the flag first; tracked at
-  // https://github.com/apache/airflow/issues/67938
+  if (options.create_cron_data_intervals) {
+    return {
+      __type: CRON_DATA_INTERVAL_TIMETABLE,
+      __var: { expression, timezone: options.default_timezone },
+    };
+  }
   return {
     __type: CRON_TIMETABLE,
-    // UTC for the reason given where the Dag's own `timezone` is written.
-    __var: { expression, timezone: "UTC", interval: 0, run_immediately: false },
+    __var: { expression, timezone: options.default_timezone, interval: 0, run_immediately: false },
   };
 }
 

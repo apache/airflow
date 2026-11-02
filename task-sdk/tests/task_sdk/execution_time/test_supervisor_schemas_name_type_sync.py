@@ -33,6 +33,7 @@ from typing import Annotated, get_args, get_origin
 import pytest
 from pydantic import BaseModel
 
+from airflow.dag_processing.lang_sdk_processor import LangSDKToDagProcessor
 from airflow.dag_processing.processor import ToDagProcessor, ToManager
 from airflow.jobs.triggerer_job_runner import ToTriggerRunner, ToTriggerSupervisor
 from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
@@ -45,7 +46,7 @@ def _members_of_union(union: object) -> tuple[type[BaseModel], ...]:
     return tuple(m for m in get_args(union) if isinstance(m, type) and issubclass(m, BaseModel))
 
 
-# All six supervisor discriminated unions. Triggerer's two unions are
+# All seven supervisor discriminated unions. Triggerer's two unions are
 # not part of the lang-SDK-facing registry, but the same name/type
 # invariant is required for ``CommsDecoder`` to round-trip them.
 SUPERVISOR_UNIONS = [
@@ -53,6 +54,7 @@ SUPERVISOR_UNIONS = [
     pytest.param(ToSupervisor, id="ToSupervisor"),
     pytest.param(ToManager, id="ToManager"),
     pytest.param(ToDagProcessor, id="ToDagProcessor"),
+    pytest.param(LangSDKToDagProcessor, id="LangSDKToDagProcessor"),
     pytest.param(ToTriggerRunner, id="ToTriggerRunner"),
     pytest.param(ToTriggerSupervisor, id="ToTriggerSupervisor"),
 ]

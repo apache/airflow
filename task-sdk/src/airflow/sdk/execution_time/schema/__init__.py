@@ -33,11 +33,11 @@ Two distinct Cadwyn ``VersionBundle`` instances coexist in the codebase:
 :func:`registered_models_by_name` resolves a wire-shape ``type``
 discriminator to the head Pydantic class. It is computed dynamically
 from the four discriminated unions ``ToTask``, ``ToSupervisor``
-(task-execution channel) and ``ToManager``, ``ToDagProcessor``
+(task-execution channel) and ``ToManager``, ``LangSDKToDagProcessor``
 (dag-processing channel) so the registry is always in sync with the
-actual unions ``CommsDecoder`` decodes against -- no hand-maintained
-list to drift. Triggerer unions are intentionally excluded (the
-Triggerer channel is not handled by lang-SDK coordinators today).
+actual language-runtime wire models -- no hand-maintained list to
+drift. Triggerer unions are intentionally excluded (the Triggerer
+channel is not handled by lang-SDK coordinators today).
 """
 
 from __future__ import annotations
@@ -91,11 +91,12 @@ def registered_models_by_name() -> dict[str, type[BaseModel]]:
     single head class, so a name clash is a programmer error that must
     surface immediately rather than silently picking a winner.
     """
-    from airflow.dag_processing.processor import ToDagProcessor, ToManager
+    from airflow.dag_processing.lang_sdk_processor import LangSDKToDagProcessor
+    from airflow.dag_processing.processor import ToManager
     from airflow.sdk.execution_time.comms import ToSupervisor, ToTask
 
     by_name: dict[str, type[BaseModel]] = {}
-    for source in (ToTask, ToSupervisor, ToManager, ToDagProcessor):
+    for source in (ToTask, ToSupervisor, ToManager, LangSDKToDagProcessor):
         for model in _iter_model_types(source):
             existing = by_name.get(model.__name__)
             if existing is None:

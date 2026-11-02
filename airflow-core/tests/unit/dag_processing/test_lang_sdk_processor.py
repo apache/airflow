@@ -37,14 +37,17 @@ import pytest
 import structlog
 from structlog.typing import FilteringBoundLogger
 
+from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.dag_processing.lang_sdk_processor import (
     _EXIT_GRACE_PERIOD,
+    DagFileParseRequest,
+    DagSerializationOptions,
     LangSDKDagFileProcessorProcess,
     LangSDKRuntimeSchemaVersion,
     _get_import_timeout,
 )
-from airflow.dag_processing.processor import DagFileParseRequest, DagFileParsingResult
+from airflow.dag_processing.processor import DagFileParsingResult
 from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.sdk import DAG, BaseOperator, task
@@ -179,6 +182,21 @@ class TestLangSDKDagFileProcessorProcess:
         ]
         assert proc._subprocess_schema_version == OLDEST_SCHEMA_VERSION
         assert "Parsing the bundle" in cap_structlog
+
+    @pytest.mark.parametrize(("configured", "expected"), [("True", True), ("False", False)])
+    @patch("airflow.settings.TIMEZONE", timezone.parse_timezone("Europe/Amsterdam"))
+    @patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    def test_the_parse_request_carries_create_cron_data_intervals(
+        self, mock_parse_dag, parse, configured, expected
+    ):
+        """The runtime picks the cron timetable, so the scheduler option has to reach it."""
+        mock_parse_dag.side_effect = play_runtime(_reply_with(_serialize_dag("native_dag")))
+        with conf_vars({("scheduler", "create_cron_data_intervals"): configured}):
+            proc = parse()
+
+        assert proc.parsing_result.import_errors is None
+        assert proc._parse_request.serialization_options.create_cron_data_intervals is expected
+        assert proc._parse_request.serialization_options.default_timezone == "Europe/Amsterdam"
 
     @patch.object(FakeCoordinatorDagImporter, "get_source_code", autospec=True)
     @patch.object(FakeCoordinator, "parse_dag", autospec=True)
@@ -673,7 +691,12 @@ def _make_process(**kwargs) -> LangSDKDagFileProcessorProcess:
         dag_file_rel_path="dag.native",
         listeners={},
         parse_request=DagFileParseRequest(
-            file="/b/dag.native", bundle_path=Path("/b"), bundle_name="testing"
+            file="/b/dag.native",
+            bundle_path=Path("/b"),
+            bundle_name="testing",
+            serialization_options=DagSerializationOptions(
+                create_cron_data_intervals=False, default_timezone="UTC"
+            ),
         ),
         **kwargs,
     )

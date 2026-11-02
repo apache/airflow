@@ -53,6 +53,7 @@ import {
   type RuntimeSucceedTask,
   type RuntimeTaskState,
   type StartupDetails,
+  type DagFileParseRequest,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
 import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk/bundle.js";
@@ -288,7 +289,7 @@ export function createRuntimeAbort(
  * whole parse: one broken Dag must not take out the others a bundle serves.
  */
 function handleParse(
-  request: { file: string; bundle_path: string },
+  request: DagFileParseRequest,
   bundle: Bundle,
   logs: LogChannel,
 ): RuntimeDagFileParsingResult {
@@ -310,7 +311,7 @@ function handleParse(
       serializedDags.push({
         data: {
           __version: SERIALIZATION_VERSION,
-          dag: serializeDag(dag, fileloc, relativeFileloc),
+          dag: serializeDag(dag, fileloc, relativeFileloc, request.serialization_options),
         },
       });
     } catch (err) {

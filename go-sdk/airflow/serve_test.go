@@ -32,6 +32,7 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 	"gopkg.in/yaml.v3"
 
+	"github.com/apache/airflow/go-sdk/internal/bundle"
 	"github.com/apache/airflow/go-sdk/pkg/execution"
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
@@ -321,7 +322,11 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	supervisor, done := serveForSupervisor(t, b)
 	const requestID = 7
 	require.NoError(t, supervisor.SendRequest(requestID, map[string]any{
-		"type":        "DagFileParseRequest",
+		"type": "DagFileParseRequest",
+		"serialization_options": map[string]any{
+			"create_cron_data_intervals": false,
+			"default_timezone":           "UTC",
+		},
 		"file":        "/bundles/go/etl",
 		"bundle_path": "/bundles/go",
 		"bundle_name": "go",
@@ -337,7 +342,7 @@ func TestServeAnswersTheDagParseRequestWithoutRunningATask(t *testing.T) {
 	assert.Nil(t, result.ImportErrors)
 	require.Len(t, result.SerializedDags, 2)
 	for i, dag := range []*DagRef{etl, reports} {
-		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl"))
+		want := jsonOf(t, dag.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{}))
 		assertJSON(t, want, result.SerializedDags[i].Data)
 	}
 

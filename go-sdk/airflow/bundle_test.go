@@ -427,19 +427,19 @@ func TestSerializeDagsKeepsTheOtherDagsWhenADagCannotBeSerialized(t *testing.T) 
 	reports.Task(noop)
 	b.Register(reports)
 
-	serialized := b.dags.serialize("/bundles/go/etl", "etl")
+	serialized := b.dags.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{})
 
 	require.Len(t, serialized, 3)
 	assert.Equal(t, bundle.SerializedDag{
 		DagID: "etl",
-		Data:  etl.serialize("/bundles/go/etl", "etl"),
+		Data:  etl.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{}),
 	}, serialized[0])
 	assert.Equal(t, "broken", serialized[1].DagID)
 	assert.Nil(t, serialized[1].Data)
 	assert.ErrorContains(t, serialized[1].Err, `Dag "broken" is not registered`)
 	assert.Equal(t, bundle.SerializedDag{
 		DagID: "reports",
-		Data:  reports.serialize("/bundles/go/etl", "etl"),
+		Data:  reports.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{}),
 	}, serialized[2])
 }
 
@@ -452,7 +452,7 @@ func TestSerializeDagsLeavesOutADagThatRegisterRejected(t *testing.T) {
 	loaded.Before(extracted)
 	require.Panics(t, func() { b.Register(cyclic) })
 
-	assert.Empty(t, b.dags.serialize("/bundles/go/etl", "etl"))
+	assert.Empty(t, b.dags.serialize("/bundles/go/etl", "etl", bundle.DagSerializationOptions{}))
 }
 
 func TestServeLooksUpTheTasksOfDagsAndTaskHandlers(t *testing.T) {

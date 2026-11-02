@@ -36,7 +36,10 @@ const FILELOC = "/bundles/example/bundle.min.mjs";
 
 /** The serialized Dag, and its tasks keyed by task id. */
 function serialized(target: Dag) {
-  const json = serializeDag(target, FILELOC, "bundle.min.mjs") as Json;
+  const json = serializeDag(target, FILELOC, "bundle.min.mjs", {
+    create_cron_data_intervals: false,
+    default_timezone: "UTC",
+  }) as Json;
   const tasks = json["tasks"] as { __var: Json }[];
   return { json, tasks: new Map(tasks.map(({ __var }) => [__var["task_id"] as string, __var])) };
 }

@@ -32,13 +32,16 @@ import org.apache.airflow.sdk.TaskGroupRef
 import org.apache.airflow.sdk.TaskRef
 import org.apache.airflow.sdk.TriggerDagRun
 import org.apache.airflow.sdk.execution.comm.DagFileParseRequest
+import org.apache.airflow.sdk.execution.comm.DagSerializationOptions
 import org.apache.airflow.sdk.internal.Field
 import org.apache.airflow.sdk.internal.SchemaFields
+import java.math.BigInteger
 import java.nio.file.InvalidPathException
 import java.nio.file.Paths
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
 
 // Serializes Dags to Airflow DagSerialization v3 JSON, mirroring the TypeScript
 // SDK's serde (ts-sdk/src/coordinator/serde.ts), which in turn matches Python's
@@ -49,6 +52,9 @@ private val defaultsMapper = ObjectMapper()
 // Python drops both unless the operator names an email recipient. A Java task
 // has no email field to name one, so they are never written.
 private val OMITTED_TASK_KEYS = setOf("email_on_failure", "email_on_retry")
+
+// Core emits these IANA names even though the JDK omits them from its zone IDs.
+private val TIMEZONE_NAMES = ZoneId.getAvailableZoneIds() + setOf("EST", "HST", "MST", "Factory", "GMT+0", "GMT-0", "ROC")
 
 /**
  * Processes a [DagFileParseRequest] by serialising every Dag registered on
@@ -64,12 +70,13 @@ internal fun parseDags(
   bundle: Bundle,
   request: DagFileParseRequest,
 ): Map<String, Any?> {
+  val options = SerializationOptions(requireNotNull(request.serializationOptions) { "serialization_options is required" })
   val fileloc = request.file ?: ""
   val relativeFileloc = computeRelativeFileloc(fileloc, request.bundlePath)
   val serializedDags = mutableListOf<Map<String, Any?>>()
   val failures = mutableListOf<String>()
   bundle.dags.values.forEach { dag ->
-    runCatching { serializeDag(dag, fileloc, relativeFileloc) }
+    runCatching { serializeDag(dag, fileloc, relativeFileloc, options) }
       .onSuccess { serializedDags += mapOf("data" to mapOf("__version" to 3, "dag" to it)) }
       .onFailure { failures += "Dag \"${dag.id}\": ${it.message ?: it.javaClass.name}" }
   }
@@ -91,6 +98,7 @@ internal fun serializeDag(
   dag: DagDef,
   fileloc: String,
   relativeFileloc: String,
+  options: SerializationOptions,
 ): Map<String, Any?> {
   // Group edges mean tasks only once the Dag is complete, so they are worked
   // out here rather than carried on the groups themselves.
@@ -108,8 +116,8 @@ internal fun serializeDag(
       "dag_id" to dag.id,
       "fileloc" to fileloc,
       "relative_fileloc" to relativeFileloc,
-      "timezone" to dagTimezone(dag.dagConfig),
-      "timetable" to serializeTimetable(dag.id, dag.dagConfig),
+      "timezone" to dagTimezone(dag.dagConfig, options),
+      "timetable" to serializeTimetable(dag.id, dag.dagConfig, options),
       "tasks" to dag.tasks.map { (taskId, def) -> serializeTask(taskId, def, downstream[taskId], dagQueue) },
       "dag_dependencies" to serializeDagDependencies(dag),
       "task_group" to serializeTaskGroups(dag, expansion),
@@ -368,16 +376,47 @@ private fun applyDagConfig(
   config["is_paused_upon_creation"]?.let { data["is_paused_upon_creation"] = it }
 }
 
-// TODO: respect [scheduler] create_cron_data_intervals like Python's
-// _create_timetable; the JVM bundle cannot read airflow.cfg, so the
-// supervisor must send those flags over the coordinator protocol first.
-// The same gap applies to [core] default_timezone, which Python's
-// _extract_tz uses for a Dag with no start date; this uses UTC.
-// The TypeScript SDK waits on the same flag; tracked at
-// https://github.com/apache/airflow/issues/67938
+internal class SerializationOptions(
+  options: DagSerializationOptions,
+) {
+  val createCronDataIntervals: Boolean =
+    requireNotNull(options.createCronDataIntervals) { "serialization_options.create_cron_data_intervals is required" }
+  val defaultTimezone: Any = requireNotNull(options.defaultTimezone) { "serialization_options.default_timezone is required" }
+
+  init {
+    validateSerializationOptions(createCronDataIntervals, defaultTimezone)
+  }
+}
+
+internal fun validateSerializationOptions(
+  createCronDataIntervals: Any?,
+  defaultTimezone: Any?,
+) {
+  require(createCronDataIntervals is Boolean) { "serialization_options.create_cron_data_intervals must be a boolean" }
+  require(
+    defaultTimezone is String ||
+      defaultTimezone is Byte ||
+      defaultTimezone is Short ||
+      defaultTimezone is Int ||
+      defaultTimezone is Long ||
+      defaultTimezone is BigInteger,
+  ) { "serialization_options.default_timezone must be a string or integer" }
+  if (defaultTimezone is String) {
+    require(defaultTimezone in TIMEZONE_NAMES) {
+      "serialization_options.default_timezone must be a valid timezone name"
+    }
+  } else {
+    val offset = if (defaultTimezone is BigInteger) defaultTimezone else BigInteger.valueOf((defaultTimezone as Number).toLong())
+    require(offset > BigInteger.valueOf(-86400) && offset < BigInteger.valueOf(86400)) {
+      "serialization_options.default_timezone offset must be between -86400 and 86400 seconds, exclusive"
+    }
+  }
+}
+
 private fun serializeTimetable(
   dagId: String,
   config: Map<String, Any>,
+  options: SerializationOptions,
 ): Map<String, Any?> =
   when (val schedule = config["schedule"] as String?) {
     null -> mapOf("__type" to "airflow.timetables.simple.NullTimetable", "__var" to emptyMap<String, Any?>())
@@ -392,14 +431,22 @@ private fun serializeTimetable(
           "scheduler cannot parse would leave the Dag unschedulable"
       }
       mapOf(
-        "__type" to "airflow.timetables.trigger.CronTriggerTimetable",
+        "__type" to
+          if (options.createCronDataIntervals) {
+            "airflow.timetables.interval.CronDataIntervalTimetable"
+          } else {
+            "airflow.timetables.trigger.CronTriggerTimetable"
+          },
         "__var" to
-          mapOf(
+          linkedMapOf<String, Any?>(
             "expression" to expression,
-            "timezone" to dagTimezone(config),
-            "interval" to 0.0,
-            "run_immediately" to false,
-          ),
+            "timezone" to dagTimezone(config, options),
+          ).apply {
+            if (!options.createCronDataIntervals) {
+              put("interval", 0.0)
+              put("run_immediately", false)
+            }
+          },
       )
     }
   }
@@ -409,14 +456,21 @@ private fun serializeTimetable(
  * zero offset, otherwise the offset in seconds.
  *
  * Python takes it from `start_date`, so a cron schedule runs in the zone the
- * Dag's start date was written in. A Dag with no start date runs in UTC.
+ * Dag's start date was written in. An Instant uses UTC; only a Dag without
+ * a start date uses the supervisor's default.
  */
-private fun dagTimezone(config: Map<String, Any>): Any =
-  (config["start_date"] as? OffsetDateTime)
-    ?.offset
-    ?.totalSeconds
-    ?.takeIf { it != 0 }
-    ?: "UTC"
+private fun dagTimezone(
+  config: Map<String, Any>,
+  options: SerializationOptions,
+): Any {
+  val timezone =
+    when (val startDate = config["start_date"]) {
+      is OffsetDateTime -> startDate.offset.totalSeconds
+      is Instant -> "UTC"
+      else -> options.defaultTimezone
+    }
+  return if (timezone is Number && timezone.toDouble() == 0.0) "UTC" else timezone
+}
 
 /**
  * Presets expanded the way `CronMixin.__init__` expands them, so the

@@ -56,8 +56,12 @@ describe("dag.if", () => {
     const { dag, ifReady, fallback, gated } = gatedDag();
     gated.then(ifReady).else(fallback);
 
-    const tasks = (serializeDag(dag, "", ".") as { tasks: { __var: Record<string, unknown> }[] })
-      .tasks;
+    const tasks = (
+      serializeDag(dag, "", ".", {
+        create_cron_data_intervals: false,
+        default_timezone: "UTC",
+      }) as { tasks: { __var: Record<string, unknown> }[] }
+    ).tasks;
     const byId = new Map(tasks.map(({ __var }) => [__var["task_id"] as string, __var]));
     expect(byId.get("has_rows")?.["_can_skip_downstream"]).toBe(true);
     expect(byId.get("load_if_ready")).not.toHaveProperty("_can_skip_downstream");
@@ -69,8 +73,12 @@ describe("dag.if", () => {
       .if(async () => true, undefined, { taskId: "is_weekday", retries: 2, queue: "q" })
       .then(ifReady);
 
-    const tasks = (serializeDag(dag, "", ".") as { tasks: { __var: Record<string, unknown> }[] })
-      .tasks;
+    const tasks = (
+      serializeDag(dag, "", ".", {
+        create_cron_data_intervals: false,
+        default_timezone: "UTC",
+      }) as { tasks: { __var: Record<string, unknown> }[] }
+    ).tasks;
     expect(tasks.find(({ __var }) => __var["task_id"] === "is_weekday")?.__var).toMatchObject({
       retries: 2,
       queue: "q",

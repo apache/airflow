@@ -32,7 +32,10 @@ import { triggerDagRun, type TriggerDagRunSpec } from "../../src/sdk/trigger-dag
 type Json = Record<string, unknown>;
 
 function serialize(dag: Dag) {
-  const serialized = serializeDag(dag, "", ".") as Json;
+  const serialized = serializeDag(dag, "", ".", {
+    create_cron_data_intervals: false,
+    default_timezone: "UTC",
+  }) as Json;
   const tasks = serialized["tasks"] as { __var: Json }[];
   return {
     serialized,

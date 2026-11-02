@@ -157,7 +157,10 @@ const serialized = Object.fromEntries(
     dagCase.dag_id,
     {
       __version: SERIALIZATION_VERSION,
-      dag: serializeDag(buildDag(dagCase), "/bundles/app/bundle.mjs", "bundle.mjs"),
+      dag: serializeDag(buildDag(dagCase), "/bundles/app/bundle.mjs", "bundle.mjs", {
+        create_cron_data_intervals: false,
+        default_timezone: "UTC",
+      }),
     },
   ]),
 );

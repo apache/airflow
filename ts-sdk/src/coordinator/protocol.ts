@@ -110,13 +110,44 @@ export type RuntimeDagFileParsingResult = WithRequiredType<DagFileParsingResult>
 export function asMsgFromSupervisor(raw: unknown): MsgFromSupervisor {
   const body = normalizeBody(raw);
   switch (body.type) {
-    case "StartupDetails":
     case "DagFileParseRequest":
+      validateSerializationOptions(body["serialization_options"]);
+      return body as unknown as MsgFromSupervisor;
+    case "StartupDetails":
     case "ErrorResponse":
       return body as unknown as MsgFromSupervisor;
     default:
       throw new Error(`Unsupported supervisor message type: ${JSON.stringify(body.type)}`);
   }
+}
+
+function validateSerializationOptions(raw: unknown): void {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("DagFileParseRequest requires a serialization_options map");
+  }
+  const options = raw as Record<string, unknown>;
+  if (typeof options["create_cron_data_intervals"] !== "boolean") {
+    throw new Error("serialization_options.create_cron_data_intervals must be a boolean");
+  }
+  const timezone = options["default_timezone"];
+  if (typeof timezone === "number" && Number.isInteger(timezone) && Math.abs(timezone) < 86400) {
+    return;
+  }
+  if (typeof timezone === "string" && timezone.length > 0) {
+    // Core accepts this IANA placeholder zone, which ICU omits.
+    if (timezone === "Factory") return;
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: timezone });
+      return;
+    } catch (cause) {
+      throw new Error("serialization_options.default_timezone must name a valid timezone", {
+        cause,
+      });
+    }
+  }
+  throw new Error(
+    "serialization_options.default_timezone must be a timezone name or an integer UTC offset in seconds with absolute value less than 86400",
+  );
 }
 
 function normalizeBody(raw: unknown): { type: string; [k: string]: unknown } {

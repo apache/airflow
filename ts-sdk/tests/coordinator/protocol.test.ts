@@ -45,13 +45,45 @@ describe("protocol decode", () => {
     expect(asMsgFromSupervisor(raw).type).toBe("StartupDetails");
   });
 
-  it("accepts DagFileParseRequest", () => {
-    const raw = {
-      type: "DagFileParseRequest",
-      file: "/x.mjs",
-      bundle_path: "/",
-    };
-    expect(asMsgFromSupervisor(raw).type).toBe("DagFileParseRequest");
+  it.each(["Europe/Amsterdam", "EST", "HST", "MST", "Factory", 3600, 0])(
+    "accepts DagFileParseRequest with timezone %s",
+    (timezone) => {
+      const raw = {
+        type: "DagFileParseRequest",
+        file: "/x.mjs",
+        bundle_path: "/",
+        serialization_options: { create_cron_data_intervals: true, default_timezone: timezone },
+      };
+      expect(asMsgFromSupervisor(raw)).toEqual(raw);
+    },
+  );
+
+  it.each([
+    undefined,
+    null,
+    [[]],
+    {},
+    { create_cron_data_intervals: true },
+    { default_timezone: "UTC" },
+    { create_cron_data_intervals: "false", default_timezone: "UTC" },
+    { create_cron_data_intervals: 0, default_timezone: "UTC" },
+    { create_cron_data_intervals: false, default_timezone: 1.5 },
+    { create_cron_data_intervals: false, default_timezone: {} },
+    { create_cron_data_intervals: false, default_timezone: true },
+    { create_cron_data_intervals: false, default_timezone: null },
+    { create_cron_data_intervals: false, default_timezone: 86400 },
+    { create_cron_data_intervals: false, default_timezone: -86400 },
+    { create_cron_data_intervals: false, default_timezone: "" },
+    { create_cron_data_intervals: false, default_timezone: "Not/A_Timezone" },
+  ])("rejects invalid or missing serialization options: %j", (serialization_options) => {
+    expect(() =>
+      asMsgFromSupervisor({
+        type: "DagFileParseRequest",
+        file: "/x.mjs",
+        bundle_path: "/",
+        serialization_options,
+      }),
+    ).toThrow(/serialization_options/);
   });
 
   it("rejects missing type", () => {

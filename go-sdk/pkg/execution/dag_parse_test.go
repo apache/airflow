@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"testing"
@@ -33,14 +34,17 @@ import (
 	"github.com/apache/airflow/go-sdk/pkg/execution/genmodels"
 )
 
-// serializedDags is a DagSerializer that records the paths it was called with.
+// serializedDags is a DagSerializer that records the arguments it was called with.
 type serializedDags struct {
 	dags              []bundle.SerializedDag
 	fileloc, relative string
+	options           bundle.DagSerializationOptions
 }
 
-func (s *serializedDags) SerializeDags(fileloc, relativeFileloc string) []bundle.SerializedDag {
-	s.fileloc, s.relative = fileloc, relativeFileloc
+func (s *serializedDags) SerializeDags(
+	fileloc, relativeFileloc string, options bundle.DagSerializationOptions,
+) []bundle.SerializedDag {
+	s.fileloc, s.relative, s.options = fileloc, relativeFileloc, options
 	return s.dags
 }
 
@@ -52,9 +56,10 @@ func serializedDag(dagID string) bundle.SerializedDag {
 }
 
 var etlParseRequest = &genmodels.DagFileParseRequest{
-	File:       "/bundles/go/etl",
-	BundlePath: "/bundles/go",
-	BundleName: "go",
+	File:                 "/bundles/go/etl",
+	BundlePath:           "/bundles/go",
+	BundleName:           "go",
+	SerializationOptions: genmodels.DagSerializationOptions{DefaultTimezone: "UTC"},
 }
 
 func discardLogger() *slog.Logger { return slog.New(slog.NewTextHandler(io.Discard, nil)) }
@@ -85,6 +90,11 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 
 	assert.Equal(t, "/bundles/go/etl", dags.fileloc)
 	assert.Equal(t, "etl", dags.relative)
+	assert.Equal(
+		t,
+		bundle.DagSerializationOptions{DefaultTimezone: bundle.NamedTimezone("UTC")},
+		dags.options,
+	)
 	assert.JSONEq(t, `{
 		"type": "DagFileParsingResult",
 		"fileloc": "/bundles/go/etl",
@@ -95,12 +105,66 @@ func TestParseDagsAnswersWithTheSerializedDags(t *testing.T) {
 	}`, wireJSON(t, result))
 }
 
+// The Dag processor sends [scheduler] create_cron_data_intervals with the parse request, because a
+// bundle cannot read the Airflow config that Python's DAG reads.
+func TestParseDagsPassesTheSerializationOptionsToTheSerializer(t *testing.T) {
+	tests := []struct {
+		name            string
+		createIntervals bool
+		defaultTimezone any
+	}{
+		{"default options", false, "UTC"},
+		{"create_cron_data_intervals on", true, "UTC"},
+		{"named default timezone", false, "Europe/Amsterdam"},
+		{"fixed default timezone", true, int64(19800)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dags := &serializedDags{}
+			req := *etlParseRequest
+			req.SerializationOptions.CreateCronDataIntervals = tt.createIntervals
+			req.SerializationOptions.DefaultTimezone = tt.defaultTimezone
+
+			parseDags(dags, &req, discardLogger())
+
+			timezone, err := parseDefaultTimezone(tt.defaultTimezone)
+			require.NoError(t, err)
+			assert.Equal(t,
+				bundle.DagSerializationOptions{
+					CreateCronDataIntervals: tt.createIntervals,
+					DefaultTimezone:         timezone,
+				},
+				dags.options,
+			)
+		})
+	}
+}
+
 func TestParseDagsAnswersWithNoDagsWhenTheBundleHasNoSerializer(t *testing.T) {
 	result := parseDags(nil, etlParseRequest, discardLogger())
 
 	assert.NotNil(t, result.SerializedDags)
 	assert.Empty(t, result.SerializedDags)
 	assert.Nil(t, result.ImportErrors)
+}
+
+func TestParseDagsRejectsInvalidTimezoneBeforeSerializing(t *testing.T) {
+	for _, value := range []any{nil, true, 1.5, float64(3600), map[string]any{}, "", "Invalid/Zone", "Local", int64(86400), int64(-86400), ^uint64(0)} {
+		t.Run(fmt.Sprintf("%T_%v", value, value), func(t *testing.T) {
+			dags := &serializedDags{dags: []bundle.SerializedDag{serializedDag("etl")}}
+			req := *etlParseRequest
+			req.SerializationOptions.DefaultTimezone = value
+			result := parseDags(dags, &req, discardLogger())
+			require.NotNil(t, result.ImportErrors)
+			assert.Contains(
+				t,
+				(*result.ImportErrors)["etl"],
+				"serialization_options.default_timezone",
+			)
+			assert.Empty(t, result.SerializedDags)
+			assert.Empty(t, dags.fileloc, "serializer must not receive unvalidated configuration")
+		})
+	}
 }
 
 func TestParseDagsSendsAnEmptyListForABundleWithoutDags(t *testing.T) {
