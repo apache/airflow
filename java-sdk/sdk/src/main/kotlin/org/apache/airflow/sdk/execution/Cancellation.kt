@@ -19,54 +19,107 @@
 
 package org.apache.airflow.sdk.execution
 
+import org.apache.airflow.sdk.Context
+import org.apache.airflow.sdk.StoppableTask
 import sun.misc.Signal
 import sun.misc.SignalHandler
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * Records whether Airflow has asked the running task to stop, and whether the task checks for that
- * request.
+ * Records whether Airflow has asked the running task to stop. For a [StoppableTask], also catches the
+ * signal that carries that request.
  */
-internal class Cancellation {
+internal class Cancellation : AutoCloseable {
   private val claimed = AtomicBoolean()
   private val requested = CountDownLatch(1)
+  private val signalHandled = CompletableFuture<Unit>()
+  private val warned = AtomicBoolean()
 
-  /**
-   * True once the task has checked for a stop request or waited for one, which shows that the task
-   * can stop on its own.
-   */
   @Volatile
-  var isWatched = false
-    private set
+  private var trap: AutoCloseable? = null
 
-  val isRequested: Boolean
-    get() = requested.count == 0L
+  @Volatile
+  private var hook: (() -> Unit)? = null
 
-  /** Returns true to the first caller only, so the SDK can take at most one signal for the task. */
-  fun claim(): Boolean = claimed.compareAndSet(false, true)
-
-  fun request() = requested.countDown()
-
-  /**
-   * Returns [isRequested] for the task. Because the task has now checked, this call also sets
-   * [isWatched].
-   */
   fun check(): Boolean {
-    watch()
-    return isRequested
+    warnIfTaskCannotSeeRequest()
+    return requested.count == 0L
   }
 
   fun await(timeout: Duration): Boolean {
-    watch()
+    warnIfTaskCannotSeeRequest()
     return requested.await(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS)
   }
 
-  private fun watch() {
-    if (!isWatched) isWatched = true
+  /**
+   * The SDK catches the stop signal only for a [StoppableTask], so the JVM exits before any other task
+   * can see a stop request. Such a task compiles and runs, so this warning is the only sign that its
+   * check cannot see the request.
+   */
+  private fun warnIfTaskCannotSeeRequest() {
+    if (running === this && trap == null && warned.compareAndSet(false, true)) {
+      logger.warning("The task checked for a stop request, but only a StoppableTask can see one")
+    }
+  }
+
+  /** Catches the first stop signal for [task] until [close] is called. The SDK calls this method just before it starts the task. */
+  fun hold(
+    task: StoppableTask,
+    context: Context,
+  ) {
+    val classLoader = Thread.currentThread().contextClassLoader
+    hook = {
+      // On Java 11 and 17, a signal handler thread has no context class loader, and libraries can need one.
+      Thread.currentThread().contextClassLoader = classLoader
+      task.onKill(context)
+    }
+    trap = trapStopSignals(::takeSignal)
+  }
+
+  /**
+   * Records that the task has returned, so a later signal does not call [StoppableTask.onKill]. If a
+   * signal has already started that call, waits for it to finish, because the JVM exits soon after the
+   * SDK reports the task's result. The wait has no limit of its own, since the supervisor's SIGKILL ends
+   * a call that hangs.
+   */
+  fun finish() {
+    hook = null
+    // join() keeps waiting if the thread is interrupted, and a task can leave the thread's interrupt flag set.
+    if (claimed.get()) signalHandled.join()
+  }
+
+  override fun close() {
+    trap?.close()
+  }
+
+  private fun takeSignal(signal: String): Boolean {
+    // A second signal means the sender does not want to wait.
+    if (!claimed.compareAndSet(false, true)) {
+      logger.info("Letting the JVM handle the signal", mapOf("signal" to signal))
+      return false
+    }
+    return try {
+      logger.warning("Asking the task to stop", mapOf("signal" to signal))
+      // Record the stop request before the hook reads the task's fields. If a task stores what the hook
+      // needs and then checks for the request, the task sees the request, the hook sees the stored field,
+      // or both.
+      requested.countDown()
+      hook?.invoke()
+      true
+    } catch (e: Throwable) {
+      logger.error(
+        "Task's onKill failed, so letting the JVM handle the signal",
+        mapOf("signal" to signal, "error" to e, "trace" to e.stackTraceToString()),
+      )
+      false
+    } finally {
+      signalHandled.complete(Unit)
+    }
   }
 
   companion object {

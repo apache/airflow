@@ -95,7 +95,9 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
  * the arg bindings the supervisor delivered for the run: flat parameters
  * through [TaskArgs], by their position among the data parameters, and
  * [TaskInput] fields through [ArgValues], by argument name. Non-`void` return values are
- * forwarded to `client.setXCom`.
+ * forwarded to `client.setXCom`. For a task with an [Airflow.OnKill] method, the processor
+ * generates a [StoppableTask], which calls that method on the object that runs the task
+ * method.
  */
 @SupportedAnnotationTypes(
   "org.apache.airflow.sdk.Airflow.Dag",
@@ -105,6 +107,7 @@ import org.apache.airflow.sdk.internal.builderName as generatedBuilderName
   "org.apache.airflow.sdk.Airflow.TaskGroup",
   "org.apache.airflow.sdk.Airflow.TaskHandler",
   "org.apache.airflow.sdk.Airflow.Deps",
+  "org.apache.airflow.sdk.Airflow.OnKill",
 )
 @SupportedSourceVersion(SourceVersion.RELEASE_11)
 class AirflowProcessor : AbstractProcessor() {
@@ -135,6 +138,11 @@ class AirflowProcessor : AbstractProcessor() {
             "another @Airflow.TaskGroup class",
           el,
         )
+      }
+    }
+    roundEnv.getElementsAnnotatedWith(Airflow.OnKill::class.java).filterIsInstance<ExecutableElement>().forEach { el ->
+      runCatching { checkKillHook(el) }.onFailure { e ->
+        processingEnv.messager.printMessage(Diagnostic.Kind.ERROR, e.message ?: "Unknown error", el)
       }
     }
     roundEnv
@@ -218,7 +226,8 @@ class AirflowProcessor : AbstractProcessor() {
       require(handler.dag.isNotBlank()) {
         "@Airflow.TaskHandler on '${inner.simpleName}' must name the Dag the Python file declares"
       }
-      val decl = TaskDeclaration(inner, handler.task.ifBlank { inner.simpleName.toString() }, collectDataParams(inner), el)
+      val taskId = handler.task.ifBlank { inner.simpleName.toString() }
+      val decl = TaskDeclaration(inner, taskId, collectDataParams(inner), el, onKill = findKillHook(el, taskId))
       require(names.add(inner.simpleName.toString())) {
         "Class ${el.simpleName} overloads task-handler method '${inner.simpleName}'; a method's name is " +
           "the name of its generated task class, so rename one and keep its task id with " +
@@ -482,7 +491,15 @@ class AirflowProcessor : AbstractProcessor() {
           "task id with ${kind.spelling}(id = \"$localId\")"
       }
       tasks +=
-        TaskDeclaration(inner, (path + localId).joinToString("."), collectDataParams(inner), el, classPath, kind)
+        TaskDeclaration(
+          inner,
+          (path + localId).joinToString("."),
+          collectDataParams(inner),
+          el,
+          classPath,
+          kind,
+          findKillHook(el, localId),
+        )
     }
 
     val groups = mutableListOf<GroupDeclaration>()
@@ -787,6 +804,56 @@ class AirflowProcessor : AbstractProcessor() {
       with(processingEnv) { typeUtils.isAssignable(bound, elementUtils.getTypeElement(TASK_TYPE.canonicalName()).asType()) }
   }
 
+  /** Returns [owner]'s [Airflow.OnKill] method for the task that [owner] declares as [taskId], if [owner] has such a method. */
+  private fun findKillHook(
+    owner: TypeElement,
+    taskId: String,
+  ): ExecutableElement? =
+    owner.enclosedElements
+      .filterIsInstance<ExecutableElement>()
+      .firstOrNull { it.getAnnotation(Airflow.OnKill::class.java)?.task == taskId }
+
+  /** Rejects an [Airflow.OnKill] method that takes the wrong parameters, or that does not name exactly one task with a body. */
+  private fun checkKillHook(hook: ExecutableElement) {
+    val name = hook.simpleName
+    val owner = hook.enclosingElement as TypeElement
+    val taskId = hook.getAnnotation(Airflow.OnKill::class.java).task
+    val methods = owner.enclosedElements.filterIsInstance<ExecutableElement>()
+    require(hook.parameters.all { with(processingEnv) { isType(it.asType(), CONTEXT_TYPE) } } && hook.parameters.size <= 1) {
+      "@Airflow.OnKill method '$name' can take a Context and no other parameter"
+    }
+    require(methods.count { it.getAnnotation(Airflow.OnKill::class.java)?.task == taskId } == 1) {
+      "Class ${owner.simpleName} declares more than one @Airflow.OnKill method for task '$taskId'"
+    }
+    val tasks = methods.filter { findLocalTaskId(it) == taskId }
+    require(tasks.isNotEmpty()) {
+      "@Airflow.OnKill method '$name' names task '$taskId', but class ${owner.simpleName} declares no such " +
+        "task; the method must be in the class that declares the task"
+    }
+    val task =
+      tasks.singleOrNull()
+        ?: throw IllegalArgumentException(
+          "@Airflow.OnKill method '$name' names task '$taskId', but class ${owner.simpleName} declares more " +
+            "than one such task; move the handlers into separate classes",
+        )
+    val declaredAsTask = task.annotationMirrors.any { it.names(TaskKind.TASK.annotation) }
+    require(!declaredAsTask || !with(processingEnv) { isType(task.returnType, TRIGGER_TYPE) }) {
+      "@Airflow.OnKill method '$name' names task '$taskId', which returns a TriggerDagRun; that task has no " +
+        "body to stop"
+    }
+  }
+
+  /** Returns the ID under which [method] declares a task in its own class, or null if [method] does not declare a task. */
+  private fun findLocalTaskId(method: ExecutableElement): String? {
+    val kind = TaskKind.declaring.firstOrNull { kind -> method.annotationMirrors.any { it.names(kind.annotation) } }
+    val declared =
+      when {
+        kind != null -> declaredId(method, kind)
+        else -> method.getAnnotation(Airflow.TaskHandler::class.java)?.task ?: return null
+      }
+    return declared.ifBlank { method.simpleName.toString() }
+  }
+
   /** The `id` the declaring annotation sets, empty when it leaves it out. */
   private fun declaredId(
     method: ExecutableElement,
@@ -854,27 +921,66 @@ class AirflowProcessor : AbstractProcessor() {
       }
     }
 
+    val owner = ClassName.get(decl.owner)
+    val hook = decl.onKill
+    if (hook != null) {
+      // The instance is made here rather than in a field initializer. If the constructor throws, the task
+      // fails and its retries apply, as they do for a task without a hook.
+      executeSpec
+        .addStatement($$"this.instance = new $T()", owner)
+        // If the stop request came before this point, the hook had no instance to call, so the hook could
+        // not stop the task method.
+        .beginControlFlow("if (context.isCancelled())")
+        .addStatement($$"throw new $T($S)", IllegalStateException::class.java, "Airflow asked the task to stop before it started")
+        .endControlFlow()
+    }
+    val target = if (hook == null) CodeBlock.of($$"new $T()", owner) else CodeBlock.of("this.instance")
     when {
       // The SDK pushes a decider's choice itself, after it has skipped what the choice rules out.
-      decl.kind != TaskKind.TASK -> $$"return new $T().$L($L)"
-      inner.returnType.kind == TypeKind.VOID -> $$"new $T().$L($L)"
-      else -> $$"client.setXCom(new $T().$L($L))"
+      decl.kind != TaskKind.TASK -> $$"return $L.$L($L)"
+      inner.returnType.kind == TypeKind.VOID -> $$"$L.$L($L)"
+      else -> $$"client.setXCom($L.$L($L))"
     }.also {
       executeSpec.addStatement(
         it,
-        ClassName.get(decl.owner),
+        target,
         inner.simpleName,
         innerArgs,
       )
     }
 
-    return TypeSpec
-      .classBuilder(decl.className)
-      .addSuperinterface(decl.kind.taskInterface)
-      .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
-      .addMethod(executeSpec.build())
-      .build()
+    val task =
+      TypeSpec
+        .classBuilder(decl.className)
+        .addModifiers(Modifier.PUBLIC, Modifier.FINAL, Modifier.STATIC)
+        .addMethod(executeSpec.build())
+    // StoppableTask extends Task, so a class with a hook does not also need to implement Task.
+    if (hook == null || decl.kind.taskInterface != TASK_TYPE) task.addSuperinterface(decl.kind.taskInterface)
+    if (hook != null) {
+      task
+        .addSuperinterface(STOPPABLE_TASK_TYPE)
+        .addField(owner, "instance", Modifier.PRIVATE, Modifier.VOLATILE)
+        .addMethod(buildKillMethod(owner, hook))
+    }
+    return task.build()
   }
+
+  /** The generated `onKill`, which calls [hook] on the object that runs the task method, once that object exists. */
+  private fun buildKillMethod(
+    owner: ClassName,
+    hook: ExecutableElement,
+  ): MethodSpec =
+    MethodSpec
+      .methodBuilder("onKill")
+      .addAnnotation(Override::class.java)
+      .addModifiers(Modifier.PUBLIC)
+      .addParameter(CONTEXT_TYPE, "context")
+      .addException(Exception::class.java)
+      .addStatement($$"$T target = this.instance", owner)
+      .beginControlFlow("if (target != null)")
+      .addStatement($$"target.$L($L)", hook.simpleName, if (hook.parameters.isEmpty()) "" else "context")
+      .endControlFlow()
+      .build()
 
   /**
    * Collects the task method's data parameters — every parameter the SDK does
@@ -1005,8 +1111,9 @@ private class GroupDeclaration(
 
 /**
  * One [Airflow.Task]-annotated method with its resolved id and data parameters.
- * [owner] is the class that declares it, which the generated body instantiates,
- * and [classPath] the task-group classes enclosing it.
+ * [owner] is the class that declares the task, and the generated body instantiates
+ * that class. [classPath] lists the task-group classes that enclose the task. [onKill]
+ * is the method of [owner] that stops the task.
  */
 private class TaskDeclaration(
   val method: ExecutableElement,
@@ -1015,6 +1122,7 @@ private class TaskDeclaration(
   val owner: TypeElement,
   val classPath: List<String> = emptyList(),
   val kind: TaskKind = TaskKind.TASK,
+  val onKill: ExecutableElement? = null,
 ) {
   val className: String =
     (classPath + method.simpleName.toString().replaceFirstChar(Char::uppercase)).joinToString("_")
@@ -1047,6 +1155,7 @@ private val REFS_TYPE = ClassName.get(Refs::class.java)
 private val ARG_TYPE = ClassName.get(Arg::class.java)
 private val TASK_HANDLE_TYPE = ClassName.get(TaskRef::class.java)
 private val TASK_TYPE = ClassName.get(Task::class.java)
+private val STOPPABLE_TASK_TYPE = ClassName.get(StoppableTask::class.java)
 private val CONDITION_TASK_TYPE = ClassName.get(ConditionTask::class.java)
 private val CONDITION_REF_TYPE = ClassName.get(ConditionRef::class.java)
 private val SWITCH_TASK_TYPE = ClassName.get(SwitchTask::class.java)

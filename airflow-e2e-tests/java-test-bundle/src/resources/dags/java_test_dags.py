@@ -72,3 +72,15 @@ def java_stop_request():
 
 
 java_stop_request()
+
+
+@task.stub(queue="java-test")
+def block_until_killed(): ...
+
+
+@dag(dag_id="java_stop_request_on_kill")
+def java_stop_request_on_kill():
+    block_until_killed()
+
+
+java_stop_request_on_kill()
