@@ -127,8 +127,6 @@ export function validateReleaseInputs({ releaseTag, npmTag, currentDistTagVersio
   return {
     version,
     packageName: PACKAGE_NAME,
-    // npm pack names a scoped tarball without the "@" and with "/" as "-".
-    packageFile: `${PACKAGE_NAME.replace(/^@/, "").replace("/", "-")}-${version}.tgz`,
   };
 }
 
@@ -142,11 +140,7 @@ function run() {
   if (outputFile === undefined) {
     throw new Error("GITHUB_OUTPUT is required");
   }
-  appendFileSync(
-    outputFile,
-    `version=${result.version}\npackage_name=${result.packageName}\n` +
-      `package_file=${result.packageFile}\n`,
-  );
+  appendFileSync(outputFile, `version=${result.version}\npackage_name=${result.packageName}\n`);
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {

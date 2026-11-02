@@ -1,5 +1,5 @@
 {
-  "name": "ts-sdk-example",
+  "name": "apache-airflow-ts-sdk-example",
   "private": true,
   "version": "1.0.0-beta1",
   "type": "module",
