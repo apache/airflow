@@ -18,11 +18,11 @@
  */
 import type { PropsWithChildren } from "react";
 
-import { renderHook, waitFor } from "@testing-library/react";
-import { MemoryRouter, useLocation } from "react-router-dom";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { MemoryRouter, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { FilterConfig } from "src/components/FilterBar/types";
+import type { FilterConfig, FilterValue } from "src/components/FilterBar/types";
 
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -58,9 +58,21 @@ const createWrapper =
 const renderRemembered = (initialEntries: Array<string>) =>
   renderHook(
     () => {
-      useRememberedFilters(CONFIGS);
+      const [, setSearchParams] = useSearchParams();
 
-      return { search: useLocation().search };
+      const onFiltersChange = useRememberedFilters(CONFIGS, (filters: Record<string, FilterValue>) => {
+        const params = new URLSearchParams();
+
+        Object.entries(filters).forEach(([key, value]) => {
+          if (typeof value === "string" || typeof value === "number") {
+            params.set(key, String(value));
+          }
+        });
+
+        setSearchParams(params, { replace: true });
+      });
+
+      return { navigate: useNavigate(), onFiltersChange, search: useLocation().search };
     },
     { wrapper: createWrapper(initialEntries) },
   );
@@ -107,5 +119,35 @@ describe("useRememberedFilters", () => {
     expect(result.current.search).toBe("");
     // Neither the restore nor the landing may erase what is remembered.
     expect(localStorage.getItem("dags-last-filters")).toBe(JSON.stringify("state=running"));
+  });
+
+  it("forgets the filters when they are cleared through the filter bar", async () => {
+    const { result } = renderRemembered(["/dags?state=running"]);
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-last-filters") ?? '""')).toBe("state=running");
+    });
+
+    act(() => result.current.onFiltersChange({}));
+
+    await waitFor(() => {
+      expect(result.current.search).toBe("");
+      expect(JSON.parse(localStorage.getItem("dags-last-filters") ?? '""')).toBe("");
+    });
+  });
+
+  it("restores the filters when the link for the current page is followed", async () => {
+    const { result } = renderRemembered(["/dags?state=running"]);
+
+    await waitFor(() => {
+      expect(JSON.parse(localStorage.getItem("dags-last-filters") ?? '""')).toBe("state=running");
+    });
+
+    // The sidebar link to the page you are already on drops the query rather than the filters.
+    act(() => {
+      void result.current.navigate("/dags");
+    });
+
+    await waitFor(() => expect(result.current.search).toBe("?state=running"));
   });
 });

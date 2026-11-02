@@ -21,27 +21,10 @@ import { useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
-import type { FilterConfig } from "src/components/FilterBar/types";
+import type { FilterConfig, FilterValue } from "src/components/FilterBar/types";
 
 import { lastFiltersKey, presetFiltersDefaultKey } from "src/constants/localStorage";
-import { SearchParamsKeys } from "src/constants/searchParams";
-
-// Every URL param the filter pills own. Composite filters enumerate the params they manage
-// (mapped to undefined to clear them), so their keys are present whatever the current value is.
-const getFilterParamNames = (configs: Array<FilterConfig>): Array<string> =>
-  configs.flatMap((config) => {
-    if (config.toSearchParams !== undefined) {
-      return Object.keys(config.toSearchParams(undefined));
-    }
-
-    if (config.type === "daterange") {
-      return [config.key, config.startKey, config.endKey].filter(
-        (param): param is string => param !== undefined,
-      );
-    }
-
-    return config.matchModeKey === undefined ? [config.key] : [config.key, config.matchModeKey];
-  });
+import { getFilterParamNames } from "src/utils/useFiltersHandler";
 
 const filterQuery = (search: string, names: Array<string>): string => {
   const source = new URLSearchParams(search);
@@ -57,19 +40,33 @@ const filterQuery = (search: string, names: Array<string>): string => {
 };
 
 /**
- * Remembers the filters the user is working with and restores them when the list is landed on
- * without a query, so returning from another page resumes the same view. An explicit query wins,
- * and so does a pinned default preset, which states where the list should always start.
+ * Remembers the filters the user is working with and restores them whenever the list is landed on
+ * without a query, so returning from another page resumes the same view. Clearing the filters
+ * through the filter bar is how the list forgets them. An explicit query wins, and so does a
+ * pinned default preset, which states where the list should always start.
+ *
+ * Returns the filter change handler to hand to ``FilterBar``, wrapped so a clear is told apart from
+ * navigation to the bare list.
  */
-export const useRememberedFilters = (configs: Array<FilterConfig>) => {
+export const useRememberedFilters = (
+  configs: Array<FilterConfig>,
+  handleFiltersChange: (filters: Record<string, FilterValue>) => void,
+) => {
   const { pathname } = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [lastFilters, setLastFilters] = useLocalStorage<string>(lastFiltersKey(pathname), "");
   const [defaultPresetName] = useLocalStorage<string | null>(presetFiltersDefaultKey(pathname), null);
-  // The previous render's filters, or undefined before the landing render has been observed.
+  // The filters the previous render saw, or undefined before the first one has been observed.
   const previousQuery = useRef<string | undefined>(undefined);
-  const filterParams = getFilterParamNames(configs);
+  // Whether the URL change being observed came from the filter bar rather than from navigation.
+  const edited = useRef(false);
+  const filterParams = configs.flatMap((config) => getFilterParamNames(config));
   const filterParamsKey = filterParams.join(",");
+
+  const onFiltersChange = (filters: Record<string, FilterValue>) => {
+    edited.current = true;
+    handleFiltersChange(filters);
+  };
 
   useEffect(() => {
     const query = filterQuery(searchParams.toString(), filterParams);
@@ -77,39 +74,36 @@ export const useRememberedFilters = (configs: Array<FilterConfig>) => {
 
     previousQuery.current = query;
 
-    // The landing render is not a filter change, so landing without filters must not erase what
-    // is remembered before the restore below has applied it.
-    if (observed === query || (observed === undefined && query === "")) {
+    if (query === "") {
+      const userEdited = edited.current;
+
+      edited.current = false;
+
+      if (userEdited) {
+        setLastFilters("");
+      } else if (defaultPresetName === null) {
+        const remembered = filterQuery(lastFilters, filterParams);
+
+        if (remembered !== "") {
+          previousQuery.current = remembered;
+
+          // Replace rather than push: the restored query should not add a history entry that lands
+          // on the bare page and restores itself again.
+          setSearchParams(new URLSearchParams(remembered), { replace: true });
+        }
+      }
+
       return;
     }
 
-    setLastFilters(query);
+    edited.current = false;
+
+    if (observed !== query) {
+      setLastFilters(query);
+    }
     // filterParams is rebuilt on every render; filterParamsKey captures when its contents change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterParamsKey, searchParams, setLastFilters]);
 
-  // Restore once per mount. DagsFilters calls this after usePausedDefault, so a bare landing
-  // resumes the remembered view rather than keeping only the paused seed.
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-
-    params.delete(SearchParamsKeys.OFFSET);
-    params.delete(SearchParamsKeys.CURSOR);
-
-    if ([...params].length > 0 || defaultPresetName !== null) {
-      return;
-    }
-
-    const remembered = filterQuery(lastFilters, getFilterParamNames(configs));
-
-    if (remembered === "") {
-      return;
-    }
-
-    // Replace rather than push: the restored query should not add a history entry that lands on
-    // the bare page and restores itself again.
-    setSearchParams(new URLSearchParams(remembered), { replace: true });
-    // Mount-only on purpose: later edits and clears must not re-trigger the restore.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  return onFiltersChange;
 };

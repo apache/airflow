@@ -47,9 +47,9 @@ export const DagsFilters = () => {
 
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
-  useRememberedFilters(filterConfigs);
+  const onFiltersChange = useRememberedFilters(filterConfigs, handleFiltersChange);
 
   return (
-    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={handleFiltersChange} />
+    <FilterBar configs={filterConfigs} initialValues={initialValues} onFiltersChange={onFiltersChange} />
   );
 };

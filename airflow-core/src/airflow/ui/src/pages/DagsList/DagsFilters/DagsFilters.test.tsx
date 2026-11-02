@@ -322,6 +322,20 @@ describe("Persisting filters across navigation", () => {
     });
   });
 
+  it("keeps the filters when the Dags link for the current page is clicked", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByTestId("nav-dags-link"));
+
+    await waitFor(() =>
+      expect(screen.getByTestId("timetable_type-pill")).toHaveTextContent("CronTriggerTimetable"),
+    );
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+  });
+
   it("forgets a filter once it is removed", async () => {
     render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
 
