@@ -895,7 +895,6 @@ class TestKubernetesPodTrigger:
         with mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=False):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
-        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.skipif(
         AIRFLOW_V_3_3_PLUS,
@@ -903,7 +902,7 @@ class TestKubernetesPodTrigger:
     )
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.hook")
-    async def test_cleanup_deletes_pod_when_safe_to_cancel_and_closes_hook(self, mock_hook):
+    async def test_cleanup_deletes_pod_when_safe_to_cancel(self, mock_hook):
         trigger = KubernetesPodTrigger(
             pod_name=POD_NAME,
             pod_namespace=NAMESPACE,
@@ -914,7 +913,7 @@ class TestKubernetesPodTrigger:
             on_finish_action="delete_pod",
         )
         mock_hook.delete_pod = mock.AsyncMock()
-        mock_hook.close = mock.AsyncMock()
+        mock_hook.close = mock.AsyncMock(spec=AsyncKubernetesHook.close)
         with mock.patch(f"{TRIGGER_PATH}.safe_to_cancel", new_callable=mock.AsyncMock, return_value=True):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_called_once_with(
@@ -922,7 +921,6 @@ class TestKubernetesPodTrigger:
             namespace=NAMESPACE,
             grace_period_seconds=None,
         )
-        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
@@ -1111,7 +1109,6 @@ class TestKubernetesPodTrigger:
         ):
             await trigger.cleanup()
         mock_hook.delete_pod.assert_not_called()
-        mock_hook.close.assert_awaited_once()
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(

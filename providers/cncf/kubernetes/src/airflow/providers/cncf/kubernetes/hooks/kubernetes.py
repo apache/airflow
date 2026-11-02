@@ -828,7 +828,13 @@ def _split_log_bytes(raw_bytes: bytes) -> list[str]:
 
 
 class AsyncKubernetesHook(KubernetesHook):
-    """Hook to use Kubernetes SDK asynchronously."""
+    """
+    Hook to use Kubernetes SDK asynchronously.
+
+    Non-exec authentication reuses an API client across calls. Call ``await hook.close()``
+    when finished to release its connection pool and SSL context. Pod and job triggers
+    do this in their cleanup methods.
+    """
 
     def __init__(
         self,
