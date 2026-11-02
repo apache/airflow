@@ -120,3 +120,42 @@ func TestTimeEncodeMsgpack_Timestamp(t *testing.T) {
 	}
 	assert.Nil(t, got["null"])
 }
+
+func TestGeneratedDateTimeFieldsDecodeUTC(t *testing.T) {
+	withLocalZone(t)
+	runAfter := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	logical := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	raw, err := msgpack.Marshal(map[string]any{
+		"run_after":    runAfter,
+		"logical_date": logical,
+		"end_date":     nil,
+	})
+	require.NoError(t, err)
+
+	var got DagRun
+	require.NoError(t, msgpack.Unmarshal(raw, &got))
+
+	assert.Equal(t, runAfter, time.Time(got.RunAfter))
+	require.NotNil(t, got.LogicalDate)
+	assert.Equal(t, logical, time.Time(*got.LogicalDate))
+	assert.Nil(t, got.EndDate)
+}
+
+func TestGeneratedDateTimeListDecodesUTC(t *testing.T) {
+	withLocalZone(t)
+	dates := []time.Time{
+		time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+	}
+	raw, err := msgpack.Marshal(map[string]any{"dag_id": "d", "logical_dates": dates})
+	require.NoError(t, err)
+
+	var got GetDRCount
+	require.NoError(t, msgpack.Unmarshal(raw, &got))
+
+	require.NotNil(t, got.LogicalDates)
+	require.Len(t, *got.LogicalDates, len(dates))
+	for i, want := range dates {
+		assert.Equal(t, want, time.Time((*got.LogicalDates)[i]))
+	}
+}
