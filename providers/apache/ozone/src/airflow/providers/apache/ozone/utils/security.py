@@ -67,17 +67,13 @@ class SecretResolver:
             try:
                 secret_value = backend.get_config(value)
             except (AttributeError, TypeError) as err:
-                log.error("Secrets Backend returned invalid response for %s: %s", value, str(err))
-                raise ValueError(f"Failed to retrieve secret '{value}': {err}") from err
+                log.error("Secrets Backend returned invalid response")
+                raise ValueError("Failed to retrieve secret") from err
 
             if secret_value is not None:
                 resolved_value = str(secret_value)
                 if conn_id:
-                    log.debug(
-                        "Resolved secret from Secrets Backend for connection %s: %s",
-                        conn_id,
-                        value.split("/")[-1] if "/" in value else value,
-                    )
+                    log.debug("Resolved secret from Secrets Backend for connection %s", conn_id)
                 if mask:
                     mask_secret(resolved_value)
                 return resolved_value

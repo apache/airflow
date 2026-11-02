@@ -149,9 +149,9 @@ with DAG(
     with TaskGroup(group_id="dynamic_file_processing") as processing_group:
         process_files = BashOperator(
             task_id="process_files",
-            bash_command=(
-                'echo "Processing files: {{ ti.xcom_pull(task_ids="list_files_in_landing_zone") }}"'
-            ),
+            bash_command='echo "Processing files: $FILES"',
+            env={"FILES": "{{ ti.xcom_pull(task_ids='list_files_in_landing_zone') }}"},
+            append_env=True,
             execution_timeout=timedelta(minutes=1),
         )
 
