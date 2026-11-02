@@ -1754,6 +1754,43 @@ class TestWatchedSubprocess:
         )
         return proc
 
+    @pytest.mark.parametrize(
+        ("should_retry", "exit_code"),
+        [
+            pytest.param(True, -signal.SIGKILL, id="killed-with-retries"),
+            pytest.param(False, -signal.SIGKILL, id="killed-without-retries"),
+            pytest.param(False, 0, id="exited-cleanly-without-reporting"),
+        ],
+    )
+    def test_execution_timeout_reported_as_reason(self, mocker, should_retry, exit_code):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
+        proc._should_retry = should_retry
+        proc._handle_request(StartExecutionTimeout(), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        proc._exit_code = exit_code
+        proc.update_task_state_if_needed()
+
+        reason = "Task timed out after 30.0 seconds"
+        if should_retry:
+            proc.client.task_instances.retry.assert_called_once_with(
+                id=TI_ID, end_date=mocker.ANY, rendered_map_index=None, retry_reason=reason
+            )
+            proc.client.task_instances.finish.assert_not_called()
+        else:
+            proc.client.task_instances.finish.assert_called_once_with(
+                id=TI_ID,
+                state=TaskInstanceState.FAILED,
+                when=mocker.ANY,
+                rendered_map_index=None,
+                retry_reason=reason,
+            )
+            proc.client.task_instances.retry.assert_not_called()
+
     def test_python_task_does_not_arm_execution_timeout_at_startup(self, mocker):
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)

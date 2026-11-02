@@ -1685,6 +1685,7 @@ class ActivitySubprocess(WatchedSubprocess):
     _execution_timeout_seconds: float | None = attrs.field(default=None, init=False)
     _execution_timeout_enforce_at: float | None = attrs.field(default=None, init=False)
     """Monotonic time at which the supervisor stops a task that has not reported a terminal state."""
+    _execution_timed_out: bool = attrs.field(default=False, init=False)
 
     decoder: ClassVar[TypeAdapter[ToSupervisor]] = TypeAdapter(ToSupervisor)
 
@@ -1848,6 +1849,28 @@ class ActivitySubprocess(WatchedSubprocess):
                     "Termination acknowledgement rejected; task process has already stopped",
                     ti_id=self.id,
                     status_code=error.response.status_code,
+                )
+            return
+
+        if self._execution_timed_out:
+            # The supervisor stopped the task, so report the timeout as the reason, including a retry, which
+            # would otherwise leave the task instance running until the scheduler finds it. A task that
+            # exits cleanly without reporting after being stopped has not succeeded either.
+            reason = f"Task timed out after {self._execution_timeout_seconds} seconds"
+            if self._should_retry:
+                self.client.task_instances.retry(
+                    id=self.id,
+                    end_date=datetime.now(tz=UTC),
+                    rendered_map_index=self._rendered_map_index,
+                    retry_reason=reason,
+                )
+            else:
+                self.client.task_instances.finish(
+                    id=self.id,
+                    state=TerminalStateNonSuccess.FAILED,
+                    when=datetime.now(tz=UTC),
+                    rendered_map_index=self._rendered_map_index,
+                    retry_reason=reason,
                 )
             return
 
@@ -2023,11 +2046,13 @@ class ActivitySubprocess(WatchedSubprocess):
         For a Python task, ``StartExecutionTimeout`` arms the deadline right before ``execute()``, so bundle
         loading and Dag parsing are not covered; Dag parsing has its own ``dagbag_import_timeout``. For a
         task a language SDK runs, it is armed once the runtime has been sent ``StartupDetails``. Either
-        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses.
+        way, the process is sent SIGTERM ``killed_task_cleanup_time`` after the timeout elapses, except a
+        language SDK task, which has no timer of its own and is sent SIGTERM when the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
         self._execution_timeout_enforce_at = None
+        self._execution_timed_out = True
         self.process_log.error(
             "Task did not stop before execution_timeout elapsed; terminating process",
             timeout_seconds=self._execution_timeout_seconds,
@@ -2173,12 +2198,18 @@ class ActivitySubprocess(WatchedSubprocess):
         self._arm_execution_timeout()
         return None, {}
 
-    def _arm_execution_timeout(self) -> None:
+    def _arm_execution_timeout(self, grace_period: float | None = None) -> None:
+        """
+        Start the ``execution_timeout`` clock; the task is sent SIGTERM ``grace_period`` after it elapses.
+
+        ``grace_period`` defaults to ``killed_task_cleanup_time``, the backstop for a Python task, which
+        raises ``AirflowTaskTimeout`` itself when the timeout elapses.
+        """
         if self._execution_timeout_seconds is None:
             return
-        self._execution_timeout_enforce_at = (
-            time.monotonic() + self._execution_timeout_seconds + KILLED_TASK_CLEANUP_TIME
-        )
+        if grace_period is None:
+            grace_period = KILLED_TASK_CLEANUP_TIME
+        self._execution_timeout_enforce_at = time.monotonic() + self._execution_timeout_seconds + grace_period
 
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
