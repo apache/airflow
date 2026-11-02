@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-01T14:15:51.220960
+# This constraints file was automatically generated on 2026-11-02T19:12:27.338805
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -80,7 +80,7 @@ aiosqlite==0.22.1
 airbyte-api==1.0.1
 akeyless==5.0.40
 alembic==1.20.1
-alibabacloud-adb20211201==4.5.1
+alibabacloud-adb20211201==4.5.2
 alibabacloud-credentials-api==1.0.1
 alibabacloud-credentials==1.0.12
 alibabacloud-gateway-spi==0.0.4
@@ -125,7 +125,7 @@ apache-airflow-providers-clickhousedb==1.0.1
 apache-airflow-providers-cloudant==4.3.7
 apache-airflow-providers-cncf-kubernetes==10.25.0
 apache-airflow-providers-cohere==1.8.1
-apache-airflow-providers-common-ai==1.0.0
+apache-airflow-providers-common-ai==1.1.0
 apache-airflow-providers-common-compat==1.23.0
 apache-airflow-providers-common-io==1.11.0
 apache-airflow-providers-common-messaging==2.1.2
@@ -157,7 +157,7 @@ apache-airflow-providers-informatica==0.2.2
 apache-airflow-providers-jdbc==5.6.1
 apache-airflow-providers-jenkins==4.2.7
 apache-airflow-providers-keycloak==0.11.2
-apache-airflow-providers-microsoft-azure==15.2.1
+apache-airflow-providers-microsoft-azure==15.3.0
 apache-airflow-providers-microsoft-mssql==4.7.2
 apache-airflow-providers-microsoft-psrp==4.0.1
 apache-airflow-providers-microsoft-winrm==3.15.1
@@ -168,7 +168,7 @@ apache-airflow-providers-neo4j==3.13.1
 apache-airflow-providers-odbc==4.13.1
 apache-airflow-providers-openai==2.2.0
 apache-airflow-providers-openfaas==3.9.6
-apache-airflow-providers-openlineage==2.20.3
+apache-airflow-providers-openlineage==2.21.0
 apache-airflow-providers-opensearch==1.15.0
 apache-airflow-providers-opsgenie==5.11.1
 apache-airflow-providers-oracle==4.7.1
@@ -238,6 +238,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==26.0.0
 azure-mgmt-storage==25.3.0
 azure-nspkg==3.0.2
+azure-search-documents==11.6.0
 azure-servicebus==7.15.0
 azure-storage-blob==12.31.0
 azure-storage-file-datalake==12.26.0
@@ -257,7 +258,7 @@ blinker==1.9.0
 boto3==1.43.117
 botocore==1.43.117
 cachelib==0.17.0
-cachetools==7.2.6
+cachetools==7.2.7
 cadwyn==8.1.1
 capi_param_builder_python==1.3.2
 cassandra-driver==3.30.1
@@ -297,7 +298,7 @@ deprecation==2.1.0
 dill==0.4.1
 distlib==0.4.4
 distro==1.9.0
-dnspython==2.9.0
+dnspython==2.9.1
 docker==7.2.0
 docopt==0.6.2
 docstring_parser==0.18.0
@@ -330,13 +331,13 @@ gcloud-aio-auth==5.6.0
 gcloud-aio-bigquery==7.3.0
 gcloud-aio-storage==9.6.5
 gcsfs==2026.10.1
-genai-prices==0.1.13
+genai-prices==0.2.0
 geomet==1.1.0
 gevent==26.9.0
 gitdb==4.0.12
 google-ads==34.0.0
 google-analytics-admin==0.30.2
-google-api-core==2.43.0
+google-api-core==2.43.2
 google-api-python-client==2.201.0
 google-auth-httplib2==0.4.4
 google-auth-oauthlib==1.5.0
@@ -349,7 +350,7 @@ google-cloud-automl==2.21.0
 google-cloud-batch==0.22.4
 google-cloud-bigquery-datatransfer==3.24.0
 google-cloud-bigquery-storage==2.43.0
-google-cloud-bigquery==3.46.2
+google-cloud-bigquery==3.47.0
 google-cloud-bigtable==2.50.2
 google-cloud-build==3.42.0
 google-cloud-compute==1.56.0
@@ -387,7 +388,7 @@ google-cloud-videointelligence==2.21.0
 google-cloud-vision==3.16.0
 google-cloud-workflows==1.24.0
 google-crc32c==1.9.0
-google-genai==2.33.0
+google-genai==2.34.0
 google-resumable-media==2.11.0
 googleapis-common-protos==1.76.0
 graphviz==0.21
@@ -408,7 +409,7 @@ gunicorn==26.2.0
 h11==0.16.0
 h2==4.4.1
 hdfs==2.7.3
-hf-xet==1.7.0
+hf-xet==1.7.1
 hmsclient==0.1.1
 hpack==4.2.0
 httpcore2==2.16.0
@@ -418,7 +419,7 @@ httpr==0.7.8
 httptools==0.9.0
 httpx2==2.16.0
 httpx==0.28.1
-huggingface_hub==2.3.0
+huggingface_hub==2.4.0
 humanize==4.16.0
 hvac==2.4.0
 hyperframe==6.1.0
@@ -451,7 +452,7 @@ jmespath==1.1.0
 joblib==1.6.0
 joserfc==1.7.7
 jpype1==1.7.1
-jsonpath-ng==1.14.0
+jsonpath-ng==1.15.0
 jsonpickle==4.1.4
 jsonschema-specifications==2025.9.1
 jsonschema==4.26.0
@@ -520,24 +521,24 @@ objsize==0.7.1
 openai==2.54.0
 opencensus-context==0.1.3
 opencensus==0.11.4
-openlineage-integration-common==1.54.0
-openlineage-python==1.54.0
-openlineage_sql==1.54.0
+openlineage-integration-common==1.55.0
+openlineage-python==1.55.0
+openlineage_sql==1.55.0
 openpyxl==3.1.5
 opensearch-protobufs==1.2.0
 opensearch-py==3.2.0
-opentelemetry-api==1.45.1
-opentelemetry-exporter-http-transport==0.66b1
-opentelemetry-exporter-otlp-common==0.66b1
-opentelemetry-exporter-otlp-proto-common==1.45.1
-opentelemetry-exporter-otlp-proto-grpc==1.45.1
-opentelemetry-exporter-otlp-proto-http==1.45.1
-opentelemetry-exporter-otlp==1.45.1
-opentelemetry-exporter-prometheus==0.66b1
-opentelemetry-proto==1.45.1
+opentelemetry-api==1.45.2
+opentelemetry-exporter-http-transport==0.66b2
+opentelemetry-exporter-otlp-common==0.66b2
+opentelemetry-exporter-otlp-proto-common==1.45.2
+opentelemetry-exporter-otlp-proto-grpc==1.45.2
+opentelemetry-exporter-otlp-proto-http==1.45.2
+opentelemetry-exporter-otlp==1.45.2
+opentelemetry-exporter-prometheus==0.66b2
+opentelemetry-proto==1.45.2
 opentelemetry-resourcedetector-gcp==1.14.0
-opentelemetry-sdk==1.45.1
-opentelemetry-semantic-conventions==0.66b1
+opentelemetry-sdk==1.45.2
+opentelemetry-semantic-conventions==0.66b2
 opsgenie-sdk==2.1.5
 oracledb==26.1.0
 ordered-set==4.1.0
@@ -560,7 +561,7 @@ pgvector==0.5.1
 pillow==12.3.0
 pinecone==10.2.0
 pinotdb==9.2.2
-platformdirs==4.13.7
+platformdirs==4.14.0
 pluggy==1.7.0
 polars-runtime-32==2.1.0
 polars==2.1.0
@@ -592,8 +593,8 @@ pydantic-ai-slim==2.63.0
 pydantic-extra-types==2.11.1
 pydantic-graph==2.63.0
 pydantic-settings==2.16.2
-pydantic==2.14.1
-pydantic_core==2.50.1
+pydantic==2.14.2
+pydantic_core==2.50.2
 pydata-google-auth==1.9.1
 pydruid==0.6.9
 pyexasol==3.0.1
@@ -623,7 +624,7 @@ python-slugify==9.1.3
 python-telegram-bot==22.8
 python3-saml==1.16.0
 pytokens==0.4.1
-pytz==2026.5
+pytz==2026.6
 pyvespa==1.2.9
 pywinrm==0.5.0
 pyzmq==27.2.0
@@ -736,7 +737,7 @@ websockets==17.3
 wheel==0.48.0
 wirerope==1.0.0
 wrapt==2.5.1
-xmlsec==1.3.17
+xmlsec==1.3.18
 xmltodict==1.0.4
 yandex-query-client==0.1.4
 yandexcloud==0.413.0
