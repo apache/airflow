@@ -19,7 +19,6 @@ package execution
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/vmihailenco/msgpack/v5"
 
@@ -156,67 +155,4 @@ func apiErrorFromFrame(f IncomingFrame) *APIError {
 		detail = map[string]any(*resp.Detail)
 	}
 	return &APIError{Err: string(resp.Error), Detail: detail}
-}
-
-// ifaceString returns the string carried by a nullable schema field decoded as
-// any, or "" when the value is nil or not a string.
-func ifaceString(v any) string {
-	s, _ := v.(string)
-	return s
-}
-
-// ifaceStringPtr preserves the null-vs-empty distinction for a nullable string
-// field decoded as any: nil when missing/null, else a pointer to the string.
-// Used for connection credentials, where an explicit "" must stay distinct from
-// "not set".
-func ifaceStringPtr(v any) *string {
-	s, ok := v.(string)
-	if !ok {
-		return nil
-	}
-	return &s
-}
-
-// ifaceTimePtr returns a pointer to the time carried by a nullable date-time
-// field decoded as any, or nil when missing/null. msgpack decodes the
-// supervisor's timestamp extension straight into time.Time.
-func ifaceTimePtr(v any) *time.Time {
-	t, ok := v.(time.Time)
-	if !ok {
-		return nil
-	}
-	return &t
-}
-
-// ifaceInt converts a numeric value decoded as any (msgpack yields various
-// int/uint/float widths) into int, returning def when nil or non-numeric.
-func ifaceInt(v any, def int) int {
-	switch n := v.(type) {
-	case int:
-		return n
-	case int8:
-		return int(n)
-	case int16:
-		return int(n)
-	case int32:
-		return int(n)
-	case int64:
-		return int(n)
-	case uint:
-		return int(n)
-	case uint8:
-		return int(n)
-	case uint16:
-		return int(n)
-	case uint32:
-		return int(n)
-	case uint64:
-		return int(n)
-	case float32:
-		return int(n)
-	case float64:
-		return int(n)
-	default:
-		return def
-	}
 }
