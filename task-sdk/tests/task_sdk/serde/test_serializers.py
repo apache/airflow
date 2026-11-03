@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime
 import decimal
+import os
+import time
 import uuid
 from importlib import metadata
 from typing import ClassVar
@@ -39,6 +41,7 @@ from pydantic import BaseModel, Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from airflow.sdk._shared.module_loading import qualname
+from airflow.sdk._shared.timezones.timezone import make_naive
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.sdk.serde import CLASSNAME, DATA, MAX_RECURSION_DEPTH, VERSION, decode, deserialize, serialize
 from airflow.sdk.serde.serializers import builtin
@@ -171,23 +174,17 @@ class TestSerializers:
 
     def test_naive_datetime_v3_roundtrip_independent_of_os_timezone(self, monkeypatch):
         """v3 naive datetimes round-trip regardless of the process OS timezone (see #72635)."""
-        import os
-        import time
-
-        from airflow.sdk.serde.serializers import datetime as serde_datetime
-
         naive = datetime.datetime(2026, 3, 15, 12, 0, 0)
-        data, _, ver, ok = serde_datetime.serialize(naive)
-        assert ok
-        assert ver == 3
-        assert data["tz"] is None
+        serialized = serialize(naive)
+        assert serialized[VERSION] == 3
+        assert serialized[DATA]["tz"] is None
 
         old_tz = os.environ.get("TZ")
         try:
             for tz_name in ("UTC", "America/New_York", "Asia/Kolkata"):
                 monkeypatch.setenv("TZ", tz_name)
                 time.tzset()
-                result = serde_datetime.deserialize(datetime.datetime, 3, data)
+                result = deserialize(serialized)
                 assert result == naive
                 assert result.tzinfo is None
         finally:
@@ -199,27 +196,23 @@ class TestSerializers:
 
     def test_naive_datetime_v3_interprets_epoch_in_default_timezone(self):
         """v3 tz-less payloads interpret the epoch in the configured default timezone."""
-        from airflow.sdk._shared.timezones.timezone import make_naive
-        from airflow.sdk.serde.serializers import datetime as serde_datetime
-
         ts = 1773595200.0
-        result = serde_datetime.deserialize(datetime.datetime, 3, {"timestamp": ts, "tz": None})
+        result = deserialize(
+            {CLASSNAME: "datetime.datetime", VERSION: 3, DATA: {"timestamp": ts, "tz": None}}
+        )
         assert result == make_naive(datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc))
         assert result.tzinfo is None
 
     def test_naive_datetime_v2_keeps_legacy_os_timezone_read(self, monkeypatch):
         """v2 tz-less payloads keep the legacy read: epoch in the reader's OS local zone."""
-        import os
-        import time
-
-        from airflow.sdk.serde.serializers import datetime as serde_datetime
-
         ts = 1773595200.0
         old_tz = os.environ.get("TZ")
         try:
             monkeypatch.setenv("TZ", "America/New_York")
             time.tzset()
-            result = serde_datetime.deserialize(datetime.datetime, 2, {"timestamp": ts, "tz": None})
+            result = deserialize(
+                {CLASSNAME: "datetime.datetime", VERSION: 2, DATA: {"timestamp": ts, "tz": None}}
+            )
             assert result == datetime.datetime.fromtimestamp(ts)
             assert result.tzinfo is None
         finally:

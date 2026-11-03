@@ -878,16 +878,21 @@ def _normalize_retry_backoff(task_fields: dict[str, Any]) -> None:
 
 def _canonicalize_value(value: Any, *, path: tuple[str, ...]) -> Any:
     if isinstance(value, Mapping):
+        if value.get("__classname__") == "datetime.timedelta" and value.get("__version__") == 3:
+            # The timedelta payload is still total seconds. The shared datetime serializer
+            # version moved to 3, but migration 0117 and Dags serialized before that bump
+            # store version 2. Fold the stamp so the same interval is not a deadline change.
+            value = {**value, "__version__": 2}
         if path == ("dag", "deadline"):
             if value.get("__type") == "deadline_alert":
                 value = value["__var"]
             value = {"name": None, **value}
             interval = value.get("interval")
             if isinstance(interval, (int, float)) and not isinstance(interval, bool):
-                # Diff schema v1 uses the SDK's version-3 timedelta encoding for legacy seconds.
+                # Legacy seconds use that same version-2 encoding, not the live serializer version.
                 value["interval"] = {
                     "__classname__": "datetime.timedelta",
-                    "__version__": 3,
+                    "__version__": 2,
                     "__data__": timedelta(seconds=interval).total_seconds(),
                 }
         return {
