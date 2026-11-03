@@ -372,6 +372,10 @@ class TestKeycloakAuthManager:
         result = auth_manager.get_url_login()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login"
 
+    def test_get_url_login_with_next_url(self, auth_manager):
+        result = auth_manager.get_url_login(next_url="/dags/my_dag?tab=grid")
+        assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login?next=%2Fdags%2Fmy_dag%3Ftab%3Dgrid"
+
     def test_get_url_logout(self, auth_manager):
         result = auth_manager.get_url_logout()
         assert result == f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout"

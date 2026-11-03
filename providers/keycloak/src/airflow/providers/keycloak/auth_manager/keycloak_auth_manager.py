@@ -25,7 +25,7 @@ from base64 import urlsafe_b64decode
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import requests
 from fastapi import FastAPI
@@ -228,7 +228,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")
-        return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        login_url = urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        if next_url := kwargs.get("next_url"):
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
