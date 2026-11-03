@@ -90,6 +90,9 @@ with DAG(
             },
         },
         poke_interval=5,
+        # The only TriggerDagRunOperator in the system tests that waits for its Dag run on the worker instead of in
+        # the triggerer: keep it non-deferrable, so that path stays covered
+        deferrable=False,
     )
 
     trigger_partial = TriggerDagRunOperator(
@@ -134,7 +137,7 @@ with DAG(
     description="DAG description",
     default_args={"retries": 0},
 ) as child_dag:
-    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")
+    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="echo")
 
 
 with DAG(

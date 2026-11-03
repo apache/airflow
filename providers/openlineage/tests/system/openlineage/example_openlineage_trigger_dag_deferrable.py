@@ -24,7 +24,7 @@ It checks:
     - multiple levels of triggering: the root stays the first Dag after two hops
     - in a task of the last Dag, the OpenLineage macros, called directly and rendered in templates through
       `tojson`: `lineage_job_type()` is the type of a task, `lineage_root_job_type(ti)` the type of a Dag, and
-      `lineage_root_job_name(ti)` and `lineage_root_run_id(ti)` are this Dag and its Dag run's runId, which this
+      `lineage_root_job_name(ti)` and `lineage_root_run_id(ti)` are this Dag and its Dag run's `runId`, which this
       Dag passes down in the conf to compare
 """
 
@@ -87,7 +87,11 @@ with DAG(
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
-        event_count_assertions={"openlineage_trigger_dag_deferrable.trigger_dagrun.event.start": ">=2"},
+        # START when the trigger task starts and again when it resumes after waiting for the Dag run it triggered
+        event_count_assertions={
+            "openlineage_trigger_dag_deferrable.trigger_dagrun.event.start": ">=2",
+            "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2.event.start": ">=2",
+        },
     )
 
     trigger_dagrun >> check_events
@@ -107,6 +111,7 @@ with DAG(
         conf={"expected_root_run_id": "{{ dag_run.conf['expected_root_run_id'] }}"},
         wait_for_completion=True,
         poke_interval=5,
+        deferrable=True,
     )
 
 
