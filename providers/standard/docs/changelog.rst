@@ -35,6 +35,12 @@
 Changelog
 ---------
 
+.. note::
+  ``@task.bash`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields (``env``, ``cwd``, ``op_args``, ``op_kwargs``, ...) are
+  rendered once before ``execute()``, as for ``BashOperator``, and are no longer rendered a
+  second time.
+
 .. warning::
   The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
 

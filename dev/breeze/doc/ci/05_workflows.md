@@ -124,8 +124,8 @@ them, for the contributors the repository's approval setting covers. The
 A PR to `main` whose CI runs in the contributor's fork (AIP-120: the `Fork CI gate` job would skip
 project CI for it) is decided by one rule instead, because its `Tests (AMD)` run only executes the
 gate: its runs are approved whatever its size, cost or dependency changes, unless it changes one of
-those CI-defining files. Such a PR gets the `need workflow approval` label and one comment telling
-the author that the CI change needs a maintainer; see
+those CI-defining files. Such a PR gets one comment instead of the `need workflow approval` label,
+telling the author that the CI change needs a maintainer; see
 [Approving gated runs](08_fork_ci_for_external_contributors.md#approving-gated-runs).
 
 The runs of PRs whose head repository belongs to a trusted stakeholder (`astronomer/airflow` for
