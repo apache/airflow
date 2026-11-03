@@ -334,10 +334,16 @@ class TestJavaCoordinatorAttributes:
         assert schema_version == "2026-06-16"
 
 
+# A bundle version directory named after a timestamp holds os.pathsep.
+TIMESTAMPED_DIR = f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
+
+
 @pytest.fixture
-def jars_dir(tmp_path):
-    _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
-    return tmp_path
+def jars_dir(request, tmp_path):
+    root = tmp_path / getattr(request, "param", "")
+    root.mkdir(exist_ok=True)
+    _make_jar(root / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
+    return root
 
 
 @pytest.fixture
@@ -428,9 +434,11 @@ class TestJavaCoordinatorExecuteTask:
         classpath = cmd[cp_idx + 1]
         assert classpath == "./app.jar"
 
+    @pytest.mark.parametrize("jars_dir", ["", TIMESTAMPED_DIR], indirect=True, ids=["plain", "timestamped"])
     def test_runs_in_the_bundle_directory(self, jars_dir, java_task_handlers, mock_client):
-        self._captured_popen_cmd(java_task_handlers, mock_client)
+        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
         assert self.popen_kwargs["cwd"] == jars_dir
+        assert cmd[cmd.index("-classpath") + 1] == "./app.jar"
 
     def test_main_class_present(self, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
@@ -709,16 +717,19 @@ class TestBuildParseDagCommand:
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.chdir", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
+    @pytest.mark.parametrize("bundle_dir", ["", TIMESTAMPED_DIR], ids=["plain", "timestamped"])
     def test_parse_dag_execs_the_jvm(
-        self, mock_execvpe, mock_chdir, mock_signal, mock_close_on_exec, tmp_path
+        self, mock_execvpe, mock_chdir, mock_signal, mock_close_on_exec, tmp_path, bundle_dir
     ):
-        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+        root = tmp_path / bundle_dir
+        root.mkdir(exist_ok=True)
+        jar = _make_jar(root / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         reported: list[str | None] = []
 
         with pytest.raises(OSError, match="exec"):
             JavaCoordinator().parse_dag(
                 path=jar,
-                bundle_path=tmp_path,
+                bundle_path=root,
                 comm_address=("127.0.0.1", 1001),
                 logs_address=("127.0.0.1", 1002),
                 report_schema_version=reported.append,
@@ -726,7 +737,7 @@ class TestBuildParseDagCommand:
 
         assert reported == ["2026-10-30"]
         argv = mock_execvpe.call_args.args[1]
-        mock_chdir.assert_called_once_with(tmp_path)
+        mock_chdir.assert_called_once_with(root)
         assert argv == [
             "java",
             "-classpath",
