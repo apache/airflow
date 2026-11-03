@@ -112,3 +112,104 @@ Run ``python -m pdb <path to Dag file>.py`` for an interactive debugging experie
       dag.test()
 
 2. Run / debug the Dag file.
+
+Debugging Dags in a running deployment
+--------------------------------------
+
+``dag.test()`` covers local development. Once a Dag runs in a shared deployment, most debugging
+starts from a failed or misbehaving task instance. The techniques below work from the UI and from
+the ``airflow`` CLI on any machine that can reach the metadata database.
+
+Reading task logs
+'''''''''''''''''
+
+Open the failed task instance from the Grid view and go to the **Logs** tab.
+
+* Use the log level filter (**All Log Levels** by default) to show only ``WARNING``, ``ERROR`` or
+  ``CRITICAL`` lines. You can select more than one level. The selection is kept in the URL
+  (``log_level``), so a filtered link can be shared with a teammate.
+* Use **Search logs...** to jump between matches for an error message, a table name or a request
+  ID. Press ``l``, ``t`` or ``w`` to show or hide log levels and timestamps, or toggle line wrapping.
+* A task that retried has one log per try. Pick the try from **Task Tries** above the log. The
+  first try usually has the original error. Later tries can fail on a side effect of it, such as a
+  partially written table.
+
+Inspecting XComs
+''''''''''''''''
+
+Many failures come from a task receiving the wrong input rather than from its own code. Open the
+upstream task instance and check its **XCom** tab to see exactly what it pushed for that run. To
+compare values across runs and Dags, use **Browse > XComs**.
+
+For how XComs are pushed and pulled, see :ref:`concepts:xcom`.
+
+Checking Connections and Variables
+''''''''''''''''''''''''''''''''''
+
+A task that works in one environment and fails in another usually points at configuration. Check
+that the Connection or Variable the task uses exists and resolves to the value you expect:
+
+.. code-block:: bash
+
+  airflow connections get my_postgres
+  airflow variables get my_variable
+
+Both commands resolve values the same way tasks do, so they also find Connections and Variables
+defined in a secrets backend or in ``AIRFLOW_CONN_*`` and ``AIRFLOW_VAR_*`` environment variables.
+**Admin > Connections** and **Admin > Variables** in the UI only list entries stored in the
+metadata database.
+
+If ``[core] test_connection`` is set to ``Enabled``, ``airflow connections test my_postgres``, or
+**Test Connection** in **Admin > Connections**, checks that Airflow can reach the target system.
+
+Looking at past runs
+''''''''''''''''''''
+
+Comparing a failing run with the last good one narrows down what changed. The Grid view shows the
+state of every task across recent runs, and the **Runs** tab of a Dag lists them with their run
+type and duration. From the CLI:
+
+.. code-block:: bash
+
+  airflow dags list-runs my_dag --state failed --limit 5
+  airflow tasks states-for-dag-run my_dag <run_id>
+
+Check whether the failure started with a particular run, a new Dag version or a change in input
+data before changing any code.
+
+Re-running a single task
+''''''''''''''''''''''''
+
+Once you have a fix, clear only the task that failed instead of triggering a new Dag run. In the UI,
+select the task instance and use **Clear Task Instance**. The dialog lets you include
+**Downstream** tasks, which you usually want so that results depending on the fixed task are
+recomputed, and **Upstream**, **Past** or **Future** task instances when needed. It lists the
+affected tasks before you confirm.
+
+The CLI equivalent clears matching task instances over a date range:
+
+.. code-block:: bash
+
+  airflow tasks clear my_dag --task-regex '^load_orders$' --downstream \
+      --start-date 2026-01-01 --end-date 2026-01-02
+
+Use **Mark Task Instance as...** instead of clearing when the work was done outside Airflow and you
+only need the state to reflect that.
+
+Running one task with ``airflow tasks test``
+''''''''''''''''''''''''''''''''''''''''''''
+
+To reproduce a failure without waiting for the scheduler, run a single task in your terminal:
+
+.. code-block:: bash
+
+  airflow tasks test my_dag load_orders <logical_date_or_run_id>
+
+The task runs without checking its dependencies, and its log is printed to your terminal. Useful
+options:
+
+* ``--task-params '{"limit": 10}'`` overrides Dag params for this run.
+* ``--env-vars '{"MY_FLAG": "1"}'`` sets environment variables while the Dag is parsed and while
+  the task runs.
+* ``--post-mortem`` opens a debugger at the exception if the task fails.
+* ``--map-index`` selects a single mapped task instance.
