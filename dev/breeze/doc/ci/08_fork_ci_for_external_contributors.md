@@ -861,9 +861,14 @@ suites); its jobs come from `GET /repos/<fork>/actions/runs/<id>/jobs?filter=lat
   `jobs: "<run id>:<attempt>:<conclusion>"` (`runAttempt` is fetched with the check suites), so
   later runs do not read its jobs again. A run in progress is read on every run, and a re-run in
   the fork is read again because its attempt changes, even when it ends with the same conclusion.
-- Reporting job statuses is caught on its own: when it fails, the failure is listed with the
-  unknown items for Slack, and the pull request is still classified, so for example a `CI passed`
-  that no longer holds is still revoked.
+- Reporting job statuses is caught on its own: when it fails, the pull request is still
+  classified, so for example a `CI passed` that no longer holds is still revoked. Reading a fork
+  run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2 stream) that the
+  next run gets past, so each failure is only logged, and the pull request is listed with the
+  unknown items for Slack once its job statuses failed in three runs in a row. The per pull request
+  count is kept in the same record as that of deferred job statuses; without a readable record it
+  starts again. The item's wording is fixed whatever the error, so it is posted once while the
+  failure persists, and the run log has each run's error.
 
 The job statuses are informational. Merging still depends on `CI passed`, and the state machine
 on `Fork CI / Tests (AMD)`; a job status never changes either.
