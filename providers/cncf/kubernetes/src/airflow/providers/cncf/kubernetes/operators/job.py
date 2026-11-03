@@ -344,9 +344,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
                     if pod_name not in pods_by_name:
                         # Pod was reported by the trigger but missing now (e.g. 404)
                         self.log.warning("Skipping log retrieval for pod %s (not found).", pod_name)
-                        continue
+                # Pods the Job controller created after deferral (e.g. backoffLimit retries)
+                # are not in the trigger event, so look up every pod of the Job as well.
+                log_pods = dict(pods_by_name)
+                job_name = event_job.get("metadata", {}).get("name") if isinstance(event_job, dict) else None
+                if job_name and job_namespace:
+                    for pod in self._list_job_pods(job_name, job_namespace):
+                        log_pods.setdefault(pod.metadata.name, pod)
+                for pod_name, pod in log_pods.items():
                     try:
-                        self._write_logs(pods_by_name[pod_name])
+                        self._write_logs(pod)
                     except Exception as e:
                         self.log.warning("Failed to write logs for pod %s: %s", pod_name, e)
 
@@ -367,6 +374,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
             self._cleanup_monitoring_pods_from_dict(
                 context, pods_by_name, unresolved_pods=unresolved_pods, event_status=event.get("status")
             )
+
+    def _list_job_pods(self, job_name: str, namespace: str) -> list[k8s.V1Pod]:
+        """Return every pod the Job controller created for the Job, including retries."""
+        try:
+            return self.client.list_namespaced_pod(
+                namespace=namespace, label_selector=f"batch.kubernetes.io/job-name={job_name}"
+            ).items
+        except ApiException as e:
+            self.log.warning("Failed to list pods of Job %s in namespace %s: %s", job_name, namespace, e)
+            return []
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
