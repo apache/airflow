@@ -236,6 +236,9 @@ class RuntimeTaskInstance(TaskInstance):
     _terminal_state_send_failed: bool = False
     """True when the supervisor IPC send for a non-success terminal state raised; signals main() to sys.exit(1) after finalize() so the supervisor doesn't misclassify the run as SUCCESS via exit code 0."""
 
+    _state_store_clear_owed: bool = False
+    """True once a successful task has been reported to the supervisor and ``clear_on_success`` still owes the custom backend a delete; finalize() does it last, after every callback and listener, so a slow remote delete cannot eat the task_success_overtime budget ahead of them. finalize() is the seam both the subprocess and the in-process (dag.test()) paths cross."""
+
     _failure_metrics_emitted: bool = False
     """True once the failure counters have been recorded, so a second pass through the failure path (one attempt raised part-way through) does not count the same failure twice."""
 
@@ -1837,7 +1840,7 @@ def run(
                     ti._terminal_state_send_failed = True
             else:
                 if state == TaskInstanceState.SUCCESS:
-                    _clear_task_state_store_on_success(context, log)
+                    ti._state_store_clear_owed = True
 
     # Return the message to make unit tests easier too
     ti.state = state
@@ -1848,22 +1851,33 @@ def _clear_task_state_store_on_success(context: Context, log: Logger) -> None:
     """
     Clear the custom state store backend once the task is recorded as successful.
 
-    Runs after the terminal state is reported, never before: the backend is remote storage
-    and a failure deleting from it must not turn a task that succeeded into a failed one.
-    Leftover entries are harmless -- retention and the next ``set()`` clean them up.
+    Called at the end of finalize(), never before the terminal state is reported: the
+    backend is remote storage, so a failure deleting from it must not turn a task that
+    succeeded into a failed one, and a slow delete must not spend the task_success_overtime
+    budget that the success callbacks and listeners need.
     """
     if not conf.getboolean("state_store", "clear_on_success"):
         return
-    if _get_worker_state_store_backend() is None:
-        return
-    log.info(
-        "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
-    )
     try:
+        # Inside the try: the backend is built on first use, so a bad [workers]
+        # state_store_backend class path raises here for a task that never touched
+        # task_state_store, and @cache does not cache the raise.
+        if _get_worker_state_store_backend() is None:
+            return
+        log.info(
+            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
+        )
         context["task_state_store"]._clear_backend_only()
     except Exception:
+        ti = context["ti"]
         log.exception(
-            "Failed to clear task state from custom backend; the task stays successful and the entries are left for retention to remove."
+            "Failed to clear task state from custom backend; the task stays successful. Nothing in Airflow "
+            "reclaims these entries -- the database references are already gone and the next run uses a "
+            "different run_id -- so only the storage's own lifecycle or TTL policy will remove them.",
+            dag_id=ti.dag_id,
+            run_id=ti.run_id,
+            task_id=ti.task_id,
+            map_index=ti.map_index,
         )
 
 
@@ -2561,6 +2575,9 @@ def finalize(
         get_listener_manager().hook.before_stopping(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+
+    if ti._state_store_clear_owed:
+        _clear_task_state_store_on_success(context, log)
 
     log.info("::endgroup::")
 

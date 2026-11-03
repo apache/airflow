@@ -319,7 +319,15 @@ When ``[state_store] clear_on_success = True``, all task state store keys for a 
 .. note::
 
    With a custom ``[workers] state_store_backend``, the worker deletes the backend's entries only
-   after the success has been reported. If that deletion fails the task stays successful and the
-   failure is logged; the leftover entries are removed by retention or overwritten by the next run.
+   after the success has been reported, once the task's callbacks and listeners have run. If that
+   deletion fails the task stays successful and the failure is logged with the Dag id, run id and
+   task id.
+
+   Those entries are then orphaned: the API server has already removed the metadata-DB references,
+   ``airflow state-store clean`` covers the metastore backend only, and
+   :meth:`~airflow.sdk.state.BaseStoreBackend.cleanup` is a no-op unless your backend implements
+   it. Because the storage scope includes the run id, the next Dag run writes elsewhere rather than
+   overwriting them. Removing them is up to your storage's own lifecycle or TTL policy, or a
+   ``cleanup()`` implementation on your backend.
 
 See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.
