@@ -616,8 +616,18 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
         does for a Python task.
+
+        Also fills in the worker's default ``execution_timeout`` when the task sets none.
         """
-        self._execution_timeout_seconds = ti_context.execution_timeout
+        # A task that sets no execution_timeout gets the worker's default, as a Python task does when the
+        # worker parses its Dag. A zero means no timeout, so it does not fall back.
+        execution_timeout = ti_context.execution_timeout
+        if (
+            execution_timeout is None
+            and (default := conf.gettimedelta("core", "default_task_execution_timeout")) is not None
+        ):
+            execution_timeout = default.total_seconds()
+        self._execution_timeout_seconds = execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -657,7 +667,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # The supervisor has already deleted the listed XComs, so it sends the runtime an empty list.
         # If a runtime also deletes these XComs itself, the empty list keeps the runtime from deleting
         # them a second time.
-        return ti_context.model_copy(update={"xcom_keys_to_clear": []})
+        return ti_context.model_copy(
+            update={"xcom_keys_to_clear": [], "execution_timeout": execution_timeout}
+        )
 
     def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
         end_date = datetime.now(tz=UTC)
