@@ -795,6 +795,53 @@ class TestCliConfigMethods:
         assert ctx.value.code == 1
 
     @pytest.mark.parametrize(
+        ("raised_exception", "expected"),
+        [
+            pytest.param(
+                AirflowCtlNotFoundException("resource not found"),
+                ["command failed due to resource not found"],
+                id="airflowctl",
+            ),
+            pytest.param(
+                httpx.RemoteProtocolError("Server disconnected without sending a response."),
+                ["Remote protocol error:", "check if the server is running and the API URL is correct"],
+                id="protocol",
+            ),
+            pytest.param(
+                httpx.ReadTimeout("timed out"),
+                ["Request timeout error: timed out", "the API ready to accept calls"],
+                id="timeout",
+            ),
+            pytest.param(
+                ServerResponseError.from_response(
+                    httpx.Response(
+                        400,
+                        request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                        json={"detail": "bad"},
+                    )
+                ),
+                [
+                    "Server response error: Client error message:",
+                    "Please check the command and its parameters",
+                ],
+                id="server-response",
+            ),
+        ],
+    )
+    def test_safe_call_command_reports_errors_on_stderr(self, raised_exception, expected, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit):
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        err = " ".join(captured.err.split())
+        for text in expected:
+            assert text in err
+
+    @pytest.mark.parametrize(
         ("response", "hint_expected"),
         [
             pytest.param(
@@ -827,9 +874,9 @@ class TestCliConfigMethods:
 
         assert ctx.value.code == 1
         # Rich hard-wraps at the console width, so normalise before matching on a phrase.
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server response error:" in out
-        assert ("does not follow" in out) is hint_expected
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server response error:" in err
+        assert ("does not follow" in err) is hint_expected
 
     @pytest.mark.parametrize(
         ("model", "payload", "expected", "unexpected"),
@@ -867,11 +914,11 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
+        err = " ".join(capsys.readouterr().err.split())
         for text in expected:
-            assert text in out
+            assert text in err
         for text in unexpected:
-            assert text not in out
+            assert text not in err
 
     def test_safe_call_command_reports_non_json_response(self, capsys):
         def raise_validation_error(_args):
@@ -881,8 +928,8 @@ class TestCliConfigMethods:
             safe_call_command(raise_validation_error, args=argparse.Namespace())
 
         assert ctx.value.code == 1
-        out = " ".join(capsys.readouterr().out.split())
-        assert "Server returned a non-JSON response for PoolResponse" in out
+        err = " ".join(capsys.readouterr().err.split())
+        assert "Server returned a non-JSON response for PoolResponse" in err
 
     def test_add_to_parser_drops_type_for_boolean_optional_action(self):
         """Test add_to_parser removes type for BooleanOptionalAction."""
