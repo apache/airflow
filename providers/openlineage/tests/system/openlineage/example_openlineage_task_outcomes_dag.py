@@ -62,7 +62,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk import TaskGroup, task
 
-from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.constants import CRITICAL_PATH_PRIORITY_WEIGHT, DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator, sort_by_execution
 from system.openlineage.triggers import FailingTrigger
@@ -130,7 +130,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as dag:
     sensor_timeout_poke = PythonSensor(
         task_id="sensor_timeout_poke",
@@ -274,7 +274,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as child_dag:
     PythonOperator(task_id="do_nothing", python_callable=do_nothing)
 

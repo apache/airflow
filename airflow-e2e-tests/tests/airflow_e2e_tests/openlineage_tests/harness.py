@@ -269,14 +269,14 @@ class OpenLineageE2ERunner:
             dag_id for dag_id in dags if dag_id != WARMUP_DAG_ID and NO_TRIGGER_MARKER not in dag_id
         ]
         statuses = self._trigger_and_wait(triggerable, self.run_id)
-        self.clear_airflow_variables()
 
         failed = [dag_id for dag_id, state in statuses.items() if state != "success"]
         if failed:
             self.retried_dag_ids = set(failed)
             console.print(f"[yellow]Retrying {len(failed)} failed Dag(s) once: {failed}")
-            retry_statuses = self._trigger_and_wait(failed, self.retry_run_id)
+            # The events of the first run would add to those of the retry. Those of the last run stay, to debug it.
             self.clear_airflow_variables()
+            retry_statuses = self._trigger_and_wait(failed, self.retry_run_id)
             recovered = sorted(dag_id for dag_id, state in retry_statuses.items() if state == "success")
             if recovered:
                 # The retry counts as a pass, but surface it so first-run flakiness is not hidden.

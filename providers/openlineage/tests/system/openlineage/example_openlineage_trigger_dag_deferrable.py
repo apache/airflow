@@ -38,7 +38,7 @@ from airflow.providers.openlineage.plugins.macros import lineage_job_type, linea
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 
-from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.constants import CRITICAL_PATH_PRIORITY_WEIGHT, DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator, check_values
 
@@ -69,7 +69,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as dag:
     trigger_dagrun = TriggerDagRunOperator(
         task_id="trigger_dagrun",
@@ -103,7 +103,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as child_dag:
     trigger_dagrun2 = TriggerDagRunOperator(
         task_id="trigger_dagrun2",
@@ -121,7 +121,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as child_dag2:
     PythonOperator(
         task_id="check_macros",

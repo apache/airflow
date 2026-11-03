@@ -52,7 +52,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor
 from airflow.sdk import TaskGroup, task
 
-from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.constants import CRITICAL_PATH_PRIORITY_WEIGHT, DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import AIRFLOW_VERSION, get_expected_event_file_path
 from system.openlineage.manual_state import change_finished_state, change_state, wait_for_task_instance
 from system.openlineage.operator import OpenLineageTestOperator, sort_by_execution
@@ -114,7 +114,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as tasks_dag:
     for name in ("success", "failed", "skipped", "upstream_failed", "downstream_success"):
         sleeper_then_after(name)
@@ -146,7 +146,7 @@ for state in DAG_RUN_STATES:
         start_date=datetime(2021, 1, 1),
         schedule=None,
         catchup=False,
-        default_args={"retries": 0},
+        default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
     ) as dag_run_dag:
         sleeper_then_after("plain")
         mapped_sleeper_then_after("mapped")
@@ -223,7 +223,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as dag:
     check_events = OpenLineageTestOperator(
         task_id="check_events",

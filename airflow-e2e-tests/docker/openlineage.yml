@@ -156,7 +156,8 @@ x-ol-common-env: &ol-common-env
   AIRFLOW__CORE__KILLED_TASK_CLEANUP_TIME: '5'
   # Every Dag is triggered at once, and many tasks hold a worker slot while they wait (tasks left running until a
   # test marks them, the tasks polling for a state change, check_events), so the defaults (32 and 16) leave tasks
-  # queued for tens of seconds. Each worker slot is a pre-forked process, so this is bounded by the runner memory.
+  # queued for tens of seconds. More slots are slower on a CI runner: the tasks then compete for its CPU instead
+  # (96 took 23% longer than 48).
   AIRFLOW__CORE__PARALLELISM: '48'
   AIRFLOW__CELERY__WORKER_CONCURRENCY: '48'
   # Let one scheduler loop look at every running Dag run and queue more task instances at once
@@ -174,28 +175,49 @@ x-ol-common: &ol-common
     # CWD-relative open(); components run with CWD=/opt/airflow. prepare_dags.py generates a clean,
     # license-free dag_doc.md (matching the expected event) in the dags folder; expose it here.
     - ./dags/dag_doc.md:/opt/airflow/dag_doc.md
+  # Every task process, Dag file parse and CLI call discovers all installed providers and imports their plugins and
+  # asset factories (google alone takes ~0.5s of CPU). With the ~100 providers of the images, that is several times a
+  # task's own work on a CI runner. The OpenLineage Dags need only the providers kept below (amazon and postgres for
+  # their s3:// and postgres:// asset URIs, celery and fab for the deployment), so the others are hidden from discovery
+  # by removing their metadata, which takes milliseconds where `pip uninstall` takes ~20s. Every service hides the same
+  # providers, so assets are normalized the same way where Dags are parsed and where tasks run.
+  entrypoint:
+    - /usr/bin/dumb-init
+    - --
+    - bash
+    - -c
+    - >-
+      for dist in /home/airflow/.local/lib/python3*/site-packages/apache_airflow_providers_*.dist-info; do
+      case "$${dist##*/apache_airflow_providers_}" in
+      openlineage-*|standard-*|common_compat-*|common_sql-*|common_io-*|amazon-*|postgres-*|celery-*|fab-*) ;;
+      *) rm -rf "$$dist" ;;
+      esac;
+      done;
+      exec /entrypoint "$$@"
+    - --
+
+# Each probe of the scheduler, dag-processor, triggerer and worker runs a whole Airflow or Celery CLI (~1.5s of CPU);
+# probing all four every 30s takes a tenth of a CI runner. Nothing waits for them to be healthy (the harness checks
+# every component by running the warmup Dag), so their probes are off. The API server's probe is a cheap curl that
+# the worker waits for before it starts: probe it every 2s until it is up, instead of every 30s.
+x-ol-no-healthcheck: &ol-no-healthcheck
+  test: ["NONE"]
 
 services:
   airflow-apiserver:
     <<: *ol-common
+    healthcheck:
+      start_period: 5m
+      start_interval: 2s
   airflow-scheduler:
     <<: *ol-common
+    healthcheck: *ol-no-healthcheck
   airflow-dag-processor:
     <<: *ol-common
+    healthcheck: *ol-no-healthcheck
   airflow-triggerer:
     <<: *ol-common
+    healthcheck: *ol-no-healthcheck
   airflow-worker:
     <<: *ol-common
-    # Every task process loads the plugins of the installed providers. Those of these providers take ~4s together to
-    # import, several times a task's own work on a CI runner, and no OpenLineage Dag uses them, so the worker removes
-    # them before it starts (a no-op on the compat images, which do not have them).
-    entrypoint:
-      - /usr/bin/dumb-init
-      - --
-      - bash
-      - -c
-      - >-
-        pip uninstall --yes --quiet apache-airflow-providers-apache-hive apache-airflow-providers-common-ai
-        apache-airflow-providers-databricks apache-airflow-providers-informatica 2>/dev/null;
-        exec /entrypoint "$$@"
-      - --
+    healthcheck: *ol-no-healthcheck

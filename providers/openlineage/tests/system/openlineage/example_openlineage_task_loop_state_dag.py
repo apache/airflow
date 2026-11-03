@@ -56,7 +56,7 @@ from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.providers.standard.triggers.temporal import TimeDeltaTrigger
 from airflow.sdk import LoopDecision, task, task_group
 
-from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
+from system.openlineage.constants import CRITICAL_PATH_PRIORITY_WEIGHT, DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.manual_state import change_state, clear_loop_task, rerun_loop
 from system.openlineage.operator import OpenLineageTestOperator, sort_by_execution
@@ -185,7 +185,7 @@ for scenario, (build_tasks, _) in SCENARIOS.items():
         start_date=datetime(2021, 1, 1),
         schedule=None,
         catchup=False,
-        default_args={"retries": 0},
+        default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
     ) as child:
         build_tasks()
     globals()[child.dag_id] = child  # The Dag processor finds Dags among the module's globals
@@ -196,7 +196,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
-    default_args={"retries": 0},
+    default_args={"retries": 0, "priority_weight": CRITICAL_PATH_PRIORITY_WEIGHT},
 ) as dag:
     check_events = OpenLineageTestOperator(
         task_id="check_events",

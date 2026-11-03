@@ -33,6 +33,7 @@ The REST API version follows the Airflow version the task runs on: ``/api/v2`` o
 from __future__ import annotations
 
 import functools
+import json
 import os
 import random
 import time
@@ -141,6 +142,33 @@ def _find_task_instance(
     )
 
 
+def _has_start_event(dag_id: str, task_instance: dict) -> bool:
+    """
+    Whether the START event of this execution of the task instance is stored by the test VariableTransport.
+
+    The events of every map index, loop iteration and try of a task share one Variable. The task instance id tells
+    them apart (each loop iteration and map index has its own, and every retry or clear gives a new one); where the
+    facet has no id, try_number and map_index do, which is enough without loops.
+    """
+    key = f"{dag_id}.{task_instance['task_id']}.event.start"
+    try:
+        events = json.loads(_request("GET", f"variables/{quote(key, safe='')}")["value"])
+    except RuntimeError:  # Not stored yet
+        return False
+    for event_json in events:  # Each event is stored serialized, in a list of all events of the key
+        facet = json.loads(event_json)["run"]["facets"].get("airflow", {}).get("taskInstance", {})
+        if "id" in facet:
+            if facet["id"] == task_instance["id"]:
+                return True
+        # The facet leaves out map_index of a task that isn't mapped
+        elif (facet.get("try_number"), facet.get("map_index", -1)) == (
+            task_instance["try_number"],
+            task_instance["map_index"],
+        ):
+            return True
+    return False
+
+
 def wait_for_task_instance(
     dag_id: str,
     run_id: str,
@@ -153,7 +181,13 @@ def wait_for_task_instance(
 ) -> dict:
     def get_task_instance() -> dict | None:
         ti = _find_task_instance(get_task_instances(dag_id, run_id), task_id, map_index, loop_iteration)
-        return ti if ti and ti["state"] in states else None
+        if not ti or ti["state"] not in states:
+            return None
+        # A task is running in the database before the worker emits its START (after parsing the Dag file, slow on a
+        # busy runner). Changed before that, it is killed without any event of its own.
+        if ti["state"] == "running" and not _has_start_event(dag_id, ti):
+            return None
+        return ti
 
     return _wait_for(f"task `{task_id}` of `{dag_id}` to be in {states}", get_task_instance, timeout)
 
