@@ -111,21 +111,22 @@ assets_router = AirflowRouter(tags=["Asset"])
 
 def _generate_queued_event_where_clause(
     *,
+    model: type[AssetDagRunQueue] | type[PartitionedAssetKeyLog] = AssetDagRunQueue,
     asset_id: int | None = None,
     dag_id: str | None = None,
     before: datetime | str | None = None,
     permitted_dag_ids: set[str] | None = None,
-) -> list:
-    """Get AssetDagRunQueue where clause."""
-    where_clause = []
+) -> list[ColumnElement[bool]]:
+    """Get the where clause selecting queued events of ``model``."""
+    where_clause: list[ColumnElement[bool]] = []
     if dag_id is not None:
-        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
+        where_clause.append(model.target_dag_id == dag_id)
     if asset_id is not None:
-        where_clause.append(AssetDagRunQueue.asset_id == asset_id)
+        where_clause.append(model.asset_id == asset_id)
     if before is not None:
-        where_clause.append(AssetDagRunQueue.created_at < before)
+        where_clause.append(model.created_at < before)
     if permitted_dag_ids is not None:
-        where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
+        where_clause.append(model.target_dag_id.in_(permitted_dag_ids))
     return where_clause
 
 
@@ -172,17 +173,14 @@ def _delete_pending_partitioned_queued_events(
 
     :return: The number of deleted queued events.
     """
-    pakl_where_clause: list[ColumnElement[bool]] = [
-        PartitionedAssetKeyLog.source_partition_key == partition_key,
-    ]
-    if asset_id is not None:
-        pakl_where_clause.append(PartitionedAssetKeyLog.asset_id == asset_id)
-    if dag_id is not None:
-        pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id == dag_id)
-    if before is not None:
-        pakl_where_clause.append(PartitionedAssetKeyLog.created_at < before)
-    if permitted_dag_ids is not None:
-        pakl_where_clause.append(PartitionedAssetKeyLog.target_dag_id.in_(permitted_dag_ids))
+    pakl_where_clause = _generate_queued_event_where_clause(
+        model=PartitionedAssetKeyLog,
+        asset_id=asset_id,
+        dag_id=dag_id,
+        before=before,
+        permitted_dag_ids=permitted_dag_ids,
+    )
+    pakl_where_clause.append(PartitionedAssetKeyLog.source_partition_key == partition_key)
     pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
 
     # Locking the partitions serialises calls that clear different assets of the same one.
