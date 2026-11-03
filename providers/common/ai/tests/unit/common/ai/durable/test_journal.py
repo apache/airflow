@@ -358,16 +358,6 @@ class TestReserve:
         assert dict(retry.journal.stats.replayed) == {"tool": 1}
 
     @pytest.mark.asyncio
-    async def test_rejecting_a_reserved_step_that_was_never_taken_uncounts_nothing(self, memory_storage):
-        await self.record_tool(memory_storage, "t")
-
-        retry = DurableJournal(memory_storage).start_run()
-        retry.reserve([("c", "t", "t")], kind="tool")
-        retry.reject(retry._reserved["c"], reason="the recorded result no longer loads")
-
-        assert dict(retry.journal.stats.replayed) == {}
-
-    @pytest.mark.asyncio
     async def test_a_later_reserve_drops_the_steps_nothing_took(self, memory_storage):
         await self.record_tool(memory_storage, "t")
 

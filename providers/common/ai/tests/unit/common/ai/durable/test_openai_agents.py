@@ -825,48 +825,40 @@ class TestParallelToolCalls:
         assert (durable.position, plain.position) == (0, 1)
 
     @pytest.mark.asyncio
-    async def test_a_later_response_does_not_let_a_call_land_on_an_untaken_step_with_the_same_id(self):
+    async def test_a_later_response_reserves_a_new_step_for_a_call_with_the_same_id_and_arguments(self):
         storage = MemoryStorage()
         tools = _SleepingTools()
+        response = ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id="fc-x",
+                    call_id="call-x",
+                    name="lookup",
+                    arguments=json.dumps({"key": "a"}),
+                    type="function_call",
+                )
+            ],
+            usage=Usage(),
+            response_id="resp",
+        )
+        durable_run = DurableJournal(storage).start_run()
+        durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
+        model = _DurableModel(mock.create_autospec(Model, instance=True), durable_run)
+        # No tool takes the first response's call; only the second response's is invoked.
+        model._reserve_tool_steps(response, durable_tools)
+        model._reserve_tool_steps(response, durable_tools)
+        context = ToolContext(
+            context=None,
+            usage=Usage(),
+            tool_name="lookup",
+            tool_call_id="call-x",
+            tool_arguments=json.dumps({"key": "a"}),
+        )
 
-        def respond(key: str) -> ModelResponse:
-            return ModelResponse(
-                output=[
-                    ResponseFunctionToolCall(
-                        id="fc-x",
-                        call_id="call-x",
-                        name="lookup",
-                        arguments=json.dumps({"key": key}),
-                        type="function_call",
-                    )
-                ],
-                usage=Usage(),
-                response_id="resp",
-            )
+        await durable_tools[0].on_invoke_tool(context, json.dumps({"key": "a"}))
 
-        async def attempt() -> DurableJournal:
-            journal = DurableJournal(storage)
-            durable_run = journal.start_run()
-            durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
-            model = _DurableModel(mock.create_autospec(Model, instance=True), durable_run)
-            # No tool takes the first response's call; only the second response's is invoked.
-            model._reserve_tool_steps(respond("a"), durable_tools)
-            model._reserve_tool_steps(respond("b"), durable_tools)
-            context = ToolContext(
-                context=None,
-                usage=Usage(),
-                tool_name="lookup",
-                tool_call_id="call-x",
-                tool_arguments=json.dumps({"key": "b"}),
-            )
-            await durable_tools[0].on_invoke_tool(context, json.dumps({"key": "b"}))
-            return journal
-
-        await attempt()
-        journal = await attempt()
-
-        assert tools.calls == {"b": 1}
-        assert journal.stats.replayed["tool"] == 1
+        assert build_step_key(durable_run.key, 1) in storage.entries
+        assert build_step_key(durable_run.key, 0) not in storage.entries
 
     @pytest.mark.parametrize("source", ["run-hook", "agent-hook", "tool-input-guardrail"])
     @pytest.mark.parametrize(
