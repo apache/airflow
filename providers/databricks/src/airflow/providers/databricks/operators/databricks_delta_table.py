@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from datetime import date
 from functools import cached_property
@@ -41,6 +41,8 @@ CHECKPOINT_KEY_EXTRA = "databricks_delta_checkpoint_key"
 
 DEFAULT_IGNORED_OPERATIONS = ("OPTIMIZE", "VACUUM START", "VACUUM END")
 
+_EVENT_PAGE_SIZE = 100
+
 ChangeKind = Literal["enrollment", "new_version", "recreated"]
 
 
@@ -61,6 +63,14 @@ class _HistoryEntry:
 
 def _quote_identifier(part: str) -> str:
     return "`" + part.replace("`", "``") + "`"
+
+
+def _as_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:
@@ -97,6 +107,8 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
 
     :param unity_table: Static identity of the observed table. It is added to ``inlets`` (to read
         the checkpoint) and, when ``outlets`` is omitted, ``outlets`` is ``[unity_table.to_asset()]``.
+        Explicit ``outlets`` must include ``unity_table.to_asset()``, because the checkpoint is the
+        event published on that asset.
     :param checkpoint_key: Scope of the checkpoint. Producers with different keys keep separate
         checkpoints for the same asset. Defaults to ``"<dag_id>.<task_id>"``. Changing it starts a
         new enrollment.
@@ -157,9 +169,12 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             raise ValueError("checkpoint_key must not be empty.")
 
         asset = unity_table.to_asset()
-        if "outlets" not in kwargs:
-            kwargs["outlets"] = [asset]
-        inlets = list(kwargs.pop("inlets", None) or [])
+        outlets = _as_list(kwargs.get("outlets", [asset]))
+        if not any(getattr(outlet, "uri", None) == asset.uri for outlet in outlets):
+            # The checkpoint is the event published on this asset. Without it every run re-enrolls.
+            raise ValueError(f"outlets must include unity_table.to_asset() ({asset.uri!r}).")
+        kwargs["outlets"] = outlets
+        inlets = _as_list(kwargs.pop("inlets", None))
         if not any(getattr(inlet, "uri", None) == asset.uri for inlet in inlets):
             inlets.append(asset)
         kwargs["inlets"] = inlets
@@ -280,8 +295,11 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
         accessor = context["inlet_events"][self.asset]
         events: Iterable[Any]
         if all(hasattr(accessor, name) for name in ("extra", "ascending", "limit")):
-            # Airflow versions that filter asset events on the API server.
+            # Airflow versions that filter asset events by ``extra`` on the API server.
             events = accessor.extra(CHECKPOINT_KEY_EXTRA, self.checkpoint_key).ascending(False).limit(1)
+        elif all(hasattr(accessor, name) for name in ("ascending", "limit", "before")):
+            # Airflow 3.2 and 3.3 can order and limit events but not filter them by ``extra``.
+            events = self._newest_events_paged(accessor)
         else:
             events = reversed(accessor)
         for event in events:
@@ -297,6 +315,27 @@ class DatabricksDeltaTableVersionProducerOperator(BaseOperator):
             table_id = extra.get("delta_table_id")
             return DeltaCheckpoint(version=version, table_id=str(table_id) if table_id is not None else None)
         return None
+
+    @staticmethod
+    def _newest_events_paged(accessor: Any) -> Iterator[Any]:
+        """Yield the asset's events newest first, fetching ``_EVENT_PAGE_SIZE`` events per request."""
+        seen: set[Any] = set()
+        page = accessor.ascending(False).limit(_EVENT_PAGE_SIZE)
+        while True:
+            events = list(page)
+            for event in events:
+                event_id = getattr(event, "id", None)
+                if event_id is not None and event_id in seen:
+                    continue
+                seen.add(event_id)
+                yield event
+            if len(events) < _EVENT_PAGE_SIZE:
+                return
+            oldest = events[-1].timestamp
+            if oldest == events[0].timestamp:
+                # A full page with one timestamp. ``before`` is inclusive, so stop instead of looping.
+                return
+            page = accessor.before(oldest)
 
     def _describe_table_id(self) -> str | None:
         rows = self.hook.run(f"DESCRIBE DETAIL {self.table_name}", handler=fetch_all_handler)

@@ -20,7 +20,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from unittest import mock
@@ -125,6 +125,56 @@ class FilteringAccessor(Sequence):
         return len(self._events)
 
 
+class PagingAccessor(Sequence):
+    """Accessor shaped like the Airflow 3.2/3.3 one: ordering, limit and ``before``, no ``extra`` filter."""
+
+    def __init__(self, events):
+        self._all = list(events)
+        self._ascending = True
+        self._limit = None
+        self._before = None
+        self.requests = 0
+
+        self._cache = None
+
+    def ascending(self, ascending=True):
+        self._ascending, self._cache = ascending, None
+        return self
+
+    def limit(self, limit):
+        self._limit, self._cache = limit, None
+        return self
+
+    def before(self, before):
+        self._before, self._cache = before, None
+        return self
+
+    @property
+    def _events(self):
+        # Like the real accessor, one request per filter change, cached until the filter changes again.
+        if self._cache is None:
+            self.requests += 1
+            events = [e for e in self._all if self._before is None or e.timestamp <= self._before]
+            events.sort(key=lambda e: (e.timestamp, e.id), reverse=not self._ascending)
+            self._cache = events[: self._limit] if self._limit is not None else events
+        return self._cache
+
+    def __iter__(self):
+        return iter(self._events)
+
+    def __getitem__(self, i):
+        return self._events[i]
+
+    def __len__(self):
+        return len(self._events)
+
+
+def timed_event(i: int, extra: dict[str, Any]) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=i, timestamp=datetime(2026, 10, 1, tzinfo=UTC) + timedelta(minutes=i), extra=extra
+    )
+
+
 def make_context(events=None, accessor=None) -> Any:
     """Return a minimal stand-in for the task ``Context`` with only the asset event accessors."""
     outlet_events: defaultdict = defaultdict(lambda: SimpleNamespace(extra={}))
@@ -173,10 +223,25 @@ class TestConstruction:
         from airflow.providers.common.compat.assets import Asset
 
         other = Asset(uri="s3://bucket/other")
-        op = make_operator(inlets=[other], outlets=[], max_active_tis_per_dag=4)
+        op = make_operator(inlets=[other], outlets=[other, TABLE.to_asset()], max_active_tis_per_dag=4)
         assert [a.uri for a in op.inlets] == ["s3://bucket/other", URI]
-        assert op.outlets == []
+        assert [a.uri for a in op.outlets] == ["s3://bucket/other", URI]
         assert op.max_active_tis_per_dag == 4
+
+    def test_accepts_single_inlet_and_outlet(self):
+        from airflow.providers.common.compat.assets import Asset
+
+        other = Asset(uri="s3://bucket/other")
+        op = make_operator(inlets=other, outlets=TABLE.to_asset())
+        assert [a.uri for a in op.inlets] == ["s3://bucket/other", URI]
+        assert [a.uri for a in op.outlets] == [URI]
+
+    @pytest.mark.parametrize("outlets", [[], ["s3://bucket/other"]])
+    def test_rejects_outlets_without_the_table_asset(self, outlets):
+        from airflow.providers.common.compat.assets import Asset
+
+        with pytest.raises(ValueError, match="outlets must include"):
+            make_operator(outlets=[Asset(uri=uri) for uri in outlets])
 
     def test_does_not_duplicate_inlet(self):
         op = make_operator(inlets=[TABLE.to_asset()])
@@ -390,6 +455,25 @@ class TestCheckpoint:
         accessor = FilteringAccessor([checkpoint_event(1), checkpoint_event(5, key="x"), make_event({})])
         assert make_operator().read_checkpoint(make_context(accessor=accessor)).version == 1
         assert accessor.calls == [("extra", CHECKPOINT_KEY_EXTRA, KEY), ("ascending", False), ("limit", 1)]
+
+    def test_pages_newest_first_when_extra_filter_is_unavailable(self, hook):
+        events = [timed_event(0, {"version": 1, "delta_table_id": TABLE_ID, CHECKPOINT_KEY_EXTRA: KEY})]
+        events += [timed_event(i, {}) for i in range(1, 250)]
+        accessor = PagingAccessor(events)
+        assert make_operator().read_checkpoint(make_context(accessor=accessor)).version == 1
+        assert accessor.requests == 3
+
+    def test_paging_stops_at_the_newest_checkpoint(self, hook):
+        events = [timed_event(i, {}) for i in range(250)]
+        events.append(timed_event(250, {"version": 7, "delta_table_id": TABLE_ID, CHECKPOINT_KEY_EXTRA: KEY}))
+        accessor = PagingAccessor(events)
+        assert make_operator().read_checkpoint(make_context(accessor=accessor)).version == 7
+        assert accessor.requests == 1
+
+    def test_paging_without_checkpoint_reads_all_pages_once(self, hook):
+        accessor = PagingAccessor([timed_event(i, {}) for i in range(150)])
+        assert make_operator().read_checkpoint(make_context(accessor=accessor)) is None
+        assert accessor.requests == 2
 
     def test_corrupt_checkpoint_fails(self, hook):
         bad = make_event({CHECKPOINT_KEY_EXTRA: KEY, "version": "2"})
