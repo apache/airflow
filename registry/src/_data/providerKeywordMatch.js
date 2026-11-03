@@ -22,15 +22,21 @@
 // respectively by the category dropdown on /providers/ and the Explore landing
 // page's per-category provider listing) can't drift apart.
 
-// A value "matches" a keyword if the value contains the keyword,
-// case-insensitively, after collapsing runs of "-_\s" to a single space
-// (so 'pydantic-ai' matches "Pydantic AI"). Collapse, don't strip:
-// stripping would turn "Microsoft Power BI" into "microsoftpowerbi",
-// which contains "ftp" and would falsely match the orchestration category.
+const { collectExternalServices } = require("./providerExternalServices");
+
+// Kept in sync by hand with normalize() in src/js/search.js and
+// src/js/provider-filters.js (both browser IIFEs; this file runs at build
+// time under CommonJS). Collapse runs of "-_\s" to a space rather than
+// strip: stripping "Microsoft Power BI" would turn it into
+// "microsoftpowerbi", which contains "ftp" and would falsely match
+// the orchestration category.
 function normalize(text) {
   return text.toLowerCase().replace(/[-_\s]+/g, ' ');
 }
 
+// A value "matches" a keyword if the value contains the keyword,
+// case-insensitively, after collapsing runs of "-_\s" to a single
+// space (so 'pydantic-ai' matches "Pydantic AI").
 function fuzzyIncludes(value, keyword) {
   if (!value) {
     return false;
@@ -39,20 +45,30 @@ function fuzzyIncludes(value, keyword) {
 }
 
 // Every string a provider is searchable by: its id/slug and its declared
-// integration names (provider.categories[].name — e.g. "LangChain",
-// "Pydantic AI").
-function collectSearchableValues(provider) {
+// integration names (provider.categories[].name) are always included.
+// Its declared `external_services` are included only when the caller opts
+// in via `{ includeExternalServices: true }` — see exploreCategories.js
+// for which category does and why.
+function collectSearchableValues(provider, { includeExternalServices = false } = {}) {
   const values = [provider.id];
   for (const category of provider.categories || []) {
     if (category.name) {
       values.push(category.name);
     }
   }
+  if (includeExternalServices) {
+    values.push(...collectExternalServices(provider));
+  }
   return values;
 }
 
-function providerMatchesKeyword(provider, keyword) {
-  return collectSearchableValues(provider).some((value) => fuzzyIncludes(value, keyword));
+function providerMatchesKeyword(provider, keyword, options = {}) {
+  return collectSearchableValues(provider, options).some((value) => fuzzyIncludes(value, keyword));
 }
 
-module.exports = { providerMatchesKeyword };
+function categoryMatchesProvider(category, provider) {
+  const options = { includeExternalServices: category.includeExternalServices === true };
+  return category.keywords.some((keyword) => providerMatchesKeyword(provider, keyword, options));
+}
+
+module.exports = { categoryMatchesProvider };

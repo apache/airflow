@@ -31,13 +31,13 @@ export const DagsFilters = () => {
 
   const searchParamKeys: Array<FilterableSearchParamsKeys> = [
     SearchParamsKeys.PAUSED,
-    SearchParamsKeys.LAST_DAG_RUN_STATE,
-    SearchParamsKeys.DAG_RUN_STATE,
+    SearchParamsKeys.RUN_STATE,
     SearchParamsKeys.NEEDS_REVIEW,
     SearchParamsKeys.TAGS,
     SearchParamsKeys.OWNERS,
     SearchParamsKeys.TIMETABLE_TYPE,
     SearchParamsKeys.FAVORITE,
+    SearchParamsKeys.HAS_IMPORT_ERRORS,
   ];
 
   if (multiTeamEnabled) {

@@ -22,15 +22,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import Field
+from sqlalchemy.orm import object_session
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
-from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance, task_instance_to_runtime
+from airflow.configuration import conf
+from airflow.executors.workloads.base import BaseDagBundleWorkload, BundleInfo, WorkloadType
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.tokens import JWTGenerator
     from airflow.models.taskinstance import TaskInstance as TIModel
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.utils.log.task_log_address import TaskLogContext
 
 
 class TaskInstanceDTO(TaskInstance):
@@ -48,9 +51,9 @@ class TaskInstanceDTO(TaskInstance):
     external_executor_id: str | None = Field(default=None, exclude=True)
     executor_config: dict | None = Field(default=None, exclude=True)
 
-    # TODO: Task-SDK: Can we replace TaskInstanceKey with just the uuid across the codebase?
     @property
     def key(self) -> TaskInstanceKey:
+        """Identify the attempt the way the ORM does, by its stored index; ``map_index`` is the public one."""
         from airflow.models.taskinstancekey import TaskInstanceKey
 
         return TaskInstanceKey(
@@ -58,7 +61,7 @@ class TaskInstanceDTO(TaskInstance):
             task_id=self.task_id,
             run_id=self.run_id,
             try_number=self.try_number,
-            map_index=self.map_index,
+            map_index=self.region_index if self.region_index is not None else self.map_index,
         )
 
 
@@ -68,12 +71,17 @@ class ExecuteTask(BaseDagBundleWorkload):
     ti: TaskInstanceDTO
     sentry_integration: str = ""
 
-    type: Literal["ExecuteTask"] = Field(init=False, default="ExecuteTask")
+    type: Literal[WorkloadType.EXECUTE_TASK] = Field(init=False, default=WorkloadType.EXECUTE_TASK)
 
     @property
     def key(self) -> TaskInstanceKey:
-        """Return the TaskInstanceKey for this workload."""
+        """Return the coordinate key used by existing executor providers."""
         return self.ti.key
+
+    @property
+    def sort_key(self) -> int:
+        """Return the negated task priority weight so the ascending sort dispatches the highest ``priority_weight`` first."""
+        return -self.ti.priority_weight
 
     @property
     def display_name(self) -> str:
@@ -96,11 +104,18 @@ class ExecuteTask(BaseDagBundleWorkload):
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
         sentry_integration: str = "",
+        log_context: TaskLogContext | None = None,
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
-        from airflow.utils.helpers import log_filename_template_renderer
+        from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
 
-        ser_ti = TaskInstanceDTO.model_validate(ti, from_attributes=True)
+        if log_context is None:
+            log_context = prepare_task_log_contexts(
+                [ti],
+                session=object_session(ti),
+                filename_template=conf.get("logging", "log_filename_template"),
+            )[ti.id]
+        ser_ti = task_instance_to_runtime(ti, model=TaskInstanceDTO, map_index=log_context.map_index)
         if not bundle_info:
             from airflow.models.dag_version import _resolve_version_data
 
@@ -113,7 +128,7 @@ class ExecuteTask(BaseDagBundleWorkload):
                 # keeps the shipped hash and manifest consistent so versioned bundles stay reproducible.
                 version_data=_resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version),
             )
-        fname = log_filename_template_renderer()(ti=ti)
+        fname = render_task_log_filename(ti, ti.try_number, context=log_context)
 
         return cls(
             ti=ser_ti,

@@ -19,7 +19,86 @@
  under the License.
 -->
 
-The Apache Airflow Java SDK — author and run Airflow task implementations in JVM languages.
+Write Apache Airflow Dags and tasks in Java, Kotlin, Scala or any other JVM language.
+
+It requires Java 11 or later.
+
+## Quick start
+
+Apply the Gradle plugin, and add the SDK and its annotation processor:
+
+```groovy
+plugins {
+    id("org.apache.airflow.sdk") version "<version>"
+}
+
+dependencies {
+    annotationProcessor("org.apache.airflow:airflow-sdk-processor:<version>")
+    implementation("org.apache.airflow:airflow-sdk:<version>")
+}
+
+airflowBundle {
+    mainClass = "com.mycompany.airflow.hello.Main"
+}
+```
+
+Replace `<version>` with a release from [Maven Central](https://central.sonatype.com/artifact/org.apache.airflow/airflow-sdk).
+
+Declare a Dag with `@Airflow.Dag`, its tasks with `@Airflow.Task`, and its graph in an `@Airflow.Deps` class.
+Passing the value one task returns into another is how the tasks depend on each other:
+
+<!-- BEGIN SHARED SNIPPET hello-dag -->
+
+```java
+package com.mycompany.airflow.hello;
+
+import org.apache.airflow.sdk.*;
+
+@Airflow.Dag(id = "java_hello", schedule = "@daily", queue = "java")
+public class HelloDag {
+
+  @Airflow.Task
+  public long extract() {
+    return 42L;
+  }
+
+  @Airflow.Task
+  public void report(long rows) {
+    System.out.println("extracted " + rows + " rows");
+  }
+
+  @Airflow.Deps
+  static class Wiring implements HelloDagDeps {
+    void depends() {
+      report(extract());
+    }
+  }
+}
+```
+
+<!-- END SHARED SNIPPET hello-dag -->
+
+Serve it from the main class:
+
+<!-- BEGIN SHARED SNIPPET hello-main -->
+
+```java
+package com.mycompany.airflow.hello;
+
+import org.apache.airflow.sdk.Bundle;
+import org.apache.airflow.sdk.Server;
+
+public class Main {
+  public static void main(String[] args) {
+    Server.create(args).serve(new Bundle().register(HelloDag.class));
+  }
+}
+```
+
+<!-- END SHARED SNIPPET hello-main -->
+
+Build the bundle with `./gradlew bundle`, and see the [Java SDK guide](https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/language-sdks/java.html) for deploying it, and for everything
+a Dag declared in Java can do.
 
 ## Language SDK compatibility matrix
 
@@ -29,44 +108,61 @@ meaning of each dimension is defined in the
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.3 · supervisor schema: 2026-06-16*
+*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
 
-| Dimension | Tier | Supported | Since | Notes |
-|---|---|---|---|---|
-| **TaskInstance states** |  |  |  |  |
-| state: `success` | MUST | ✓ | 3.3 |  |
-| state: `failed` | MUST | ✓ | 3.3 |  |
-| state: `up_for_retry` | MUST | ✓ | 3.3 | RetryTask |
-| state: `skipped` | SHOULD | ✗ | – | runtime does not emit TaskState skipped yet |
-| state: `deferred` | MAY | ✗ | – | runtime does not emit DeferTask yet |
-| state: `up_for_reschedule` | MAY | ✗ | – | runtime does not emit RescheduleTask yet |
-| state: `awaiting_input` | MAY | ✗ | – | runtime does not emit AwaitInputTask yet |
-| state: `removed` | MAY | ✓ | 3.3 |  |
-| **Runtime capabilities** |  |  |  |  |
-| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.3 | @task.stub |
-| capability: `task-logging` | MUST | ✓ | 3.3 | SLF4J + JPL bridged to the task log |
-| capability: `xcom-read-write` | MUST | ✓ | 3.3 |  |
-| capability: `connection-read` | MUST | ✓ | 3.3 |  |
-| capability: `variable-read-write` | MUST | ✗ | – | getVariable only; no write over the comm socket yet |
-| capability: `self-contained-bundle` | MUST | ✓ | 3.3 | Airflow metadata embedded in the jar artifact |
-| capability: `retry-policy` | MAY | ✗ | – | no task-facing retry-policy API yet |
-| capability: `task-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
-| capability: `asset-state-store` | MAY | ✗ | – | no task-facing state-store API yet |
-| capability: `asset-event-emit` | MAY | ✗ | – | runtime does not emit asset events yet |
-| capability: `asset-event-read` | MAY | ✗ | – | no task-facing asset-event API yet |
-| **Native-Dag authoring** |  |  |  |  |
-| capability: `native-dag-authoring` | SHOULD | ✗ | – | native Dag authoring not implemented yet |
-| capability: `task-args` | MUST † | n/a | – |  |
-| capability: `dag-params` | MUST † | n/a | – |  |
-| capability: `taskflow-dependencies` | MUST † | n/a | – |  |
-| capability: `branching` | SHOULD † | n/a | – |  |
-| capability: `dag-test` | SHOULD † | n/a | – |  |
-| capability: `task-group` | MAY † | n/a | – |  |
-| capability: `dynamic-task-mapping` | MAY † | n/a | – |  |
-| capability: `asset-inlets-outlets` | MAY † | n/a | – |  |
-| capability: `asset-scheduling` | MAY † | n/a | – |  |
-| capability: `object-store` | MAY † | n/a | – |  |
+| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
+|---|---|---|---|---|---|
+| **TaskInstance states** |  |  |  |  |  |
+| state: `success` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `failed` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| state: `up_for_retry` | MUST | ✓ | 3.4.0 | 1.0.0 | RetryTask |
+| state: `skipped` | SHOULD | ✓ | 3.4.0 | 1.0.0 | a TriggerDagRun task that skips an existing run |
+| state: `deferred` | MAY | ✓ | 3.4.0 | 1.0.0 | a TriggerDagRun task that waits with deferrable |
+| state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
+| state: `awaiting_input` | MAY | ✗ | – | – | runtime does not emit AwaitInputTask yet |
+| state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
+| **Task runtime** |  |  |  |  |  |
+| capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | SLF4J + JPL bridged to the task log |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | Airflow metadata embedded in the jar artifact |
+| capability: `retry-policy` | MAY | ✗ | – | – | no task-facing retry-policy API yet |
+| capability: `task-state-store` | MAY | ✓ | 3.4.0 | 1.0.0 | Client.getTaskStateStore() get/set/delete/clear |
+| capability: `asset-state-store` | MAY | ✗ | – | – | no task-facing asset state-store API yet |
+| capability: `asset-event-emit` | MAY | ✗ | – | – | runtime does not emit asset events yet |
+| capability: `asset-event-read` | MAY | ✗ | – | – | no task-facing asset-event API yet |
+| capability: `object-store` | MAY | ✗ | – | – | no object-storage API yet |
+| capability: `listeners` | MAY | ✗ | – | – | no hook into the Python listener API, so a task emits no OpenLineage facets of its own |
+| **Dag definition** |  |  |  |  |  |
+| capability: `dag-definition-authoring` | SHOULD | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-args` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `dag-params` | MUST † | ✗ | – | – |  |
+| capability: `dag-callbacks` | MAY † | ✗ | – | – |  |
+| capability: `explicit-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 | before / after, or @Airflow.Deps |
+| capability: `edge-labels` | MAY † | ✓ | 3.4.0 | 1.0.0 | Label.of(text).on(task) |
+| capability: `taskflow-dependencies` | MUST † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-group` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `task-loops` | MAY † | ✗ | – | – |  |
+| capability: `if-else-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagDef.If or @Airflow.If |
+| capability: `switch-case-branching` | SHOULD † | ✓ | 3.4.0 | 1.0.0 | DagDef.Switch or @Airflow.Switch |
+| capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | TriggerDagRun |
+| capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
+| capability: `human-in-the-loop` | MAY † | ✗ | – | – |  |
+| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
+| capability: `asset-definition` | MAY † | ✗ | – | – |  |
+| capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
+| capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
+| capability: `asset-inlets-outlets` | MAY † | ✗ | – | – |  |
+| capability: `task-callbacks` | MAY † | ✗ | – | – | no SDK-defined task callbacks |
+| **Python Dag with stub TaskHandler** |  |  |  |  |  |
+| capability: `mixed-lang-stub-target` | MUST | ✓ | 3.4.0 | 1.0.0 | @task.stub |
+| capability: `taskflow-binding` | MUST | ✓ | 3.4.0 | 1.0.0 | mapped stubs excluded |
+| capability: `mapped-tasks` | MAY | ✗ | – | – | Airflow does not bind arguments to mapped stubs yet |
+| capability: `asset-inlets-outlets` | MAY | ✗ | – | – | runtime does not report task outlets yet |
+| capability: `task-callbacks` | MAY | ✗ | – | – | a Python-declared task callback does not run for a stub task |
 
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `native-dag-authoring` is supported.*
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->

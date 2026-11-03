@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_CONSTRAINTS_MODES_CI,
-    ALLOWED_DOCKER_COMPOSE_PROJECTS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -65,6 +64,7 @@ from airflow_breeze.global_constants import (
     MYSQL_HOST_PORT,
     POSTGRES_BACKEND,
     POSTGRES_HOST_PORT,
+    PYCACHE_PREFIX_IN_CONTAINER,
     RABBITMQ_HOST_PORT,
     REDIS_HOST_PORT,
     SIMPLE_AUTH_MANAGER,
@@ -99,12 +99,18 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
+    get_default_project_name,
+    get_host_id,
+    get_isolated_worktree_path,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
@@ -189,6 +195,7 @@ class ShellParams:
     excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
+    fail_on_pending_provider_candidates: bool = False
     force_build: bool = False
     force_sa_warnings: bool = True
     force_lowest_dependencies: bool = False
@@ -198,6 +205,7 @@ class ShellParams:
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     include_mypy_volume: bool = False
+    include_pycache_volume: bool = False
     install_airflow_version: str = ""
     install_airflow_python_client: bool = False
     install_airflow_with_constraints: bool = False
@@ -218,7 +226,7 @@ class ShellParams:
     parallelism: int = 0
     platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = DEFAULT_POSTGRES_VERSION
-    project_name: str = ALLOWED_DOCKER_COMPOSE_PROJECTS[0]
+    project_name: str = field(default_factory=get_default_project_name)
     providers_constraints_location: str = ""
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
@@ -235,6 +243,7 @@ class ShellParams:
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
+    sphinx_airflow_theme_path: str = ""
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
@@ -256,6 +265,8 @@ class ShellParams:
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
+        # The clone runs this one test type: kept, the list would make it select every test type's folders.
+        new_params.parallel_test_types_list = []
         return new_params
 
     @cached_property
@@ -342,7 +353,7 @@ class ShellParams:
             console_print(f"[info]Airflow used at runtime: {self.use_airflow_version}[/]")
 
     def get_backend_compose_files(self, backend: str) -> list[Path]:
-        if backend == "sqlite" and self.project_name != "breeze":
+        if backend == "sqlite" and self.project_name not in ("breeze", get_default_project_name()):
             # When running scripts, we do not want to mount the volume to make sure that the
             # sqlite database is not persisted between runs of the script and that the
             # breeze database is not cleaned accidentally
@@ -416,8 +427,18 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH)
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH)
+            if not self.force_lowest_dependencies:
+                compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)
         elif self.mount_sources == MOUNT_ALL:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH)
+            if self.force_lowest_dependencies:
+                # The whole worktree is bound here, so uv.lock cannot be left out of the mount.
+                console_print(
+                    "\n[warning]--force-lowest-dependencies with --mount-sources all will rewrite "
+                    "your uv.lock: the lowest-direct `uv sync` writes its re-resolved lock through "
+                    "the mounted worktree. Use the default --mount-sources selected to keep it "
+                    "untouched, or restore it afterwards with `git checkout -- uv.lock`.[/]\n"
+                )
         elif self.mount_sources == MOUNT_TESTS:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH)
         elif self.mount_sources == MOUNT_PROVIDERS_AND_TESTS:
@@ -426,10 +447,14 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
         if self.mount_ui_dist:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
+        if self.sphinx_airflow_theme_path:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH)
         if self.forward_credentials:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH)
+        if self.include_pycache_volume:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH)
         if self.tty == "enabled":
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH)
         if "all-testable" in self.integration:
@@ -580,6 +605,13 @@ services:
         return "psycopg"
 
     @property
+    def postgres_data_volume_path(self) -> str:
+        """The ``VOLUME`` the postgres image declares; it moved from ``data/`` to its parent in 18."""
+        if self.backend == "postgres" and int(self.postgres_version) >= 18:
+            return "/var/lib/postgresql"
+        return "/var/lib/postgresql/data"
+
+    @property
     def env_variables_for_docker_commands(self) -> dict[str, str]:
         """
         Constructs environment variables needed by the docker-compose command, based on Shell parameters
@@ -596,6 +628,9 @@ services:
         """
 
         _env: dict[str, str] = {}
+        worktree = get_isolated_worktree_path()
+        _env["BREEZE_WORKTREE_PATH"] = str(worktree) if worktree else ""
+        _env["BREEZE_HOST_ID"] = get_host_id()
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
@@ -676,6 +711,7 @@ services:
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
+        _set_var(_env, "FAIL_ON_PENDING_PROVIDER_CANDIDATES", self.fail_on_pending_provider_candidates)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -699,6 +735,7 @@ services:
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
+        _set_var(_env, "POSTGRES_DATA_VOLUME_PATH", self.postgres_data_volume_path)
         _set_var(_env, "POSTGRES_DRIVER", self.postgres_driver)
         _set_var(_env, "POSTGRES_HOST_PORT", None, POSTGRES_HOST_PORT)
         _set_var(_env, "POSTGRES_VERSION", self.postgres_version)
@@ -706,7 +743,15 @@ services:
         _set_var(_env, "PROVIDERS_CONSTRAINTS_MODE", self.providers_constraints_mode)
         _set_var(_env, "PROVIDERS_CONSTRAINTS_REFERENCE", self.providers_constraints_reference)
         _set_var(_env, "PROVIDERS_SKIP_CONSTRAINTS", self.providers_skip_constraints)
-        _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
+        # Both keys are always emitted (empty string == unset for Python) so the generated
+        # compose env file keeps a stable key set across invocations. The bytecode cache is only
+        # enabled together with the volume that persists it; other containers stay pyc-free.
+        if self.include_pycache_volume:
+            _set_var(_env, "PYTHONDONTWRITEBYTECODE", "")
+            _set_var(_env, "PYTHONPYCACHEPREFIX", PYCACHE_PREFIX_IN_CONTAINER)
+        else:
+            _set_var(_env, "PYTHONDONTWRITEBYTECODE", "true")
+            _set_var(_env, "PYTHONPYCACHEPREFIX", "")
         _set_var(_env, "PYTHON_MAJOR_MINOR_VERSION", self.python)
         _set_var(_env, "QUIET", self.quiet)
         _set_var(_env, "REDIS_HOST_PORT", None, REDIS_HOST_PORT)
@@ -718,6 +763,7 @@ services:
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "SKIP_ASSETS_COMPILATION", self.skip_assets_compilation)
+        _set_var(_env, "SPHINX_AIRFLOW_THEME_PATH", self.sphinx_airflow_theme_path)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)

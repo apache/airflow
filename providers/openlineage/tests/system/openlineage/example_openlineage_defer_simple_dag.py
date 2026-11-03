@@ -20,6 +20,8 @@ Simple DAG with deferrable operator.
 It checks:
     - that at least two task START events (before and after deferral) are emitted and
       the try_num remains at 1
+    - taskInstance's `start_date` and `duration` after the resume: absent on Airflow 3.0 to 3.2.1, where the
+      worker's start date is the resume time, and present otherwise
 """
 
 from __future__ import annotations

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook
@@ -121,7 +121,7 @@ class LivyTrigger(BaseTrigger):
         :param batch_id: id of the batch session to monitor.
         """
         if self._execution_timeout is not None:
-            timeout_datetime = datetime.now(timezone.utc) + self._execution_timeout
+            timeout_datetime = datetime.now(UTC) + self._execution_timeout
         else:
             timeout_datetime = None
         batch_execution_timed_out = False
@@ -130,9 +130,7 @@ class LivyTrigger(BaseTrigger):
         self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
         while state["batch_state"] not in hook.TERMINAL_STATES:
             self.log.info("Batch with id %s is in state: %s", batch_id, state["batch_state"].value)
-            batch_execution_timed_out = (
-                timeout_datetime is not None and datetime.now(timezone.utc) > timeout_datetime
-            )
+            batch_execution_timed_out = timeout_datetime is not None and datetime.now(UTC) > timeout_datetime
             if batch_execution_timed_out:
                 break
             self.log.info("Sleeping for %s seconds", self._polling_interval)

@@ -34,7 +34,12 @@ from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    ResumableJobMixin,
+    conf,
+)
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -71,39 +76,6 @@ except ImportError:
 
     def is_arg_set(value):  # type: ignore[misc,no-redef]
         return value is not NOTSET
-
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "bigquery_job_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
 
 
 if TYPE_CHECKING:
@@ -278,6 +250,7 @@ class BigQueryCheckOperator(
         "impersonation_chain",
         "labels",
         "query_params",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -434,6 +407,7 @@ class BigQueryValueCheckOperator(
         "pass_value",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -602,6 +576,7 @@ class BigQueryIntervalCheckOperator(
         "sql2",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     ui_color = BigQueryUIColors.CHECK.value
     conn_id_field = "gcp_conn_id"
@@ -1331,6 +1306,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "gcs_schema_object",
         "gcp_conn_id",
         "impersonation_chain",
+        "google_cloud_storage_conn_id",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2349,10 +2325,10 @@ class BigQueryInsertJobOperator(
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
-    :param durable: When ``True`` (the default), the submitted BigQuery job id is persisted to task
-        state before polling begins. A worker crash on retry reconnects to the existing job instead of
-        submitting a duplicate, this works regardless of ``force_rerun``, since the persisted id is
-        read back directly rather than recomputed. Set to ``False`` to always submit fresh on retry.
+    :param durable: In synchronous mode, when ``True`` (the default), the submitted BigQuery job id and
+        location are persisted to task state before polling begins. On retry, the operator uses the saved
+        id to reconnect to the existing job rather than submitting a duplicate, regardless of ``force_rerun``.
+        Set to ``False`` to always submit fresh on retry.
         Requires Airflow 3.3+; no-op on earlier versions.
     """
 
@@ -2471,6 +2447,7 @@ class BigQueryInsertJobOperator(
             raise AirflowException(f"Job failed with state: {job.state}")
 
     def _persist_job_links(self, job: BigQueryJob | UnknownJob, context: Any) -> None:
+        location = job.location or self.location
         job_types = {
             LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
             CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
@@ -2501,7 +2478,7 @@ class BigQueryInsertJobOperator(
             job_id_path = convert_job_id(
                 job_id=self.job_id,
                 project_id=self.project_id,
-                location=self.location,
+                location=location,
             )
             warnings.warn(
                 "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
@@ -2514,7 +2491,7 @@ class BigQueryInsertJobOperator(
         persist_kwargs = {
             "context": context,
             "project_id": self.project_id,
-            "location": self.location,
+            "location": location,
             "job_id": self.job_id,
         }
         BigQueryJobDetailLink.persist(**persist_kwargs)
@@ -2554,7 +2531,7 @@ class BigQueryInsertJobOperator(
                     conn_id=self.gcp_conn_id,
                     job_id=self.job_id,
                     project_id=self.project_id,
-                    location=self.location or self.hook.location,  # type: ignore[union-attr]
+                    location=job.location or self.location or self.hook.location,  # type: ignore[union-attr]
                     poll_interval=self.poll_interval,
                     impersonation_chain=self.impersonation_chain,
                     cancel_on_kill=self.cancel_on_kill,
@@ -2643,6 +2620,13 @@ class BigQueryInsertJobOperator(
 
         self._job = job
         self._persist_job_links(job, context)
+        if (
+            self.durable
+            and not self.deferrable
+            and (task_store := context.get("task_state_store")) is not None
+        ):
+            # The mixin checkpoints the ID separately, so bind this location to its job ID.
+            task_store.set("bigquery_job_location", {"job_id": job.job_id, "location": job.location})
         return job.job_id
 
     def get_job_status(self, external_id: JsonValue, context: Any) -> str:
@@ -2657,8 +2641,18 @@ class BigQueryInsertJobOperator(
         if self.project_id is None:
             self.project_id = self.hook.project_id
 
+        location = self.location
+        if self.durable and (task_store := context.get("task_state_store")) is not None:
+            saved_location = task_store.get("bigquery_job_location")
+            if (
+                isinstance(saved_location, dict)
+                and saved_location.get("job_id") == job_id
+                and isinstance(saved_location.get("location"), str)
+            ):
+                location = saved_location["location"]
+
         try:
-            job = self.hook.get_job(project_id=self.project_id, location=self.location, job_id=job_id)
+            job = self.hook.get_job(project_id=self.project_id, location=location, job_id=job_id)
         except NotFound:
             return "not_found"
         # Reuse the same link bookkeeping as submit_job: this is the only place a job object is
@@ -2704,10 +2698,13 @@ class BigQueryInsertJobOperator(
         return self.job_id
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.project_id, location=self.location
-            )
+        if self.hook and self.job_id and self.cancel_on_kill:
+            location = self.location
+            job: BigQueryJob | UnknownJob | None = getattr(self, "_job", None)
+            # A replacement may be submitting while _job still refers to the previous job.
+            if job is not None and job.job_id == self.job_id:
+                location = job.location or location
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 

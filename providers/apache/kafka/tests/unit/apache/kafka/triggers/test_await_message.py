@@ -138,14 +138,14 @@ class TestTrigger:
         )
 
     @pytest.mark.parametrize(
-        "apply_function",
+        ("apply_function", "expected"),
         [
-            "unit.apache.kafka.triggers.test_await_message.apply_function_true",
-            None,
+            ("unit.apache.kafka.triggers.test_await_message.apply_function_true", True),
+            (None, "test_message"),
         ],
     )
     @pytest.mark.asyncio
-    async def test_trigger_run_good(self, mocker, apply_function):
+    async def test_trigger_run_good(self, mocker, apply_function, expected):
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=MockedConsumer)
 
         trigger = AwaitMessageTrigger(
@@ -156,10 +156,8 @@ class TestTrigger:
             poll_interval=5,
         )
 
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(1.0)
-        assert task.done() is True
-        asyncio.get_event_loop().stop()
+        event = await asyncio.wait_for(trigger.run().__anext__(), timeout=10)
+        assert event.payload == expected
 
     @pytest.mark.asyncio
     async def test_trigger_run_bad(self, mocker):
@@ -179,18 +177,20 @@ class TestTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    async def test_trigger_run_tombstone_message_keeps_polling(self, mocker):
+    async def test_trigger_run_skips_tombstone_and_yields_next_message(self, mocker):
         """
         A tombstone (null-value) message must not crash the trigger when no apply_function is set.
 
         Regression test: the trigger previously raised
         ``AttributeError: 'NoneType' object has no attribute 'decode'`` on ``message.value()``
         returning ``None``. A tombstone carries no payload to emit, so the trigger should
-        commit the offset (when ``commit_offset`` is enabled) and keep polling.
+        commit its offset (when ``commit_offset`` is enabled) and keep polling until a regular
+        message arrives.
         """
-        message = MockedTombstoneMessage()
+        tombstone = MockedTombstoneMessage()
+        regular = MockedMessage()
         consumer = MockedConsumer()
-        mocker.patch.object(consumer, "poll", return_value=message)
+        mocker.patch.object(consumer, "poll", side_effect=[tombstone, regular])
         commit_mock = mocker.patch.object(consumer, "commit")
         mocker.patch.object(KafkaConsumerHook, "get_consumer", return_value=consumer)
 
@@ -199,19 +199,16 @@ class TestTrigger:
             apply_function=None,
             topics=["noop"],
             poll_timeout=0.0001,
-            poll_interval=5,
+            poll_interval=0,
         )
 
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(1.0)
-        try:
-            # The task must neither raise nor yield an event: the tombstone is skipped
-            # and the trigger sleeps through poll_interval waiting for the next message.
-            assert task.done() is False
-            # The tombstone offset is still committed, like any other non-matching message.
-            assert commit_mock.mock_calls == [call(message=message, asynchronous=False)]
-        finally:
-            task.cancel()
+        event = await asyncio.wait_for(trigger.run().__anext__(), timeout=10)
+
+        assert event.payload == "test_message"
+        assert commit_mock.mock_calls == [
+            call(message=tombstone, asynchronous=False),
+            call(message=regular, asynchronous=False),
+        ]
 
     @pytest.mark.asyncio
     async def test_trigger_run_without_apply_function_yields_message_value(self, mocker):
@@ -229,10 +226,8 @@ class TestTrigger:
             poll_interval=5,
         )
 
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(1.0)
-        assert task.done() is True
-        assert task.result().payload == "test_message"
+        event = await asyncio.wait_for(trigger.run().__anext__(), timeout=10)
+        assert event.payload == "test_message"
 
     @pytest.mark.asyncio
     async def test_cleanup_closes_consumer(self, mocker):

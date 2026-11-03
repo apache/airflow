@@ -79,7 +79,7 @@ class AnthropicBatchOperator(BaseOperator):
         results are not discarded).
     """
 
-    template_fields: Sequence[str] = ("requests", "model")
+    template_fields: Sequence[str] = ("requests", "model", "conn_id")
 
     def __init__(
         self,

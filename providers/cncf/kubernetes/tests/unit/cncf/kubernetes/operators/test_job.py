@@ -36,7 +36,7 @@ from airflow.providers.cncf.kubernetes.operators.job import (
     KubernetesPatchJobOperator,
 )
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodCommandException, PodManager
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -515,6 +515,36 @@ class TestKubernetesJobOperator:
             "hello": "world",
         }
 
+    @patch(HOOK_CLASS)
+    def test_build_job_request_obj_dry_run_skips_live_kube_client(self, hook_mock):
+        """dry_run must not require a live Kubernetes API client (e.g. no kube config available)."""
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        job = k.build_job_request_obj(dry_run=True)
+        assert "airflow_kpo_in_cluster" not in job.spec.template.metadata.labels
+
+        with pytest.raises(RuntimeError, match="kube config not available"):
+            k.build_job_request_obj()
+
+    @patch(HOOK_CLASS)
+    def test_dry_run_method_prints_job_without_live_kube_client(self, hook_mock, capsys):
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        hook_mock.return_value.get_namespace.return_value = "default"
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        k.dry_run()
+
+        assert "kind: Job" in capsys.readouterr().out
+
     def test_task_id_as_name(self):
         k = KubernetesJobOperator(
             task_id=".hi.-_09HI",
@@ -866,6 +896,51 @@ class TestKubernetesJobOperator:
         assert op.pods == mock_pods_expected
         with pytest.raises(AirflowProviderDeprecationWarning):
             assert op.pod == mock_pods_expected[0]
+
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom_kill")
+    @patch(f"{POD_MANAGER_CLASS}.extract_xcom_json", return_value='{"a": "true"}')
+    @patch(f"{POD_MANAGER_CLASS}.container_is_running", return_value=True)
+    @patch(f"{POD_MANAGER_CLASS}.await_xcom_sidecar_container_start")
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.get_pods"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.build_job_request_obj"))
+    @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.create_job"))
+    @patch(f"{HOOK_CLASS}.wait_until_job_complete")
+    def test_xcom_sidecar_kill_failure_fails_job_instead_of_hanging(
+        self,
+        mock_wait_until_job_complete,
+        mock_create_job,
+        mock_build_job_request_obj,
+        mock_get_pods,
+        mock_await_container_completion,
+        mock_await_xcom_sidecar_container_start,
+        mock_container_is_running,
+        mock_extract_xcom_json,
+        mock_extract_xcom_kill,
+    ):
+        """
+        The Job path must not swallow a sidecar kill failure.
+
+        ``wait_until_job_complete`` polls without a timeout and the Job can never reach a
+        terminal state while the xcom sidecar keeps looping, so the task would hang. It
+        has to fail loudly before the polling starts instead.
+        """
+        mock_get_pods.return_value = [mock.MagicMock()]
+        mock_extract_xcom_kill.side_effect = PodCommandException(
+            "Command failed with stderr: Permission denied"
+        )
+
+        op = KubernetesJobOperator(
+            task_id="test_task_id",
+            wait_until_job_complete=True,
+            job_poll_interval=POLL_INTERVAL,
+            do_xcom_push=True,
+        )
+
+        with pytest.raises(PodCommandException, match="Permission denied"):
+            op.execute(context=dict(ti=mock.MagicMock()))
+
+        mock_wait_until_job_complete.assert_not_called()
 
     @pytest.mark.parametrize("do_xcom_push", [True, False])
     @pytest.mark.parametrize("get_logs", [True, False])

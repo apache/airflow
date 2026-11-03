@@ -18,11 +18,18 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
+import socket
+import warnings
+from collections.abc import Callable
 from typing import Any
 
 import urllib3.util
+from urllib3.connection import HTTPConnection
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import conf
 
 log = logging.getLogger(__name__)
@@ -60,9 +67,10 @@ try:
         """
         Wrapper around kubernetes sync ApiClient to set default timeout.
 
-        When *disable_verify_ssl* is True the TLS certificate check is turned off
-        on the *client_configuration* that is passed (or on a fresh default copy)
-        so that callers do not need to repeat this logic at every call-site.
+        When *disable_verify_ssl* is True the TLS certificate check is turned off, and when
+        *enable_tcp_keepalive* is True TCP keepalive is enabled, on the *configuration*
+        that is passed (or on a fresh default copy) so that callers do not need to repeat
+        this logic at every call-site.
         """
 
         def __init__(
@@ -70,11 +78,15 @@ try:
             configuration: client.Configuration | None = None,
             *,
             disable_verify_ssl: bool = False,
+            enable_tcp_keepalive: bool = False,
         ) -> None:
-            if disable_verify_ssl:
+            if disable_verify_ssl or enable_tcp_keepalive:
                 if configuration is None:
                     configuration = client.Configuration.get_default_copy()
-                configuration.verify_ssl = False
+                if disable_verify_ssl:
+                    configuration.verify_ssl = False
+                if enable_tcp_keepalive:
+                    configure_tcp_keepalive(configuration)
             super().__init__(configuration=configuration)
 
         def call_api(self, *args: Any, **kwargs: Any) -> Any:
@@ -115,59 +127,71 @@ except ImportError as e:
     _import_err = e
 
 
-def _enable_tcp_keepalive() -> None:
+def configure_tcp_keepalive(configuration: Configuration) -> None:
     """
-    Enable TCP keepalive mechanism.
+    Enable TCP keepalive on the Kubernetes client ``configuration``.
 
-    This prevents urllib3 connection to hang indefinitely when idle connection
-    is time-outed on services like cloud load balancers or firewalls.
+    This prevents connections from hanging indefinitely when an idle connection is timed out
+    by services like cloud load balancers or firewalls. The options are set through
+    ``Configuration.socket_options``, which the client passes on to its urllib3 pool manager.
 
-    See https://github.com/apache/airflow/pull/11406 for detailed explanation.
-
-    Please ping @michalmisiewicz or @dimberman in the PR if you want to modify this function.
+    See https://github.com/apache/airflow/pull/11406 for the original discussion.
     """
-    import socket
-
-    from urllib3.connection import HTTPConnection, HTTPSConnection
-
     tcp_keep_idle = conf.getint("kubernetes_executor", "tcp_keep_idle")
     tcp_keep_intvl = conf.getint("kubernetes_executor", "tcp_keep_intvl")
     tcp_keep_cnt = conf.getint("kubernetes_executor", "tcp_keep_cnt")
 
-    socket_options = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
+    keepalive_options: list[tuple[int, int, int | bytes]] = [(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)]
 
     if hasattr(socket, "TCP_KEEPIDLE"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keep_idle))
     else:
         log.debug("Unable to set TCP_KEEPIDLE on this platform")
 
     if hasattr(socket, "TCP_KEEPINTVL"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keep_intvl))
     else:
         log.debug("Unable to set TCP_KEEPINTVL on this platform")
 
     if hasattr(socket, "TCP_KEEPCNT"):
-        socket_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
+        keepalive_options.append((socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keep_cnt))
     else:
         log.debug("Unable to set TCP_KEEPCNT on this platform")
 
-    # Cast both the default options and our socket options
-    socket_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in socket_options
-    ]
-    default_options_cast: list[tuple[int, int, int | bytes]] = [
-        (level, opt, val) for level, opt, val in HTTPSConnection.default_socket_options
-    ]
+    base_options = configuration.socket_options
+    if base_options is None:
+        base_options = HTTPConnection.default_socket_options
+    overridden = {(level, optname) for level, optname, _ in keepalive_options}
+    configuration.socket_options = [
+        option for option in base_options if (option[0], option[1]) not in overridden
+    ] + keepalive_options
 
-    # Then use the cast versions for both HTTPS and HTTP
-    HTTPSConnection.default_socket_options = default_options_cast + socket_options_cast
-    HTTPConnection.default_socket_options = default_options_cast + socket_options_cast
+
+def _enable_tcp_keepalive(configuration: Configuration | None = None) -> None:
+    """
+    Enable TCP keepalive mechanism.
+
+    .. deprecated::
+        Use :func:`configure_tcp_keepalive` instead.
+    """
+    warnings.warn(
+        "_enable_tcp_keepalive is deprecated, use configure_tcp_keepalive(configuration) instead.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
+    set_default = configuration is None
+    if configuration is None:
+        configuration = _get_default_configuration()
+    configure_tcp_keepalive(configuration)
+    if set_default:
+        Configuration.set_default(configuration)
 
 
 def get_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    team_name: str | None = None,
 ) -> client.CoreV1Api:
     """
     Retrieve Kubernetes client.
@@ -175,22 +199,31 @@ def get_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param team_name: team whose ``[kubernetes_executor]`` connection settings to use. Like all team
+        config, they don't fall back to the un-prefixed section.
     :return: kubernetes client
     """
+    team_kwargs = _team_kwargs(team_name)
     if in_cluster is None:
-        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
+        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster", **team_kwargs)
     if not has_kubernetes:
         raise _import_err
 
-    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
-        _enable_tcp_keepalive()
-
     configuration = _get_default_configuration()
+
+    # Keepalive stays a global setting, so it is not read from the team's config.
+    if conf.getboolean("kubernetes_executor", "enable_tcp_keepalive"):
+        configure_tcp_keepalive(configuration)
     api_client_retry_configuration = conf.getjson(
-        "kubernetes_executor", "api_client_retry_configuration", fallback={}
+        "kubernetes_executor", "api_client_retry_configuration", fallback={}, **team_kwargs
     )
 
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    verify_ssl = conf.getboolean("kubernetes_executor", "verify_ssl", **team_kwargs)
+    if team_name:
+        # The default configuration is shared by the whole process, so a team's client sets its
+        # own value rather than changing the default or inheriting another executor's change.
+        configuration.verify_ssl = verify_ssl
+    elif not verify_ssl:
         _disable_verify_ssl()
 
     if isinstance(api_client_retry_configuration, dict):
@@ -202,17 +235,17 @@ def get_kube_client(
         config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
-            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None, **team_kwargs)
         if config_file is None:
-            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None, **team_kwargs)
         config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=configuration
         )
 
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    if not verify_ssl:
         configuration.verify_ssl = False
 
-    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert", **team_kwargs)
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
@@ -224,6 +257,7 @@ async def get_async_kube_client(
     in_cluster: bool | None = None,
     cluster_context: str | None = None,
     config_file: str | None = None,
+    team_name: str | None = None,
 ) -> async_client.CoreV1Api:
     """
     Retrieve an asynchronous Kubernetes client.
@@ -236,30 +270,96 @@ async def get_async_kube_client(
     :param in_cluster: whether we are in cluster
     :param cluster_context: context of the cluster
     :param config_file: configuration file
+    :param team_name: team whose connection settings to use, as in :func:`get_kube_client`
     :return: asynchronous kubernetes client
     """
     if not has_kubernetes:
         raise _import_err
+    team_kwargs = _team_kwargs(team_name)
     if in_cluster is None:
-        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster")
+        in_cluster = conf.getboolean("kubernetes_executor", "in_cluster", **team_kwargs)
 
     configuration = async_client.Configuration()
-    if not conf.getboolean("kubernetes_executor", "verify_ssl"):
+    if not conf.getboolean("kubernetes_executor", "verify_ssl", **team_kwargs):
         configuration.verify_ssl = False
 
     if in_cluster:
         async_config.load_incluster_config(client_configuration=configuration)
     else:
         if cluster_context is None:
-            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None)
+            cluster_context = conf.get("kubernetes_executor", "cluster_context", fallback=None, **team_kwargs)
         if config_file is None:
-            config_file = conf.get("kubernetes_executor", "config_file", fallback=None)
+            config_file = conf.get("kubernetes_executor", "config_file", fallback=None, **team_kwargs)
         await async_config.load_kube_config(
             config_file=config_file, context=cluster_context, client_configuration=configuration
         )
 
-    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert")
+    ssl_ca_cert = conf.get("kubernetes_executor", "ssl_ca_cert", **team_kwargs)
     if ssl_ca_cert:
         configuration.ssl_ca_cert = ssl_ca_cert
 
     return async_client.CoreV1Api(_TimeoutAsyncK8sApiClient(configuration))
+
+
+def _team_kwargs(team_name: str | None) -> dict[str, str]:
+    """Only pass ``team_name`` when set, since older Airflow releases have no team-aware lookup."""
+    return {"team_name": team_name} if team_name else {}
+
+
+def _call_client_factory(factory: Callable[..., Any], team_name: str | None) -> Any:
+    """Pass ``team_name`` only to a factory that takes it, since factories used to take no arguments."""
+    parameters = inspect.signature(factory).parameters.values()
+    if any(p.name == "team_name" or p.kind is p.VAR_KEYWORD for p in parameters):
+        return factory(team_name=team_name)
+    return factory()
+
+
+def _get_executor_kube_client(
+    team_name: str | None = None, executor_client_factory: str | None = None
+) -> client.CoreV1Api:
+    """
+    Retrieve the Kubernetes client for the KubernetesExecutor.
+
+    Uses the executor's own factory when it has one, then the ``client_factory`` setting, and
+    :func:`get_kube_client` otherwise.
+
+    :param team_name: team the executor is running for, so a team can point its executor at its
+        own cluster. Like all team config, the team's settings don't fall back to the un-prefixed
+        section. A factory that takes ``team_name`` is told the team.
+    :param executor_client_factory: import path of the executor's own factory, see
+        ``KubernetesExecutor.client_factory``
+    :return: kubernetes client
+    """
+    # Factories are import paths, since the pod watcher runs in its own process and resolves its
+    # factory there itself.
+    if executor_client_factory:
+        return _call_client_factory(import_string(executor_client_factory), team_name)
+    if client_factory := conf.getimport(
+        "kubernetes_executor", "client_factory", fallback=None, **_team_kwargs(team_name)
+    ):
+        return _call_client_factory(client_factory, team_name)
+    return get_kube_client(team_name=team_name)
+
+
+async def _get_executor_async_kube_client(
+    team_name: str | None = None, executor_client_factory: str | None = None
+) -> async_client.CoreV1Api:
+    """
+    Retrieve the asynchronous Kubernetes client for the KubernetesExecutor.
+
+    Uses the executor's own factory when it has one, then the ``async_client_factory`` setting,
+    and :func:`get_async_kube_client` otherwise.
+
+    :param team_name: team the executor is running for, used the same way as in
+        :func:`_get_executor_kube_client`
+    :param executor_client_factory: import path of the executor's own factory, see
+        ``KubernetesExecutor.async_client_factory``
+    :return: asynchronous kubernetes client
+    """
+    if executor_client_factory:
+        return _call_client_factory(import_string(executor_client_factory), team_name)
+    if async_client_factory := conf.getimport(
+        "kubernetes_executor", "async_client_factory", fallback=None, **_team_kwargs(team_name)
+    ):
+        return _call_client_factory(async_client_factory, team_name)
+    return await get_async_kube_client(team_name=team_name)

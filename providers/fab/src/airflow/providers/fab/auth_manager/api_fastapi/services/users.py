@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
-from werkzeug.security import generate_password_hash
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
@@ -188,7 +187,7 @@ class FABAuthManagerUsers:
 
         password_changed = False
         if "password" in fields_to_update and body.password is not None:
-            user.password = generate_password_hash(body.password.get_secret_value())
+            user.password = security_manager._hash_password(body.password.get_secret_value())
             password_changed = True
 
         if "username" in fields_to_update and body.username is not None:

@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
+
 from tests_common.test_utils.config import conf_vars
 
 
@@ -131,3 +133,59 @@ class TestLogin:
         )
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid credentials"
+
+
+# Bodies that reach ``parse_login_body`` without being valid credentials: the first five make
+# ``json.loads`` itself raise, the last three parse to something that is not a JSON object.
+UNPARSABLE_JSON_BODIES = [
+    pytest.param(b"{", id="malformed"),
+    pytest.param(b"", id="empty"),
+    pytest.param(b'{"username": "\xff\xfe"}', id="invalid_utf8"),
+    pytest.param(b'{"username": ' + b"1" * 4301 + b"}", id="oversized_int"),
+    pytest.param(b"[" * 20_000, id="deeply_nested"),
+    pytest.param(b'["test1", "DUMMY_PASS"]', id="json_array"),
+    pytest.param(b"5", id="json_scalar"),
+    pytest.param(b"null", id="json_null"),
+]
+
+
+class TestCreateTokenUnparsableBody:
+    """
+    ``/auth/token`` must answer a body it cannot read rather than raise out of the dependency.
+
+    Unlike ``/auth/token/cli``, which declares ``body: LoginBody`` and so gets FastAPI's own
+    validation, this route takes its body through ``Depends(parse_login_body)``. FastAPI parses
+    no body for it, leaving that dependency the only parse. The route is unauthenticated, so
+    anything it raises is reachable without credentials.
+    """
+
+    @pytest.mark.parametrize("payload", UNPARSABLE_JSON_BODIES)
+    def test_answers_like_the_natively_parsed_route(self, payload, test_client):
+        """
+        Both routes take the same body and must answer it the same way.
+
+        Asserting the pair agree rather than naming status codes keeps this pinned to whatever
+        FastAPI does with a body it cannot read, instead of to numbers copied out of it.
+        """
+        headers = {"Content-Type": "application/json"}
+        declared = test_client.post("/auth/token/cli", content=payload, headers=headers)
+        via_dependency = test_client.post("/auth/token", content=payload, headers=headers)
+
+        assert declared.status_code < 500
+        assert via_dependency.status_code == declared.status_code
+
+    def test_form_parser_error_keeps_its_own_detail(self, test_client):
+        """
+        A form body the parser rejects must keep starlette's message, not the generic one.
+
+        The catch-all that turns an unreadable body into a 400 also sees the 400 starlette
+        raises from its own form parser, so it has to let that one through untouched.
+        """
+        response = test_client.post(
+            "/auth/token",
+            content=b"&".join(b"a=1" for _ in range(2000)),
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+
+        assert response.status_code == 400
+        assert "Too many fields" in response.json()["detail"]

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-import time
 from unittest import mock
 
 import botocore.exceptions
@@ -122,9 +121,9 @@ class TestBatchClient:
         batch_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
         mock_get_batch_log_fetcher = mock.Mock(return_value=batch_log_fetcher)
 
-        thread_start = mock.Mock(side_effect=lambda: time.sleep(2))
-        thread_stop = mock.Mock(side_effect=lambda: time.sleep(2))
-        thread_join = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_start = mock.Mock()
+        thread_stop = mock.Mock()
+        thread_join = mock.Mock()
 
         with (
             mock.patch.object(batch_log_fetcher, "start", thread_start) as mock_fetcher_start,

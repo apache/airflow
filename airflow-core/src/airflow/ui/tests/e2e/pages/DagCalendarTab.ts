@@ -22,16 +22,10 @@ import { BasePage } from "tests/e2e/pages/BasePage";
 
 export class DagCalendarTab extends BasePage {
   public readonly dailyToggle: Locator;
-  public readonly failedToggle = this.page.getByRole("button", { name: /failed/i });
   public readonly hourlyToggle: Locator;
-  public readonly totalToggle = this.page.getByRole("button", { name: /total/i });
 
   public get activeCells(): Locator {
     return this.page.locator('[data-testid="calendar-cell"][data-has-data="true"]');
-  }
-
-  public get calendarCells(): Locator {
-    return this.page.getByTestId("calendar-cell");
   }
 
   public constructor(page: Page) {
@@ -39,46 +33,6 @@ export class DagCalendarTab extends BasePage {
 
     this.hourlyToggle = page.getByRole("button", { name: /hourly/i });
     this.dailyToggle = page.getByRole("button", { name: /daily/i });
-  }
-
-  public async getActiveCellColors(): Promise<Array<string>> {
-    const count = await this.activeCells.count();
-    const colors: Array<string> = [];
-
-    for (let i = 0; i < count; i++) {
-      const cell = this.activeCells.nth(i);
-      const computedColor = await cell.evaluate((el: Element) => {
-        const getRenderableColor = (element: Element): string => {
-          const color = window.getComputedStyle(element).backgroundColor;
-
-          return color && color !== "rgba(0, 0, 0, 0)" && color !== "transparent" ? color : "";
-        };
-
-        const cellColor = getRenderableColor(el);
-
-        if (cellColor) {
-          return cellColor;
-        }
-
-        const children = [...el.querySelectorAll("*")];
-
-        for (const child of children) {
-          const childColor = getRenderableColor(child);
-
-          if (childColor) {
-            return childColor;
-          }
-        }
-
-        return "";
-      });
-
-      if (computedColor) {
-        colors.push(computedColor);
-      }
-    }
-
-    return colors;
   }
 
   public async getActiveCellCount(): Promise<number> {
@@ -90,7 +44,7 @@ export class DagCalendarTab extends BasePage {
     const states: Array<string> = [];
 
     // Read run states from the cell's `data-states` attribute rather than hovering to
-    // read the tooltip. The tooltip (BasicTooltip) opens on a `mouseenter` after a
+    // read the tooltip. The tooltip opens on a `mouseenter` after a
     // 500ms delay and renders through a portal; synthetic pointer events do not open
     // it reliably in headless Firefox, which made these tests flaky. `data-states` is
     // populated with the same view-mode-aware logic the tooltip uses (see
@@ -114,19 +68,11 @@ export class DagCalendarTab extends BasePage {
     await this.waitForCalendarReady();
   }
 
-  public async switchToFailedView(): Promise<void> {
-    await this.failedToggle.click();
-  }
-
   public async switchToHourly(): Promise<void> {
     await this.hourlyToggle.click();
 
     await expect(this.page.getByTestId("calendar-hourly-view")).toBeVisible({ timeout: 30_000 });
     await this.waitForCalendarReady();
-  }
-
-  public async switchToTotalView(): Promise<void> {
-    await this.totalToggle.click();
   }
 
   private async waitForCalendarReady(): Promise<void> {

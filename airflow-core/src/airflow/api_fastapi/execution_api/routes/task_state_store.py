@@ -47,7 +47,7 @@ router = VersionedAPIRouter(
 
 def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScope:
     ti = session.get(TI, task_instance_id)
-    if ti is None:
+    if ti is None or ti.working_set is not True:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
@@ -55,7 +55,13 @@ def _get_task_scope_for_ti(task_instance_id: UUID, session: Session) -> TaskScop
                 "message": f"Task instance {task_instance_id} not found",
             },
         )
-    return TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index)
+    return TaskScope(
+        dag_id=ti.dag_id,
+        run_id=ti.run_id,
+        task_id=ti.task_id,
+        map_index=ti.region_index,
+        region_id=ti.region_id,
+    )
 
 
 @router.get("/{task_instance_id}/{key:path}")

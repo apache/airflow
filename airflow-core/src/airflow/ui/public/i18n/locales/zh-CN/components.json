@@ -1,16 +1,26 @@
 {
   "backfill": {
     "affected_one": "将会触发 1 次执行。",
-    "affected_other": "将会触发 {{count}} 次执行。",
+    "affected_other": "将会触发 {{count, number}} 次执行。",
     "affectedNone": "没有符合条件的执行。",
     "allRuns": "所有执行",
     "backwards": "反向执行",
     "dateRange": "日期范围",
     "errorStartDateBeforeEndDate": "开始日期必须早于结束日期。",
+    "exceptionReason": {
+      "alreadyExists": "已存在",
+      "inFlight": "执行中",
+      "unknown": "未知"
+    },
     "maxRuns": "活跃执行数上限",
     "missingAndErroredRuns": "遗漏和错误的执行",
     "missingRuns": "遗漏的执行",
+    "notCreatedReason": "未创建原因",
     "overrideExistingParams": "覆盖现有执行的参数",
+    "partitionRange": "分区范围",
+    "partitionsAffected_one": "将回填 1 个分区：",
+    "partitionsAffected_other": "将回填 {{count, number}} 个分区：",
+    "partitionsNone": "没有符合所选范围的分区。",
     "permissionDenied": "预演失败：用户没有权限创建回填作业。",
     "reprocessBehavior": "重新处理行为",
     "run": "执行回填",
@@ -25,11 +35,11 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "unpause": "触发时取消暂停 {{dag_display_name}}",
     "validation": {
       "datesRequired": "必须提供数据区间的开始与结束日期。",
       "startBeforeEnd": "数据区间起始日期必须早于或等于结束日期。"
-    }
+    },
+    "viewSlots": "查看回填 #{{id}} 的槽位"
   },
   "banner": {
     "backfillInProgress": "回填正在进行中",
@@ -42,15 +52,21 @@
   },
   "close": "关闭",
   "configForm": {
-    "advancedOptions": "高级选项",
     "configJson": "配置 JSON",
-    "invalidJson": "无效的 JSON 格式: {{errorMessage}}"
+    "invalidJson": "无效的 JSON 格式：{{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 个错误",
     "errorAndWarning": "1 个错误与 {{warningText}}",
+    "types": {
+      "asset conflict": "资源冲突",
+      "duplicate dag id": "重复的 Dag ID",
+      "non-existent pool": "资源池不存在",
+      "runtime varying value": "运行时变化的值",
+      "task group cycle": "任务分组循环"
+    },
     "warning_one": "1 个警告",
-    "warning_other": "{{count}} 个警告"
+    "warning_other": "{{count, number}} 个警告"
   },
   "dateRangeFilter": {
     "validation": {
@@ -60,17 +76,18 @@
     }
   },
   "durationChart": {
-    "duration": "持续时间 (秒)",
+    "duration": "持续时间（秒）",
     "lastDagRun_one": "最近 1 次 Dag 执行",
-    "lastDagRun_other": "最近 {{count}} 次 Dag 执行",
+    "lastDagRun_other": "最近 {{count, number}} 次 Dag 执行",
     "lastTaskInstance_one": "最近 1 次任务实例",
-    "lastTaskInstance_other": "最近 {{count}} 次任务实例",
+    "lastTaskInstance_other": "最近 {{count, number}} 次任务实例",
+    "medianTotalDuration": "总计：{{duration}}",
     "queuedDuration": "排队等候时间",
     "runAfter": "最早可执行时间",
     "runDuration": "执行持续时间"
   },
   "fileUpload": {
-    "files_other": "{{count}} 个文件"
+    "files_other": "{{count, number}} 个文件"
   },
   "flexibleForm": {
     "durationPlaceholder": "请输入 ISO 8601 格式的持续时间",
@@ -94,24 +111,37 @@
     "downloadImageErrorTitle": "下载失败",
     "otherDagRuns": "+ 其他 Dag 执行",
     "taskCount_one": "1 个任务",
-    "taskCount_other": "{{count}} 个任务",
+    "taskCount_other": "{{count, number}} 个任务",
     "taskGroup": "任务分组",
     "zoomToTask": "缩放至选定任务"
   },
-  "limitedList": "+ 其他 {{count}} 项",
-  "limitedList.allItems": "所有 {{count}} 项：",
+  "jsonPreview": {
+    "items_one": "1 项",
+    "items_other": "{{count, number}} 项"
+  },
+  "limitedList": "+ 其他 {{count, number}} 项",
+  "limitedList.allItems": "所有 {{count, number}} 项：",
   "limitedList.allTags_one": "所有标签 (1)",
-  "limitedList.allTags_other": "所有标签 ({{count}})",
+  "limitedList.allTags_other": "所有标签 ({{count, number}})",
   "limitedList.clickToInteract": "点击标签以筛选 Dags",
-  "limitedList.clickToOpenFull": "点击 \"+{{count}} 更多\" 打开完整视图",
+  "limitedList.clickToOpenFull": "点击 \"+{{count, number}} 更多\" 打开完整视图",
   "limitedList.copyPasteText": "你可以复制并粘贴上方文本",
   "limitedList.showingItems_one": "显示 1 项",
-  "limitedList.showingItems_other": "显示 {{count}} 项",
+  "limitedList.showingItems_other": "显示 {{count, number}} 项",
   "logs": {
     "file": "文件",
     "location": "第 {{line}} 行，位于 {{name}}"
   },
+  "passwordToggle": {
+    "hide": "隐藏",
+    "show": "显示"
+  },
   "reparseDag": "重新解析 Dag",
+  "slowestTaskInstances": {
+    "empty": "此范围内没有已完成的任务实例",
+    "title": "耗时最长的任务实例"
+  },
+  "sortMultiColumnHint": "按住 Shift 点击可按多列排序",
   "sortedAscending": "递增排序",
   "sortedDescending": "递减排序",
   "sortedUnsorted": "未排序",
@@ -136,6 +166,7 @@
     "loading": "正在加载 Dag 信息...",
     "loadingFailed": "加载 Dag 信息失败，请重试。",
     "manualRunDenied": "此 Dag 不允许手动执行",
+    "partitionKeyHelp": "选填，仅适用于分区 Dag",
     "runIdHelp": "选填 - 若未提供将会自动生成",
     "selectDescription": "触发此 Dag 单次执行",
     "selectLabel": "单次执行",
@@ -149,8 +180,7 @@
         "title": "已触发 Dag 执行"
       }
     },
-    "triggerAgainWithConfig": "使用此配置再次触发",
-    "unpause": "触发时取消暂停 {{dagDisplayName}}"
+    "triggerAgainWithConfig": "使用此配置再次触发"
   },
   "trimText": {
     "details": "详细信息",

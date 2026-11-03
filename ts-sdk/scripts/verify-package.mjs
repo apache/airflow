@@ -32,7 +32,9 @@ const COMMAND_TIMEOUT_MS = 10 * 60 * 1000;
 export const REQUIRED_ROOT_FILES = ["LICENSE", "NOTICE", "README.md", "package.json"];
 
 // The Dag-authoring entrypoints a consumer must be able to reach from the package root.
-export const REQUIRED_ROOT_EXPORTS = ["Dag", "DagRegistry", "serveDags"];
+// The two getters are here because a handler cannot reach the runtime without them: a
+// published build that dropped them would still import, and fail at the first task.
+export const REQUIRED_ROOT_EXPORTS = ["Bundle", "Dag", "TaskHandler", "getClient", "getContext"];
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -59,7 +61,7 @@ export function isAllowedFile(path) {
 }
 
 /**
- * Every path a consumer can resolve — the `exports` conditions plus the `bin` targets. Derived
+ * Every path a consumer can resolve: the `exports` conditions plus the `bin` targets. Derived
  * from package.json so adding an export subpath extends the check instead of silently escaping it.
  */
 export function collectEntryPoints(packageJson) {
@@ -72,7 +74,7 @@ export function collectEntryPoints(packageJson) {
 
 /**
  * The `exports` subpath keys as specifier suffixes: `"."` becomes `""` and `"./coordinator"`
- * becomes `"/coordinator"`. Presence in the tarball is not resolution — a subpath can ship and
+ * becomes `"/coordinator"`. Presence in the tarball is not resolution, since a subpath can ship and
  * still fail to import if its conditions are wrong or an internal import is broken.
  */
 export function collectExportSubpaths(packageJson) {
@@ -84,7 +86,7 @@ export function collectExportSubpaths(packageJson) {
 /** The trailing JSON object of `pnpm pack --json` stdout, past the `prepack` build banner. */
 export function parsePackMetadata(stdout) {
   // `--silent` does not suppress the `prepack` lifecycle banner, so stdout is build log followed
-  // by the JSON report — take the trailing object rather than parsing the whole stream.
+  // by the JSON report, so take the trailing object rather than parsing the whole stream.
   const metadataMatch = stdout.match(/(?:^|\n)(\{[\s\S]*\})\s*$/);
   if (!metadataMatch) {
     throw new Error("pnpm pack did not return package metadata");
@@ -166,7 +168,7 @@ function verifyPackage() {
     });
 
     // Spawning the installed bin shim proves it exists, is executable, and resolves its imports.
-    // Asserting only "exited non-zero, and blamed itself" keeps this a packaging check — the CLI's
+    // Asserting only "exited non-zero, and blamed itself" keeps this a packaging check, since the CLI's
     // own argument handling is covered by its unit tests.
     const [binName] = Object.keys(packageJson.bin ?? {});
     if (!binName) {

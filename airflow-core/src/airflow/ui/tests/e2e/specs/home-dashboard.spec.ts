@@ -59,7 +59,7 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await homePage.activeDagsCard.click();
-    await expect(homePage.page).toHaveURL(/paused=false/);
+    await expect(homePage.page).toHaveURL(/scheduling_state=active/);
 
     await homePage.navigate();
     await homePage.waitForDashboardLoad();

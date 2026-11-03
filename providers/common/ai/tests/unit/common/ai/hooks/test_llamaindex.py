@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.hooks.llamaindex import LlamaIndexHook
 
 
@@ -37,6 +39,7 @@ class TestLlamaIndexHookInit:
         assert hook.llm_conn_id == "llamaindex_default"
         assert hook.embed_conn_id == "llamaindex_default"
         assert hook.embed_model is None
+        assert hook.embedding_kwargs == {}
         assert hook.llm_model is None
 
     def test_embed_conn_falls_back_to_llm_conn(self):
@@ -54,6 +57,78 @@ class TestLlamaIndexHookInit:
         assert hook.embed_conn_id == "embed_conn"
         assert hook.embed_model == "text-embedding-3-large"
         assert hook.llm_model == "gpt-4o"
+
+    @pytest.mark.parametrize(
+        ("positional", "expected"),
+        [
+            pytest.param(("embed-pos",), {"embed_model": "embed-pos", "llm_model": None}, id="one"),
+            pytest.param(
+                ("embed-pos", "llm-pos"),
+                {"embed_model": "embed-pos", "llm_model": "llm-pos"},
+                id="two",
+            ),
+        ],
+    )
+    def test_positional_model_emits_deprecation_warning(self, positional, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LlamaIndexHook("c1", "c2", *positional)
+        assert len(record) == len(positional)
+        assert "Parameter `embed_model` passed positionally is deprecated" in str(record[0].message)
+        assert hook.llm_conn_id == "c1"
+        assert hook.embed_conn_id == "c2"
+        assert hook.embed_model == expected["embed_model"]
+        assert hook.llm_model == expected["llm_model"]
+
+    def test_positional_warning_stacklevel_points_to_caller(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LlamaIndexHook("c1", "c2", "embed-pos")
+        assert record[0].filename == __file__
+
+    def test_one_warning_per_positional_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LlamaIndexHook("c1", "c2", "embed-pos", "llm-pos")
+        messages = [str(w.message) for w in record]
+        assert len(messages) == 2
+        assert "`embed_model`" in messages[0]
+        assert "`llm_model`" in messages[1]
+
+    def test_keyword_model_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LlamaIndexHook("c1", "c2", embed_model="embed-pos", llm_model="llm-pos")
+        assert hook.embed_model == "embed-pos"
+        assert hook.llm_model == "llm-pos"
+
+    def test_connection_positional_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LlamaIndexHook("c1", "c2")
+        assert hook.embed_model is None
+        assert hook.llm_model is None
+
+    def test_too_many_positional_arguments_raise_type_error(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            with pytest.raises(TypeError, match="positional argument"):
+                LlamaIndexHook("c1", "c2", "embed-pos", "llm-pos", "extra")
+
+    def test_positional_and_keyword_same_parameter_raise_type_error(self):
+        with pytest.raises(TypeError, match="multiple values for argument 'embed_model'"):
+            LlamaIndexHook("c1", "c2", "embed-pos", embed_model="other")
+
+    def test_second_positional_and_keyword_same_parameter_raise_type_error(self):
+        with (
+            pytest.warns(AirflowProviderDeprecationWarning),
+            pytest.raises(TypeError, match="multiple values for argument 'llm_model'"),
+        ):
+            LlamaIndexHook("c1", "c2", "E", "L", llm_model="X")
+
+    def test_positional_and_keyword_different_parameters_combine(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LlamaIndexHook("c1", "c2", "embed-pos", llm_model="llm-pos")
+        assert len(record) == 1
+        assert hook.embed_model == "embed-pos"
+        assert hook.llm_model == "llm-pos"
 
     def test_conn_type_is_llamaindex(self):
         assert LlamaIndexHook.conn_type == "llamaindex"
@@ -130,6 +205,77 @@ class TestGetEmbeddingModel:
 
     @patch("llama_index.embeddings.openai.OpenAIEmbedding")
     @patch.object(LlamaIndexHook, "get_connection")
+    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_cls, caplog):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        mock_cls.model_fields = {"api_key": None, "dimensions": None, "timeout": None}
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
+        )
+
+        hook.get_embedding_model()
+
+        mock_cls.assert_called_once_with(
+            model="text-embedding-3-small",
+            api_key="sk-test",
+            dimensions=128,
+            timeout=30,
+        )
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+        assert not any(
+            message.startswith("OpenAIEmbedding ignores unsupported embedding_kwargs")
+            for message in caplog.messages
+        )
+
+    @pytest.mark.parametrize(
+        ("embedding_kwarg", "expect_warning"),
+        [
+            ("http_client", False),
+            ("embeddings_cache", False),
+            ("dimension", True),
+            ("kwargs", True),
+        ],
+    )
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_warns_about_unsupported_embedding_kwargs(
+        self, mock_get_conn, caplog, embedding_kwarg, expect_warning
+    ):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={embedding_kwarg: None},
+        )
+
+        hook.get_embedding_model()
+
+        warning = f"OpenAIEmbedding ignores unsupported embedding_kwargs: ['{embedding_kwarg}']"
+        assert (warning in caplog.messages) is expect_warning
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_embedding_kwargs_overrides_model_name(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"model_name": "custom-value"},
+        )
+
+        embedding_model = hook.get_embedding_model()
+
+        assert embedding_model.model_name == "custom-value"
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn):
+        mock_get_conn.return_value = _conn(password="sk-test")
+        hook = LlamaIndexHook(
+            embed_model="text-embedding-3-small",
+            embedding_kwargs={"model": "other-model"},
+        )
+
+        with pytest.raises(TypeError, match="multiple values.*model"):
+            hook.get_embedding_model()
+
+    @patch("llama_index.embeddings.openai.OpenAIEmbedding")
+    @patch.object(LlamaIndexHook, "get_connection")
     def test_resolves_model_from_extra(self, mock_get_conn, mock_cls):
         mock_get_conn.return_value = _conn(
             password="sk-test", extra={"embed_model": "text-embedding-3-large"}
@@ -193,6 +339,16 @@ class TestConnectionTest:
 
         assert success is False
         assert "Invalid API key" in message
+
+    @patch.object(LlamaIndexHook, "get_connection")
+    def test_non_openai_model_name_fails(self, mock_get_conn):
+        """The real ``OpenAI`` class only rejects a model name once ``.metadata`` is read."""
+        mock_get_conn.return_value = _conn(password="sk-test", extra={"llm_model": "llama3.2"})
+
+        success, message = LlamaIndexHook().test_connection()
+
+        assert success is False
+        assert "Unknown model 'llama3.2'" in message
 
     @patch.object(LlamaIndexHook, "get_connection")
     def test_failed_connection_no_model(self, mock_get_conn):

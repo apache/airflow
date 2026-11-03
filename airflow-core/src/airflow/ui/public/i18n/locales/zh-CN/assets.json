@@ -1,5 +1,8 @@
 {
   "additional_data": "附加数据",
+  "alias_one": "别名",
+  "alias_other": "别名",
+  "aliases": "别名",
   "asset_many": "资源",
   "asset_one": "资源",
   "assetStateStore": {
@@ -13,9 +16,11 @@
     "deleteWarning": "该资源将丢失此持久化的存储条目。",
     "edit": "编辑资源存储",
     "emptyState": "资源存储保存与某个资源身份关联的值，并在所有 Dag 执行之间共享。工作节点可以通过 Task SDK 写入资源存储。",
-    "lastUpdatedBy": "Last Updated By",
+    "entry_one": "条目",
+    "entry_other": "条目",
+    "lastUpdatedBy": "最后更新者",
     "lastUpdatedByApi": "API",
-    "lastUpdatedByWatcher": "Watcher",
+    "lastUpdatedByWatcher": "监听器",
     "title": "资源存储"
   },
   "consumingDags": "消费者 Dags",
@@ -29,7 +34,7 @@
     },
     "materialize": {
       "description": "触发此资源上游的 Dag",
-      "descriptionWithDag": "触发此资源上游的 Dag: {{dagName}}",
+      "descriptionWithDag": "触发此资源上游的 Dag：{{dagName}}",
       "label": "物化",
       "unpauseDag": "触发时取消暂停 {{dagName}}"
     },
@@ -42,7 +47,10 @@
     "title": "为 {{name}} 创建资源事件"
   },
   "events": "事件",
-  "extra": "额外信息",
+  "filters": {
+    "groupPlaceholder": "搜索分组",
+    "lastEventDateRange": "最近事件日期"
+  },
   "group": "分组",
   "lastAssetEvent": "最后资源事件",
   "name": "名称",
@@ -50,5 +58,8 @@
   "scheduledDags": "已调度的 Dags",
   "scheduling": "调度",
   "searchPlaceholder": "搜索资源",
-  "taskDependencies": "任务依赖"
+  "taskDependencies": "任务依赖",
+  "watcher_one": "监听器",
+  "watcher_other": "监听器",
+  "watchers": "监听器"
 }

@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import dataclasses
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-from openlineage.client.event_v2 import RunState
+from openlineage.client.event_v2 import Dataset, RunState
 
 from airflow.providers.openlineage.api.sql import emit_query_lineage
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy
 
 _MODULE = "airflow.providers.openlineage.api.sql"
 _CORE = "airflow.providers.openlineage.api.core"
@@ -34,12 +36,12 @@ def _make_task_instance(task_id: str = "task_id", dr_conf: dict | None = None):
         task_id=task_id,
         try_number=1,
         map_index=-1,
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
     )
     dag_run = mock.MagicMock(
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
         clear_number=0,
-        run_after=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        run_after=datetime(2024, 1, 1, tzinfo=UTC),
         conf=dr_conf or {},
     )
     ti.dag_run = dag_run
@@ -193,8 +195,8 @@ def test_emits_fail_event_with_error_message(patched_emit):
 
 def test_uses_explicit_start_and_end_times(patched_emit):
     ti = _make_task_instance()
-    start = datetime(2024, 5, 1, 10, 0, tzinfo=timezone.utc)
-    end = datetime(2024, 5, 1, 10, 5, tzinfo=timezone.utc)
+    start = datetime(2024, 5, 1, 10, 0, tzinfo=UTC)
+    end = datetime(2024, 5, 1, 10, 5, tzinfo=UTC)
     emit_query_lineage(
         query_id="qid",
         query_source_namespace="snowflake://ACCT",
@@ -333,3 +335,24 @@ def test_noop_when_emission_policy_blocks_emit(patched_emit):
         )
 
     patched_emit.assert_not_called()
+
+
+def _policy_excluding(patterns: tuple[str, ...]) -> EmissionPolicy:
+    return dataclasses.replace(
+        EmissionPolicy.defaults(), dataset_filter=DatasetFilter(authoring_patterns=patterns)
+    )
+
+
+def test_excludes_datasets_from_events(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/drop",))):
+        emit_query_lineage(
+            query_id="qid-1",
+            query_source_namespace="snowflake://ACCT",
+            inputs=[Dataset(namespace="ns", name="drop"), Dataset(namespace="ns", name="keep")],
+            task_instance=ti,
+        )
+
+    start_event, end_event = (c.args[0] for c in patched_emit.call_args_list)
+    assert [d.name for d in start_event.inputs] == ["keep"]
+    assert [d.name for d in end_event.inputs] == ["keep"]

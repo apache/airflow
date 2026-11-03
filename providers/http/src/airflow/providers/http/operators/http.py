@@ -51,7 +51,7 @@ class HttpOperator(BaseOperator):
         :ref:`howto/deferrable:HttpOperator`
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run
-        the operator against
+        the operator against. (templated)
     :param endpoint: The relative part of the full url. (templated)
     :param method: The HTTP method to use, default = "POST"
     :param data: The data to pass. POST-data in POST/PUT and params
@@ -106,6 +106,7 @@ class HttpOperator(BaseOperator):
         "endpoint",
         "data",
         "headers",
+        "http_conn_id",
     )
     template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()

@@ -119,7 +119,7 @@ To trigger these fixes, run the following command:
 .. note::
 
     In AIR rules, unsafe fixes involve changing import paths while keeping the name of the imported member the same. For instance, changing the import from ``from airflow.sensors.base_sensor_operator import BaseSensorOperator`` to ``from airflow.sdk.bases.sensor import BaseSensorOperator`` requires ruff to remove the original import before adding the new one. In contrast, safe fixes include changes to both the member name and the import path, such as changing ``from airflow.datasets import Dataset`` to ``from airflow.sdk import Asset``.
-    These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the ``unused-import`` rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>`_
+    These adjustments do not require ruff to remove the old import. To remove unused legacy imports, it is necessary to enable the `unused-import rule (F401) <https://docs.astral.sh/ruff/rules/unused-import/#unused-import-f401>`_
 
 You can also configure these flags through configuration files. See `Configuring Ruff <https://docs.astral.sh/ruff/configuration/>`_ for details.
 
@@ -348,7 +348,7 @@ Please consider checking the following things after upgrading your Airflow insta
 .. _breaking-changes:
 
 Breaking Changes
-================
+----------------
 
 Some capabilities which were deprecated in Airflow 2.x are not available in Airflow 3.
 These include:
@@ -411,7 +411,7 @@ These include:
 .. _data-interval-manual-triggering:
 
 Manual Dag Runs and ``logical_date``
-====================================
+------------------------------------
 
 For scheduled runs, ``logical_date`` and ``data_interval`` are both derived from
 the Dag's timetable.
@@ -430,14 +430,14 @@ This matters most for Dags that:
   manual run date
 
 Migration guidance
-------------------
+^^^^^^^^^^^^^^^^^^
 
 If your Dag logic needs the user-specified date for a manual run, use
 ``logical_date`` explicitly.
 
 .. code-block:: python
 
-   from airflow.decorators import get_current_context, task
+   from airflow.sdk import get_current_context, task
 
 
    @task

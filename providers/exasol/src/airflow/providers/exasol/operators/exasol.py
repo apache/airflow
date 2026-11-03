@@ -39,7 +39,7 @@ class ExasolOperator(SQLExecuteQueryOperator):
     :param handler: (optional) handler to process the results of the query
     """
 
-    template_fields: Sequence[str] = ("sql", "exasol_conn_id")
+    template_fields: Sequence[str] = ("sql", "exasol_conn_id", "conn_id")
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
     ui_color = "#ededed"

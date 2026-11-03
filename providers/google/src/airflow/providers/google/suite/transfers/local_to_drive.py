@@ -74,6 +74,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     template_fields = (
         "local_paths",
         "drive_folder",
+        "gcp_conn_id",
     )
 
     def __init__(

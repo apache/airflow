@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -273,4 +274,61 @@ def trigger_workflow_and_monitor(
     monitor_workflow_run(
         run_id=str(workflow_run_id),
         repo=repo,
+    )
+
+
+def get_staging_only_commits(repo: str) -> list[str]:
+    """Return ``<short sha> <date> <subject>`` for each commit on ``staging`` that is not on ``main``."""
+    result = run_gh_command(
+        ["gh", "api", f"repos/{repo}/compare/main...staging"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    commits = json.loads(result.stdout)["commits"]
+    return [
+        f"{commit['sha'][:7]} {commit['commit']['committer']['date'][:10]} "
+        f"{commit['commit']['message'].splitlines()[0]}"
+        for commit in commits
+    ]
+
+
+HARDENED_BASE_IMAGES_MIRROR_WORKFLOW = "mirror-hardened-base-images.yml"
+
+
+def check_can_dispatch_workflows(repo: str, hint: str) -> None:
+    """Fail unless the gh credentials may dispatch the workflows of the repository."""
+    # In GitHub Actions the job token gets "actions: write" from the workflow, and the repository API
+    # reports no permissions for it.
+    if get_dry_run() or os.environ.get("GITHUB_ACTIONS") == "true":
+        return
+    result = run_gh_command(
+        ["gh", "api", f"repos/{repo}", "--jq", ".permissions.push"], capture_output=True, text=True
+    )
+    if result.returncode != 0 or result.stdout.strip() != "true":
+        console_print(
+            f"[red]Your gh credentials cannot dispatch workflows in {repo}. Mirroring the hardened base "
+            f"images runs the '{HARDENED_BASE_IMAGES_MIRROR_WORKFLOW}' workflow on main, which pushes "
+            "the images to ghcr.io, and dispatching it needs write access to the repository. Log in "
+            f"with 'gh auth login' as an account with that access. {hint}[/red]"
+        )
+        sys.exit(1)
+
+
+def mirror_hardened_base_images(repo: str, hint: str = "", trigger_upgrade_check: bool = True) -> None:
+    """
+    Mirror the latest hardened base images by running the mirror workflow on main, and wait for it.
+
+    :param trigger_upgrade_check: whether the mirror runs the main upgrade check when a tag moves past
+        its pin - off when the caller is that upgrade, which would otherwise run twice.
+    """
+    check_can_dispatch_workflows(repo, hint)
+    console_print("[blue]Mirroring the latest hardened base images[/blue]")
+    # The mirror is shared by every branch, and main mirrors every Python version an active release
+    # branch still builds on.
+    trigger_workflow_and_monitor(
+        workflow_name=HARDENED_BASE_IMAGES_MIRROR_WORKFLOW,
+        repo=repo,
+        branch="main",
+        **{"trigger-upgrade-check": trigger_upgrade_check},
     )

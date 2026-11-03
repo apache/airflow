@@ -19,7 +19,7 @@ from __future__ import annotations
 from contextlib import ExitStack, contextmanager
 from unittest import mock
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS, AIRFLOW_V_3_3_PLUS
 
 PLUGINS_MANAGER_NULLABLE_ATTRIBUTES_V3_0 = [
     "plugins",
@@ -83,22 +83,34 @@ def mock_plugin_manager(plugins=None, **kwargs):
     # Handle plugins specially
     with ExitStack() as exit_stack:
         if AIRFLOW_V_3_2_PLUS:
-            # Always start the block with an non-initialized plugins, so ensure_plugins_loaded runs.
             from airflow import plugins_manager
             from airflow.sdk import plugins_manager as sdk_plugins_manager
 
-            plugins_manager._get_plugins.cache_clear()
-            plugins_manager._get_ui_plugins.cache_clear()
-            plugins_manager.get_ui_translations.cache_clear()
-            plugins_manager.get_flask_plugins.cache_clear()
-            plugins_manager.get_fastapi_plugins.cache_clear()
-            plugins_manager._get_extra_operators_links_plugins.cache_clear()
-            plugins_manager.get_timetables_plugins.cache_clear()
-            plugins_manager.integrate_macros_plugins.cache_clear()
-            plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
+            def clear_plugin_caches():
+                plugins_manager._get_plugins.cache_clear()
+                plugins_manager._get_ui_plugins.cache_clear()
+                plugins_manager.get_ui_translations.cache_clear()
+                plugins_manager.get_flask_plugins.cache_clear()
+                plugins_manager.get_fastapi_plugins.cache_clear()
+                plugins_manager._get_extra_operators_links_plugins.cache_clear()
+                plugins_manager._get_extra_link_class_teams.cache_clear()
+                plugins_manager.get_scheduling_class_teams.cache_clear()
+                plugins_manager.get_timetables_plugins.cache_clear()
+                plugins_manager.get_partition_mapper_plugins.cache_clear()
+                if AIRFLOW_V_3_3_PLUS:
+                    plugins_manager.get_windows_plugins.cache_clear()
+                    plugins_manager.get_deadline_references_plugins.cache_clear()
+                plugins_manager.integrate_macros_plugins.cache_clear()
+                plugins_manager.get_priority_weight_strategy_plugins.cache_clear()
 
-            sdk_plugins_manager.integrate_macros_plugins.cache_clear()
-            sdk_plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
+                sdk_plugins_manager.integrate_macros_plugins.cache_clear()
+                sdk_plugins_manager.get_macro_plugin_teams.cache_clear()
+                sdk_plugins_manager.get_hook_lineage_readers_plugins.cache_clear()
+
+            # Start the block with no plugins loaded, so ensure_plugins_loaded runs, and clear again
+            # on the way out so nothing computed from the mocked plugins outlives the block.
+            clear_plugin_caches()
+            exit_stack.callback(clear_plugin_caches)
 
             if plugins is not None or "import_errors" in kwargs:
                 exit_stack.enter_context(

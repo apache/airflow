@@ -38,6 +38,7 @@ const tiLine = (event: string, timestamp: string) => ({
 describe("getDownloadText", () => {
   const baseOptions = {
     logLevelFilters: [],
+    showLogLevel: true,
     showSource: false,
     showTimestamp: false,
     sourceFilters: [],
@@ -102,6 +103,18 @@ describe("getDownloadText", () => {
     const lines = getDownloadText({ ...baseOptions, fetchedData });
 
     expect(lines.every((line) => !line.includes("Task Identity"))).toBe(true);
+  });
+
+  it("omits log level prefix when showLogLevel is false", () => {
+    const fetchedData = {
+      content: [{ event: "Task started", level: "info", timestamp: "2026-01-01T00:00:00Z" }],
+      continuation_token: null,
+    };
+
+    const lines = getDownloadText({ ...baseOptions, fetchedData, showLogLevel: false });
+
+    expect(lines).toContain("Task started");
+    expect(lines.every((line) => !line.includes("INFO -"))).toBe(true);
   });
 });
 

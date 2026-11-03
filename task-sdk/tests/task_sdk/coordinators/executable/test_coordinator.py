@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import hashlib
-import pathlib
+import json
+import os
 import socket
 import stat
 import struct
@@ -31,7 +32,9 @@ import pytest
 import yaml
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.dag_processing.bundles.base import BaseDagBundle
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.executable.coordinator import (
     FOOTER_MAGIC,
     FOOTER_SIZE,
@@ -39,10 +42,13 @@ from airflow.sdk.coordinators.executable.coordinator import (
     _BinaryDigestCache,
     _Bundle,
     _digest_cache,
+    _ensure_executable,
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator
 from airflow.sdk.execution_time.supervisor import ActivitySubprocess
+from airflow.sdk.importers import reset_importer_registry
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if not AIRFLOW_V_3_3_PLUS:
@@ -59,7 +65,7 @@ def _make_metadata(dag_ids, source_filename: str = "example.go") -> dict:
             "version": "0.1.0",
             "supervisor_schema_version": "2026-06-16",
         },
-        "source": source_filename,
+        "entrypoint_path": source_filename,
         "dags": {dag_id: {"tasks": ["task1"]} for dag_id in dag_ids},
     }
 
@@ -193,6 +199,46 @@ class TestBinaryDigestCache:
         assert cache.get(key) is None
 
 
+class TestEnsureExecutable:
+    def test_adds_execute_bit_matching_read_bits(self, tmp_path):
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o644)
+
+        assert _ensure_executable(path) is None
+        assert path.stat().st_mode & 0o777 == 0o755
+
+    def test_already_executable_returns_without_chmod(self, tmp_path):
+        # 0o744 is already runnable by its owner but isn't the exact "read implies execute"
+        # pattern this function would itself produce (0o755), so this also proves the
+        # already-executable check is `os.access`, not a recomputed-mode comparison.
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o744)
+
+        with patch.object(Path, "chmod", side_effect=AssertionError("chmod should not be called")):
+            assert _ensure_executable(path) is None
+
+        assert path.stat().st_mode & 0o777 == 0o744
+
+    def test_returns_reason_when_path_cannot_be_stat_ed(self, tmp_path):
+        reason = _ensure_executable(tmp_path / "missing")
+
+        assert reason is not None
+        assert "cannot stat" in reason
+
+    def test_returns_reason_when_chmod_fails(self, tmp_path):
+        path = tmp_path / "bundle"
+        path.write_bytes(b"payload")
+        path.chmod(0o644)
+
+        with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
+            reason = _ensure_executable(path)
+
+        assert reason is not None
+        assert "cannot set executable bit" in reason
+
+
 class TestBundleFind:
     def test_finds_matching_dag_id(self, tmp_path):
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag", "other_dag"])
@@ -235,12 +281,31 @@ class TestBundleFind:
         bundle = _Bundle.find([tmp_path], "tutorial_dag")
         assert bundle.path == binary.resolve()
 
-    def test_skips_non_executable_files(self, tmp_path):
+    def test_finds_and_marks_executable_a_non_executable_bundle(self, tmp_path):
+        # An object-store Dag bundle has no concept of file permissions, so a synced
+        # bundle file commonly arrives without its execute bit.
         non_exec = _build_bundle(tmp_path / "non_exec", dag_ids=["tutorial_dag"])
         non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
-            _Bundle.find([tmp_path], "tutorial_dag")
+        bundle = _Bundle.find([tmp_path], "tutorial_dag")
+
+        assert bundle.path == non_exec.resolve()
+        assert os.access(non_exec, os.X_OK)
+
+    def test_skips_bundle_when_marking_executable_fails(self, tmp_path):
+        non_exec = _build_bundle(tmp_path / "non_exec", dag_ids=["tutorial_dag"])
+        non_exec.chmod(non_exec.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+
+        with patch.object(Path, "chmod", side_effect=OSError("read-only filesystem")):
+            with patch("airflow.sdk.coordinators.executable.coordinator.log") as mock_log:
+                with pytest.raises(FileNotFoundError, match="matching bundles were rejected") as exc_info:
+                    _Bundle.find([tmp_path], "tutorial_dag")
+
+        mock_log.debug.assert_any_call(
+            "Bundle cannot be made executable; skipping", path=str(non_exec), error=mock.ANY
+        )
+        # The rejection reason surfaces the real cause, not a generic not-found.
+        assert "cannot set executable bit" in str(exc_info.value)
 
     def test_raises_when_not_found(self, tmp_path):
         with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
@@ -276,12 +341,7 @@ class TestBundleFind:
             with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
                 _Bundle.find([tmp_path], "tutorial_dag")
 
-        mock_log.debug.assert_any_call(
-            "Bundle binary_sha256 mismatch; skipping",
-            path=str(bundle_path),
-            expected=mock.ANY,
-            actual=mock.ANY,
-        )
+        mock_log.debug.assert_any_call("Not a usable bundle; skipping", path=str(bundle_path), error=mock.ANY)
 
     def test_captures_schema_version_from_metadata(self, tmp_path):
         _build_bundle(tmp_path / "with_schema", dag_ids=["tutorial_dag"])
@@ -304,6 +364,19 @@ class TestBundleFind:
             path=str(bundle_path),
             error=mock.ANY,
         )
+
+    def test_does_not_mark_executable_a_bundle_rejected_for_its_schema_version(self, tmp_path):
+        # The schema check must run, and reject, before the file is touched at all -- a rejected
+        # bundle is never the one returned, so there is no reason to chmod it.
+        metadata = _make_metadata(["tutorial_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        bundle_path = _build_bundle(tmp_path / "no_schema", dag_ids=["tutorial_dag"], metadata=metadata)
+        bundle_path.chmod(bundle_path.stat().st_mode & ~(stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+
+        with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
+            _Bundle.find([tmp_path], "tutorial_dag")
+
+        assert not os.access(bundle_path, os.X_OK)
 
     def test_skips_bundle_with_unknown_schema_version(self, tmp_path):
         metadata = _make_metadata(["tutorial_dag"])
@@ -337,7 +410,7 @@ class TestBundleFind:
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
+            "Not a usable bundle; skipping",
             path=str(bundle_path),
             error=mock.ANY,
         )
@@ -354,29 +427,126 @@ class TestBundleFind:
                 _Bundle.find([tmp_path], "tutorial_dag")
 
         mock_log.debug.assert_any_call(
-            "Cannot decode bundle metadata; skipping",
+            "Not a usable bundle; skipping",
             path=str(bundle_path),
             error=mock.ANY,
         )
 
 
 class TestExecutableCoordinatorAttributes:
-    def test_executables_root_accepts_single_path(self, tmp_path):
-        coordinator = ExecutableCoordinator(executables_root=str(tmp_path))
-        assert coordinator.executables_root == [tmp_path]
+    def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
+        coordinator = ExecutableCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(
+                what=_make_ti(dag_id="tutorial_dag")
+            )
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
 
-    def test_executables_root_accepts_list(self, tmp_path):
-        other = tmp_path / "other"
-        coordinator = ExecutableCoordinator(executables_root=[str(tmp_path), other])
-        assert coordinator.executables_root == [tmp_path, other]
 
-    def test_executables_root_required(self):
-        with pytest.raises(TypeError, match="executables_root"):
-            ExecutableCoordinator()
+class TestBuildParseDagCommand:
+    def test_returns_the_bundle_and_its_schema_version(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
 
-    def test_executables_root_must_be_non_empty(self):
-        with pytest.raises(ValueError, match="executables_root"):
-            ExecutableCoordinator(executables_root=None)
+        command, schema_version = ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_marks_the_bundle_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle")
+        binary.chmod(0o644)
+
+        ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert os.access(binary, os.X_OK)
+
+    def test_parses_a_bundle_that_registers_no_dag(self, tmp_path):
+        binary = _build_bundle(tmp_path / "handlers_only", dag_ids=[])
+
+        command, _ = ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+        assert command == [str(binary.resolve())]
+
+    def test_raises_for_a_file_that_is_not_a_bundle(self, tmp_path):
+        plain = tmp_path / "plain"
+        plain.write_bytes(b"not a bundle")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_parse_dag_command(path=plain)
+
+    def test_raises_for_a_tampered_bundle(self, tmp_path):
+        binary = _build_bundle(tmp_path / "tampered")
+        data = bytearray(binary.read_bytes())
+        data[0] ^= 0xFF
+        binary.write_bytes(bytes(data))
+        _digest_cache.clear()
+
+        with pytest.raises(ValueError, match="SHA-256 does not match"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_with_the_reason_for_an_unknown_footer_version(self, tmp_path):
+        binary = _build_bundle(tmp_path / "future", footer_ver=2)
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle: .*footer_ver=2"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_when_the_bundle_omits_the_schema_version(self, tmp_path):
+        metadata = _make_metadata(["native_dag"])
+        del metadata["sdk"]["supervisor_schema_version"]
+        binary = _build_bundle(tmp_path / "no_schema", metadata=metadata)
+
+        with pytest.raises(ValueError, match="no usable supervisor schema version"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_for_an_unknown_schema_version(self, tmp_path):
+        metadata = _make_metadata(["native_dag"])
+        metadata["sdk"]["supervisor_schema_version"] = "1999-01-01"
+        binary = _build_bundle(tmp_path / "unknown_schema", metadata=metadata)
+
+        with pytest.raises(ValueError, match="no usable supervisor schema version"):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+    def test_raises_when_the_bundle_cannot_be_made_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "locked")
+
+        with (
+            patch(
+                "airflow.sdk.coordinators.executable.coordinator._ensure_executable",
+                autospec=True,
+                return_value="denied",
+            ),
+            pytest.raises(ValueError, match="Cannot run bundle .*: denied"),
+        ):
+            ExecutableCoordinator()._build_parse_dag_command(path=binary)
+
+
+class TestBuildDagFileCommand:
+    def test_runs_the_bundle_the_dag_was_parsed_from(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
+
+        command, schema_version = ExecutableCoordinator()._build_dag_file_command(
+            what=_make_ti(dag_id="native_dag"), path=binary
+        )
+
+        assert command == [str(binary.resolve())]
+        assert schema_version == "2026-06-16"
+
+    def test_marks_the_bundle_executable(self, tmp_path):
+        binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["native_dag"])
+        binary.chmod(0o644)
+
+        ExecutableCoordinator()._build_dag_file_command(what=_make_ti(dag_id="native_dag"), path=binary)
+
+        assert os.access(binary, os.X_OK)
+
+    def test_raises_for_a_file_that_is_not_a_bundle(self, tmp_path):
+        plain = tmp_path / "plain"
+        plain.write_bytes(b"not a bundle")
+
+        with pytest.raises(ValueError, match="is not a valid executable bundle"):
+            ExecutableCoordinator()._build_dag_file_command(what=_make_ti(dag_id="native_dag"), path=plain)
 
 
 class TestBuildExecuteTaskCommand:
@@ -384,8 +554,9 @@ class TestBuildExecuteTaskCommand:
         binary = _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        command, schema_version = coordinator._build_execute_task_command(what=ti)
+        coordinator = ExecutableCoordinator()
+        with coordinator._set_scan_roots([tmp_path]):
+            command, schema_version = coordinator._build_execute_task_command(what=ti)
         assert command == [str(binary.resolve())]
         assert schema_version == "2026-06-16"
 
@@ -395,16 +566,22 @@ class TestBuildExecuteTaskCommand:
         _build_bundle(tmp_path / "my_bundle", dag_ids=["tutorial_dag"], metadata=metadata)
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        with pytest.raises(FileNotFoundError, match="matching bundles were rejected"):
+        coordinator = ExecutableCoordinator()
+        with (
+            coordinator._set_scan_roots([tmp_path]),
+            pytest.raises(FileNotFoundError, match="matching bundles were rejected"),
+        ):
             coordinator._build_execute_task_command(what=ti)
 
     def test_raises_when_dag_id_not_found(self, tmp_path):
         _build_bundle(tmp_path / "my_bundle", dag_ids=["other_dag"])
         ti = _make_ti(dag_id="tutorial_dag")
 
-        coordinator = ExecutableCoordinator(executables_root=[tmp_path])
-        with pytest.raises(FileNotFoundError, match="cannot find executable bundle"):
+        coordinator = ExecutableCoordinator()
+        with (
+            coordinator._set_scan_roots([tmp_path]),
+            pytest.raises(FileNotFoundError, match="cannot find executable bundle"),
+        ):
             coordinator._build_execute_task_command(what=ti)
 
 
@@ -415,6 +592,18 @@ def bundles_dir(tmp_path):
 
 
 @pytest.fixture
+def go_task_handlers(bundles_dir):
+    """Register *bundles_dir* as the ``go-task-handlers`` Dag bundle and return that name."""
+    bundle = {
+        "name": "go-task-handlers",
+        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+        "kwargs": {"path": str(bundles_dir)},
+    }
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
+        yield bundle["name"]
+
+
+@pytest.fixture
 def mock_client(make_ti_context):
     client = MagicMock()
     client.task_instances.start.return_value = make_ti_context()
@@ -422,10 +611,10 @@ def mock_client(make_ti_context):
 
 
 class TestExecutableCoordinatorExecuteTask:
-    def _captured_popen_cmd(self, bundles_dir: pathlib.Path, mock_client) -> list[str]:
+    def _captured_popen_cmd(self, bundle_name: str, mock_client) -> list[str]:
         """Run execute_task with mocked subprocess and return the command list."""
         ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(executables_root=[bundles_dir])
+        coordinator = ExecutableCoordinator(task_handler_bundle_name=bundle_name)
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 12345
@@ -465,14 +654,14 @@ class TestExecutableCoordinatorExecuteTask:
         assert popen_calls, "subprocess.Popen was not called"
         return popen_calls[0]
 
-    def test_executable_path_is_first_arg(self, bundles_dir, mock_client):
-        cmd = self._captured_popen_cmd(bundles_dir, mock_client)
+    def test_executable_path_is_first_arg(self, bundles_dir, go_task_handlers, mock_client):
+        cmd = self._captured_popen_cmd(go_task_handlers, mock_client)
         expected = str((bundles_dir / "my_bundle").resolve())
         assert cmd[0] == expected
 
-    def test_returns_execution_result(self, bundles_dir, mock_client):
+    def test_returns_execution_result(self, go_task_handlers, mock_client):
         ti = _make_ti(dag_id="tutorial_dag")
-        coordinator = ExecutableCoordinator(executables_root=[bundles_dir])
+        coordinator = ExecutableCoordinator(task_handler_bundle_name=go_task_handlers)
 
         mock_proc = MagicMock(spec=subprocess.Popen)
         mock_proc.pid = 99999
@@ -503,3 +692,49 @@ class TestExecutableCoordinatorExecuteTask:
 
         assert isinstance(result, BaseCoordinator.ExecutionResult)
         assert result.exit_code == 0
+
+
+class TestExecuteTaskNativeBundle:
+    def test_runs_a_bundle_found_by_its_bundle_relative_name(self, tmp_path, monkeypatch, mock_client):
+        dags = tmp_path / "dags"
+        (dags / "bin").mkdir(parents=True)
+        binary = _build_bundle(dags / "bin" / "orders", dag_ids=["orders"])
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        bundle = MagicMock(spec=BaseDagBundle, path=dags, version="v1")
+        bundle.name = "dags"
+        coordinators = {
+            ("sdk", "coordinators"): json.dumps(
+                {"go": {"classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator"}}
+            )
+        }
+
+        reset_importer_registry()
+        try:
+            with (
+                conf_vars(coordinators),
+                patch("airflow.sdk.coordinators._subprocess.initialize_ti_bundle", autospec=True) as init,
+                patch("airflow.sdk.coordinators._subprocess.BundleVersionLock", autospec=True),
+                patch.object(_PopenActivitySubprocess, "start", autospec=True) as mock_start,
+                patch.object(
+                    ExecutableCoordinator,
+                    "_build_execute_task_command",
+                    autospec=True,
+                    side_effect=ExecutableCoordinator._build_execute_task_command,
+                ) as mock_scan,
+            ):
+                init.return_value = bundle
+                mock_start.return_value.wait.return_value = 0
+                ExecutableCoordinator().execute_task(
+                    what=_make_ti(dag_id="orders"),
+                    dag_rel_path="bin/orders",
+                    bundle_info=BundleInfo(name="dags", version="v1"),
+                    client=mock_client,
+                    subprocess_logs_to_stdout=False,
+                )
+        finally:
+            reset_importer_registry()
+
+        mock_scan.assert_not_called()
+        assert mock_start.call_args.kwargs["command"][0] == str(binary.resolve())

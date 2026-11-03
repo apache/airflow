@@ -237,7 +237,7 @@ def get_providers_constraints_location(
 @cache
 def get_airflow_installation_path() -> Path:
     """Get the installation path of Airflow in the container.
-    Will return somehow like `/usr/python/lib/python3.10/site-packages/airflow`.
+    Will return somehow like `/usr/python/lib/python3.11/site-packages/airflow`.
     """
     import importlib.util
 
@@ -905,7 +905,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
     type=click.Choice(ALLOWED_CONSTRAINTS_MODE),
     default=ALLOWED_CONSTRAINTS_MODE[0],
     show_envvar=True,
-    envvar="AIRFLOW_CONSTRAINTS_MODE",
+    envvar="PROVIDERS_CONSTRAINTS_MODE",
     help="Providers constraints mode.",
 )
 @click.option(
@@ -923,7 +923,7 @@ FUTURE_CONTENT = "from __future__ import annotations"
 )
 @click.option(
     "--python-version",
-    default="3.10",
+    default="3.11",
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     show_default=True,
     help="Python version to use",

@@ -57,6 +57,13 @@ module.exports = [
     color: 'amber',
     keywords: ['openai', 'cohere', 'anthropic', 'huggingface', 'mlflow', 'pinecone', 'qdrant', 'weaviate', 'pgvector', 'langchain', 'llamaindex', 'mcp', 'pydantic ai'],
     description: 'OpenAI, vector DBs, and ML platforms',
+    // Opt-in only: ai-ml's keywords are capability claims ("this provider
+    // integrates with X"), same axis as `external-services`
+    // (provider.yaml.schema.json). Forcing this on for every category, ai-ml
+    // included, would change exactly one other: `cloud` would gain Common AI
+    // via `google` matching "Google"/"Google Vertex AI". Common AI isn't a
+    // cloud platform, so this stays scoped to ai-ml.
+    includeExternalServices: true,
   },
   {
     id: 'data-processing',

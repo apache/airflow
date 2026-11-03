@@ -60,7 +60,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
         This parameter works only when custom_resource_definition parameter is True.
     """
 
-    template_fields: Sequence[str] = ("yaml_conf", "yaml_conf_file")
+    template_fields: Sequence[str] = ("yaml_conf", "yaml_conf_file", "kubernetes_conn_id")
     template_fields_renderers = {"yaml_conf": "yaml"}
 
     def __init__(

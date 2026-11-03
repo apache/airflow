@@ -23,17 +23,17 @@ type (
 )
 
 var (
-	// RuntimeContextKey stores the public, task-facing runtime context
-	// (task instance identifiers and the Dag run's scheduling timestamps).
-	// The coordinator-mode runtime populates it from StartupDetails; the
-	// bundle runtime reads it to inject an sdk.TIRunContext parameter into
-	// task functions rather than exposing this key directly. Its value type
-	// is sdk.TIRunContext (built over a placeholder base context; the bundle
-	// runtime rebuilds it around the live task context at injection time),
-	// but this package does not import sdk to avoid an import cycle.
+	// RuntimeContextKey stores the task instance identifiers and the Dag run's
+	// scheduling timestamps. The coordinator-mode runtime populates it from
+	// StartupDetails. The bundle runtime reads it to fill the airflow.Context
+	// a task function takes first, rather than exposing this key directly.
+	// Its value type is sdk.TIRunContext. The base context under it is a
+	// placeholder, because the bundle runtime reads back only the task
+	// instance and Dag run.
 	RuntimeContextKey = runtimeContextKey{}
 
-	// SdkClientContextKey holds the coordinator-backed sdk.Client injected into
-	// task functions. SDK calls travel over the supervisor comm socket.
+	// SdkClientContextKey holds the coordinator-backed sdk.Client that task
+	// functions reach through airflow.Context. SDK calls travel over the
+	// supervisor comm socket.
 	SdkClientContextKey = sdkClientContextKey{}
 )

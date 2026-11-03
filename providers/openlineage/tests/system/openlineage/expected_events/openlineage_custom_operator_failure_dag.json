@@ -80,18 +80,23 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "end_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
                     },
                     "task": {
                         "depends_on_past": false,
                         "downstream_task_ids": "['empty_success']",
                         "executor_config": {},
                         "inlets": "[]",
+                        "inlets_list": [],
                         "mapped": false,
                         "multiple_outputs": false,
                         "operator_class": "FailingOLOperator",
                         "operator_class_path": "{{ result.endswith('.FailingOLOperator') }}",
                         "outlets": "[]",
+                        "outlets_list": [],
                         "owner": "some_owner1",
                         "priority_weight": 1,
                         "queue": "{{ result is string }}",

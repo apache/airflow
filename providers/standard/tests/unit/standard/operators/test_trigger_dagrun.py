@@ -277,7 +277,7 @@ class TestDagRunOperator:
         dag_maker.sync_dagbag_to_db()
         parse_and_sync_to_db(self.f_name)
         dr = dag_maker.create_dagrun()
-        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+        with pytest.raises(ValueError, match="conf parameter should be JSON Serializable: "):
             dag_maker.run_ti(task.task_id, dr)
 
     def test_trigger_dagrun_with_no_failed_state(self, dag_maker):
@@ -455,7 +455,7 @@ class TestDagRunOperator:
                 conf="{'foo': 'bar', 'key': 123}",
             )
 
-            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable"):
+            with pytest.raises(ValueError, match="conf parameter should be JSON Serializable: "):
                 task.execute(context={})
 
     @pytest.mark.parametrize("original_conf", (None, {}, {"foo": "bar"}))

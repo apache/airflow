@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, Flex, Grid, GridItem, HStack, Spinner, Text } from "@chakra-ui/react";
+import { Box, Flex, Grid, GridItem, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
@@ -24,33 +24,47 @@ import type { DAGWithLatestDagRunsResponse } from "openapi/requests/types.gen";
 import { RouterLink, Tooltip } from "src/system-components";
 
 import DagRunInfo from "src/components/DagRunInfo";
+import { DrainingBadge } from "src/components/DrainingBadge";
 import { Stat } from "src/components/Stat";
 import { TeamName } from "src/components/TeamName";
 
 import { useNearViewport } from "src/hooks/useNearViewport";
 import { useConfig } from "src/queries/useConfig";
-import { isStatePending, useAutoRefresh } from "src/utils";
+import type { RecentTasks } from "src/queries/useRecentTaskStateCounts";
 
 import { DagCardActions } from "./DagCardActions";
 import { DagRunStateCounts } from "./DagRunStateCounts";
 import { DagTags } from "./DagTags";
+import { useRevealedDagCards } from "./DagsListCountsContext";
 import { RecentRuns } from "./RecentRuns";
+import { RecentTaskStateCounts } from "./RecentTaskStateCounts";
 import { Schedule } from "./Schedule";
+import { RECENT_RUNS_WIDTH } from "./recentRunsLayout";
 
 type Props = {
   readonly dag: DAGWithLatestDagRunsResponse;
+  readonly recentTasks: RecentTasks;
   readonly runStateCounts: Record<string, number> | undefined;
   readonly runStateCountsLoading: boolean;
   readonly stateCountLimit: number | undefined;
 };
 
-export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCountLimit }: Props) => {
+export const DagCard = ({
+  dag,
+  recentTasks,
+  runStateCounts,
+  runStateCountsLoading,
+  stateCountLimit,
+}: Props) => {
   const { t: translate } = useTranslation(["common", "dag"]);
   const [latestRun] = dag.latest_dag_runs;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
-  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>();
-
-  const refetchInterval = useAutoRefresh({});
+  const infoColumns = multiTeamEnabled ? 4 : 3;
+  const revealedKeys = useRevealedDagCards();
+  const { isNearViewport, ref, showContent } = useNearViewport<HTMLDivElement>({
+    revealedKeys,
+    revealKey: dag.dag_id,
+  });
 
   return (
     <Box
@@ -80,8 +94,8 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         gap={1}
         px={3}
         py={2}
-        templateColumns={multiTeamEnabled ? "repeat(5, 1fr)" : "repeat(4, 1fr)"}
-        templateRows="auto auto"
+        templateColumns={`repeat(${infoColumns}, 1fr) auto`}
+        templateRows="1fr auto"
       >
         <GridItem gridColumn={1} gridRow={1}>
           <Stat data-testid="schedule" label={translate("dagDetails.schedule")}>
@@ -109,16 +123,15 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
                   startDate={latestRun.start_date}
                   state={latestRun.state}
                 />
-                {isStatePending(latestRun.state) && !dag.is_paused && Boolean(refetchInterval) ? (
-                  <Spinner />
-                ) : undefined}
               </RouterLink>
             ) : undefined}
           </Stat>
         </GridItem>
         <GridItem gridColumn={3} gridRow={1}>
           <Stat data-testid="next-run" label={translate("dagDetails.nextRun")}>
-            {!dag.is_paused && Boolean(dag.next_dagrun_run_after) ? (
+            {dag.is_paused ? undefined : dag.scheduling_state === "draining" ? (
+              <DrainingBadge dagId={dag.dag_id} />
+            ) : Boolean(dag.next_dagrun_run_after) ? (
               <DagRunInfo
                 logicalDate={dag.next_dagrun_logical_date}
                 runAfter={dag.next_dagrun_run_after as string}
@@ -136,15 +149,15 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
         <GridItem
           alignItems="flex-end"
           display="flex"
-          gridColumn={multiTeamEnabled ? 5 : 4}
+          gridColumn={infoColumns + 1}
           gridRow="1 / 3"
           justifyContent="flex-end"
         >
-          <Box minHeight="65px">
+          <Box minHeight="65px" width={RECENT_RUNS_WIDTH}>
             {isNearViewport ? <RecentRuns latestRuns={dag.latest_dag_runs} /> : undefined}
           </Box>
         </GridItem>
-        <GridItem alignSelf="end" gridColumn={1} gridRow={2}>
+        <GridItem alignSelf="start" gridColumn="1 / 3" gridRow={2}>
           <Box minHeight="22px">
             {isNearViewport ? (
               <DagRunStateCounts
@@ -156,6 +169,19 @@ export const DagCard = ({ dag, runStateCounts, runStateCountsLoading, stateCount
             ) : undefined}
           </Box>
         </GridItem>
+        {recentTasks.show ? (
+          <GridItem alignSelf="start" gridColumn={`3 / ${infoColumns + 1}`} gridRow={2}>
+            <Box minHeight="22px">
+              {isNearViewport ? (
+                <RecentTaskStateCounts
+                  dagId={dag.dag_id}
+                  entry={recentTasks.entriesByDag[dag.dag_id]}
+                  isLoading={recentTasks.isLoading}
+                />
+              ) : undefined}
+            </Box>
+          </GridItem>
+        ) : undefined}
       </Grid>
     </Box>
   );

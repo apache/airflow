@@ -43,10 +43,17 @@ from airflow_e2e_tests.constants import (
     GO_SDK_BIN_PATH,
     GO_SDK_BUNDLE_NAME,
     GO_SDK_DAGS_PATH,
+    GO_SDK_DYNAMIC_BUNDLE_NAME,
+    GO_SDK_DYNAMIC_BUNDLE_PKG,
+    GO_SDK_DYNAMIC_YAML_PATH,
     GO_SDK_EXAMPLE_BUNDLE_PKG,
+    GO_SDK_NATIVE_BUNDLE_NAME,
+    GO_SDK_NATIVE_BUNDLE_PKG,
     GO_SDK_ROOT_PATH,
     JAVA_COMPOSE_PATH,
     JAVA_DOCKERFILE_PATH,
+    JAVA_NATIVE_BUNDLE_LIBS_PATH,
+    JAVA_NATIVE_BUNDLE_ROOT_PATH,
     JAVA_SDK_EXAMPLE_DAGS_PATH,
     JAVA_SDK_EXAMPLE_LIBS_PATH,
     JAVA_SDK_MAVEN_CACHE_PATH,
@@ -56,6 +63,7 @@ from airflow_e2e_tests.constants import (
     JAVA_TEST_BUNDLE_ROOT_PATH,
     KAFKA_DIR_PATH,
     LANG_SDK_NATIVE_TOOLCHAIN,
+    LANG_SDK_STATE_STORE_RETENTION_DAYS,
     LOCALSTACK_PATH,
     LOGS_FOLDER,
     NODE_IMAGE,
@@ -72,6 +80,8 @@ from airflow_e2e_tests.constants import (
     TS_SDK_EXAMPLE_PATH,
     TS_SDK_ROOT_PATH,
     XCOM_BUCKET,
+    YAML_DAG_COMPOSE_PATH,
+    YAML_DAGS_PATH,
 )
 
 from tests_common.test_utils.fernet import generate_fernet_key_string
@@ -83,6 +93,18 @@ class _E2ETestState:
     compose_instance: DockerCompose | None = None
     airflow_logs_path: Path | None = None
     airflow_dags_path: Path | None = None
+
+
+def _is_image_present_locally(image: str) -> bool:
+    return (
+        subprocess.run(["docker", "image", "inspect", image], capture_output=True, check=False).returncode
+        == 0
+    )
+
+
+# Every mode that composes localstack.yml points the AWS SDK at it this way; the
+# connection each mode's Dags use is set next to the rest of that mode's config.
+LOCALSTACK_AWS_ENV = "AWS_DEFAULT_REGION=us-east-1\nAWS_ENDPOINT_URL_S3=http://localstack:4566\n"
 
 
 def _copy_localstack_files(tmp_dir):
@@ -109,8 +131,7 @@ def _setup_s3_integration(dot_env_file, tmp_dir):
 
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
-        "AWS_DEFAULT_REGION=us-east-1\n"
-        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        f"{LOCALSTACK_AWS_ENV}"
         "AIRFLOW__LOGGING__REMOTE_LOGGING=true\n"
         "AIRFLOW_CONN_AWS_S3_LOGS=aws://test:test@\n"
         "AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID=aws_s3_logs\n"
@@ -253,8 +274,7 @@ def _setup_xcom_object_storage_integration(dot_env_file, tmp_dir):
         # for authentication rather than parsing credentials from the connection URI
         "AWS_ACCESS_KEY_ID=test\n"
         "AWS_SECRET_ACCESS_KEY=test\n"
-        "AWS_DEFAULT_REGION=us-east-1\n"
-        "AWS_ENDPOINT_URL_S3=http://localstack:4566\n"
+        f"{LOCALSTACK_AWS_ENV}"
         "AIRFLOW_CONN_AWS_DEFAULT=aws://test:test@\n"
         "AIRFLOW__CORE__XCOM_BACKEND=airflow.providers.common.io.xcom.backend.XComObjectStorageBackend\n"
         f"AIRFLOW__COMMON_IO__XCOM_OBJECTSTORAGE_PATH=s3://aws_default@{XCOM_BUCKET}/xcom\n"
@@ -293,6 +313,30 @@ _SPARK_JAVA_MODULE_OPTIONS = [
 ]
 
 
+def _build_dag_bundle_config(artifact_bundles: dict[str, str]) -> str:
+    """Return a ``dag_bundle_config_list`` of the Dags folder plus a ``LocalDagBundle`` per artifact path.
+
+    Registration is what makes a coordinator's ``task_handler_bundle_name`` resolvable on the
+    worker. A mode's compose file decides where the artifact directories are mounted; the Dag
+    processor finds no files in them unless it mounts them too, as ``ts.yml`` does for native Dags.
+    """
+    local_bundle = "airflow.dag_processing.bundles.local.LocalDagBundle"
+    bundles = [{"name": "dags-folder", "classpath": local_bundle, "kwargs": {}}]
+    bundles.extend(
+        {"name": name, "classpath": local_bundle, "kwargs": {"path": path}}
+        for name, path in artifact_bundles.items()
+    )
+    return json.dumps(bundles)
+
+
+def _write_state_store_retention_config(tmp_dir):
+    # Config file, not an env var: the supervisor copies the worker environment into the
+    # language SDK subprocess, so an env var would reach it even without the propagation under test.
+    (tmp_dir / "config" / "airflow.cfg").write_text(
+        f"[state_store]\ndefault_retention_days = {LANG_SDK_STATE_STORE_RETENTION_DAYS}\n"
+    )
+
+
 def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=False):
     """Run the Java SDK Gradle wrapper natively or inside the pinned JDK container.
 
@@ -319,6 +363,9 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
       image's HOME (/root) which the non-root process cannot write to.
     * files/m2 is mounted directly as ~/.m2 so publishToMavenLocal writes
       there without nesting, and its contents are visible on the host.
+      maven.repo.local names it explicitly: the JVM takes its home from
+      /etc/passwd, not HOME, so a host UID that the image does define (such
+      as 1000, its "ubuntu" user) would otherwise publish into the container.
     """
     if native:
         cwd = workdir
@@ -351,6 +398,7 @@ def _run_java_sdk_gradle(workdir, *gradle_argv, capture_output=False, native=Fal
             "eclipse-temurin:17-jdk",
             "/repo/java-sdk/gradlew",
             "--no-daemon",
+            "-Dmaven.repo.local=/workspace-home/.m2/repository",
             *gradle_argv,
         ]
     return subprocess.run(argv, cwd=cwd, check=True, capture_output=capture_output, text=True)
@@ -379,8 +427,8 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     console.print("[yellow]Publishing Java SDK artifacts to local Maven repository...")
     _run_java_sdk_gradle(JAVA_SDK_ROOT_PATH, "publishToMavenLocal", "-PskipSigning=true", native=native)
 
-    # The example, scala_spark_example, and java-test-bundle are independent
-    # Gradle builds that all consume the SDK artifact published above, so build
+    # The example, scala_spark_example, java-test-bundle, and java-native-bundle
+    # are independent Gradle builds that all consume the SDK artifact published above, so build
     # them concurrently. Sharing a writable Gradle user home between concurrent
     # builds is safe because each build can ping the other's lock-owner port over
     # one shared loopback - the host's own in native mode, --network=host in the
@@ -395,14 +443,17 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     rmtree(JAVA_SDK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(SCALA_SPARK_EXAMPLE_LIBS_PATH, ignore_errors=True)
     rmtree(JAVA_TEST_BUNDLE_LIBS_PATH, ignore_errors=True)
+    rmtree(JAVA_NATIVE_BUNDLE_LIBS_PATH, ignore_errors=True)
     toolchain = "host toolchain" if native else "eclipse-temurin:17-jdk"
     console.print(
-        f"[yellow]Building Java SDK, Scala Spark, and test-fixture bundles concurrently ({toolchain})..."
+        "[yellow]Building Java SDK, Scala Spark, test-fixture, and native-Dag bundles concurrently "
+        f"({toolchain})..."
     )
     example_bundle_workdirs = [
         JAVA_SDK_ROOT_PATH / "example",
         JAVA_SDK_ROOT_PATH / "scala_spark_example",
         JAVA_TEST_BUNDLE_ROOT_PATH,
+        JAVA_NATIVE_BUNDLE_ROOT_PATH,
     ]
     with ThreadPoolExecutor(max_workers=len(example_bundle_workdirs)) as pool:
         bundle_builds = [
@@ -416,10 +467,12 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     copyfile(JAVA_DOCKERFILE_PATH, tmp_dir / "Dockerfile.java")
 
     # Copy each bundle's JARs into its own directory; the compose bind-mounts
-    # expose them to the worker, and each JavaCoordinator globs its own dir.
+    # expose them to the worker, where each is registered as its own Dag bundle.
     copytree(JAVA_SDK_EXAMPLE_LIBS_PATH, tmp_dir / "java-jars")
     copytree(SCALA_SPARK_EXAMPLE_LIBS_PATH, tmp_dir / "scala-jars")
     copytree(JAVA_TEST_BUNDLE_LIBS_PATH, tmp_dir / "java-test-jars")
+    # The native-Dag bundle goes into the Dag bundle, where the Dag processor parses it.
+    copytree(JAVA_NATIVE_BUNDLE_LIBS_PATH, tmp_dir / "dags" / "java-native")
 
     # Copy the Java SDK example Dag files so Airflow can discover them.
     copyfile(JAVA_SDK_EXAMPLE_DAGS_PATH / "java_examples.py", tmp_dir / "dags" / "java_examples.py")
@@ -433,7 +486,7 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     # JRE and copies nothing from the context, so without this docker build would
     # tar and stream the bundles (hundreds of MB of Spark JARs) to the daemon for
     # nothing. The JARs reach the worker via the compose bind-mounts, not the image.
-    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\n")
+    (tmp_dir / ".dockerignore").write_text("java-jars/\nscala-jars/\njava-test-jars/\ndags/\n")
 
     # Build a local Docker image that extends DOCKER_IMAGE with a JRE.
     # We do this explicitly so testcontainers' DockerCompose.start() does not
@@ -455,21 +508,28 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
         check=True,
     )
 
-    # One JavaCoordinator per queue on the same worker image, each serving its
-    # own bundle. The scala-jdk entry pins main_class (Spark's large classpath
-    # makes Main-Class discovery ambiguous) and carries Spark's Java 17 module
-    # openings, a small driver heap, and a longer startup timeout for its large
-    # dependency classpath.
+    # Four JavaCoordinators on the same worker image. The first three each serve their
+    # own artifact bundle for the stub tasks of their queue (one bundle is one classpath).
+    # The scala-jdk entry pins main_class (Spark's large classpath makes Main-Class
+    # discovery ambiguous) and carries Spark's Java 17 module openings, a small driver
+    # heap, and a longer startup timeout for its large dependency classpath.
+    dag_bundle_config = _build_dag_bundle_config(
+        {
+            "java-task-handlers": "/opt/airflow/java-jars",
+            "scala-task-handlers": "/opt/airflow/scala-jars",
+            "java-test-task-handlers": "/opt/airflow/java-test-jars",
+        }
+    )
     coordinator_config = json.dumps(
         {
             "java-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-jars"]},
+                "kwargs": {"task_handler_bundle_name": "java-task-handlers"},
             },
             "scala-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
                 "kwargs": {
-                    "jars_root": ["/opt/airflow/scala-jars"],
+                    "task_handler_bundle_name": "scala-task-handlers",
                     "main_class": "org.apache.airflow.example.ScalaSparkBundleBuilder",
                     "jvm_args": ["-Xmx512m", *_SPARK_JAVA_MODULE_OPTIONS],
                     "task_startup_timeout": 60.0,
@@ -477,13 +537,21 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
             },
             "java-test-jdk": {
                 "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
-                "kwargs": {"jars_root": ["/opt/airflow/java-test-jars"]},
+                "kwargs": {"task_handler_bundle_name": "java-test-task-handlers"},
+            },
+            # Only parses: dag_bundle_to_coordinator picks it for the Dags folder, since
+            # there are four JavaCoordinators. No queue routes to it, so the native
+            # Dag's tasks run on java-jdk, from the Dag's own bundle.
+            "java-native": {
+                "classpath": "airflow.sdk.coordinators.java.JavaCoordinator",
+                "kwargs": {},
             },
         }
     )
     queue_to_coordinator = json.dumps(
-        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk"}
+        {"java": "java-jdk", "scala": "scala-jdk", "java-test": "java-test-jdk", "java-native": "java-jdk"}
     )
+    dag_bundle_to_coordinator = json.dumps({"dags-folder": "java-native"})
 
     # Connection expected by the Java example bundle tasks. The JSON form
     # covers all connection fields, in particular the port: wire integers
@@ -502,22 +570,24 @@ def _setup_java_sdk_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        f"AIRFLOW__SDK__DAG_BUNDLE_TO_COORDINATOR='{dag_bundle_to_coordinator}'\n"
         f"AIRFLOW_CONN_TEST_HTTP='{test_http_conn}'\n"
         # Variable expected by the Java example bundle tasks.
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+    _write_state_store_retention_config(tmp_dir)
 
 
-def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
-    """Run ``go tool airflow-go-pack`` natively or inside the pinned Go toolchain container.
+def _run_go(args, *, capture_output=False, native=False):
+    """Run ``go <args>`` in the go-sdk module, on the host or inside the pinned Go toolchain container.
 
-    ``go tool airflow-go-pack`` builds the bundle package, reads its
-    --airflow-metadata, and appends the source + airflow-metadata.yaml + the
-    AFBNDL01 trailer, writing a single self-contained executable bundle.
-    CGO_ENABLED=0 yields a fully static binary that runs on the stock worker.
+    A ``Path`` in *args* is a host path; in the container it is mapped to where the repo is mounted.
+    Other strings, such as ``./example/dynamic``, are passed as they are and resolve against go-sdk.
+    CGO_ENABLED=0 yields fully static binaries that run on the stock worker.
 
     In ``native`` mode (used in CI, where the host already has a Go toolchain plus
     restored module/build caches via ``actions/setup-go``) it invokes the host ``go``
@@ -536,77 +606,124 @@ def _run_go_sdk_pack(output_path, *, capture_output=False, native=False):
       go.yml so the packed binary runs the same way at execution time).
     """
     if native:
-        cwd = GO_SDK_ROOT_PATH
-        env = {**os.environ, "CGO_ENABLED": "0"}
-        argv = [
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            str(output_path),
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
-        ]
-    else:
-        cwd = None
-        env = None
-        # Mount the repo so the whole go-sdk module (go.mod, tool directive,
-        # example sources) is visible to `go tool`.
-        container_go_sdk_dir = f"/repo/{GO_SDK_ROOT_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        container_bin_dir = f"/repo/{GO_SDK_BIN_PATH.relative_to(AIRFLOW_ROOT_PATH)}"
-        argv = [
-            "docker",
-            "run",
-            "--rm",
-            "--user",
-            f"{os.getuid()}:{os.getgid()}",
-            "-e",
-            f"HOME={container_bin_dir}/.home",
-            "-e",
-            "USER=airflow",
-            "-e",
-            "CGO_ENABLED=0",
-            "-v",
-            f"{AIRFLOW_ROOT_PATH}:/repo",
-            "-w",
-            container_go_sdk_dir,
-            GO_BUILDER_IMAGE,
-            "go",
-            "tool",
-            "airflow-go-pack",
-            "--output",
-            f"{container_bin_dir}/{output_path.name}",
-            GO_SDK_EXAMPLE_BUNDLE_PKG,
-        ]
-    return subprocess.run(argv, cwd=cwd, env=env, check=True, capture_output=capture_output, text=True)
+        argv = ["go", *(str(arg) for arg in args)]
+        return subprocess.run(
+            argv,
+            cwd=GO_SDK_ROOT_PATH,
+            env={**os.environ, "CGO_ENABLED": "0"},
+            check=True,
+            capture_output=capture_output,
+            text=True,
+        )
+
+    # Mount the repo so the whole go-sdk module (go.mod, tool directive,
+    # example sources) is visible to `go`.
+    container_bin_dir = _get_container_repo_path(GO_SDK_BIN_PATH)
+    argv = [
+        "docker",
+        "run",
+        "--rm",
+        "--user",
+        f"{os.getuid()}:{os.getgid()}",
+        "-e",
+        f"HOME={container_bin_dir}/.home",
+        "-e",
+        "USER=airflow",
+        "-e",
+        "CGO_ENABLED=0",
+        "-v",
+        f"{AIRFLOW_ROOT_PATH}:/repo",
+        "-w",
+        _get_container_repo_path(GO_SDK_ROOT_PATH),
+        GO_BUILDER_IMAGE,
+        "go",
+        *(_get_container_repo_path(arg) if isinstance(arg, Path) else str(arg) for arg in args),
+    ]
+    return subprocess.run(argv, check=True, capture_output=capture_output, text=True)
 
 
-def _pack_go_sdk_example_bundle(*, native=False):
-    """Build the Go SDK example bundle, capturing output so a failure prints the build log."""
-    output_path = GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME
+def _get_container_repo_path(host_path):
+    """Map a host path under the repo to where ``_run_go`` mounts the repo in the container."""
+    return f"/repo/{host_path.relative_to(AIRFLOW_ROOT_PATH)}"
+
+
+def _run_go_logged(description, args, *, native=False):
+    """Run ``go <args>`` with ``_run_go``, printing its output, or the output of a failure."""
     mode_label = "host toolchain" if native else GO_BUILDER_IMAGE
-    console.print(f"[yellow]Building Go SDK example bundle ({mode_label})...")
+    console.print(f"[yellow]{description} ({mode_label})...")
     try:
-        completed = _run_go_sdk_pack(output_path, capture_output=True, native=native)
+        completed = _run_go(args, capture_output=True, native=native)
     except subprocess.CalledProcessError as e:
-        console.print("[red]Go SDK example bundle build failed:")
+        console.print(f"[red]{description} failed:")
         console.print(e.stdout, e.stderr, sep="\n", markup=False, soft_wrap=True)
         raise
     console.print(completed.stdout, completed.stderr, sep="\n", markup=False, soft_wrap=True)
+
+
+def _pack_go_sdk_bundle(package, name, *, native=False):
+    """Build a Go SDK *package* into a self-contained bundle with ``go tool airflow-go-pack``."""
+    _run_go_logged(
+        f"Building Go SDK bundle {package}",
+        ["tool", "airflow-go-pack", "--output", GO_SDK_BIN_PATH / name, package],
+        native=native,
+    )
+
+
+def _pack_go_sdk_dynamic_bundle(*, native=False):
+    """Build and pack the dynamic example bundle, which generates its Dags from a dags.yaml.
+
+    The packer reads the Dag IDs by running the binary, and the binary reads dags.yaml next to
+    itself. So build the binary, put dags.yaml beside it, then pack that binary in place with
+    ``--executable``. The packer needs ``--source`` there, as it cannot find the entrypoint of a
+    pre-built binary.
+    """
+    bin_dir = GO_SDK_BIN_PATH / "dynamic"
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    raw_binary = bin_dir / f"{GO_SDK_DYNAMIC_BUNDLE_NAME}.raw"
+    _run_go_logged(
+        f"Building Go SDK binary {GO_SDK_DYNAMIC_BUNDLE_PKG}",
+        ["build", "-o", raw_binary, GO_SDK_DYNAMIC_BUNDLE_PKG],
+        native=native,
+    )
+    copyfile(GO_SDK_DYNAMIC_YAML_PATH, bin_dir / "dags.yaml")
+    _run_go_logged(
+        f"Packing Go SDK bundle {GO_SDK_DYNAMIC_BUNDLE_PKG}",
+        [
+            "tool",
+            "airflow-go-pack",
+            "--executable",
+            raw_binary,
+            "--source",
+            f"{GO_SDK_DYNAMIC_BUNDLE_PKG}/main.go",
+            "--output",
+            GO_SDK_BIN_PATH / GO_SDK_DYNAMIC_BUNDLE_NAME,
+        ],
+        native=native,
+    )
 
 
 def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     """Set up the go_sdk E2E test mode.
 
     Compiles the Go SDK example bundle into a self-contained executable bundle
-    via the ``airflow-go-pack`` tooling, drops it into the directory the
-    ``ExecutableCoordinator`` scans, copies the Python stub Dag, and writes the
-    coordinator configuration.
+    via the ``airflow-go-pack`` tooling, drops it into the directory registered
+    as the ``go-task-handlers`` Dag bundle, copies the Python stub Dag, and
+    writes the coordinator configuration.
+
+    The native-Dag example is packed too, into the Dags folder, where the Dag
+    processor runs it to parse its Dags. Its tasks run on the ``golang`` queue
+    through the same coordinator.
+
+    The dynamic example goes into the Dags folder as well, with the ``dags.yaml`` it
+    generates its Dags from next to it, so a test can swap the YAML to change the Dags.
 
     The packed bundle is a statically linked native executable (built with
     ``CGO_ENABLED=0``), so the stock Airflow worker image can exec it directly
     without a Go toolchain or any extra runtime installed -- see ``go.yml``.
     """
-    _pack_go_sdk_example_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_bundle(GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_bundle(GO_SDK_NATIVE_BUNDLE_PKG, GO_SDK_NATIVE_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+    _pack_go_sdk_dynamic_bundle(native=LANG_SDK_NATIVE_TOOLCHAIN)
 
     # Copy the compose override into the temp directory.
     copyfile(GO_COMPOSE_PATH, tmp_dir / "go.yml")
@@ -619,18 +736,38 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
     copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
     os.chmod(packed_bundle, 0o755)
+    # This bundle only registers task handlers, so the Dag processor must not parse it if the
+    # directory is ever mounted there. Tasks do not read .airflowignore.
+    (go_bundles_dir / ".airflowignore").write_text("*\n")
+
+    # The native-Dag bundle goes into the Dags folder, where the Dag processor runs it to parse.
+    native_dags_dir = tmp_dir / "dags" / "go"
+    native_dags_dir.mkdir()
+    packed_native_bundle = native_dags_dir / GO_SDK_NATIVE_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_NATIVE_BUNDLE_NAME, packed_native_bundle)
+    os.chmod(packed_native_bundle, 0o755)
+
+    dynamic_dags_dir = tmp_dir / "dags" / "go-dynamic"
+    dynamic_dags_dir.mkdir()
+    packed_dynamic_bundle = dynamic_dags_dir / GO_SDK_DYNAMIC_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_DYNAMIC_BUNDLE_NAME, packed_dynamic_bundle)
+    os.chmod(packed_dynamic_bundle, 0o755)
+    copyfile(GO_SDK_DYNAMIC_YAML_PATH, dynamic_dags_dir / "dags.yaml")
 
     # Copy the Go SDK example stub Dag so Airflow can discover and serialize it.
     copyfile(GO_SDK_DAGS_PATH / "go_examples.py", tmp_dir / "dags" / "go_examples.py")
 
     # Coordinator registry: maps the logical name "go-sdk" to ExecutableCoordinator,
-    # which scans executables_root for the packed bundle by dag_id.
-    # Queue mapping: routes tasks on the "golang" queue to "go-sdk".
+    # which scans the go-task-handlers Dag bundle for the packed bundle by dag_id.
+    # Queue mapping: routes tasks on the "golang" queue to "go-sdk". It is the only
+    # ExecutableCoordinator, so it also parses the native Dags in the Dags folder, and runs
+    # their tasks from that bundle, not from go-task-handlers.
+    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
     coordinator_config = json.dumps(
         {
             "go-sdk": {
                 "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
-                "kwargs": {"executables_root": ["/opt/airflow/go-bundles"]},
+                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
             }
         }
     )
@@ -639,11 +776,72 @@ def _setup_go_sdk_integration(dot_env_file, tmp_dir):
     dot_env_file.write_text(
         f"AIRFLOW_UID={os.getuid()}\n"
         # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
         # Connection and variable read by the Go example bundle tasks.
         "AIRFLOW_CONN_TEST_HTTP=http://test:test@example.com/\n"
         "AIRFLOW_VAR_MY_VARIABLE=test_value\n"
+    )
+    os.environ["ENV_FILE_PATH"] = str(dot_env_file)
+
+    _write_state_store_retention_config(tmp_dir)
+
+
+def _setup_yaml_dag_integration(dot_env_file, tmp_dir):
+    """Set up the yaml_dag E2E test mode.
+
+    The Dag under test is written in YAML, so there is nothing to build for the
+    Dag itself: the file is copied into the stack's Dags folder and the opt-in
+    ``YamlDagImporter`` is registered so the Dag processor reads it.
+
+    Its ``uses:`` tasks drive S3 through LocalStack, and its one ``run:`` task
+    carries no code, so it is routed by its ``golang`` queue to the Go
+    coordinator, which finds the handler in the packed Go example bundle (the
+    same bundle the go_sdk mode uses -- see ``_setup_go_sdk_integration``).
+    """
+    _pack_go_sdk_bundle(GO_SDK_EXAMPLE_BUNDLE_PKG, GO_SDK_BUNDLE_NAME, native=LANG_SDK_NATIVE_TOOLCHAIN)
+
+    _copy_localstack_files(tmp_dir)
+    copyfile(YAML_DAG_COMPOSE_PATH, tmp_dir / "yaml-dag.yml")
+
+    # Where the compose bind-mount (./go-bundles) exposes the bundle to the worker. The
+    # bundle scanner requires the file to be executable, so preserve the exec bit.
+    go_bundles_dir = tmp_dir / "go-bundles"
+    go_bundles_dir.mkdir()
+    packed_bundle = go_bundles_dir / GO_SDK_BUNDLE_NAME
+    copyfile(GO_SDK_BIN_PATH / GO_SDK_BUNDLE_NAME, packed_bundle)
+    os.chmod(packed_bundle, 0o755)
+    # This bundle only registers task handlers, so the Dag processor must not parse it if the
+    # directory is ever mounted there. Tasks do not read .airflowignore.
+    (go_bundles_dir / ".airflowignore").write_text("*\n")
+
+    copytree(YAML_DAGS_PATH, tmp_dir / "dags" / "yaml")
+
+    dag_bundle_config = _build_dag_bundle_config({"go-task-handlers": "/opt/airflow/go-bundles"})
+    # The YAML importer is opt-in, and is what makes the .yaml file a Dag file rather than a
+    # file the Dag processor ignores.
+    dag_importer_configs = json.dumps([{"classpath": "airflow.sdk.importers.yaml_importer.YamlDagImporter"}])
+    coordinator_config = json.dumps(
+        {
+            "go-sdk": {
+                "classpath": "airflow.sdk.coordinators.executable.ExecutableCoordinator",
+                "kwargs": {"task_handler_bundle_name": "go-task-handlers"},
+            }
+        }
+    )
+    queue_to_coordinator = json.dumps({"golang": "go-sdk"})
+
+    dot_env_file.write_text(
+        f"AIRFLOW_UID={os.getuid()}\n"
+        # Single-quote the JSON values so Docker Compose reads them literally.
+        f"AIRFLOW__DAG_PROCESSOR__DAG_IMPORTER_CONFIGS='{dag_importer_configs}'\n"
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
+        f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
+        f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
+        # The connection the Dag's S3 tasks name.
+        "AIRFLOW_CONN_AWS_LOCALSTACK=aws://test:test@\n"
+        f"{LOCALSTACK_AWS_ENV}"
     )
     os.environ["ENV_FILE_PATH"] = str(dot_env_file)
 
@@ -669,7 +867,8 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
 
 def _build_ts_sdk_example_bundle(*, native=False):
     build_commands = (
-        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install && pnpm run build"
+        "pnpm install --frozen-lockfile && pnpm run build && cd example && pnpm install"
+        " && pnpm run build && pnpm run build:ai-approval"
     )
     if native:
         console.print("[yellow]Building TypeScript SDK example bundle (host toolchain)...")
@@ -722,21 +921,34 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
     # version from the metadata airflow-ts-pack embedded in the bundle.
     ts_bundles_dir = tmp_dir / "ts-bundles"
     ts_bundles_dir.mkdir()
-    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.mjs", ts_bundles_dir / "bundle.mjs")
-
+    # Deliberately renamed: the coordinator routes on embedded metadata, not on a fixed name.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", ts_bundles_dir / "example.min.mjs")
+    # A native Dag: the Dag processor parses it, so `ts_hitl_ai_approval` has no Python Dag file.
+    copyfile(TS_SDK_EXAMPLE_PATH / "dist" / "ai-approval.min.mjs", ts_bundles_dir / "ai-approval.min.mjs")
+    # The same artifact inside the Dag bundle, where the Dag processor finds its native Dag.
+    (tmp_dir / "dags" / "typescript").mkdir()
     copyfile(
-        TS_SDK_EXAMPLE_PATH / "dags" / "typescript_example.py", tmp_dir / "dags" / "typescript_example.py"
+        TS_SDK_EXAMPLE_PATH / "dist" / "bundle.min.mjs", tmp_dir / "dags" / "typescript" / "example.min.mjs"
     )
 
+    # Both of the example bundle's Dags: one bundle.mjs provides for two dag_ids,
+    # and the tests check that dispatch tells their same-named tasks apart.
+    for dag_file in ("typescript_example.py", "typescript_taskflow_example.py"):
+        copyfile(TS_SDK_EXAMPLE_PATH / "dags" / dag_file, tmp_dir / "dags" / dag_file)
+
+    dag_bundle_config = _build_dag_bundle_config({"ts-task-handlers": "/opt/airflow/ts-bundles"})
+    # "ts" is the only NodeCoordinator, so it parses the native Dag in every Dag bundle
+    # that holds one, the Dags folder here. It runs the stub tasks from the ts-task-handlers
+    # Dag bundle, and the native Dag's tasks from the Dag's own bundle.
     coordinator_config = json.dumps(
         {
             "ts": {
                 "classpath": "airflow.sdk.coordinators.node.NodeCoordinator",
                 "kwargs": {
-                    "bundles_root": ["/opt/airflow/ts-bundles"],
+                    "task_handler_bundle_name": "ts-task-handlers",
                     "node_executable": "/opt/nodejs/node",
                 },
-            }
+            },
         }
     )
     queue_to_coordinator = json.dumps({"typescript": "ts"})
@@ -745,6 +957,7 @@ def _setup_ts_sdk_integration(dot_env_file, tmp_dir):
         f"AIRFLOW_UID={os.getuid()}\n"
         f"NODE_IMAGE={NODE_IMAGE}\n"
         # single-quoted so Docker Compose reads the JSON literally
+        f"AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='{dag_bundle_config}'\n"
         f"AIRFLOW__SDK__COORDINATORS='{coordinator_config}'\n"
         f"AIRFLOW__SDK__QUEUE_TO_COORDINATOR='{queue_to_coordinator}'\n"
         "AIRFLOW_CONN_TYPESCRIPT_EXAMPLE_HTTP=http://user:pass@example.com/\n"
@@ -770,7 +983,7 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     _E2ETestState.airflow_dags_path = tmp_dir / "dags"
 
     # openlineage sources its dags from the provider system tests (via _setup_openlineage_integration),
-    # so it must not also load the stock e2e dags — the harness triggers every dag it finds.
+    # so it must not also load the stock e2e dags, since the harness triggers every dag it finds.
     if E2E_TEST_MODE != "openlineage":
         console.print(f"[yellow]Copying dags to:[/ {tmp_dir / 'dags'}")
         copytree(E2E_DAGS_FOLDER, tmp_dir / "dags", dirs_exist_ok=True)
@@ -810,6 +1023,9 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     elif E2E_TEST_MODE == "ts_sdk":
         compose_file_names.append("ts.yml")
         _setup_ts_sdk_integration(dot_env_file, tmp_dir)
+    elif E2E_TEST_MODE == "yaml_dag":
+        compose_file_names.extend(["localstack.yml", "yaml-dag.yml"])
+        _setup_yaml_dag_integration(dot_env_file, tmp_dir)
 
     #
     # Please Do not use this Fernet key in any deployments! Please generate your own key.
@@ -817,10 +1033,11 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     #
     os.environ["FERNET_KEY"] = generate_fernet_key_string()
 
-    # Skip pull for images that exist only locally and cannot be fetched from a registry:
-    # - ghcr.io/apache/airflow/: pre-pulled by the prepare_breeze_and_image CI step
-    # - openlineage-e2e/: locally built by _build_openlineage_e2e_compat_image (never pushed)
-    pull = not DOCKER_IMAGE.startswith(("ghcr.io/apache/airflow/", "openlineage-e2e/"))
+    # Pull only an image that is not there yet. CI loads the PROD image it built under the repository
+    # running the workflow (ghcr.io/<owner>/airflow/..., a fork's owner on fork CI), and pulling that
+    # tag would replace it with whatever the registry has. openlineage-e2e/ images are built locally,
+    # before the tests start, by breeze's _build_openlineage_e2e_compat_image and never pushed.
+    pull = not _is_image_present_locally(DOCKER_IMAGE)
 
     try:
         console.print(f"[blue]Spinning up airflow environment using {DOCKER_IMAGE}")
@@ -831,9 +1048,8 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
         _E2ETestState.compose_instance.start()
 
         _E2ETestState.compose_instance.wait_for(f"http://{DOCKER_COMPOSE_HOST_PORT}/api/v2/monitor/health")
-        _E2ETestState.compose_instance.exec_in_container(
-            command=["airflow", "dags", "reserialize"], service_name="airflow-dag-processor"
-        )
+        # No forced `dags reserialize`: it races the live dag-processor on the same dag_id INSERT
+        # (dag_pkey crash). The processor serializes Dags itself and tests poll via wait_for_dag.
 
         if E2E_TEST_MODE == "event_driven":
             console.print("[yellow]Creating Kafka topics...")
@@ -842,20 +1058,22 @@ def spin_up_airflow_environment(tmp_path_factory: pytest.TempPathFactory):
     except Exception:
         console.print("[red]Failed to start docker compose")
         if _E2ETestState.compose_instance:
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
             _E2ETestState.compose_instance.stop()
         raise
 
 
-def _print_logs(compose_instance: DockerCompose):
-    containers = compose_instance.get_containers()
-    for container in containers:
+def _save_service_logs(compose_instance: DockerCompose):
+    LOGS_FOLDER.mkdir(parents=True, exist_ok=True)
+    for container in compose_instance.get_containers():
         service = container.Service
         if service:
             stdout, _ = compose_instance.get_logs(service)
-            console.print(f"::group:: {service} Logs")
-            console.print(stdout, style="red", soft_wrap=True, markup=False)
-            console.print("::endgroup::")
+            (LOGS_FOLDER / f"{service}.log").write_text(stdout)
+    console.print(
+        f"[yellow]Service and task logs are not printed here: find them in {LOGS_FOLDER} "
+        f"(in CI, the `e2e-test-logs-<mode>` artifact, `logs.zip`)"
+    )
 
 
 def pytest_sessionstart(session: pytest.Session):
@@ -893,9 +1111,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int | pytest.ExitC
         copytree(_E2ETestState.airflow_logs_path, LOGS_FOLDER, dirs_exist_ok=True)
 
     if _E2ETestState.compose_instance:
-        # If any test failures lets print the services logs
+        # If any test failures lets save the services logs next to the uploaded task logs
         if any(r["status"] == "failed" for r in test_results):
-            _print_logs(_E2ETestState.compose_instance)
+            _save_service_logs(_E2ETestState.compose_instance)
         if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
             _E2ETestState.compose_instance.stop()
 

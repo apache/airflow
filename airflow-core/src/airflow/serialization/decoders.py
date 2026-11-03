@@ -19,11 +19,20 @@
 from __future__ import annotations
 
 import datetime
+import math
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import dateutil.relativedelta
 
 from airflow._shared.module_loading import import_string
+from airflow._shared.serialization import (
+    CLASSNAME,
+    DATA,
+    OLD_DATA,
+    OLD_DICT,
+    OLD_TYPE,
+    OLD_TYPE_TO_FULL_QUALNAME,
+)
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
@@ -53,9 +62,13 @@ from airflow.serialization.helpers import (
 )
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.partition_mappers.wait_policy import WaitPolicy
     from airflow.partition_mappers.window import Window
+    from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback  # noqa: SDK001
     from airflow.timetables.base import Timetable as CoreTimetable
 
 R = TypeVar("R")
@@ -182,15 +195,189 @@ def decode_deadline_reference(reference_data: dict):
     return reference_class.deserialize_reference(reference_data)
 
 
-def decode_deadline_alert(encoded_data: dict):
+_TIMEDELTA_CLASSNAME = "datetime.timedelta"
+_VARIABLE_INTERVAL_CLASSNAMES = frozenset(
+    {
+        "airflow.sdk.definitions.deadline.VariableInterval",
+        "airflow.serialization.definitions.deadline.SerializedVariableInterval",
+    }
+)
+# The callback classes lived here until 3.2 moved them to ``...definitions.callback``,
+# so alerts serialized by an earlier version name this module instead.
+_LEGACY_CALLBACK_MODULE = "airflow.sdk.definitions.deadline"
+
+
+def _normalised_payload(encoded: Any, field: str) -> tuple[str, Any]:
+    """
+    Return ``(classname, data)`` for a serde payload, in either encoding.
+
+    ``serde`` accepts a legacy ``{"__type": ..., "__var": ...}`` shape and rewrites it
+    into the current one *inside* ``deserialize``. Anything inspecting the payload before
+    that call therefore has to normalise it first, or the legacy spelling carries no
+    ``__classname__`` at the moment it is looked at and slips past unexamined.
+    """
+    from airflow.sdk.serde import CLASSNAME, DATA, _convert
+
+    if not isinstance(encoded, dict):
+        raise ValueError(f"Deadline {field} is not a serialized object.")
+    converted = _convert(encoded)
+    if not isinstance(converted, dict):
+        raise ValueError(f"Deadline {field} is not a serialized object.")
+    if CLASSNAME not in converted:
+        raise ValueError(f"Deadline {field} does not name a class.")
+    return converted[CLASSNAME], converted.get(DATA)
+
+
+def _decode_deadline_interval(raw_interval: Any) -> datetime.timedelta | SerializedVariableInterval:
+    """
+    Build the interval from its encoded form without importing what the payload names.
+
+    Only three shapes are legitimate, and each is reconstructed from primitives directly.
+    Nothing here reaches ``serde.deserialize``, so no class named by a Dag author is
+    imported or instantiated in the scheduler or the API server.
+    """
+    # Backward compatibility: previously stored as total_seconds().
+    if isinstance(raw_interval, (int, float)) and not isinstance(raw_interval, bool):
+        return datetime.timedelta(seconds=raw_interval)
+
+    classname, data = _normalised_payload(raw_interval, "interval")
+
+    if classname == _TIMEDELTA_CLASSNAME:
+        if isinstance(data, (int, float)) and not isinstance(data, bool):
+            return datetime.timedelta(seconds=data)
+        raise ValueError("Deadline interval timedelta payload is not a number.")
+
+    if classname in _VARIABLE_INTERVAL_CLASSNAMES:
+        key = data.get("key") if isinstance(data, dict) else None
+        if not isinstance(key, str):
+            raise ValueError("Deadline interval variable payload has no string key.")
+        return SerializedVariableInterval(key=key)
+
+    raise ValueError(
+        f"Refusing to deserialize {classname!r} as a deadline interval. "
+        f"Permitted: {_TIMEDELTA_CLASSNAME}, {', '.join(sorted(_VARIABLE_INTERVAL_CLASSNAMES))}."
+    )
+
+
+def _get_encoded_callback_kwargs(raw_kwargs: Any) -> dict[str, Any]:
+    """
+    Return the encoded callback ``kwargs`` as a mapping, leaving every value encoded.
+
+    Only the container is normalised: the legacy ``{"__type": "dict", "__var": ...}`` spelling
+    is unwrapped so the result is always a plain mapping of argument name to encoded value.
+    """
+    from airflow.sdk.serde import _convert
+
+    if not raw_kwargs:
+        return {}
+    kwargs = _convert(raw_kwargs) if isinstance(raw_kwargs, dict) else raw_kwargs
+    if not isinstance(kwargs, dict) or CLASSNAME in kwargs:
+        raise ValueError("Deadline callback kwargs is not a mapping.")
+    return kwargs
+
+
+_DISPLAY_SEQUENCE_CLASSNAMES = frozenset({"builtins.tuple", "builtins.set", "builtins.frozenset"})
+
+
+def format_encoded_value_for_display(value: Any) -> Any:
+    """
+    Return a readable form of a serde-encoded value, for logs, metric tags and reprs.
+
+    Nothing the value names is imported or instantiated: ``timedelta`` and the built-in
+    collections are shown by value, any other class as ``classname(data)``. Values that are
+    not encoded are returned unchanged.
+
+    :meta private:
+    """
+    if isinstance(value, list):
+        return [format_encoded_value_for_display(v) for v in value]
+    if not isinstance(value, dict):
+        return value
+    if OLD_TYPE in value and OLD_DATA in value:
+        if value[OLD_TYPE] == OLD_DICT:
+            return format_encoded_value_for_display(value[OLD_DATA])
+        classname = OLD_TYPE_TO_FULL_QUALNAME.get(value[OLD_TYPE], value[OLD_TYPE])
+        data = value[OLD_DATA]
+    elif CLASSNAME in value:
+        classname, data = value[CLASSNAME], value.get(DATA)
+    else:
+        return {str(k): format_encoded_value_for_display(v) for k, v in value.items()}
+
+    if (
+        classname == "datetime.timedelta"
+        and isinstance(data, (int, float))
+        and not isinstance(data, bool)
+        and math.isfinite(data)
+    ):
+        try:
+            return str(datetime.timedelta(seconds=data))
+        except (OverflowError, ValueError, TypeError):
+            pass
+    if classname in _DISPLAY_SEQUENCE_CLASSNAMES and isinstance(data, list):
+        return [format_encoded_value_for_display(v) for v in data]
+    return f"{classname}({format_encoded_value_for_display(data)})"
+
+
+def _decode_deadline_callback(raw_callback: Any) -> AsyncCallback | SyncCallback:
+    """
+    Build the callback from its encoded form without importing what the payload names.
+
+    ``kwargs`` stays in its serde-encoded form. The scheduler and the API server only route the
+    callback and never call it, so they have no use for the decoded values. The kwargs are
+    decoded where the callback runs: by the triggerer when it loads the ``CallbackTrigger``
+    kwargs for an ``AsyncCallback``, and by the callback runner on the worker for a
+    ``SyncCallback``. :func:`airflow.serialization.encoders.encode_deadline_alert` relies on
+    this to re-encode a decoded alert without serializing the kwargs a second time.
+    """
+    from airflow.sdk.definitions.callback import (
+        DEADLINE_CALLBACK_TYPES,
+        _SerializedCallbackPath,
+    )
+
+    permitted = {
+        f"{module}.{cls.__qualname__}": cls
+        for cls in DEADLINE_CALLBACK_TYPES
+        for module in (cls.__module__, _LEGACY_CALLBACK_MODULE)
+    }
+    classname, data = _normalised_payload(raw_callback, "callback")
+    callback_cls = permitted.get(classname)
+    if callback_cls is None:
+        raise ValueError(
+            f"Refusing to deserialize {classname!r} as a deadline callback. "
+            f"Permitted: {', '.join(sorted(permitted))}."
+        )
+    if not isinstance(data, dict):
+        raise ValueError("Deadline callback payload is not a mapping.")
+
+    # The fields each class declares are the fields it can be rebuilt from, so an unknown
+    # one means the payload does not describe this callback and nothing below should run.
+    # ``queue`` and ``executor`` belong to one subclass each, never to both.
+    permitted_fields = set(callback_cls.serialized_fields())
+    unexpected = set(data) - permitted_fields
+    if unexpected:
+        raise ValueError(f"Unexpected deadline callback fields: {', '.join(sorted(unexpected))}.")
+
+    path = data.get("path")
+    if not isinstance(path, str):
+        raise ValueError("Deadline callback payload has no string path.")
+
+    fields: dict[str, Any] = {"kwargs": _get_encoded_callback_kwargs(data.get("kwargs"))}
+    for optional in sorted(permitted_fields - {"path", "kwargs"}):
+        if optional in data:
+            value = data[optional]
+            if value is not None and not isinstance(value, str):
+                raise ValueError(f"Deadline callback {optional} is not a string.")
+            fields[optional] = value
+
+    return callback_cls(callback_callable=_SerializedCallbackPath(path), **fields)
+
+
+def decode_deadline_alert(encoded_data: dict) -> SerializedDeadlineAlert:
     """
     Decode a previously serialized deadline alert.
 
     :meta private:
     """
-    from airflow.sdk.definitions.deadline import VariableInterval
-    from airflow.sdk.serde import deserialize
-
     data = encoded_data.get(Encoding.VAR, encoded_data)
 
     reference_data = data[DeadlineAlertFields.REFERENCE]
@@ -204,30 +391,53 @@ def decode_deadline_alert(encoded_data: dict):
             "from a version that supports VariableInterval. Downgrade is not fully reversible."
         )
 
-    interval: datetime.timedelta | SerializedVariableInterval
-
-    # Backward compatibility: previously interval was stored as total_seconds() (float/int).
-    # Handle numeric values by converting to timedelta.
-    if isinstance(raw_interval, (int, float)):
-        interval = datetime.timedelta(seconds=raw_interval)
-    else:
-        deserialized = deserialize(raw_interval)
-
-        if isinstance(deserialized, datetime.timedelta):
-            interval = deserialized
-        elif isinstance(deserialized, SerializedVariableInterval):
-            interval = deserialized
-        elif isinstance(deserialized, VariableInterval):
-            interval = SerializedVariableInterval(key=deserialized.key)
-        else:
-            raise TypeError(f"Invalid interval type: {type(deserialized).__name__}")
+    interval = _decode_deadline_interval(raw_interval)
 
     return SerializedDeadlineAlert(
         reference=reference,
         interval=interval,
-        callback=deserialize(data[DeadlineAlertFields.CALLBACK]),
+        callback=_decode_deadline_callback(data[DeadlineAlertFields.CALLBACK]),
         name=data.get(DeadlineAlertFields.NAME),
     )
+
+
+def decode_deadline_alert_model(deadline_alert: DeadlineAlertModel) -> SerializedDeadlineAlert:
+    """
+    Decode a ``DeadlineAlert`` ORM row into its serialized representation.
+
+    :meta private:
+    """
+    return decode_deadline_alert(
+        {
+            DeadlineAlertFields.NAME: deadline_alert.name,
+            DeadlineAlertFields.REFERENCE: deadline_alert.reference,
+            DeadlineAlertFields.INTERVAL: deadline_alert.interval,
+            DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
+        }
+    )
+
+
+def resolve_deadline_alert_interval(
+    alert: SerializedDeadlineAlert, *, session: Session
+) -> datetime.timedelta:
+    """
+    Resolve a decoded alert's interval to a ``timedelta``.
+
+    A ``SerializedVariableInterval`` reads its Airflow Variable here, so this is only called at
+    the point a deadline is actually calculated. It raises ``ValueError`` if the Variable is
+    missing or is not an integer number of seconds.
+
+    :param alert: The decoded alert whose interval should be resolved.
+    :param session: Existing SQLAlchemy Session. Required rather than defaulted: both callers run
+        under the scheduler's ``prohibit_commit`` guard, so the open session has to reach
+        ``Variable.get`` instead of ``provide_session`` handing back the same scoped session and
+        rolling it back on exit.
+
+    :meta private:
+    """
+    if isinstance(alert.interval, SerializedVariableInterval):
+        return alert.interval.resolve(session=session)
+    return alert.interval
 
 
 def decode_timetable(var: dict[str, Any]) -> CoreTimetable:

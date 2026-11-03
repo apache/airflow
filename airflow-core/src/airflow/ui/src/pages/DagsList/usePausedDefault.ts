@@ -36,7 +36,12 @@ export const usePausedDefault = () => {
   const hasSeeded = useRef(false);
 
   useEffect(() => {
-    if (hasSeeded.current || !hidePausedDagsByDefault || searchParams.has(SearchParamsKeys.PAUSED)) {
+    if (
+      hasSeeded.current ||
+      !hidePausedDagsByDefault ||
+      searchParams.has(SearchParamsKeys.PAUSED) ||
+      searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
+    ) {
       return;
     }
 

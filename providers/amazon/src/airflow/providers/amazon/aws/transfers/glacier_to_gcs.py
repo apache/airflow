@@ -59,7 +59,13 @@ class GlacierToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("vault_name", "bucket_name", "object_name")
+    template_fields: Sequence[str] = (
+        "vault_name",
+        "bucket_name",
+        "object_name",
+        "aws_conn_id",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,

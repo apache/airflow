@@ -47,7 +47,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 
 DAG_ID = "example_sql_to_s3"
 
@@ -81,11 +81,9 @@ SQL_INSERT_DATA = f"INSERT INTO {REDSHIFT_TABLE} VALUES ( 1, 'Banana', 'Yellow')
 def create_connection(conn_id_name: str, cluster_id: str):
     redshift_hook = RedshiftHook()
     cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    make_authenticated_rest_api_request(
-        path="/api/v2/connections",
-        method="POST",
-        body={
-            "connection_id": conn_id_name,
+    create_airflow_connection(
+        connection_id=conn_id_name,
+        connection_conf={
             "conn_type": "redshift",
             "host": cluster_endpoint["Endpoint"]["Address"],
             "login": DB_LOGIN,
@@ -188,6 +186,18 @@ with DAG(
     )
     # [END howto_transfer_sql_to_s3_with_groupby_param]
 
+    # [START howto_transfer_sql_to_s3_with_page_size]
+    sql_to_s3_task_with_page_size = SqlToS3Operator(
+        task_id="sql_to_s3_with_page_size_task",
+        sql_conn_id=conn_id_name,
+        query=SQL_QUERY,
+        s3_bucket=bucket_name,
+        s3_key=key,
+        replace=True,
+        page_size=2,
+    )
+    # [END howto_transfer_sql_to_s3_with_page_size]
+
     delete_bucket = S3DeleteBucketOperator(
         task_id="delete_bucket",
         bucket_name=bucket_name,
@@ -215,6 +225,7 @@ with DAG(
         wait_cluster_available_before_transfer,
         sql_to_s3_task,
         sql_to_s3_task_with_groupby,
+        sql_to_s3_task_with_page_size,
         # TEST TEARDOWN
         delete_bucket,
         delete_cluster,

@@ -46,7 +46,12 @@ TRIGGER_DELAY_SECONDS = 2
 BATCH_TIMEOUT_SECONDS = 360  # 6 min, each dagrun timeout is set to 5 minutes
 
 # Dags that take longer to complete — trigger these first so they run while the rest are triggered.
-LONG_RUNNING_DAG_IDS = ("openlineage_defer_simple_dag",)
+LONG_RUNNING_DAG_IDS = (
+    "openlineage_defer_simple_dag",
+    # Run their loop iterations, retries and mapped instances one after another
+    "openlineage_task_loop_dag",
+    "openlineage_task_loop_groups_dag",
+)
 
 # Child Dags spawned by TriggerDagRunOperator carry this marker; they must not be triggered or
 # state-checked directly (their parent triggers them).
@@ -75,7 +80,7 @@ class OpenLineageE2ERunner:
 
     def __init__(self, client: AirflowClient):
         self.client = client
-        now = dt.datetime.now(tz=dt.timezone.utc)
+        now = dt.datetime.now(tz=dt.UTC)
         self.run_id = f"ci_triggered_{now.isoformat()}"
         self.retry_run_id = f"{self.run_id}_retry1"
         # dag_id -> whether its final state came from retry_run_id rather than run_id; populated by run().
@@ -110,7 +115,7 @@ class OpenLineageE2ERunner:
             console.print(f"[red]Failed to unpause Dag `{dag_id}`: {exc}")
 
     def trigger_dag_run(self, dag_id: str, run_id: str) -> bool:
-        now = dt.datetime.now(tz=dt.timezone.utc).isoformat()
+        now = dt.datetime.now(tz=dt.UTC).isoformat()
         payload = {"dag_run_id": run_id, "logical_date": now, "conf": {}}
         try:
             self.client._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=payload)

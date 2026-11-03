@@ -27,6 +27,48 @@
 Changelog
 ---------
 
+7.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow keeping PostgresHook SQLAlchemy engines on psycopg2 (#72000)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix grammar in the dialects documentation (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Prepare providers release 2026-09-22``
+
 7.0.2
 .....
 

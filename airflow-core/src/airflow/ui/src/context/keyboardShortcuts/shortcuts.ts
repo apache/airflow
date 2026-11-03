@@ -62,10 +62,20 @@ export const SHORTCUTS = {
     toggleWrap: { category: "code", descriptionKey: "shortcuts.descriptions.toggleWrap", keys: "w" },
   },
   dagView: {
+    selectGridCellRange: {
+      category: "dagView",
+      descriptionKey: "shortcuts.descriptions.selectGridCellRange",
+      keys: "shift+Click",
+    },
     toggleGraphGrid: {
       category: "dagView",
       descriptionKey: "shortcuts.descriptions.toggleGraphGrid",
       keys: "g",
+    },
+    toggleGridCellSelection: {
+      category: "dagView",
+      descriptionKey: "shortcuts.descriptions.toggleGridCellSelection",
+      keys: "mod+Click",
     },
   },
   filters: {
@@ -100,6 +110,11 @@ export const SHORTCUTS = {
       category: "logs",
       descriptionKey: "shortcuts.descriptions.toggleFullscreen",
       keys: "f",
+    },
+    toggleLogLevel: {
+      category: "logs",
+      descriptionKey: "shortcuts.descriptions.toggleLogLevel",
+      keys: "l",
     },
     toggleSource: { category: "logs", descriptionKey: "shortcuts.descriptions.toggleSource", keys: "s" },
     toggleTimestamp: {

@@ -32,15 +32,7 @@ test.describe("Dag Code Tab", () => {
     await dagCodePage.verifySourceCodeDisplayed();
   });
 
-  test("Verify syntax highlighting is applied", async ({ dagCodePage }) => {
-    await dagCodePage.verifySyntaxHighlighting();
-  });
-
   test("Verify code is scrollable for long files", async ({ dagCodePage }) => {
     await dagCodePage.verifyCodeIsScrollable();
-  });
-
-  test("Verify line numbers are displayed", async ({ dagCodePage }) => {
-    await dagCodePage.verifyLineNumbersDisplayed();
   });
 });

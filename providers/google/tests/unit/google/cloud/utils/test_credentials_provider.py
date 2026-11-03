@@ -28,6 +28,7 @@ from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
+from google.auth.credentials import Credentials
 from google.auth.environment_vars import CREDENTIALS
 from google.auth.exceptions import DefaultCredentialsError
 
@@ -183,7 +184,7 @@ class TestGetGcpCredentialsAndProjectId:
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     def test_get_credentials_and_project_id_with_default_auth(self, mock_auth_default, caplog):
-        with caplog.at_level(level=logging.INFO, logger=CRED_PROVIDER_LOGGER_NAME):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
             caplog.clear()
             result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
@@ -524,6 +525,33 @@ class TestGetGcpCredentialsAndProjectId:
 
         result = get_credentials_and_project_id()
         mock_auth_default.assert_called_once_with(scopes=None)
+        assert result == (mock_credentials, "")
+
+    @mock.patch("google.auth.load_credentials_from_dict", autospec=True)
+    def test_get_credentials_using_idp_no_project_id(self, mock_load_credentials_from_dict):
+        mock_credentials = mock.MagicMock()
+        mock_load_credentials_from_dict.return_value = (mock_credentials, None)
+
+        result = get_credentials_and_project_id(
+            credential_config_file=CREDENTIAL_CONFIG_STRING_FILE,
+            idp_issuer_url=IDP_LINK,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+        )
+
+        mock_load_credentials_from_dict.assert_called_once()
+        assert result == (mock_credentials, "")
+
+    @mock.patch("google.auth.load_credentials_from_file", autospec=True)
+    def test_get_credentials_using_credential_config_file_no_project_id(
+        self, mock_load_credentials_from_file
+    ):
+        mock_credentials = mock.create_autospec(Credentials, instance=True)
+        mock_load_credentials_from_file.return_value = (mock_credentials, None)
+
+        result = get_credentials_and_project_id(credential_config_file='{"type": "external_account"}')
+
+        mock_load_credentials_from_file.assert_called_once()
         assert result == (mock_credentials, "")
 
 

@@ -130,9 +130,8 @@ class TestMessageQueueTrigger:
             poll_interval=5,
         )
 
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(1.0)
-        assert task.done() is True
+        event = await asyncio.wait_for(trigger.run().__anext__(), timeout=10)
+        assert event.payload is True
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Requires Airflow 3.0.+")
     @pytest.mark.asyncio

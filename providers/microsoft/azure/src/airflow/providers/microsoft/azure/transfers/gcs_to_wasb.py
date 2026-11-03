@@ -84,6 +84,8 @@ class GCSToAzureBlobStorageOperator(BaseOperator):
         "google_impersonation_chain",
         "gcp_user_project",
         "match_glob",
+        "gcp_conn_id",
+        "wasb_conn_id",
     )
     ui_color = "#f0eee4"
 

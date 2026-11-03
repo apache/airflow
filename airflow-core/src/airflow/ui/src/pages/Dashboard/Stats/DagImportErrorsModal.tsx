@@ -20,15 +20,27 @@ import { useState } from "react";
 
 import { Box, ClipboardRoot, Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
+import { AiOutlineFileSync } from "react-icons/ai";
 import { LuFileWarning } from "react-icons/lu";
 import { PiFilePy } from "react-icons/pi";
 
-import { useImportErrorServiceGetImportErrors } from "openapi/queries";
+import { useDagParsingServiceReparseDagFile, useImportErrorServiceGetImportErrors } from "openapi/queries";
 
-import { Accordion, ClipboardIconButton, Modal, Pagination } from "src/system-components";
+import {
+  Accordion,
+  ClipboardIconButton,
+  IconButton,
+  Modal,
+  Pagination,
+  toaster,
+} from "src/system-components";
 
 import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
+
+import { useConfig } from "src/queries/useConfig";
+import { useHasMultipleDagBundles } from "src/queries/useHasMultipleDagBundles";
+import { createErrorToaster } from "src/utils";
 
 type ImportDAGErrorModalProps = {
   readonly onClose: () => void;
@@ -37,9 +49,48 @@ type ImportDAGErrorModalProps = {
 
 const PAGE_LIMIT = 15;
 
+const ReparseButton = ({
+  fileToken,
+  onReparsed,
+}: {
+  readonly fileToken: string;
+  readonly onReparsed: () => void;
+}) => {
+  const { t: translate } = useTranslation(["components", "dag"]);
+
+  const { isPending, mutate } = useDagParsingServiceReparseDagFile({
+    onError: (error) => createErrorToaster(error, { titleKey: "dag:parse.toaster.error.title" }, translate),
+    onSuccess: () => {
+      // Reparse is queued for the DAG processor, so the modal cannot know when
+      // it lands; polling starts on the first reparse and stops on close.
+      onReparsed();
+      toaster.create({
+        description: translate("dag:parse.toaster.success.description"),
+        title: translate("dag:parse.toaster.success.title"),
+        type: "success",
+      });
+    },
+  });
+
+  return (
+    <IconButton
+      data-testid="reparse-import-error"
+      label={translate("components:reparseDag")}
+      loading={isPending}
+      onClick={() => mutate({ fileToken })}
+      variant="outline"
+    >
+      <AiOutlineFileSync />
+    </IconButton>
+  );
+};
+
 export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [pollAfterReparse, setPollAfterReparse] = useState(false);
+  const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
+  const hasMultipleBundles = useHasMultipleDagBundles();
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
@@ -48,7 +99,13 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
       offset: PAGE_LIMIT * (page - 1),
     },
     undefined,
-    { enabled: open },
+    {
+      enabled: open,
+      // Reparse is a queued request the dag processor picks up on its next
+      // cycle, so once a reparse has been issued the modal polls until it is
+      // closed. autoRefreshInterval mirrors what the dashboard cards use.
+      refetchInterval: pollAfterReparse && autoRefreshInterval !== undefined && autoRefreshInterval * 1000,
+    },
   );
 
   const { t: translate } = useTranslation(["dashboard", "components"]);
@@ -56,6 +113,7 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
   const onOpenChange = () => {
     setSearchQuery("");
     setPage(1);
+    setPollAfterReparse(false);
     onClose();
   };
 
@@ -112,16 +170,22 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
             <HStack align="stretch" gap={0} w="100%">
               <Accordion.ItemTrigger cursor="pointer" flex="1">
                 <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
-                  <Text display="flex" fontWeight="bold">
-                    {translate("components:versionDetails.bundleName")}
-                    {": "}
-                    {importError.bundle_name}
-                  </Text>
                   <PiFilePy />
                   {importError.filename}
+                  {hasMultipleBundles ? (
+                    <Text color="fg.muted" fontSize="sm" fontWeight="normal" ms="auto">
+                      {translate("importErrors.bundle")}
+                      {": "}
+                      {importError.bundle_name}
+                    </Text>
+                  ) : undefined}
                 </HStack>
               </Accordion.ItemTrigger>
-              <Box alignItems="center" display="flex" flexShrink={0} pr={2}>
+              <Box alignItems="center" display="flex" flexShrink={0} gap={1} pr={2}>
+                <ReparseButton
+                  fileToken={importError.file_token}
+                  onReparsed={() => setPollAfterReparse(true)}
+                />
                 <ClipboardRoot value={importError.filename}>
                   <ClipboardIconButton variant="outline" />
                 </ClipboardRoot>

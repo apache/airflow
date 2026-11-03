@@ -1,3 +1,0 @@
-Fix 2.x to 3.0+ upgrade failure when a custom Dag bundle is configured
-
-The ``0082_3_1_0_make_bundle_name_not_nullable`` migration assigned every legacy row ``bundle_name='dags-folder'``, so triggering a DagRun raised ``Requested bundle 'dags-folder' is not configured.`` on any deployment that uses a bundle other than the default ``dags-folder``. ``DagFileProcessorManager`` now runs a one-shot, best-effort backfill at startup that routes each affected Dag to the correct bundle based on its file path; unmatched Dags self-heal on the next successful parse (or run ``airflow dags reserialize`` to force it immediately).

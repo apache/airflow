@@ -56,6 +56,8 @@ class _SnowparkDecoratedOperator(DecoratedOperator, SnowparkOperator):
         multiple XCom values. Dict will unroll to XCom values with its keys as XCom keys. Defaults to False.
     """
 
+    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, "snowflake_conn_id")
+
     custom_operator_name = "@task.snowpark"
 
     def __init__(

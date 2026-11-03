@@ -46,7 +46,7 @@ execution of Databricks jobs with multiple tasks, but it's harder to detect erro
   notebook_run = DatabricksSubmitRunOperator(task_id="notebook_run", json=json)
 
 The second way to accomplish the same thing is to use the named parameters of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
-one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must to specify following:
+one named parameter for each top level parameter in the ``runs/submit`` endpoint.  When using named parameters you must specify the following:
 
 * Task specification - it should be one of:
 
@@ -78,6 +78,7 @@ Currently the named parameters that ``DatabricksSubmitRunOperator`` supports are
     - ``new_cluster``
     - ``existing_cluster_id``
     - ``libraries``
+    - ``environments``
     - ``run_name``
     - ``timeout_seconds``
     - ``performance_target``
@@ -124,6 +125,9 @@ Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_py
 ``spark_submit_task``) are skipped because there is no canonical mapping from a key/value
 dict to a positional argument list — pass those parameters explicitly via the ``json``
 or ``tasks`` argument.
+
+Params whose value resolves to ``None`` are skipped, since Databricks has no value to
+receive for them.
 
 .. code-block:: python
 

@@ -23,6 +23,7 @@ import signal
 import socket
 import uuid
 from dataclasses import dataclass
+from datetime import timedelta
 from operator import attrgetter
 from typing import Any
 from unittest.mock import ANY, Mock, patch
@@ -30,6 +31,7 @@ from unittest.mock import ANY, Mock, patch
 import pytest
 import structlog
 
+from airflow.sdk.api.datamodels._generated import XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
     Path,
@@ -42,11 +44,15 @@ from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetVariable,
     GetVariableKeys,
+    GetXCom,
     MaskSecret,
     VariableKeysResult,
     VariableResult,
+    XComResult,
     _RequestFrame,
 )
+
+from tests_common.test_utils.config import conf_vars
 
 
 def callback_no_args():
@@ -62,6 +68,15 @@ def callback_with_kwargs(arg1, arg2):
 def callback_that_raises():
     """A callback that always raises."""
     raise ValueError("something went wrong")
+
+
+received_kwargs: dict[str, Any] = {}
+
+
+def callback_recording_kwargs(**kwargs):
+    """A callback that records the kwargs it was called with."""
+    received_kwargs.clear()
+    received_kwargs.update(kwargs)
 
 
 class CallableClass:
@@ -159,6 +174,77 @@ class TestExecuteCallback:
         else:
             assert error is None
 
+    @pytest.mark.parametrize(
+        "encoded_kwargs",
+        [
+            pytest.param(
+                {
+                    "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 3600.0},
+                    "pair": {"__classname__": "builtins.tuple", "__version__": 1, "__data__": [1, 2]},
+                    "plain": {"nested": [1, "two"]},
+                },
+                id="current",
+            ),
+            pytest.param(
+                {
+                    "interval": {"__type": "timedelta", "__var": 3600.0},
+                    "pair": {"__type": "tuple", "__var": [1, 2]},
+                    "plain": {"nested": [1, "two"]},
+                },
+                id="legacy",
+            ),
+        ],
+    )
+    def test_execute_callback_decodes_serde_encoded_kwargs(self, encoded_kwargs):
+        context = {"dag_run": {"dag_id": "test_dag"}, "deadline": {"id": "1"}}
+
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs={**encoded_kwargs, "context": context},
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+            callback_kwargs_encoding="serde",
+        )
+
+        assert (success, error) == (True, None)
+        assert received_kwargs == {
+            "interval": timedelta(hours=1),
+            "pair": (1, 2),
+            "plain": {"nested": [1, "two"]},
+            "context": context,
+        }
+
+    def test_execute_callback_passes_kwargs_as_is_without_encoding(self):
+        kwargs = {
+            "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 3600.0},
+            "plain": {"nested": [1, "two"]},
+        }
+
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs=kwargs,
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+        )
+
+        assert (success, error) == (True, None)
+        assert received_kwargs == kwargs
+
+    def test_execute_callback_fails_on_unsupported_kwargs_encoding(self):
+        success, error = execute_callback(
+            callback_path=f"{__name__}.callback_recording_kwargs",
+            callback_kwargs={"arg1": "value1"},
+            dag_rel_path=Path("test.py"),
+            bundle_path=Path("bundle/path"),
+            log=structlog.get_logger(),
+            callback_kwargs_encoding="unknown",
+        )
+
+        assert success is False
+        assert "Unsupported callback kwargs encoding" in error
+
 
 class TestCallbackHandleRequest:
     """Verify that CallbackSubprocess._handle_request dispatches each message type to the correct handler."""
@@ -235,6 +321,38 @@ class TestCallbackHandleRequest:
                 method_path="variables.keys",
                 kwargs={"prefix": "test_", "limit": 1000, "offset": 0},
                 response=VariableKeysResult(keys=["test_key"], total_entries=1),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="return_value",
+                dag_id="test_dag",
+                run_id="test_run_1",
+                task_id="upstream_task",
+            ),
+            test_id="get_xcom",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="return_value", value="xcom_payload"),
+            ),
+        ),
+        RequestCase(
+            message=GetXCom(
+                key="custom_key",
+                dag_id="dag_a",
+                run_id="run_42",
+                task_id="task_b",
+                map_index=3,
+                include_prior_dates=True,
+            ),
+            test_id="get_xcom_with_map_index",
+            client_mock=ClientMock(
+                method_path="xcoms.get",
+                args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
+                kwargs={"previous_iteration": False},
+                response=XComResponse(key="custom_key", value={"nested": "data"}),
             ),
         ),
         RequestCase(
@@ -483,9 +601,10 @@ class TestCallbackSubprocessStart:
                 "bundle_path": bundle_path,
             }
 
-    def test_execute_callback_receives_correct_parameters(self, base_start_kwargs):
+    @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
+    def test_execute_callback_receives_correct_parameters(self, base_start_kwargs, callback_kwargs_encoding):
         """Test that execute_callback receives the correct parameters."""
-        CallbackSubprocess.start(**base_start_kwargs)
+        CallbackSubprocess.start(**base_start_kwargs, callback_kwargs_encoding=callback_kwargs_encoding)
         self.mock_super_start.call_args.kwargs["target"]()
 
         self.mock_super_start.assert_called_with(
@@ -498,6 +617,7 @@ class TestCallbackSubprocessStart:
             callback_path=base_start_kwargs["callback_path"],
             dag_rel_path=base_start_kwargs["dag_rel_path"],
             log=ANY,
+            callback_kwargs_encoding=callback_kwargs_encoding,
         )
 
     def test_execute_callback_with_bundle_info_should_pass_correct_parameters(
@@ -527,6 +647,7 @@ class TestCallbackSubprocessStart:
             callback_path=adjusted_kwargs["callback_path"],
             dag_rel_path=adjusted_kwargs["dag_rel_path"],
             log=ANY,
+            callback_kwargs_encoding=None,
         )
 
     def test_callback_supervisor_with_bundle_info_should_adjust_sys_path(
@@ -552,6 +673,62 @@ class TestCallbackSubprocessStart:
             self.mock_super_start.call_args.kwargs["target"]()
 
         assert exc_info.value.code == 1
+
+    def _run_target_with_context(self, base_start_kwargs, context):
+        CallbackSubprocess.start(**{**base_start_kwargs, "callback_kwargs": {"context": context}})
+        self.mock_super_start.call_args.kwargs["target"]()
+        return self.mock_execute_callback.call_args.kwargs["callback_kwargs"]["context"]
+
+    @pytest.mark.parametrize(
+        ("xcom_value", "expected"),
+        [
+            pytest.param("payload", "payload", id="value"),
+            pytest.param(None, "fallback", id="missing"),
+        ],
+    )
+    def test_context_xcom_pull_uses_dag_run_ids(self, base_start_kwargs, xcom_value, expected):
+        comms = self.mock_comms_decoder.__getitem__.return_value.return_value
+        comms.send.return_value = XComResult(key="out", value=xcom_value)
+
+        context = self._run_target_with_context(
+            base_start_kwargs, {"dag_run": {"dag_id": "dag_a", "dag_run_id": "run_1"}}
+        )
+
+        assert context["xcom_pull"]("upstream", key="out", map_index=2, default="fallback") == expected
+        comms.send.assert_called_once_with(
+            GetXCom(key="out", dag_id="dag_a", run_id="run_1", task_id="upstream", map_index=2)
+        )
+
+    def test_context_without_dag_run_has_no_xcom_pull(self, base_start_kwargs, caplog):
+        context = self._run_target_with_context(base_start_kwargs, {"deadline": {"id": "x"}})
+
+        assert "xcom_pull" not in context
+        assert "Callback context has no Dag run, so xcom_pull is not available" in caplog
+
+    @pytest.mark.parametrize("option_value", ["True", "False"])
+    def test_start_keeps_bare_fork_regardless_of_exec_option(self, base_start_kwargs, option_value):
+        """
+        ``[core] execute_tasks_new_python_interpreter`` is a task-process opt-in and must not reach the
+        callback child: its target is a closure, which only a bare fork can run.
+        """
+        with conf_vars({("core", "execute_tasks_new_python_interpreter"): option_value}):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert self.mock_super_start.call_args.kwargs.get("use_exec", False) is False
+
+    def test_start_imports_task_runner_before_forking(self, base_start_kwargs):
+        """The callback child is forked from this process, so it inherits a task runner imported here."""
+        calls = []
+        self.mock_super_start.side_effect = lambda **kwargs: calls.append("fork")
+
+        with patch(
+            "airflow.sdk.execution_time.callback_supervisor._import_task_runner_before_fork",
+            autospec=True,
+            side_effect=lambda: calls.append("import task runner"),
+        ):
+            CallbackSubprocess.start(**base_start_kwargs)
+
+        assert calls == ["import task runner", "fork"]
 
 
 class TestSuperviseCallbackExchangesTokenFirst:
@@ -595,3 +772,22 @@ class TestSuperviseCallbackExchangesTokenFirst:
             self._supervise(client)
 
         mock_start.assert_not_called()
+
+    @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_kwargs_encoding_is_passed_to_the_subprocess(
+        self, mock_start, _nondumpable, callback_kwargs_encoding
+    ):
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+
+        supervise_callback(
+            id=self.CALLBACK_ID,
+            callback_path="does.not.matter",
+            callback_kwargs={},
+            dag_rel_path=Path("dag.py"),
+            callback_kwargs_encoding=callback_kwargs_encoding,
+            client=Mock(),
+        )
+
+        assert mock_start.call_args.kwargs["callback_kwargs_encoding"] == callback_kwargs_encoding

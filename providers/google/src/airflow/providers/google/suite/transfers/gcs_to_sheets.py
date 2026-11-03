@@ -55,6 +55,7 @@ class GCSToGoogleSheetsOperator(BaseOperator):
         "object_name",
         "spreadsheet_range",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

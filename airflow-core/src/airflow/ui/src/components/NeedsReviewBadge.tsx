@@ -18,15 +18,12 @@
  */
 import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { LuUserRoundPen } from "react-icons/lu";
 import { Link } from "react-router-dom";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
 
-import { Tooltip } from "src/system-components";
-
 import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
-import { StateBadge } from "src/components/StateBadge";
+import { NeedsReviewIndicator } from "src/components/NeedsReviewIndicator";
 
 type Props = {
   readonly pendingActions: Array<HITLDetail>;
@@ -42,14 +39,7 @@ export const NeedsReviewBadge = ({ pendingActions }: Props) => {
 
   return (
     <>
-      <Tooltip content={translate("requiredActionCount", { count: pendingActions.length })}>
-        <Button data-testid="needs-review-badge" onClick={onOpen} variant="plain">
-          <StateBadge colorPalette="awaiting_input" fontSize="md" variant="solid">
-            <LuUserRoundPen />
-            {pendingActions.length}
-          </StateBadge>
-        </Button>
-      </Tooltip>
+      <NeedsReviewIndicator count={pendingActions.length} onClick={onOpen} />
       <HITLReviewModal
         headerAction={
           <Button asChild size="sm" variant="outline">

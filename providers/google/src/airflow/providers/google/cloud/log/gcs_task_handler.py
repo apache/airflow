@@ -107,12 +107,23 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
             remote_loc = os.path.join(self.remote_base, path)
 
+        # ``joinpath``/``relative_to`` are lexical and do not normalise ``..``, so a caller-supplied
+        # path can escape ``base_log_folder``. Mirrors the check in ``CloudWatchRemoteLogIO.upload``.
+        base = self.base_log_folder.resolve()
+        try:
+            local_loc.resolve().relative_to(base)
+        except ValueError:
+            self.log.warning("Skipping upload: path %s is outside base_log_folder %s", local_loc, base)
+            return
+
         if local_loc.is_file():
             # read log and remove old logs to get just the latest additions
             log = local_loc.read_text()
             has_uploaded = self.write(log, remote_loc)
             if has_uploaded and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
+            elif has_uploaded:
+                local_loc.write_text("")
 
     @cached_property
     def hook(self) -> GCSHook | None:
@@ -198,7 +209,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
             exc, "resp", {}
         ).get("status") == "404"
 
-    def read(self, relative_path: str, ti: RuntimeTI) -> LogResponse:
+    def read(self, relative_path: str, ti: RuntimeTI | None) -> LogResponse:
         messages, log_streams = self.stream(relative_path, ti)
         if not log_streams:
             return messages, None
@@ -213,7 +224,7 @@ class GCSRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return messages, logs
 
-    def stream(self, relative_path: str, ti: RuntimeTI) -> StreamingLogResponse:
+    def stream(self, relative_path: str, ti: RuntimeTI | None) -> StreamingLogResponse:
         messages: list[str] = []
         log_streams: list[RawLogStream] = []
         remote_loc = os.path.join(self.remote_base, relative_path)

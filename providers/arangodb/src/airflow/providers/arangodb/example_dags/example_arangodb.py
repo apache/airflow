@@ -33,7 +33,7 @@ dag = DAG(
 
 sensor = AQLSensor(
     task_id="aql_sensor",
-    query="FOR doc IN students FILTER doc.name == 'judy' RETURN doc",
+    query="FOR doc IN students FILTER doc.name == 'Judy' RETURN doc",
     timeout=60,
     poke_interval=10,
     dag=dag,
