@@ -92,7 +92,14 @@ class DurableStorage:
         path = self._get_path()
         try:
             self._cache = json.loads(path.read_text())
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+        except FileNotFoundError:
+            self._cache = {}
+        except OSError:
+            log.warning(
+                "Durable: could not load journal; stopping task to avoid replaying steps", exc_info=True
+            )
+            raise
+        except (json.JSONDecodeError, ValueError):
             self._cache = {}
 
         return self._cache

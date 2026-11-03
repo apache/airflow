@@ -82,6 +82,13 @@ class TestSaveLoad:
     def test_missing_key_is_none(self, storage):
         assert storage.load_step("missing") is None
 
+    @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
+    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, storage, caplog):
+        with pytest.raises(OSError, match="S3 is unavailable"):
+            storage.load_step("k")
+
+        assert "Durable: could not load journal; stopping task to avoid replaying steps" in caplog
+
     def test_an_entry_that_cannot_be_encoded_is_skipped_and_the_rest_kept(self, storage):
         circular: dict = {}
         circular["self"] = circular
