@@ -323,9 +323,16 @@ class TestPublishDocsToS3:
         {"java-sdk": ["1.0.0-SNAPSHOT"]},
         clear=True,
     )
+    @pytest.mark.parametrize(
+        ("package_name", "invalid_version"),
+        [
+            pytest.param("java-sdk", "1.1.0-SNAPSHOT", id="version_not_excluded"),
+            pytest.param("ts-sdk", "1.0.0-SNAPSHOT", id="version_excluded_for_another_package"),
+        ],
+    )
     @patch.object(VersionError, "version_error", False)
-    def test_get_latest_minor_versions_flags_versions_not_excluded(self):
-        versions = S3DocsPublish.get_latest_minor_versions("java-sdk", ["1.1.0-SNAPSHOT", "1.0.0-beta1"])
+    def test_get_latest_minor_versions_flags_versions_not_excluded(self, package_name, invalid_version):
+        versions = S3DocsPublish.get_latest_minor_versions(package_name, [invalid_version, "1.0.0-beta1"])
 
         assert versions == ["1.0.0b1"]
         assert VersionError.has_any_error()
