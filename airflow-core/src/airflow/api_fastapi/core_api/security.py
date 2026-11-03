@@ -81,7 +81,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.models.trigger import Trigger, TriggerKind
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -1237,13 +1237,17 @@ class PermittedTriggerFilter(OrmClause[None]):
         self.can_read_an_owner = can_read_an_owner
 
     def to_orm(self, select: Select) -> Select:
-        kind = Trigger.kind_expression()
+        # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
+        # compared in each branch, Postgres evaluates the CASE and its watcher subquery once per branch and row.
+        ti_id = Trigger.owner_ref["ti_id"].as_string()
+        callback_id = Trigger.owner_ref["callback_id"].as_string()
         return select.where(
             or_(
-                and_(kind == TriggerKind.TASK.value, Trigger.dag_id.in_(self.task_dag_ids)),
-                and_(kind == TriggerKind.CALLBACK.value, Trigger.dag_id.in_(self.callback_dag_ids)),
+                and_(ti_id.is_not(None), Trigger.dag_id.in_(self.task_dag_ids)),
+                and_(ti_id.is_(None), callback_id.is_not(None), Trigger.dag_id.in_(self.callback_dag_ids)),
                 and_(
-                    kind == TriggerKind.ASSET_WATCHER.value,
+                    ti_id.is_(None),
+                    callback_id.is_(None),
                     Trigger.id.in_(_select_triggers_watching(self.asset_ids)),
                 ),
             )
