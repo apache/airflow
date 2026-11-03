@@ -1,5 +1,8 @@
 {
   "alerts": {
+    "collapseAlerts": "Show fewer alerts",
+    "expandAlerts_one": "Show {{count, number}} more alert",
+    "expandAlerts_other": "Show {{count, number}} more alerts",
     "seeLessContext": "See less",
     "seeMoreContext": "See more",
     "showMoreAlerts_one": "+{{count, number}} more alert",

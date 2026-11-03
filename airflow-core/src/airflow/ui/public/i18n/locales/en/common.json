@@ -146,6 +146,7 @@
   "filters": {
     "addFilter": "Add Filter",
     "allIterations": "All",
+    "clearInput": "Clear {{label}}",
     "completedAt": "Completed At",
     "date": "Date",
     "durationFrom": "Duration From",
@@ -161,6 +162,7 @@
     "maxActiveRunsFrom": "Max Active Runs From",
     "maxActiveRunsTo": "Max Active Runs To",
     "removeFilter": "Remove Filter",
+    "removeNamedFilter": "Remove {{label}} Filter",
     "runAfterFrom": "Run After From",
     "runAfterTo": "Run After To",
     "searchAsset": "Search Asset",

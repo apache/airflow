@@ -106,8 +106,8 @@ export const Dashboard = () => {
                   <IconButton
                     aria-label={
                       isCollapsed
-                        ? `Show ${restAlerts.length} more alert${restAlerts.length === 1 ? "" : "s"}`
-                        : "Show fewer alerts"
+                        ? translate("alerts.expandAlerts", { count: restAlerts.length })
+                        : translate("alerts.collapseAlerts")
                     }
                     onClick={() => setIsCollapsed((previous) => !previous)}
                     size="xs"

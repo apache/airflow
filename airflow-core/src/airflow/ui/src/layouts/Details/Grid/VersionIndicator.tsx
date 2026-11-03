@@ -94,13 +94,14 @@ export const DagVersionIndicator = ({
   dagVersionNumber,
   orientation = "vertical",
 }: DagVersionIndicatorProps) => {
+  const { t: translate } = useTranslation("components");
   const isVertical = orientation === "vertical";
   const currentContainerStyle = CONTAINER_STYLES[orientation];
   const currentCircleStyle = CIRCLE_STYLES[orientation];
 
   return (
     <Box
-      aria-label={`Version ${dagVersionNumber} indicator`}
+      aria-label={translate("versionDetails.dagVersionIndicator", { version: dagVersionNumber })}
       as="output"
       position="absolute"
       zIndex={VERSION_INDICATOR_Z_INDEX}

@@ -40,11 +40,16 @@ vi.mock("openapi/queries", () => ({
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     i18n: { language: "en" },
+    // The collapse toggle's accessible name is asserted below. The two keys that carry it render
+    // here as wording no English literal in the component could produce, so a pass means the name
+    // came out of a key rather than out of the literal these tests used to expect.
     // eslint-disable-next-line id-length
     t: (key: string, options?: { count?: number }) =>
-      key === "alerts.showMoreAlerts"
-        ? `+${options?.count} more ${options?.count === 1 ? "alert" : "alerts"}`
-        : key,
+      ({
+        "alerts.collapseAlerts": "COLLAPSE",
+        "alerts.expandAlerts": `EXPAND ${options?.count}`,
+        "alerts.showMoreAlerts": `+${options?.count} more ${options?.count === 1 ? "alert" : "alerts"}`,
+      })[key] ?? key,
   }),
 }));
 
@@ -97,7 +102,7 @@ describe("Dashboard alerts collapse toggle", () => {
     expect(screen.getByText("Alert one")).toBeInTheDocument();
     expect(screen.getByText("Alert two")).toBeInTheDocument();
     expect(screen.getByText("Alert three")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show fewer alerts" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "COLLAPSE" })).toBeVisible();
     expect(screen.queryByText("+2 more alerts")).not.toBeInTheDocument();
   });
 
@@ -106,14 +111,14 @@ describe("Dashboard alerts collapse toggle", () => {
 
     render(<Dashboard />, { wrapper: Wrapper });
 
-    fireEvent.click(screen.getByRole("button", { name: "Show fewer alerts" }));
+    fireEvent.click(screen.getByRole("button", { name: "COLLAPSE" }));
 
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBe("true");
     expect(screen.getByText("Alert one")).toBeInTheDocument();
     expect(screen.queryByText("Alert two")).not.toBeInTheDocument();
     expect(screen.queryByText("Alert three")).not.toBeInTheDocument();
     expect(screen.getByText("+2 more alerts")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Show 2 more alerts" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "EXPAND 2" })).toBeVisible();
   });
 
   it("restores the collapsed state from localStorage on reload", () => {
@@ -124,7 +129,7 @@ describe("Dashboard alerts collapse toggle", () => {
 
     expect(screen.getByText("Alert one")).toBeInTheDocument();
     expect(screen.queryByText("Alert two")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show 2 more alerts" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "EXPAND 2" })).toBeVisible();
   });
 
   it("expands and clears the persisted collapsed state when the toggle is clicked", () => {
@@ -136,11 +141,11 @@ describe("Dashboard alerts collapse toggle", () => {
 
     render(<Dashboard />, { wrapper: Wrapper });
 
-    fireEvent.click(screen.getByRole("button", { name: "Show 1 more alert" }));
+    fireEvent.click(screen.getByRole("button", { name: "EXPAND 1" }));
 
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBe("false");
     expect(screen.getByText("Alert two")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show fewer alerts" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "COLLAPSE" })).toBeVisible();
   });
 
   it("renders a single alert without a collapse toggle", () => {
@@ -149,7 +154,7 @@ describe("Dashboard alerts collapse toggle", () => {
     render(<Dashboard />, { wrapper: Wrapper });
 
     expect(screen.getByText("Only alert")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /alert/u })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /COLLAPSE|EXPAND/u })).not.toBeInTheDocument();
     expect(globalThis.localStorage.getItem(COLLAPSED_UI_ALERTS_KEY)).toBeNull();
   });
 });
