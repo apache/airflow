@@ -186,7 +186,9 @@ Use :class:`~airflow.providers.apache.arrow.hooks.adbc.AdbcHook` in a task to qu
         # Run a query and get results as a list of tuples
         records = hook.get_records("SELECT id, name FROM users WHERE active = 1")
 
-        # Bulk-insert rows in chunks of 5 000 using Arrow-native transfer
+        # Insert rows in chunks of 5 000. By default each chunk is loaded with the
+        # driver's bulk ingest (e.g. COPY on PostgreSQL); pass fast_executemany=False
+        # to bind the rows to an INSERT statement instead.
         rows = [(1, "Alice"), (2, "Bob")]
         hook.insert_rows(
             table="users",
