@@ -1349,13 +1349,18 @@ class TestPopenActivitySubprocessProcessGroup:
 
 class TestPopenActivitySubprocessExecutionTimeout:
     @pytest.mark.parametrize(
-        ("execution_timeout", "elapsed", "killed"),
+        ("execution_timeout", "worker_default", "elapsed", "sent", "killed"),
         [
-            pytest.param(30.0, 35, True, id="with-timeout"),
-            pytest.param(None, 35, False, id="without-timeout"),
-            pytest.param(0.0, 35, False, id="zero-means-no-timeout"),
-            pytest.param(-30.0, 3, False, id="negative-keeps-grace-period"),
-            pytest.param(-30.0, 6, True, id="negative-has-elapsed"),
+            pytest.param(30.0, "", 35, 30.0, True, id="with-timeout"),
+            pytest.param(None, "", 35, None, False, id="without-timeout"),
+            pytest.param(0.0, "", 35, 0.0, False, id="zero-means-no-timeout"),
+            pytest.param(-30.0, "", 3, -30.0, False, id="negative-keeps-grace-period"),
+            pytest.param(-30.0, "", 6, -30.0, True, id="negative-has-elapsed"),
+            pytest.param(None, "10", 14, 10.0, False, id="worker-default-keeps-grace-period"),
+            pytest.param(None, "10", 16, 10.0, True, id="worker-default-has-elapsed"),
+            pytest.param(None, "1_000", 1004, 1000.0, False, id="worker-default-as-python-reads-it"),
+            pytest.param(30.0, "10", 16, 30.0, False, id="run-context-over-worker-default"),
+            pytest.param(0.0, "10", 35, 0.0, False, id="zero-does-not-fall-back"),
         ],
     )
     @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
@@ -1363,7 +1368,15 @@ class TestPopenActivitySubprocessExecutionTimeout:
     @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
     @patch("time.monotonic", autospec=True, return_value=1.0)
     def test_arms_execution_timeout_from_run_context(
-        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, elapsed, killed
+        self,
+        mock_monotonic,
+        mock_send_msg,
+        mock_kill,
+        execution_timeout,
+        worker_default,
+        elapsed,
+        sent,
+        killed,
     ):
         client = MagicMock()
         client.task_instances.start.return_value = TIRunContext.model_construct(
@@ -1380,13 +1393,16 @@ class TestPopenActivitySubprocessExecutionTimeout:
             logs_server=MagicMock(spec=socket.socket),
         )
 
-        proc._on_child_started(
-            ti=_make_ti(),
-            dag_rel_path="d.py",
-            bundle_info=BundleInfo(name="my-bundle", version=None),
-            sentry_integration="",
-        )
+        with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
+            proc._on_child_started(
+                ti=_make_ti(),
+                dag_rel_path="d.py",
+                bundle_info=BundleInfo(name="my-bundle", version=None),
+                sentry_integration="",
+            )
 
+        startup = mock_send_msg.call_args.args[1]
+        assert startup.ti_context.execution_timeout == sent
         mock_monotonic.return_value += elapsed
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
