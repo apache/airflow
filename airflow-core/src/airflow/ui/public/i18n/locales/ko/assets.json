@@ -49,6 +49,7 @@
   "events": "이벤트",
   "filters": {
     "groupPlaceholder": "그룹 검색",
+    "hasEvents": "이벤트 있음",
     "lastEventDateRange": "마지막 이벤트 기간"
   },
   "group": "그룹",

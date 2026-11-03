@@ -44,7 +44,7 @@ def dag_bundles_with_teams():
     with (
         conf_vars({("core", "multi_team"): "True"}),
         mock.patch.object(
-            dag_processor_command, "_get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
+            dag_processor_command, "get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
         ),
     ):
         yield
@@ -96,7 +96,7 @@ class TestDagProcessorCommand:
 
     @conf_vars({("core", "multi_team"): "False"})
     @mock.patch.object(
-        dag_processor_command, "_get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
+        dag_processor_command, "get_configured_bundle_team_names", return_value=dict(BUNDLE_TEAMS)
     )
     def test_get_team_names_returns_empty_outside_multi_team(self, mock_configured):
         assert dag_processor_command._get_team_names(["bundle_a"]) == []

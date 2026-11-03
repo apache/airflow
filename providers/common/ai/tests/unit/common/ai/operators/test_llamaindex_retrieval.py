@@ -170,7 +170,7 @@ class TestRetrievalOperatorOutput:
             task_id="test",
             query="q",
             index_persist_dir=str(tmp_path / "idx"),
-            embed_model=12345,  # type: ignore[arg-type]
+            embed_model=12345,
         )
         with pytest.raises(TypeError, match="embed_model must be"):
             op.execute(context=MagicMock())

@@ -42,12 +42,29 @@ connections and self-hosted endpoints as ``AgentOperator``; see :doc:`../model_p
 Every toolset this provider ships is a Pydantic AI toolset, so it goes into
 ``toolsets=`` as it is, next to any toolsets and tools of your own.
 
-For the OpenTelemetry spans ``AgentOperator`` emits, build the agent with the hook's
+For the OpenTelemetry spans and secret masking ``AgentOperator`` gets, build the agent
+with the hook's
 :meth:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook.create_agent`
 instead of ``Agent(...)``. It takes the same arguments, and under ``[common.ai]
 otel_export_enabled`` it sends the agent's spans through Airflow's tracing, without prompt
 text unless ``capture_content`` is on; see :doc:`../observability`. Pydantic AI's own
-instrumentation records prompt and completion text by default.
+instrumentation records prompt and completion text by default. It also passes what every
+tool returns or raises through Airflow's secret masker, whichever toolset or capability
+supplied the tool. To get that masking on an agent you build with ``Agent(...)``, add
+:class:`~airflow.providers.common.ai.utils.toolset_base.MaskingCapability` last in its
+``capabilities``:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+
+    agent = Agent(model, toolsets=[my_toolset], capabilities=[MaskingCapability()])
+
+Pydantic AI 2.43 and later print a first-run banner to stderr when Airflow was started from
+a coding agent such as Claude Code, Cursor or Codex, and a task's stderr lands in its log
+as ``ERROR`` lines. Importing ``PydanticAIHook``, as the example above does, turns the
+banner off for the task process; for an agent run without the hook, set
+``PYDANTIC_AI_NO_BANNER=1`` in the worker environment.
 
 What you get, and what you do not
 ---------------------------------
@@ -57,8 +74,8 @@ as they do inside ``AgentOperator``: SQL validation, ``allowed_tables``, result 
 object-storage path checks, and the secret masker on everything a tool returns, including
 the text of a failure the model is asked to correct. Their calls are counted in the
 ``common_ai.tool_calls`` metric described in :doc:`../observability`. The Agent Skills
-toolset is the exception: its results are masked only inside ``AgentOperator``, and its
-calls are not counted.
+toolset is the exception: its results are masked only in an agent built with
+``create_agent`` or given ``MaskingCapability``, and its calls are not counted.
 
 ``AgentOperator`` adds things on top of the agent that a task running your own agent
 does not get:
@@ -66,9 +83,6 @@ does not get:
 - Durable replay of model and tool steps across task retries (``durable=True``).
 - Human review of the output (``enable_hitl_review``), and a pause for a person to
   approve marked tool calls before they run (:doc:`../tool_approval`).
-- Masking of the results of the Agent Skills toolset and of toolsets you wrote yourself.
-  There is no public masking wrapper, so run the agent through ``AgentOperator`` if their
-  results can carry a secret.
 - Rendering of templated connection IDs in toolsets, such as ``SQLToolset("{{ ... }}")``.
   In your own task, pass the connection ID itself.
 - Tool call logging, and the task's identity (``airflow.dag_id``, ``airflow.task_id``

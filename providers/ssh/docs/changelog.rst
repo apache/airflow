@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+7.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'SSHRemoteJobOperator' mangling environment values with spaces or shell characters (#74810)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 7.0.0
 .....
 

@@ -20,23 +20,22 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { XcomService } from "openapi/requests";
+
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { XComEntry } from "./XComEntry";
 
-const server = setupServer();
 const entryUrl = "/api/v2/dags/test_dag/dagRuns/test_run/taskInstances/test_task/xcomEntries/:xcomKey";
 const entryProps = { dagId: "test_dag", mapIndex: -1, runId: "test_run", taskId: "test_task" };
 
 // i18n resources are not loaded in unit tests, so translated text renders as its key.
 const errorTitle = "error.title";
 
-beforeAll(() => server.listen({ onUnhandledFrame: "bypass" }));
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+afterEach(() => vi.restoreAllMocks());
 
 const renderValue = (value: string) => {
   server.use(http.get(entryUrl, () => HttpResponse.json({ key: "return_value", value })));
@@ -239,4 +238,45 @@ describe("XComEntry", () => {
     expect(await screen.findByRole("link")).toHaveAttribute("href", "https://airflow.apache.org");
     expect(screen.getByTestId("xcom-value").textContent).toContain("Line 1\nSee ");
   });
+});
+
+it("fetches a retained value by its own region even when the public map index collides", async () => {
+  const coordinates = {
+    dag_id: "dag",
+    map_index: -1,
+    region_id: "11111111-1111-1111-1111-111111111111",
+    region_index: 3,
+    run_id: "run",
+    task_id: "member",
+  };
+  const fetch = vi.spyOn(XcomService, "getXcomEntry").mockResolvedValue({
+    ...coordinates,
+    dag_display_name: "dag",
+    key: "return_value",
+    logical_date: null,
+    run_after: "2026-01-01T00:00:00Z",
+    task_display_name: "member",
+    timestamp: "2026-01-01T00:00:00Z",
+    value: "third pass",
+  });
+
+  render(
+    <XComEntry
+      dagId="dag"
+      mapIndex={-1}
+      regionId={coordinates.region_id}
+      regionIndex={3}
+      runId="run"
+      taskId="member"
+      xcomKey="return_value"
+    />,
+    { wrapper: Wrapper },
+  );
+
+  expect(await screen.findByText("third pass")).toBeVisible();
+  await waitFor(() =>
+    expect(fetch).toHaveBeenCalledWith(
+      expect.objectContaining({ mapIndex: -1, regionId: coordinates.region_id, regionIndex: 3 }),
+    ),
+  );
 });

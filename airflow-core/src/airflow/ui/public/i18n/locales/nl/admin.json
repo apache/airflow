@@ -23,7 +23,7 @@
     "connection_other": "Connecties",
     "delete": {
       "deleteConnection_one": "Verwijder 1 connectie",
-      "deleteConnection_other": "{{count}} connecties verwijderen",
+      "deleteConnection_other": "{{count, number}} connecties verwijderen",
       "firstConfirmMessage_one": "Je staat op het punt om de volgende connectie te verwijderen:",
       "firstConfirmMessage_other": "Je staat op het punt om de volgende connecties te verwijderen:",
       "title": "Connectie verwijderen"
@@ -144,7 +144,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 variabele verwijderen",
-      "deleteVariable_other": "Verwijder {{count}} variabelen",
+      "deleteVariable_other": "Verwijder {{count, number}} variabelen",
       "firstConfirmMessage_one": "Je staat op het punt om de volgende variabele te verwijderen:",
       "firstConfirmMessage_other": "Je staat op het punt om de volgende variabelen te verwijderen:",
       "title": "Verwijder variabele",

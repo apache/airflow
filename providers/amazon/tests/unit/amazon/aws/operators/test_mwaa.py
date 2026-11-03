@@ -25,6 +25,7 @@ from airflow.providers.amazon.aws.hooks.mwaa import MwaaHook
 from airflow.providers.amazon.aws.operators.mwaa import MwaaTriggerDagRunOperator
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 OP_KWARGS = {
@@ -102,7 +103,7 @@ class TestMwaaTriggerDagRunOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(MwaaHook, "get_waiter")
@@ -114,7 +115,8 @@ class TestMwaaTriggerDagRunOperator:
         op = MwaaTriggerDagRunOperator(**OP_KWARGS)
         mock_hook.invoke_rest_api.return_value = HOOK_RETURN_VALUE
         op.defer = MagicMock()
-        response = op.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = op.execute({})
 
         assert response == HOOK_RETURN_VALUE
         assert mock_hook.get_waiter.call_count == wait_for_completion
@@ -130,7 +132,10 @@ class TestMwaaTriggerDagRunOperator:
             botocore_config=BOTOCORE_CONFIG,
         )
 
-        with pytest.raises(TaskDeferred) as exc_info:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=False),
+            pytest.raises(TaskDeferred) as exc_info,
+        ):
             op.execute({})
 
         assert exc_info.value.trigger.serialize()[1] == {

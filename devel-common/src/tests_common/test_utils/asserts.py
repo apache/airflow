@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import ORMExecuteState
 
+    from airflow.models.taskinstance import TaskInstance
+
 log = logging.getLogger(__name__)
 
 
@@ -282,3 +284,21 @@ def assert_no_cartesian_products() -> Generator[list[Select], None, None]:
                 for element in joined - set(linter.froms)
             )
     assert not problems, "Cartesian product in generated SQL:\n" + "\n".join(sorted(set(problems)))
+
+
+@contextmanager
+def count_loaded_task_instances(task_id: str) -> Generator[list[TaskInstance], None, None]:
+    """Collect the ``task_id`` task instance rows the ORM loads inside the block."""
+    from airflow.models.taskinstance import TaskInstance
+
+    loaded: list[TaskInstance] = []
+
+    def listener(target: TaskInstance, _context: object) -> None:
+        if target.task_id == task_id:
+            loaded.append(target)
+
+    event.listen(TaskInstance, "load", listener)
+    try:
+        yield loaded
+    finally:
+        event.remove(TaskInstance, "load", listener)

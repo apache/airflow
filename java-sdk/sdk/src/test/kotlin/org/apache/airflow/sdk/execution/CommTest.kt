@@ -20,6 +20,7 @@
 package org.apache.airflow.sdk.execution
 
 import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.exhausted
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
 import kotlinx.coroutines.async
@@ -182,24 +183,30 @@ class CommsTest {
     return out.toByteArray()
   }
 
-  private fun notFoundResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packNil()
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("ErrorResponse")
-      packer.packString("error")
-      packer.packString("TASK_STORE_NOT_FOUND")
-      packer.packString("detail")
-      packer.packMapHeader(1)
-      packer.packString("key")
-      packer.packString("job_id")
+  // An ErrorResponse carrying a typed `error` code and a one-entry `detail`, as the supervisor sends it.
+  private fun typedErrorFrame(
+    error: String,
+    detailKey: String,
+    detailValue: String,
+  ): (Int) -> ByteArray =
+    { id ->
+      val out = ByteArrayOutputStream()
+      MessagePack.newDefaultPacker(out).use { packer ->
+        packer.packArrayHeader(3)
+        packer.packInt(id)
+        packer.packNil()
+        packer.packMapHeader(3)
+        packer.packString("type")
+        packer.packString("ErrorResponse")
+        packer.packString("error")
+        packer.packString(error)
+        packer.packString("detail")
+        packer.packMapHeader(1)
+        packer.packString(detailKey)
+        packer.packString(detailValue)
+      }
+      out.toByteArray()
     }
-    return out.toByteArray()
-  }
 
   private fun taskStateStoreResultFrame(id: Int): ByteArray {
     val out = ByteArrayOutputStream()
@@ -279,25 +286,6 @@ class CommsTest {
     comm.close()
 
     return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
-  }
-
-  private fun dagRunExistsResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packNil()
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("ErrorResponse")
-      packer.packString("error")
-      packer.packString("DAGRUN_ALREADY_EXISTS")
-      packer.packString("detail")
-      packer.packMapHeader(1)
-      packer.packString("dag_id")
-      packer.packString("downstream")
-    }
-    return out.toByteArray()
   }
 
   private fun dagRunStateResultFrame(id: Int): ByteArray {
@@ -490,7 +478,7 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun triggerDagRunReportsAnExistingRun() {
     val (_, alreadyExists, failure) =
-      transportRoundTrip(::dagRunExistsResponseFrame) {
+      transportRoundTrip(typedErrorFrame("DAGRUN_ALREADY_EXISTS", "dag_id", "downstream")) {
         it.triggerDagRun("downstream", "run", null, null, null, false, null)
       }
 
@@ -522,6 +510,31 @@ class CommsTest {
     Assertions.assertEquals(true, paused)
     Assertions.assertEquals("GetDag", body["type"])
     Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
+  @DisplayName("getVariable returns null on VARIABLE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (body, failure) =
+      roundTrip(typedErrorFrame("VARIABLE_NOT_FOUND", "key", "optional_setting")) {
+        value = it.getVariable("optional_setting")
+      }
+
+    Assertions.assertNull(failure, "getVariable should return normally on VARIABLE_NOT_FOUND, got $failure")
+    Assertions.assertEquals("GetVariable", body["type"])
+    Assertions.assertEquals("optional_setting", body["key"])
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("getVariable raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.getVariable("optional_setting") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
   @Test
@@ -591,7 +604,10 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreGetReturnsNullWhenNotFound() {
     var value: Any? = "unset"
-    val (_, failure) = roundTrip(::notFoundResponseFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+    val (_, failure) =
+      roundTrip(typedErrorFrame("TASK_STORE_NOT_FOUND", "key", "job_id"), currentTaskInstance()) {
+        value = it.taskStateStore.get("job_id")
+      }
 
     Assertions.assertNull(failure, "get should return normally on TASK_STORE_NOT_FOUND, got $failure")
     Assertions.assertNull(value)
@@ -676,6 +692,39 @@ class CommsTest {
 
     runBlocking { fromClient.flushAndClose() }
     Assertions.assertTrue(fromClient.isClosedForRead, "no frame should have been written")
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("setXCom rejects a byte array nested in the value without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComRejectsByteArrayBeforeWriting() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val client = PublicClient(details, CoordinatorClient(comm))
+    // Answer the first request in advance. If setXCom sent the byte array anyway,
+    // this reply would let setXCom return. Then assertThrows would fail at once
+    // instead of the test waiting for its 30-second timeout.
+    runBlocking { toClient.writeFrame(emptyResponseFrame(0)) }
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        client.setXCom(value = mapOf("blob" to byteArrayOf(1)))
+      }
+
+    Assertions.assertTrue("Base64" in error.message.orEmpty(), "the error should suggest an encoding: $error")
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
     comm.close()
   }
 

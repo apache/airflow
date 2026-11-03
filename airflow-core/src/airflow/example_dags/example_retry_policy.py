@@ -18,8 +18,8 @@
 Example DAG demonstrating pluggable retry policies.
 
 A retry policy evaluates the actual exception at failure time and decides
-whether to retry (with a custom delay), fail immediately, or fall through
-to the standard retry logic.
+whether to retry (with a custom delay), fail immediately, reschedule without
+using a retry, or fall through to the standard retry logic.
 """
 
 from __future__ import annotations
@@ -98,3 +98,25 @@ CHAINED_RETRY_POLICY = ChainRetryPolicy(
     ]
 )
 # [END retry_policy_chain]
+
+# [START retry_policy_reschedule]
+
+
+class WarehouseBusyError(Exception):
+    """Raised by the task when the warehouse it submits queries to has no free slots."""
+
+
+# Come back every 10 minutes while the warehouse is busy, for up to 4 hours, without using
+# any of the task's retries. After 4 hours the standard retry logic takes over.
+WAREHOUSE_RETRY_POLICY = ExceptionRetryPolicy(
+    rules=[
+        RetryRule(
+            exception=WarehouseBusyError,
+            action=RetryAction.RESCHEDULE,
+            retry_delay=timedelta(minutes=10),
+            reschedule_timeout=timedelta(hours=4),
+            reason="Warehouse busy",
+        ),
+    ],
+)
+# [END retry_policy_reschedule]

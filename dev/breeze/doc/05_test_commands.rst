@@ -387,7 +387,7 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
 ``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
-``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``openlineage``, ``yaml_dag``, ...); the mode selects a docker-compose overlay and the matching test package under
 ``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
 deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
 emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
@@ -591,11 +591,11 @@ Setting up the lang-SDK coordinator system test
 ...............................................
 
 ``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
-system test: it builds the Go and Java example bundles, deploys an in-cluster localstack
-S3, uploads the artifacts and the Python stub Dag to their buckets, renders the
-coordinator pod-template image placeholders, and installs the Helm release configured for
-the ``golang`` and ``java`` queues. After it completes, run the test with
-``breeze k8s tests``.
+system tests: it builds the Go, Java and TypeScript example bundles (mixed-language and
+native), deploys an in-cluster localstack S3, uploads the artifacts and the Dag files to
+their buckets, builds and loads the shared runtime image (prod + JRE + Node), and installs
+the Helm release configured for the ``golang``, ``java``, ``java-native`` and ``typescript``
+queues. After it completes, run the tests with ``breeze k8s tests``.
 
 All parameters of the command are here:
 
@@ -703,7 +703,7 @@ The runner is overlay-agnostic. For every overlay it:
 
 * renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
 * **auto-preloads every ``image:`` referenced by the rendered manifest**
-  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  into the kind node via ``docker pull`` (with retry on Docker Hub
   rate limits) + ``kind load docker-image``, so the test does not flake
   on registry availability,
 * applies the overlay,

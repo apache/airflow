@@ -606,6 +606,12 @@ class TestOpensearchTaskHandler:
         self.os_task_handler.json_format = True
         assert self.os_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
+    def test_render_log_id_uses_the_stored_region_index_of_a_loop_pass(self):
+        loop_pass = _MockTI(map_index=-1)
+        loop_pass.region_index = 3
+        assert _render_log_id("{map_index}", loop_pass, 1) == "3"
+        assert _render_log_id("{map_index}", _MockTI(map_index=4), 1) == "4"
+
     def test_clean_date(self):
         clean_logical_date = OpensearchTaskHandler._clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
         assert clean_logical_date == "2016_07_08T09_10_11_000012"
@@ -858,6 +864,9 @@ class TestOpensearchRemoteLogIO:
 
         assert response is None
         mock_exception.assert_called_once()
+
+    def test_read_returns_no_logs_when_ti_is_none(self):
+        assert self.opensearch_io.read("executor_callbacks/dag/run/cb", None) == ([], [])
 
     def test_read_returns_missing_log_message_when_os_read_returns_none(self, ti):
         with patch.object(self.opensearch_io, "_os_read", return_value=None):

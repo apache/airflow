@@ -55,10 +55,10 @@ jobs:
     # amd64 only for now: ci-amd.yml and ci-arm.yml must stay in sync, so the platform gate lives here.
     if: inputs.platform == 'linux/amd64'
     strategy:
-      # One job per framework, so a breaking release of one does not hide the other's result.
+      # One job per framework, so a breaking release of one does not hide the others' results.
       fail-fast: false
       matrix:
-        framework: [strands-agents, google-adk]
+        framework: [strands-agents, google-adk, openai-agents]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

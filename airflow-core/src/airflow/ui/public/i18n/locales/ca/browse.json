@@ -33,7 +33,7 @@
       "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
       "neverParsed": "Mai",
       "showImportError_one": "Veure error",
-      "showImportError_other": "Veure {{count}} errors"
+      "showImportError_other": "Veure {{count, number}} errors"
     },
     "inactive": "Inactiva",
     "neverRefreshed": "Mai",

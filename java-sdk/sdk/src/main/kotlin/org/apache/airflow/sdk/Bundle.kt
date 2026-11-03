@@ -115,25 +115,25 @@ class Bundle(
    * Registers what an annotated class holds, read from the class itself so
    * there is no second name to keep in sync.
    *
-   * A [Builder.Dag] class contributes the Dag its generated builder builds; a
-   * class of [Builder.TaskHandler] methods contributes each handler, bound to
+   * An [Airflow.Dag] class contributes the Dag its generated builder builds; a
+   * class of [Airflow.TaskHandler] methods contributes each handler, bound to
    * the Dag the Python file owns. A class can carry both.
    *
-   * @param annotated A class carrying [Builder.Dag] or [Builder.TaskHandler].
+   * @param annotated A class carrying [Airflow.Dag] or [Airflow.TaskHandler].
    * @return This bundle, for chaining.
    * @throws IllegalArgumentException if the class has no generated code,
    *    because annotation processing did not run over it, or if the Dag's
-   *    wiring is invalid, such as a task the `@Builder.Deps` class did not
+   *    wiring is invalid, such as a task the `@Airflow.Deps` class did not
    *    call.
    */
   fun register(annotated: Class<*>): Bundle {
     checkOpen()
-    val dag = annotated.getAnnotation(Builder.Dag::class.java)
+    val dag = annotated.getAnnotation(Airflow.Dag::class.java)
     if (dag != null) {
       val builder = generated(builderName(annotated.packageName, annotated.simpleName, dag.to), annotated, "builder")
       register(invokeGenerated(builder.getMethod("build")) as DagDef)
     }
-    if (dag == null || annotated.declaredMethods.any { it.isAnnotationPresent(Builder.TaskHandler::class.java) }) {
+    if (dag == null || annotated.declaredMethods.any { it.isAnnotationPresent(Airflow.TaskHandler::class.java) }) {
       val registrar = generated(registrarName(annotated.name), annotated, "registrar")
       invokeGenerated(registrar.getMethod("registerInto", Bundle::class.java), this)
     }
@@ -184,8 +184,8 @@ class Bundle(
       Class.forName(name, true, from.classLoader)
     } catch (e: ClassNotFoundException) {
       throw IllegalArgumentException(
-        "No generated $what $name for ${from.name}; does it carry @Builder.Dag or " +
-          "@Builder.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
+        "No generated $what $name for ${from.name}; does it carry @Airflow.Dag or " +
+          "@Airflow.TaskHandler, and is airflow-sdk-processor on the annotationProcessor path?",
         e,
       )
     }

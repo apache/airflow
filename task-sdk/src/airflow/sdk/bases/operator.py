@@ -1599,6 +1599,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "has_on_retry_callback",
                     "has_on_skipped_callback",
                     "has_retry_policy",
+                    "returns_dag_result",
                 }
             )
             DagContext.pop()

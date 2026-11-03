@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 AWS_REGION = "eu-west-1"
@@ -450,9 +451,10 @@ class TestBatchOperator:
                 container_overrides={"a": "b"},
             )
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
-    def test_defer_if_deferrable_param_set(self, mock_client, mock_get_job_description):
+    def test_defer_if_deferrable_param_set(self, mock_client, mock_get_job_description, wait_for_completion):
         mock_get_job_description.return_value = {"status": "SUBMITTED"}
 
         batch = BatchOperator(
@@ -462,9 +464,13 @@ class TestBatchOperator:
             job_definition="hello-world",
             do_xcom_push=False,
             deferrable=True,
+            wait_for_completion=wait_for_completion,
         )
 
-        with pytest.raises(TaskDeferred) as exc:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             batch.execute(self.mock_context)
         assert isinstance(exc.value.trigger, BatchJobTrigger)
 

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, cast
+from uuid import UUID
 
-from fastapi import Depends, HTTPException, status
-from sqlalchemy import and_, delete, func, select
+from fastapi import Depends, HTTPException, Query, status
+from sqlalchemy import and_, delete, exists, func, select
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.orm import joinedload, subqueryload
 
@@ -69,6 +70,7 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
 from airflow.api_fastapi.core_api.datamodels.dag_run import DAGRunResponse
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    EditableDagsFilterDep,
     GetUserDep,
     ReadableAssetEventsByAssetFilterDep,
     ReadableAssetEventsFilterDep,
@@ -88,39 +90,141 @@ from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
+    AssetPartitionDagRun,
     AssetWatcherModel,
+    PartitionedAssetKeyLog,
     TaskOutletAssetReference,
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Result
-    from sqlalchemy.sql import Select
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql import ColumnElement, Select
 
 assets_router = AirflowRouter(tags=["Asset"])
 
 
 def _generate_queued_event_where_clause(
     *,
+    model: type[AssetDagRunQueue] | type[PartitionedAssetKeyLog] = AssetDagRunQueue,
     asset_id: int | None = None,
     dag_id: str | None = None,
     before: datetime | str | None = None,
     permitted_dag_ids: set[str] | None = None,
-) -> list:
-    """Get AssetDagRunQueue where clause."""
-    where_clause = []
+) -> list[ColumnElement[bool]]:
+    """Get the asset, Dag and time filters shared by the queued event tables."""
+    where_clause: list[ColumnElement[bool]] = []
     if dag_id is not None:
-        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
+        where_clause.append(model.target_dag_id == dag_id)
     if asset_id is not None:
-        where_clause.append(AssetDagRunQueue.asset_id == asset_id)
+        where_clause.append(model.asset_id == asset_id)
     if before is not None:
-        where_clause.append(AssetDagRunQueue.created_at < before)
+        where_clause.append(model.created_at < before)
     if permitted_dag_ids is not None:
-        where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
+        where_clause.append(model.target_dag_id.in_(permitted_dag_ids))
     return where_clause
+
+
+QueuedEventPartitionKeyQuery = Annotated[
+    str | None,
+    Query(
+        description=(
+            "Delete queued events of partitioned assets emitted for this partition key whose "
+            "Dag run has not been created yet, instead of queued events of non-partitioned assets. "
+            "The key is matched against the partition key the asset event was emitted for, not "
+            "against the partition keys of the Dag runs the event feeds; a partition mapper can "
+            "make them differ."
+        ),
+    ),
+]
+
+
+def _delete_pending_partitioned_queued_events(
+    *,
+    partition_key: str,
+    session: Session,
+    asset_id: int | None = None,
+    dag_id: str | None = None,
+    before: datetime | str | None = None,
+    permitted_dag_ids: set[str] | None = None,
+) -> int:
+    """
+    Delete queued partitioned asset events whose Dag run has not been created yet.
+
+    ``partition_key`` is matched against the partition key of the asset event, as in
+    ``POST /assets/{asset_id}/materialize``, not against the partition keys of the Dag
+    runs the event feeds; a partition mapper can make them differ.
+
+    Only events of an existing ``AssetPartitionDagRun`` whose Dag run has not been created
+    yet are deleted; ``PartitionedAssetKeyLog`` rows left behind once their Dag run was
+    deleted are history, not queued events. Pending ``AssetPartitionDagRun`` rows left
+    without any contributing events are deleted afterwards, so clearing some of the events
+    of a partition keeps the partition waiting for them rather than dropping the progress
+    made by the others.
+
+    Both deletes are restricted to the partitions this call actually clears events from. A
+    pending partition that is already empty for an unrelated reason belongs to whoever left
+    it behind, and a call that never matched any of its events must not remove it.
+
+    :return: The number of deleted queued events.
+    """
+    pakl_where_clause = _generate_queued_event_where_clause(
+        model=PartitionedAssetKeyLog,
+        asset_id=asset_id,
+        dag_id=dag_id,
+        before=before,
+        permitted_dag_ids=permitted_dag_ids,
+    )
+    pakl_where_clause.append(PartitionedAssetKeyLog.source_partition_key == partition_key)
+    pakl_of_apdr = PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id
+
+    # Locking the partitions serialises calls that clear different assets of the same one.
+    # Under READ COMMITTED each would otherwise still see the events the other has deleted
+    # but not committed, conclude the partition is not empty, and leave it pending forever.
+    apdr_ids = session.scalars(
+        with_row_locks(
+            select(AssetPartitionDagRun.id).where(
+                AssetPartitionDagRun.created_dag_run_id.is_(None),
+                exists().where(pakl_of_apdr, *pakl_where_clause),
+            ),
+            session=session,
+            key_share=False,
+        )
+    ).all()
+    if not apdr_ids:
+        return 0
+
+    # Nothing is loaded into the session beforehand, so skip synchronizing it; the subquery
+    # criteria would otherwise make SQLAlchemy read back the deleted keys.
+    pakl_result = cast(
+        "CursorResult",
+        session.execute(
+            delete(PartitionedAssetKeyLog)
+            .where(
+                *pakl_where_clause,
+                PartitionedAssetKeyLog.asset_partition_dag_run_id.in_(apdr_ids),
+            )
+            .execution_options(synchronize_session=False)
+        ),
+    )
+
+    session.execute(
+        delete(AssetPartitionDagRun)
+        .where(AssetPartitionDagRun.id.in_(apdr_ids), ~exists().where(pakl_of_apdr))
+        .execution_options(synchronize_session=False)
+    )
+    return pakl_result.rowcount
+
+
+def _build_queued_event_not_found_detail(subject: str, partition_key: str | None) -> str:
+    if partition_key is not None:
+        subject = f"{subject} and partition_key: `{partition_key}`"
+    return f"{subject} was not found"
 
 
 class OnlyActiveFilter(BaseParam[bool]):
@@ -159,6 +263,7 @@ def get_assets(
         Depends(SortParam(["id", "name", "uri", "created_at", "updated_at"], AssetModel).dynamic_depends()),
     ],
     readable_assets_filter: ReadableAssetsFilterDep,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetCollectionResponse:
     """Get assets."""
@@ -222,30 +327,16 @@ def get_assets(
         )
     )
 
-    assets = []
-
-    for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows:
-        watchers_data = [
-            {
-                "name": watcher.name,
-                "trigger_id": watcher.trigger_id,
-                "created_date": watcher.trigger.created_date,
-            }
-            for watcher in asset.watchers
-        ]
-
-        asset_response = AssetResponse.model_validate(
-            {
-                **asset.__dict__,
-                "aliases": asset.aliases,
-                "watchers": watchers_data,
-                "last_asset_event": {
-                    "id": last_asset_event_id,
-                    "timestamp": last_asset_event_timestamp,
-                },
-            }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    assets = [
+        AssetResponse.from_asset_row(
+            asset,
+            last_asset_event_id,
+            last_asset_event_timestamp,
+            readable_dag_ids=readable_dags_filter.value,
         )
-        assets.append(asset_response)
+        for asset, last_asset_event_id, last_asset_event_timestamp in assets_rows
+    ]
 
     return AssetCollectionResponse(
         assets=assets,
@@ -333,6 +424,10 @@ def get_asset_events(
     source_task_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_task_id, str | None))
     ],
+    source_task_instance_id: Annotated[
+        FilterParam[UUID | None],
+        Depends(filter_param_factory(AssetEvent.source_task_instance_id, UUID | None)),
+    ],
     source_run_id: Annotated[
         FilterParam[str | None], Depends(filter_param_factory(AssetEvent.source_run_id, str | None))
     ],
@@ -362,6 +457,7 @@ def get_asset_events(
             asset_id,
             source_dag_id,
             source_task_id,
+            source_task_instance_id,
             source_run_id,
             source_map_index,
             partition_key,
@@ -387,7 +483,9 @@ def get_asset_events(
     assets_events = session.scalars(assets_event_select).all()
 
     return AssetEventCollectionResponse(
-        asset_events=serialize_asset_events(assets_events, session=session),
+        asset_events=serialize_asset_events(
+            assets_events, readable_dag_ids=readable_asset_events_filter.value, session=session
+        ),
         total_entries=total_entries,
     )
 
@@ -586,6 +684,7 @@ def get_asset_queued_events(
 )
 def get_asset(
     asset_id: int,
+    readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
 ) -> AssetResponse:
     """Get an asset."""
@@ -618,25 +717,12 @@ def get_asset(
     if asset is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"The Asset with ID: `{asset_id}` was not found")
 
-    watchers_data = [
-        {
-            "name": watcher.name,
-            "trigger_id": watcher.trigger_id,
-            "created_date": watcher.trigger.created_date,
-        }
-        for watcher in asset.watchers
-    ]
-
-    return AssetResponse.model_validate(
-        {
-            **asset.__dict__,
-            "aliases": asset.aliases,
-            "watchers": watchers_data,
-            "last_asset_event": {
-                "id": last_asset_event_id,
-                "timestamp": last_asset_event_timestamp,
-            },
-        }
+    # Nested Dag and task references are narrowed to the Dags the caller may read.
+    return AssetResponse.from_asset_row(
+        asset,
+        last_asset_event_id,
+        last_asset_event_timestamp,
+        readable_dag_ids=readable_dags_filter.value,
     )
 
 
@@ -713,26 +799,39 @@ def get_dag_asset_queued_event(
     responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
     dependencies=[
         Depends(requires_access_asset(method="DELETE")),
-        Depends(requires_access_dag(method="PUT")),
         Depends(action_logging()),
     ],
 )
 def delete_asset_queued_events(
     asset_id: int,
-    readable_dags_filter: ReadableDagsFilterDep,
+    editable_dags_filter: EditableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
     """Delete queued asset events for an asset."""
-    where_clause = _generate_queued_event_where_clause(
-        asset_id=asset_id, before=before, permitted_dag_ids=readable_dags_filter.value
-    )
-    delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_stmt))
-    if result.rowcount == 0:
+    # This route is not tied to a single Dag, so the Dag axis is enforced per row: only the
+    # queued events of Dags the user may edit are deleted, and the others are left in place.
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            asset_id=asset_id,
+            before=before,
+            permitted_dag_ids=editable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            asset_id=asset_id, before=before, permitted_dag_ids=editable_dags_filter.value
+        )
+        delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_stmt)).rowcount
+    if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail=f"Queue event with asset_id: `{asset_id}` was not found",
+            detail=_build_queued_event_not_found_detail(
+                f"Queue event with asset_id: `{asset_id}`", partition_key
+            ),
         )
 
 
@@ -756,16 +855,28 @@ def delete_dag_asset_queued_events(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
-    where_clause = _generate_queued_event_where_clause(
-        dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
-    )
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            dag_id=dag_id,
+            before=before,
+            permitted_dag_ids=readable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            dag_id=dag_id, before=before, permitted_dag_ids=readable_dags_filter.value
+        )
+        delete_statement = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_statement)).rowcount
 
-    delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_statement))
-
-    if result.rowcount == 0:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Queue event with dag_id: `{dag_id}` was not found")
+    if deleted == 0:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            _build_queued_event_not_found_detail(f"Queue event with dag_id: `{dag_id}`", partition_key),
+        )
 
 
 @assets_router.delete(
@@ -789,15 +900,28 @@ def delete_dag_asset_queued_event(
     readable_dags_filter: ReadableDagsFilterDep,
     session: SessionDep,
     before: OptionalDateTimeQuery = None,
+    partition_key: QueuedEventPartitionKeyQuery = None,
 ):
     """Delete a queued asset event for a Dag."""
-    where_clause = _generate_queued_event_where_clause(
-        dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
-    )
-    delete_statement = delete(AssetDagRunQueue).where(*where_clause)
-    result = cast("CursorResult", session.execute(delete_statement))
-    if result.rowcount == 0:
+    if partition_key is not None:
+        deleted = _delete_pending_partitioned_queued_events(
+            partition_key=partition_key,
+            dag_id=dag_id,
+            asset_id=asset_id,
+            before=before,
+            permitted_dag_ids=readable_dags_filter.value,
+            session=session,
+        )
+    else:
+        where_clause = _generate_queued_event_where_clause(
+            dag_id=dag_id, before=before, asset_id=asset_id, permitted_dag_ids=readable_dags_filter.value
+        )
+        delete_statement = delete(AssetDagRunQueue).where(*where_clause)
+        deleted = cast("CursorResult", session.execute(delete_statement)).rowcount
+    if deleted == 0:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
-            detail=f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}` was not found",
+            detail=_build_queued_event_not_found_detail(
+                f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}`", partition_key
+            ),
         )

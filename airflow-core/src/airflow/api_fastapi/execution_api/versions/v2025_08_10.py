@@ -34,7 +34,7 @@ class AddDagRunStateFieldAndPreviousEndpoint(VersionChange):
     )
 
     @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_state_from_dag_run(response: ResponseInfo) -> None:  # type: ignore[misc]
+    def remove_state_from_dag_run(response: ResponseInfo) -> None:
         """Remove the `state` field from the dag_run object when converting to the previous version."""
         if "dag_run" in response.body and isinstance(response.body["dag_run"], dict):
             response.body["dag_run"].pop("state", None)

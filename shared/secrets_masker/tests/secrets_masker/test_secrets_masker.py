@@ -34,7 +34,6 @@ from airflow_shared.secrets_masker.secrets_masker import (
     RedactedIO,
     SecretsMasker,
     mask_secret,
-    merge,
     redact,
     reset_secrets_masker,
 )
@@ -638,6 +637,17 @@ class TestSecretsMasker:
 
         assert filt.redact(value, name) == expected
 
+    def test_redact_masks_whole_secret_when_another_secret_is_its_prefix(self):
+        secret = "hunter2-production-key"
+        filt = SecretsMasker()
+        configure_secrets_masker_for_test(filt)
+        # ``patterns`` is a set, so every prefix is registered to make the result independent of its
+        # iteration order.
+        for length in range(5, len(secret) + 1):
+            filt.add_mask(secret[:length])
+
+        assert filt.redact(f"token={secret};") == "token=***;"
+
     @pytest.mark.parametrize(
         ("name", "value", "expected"),
         [
@@ -675,9 +685,14 @@ class TestSecretsMasker:
             (["abcdef"], ["***"], 1),
             ([[[["abcdef"]]]], [[[["***"]]]], None),
             ([[[[["abcdef"]]]]], [[[[["***"]]]]], None),
-            # Items below max depth aren't redacted
-            ([[[[[["abcdef"]]]]]], [[[[[["abcdef"]]]]]], None),
-            ([["abcdef"]], [["abcdef"]], 1),
+            # Registered secrets are redacted at any depth, whatever max_depth says
+            ([[[[[["abcdef"]]]]]], [[[[[["***"]]]]]], None),
+            ([["abcdef"]], [["***"]], 1),
+            (
+                {"a": {"b": {"c": {"d": {"e": {"f": {"g": "prefix-abcdef-suffix"}}}}}}},
+                {"a": {"b": {"c": {"d": {"e": {"f": {"g": "prefix-***-suffix"}}}}}}},
+                None,
+            ),
         ],
     )
     def test_redact_max_depth(self, val, expected, max_depth):
@@ -832,9 +847,10 @@ class TestShouldHideValueForKey:
             ("GOOGLE_APIKEY", True),
             (1, False),
             # webhook_url / bearer / dsn / auth_header / service_key in DEFAULT_SENSITIVE_FIELDS.
-            # Matching is case-insensitive substring on the lowercased key, so
+            # Matching is case-insensitive substring on the normalised key, so
             # snake_case variants (and underscore-bearing prefixes/suffixes) are
-            # covered; PascalCase / camelCase variants without underscores are not.
+            # covered; camelCase / PascalCase keys are split on word boundaries
+            # first (see the camelCase cases below).
             ("webhook_url", True),
             ("WEBHOOK_URL", True),
             ("slack_webhook_url", True),
@@ -855,6 +871,32 @@ class TestShouldHideValueForKey:
             ("auth.example.com/token", True),
             ("spark.executor.memory", False),
             ("spark.driver.cores", False),
+            # camelCase / PascalCase keys matching multi-word default fields.
+            ("privateKey", True),
+            ("PrivateKey", True),
+            ("privateKEY", True),
+            ("sshPrivateKey", True),
+            ("connectionString", True),
+            ("webhookUrl", True),
+            ("webhookURL", True),
+            ("slackWebhookUrl", True),
+            ("accessKey", True),
+            ("accessKeyId", True),
+            ("authHeader", True),
+            ("keyfileDict", True),
+            ("serviceAccount", True),
+            ("serviceAccountName", True),
+            ("serviceKey", True),
+            ("apiKey", True),
+            ("APIKey", True),
+            ("accessToken", True),
+            ("oauth2Token", True),
+            ("proxyPassword", True),
+            # camelCase keys that do not contain a sensitive field stay visible.
+            ("primaryKey", False),
+            ("connectionTimeout", False),
+            ("serviceName", False),
+            ("webhookName", False),
         ],
     )
     def test_hiding_defaults(self, key, expected_result):
@@ -870,6 +912,9 @@ class TestShouldHideValueForKey:
             ("key", "GITHUB_APIKEY", True),
             ("key, token", "TRELLO_TOKEN", True),
             ("mysecretword, mysensitivekey", "GITHUB_mysecretword", True),
+            ("mysensitivekey", "mySensitiveKey", True),
+            ("my_sensitive_key", "mySensitiveKey", True),
+            ("my_sensitive_key", "MySensitiveKey", True),
             (None, "TRELLO_API", False),
             ("token", "TRELLO_KEY", False),
             ("token, mysecretword", "TRELLO_KEY", False),
@@ -937,6 +982,12 @@ class TestRedactedIO:
         RedactedIO().write(PASSWORD)
         stdout = capsys.readouterr().out
         assert stdout == "***"
+
+    def test_writelines(self, capsys):
+        RedactedIO().writelines([f"{PASSWORD}\n", f"and {PASSWORD}\n"])
+        stdout = capsys.readouterr().out
+        assert stdout == "***\nand ***\n"
+        assert PASSWORD not in stdout
 
     def test_input_builtin(self, monkeypatch):
         """
@@ -1204,13 +1255,77 @@ class TestDirectMethodCalls:
         result = secrets_masker._redact_all(test_data, depth=0, replacement="***")
 
         assert result["string"] == "***"
-        assert result["number"] == 12345
-        assert result["boolean"] is True
+        # Non-string scalars are redacted too -- _redact_all is the fail-closed
+        # path taken once a key name is judged sensitive.
+        assert result["number"] == "***"
+        assert result["boolean"] == "***"
         assert all(val == "***" for val in result["list"])
         assert all(val == "***" for val in result["dict"].values())
         assert all(val == "***" for val in result["nested"]["tuple"])
         assert isinstance(result["nested"]["set"], tuple)
         assert all(val == "***" for val in result["nested"]["set"])
+
+
+class TestNonStringRedactionForSensitiveKeys:
+    """A sensitive key name must redact its value whatever the value's type."""
+
+    @pytest.fixture
+    def masker(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        return secrets_masker
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param(1234, id="int"),
+            pytest.param(1234.5, id="float"),
+            pytest.param(True, id="bool-true"),
+            pytest.param(False, id="bool-false"),
+            pytest.param(0, id="int-zero"),
+            pytest.param(None, id="none"),
+            pytest.param(b"binary-secret", id="bytes"),
+            pytest.param("12ab", id="str"),
+        ],
+    )
+    def test_scalar_redacted_for_sensitive_key(self, masker, value):
+        """Values of any type are masked once the key name is sensitive."""
+        assert masker.redact(value, "test-password-a") == "***"
+
+    def test_non_sensitive_key_leaves_scalars_alone(self, masker):
+        """The fix must not start masking values under harmless key names."""
+        assert masker.redact(1234, "some-count") == 1234
+        assert masker.redact(True, "some-flag") is True
+        assert masker.redact(None, "some-optional") is None
+
+    def test_nested_non_string_values_are_redacted(self, masker):
+        """Containers under a sensitive key are walked and every leaf replaced."""
+        result = masker.redact({"pin": 1234, "nested": {"attempts": 3, "ok": False}}, "my_token")
+
+        assert result == {"pin": "***", "nested": {"attempts": "***", "ok": "***"}}
+
+    def test_non_string_under_nested_sensitive_key(self, masker):
+        """A sensitive key nested inside a non-sensitive structure is still caught."""
+        result = masker.redact({"conn": {"password": 12345, "port": 5432}})
+
+        assert result == {"conn": {"password": "***", "port": 5432}}
+
+    def test_merge_restores_original_non_string_value(self, masker):
+        """
+        Redacting non-strings must not break the merge() round trip.
+
+        merge() restores the original whenever the redacted value is still the
+        replacement sentinel, so an untouched numeric secret survives a
+        read-modify-write cycle unchanged.
+        """
+        original = 1234
+        redacted = masker.redact(original, "test-password-b")
+        assert redacted == "***"
+        assert masker.merge(redacted, original, "test-password-b") == original
+
+    def test_merge_keeps_edited_non_string_value(self, masker):
+        """A genuinely updated value still wins over the original."""
+        assert masker.merge(5678, 1234, "test-password-b") == 5678
 
 
 class TestMixedDataScenarios:
@@ -1239,6 +1354,21 @@ class TestMixedDataScenarios:
             assert "***" in redacted_data["description"]
             assert redacted_data["nested"]["token"] == "***"
             assert redacted_data["nested"]["info"] == "No secrets here"
+
+    def test_nested_camel_case_keys(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+
+        data = {"connection": {"privateKey": "pk", "connectionString": "cs", "serviceName": "svc"}}
+
+        with patch(
+            "airflow_shared.secrets_masker.secrets_masker._secrets_masker", return_value=secrets_masker
+        ):
+            redacted_data = redact(data)
+
+        assert redacted_data == {
+            "connection": {"privateKey": "***", "connectionString": "***", "serviceName": "svc"}
+        }
 
 
 class TestSecretsMaskerMerge:
@@ -1485,15 +1615,28 @@ class TestSecretsMaskerMerge:
         result = self.masker.merge(new_data, old_data)
         assert result == expected
 
-    def test_merge_max_depth(self):
+    def test_merge_ignores_max_depth_when_walking(self):
+        """redact() finds sensitive keys at any depth, so merge() has to restore them at any depth."""
         old_data = {"level1": {"level2": {"level3": {"password": "original_password"}}}}
         new_data = {"level1": {"level2": {"level3": {"password": "***"}}}}
 
-        result = merge(new_data, old_data, max_depth=1)
-        assert result == new_data
+        assert self.masker.merge(new_data, old_data, max_depth=1) == old_data
+        assert self.masker.merge(new_data, old_data, max_depth=10) == old_data
 
-        result = self.masker.merge(new_data, old_data, max_depth=10)
-        assert result["level1"]["level2"]["level3"]["password"] == "original_password"
+    @pytest.mark.parametrize(
+        "original",
+        [
+            {"clusters": [{"nodes": [{"conn": {"auth": {"password": "s"}}}]}]},
+            {"a": {"b": {"c": {"d": {"e": {"f": {"token": "s"}}}}}}},
+            {"a": {"b": {"c": {"d": {"password": {"e": {"f": {"g": "s", "h": ["t"]}}}}}}}},
+        ],
+        ids=["lists-of-dicts", "deeper-than-max-depth", "sensitive-subtree-cut-off-by-redact-all"],
+    )
+    def test_merge_round_trip_deeply_nested(self, original):
+        redacted = self.masker.redact(original)
+        assert redacted != original
+
+        assert self.masker.merge(redacted, original) == original
 
     def test_merge_enum_values(self):
         old_enum = MyEnum.testname

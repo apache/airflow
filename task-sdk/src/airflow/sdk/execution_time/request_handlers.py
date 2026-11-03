@@ -197,7 +197,13 @@ def handle_set_xcom(client: Client, msg: SetXCom) -> tuple[BaseModel | None, dic
 
 def handle_delete_xcom(client: Client, msg: DeleteXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Delete an XCom value."""
-    client.xcoms.delete(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index)
+    client.xcoms.delete(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.map_index,
+    )
     return None, {}
 
 
@@ -251,7 +257,13 @@ def handle_get_prev_successful_dag_run(
 
 def handle_get_xcom_count(client: Client, msg: GetXComCount) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch XCom count metadata."""
-    resp = client.xcoms.head(msg.dag_id, msg.run_id, msg.task_id, msg.key)
+    resp = client.xcoms.head(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        previous_iteration=msg.previous_iteration,
+    )
     return resp, {}
 
 
@@ -259,7 +271,14 @@ def handle_get_xcom_sequence_item(
     client: Client, msg: GetXComSequenceItem
 ) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom sequence item and normalize it for supervisor response handling."""
-    xcom = client.xcoms.get_sequence_item(msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.offset)
+    xcom = client.xcoms.get_sequence_item(
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.offset,
+        previous_iteration=msg.previous_iteration,
+    )
     if isinstance(xcom, XComSequenceIndexResponse):
         return XComSequenceIndexResult.from_response(xcom), {}
     return xcom, {}
@@ -278,6 +297,7 @@ def handle_get_xcom_sequence_slice(
         msg.stop,
         msg.step,
         msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
     )
     if isinstance(xcoms, XComSequenceSliceResponse):
         return XComSequenceSliceResult.from_response(xcoms), {}
@@ -287,7 +307,13 @@ def handle_get_xcom_sequence_slice(
 def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dict[str, bool]]:
     """Fetch an XCom and normalize it for supervisor response handling."""
     xcom = client.xcoms.get(
-        msg.dag_id, msg.run_id, msg.task_id, msg.key, msg.map_index, msg.include_prior_dates
+        msg.dag_id,
+        msg.run_id,
+        msg.task_id,
+        msg.key,
+        msg.map_index,
+        msg.include_prior_dates,
+        previous_iteration=msg.previous_iteration,
     )
     if isinstance(xcom, XComResponse):
         xcom_result = XComResult.from_xcom_response(xcom)

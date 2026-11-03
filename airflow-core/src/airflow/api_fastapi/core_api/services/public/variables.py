@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import cast
 
 from fastapi import HTTPException, status
@@ -24,6 +25,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from airflow._shared.secrets_masker import merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -64,6 +66,24 @@ def update_orm_from_pydantic(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
     non_update_fields = {"key"}
+
+    # The UI edit form is filled from the redacted response, so saving it unchanged would otherwise
+    # write ``***`` over every sensitive field.
+    if (
+        "value" in patch_body.model_fields_set
+        and (not update_mask or "value" in update_mask)
+        and isinstance(patch_body.value, str)
+        and (old_value := old_variable.val) is not None
+    ):
+        try:
+            new_obj, old_obj = json.loads(patch_body.value), json.loads(old_value)
+        except json.JSONDecodeError:
+            merged_value = merge(patch_body.value, old_value, old_variable.key)
+        else:
+            merged = merge(new_obj, old_obj, old_variable.key)
+            # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.
+            merged_value = patch_body.value if merged == new_obj else json.dumps(merged, indent=2)
+        patch_body = patch_body.model_copy(update={"value": merged_value})
 
     # Apply patch via utility
     return cast(

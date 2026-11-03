@@ -144,7 +144,8 @@ class TestVendorContract:
     def test_the_calls_behind_the_tools_still_exist(self, real_modal):
         import inspect
 
-        from modal.sandbox import _SandboxFilesystem
+        # Not imported: the private module path changed in modal 1.6.2.
+        _SandboxFilesystem = inspect.signature(real_modal.Sandbox.filesystem.fget).return_annotation
 
         assert list(inspect.signature(_SandboxFilesystem.write_bytes).parameters)[1:3] == [
             "data",
@@ -557,7 +558,7 @@ class TestEnvironment:
         serialization where the message would not say which entry was wrong.
         """
         with pytest.raises(SandboxTerminalError, match="strings"):
-            backend.create(spec=SandboxSpec(env=env))  # type: ignore[arg-type]
+            backend.create(spec=SandboxSpec(env=env))
         assert fake.Sandbox.created == [], "refused before anything was provisioned"
 
 

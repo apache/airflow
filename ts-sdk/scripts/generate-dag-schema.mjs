@@ -104,6 +104,8 @@ export const EXCLUDED_TASK_FIELDS = {
   is_setup: "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
   is_teardown: "setup/teardown flags carry trigger-rule invariants the SDK does not model yet",
   on_failure_fail_dagrun: "only valid on teardown tasks, which the SDK does not model yet",
+  returns_dag_result:
+    "the SDK does not send dag_result on the return-value XCom push, so the flag would do nothing",
 };
 
 /**

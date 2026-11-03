@@ -73,7 +73,11 @@ from airflow.sdk.execution_time.comms import (
     XComSequenceSliceResult,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, register_request_method
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
+from airflow.sdk.execution_time.task_runner import (
+    RuntimeTaskInstance,
+    _send_error_email_notification,
+    check_xcom_backend_supports_loops,
+)
 from airflow.sdk.importers import DagSourceCode  # noqa: TC001
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.dag_version_inflation_checker import check_dag_file_stability
@@ -135,7 +139,7 @@ class DagFileParsingResult(BaseModel):
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
 
 
-ToManager = Annotated[
+ToManagerMessage = (
     DagFileParsingResult
     | GetConnection
     | GetVariable
@@ -151,9 +155,10 @@ ToManager = Annotated[
     | GetXComCount
     | GetXComSequenceItem
     | GetXComSequenceSlice
-    | MaskSecret,
-    Field(discriminator="type"),
-]
+    | MaskSecret
+)
+
+ToManager = Annotated[ToManagerMessage, Field(discriminator="type")]
 
 ToDagProcessor = Annotated[
     DagFileParseRequest
@@ -254,6 +259,8 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
+    # Dag warnings reference the dag table, so only Dags that serialized can carry one.
+    serialized_dag_ids = {dag.dag_id for dag in serialized_dags}
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
@@ -263,6 +270,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
             *(
                 {"dag_id": w.dag_id, "warning_type": w.warning_type, "message": w.message}
                 for w in bag.dag_warnings
+                if w.dag_id in serialized_dag_ids
             ),
         ],
         parsed_definitions=bag.parsed_definitions,
@@ -279,6 +287,9 @@ def _serialize_dags(
     serialized_dags = []
     for dag in bag.dags.values():
         try:
+            # Only possible because importing the SDK resolves the XCom backend here; the worker check is the
+            # one that must stay, so drop this one rather than keep that import working for its sake.
+            check_xcom_backend_supports_loops(dag)
             data = DagSerialization.to_dict(dag)
             serialized_dags.append(LazyDeserializedDAG(data=data, last_loaded=dag.last_loaded))
         except Exception:
@@ -365,6 +376,7 @@ def _execute_callbacks(
 
 def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: FilteringBoundLogger) -> None:
     from airflow.sdk.api.datamodels._generated import TIRunContext
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 
     dag, _ = _get_dag_with_task(dagbag, request.dag_id)
     callbacks = dag.on_failure_callback if request.is_failure_callback else dag.on_success_callback
@@ -404,6 +416,8 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
             context = runtime_ti.get_template_context()
             context["reason"] = request.msg
 
+    context["callback"] = CallbackMeta(source=CallbackSource.DAG)
+
     for callback in callbacks:
         log.info(
             "Executing on_%s dag callback",
@@ -430,6 +444,8 @@ def _execute_dag_callbacks(dagbag: DagBag, request: DagCallbackRequest, log: Fil
 
 
 def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: FilteringBoundLogger) -> None:
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
+
     if not request.is_failure_callback:
         log.warning(
             "Task callback requested but is not a failure callback",
@@ -476,6 +492,7 @@ def _execute_task_callbacks(dagbag: DagBag, request: TaskCallbackRequest, log: F
             task=task,
         )
     context = runtime_ti.get_template_context()
+    context["callback"] = CallbackMeta(source=CallbackSource.TASK)
 
     def get_callback_representation(callback):
         with contextlib.suppress(AttributeError):
@@ -583,7 +600,6 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     )
     """The file's parse log, which the process closes. Without one, the output is discarded."""
     parsing_result: DagFileParsingResult | None = None
-    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
     had_callbacks: bool = False  # Track if this process was started with callbacks to prevent stale DAG detection false positives
 
     client: Client | None = None
@@ -708,6 +724,7 @@ class DagFileProcessorProcess(BaseDagFileProcessorProcess):
     """
 
     client: Client
+    decoder: ClassVar[TypeAdapter[ToManager]] = TypeAdapter[ToManager](ToManager)
 
     _request_handlers: ClassVar[dict[type[BaseModel], RequestHandler[DagFileProcessorProcess]]] = {
         **BaseDagFileProcessorProcess._common_request_handlers,

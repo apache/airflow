@@ -125,6 +125,38 @@ class AirflowClient:
             time.sleep(check_interval)
         raise TimeoutError(f"Dag {dag_id} was not registered within {timeout}s. Last error: {last_error}")
 
+    def list_dag_ids(self, tags: list[str]) -> set[str]:
+        """List the IDs of the live Dags with any of *tags*; the API leaves out stale Dags by default."""
+        dag_ids: set[str] = set()
+        limit = 100
+        offset = 0
+        while True:
+            resp = self._make_request(
+                method="GET", endpoint="dags", params={"tags": tags, "limit": limit, "offset": offset}
+            )
+            dag_ids |= {dag["dag_id"] for dag in resp["dags"]}
+            offset += len(resp["dags"])
+            if not resp["dags"] or offset >= resp["total_entries"]:
+                return dag_ids
+
+    def wait_for_dag_ids(
+        self, expected: set[str], tags: list[str], timeout: int = 120, check_interval: int = 3
+    ):
+        """Poll until the live Dags with *tags* are exactly *expected*.
+
+        Raises ``TimeoutError`` naming the expected and the last seen Dag IDs after *timeout* seconds.
+        """
+        start = time.monotonic()
+        seen: set[str] = set()
+        while time.monotonic() - start < timeout:
+            seen = self.list_dag_ids(tags)
+            if seen == expected:
+                return
+            time.sleep(check_interval)
+        raise TimeoutError(
+            f"Dag IDs did not become {sorted(expected)} within {timeout}s. Last seen: {sorted(seen)}"
+        )
+
     def un_pause_dag(self, dag_id: str):
         self.wait_for_dag(dag_id)
         return self._make_request(
@@ -184,6 +216,12 @@ class AirflowClient:
         """List a Dag's tasks, with the edges each one carries."""
         return self._make_request(method="GET", endpoint=f"dags/{dag_id}/tasks")
 
+    def get_task_instance_links(self, dag_id: str, run_id: str, task_id: str):
+        """Get the extra links of a task instance, keyed by link name."""
+        return self._make_request(
+            method="GET", endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/links"
+        )
+
     def get_dag_source(self, dag_id: str):
         """Get the source code stored for a Dag's latest version."""
         return self._make_request(method="GET", endpoint=f"dagSources/{dag_id}")
@@ -211,6 +249,29 @@ class AirflowClient:
             endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances",
         )
 
+    def get_hitl_detail(self, dag_id: str, run_id: str, task_id: str, map_index: int = -1):
+        """Get the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="GET",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+        )
+
+    def respond_to_hitl(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        chosen_options: list[str],
+        params_input: dict | None = None,
+        map_index: int = -1,
+    ):
+        """Answer the Human-in-the-loop request of a task instance."""
+        return self._make_request(
+            method="PATCH",
+            endpoint=f"dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/{map_index}/hitlDetails",
+            json={"chosen_options": chosen_options, "params_input": params_input or {}},
+        )
+
     def list_dag_runs(self, dag_id: str, limit: int = 100):
         """List Dag runs for a given Dag."""
         return self._make_request(
@@ -229,6 +290,13 @@ class AirflowClient:
             method="GET",
             endpoint=endpoint,
         )
+
+    def get_event_logs(self, dag_id: str, run_id: str, task_id: str | None = None) -> list[dict]:
+        """List the audit log events of a Dag run, or of one of its tasks, oldest first."""
+        params = {"dag_id": dag_id, "run_id": run_id, "order_by": "event_log_id"}
+        if task_id is not None:
+            params["task_id"] = task_id
+        return self._make_request(method="GET", endpoint="eventLogs", params=params)["event_logs"]
 
 
 class TaskSDKClient:

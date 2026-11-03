@@ -240,7 +240,7 @@ export const PresetFiltersMenu = () => {
                     {defaultPresetName === preset.name ? <MdPushPin /> : <MdOutlinePushPin />}
                   </IconButton>
                   <IconButton
-                    aria-label="Delete preset filter"
+                    aria-label={translate("presetFilters.deleteTitle")}
                     onClick={() => setPresetToDelete(preset.name)}
                     size="sm"
                     variant="ghost"

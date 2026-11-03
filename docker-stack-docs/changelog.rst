@@ -43,6 +43,49 @@ Airflow 3.4.0
   * The ``tdsodbc`` package was added to the image so that the FreeTDS ODBC driver
     (``libtdsodbc.so``) is available for connecting to Sybase/TDS databases via ODBC.
 
+  * The ``libxmlsec1-openssl`` package was added to the image. ``libxmlsec1`` contains no crypto
+    engine of its own, so ``import xmlsec`` (used by ``python3-saml``) failed with
+    ``libxmlsec1-openssl.so.1: cannot open shared object file``.
+
+In Airflow 3.4.0 the base image changed again - from ``debian:bookworm-slim`` with a Python compiled in
+the image, to the Debian 13 "trixie" `Docker Hardened Image <https://dhi.io>`_ for Python, which already
+carries a Python built by Docker. This removes the Python compilation, and the source download and signature verification
+that went with it, from the build entirely - the OS dependency layer of the production image went from
+roughly 210s to 105s in a local cache-disabled build.
+
+* The ``BASE_IMAGE`` arg now defaults to ``ghcr.io/apache/airflow/base/python:<version>-debian13-dev``,
+  which is Airflow's public mirror of the upstream ``dhi.io/python`` image. Pulling from ``dhi.io``
+  directly requires a ``docker login dhi.io``; pulling the mirror requires nothing. If you pass your own
+  ``BASE_IMAGE``, it now has to be an image that already provides Python - a bare ``debian:bookworm-slim``
+  only works with ``AIRFLOW_IMAGE_FLAVOR="legacy"``.
+* The image is based on Debian 13 "trixie" instead of Debian 12 "bookworm". Library packages renamed in
+  trixie's 64-bit ``time_t`` transition (for example ``libssl3t64``, ``libldap2``) have to be used in
+  custom ``RUNTIME_APT_DEPS``, and the MySQL-compatible client comes from MariaDB 11.8 (with
+  ``mariadb-client-compat`` providing the ``mysql`` named commands).
+* The new ``AIRFLOW_IMAGE_FLAVOR`` arg (``hardened`` by default) can be set to ``legacy`` to build the
+  image as before: Python compiled from sources on a plain Debian ``BASE_IMAGE`` such as
+  ``debian:bookworm-slim``. Images of that flavor are published for the 3.4.x line, are deprecated, and
+  will be removed in Airflow 3.5.0. The flavor is recorded in the ``org.apache.airflow.image.flavor`` label.
+* The ``PYTHON_LTO`` arg was removed. It only controlled Link-Time Optimization while compiling Python;
+  the legacy flavor always compiles with LTO. To build a FIPS-compliant image, point ``BASE_IMAGE`` at a FIPS
+  variant of the hardened image, for example ``dhi.io/python:3.13.16-debian13-fips-dev`` (those variants
+  require a paid Docker subscription).
+* Python is installed under ``/usr`` by the base image, as Debian packages. ``/usr/python`` is a symlink to it, and the
+  ``/usr/local/bin`` symlinks are unchanged, so paths that worked before keep working.
+* The hardened images ship the standard library with no ``.pyc`` files, so the build compiles it into the
+  image. This keeps the behaviour introduced in Airflow 3.1.4 (see below): the standard library is owned
+  by root while the image runs as ``airflow``, so a missing bytecode cache could never be filled and every
+  import would leak a negative ``dentry``.
+* Python in the hardened images is not the plain upstream build: Docker patches it (``pkgutil.get_data()``
+  rejects ``..`` resource paths), builds it without profile-guided optimization, and compiles it with a
+  1 MiB default thread stack. The image restores the previous 8 MiB thread stack. See
+  :ref:`image-hardened-base` for these and the other differences from the previous images.
+
+As with any base image change, some ``apt`` packages that used to be present as a side effect are not
+there any more. The hardened images are deliberately minimal - they ship no compiler, no ``curl``,
+``wget``, ``git`` or ``gzip``, and a stripped ``/etc`` - so a custom image that relied on something being
+present may need to install it explicitly. See :doc:`Building the image <build>`.
+
 Airflow 3.1.4
 ~~~~~~~~~~~~~
 

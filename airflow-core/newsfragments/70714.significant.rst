@@ -1,0 +1,1 @@
+Deprecate the ``required_kwargs`` attribute for custom deadline references. Implement ``_evaluate_with()`` with a ``dagrun`` parameter instead.

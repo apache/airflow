@@ -25,6 +25,24 @@
 Changelog
 ---------
 
+.. note::
+    Airflow 3.4.0 adds a Dag bundles view, which in multi-team mode is checked against the
+    ``AdminView`` resource, so only ``SuperAdmin`` holds it. Multi-team deployments must upgrade this
+    provider together with Airflow 3.4.0: older releases check the view against ``View``, which every
+    team role can read.
+
+0.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Grant Keycloak SuperAdmin access to teamless resources (#74640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+
 0.11.1
 ......
 

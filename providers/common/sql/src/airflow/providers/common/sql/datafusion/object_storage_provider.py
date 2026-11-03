@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import tempfile
 from pathlib import Path
 
@@ -107,6 +109,15 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
         return "gs://"
 
 
+_ABFS_URI_RE = re.compile(
+    r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.(?P<host>[^/]+)(?P<path>/.*)?$"
+)
+# MicrosoftAzure has no endpoint kwarg, so a non-public host only reaches the right cloud when
+# AZURE_STORAGE_ENDPOINT/AZURE_ENDPOINT redirects the binding; same rule as _resolve_wasb_account.
+_AZURE_PUBLIC_HOST_SUFFIX = ".core.windows.net"
+_ABFS_SCHEMES = ("abfs://", "abfss://")
+
+
 class AzureObjectStorageProvider(ObjectStorageProvider):
     """Azure Object Storage Provider using DataFusion's MicrosoftAzure."""
 
@@ -114,6 +125,48 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
     def get_storage_type(self) -> StorageType:
         """Return the storage type."""
         return StorageType.AZURE
+
+    def get_bucket(self, path: str) -> str | None:
+        """Extract the container name, from either the ``az://`` or ``abfs(s)://`` URI shape."""
+        if match := _ABFS_URI_RE.match(path):
+            return match.group("container")
+        if path.startswith(_ABFS_SCHEMES):
+            raise ValueError(
+                f"{path!r} does not match the required abfs(s)://<container>@<account>.<host>/<path> shape"
+            )
+        return super().get_bucket(path)
+
+    def _validate_uri_host(self, path: str) -> None:
+        match = _ABFS_URI_RE.match(path)
+        if not match:
+            return
+        host = match.group("host").lower()
+        if host == _AZURE_PUBLIC_HOST_SUFFIX[1:] or host.endswith(_AZURE_PUBLIC_HOST_SUFFIX):
+            return
+        if os.environ.get("AZURE_STORAGE_ENDPOINT") or os.environ.get("AZURE_ENDPOINT"):
+            return
+        raise ValueError(
+            f"URI {path!r} host {match.group('host')!r} is not a public *{_AZURE_PUBLIC_HOST_SUFFIX} "
+            "endpoint, and DataFusion's Azure Blob Storage binding has no endpoint override, so the "
+            "request would go to the public cloud. A sovereign cloud is supported once the "
+            "AZURE_STORAGE_ENDPOINT environment variable is set."
+        )
+
+    def _get_uri_account(self, path: str) -> str | None:
+        match = _ABFS_URI_RE.match(path)
+        return match.group("account") if match else None
+
+    def normalize_uri(self, path: str) -> str:
+        """
+        Rewrite ``abfs(s)://<container>@<account>.<host>/<path>`` to ``az://<account>.<container>/<path>``.
+
+        DataFusion's registry keys on (schema, host) alone, so container-only would collide for
+        two different accounts sharing a container name. Account and container names never
+        contain a dot, so joining on one is unambiguous. ``az://`` URIs pass through unchanged.
+        """
+        if match := _ABFS_URI_RE.match(path):
+            return f"az://{match.group('account')}.{match.group('container')}{match.group('path') or ''}"
+        return path
 
     def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
         """Create an Azure object store using DataFusion's MicrosoftAzure."""
@@ -123,6 +176,21 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
         try:
             credentials = connection_config.credentials
             container = self.get_bucket(path)
+
+            self._validate_uri_host(path)
+            uri_account = self._get_uri_account(path)
+            resolved_account = credentials.get("account")
+            if uri_account and resolved_account and uri_account.lower() != resolved_account.lower():
+                raise ValueError(
+                    f"URI {path!r} names storage account {uri_account!r}, but connection "
+                    f"{connection_config.conn_id!r} resolves to account {resolved_account!r}. Point "
+                    "the URI and the connection at the same account, or omit the account from one of "
+                    "them."
+                )
+            if uri_account and not resolved_account:
+                # Pins the URI's account; MicrosoftAzure otherwise falls back to AZURE_STORAGE_ACCOUNT_NAME,
+                # which can name a different account.
+                credentials = {**credentials, "account": uri_account}
 
             azure_store = MicrosoftAzure(container_name=container, **credentials)
             self.log.info("Created Azure object store for container %s", container)
@@ -134,7 +202,7 @@ class AzureObjectStorageProvider(ObjectStorageProvider):
             raise ObjectStoreCreationException(f"Failed to create Azure object store: {e}")
 
     def get_scheme(self) -> str:
-        """Return the scheme for Azure."""
+        """Return the scheme for Azure; ``normalize_uri`` rewrites ``abfs(s)://`` URIs onto it."""
         return "az://"
 
 

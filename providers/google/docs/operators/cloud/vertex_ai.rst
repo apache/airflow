@@ -676,6 +676,11 @@ To create feature online store you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.feature_store.CreateFeatureOnlineStoreOperator`.
 The operator creation results in :ref:`XCom <concepts:xcom>` under ``return_value`` key.
 
+The ``feature_online_store``, ``feature_view`` and ``data_key`` parameters of the Feature Store operators
+accept either the ``google.cloud.aiplatform_v1beta1`` message objects or equivalent dictionaries.
+Dictionaries keep ``google.cloud.aiplatform_v1beta1`` out of Dag parsing, which can otherwise
+exceed ``dagbag_import_timeout``.
+
 .. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_feature_store.py
     :language: python
     :dedent: 4
