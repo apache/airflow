@@ -41,7 +41,6 @@ x-ol-common-env: &ol-common-env
   # OpenLineage system tests, as its task events are never emitted.
   AIRFLOW__OPENLINEAGE__EMISSION_POLICY: >-
     [
-    {"scope": {"dag_id": "openlineage_policy_conf_locked_dag"}, "locked": true, "controls": {"include_source_code": false}},
     {"scope": {"dag_id": "openlineage_policy_conf_source_code_dag"}, "controls": {"include_source_code": false}},
     {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_extract_off"}, "controls": {"extract_operator_metadata": false}},
     {"scope": {"dag_id": "openlineage_policy_conf_controls_dag", "task_id": "t_hook_off"}, "controls": {"hook_lineage": false}},
@@ -175,25 +174,15 @@ x-ol-common: &ol-common
     # CWD-relative open(); components run with CWD=/opt/airflow. prepare_dags.py generates a clean,
     # license-free dag_doc.md (matching the expected event) in the dags folder; expose it here.
     - ./dags/dag_doc.md:/opt/airflow/dag_doc.md
-  # Every task process, Dag file parse and CLI call discovers all installed providers and imports their plugins and
-  # asset factories (google alone takes ~0.5s of CPU). With the ~100 providers of the images, that is several times a
-  # task's own work on a CI runner. The OpenLineage Dags need only the providers kept below (amazon and postgres for
-  # their s3:// and postgres:// asset URIs, celery and fab for the deployment), so the others are hidden from discovery
-  # by removing their metadata, which takes milliseconds where `pip uninstall` takes ~20s. Every service hides the same
-  # providers, so assets are normalized the same way where Dags are parsed and where tasks run.
+    - ./remove_unused_providers.py:/opt/airflow/remove_unused_providers.py:ro
+  # Uninstall the providers the OpenLineage Dags do not use before each service starts, see
+  # openlineage_tests/remove_unused_providers.py (copied next to this file); the service fails to start if it can't
   entrypoint:
     - /usr/bin/dumb-init
     - --
     - bash
     - -c
-    - >-
-      for dist in /home/airflow/.local/lib/python3*/site-packages/apache_airflow_providers_*.dist-info; do
-      case "$${dist##*/apache_airflow_providers_}" in
-      openlineage-*|standard-*|common_compat-*|common_sql-*|common_io-*|amazon-*|postgres-*|celery-*|fab-*) ;;
-      *) rm -rf "$$dist" ;;
-      esac;
-      done;
-      exec /entrypoint "$$@"
+    - python /opt/airflow/remove_unused_providers.py && exec /entrypoint "$$@"
     - --
 
 # Each probe of the scheduler, dag-processor, triggerer and worker runs a whole Airflow or Celery CLI (~1.5s of CPU);

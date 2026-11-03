@@ -854,11 +854,16 @@ def _setup_openlineage_integration(dot_env_file, tmp_dir, compose_file_names):
     DAG and versioned bundle. The ``openlineage.yml`` overlay carries the OpenLineage env config and
     mounts the generated ``dag_doc.md`` where the docs DAG resolves it.
     """
+    from airflow_e2e_tests.openlineage_tests import remove_unused_providers
     from airflow_e2e_tests.openlineage_tests.prepare_dags import prepare_dags
 
     console.print("[yellow]Preparing OpenLineage DAGs from the provider system tests...")
     prepare_dags(tmp_dir / "dags")
     copyfile(OPENLINEAGE_COMPOSE_PATH, tmp_dir / "openlineage.yml")
+    copyfile(
+        Path(remove_unused_providers.__file__),
+        tmp_dir / "remove_unused_providers.py",
+    )
 
     if os.environ.get("E2E_TARGET_AIRFLOW_VERSION", "").strip():
         copyfile(OPENLINEAGE_COMPAT_DB_COMPOSE_PATH, tmp_dir / "openlineage-compat-db.yml")

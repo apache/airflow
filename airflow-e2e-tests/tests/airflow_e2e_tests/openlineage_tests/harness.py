@@ -26,6 +26,7 @@ emitted events matched the expected templates.
 from __future__ import annotations
 
 import datetime as dt
+import json
 import re
 import time
 from collections.abc import Callable, Iterable
@@ -35,6 +36,8 @@ from typing import TYPE_CHECKING
 
 import requests
 from rich.console import Console
+
+from airflow_e2e_tests.openlineage_tests.remove_unused_providers import KEPT_PROVIDERS
 
 if TYPE_CHECKING:
     from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
@@ -161,6 +164,15 @@ class OpenLineageE2ERunner:
         console.print(f"[red]Dags not loaded within {timeout}s: {sorted(expected_dag_ids - dags.keys())}")
         return dags
 
+    def check_installed_providers(self) -> None:
+        """Fail unless the deployment has exactly the providers the services keep (see remove_unused_providers)."""
+        installed = {provider["package_name"] for provider in self._get_all("providers", "providers")}
+        if installed != KEPT_PROVIDERS:
+            raise RuntimeError(
+                "The API server does not have exactly the providers remove_unused_providers.py keeps. "
+                f"Missing: {sorted(KEPT_PROVIDERS - installed)}, not removed: {sorted(installed - KEPT_PROVIDERS)}"
+            )
+
     def _run_concurrently(self, func: Callable, items: Iterable) -> list:
         self.client.token  # Fetched once, before the threads share it
         with ThreadPoolExecutor(max_workers=API_CONCURRENCY) as executor:
@@ -241,6 +253,35 @@ class OpenLineageE2ERunner:
         if not self.trigger_dag_run(WARMUP_DAG_ID, self.run_id):
             raise RuntimeError(f"Failed to trigger warmup Dag `{WARMUP_DAG_ID}`")
         self.wait_for_dag_runs([WARMUP_DAG_ID], self.run_id, timeout=300)
+        self.warm_up_api_server_listener()
+
+    def warm_up_api_server_listener(self, timeout: int = 60) -> None:
+        """
+        Make the API server emit its first OpenLineage event now, while nothing else is sent to it.
+
+        The API server emits the events of state changes through a ProcessPoolExecutor whose single worker it forks
+        on the first one. Forked from the multithreaded API server, that worker can deadlock on a lock another
+        thread held, and then every later event of the run waits behind it. Forking it now, instead of at the
+        first state change of the test Dags, makes that unlikely. Remove this once the API server stops forking:
+        https://github.com/apache/airflow/pull/74577
+        """
+        key = f"{WARMUP_DAG_ID}.event.complete"
+        # Marking the finished warmup Dag run success again emits its COMPLETE from the API server, next to the
+        # one of the scheduler; clear_airflow_variables() drops both before the test runs
+        self._request("PATCH", f"dags/{WARMUP_DAG_ID}/dagRuns/{self.run_id}", json={"state": "success"})
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                if len(json.loads(self._request("GET", f"variables/{key}")["value"])) >= 2:
+                    return
+            except requests.RequestException:
+                pass  # Not stored yet
+            time.sleep(DAG_RUN_POLL_SECONDS)
+        console.print(
+            f"[red]The API server emitted no OpenLineage event within {timeout}s: its listener's process pool "
+            "worker is probably deadlocked, so the Dags that change states through the REST API will fail "
+            "(https://github.com/apache/airflow/pull/74577)"
+        )
 
     def _trigger_and_wait(
         self, dag_ids: list[str], run_id: str, batch_timeout: int = BATCH_TIMEOUT_SECONDS
@@ -259,6 +300,7 @@ class OpenLineageE2ERunner:
     def run(self, expected_dag_ids: set[str]) -> dict[str, str]:
         """Run the full cycle and return ``{dag_id: final_state}`` for every triggered Dag."""
         dags = self.wait_for_dags_loaded(expected_dag_ids)
+        self.check_installed_providers()
         self.warmup(dags)
         # Scheduled Dags run on their own once loaded. Their check_events deletes the Variables it checked, those of
         # the test runs of the same Dag too, so wait for them to finish before clearing their events.
