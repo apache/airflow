@@ -220,7 +220,7 @@ Homepage = "https://airflow.apache.org/"
 "Source Code" = "https://github.com/apache/airflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.version]
