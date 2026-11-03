@@ -55,7 +55,7 @@ from pydantic import BaseModel
 from airflow.providers.common.ai.durable.base import build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
 from airflow.providers.common.ai.durable.openai_agents import (
-    _RESERVED_TOOL_STEPS,
+    _build_tool_fingerprint,
     _DurableModel,
     _get_durable_tool,
     run_durably_sync,
@@ -770,7 +770,6 @@ class TestParallelToolCalls:
                     tool_arguments=json.dumps({"key": key}),
                 )
                 outputs[key] = await durable_tools[0].on_invoke_tool(context, json.dumps({"key": key}))
-            _RESERVED_TOOL_STEPS.pop(durable_run, None)
             return outputs, journal
 
         await attempt(("a", "b"))
@@ -798,6 +797,7 @@ class TestParallelToolCalls:
         journal = DurableJournal(MemoryStorage())
         durable_run = journal.start_run()
         durable_tool = _get_durable_tool(_SleepingTools().tools()[0], durable_run)
+        fingerprint = _build_tool_fingerprint("lookup", json.dumps({"key": "a"}), "call-durable")
         response = ModelResponse(
             output=[
                 ResponseFunctionToolCall(
@@ -817,24 +817,56 @@ class TestParallelToolCalls:
             response, [durable_tool, plain_lookup]
         )
 
-        assert list(_RESERVED_TOOL_STEPS[durable_run]) == ["call-durable"]
         assert durable_run.position == 1
-        _RESERVED_TOOL_STEPS.pop(durable_run, None)
+        durable = durable_run.claim_reserved(
+            "call-durable", "tool:lookup", kind="tool", fingerprint=fingerprint
+        )
+        plain = durable_run.claim_reserved("call-plain", "tool:plain_lookup", kind="tool", fingerprint=None)
+        assert (durable.position, plain.position) == (0, 1)
 
-    def test_a_finished_run_does_not_keep_its_reserved_tool_steps(self):
-        @function_tool(needs_approval=True)
-        def lookup(key: str) -> str:
-            """Look a key up."""
-            return key
+    @pytest.mark.asyncio
+    async def test_a_later_response_does_not_let_a_call_land_on_an_untaken_step_with_the_same_id(self):
+        storage = MemoryStorage()
+        tools = _SleepingTools()
 
-        journal = DurableJournal(MemoryStorage(), clean_up_after_run=True)
-        with journal_scope(journal):
-            run_durably_sync(
-                Agent(name="analyst", model=_ScriptedModel(), tools=[lookup]), "go", run_config=NO_TRACING
+        def respond(key: str) -> ModelResponse:
+            return ModelResponse(
+                output=[
+                    ResponseFunctionToolCall(
+                        id="fc-x",
+                        call_id="call-x",
+                        name="lookup",
+                        arguments=json.dumps({"key": key}),
+                        type="function_call",
+                    )
+                ],
+                usage=Usage(),
+                response_id="resp",
             )
 
-        # The tool never ran, so its reservation was never taken by the tool.
-        assert not _RESERVED_TOOL_STEPS
+        async def attempt() -> DurableJournal:
+            journal = DurableJournal(storage)
+            durable_run = journal.start_run()
+            durable_tools = [_get_durable_tool(tool, durable_run) for tool in tools.tools()]
+            model = _DurableModel(mock.create_autospec(Model, instance=True), durable_run)
+            # No tool takes the first response's call; only the second response's is invoked.
+            model._reserve_tool_steps(respond("a"), durable_tools)
+            model._reserve_tool_steps(respond("b"), durable_tools)
+            context = ToolContext(
+                context=None,
+                usage=Usage(),
+                tool_name="lookup",
+                tool_call_id="call-x",
+                tool_arguments=json.dumps({"key": "b"}),
+            )
+            await durable_tools[0].on_invoke_tool(context, json.dumps({"key": "b"}))
+            return journal
+
+        await attempt()
+        journal = await attempt()
+
+        assert tools.calls == {"b": 1}
+        assert journal.stats.replayed["tool"] == 1
 
     @pytest.mark.parametrize("source", ["run-hook", "agent-hook", "tool-input-guardrail"])
     @pytest.mark.parametrize(

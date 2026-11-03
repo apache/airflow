@@ -66,6 +66,7 @@ from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     import logging
+    from collections.abc import Sequence
 
     from airflow.providers.common.ai.durable.base import DurableStorageProtocol
     from airflow.sdk import Context
@@ -104,7 +105,8 @@ class JournalStep:
         """
         Count this step as replayed, once.
 
-        For a step from :meth:`DurableRun.reserve`; a step from :meth:`DurableRun.claim` is already counted.
+        For a step from :meth:`DurableRun.reserve`, which :meth:`DurableRun.claim_reserved` does;
+        a step from :meth:`DurableRun.claim` is already counted.
         """
         if self.replayed and not self._replay_counted:
             self._replay_counted = True
@@ -228,6 +230,8 @@ class DurableRun:
         # Read with the rest of the run's entry: whether the previous attempt failed because
         # of the model's answers, which changes why the retry runs live from ``_diverge_from``.
         self._model_at_fault = False
+        # Steps ``reserve`` numbered for the latest model response, by tool call id, until taken.
+        self._reserved: dict[str, JournalStep] = {}
 
     @property
     def position(self) -> int:
@@ -258,14 +262,41 @@ class DurableRun:
             self._peeked[position] = self.journal.storage.load_step(build_step_key(self.key, position))
         return self._peeked[position]
 
-    def reserve(self, name: str, *, kind: StepKind, fingerprint: str | None) -> JournalStep:
+    def reserve(self, calls: Sequence[tuple[str, str, str | None]], *, kind: StepKind) -> None:
         """
-        Take the next position and look it up like :meth:`claim`, without counting a replay yet.
+        Take a position for each of ``calls`` in order, and keep them for :meth:`claim_reserved`.
 
-        For an adapter that has to number steps before it knows whether they will run. A
-        replay counts in the stats only once the caller calls :meth:`JournalStep.take`.
+        For an adapter that has to number steps before it knows whether they will run. Each call
+        is ``(call_id, name, fingerprint)``. A replay counts in the stats only once the step is
+        taken. Replaces what an earlier ``reserve`` left unclaimed, and a call whose id is
+        already in ``calls`` takes no position. Like :meth:`claim`, call it before the first ``await``.
         """
-        return self._claim(name, kind=kind, fingerprint=fingerprint, replayable=True, count_replay=False)
+        reserved: dict[str, JournalStep] = {}
+        for call_id, name, fingerprint in calls:
+            if call_id not in reserved:
+                reserved[call_id] = self._claim(
+                    name, kind=kind, fingerprint=fingerprint, replayable=True, count_replay=False
+                )
+        self._reserved = reserved
+
+    def claim_reserved(
+        self, call_id: str, name: str, *, kind: StepKind, fingerprint: str | None
+    ) -> JournalStep:
+        """
+        Take the step :meth:`reserve` kept for ``call_id``, counting its replay.
+
+        A call whose id was not reserved, or whose reservation is already taken or belongs to
+        another call sharing the id (some non-OpenAI adapters), takes a new position as
+        :meth:`claim` does. Call it before the first ``await``.
+        """
+        step = self._reserved.pop(call_id, None)
+        if step is not None and (step.name, step.fingerprint) != (name, fingerprint):
+            self._reserved[call_id] = step
+            step = None
+        if step is None:
+            step = self.claim(name, kind=kind, fingerprint=fingerprint)
+        step.take()
+        return step
 
     def claim(
         self, name: str, *, kind: StepKind, fingerprint: str | None, replayable: bool = True

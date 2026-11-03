@@ -104,12 +104,6 @@ _DEFAULT_FAILURE_HANDLED = "_function_tool_default_failure_handled"
 # Arguments that keep the conversation on OpenAI's servers, which a replayed model call never reaches.
 _SERVER_SIDE_STATE = ("previous_response_id", "conversation_id", "auto_previous_response_id")
 
-# Tool steps a model response claimed, by tool call id, until the tool takes its own. The tools of
-# one response start in model order but reach their wrapper after guardrails and hooks of varying
-# duration, so claiming there would number them by completion order.
-# Removed when ``run_durably`` ends: the steps hold their run, so a weak reference would not free it.
-_RESERVED_TOOL_STEPS: dict[DurableRun, dict[str, JournalStep]] = {}
-
 # Set on the copy of a function tool that reports through the journal, so that reserving a position
 # skips tools nothing wraps, such as those of MCP servers or of a handoff agent with a named model.
 _DURABLE_MARKER = "_airflow_durable_tool"
@@ -190,8 +184,6 @@ async def run_durably(
     except BaseException as error:
         durable_run.fail(error, model_at_fault=isinstance(error, _MODEL_AT_FAULT))
         raise
-    finally:
-        _RESERVED_TOOL_STEPS.pop(durable_run, None)
     if journal.clean_up_after_run:
         durable_run.cleanup()
     return result
@@ -252,15 +244,7 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
             return await invoke(ctx, arguments)
         name = f"tool:{tool.name}"
         fingerprint = _build_tool_fingerprint(tool.name, arguments, ctx.tool_call_id)
-        reserved = _RESERVED_TOOL_STEPS.get(durable_run, {})
-        step = reserved.pop(ctx.tool_call_id, None)
-        if step is not None and (step.name, step.fingerprint) != (name, fingerprint):
-            # Calls that share an id (some non-OpenAI adapters) leave the reservation to another call.
-            reserved[ctx.tool_call_id] = step
-            step = None
-        if step is None:
-            step = durable_run.claim(name, kind="tool", fingerprint=fingerprint)
-        step.take()
+        step = durable_run.claim_reserved(ctx.tool_call_id, name, kind="tool", fingerprint=fingerprint)
         if step.replayed:
             return step.payload
         try:
@@ -405,21 +389,22 @@ class _DurableModel(Model):
         Claim a position for each of the response's tool calls, in the order the model made them.
 
         A call whose tool never runs (held for approval, stopped by a guardrail) leaves its position
-        empty, which a retry runs live without disturbing the positions after it.
+        empty, which a retry runs live without disturbing the positions after it. The steps the
+        previous response reserved and no tool took are dropped.
         """
         durable_names = {tool.name for tool in tools if getattr(tool, _DURABLE_MARKER, False)}
-        reserved = _RESERVED_TOOL_STEPS.setdefault(self.durable_run, {})
-        for item in response.output:
-            if (
-                isinstance(item, ResponseFunctionToolCall)
-                and item.name in durable_names
-                and item.call_id not in reserved
-            ):
-                reserved[item.call_id] = self.durable_run.reserve(
+        self.durable_run.reserve(
+            [
+                (
+                    item.call_id,
                     f"tool:{item.name}",
-                    kind="tool",
-                    fingerprint=_build_tool_fingerprint(item.name, item.arguments, item.call_id),
+                    _build_tool_fingerprint(item.name, item.arguments, item.call_id),
                 )
+                for item in response.output
+                if isinstance(item, ResponseFunctionToolCall) and item.name in durable_names
+            ],
+            kind="tool",
+        )
 
     def _retried(self, fingerprint: str | None) -> JournalStep | None:
         """
