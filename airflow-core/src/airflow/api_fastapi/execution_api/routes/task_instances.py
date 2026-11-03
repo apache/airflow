@@ -89,7 +89,7 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
     skip_auto_ti_attempt_live,
 )
-from airflow.api_fastapi.execution_api.services.stub_arg_bindings import UndeliverableArgBindingsError
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import UndeliverableMappedArgBindingsError
 from airflow.api_fastapi.execution_api.services.task_instances import (
     client_supports_arg_bindings,
     get_arg_bindings,
@@ -397,7 +397,7 @@ def ti_run(
             # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
             try:
                 arg_bindings = get_arg_bindings(serialized_task, ti, dag_bag=dag_bag, session=session)
-            except UndeliverableArgBindingsError as e:
+            except UndeliverableMappedArgBindingsError as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={

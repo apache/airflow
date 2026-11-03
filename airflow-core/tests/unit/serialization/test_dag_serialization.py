@@ -3818,12 +3818,12 @@ def test_mapped_stub_param_metadata_round_trip():
     )
 
     round_tripped = DagSerialization.from_dict(ser_dag)
-    assert round_tripped.task_dict["transform"]._mapped_arg_binding_params == [
+    assert round_tripped.task_dict["transform"].mapped_arg_binding_params == [
         {"name": "country", "value_schema": {"type": "string"}},
         {"name": "extracted"},
         {"name": "retries_num", "value_schema": {"type": "integer", "format": "int64"}, "default": 3},
     ]
-    assert not hasattr(round_tripped.task_dict["plain"], "_mapped_arg_binding_params")
+    assert round_tripped.task_dict["plain"].mapped_arg_binding_params is None
 
 
 def test_task_group_stub_param_metadata_round_trip():
@@ -3851,7 +3851,7 @@ def test_task_group_stub_param_metadata_round_trip():
     transform_task = DagSerialization.from_dict(ser_dag).task_dict["group.transform"]
 
     assert transform_task.arg_bindings is None
-    country, extracted_param, retries_num = transform_task._mapped_arg_binding_params
+    country, extracted_param, retries_num = transform_task.mapped_arg_binding_params
     assert country == {
         "name": "country",
         "value_schema": {"type": "string"},
@@ -3875,9 +3875,9 @@ def test_mapped_stub_capture_error_fails_serialization():
         @task.stub
         def transform(country: str): ...
 
-        transform.expand_kwargs([{"country": "uk"}])
+        transform.expand_kwargs([{"region": "uk"}])
 
-    with pytest.raises(SerializationError, match="does not support expand_kwargs"):
+    with pytest.raises(SerializationError, match="passes unknown parameters"):
         DagSerialization.to_dict(dag)
 
 

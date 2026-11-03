@@ -293,11 +293,11 @@ class TestMappedStubArgBindingParams:
         params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
         assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
 
-    def test_custom_xcom_key_inside_zip_rejected(self):
+    def test_custom_xcom_key_inside_partial_zip_rejected(self):
         with DAG(dag_id="d"):
             out = stub(fn_extract)()
             other = stub(fn_extract)()
-            result = stub(fn_transform).partial(country="uk").expand(extracted=out.zip(other["rows"]))
+            result = stub(fn_transform).partial(country=out.zip(other["rows"])).expand(extracted=out)
 
         with pytest.raises(ValueError, match="references the XCom key 'rows'"):
             self.get_hook_fields(result.operator)
