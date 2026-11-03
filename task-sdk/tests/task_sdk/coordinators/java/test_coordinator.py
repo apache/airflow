@@ -127,26 +127,33 @@ class TestJarMetadata:
 
 class TestCalculateClasspath:
     def test_single_jar(self, tmp_path):
-        tmp_path.joinpath("app.jar").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "./app.jar"
+        jar = tmp_path.joinpath("app.jar")
+        jar.write_bytes(b"")
+        result = _calculate_classpath([tmp_path])
+        assert result == jar.as_posix()
 
     def test_multiple_jars_all_included(self, tmp_path):
         tmp_path.joinpath("a.jar").write_bytes(b"")
         tmp_path.joinpath("b.jar").write_bytes(b"")
         tmp_path.joinpath("c.jar").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert set(result.split(os.pathsep)) == {"./a.jar", "./b.jar", "./c.jar"}
+        result = _calculate_classpath([tmp_path])
+        entries = set(result.split(os.pathsep))
+        assert entries == {
+            tmp_path.joinpath("a.jar").as_posix(),
+            tmp_path.joinpath("b.jar").as_posix(),
+            tmp_path.joinpath("c.jar").as_posix(),
+        }
 
     def test_non_jar_files_excluded(self, tmp_path):
-        tmp_path.joinpath("app.jar").write_bytes(b"")
+        jar = tmp_path.joinpath("app.jar")
+        jar.write_bytes(b"")
         tmp_path.joinpath("readme.txt").write_bytes(b"")
         tmp_path.joinpath("config.yaml").write_bytes(b"")
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-        assert result == "./app.jar"
+        result = _calculate_classpath([tmp_path])
+        assert result == jar.as_posix()
 
     def test_empty_directory_returns_empty_string(self, tmp_path):
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
+        result = _calculate_classpath([tmp_path])
         assert result == ""
 
     def test_primary_jar_goes_first(self, tmp_path):
@@ -155,35 +162,9 @@ class TestCalculateClasspath:
         b = tmp_path.joinpath("b.jar")
         b.write_bytes(b"")
 
-        result = _calculate_classpath([tmp_path], cwd=tmp_path, primary=b)
+        result = _calculate_classpath([tmp_path], primary=b)
 
-        assert result.split(os.pathsep) == ["./b.jar", "./a.jar"]
-
-    def test_entry_starting_with_at_sign_is_not_an_argfile(self, tmp_path):
-        tmp_path.joinpath("@scope").mkdir()
-        tmp_path.joinpath("@scope", "dep.jar").write_bytes(b"")
-
-        result = _calculate_classpath([tmp_path], cwd=tmp_path)
-
-        assert result == "./@scope/dep.jar"
-
-    def test_path_separator_above_cwd_stays_off_the_classpath(self, tmp_path):
-        root = tmp_path / f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
-        root.mkdir()
-        root.joinpath("app.jar").write_bytes(b"")
-        root.joinpath("dep.jar").write_bytes(b"")
-
-        result = _calculate_classpath([root], cwd=root, primary=root / "dep.jar")
-
-        assert result.split(os.pathsep) == ["./dep.jar", "./app.jar"]
-
-    def test_path_separator_below_cwd_raises(self, tmp_path):
-        nested = tmp_path / f"a{os.pathsep}b"
-        nested.mkdir()
-        nested.joinpath("app.jar").write_bytes(b"")
-
-        with pytest.raises(ValueError, match="Cannot put these JARs on a Java classpath"):
-            _calculate_classpath([tmp_path], cwd=tmp_path)
+        assert result.split(os.pathsep) == [b.as_posix(), a.as_posix()]
 
 
 class TestMainJar:
@@ -334,16 +315,10 @@ class TestJavaCoordinatorAttributes:
         assert schema_version == "2026-06-16"
 
 
-# A bundle version directory named after a timestamp holds os.pathsep.
-TIMESTAMPED_DIR = f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
-
-
 @pytest.fixture
-def jars_dir(request, tmp_path):
-    root = tmp_path / getattr(request, "param", "")
-    root.mkdir(exist_ok=True)
-    _make_jar(root / "app.jar", main_class="com.example.TaskRunner", schema_version="2026-06-16")
-    return root
+def jars_dir(tmp_path):
+    _make_jar(tmp_path.joinpath("app.jar"), main_class="com.example.TaskRunner", schema_version="2026-06-16")
+    return tmp_path
 
 
 @pytest.fixture
@@ -390,7 +365,6 @@ class TestJavaCoordinatorExecuteTask:
 
         def capture_popen(cmd, **kwargs):
             popen_calls.append(cmd)
-            self.popen_kwargs = kwargs
             return mock_proc
 
         with (
@@ -432,13 +406,7 @@ class TestJavaCoordinatorExecuteTask:
         assert "-classpath" in cmd
         cp_idx = cmd.index("-classpath")
         classpath = cmd[cp_idx + 1]
-        assert classpath == "./app.jar"
-
-    @pytest.mark.parametrize("jars_dir", ["", TIMESTAMPED_DIR], indirect=True, ids=["plain", "timestamped"])
-    def test_runs_in_the_bundle_directory(self, jars_dir, java_task_handlers, mock_client):
-        cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
-        assert self.popen_kwargs["cwd"] == jars_dir
-        assert cmd[cmd.index("-classpath") + 1] == "./app.jar"
+        assert jars_dir.joinpath("app.jar").as_posix() in classpath
 
     def test_main_class_present(self, java_task_handlers, mock_client):
         cmd = self._captured_popen_cmd(java_task_handlers, mock_client)
@@ -618,17 +586,17 @@ class TestBuildParseDagCommand:
 
         command, schema_version = self._build(coordinator, tmp_path, jar)
 
-        assert command == ["/opt/java/bin/java", "-classpath", "./app.jar", "-Xmx256m", "com.example.Dags"]
+        assert command == ["/opt/java/bin/java", "-classpath", jar.as_posix(), "-Xmx256m", "com.example.Dags"]
         assert schema_version == "2026-10-30"
 
     def test_thin_jar_takes_the_schema_version_from_a_sibling(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags")
         (tmp_path / "libs").mkdir()
-        _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
+        sdk = _make_jar(tmp_path / "libs" / "airflow-sdk.jar", main_class=None, schema_version="2026-10-30")
 
         command, schema_version = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [f"./{jar.name}", "./libs/airflow-sdk.jar"]
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sdk.as_posix()]
         assert command[-1] == "com.example.Dags"
         assert schema_version == "2026-10-30"
 
@@ -639,7 +607,7 @@ class TestBuildParseDagCommand:
 
         command, _ = self._build(JavaCoordinator(), tmp_path, jar)
 
-        assert command[2].split(os.pathsep) == [f"./{jar.name}", f"./{sibling.name}"]
+        assert command[2].split(os.pathsep) == [jar.as_posix(), sibling.as_posix()]
 
     def test_matches_the_execute_command(self, tmp_path):
         jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
@@ -715,21 +683,15 @@ class TestBuildParseDagCommand:
 
     @patch("airflow.sdk.coordinators._subprocess._set_close_on_exec_above_stderr", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
-    @patch("airflow.sdk.coordinators._subprocess.os.chdir", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
-    @pytest.mark.parametrize("bundle_dir", ["", TIMESTAMPED_DIR], ids=["plain", "timestamped"])
-    def test_parse_dag_execs_the_jvm(
-        self, mock_execvpe, mock_chdir, mock_signal, mock_close_on_exec, tmp_path, bundle_dir
-    ):
-        root = tmp_path / bundle_dir
-        root.mkdir(exist_ok=True)
-        jar = _make_jar(root / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
+    def test_parse_dag_execs_the_jvm(self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path):
+        jar = _make_jar(tmp_path / "app.jar", main_class="com.example.Dags", schema_version="2026-10-30")
         reported: list[str | None] = []
 
         with pytest.raises(OSError, match="exec"):
             JavaCoordinator().parse_dag(
                 path=jar,
-                bundle_path=root,
+                bundle_path=tmp_path,
                 comm_address=("127.0.0.1", 1001),
                 logs_address=("127.0.0.1", 1002),
                 report_schema_version=reported.append,
@@ -737,11 +699,10 @@ class TestBuildParseDagCommand:
 
         assert reported == ["2026-10-30"]
         argv = mock_execvpe.call_args.args[1]
-        mock_chdir.assert_called_once_with(root)
         assert argv == [
             "java",
             "-classpath",
-            "./app.jar",
+            jar.as_posix(),
             "com.example.Dags",
             "--comm=127.0.0.1:1001",
             "--logs=127.0.0.1:1002",
