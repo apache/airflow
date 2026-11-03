@@ -32,8 +32,9 @@
 // go-jsonschema's dead anyOf-branch typedefs, widens concrete int/float/bool
 // fields whose schema default their Go zero value does not satisfy to pointers
 // (so an unset value is omitted on the wire and the supervisor reapplies the
-// default, while an explicit 0/false still encodes), and emits
-// discriminators.gen.go and defaults.gen.go.
+// default, while an explicit 0/false still encodes), retypes every time.Time
+// to the UTC-decoding Time in time.go, and emits discriminators.gen.go and
+// defaults.gen.go.
 package genmodels
 
 //go:generate go run github.com/atombender/go-jsonschema@v0.23.1 --only-models --struct-name-from-title --tags msgpack --capitalization ID --capitalization URI --capitalization TI -p genmodels -o models.gen.go ../../../schema/supervisor-schema.json

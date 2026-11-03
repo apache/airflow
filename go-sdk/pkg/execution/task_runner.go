@@ -140,7 +140,7 @@ func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
 func failTask(shouldRetry bool, err error) any {
 	if shouldRetry {
 		return genmodels.RetryTask{
-			EndDate:     time.Now().UTC(),
+			EndDate:     genmodels.Time(time.Now().UTC()),
 			RetryReason: err.Error(),
 		}
 	}
@@ -263,7 +263,7 @@ func executeTask(
 			)
 			if shouldRetry {
 				result = genmodels.RetryTask{
-					EndDate:     time.Now().UTC(),
+					EndDate:     genmodels.Time(time.Now().UTC()),
 					RetryReason: fmt.Sprintf("panic: %v", r),
 				}
 			} else {
@@ -282,7 +282,7 @@ func executeTask(
 		// UP_FOR_RETRY via RetryTask; otherwise it terminates as FAILED.
 		if shouldRetry {
 			return genmodels.RetryTask{
-				EndDate:     time.Now().UTC(),
+				EndDate:     genmodels.Time(time.Now().UTC()),
 				RetryReason: err.Error(),
 			}
 		}
@@ -301,7 +301,7 @@ func executeTask(
 // empty collections rather than None.
 func succeedTask() genmodels.SucceedTask {
 	return genmodels.SucceedTask{
-		EndDate:      time.Now().UTC(),
+		EndDate:      genmodels.Time(time.Now().UTC()),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},
 	}

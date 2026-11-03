@@ -124,9 +124,7 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "dags/tutorial.go", details.DagRelPath)
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", ifaceString(details.BundleInfo.Version))
-	// msgpack decodes the timestamp extension into the local zone; compare the
-	// instant in UTC rather than the zoned representation.
-	assert.Equal(t, startDate, details.StartDate.UTC())
+	assert.Equal(t, startDate, time.Time(details.StartDate))
 	assert.Equal(t, logical, *ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
 	assert.Equal(t, intervalStart, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
 	assert.Equal(t, intervalEnd, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
@@ -150,7 +148,7 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	body, err := decodeIncomingBody(raw)
 	require.NoError(t, err)
 	details := body.(*genmodels.StartupDetails)
-	assert.True(t, details.StartDate.IsZero())
+	assert.True(t, time.Time(details.StartDate).IsZero())
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
 	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
@@ -388,7 +386,7 @@ func TestSucceedTaskWire(t *testing.T) {
 	endDate := time.Date(2024, 1, 15, 10, 30, 0, 123456789, time.UTC)
 	m := decodeToMap(t, genmodels.SucceedTask{
 		Type:         genmodels.TypeSucceedTask,
-		EndDate:      endDate,
+		EndDate:      genmodels.Time(endDate),
 		TaskOutlets:  &genmodels.TaskOutlets{},
 		OutletEvents: &genmodels.OutletEvents{},
 	})
@@ -417,7 +415,7 @@ func TestRetryTaskWire(t *testing.T) {
 	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	m := decodeToMap(t, genmodels.RetryTask{
 		Type:        genmodels.TypeRetryTask,
-		EndDate:     endDate,
+		EndDate:     genmodels.Time(endDate),
 		RetryReason: "boom",
 	})
 	assert.Equal(t, "RetryTask", m["type"])

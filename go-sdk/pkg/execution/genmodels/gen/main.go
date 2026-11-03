@@ -16,7 +16,7 @@
 // under the License.
 
 // Command gen post-processes the genmodels package after go-jsonschema, doing
-// five things it cannot:
+// six things it cannot:
 //
 //  1. Strips the dead `<Type>_<N>` typedefs emitted for each branch of a nullable
 //     `anyOf` (e.g. AssetEventResponsePartitionKey_0); the structs use `any`, so
@@ -39,6 +39,11 @@
 //     on a nullable interface{}/enum field), seeding it before decode since
 //     msgpack applies no defaults. Pointer-widened fields (see 2) are skipped:
 //     their default is simply nil.
+//  6. Retypes every time.Time to the package's UTC-decoding Time, since msgpack
+//     decodes a bare time.Time in the worker's local zone. go-jsonschema emits
+//     time.Time only for a date-time, so each one (field, pointer or list
+//     element) becomes Time by type alone. A time.Time it misses fails to
+//     compile once the time import is dropped.
 //
 // Constants and cases key on the generated struct names (read from models.gen.go)
 // matched to the schema's wire values case-insensitively, since go-jsonschema may
@@ -107,6 +112,9 @@ func main() {
 	pointerized := pointerizedFields(doc, structs, structByKey)
 	if err := pointerizeFields(*modelsPath, pointerized); err != nil {
 		log.Fatalf("gen: pointerizing %s: %v", *modelsPath, err)
+	}
+	if err := retypeDateTimes(*modelsPath); err != nil {
+		log.Fatalf("gen: retyping date-times in %s: %v", *modelsPath, err)
 	}
 	if err := genlicense.EnsureHeader(*modelsPath); err != nil {
 		log.Fatalf("gen: adding license header to %s: %v", *modelsPath, err)
@@ -352,6 +360,95 @@ func identUseCounts(file *ast.File) map[string]int {
 		return true
 	})
 	return counts
+}
+
+// timeTypeName is the hand-written UTC-decoding type in the genmodels package.
+const timeTypeName = "Time"
+
+// retypeDateTimes rewrites every time.Time in models.gen.go to Time, drops the
+// time import, and writes the file back only when something changed. A
+// time.Time left anywhere fails to compile once the import is gone.
+func retypeDateTimes(path string) error {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, src, parser.ParseComments)
+	if err != nil {
+		return err
+	}
+
+	changed := false
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.Field:
+			if isTimeTime(n.Type) {
+				n.Type = ast.NewIdent(timeTypeName)
+				changed = true
+			}
+		case *ast.ArrayType:
+			if isTimeTime(n.Elt) {
+				n.Elt = ast.NewIdent(timeTypeName)
+				changed = true
+			}
+		case *ast.StarExpr:
+			if isTimeTime(n.X) {
+				n.X = ast.NewIdent(timeTypeName)
+				changed = true
+			}
+		}
+		return true
+	})
+	if !changed {
+		return nil
+	}
+	dropImport(file, "time")
+
+	var buf bytes.Buffer
+	if err := format.Node(&buf, fset, file); err != nil {
+		return err
+	}
+	return os.WriteFile(path, buf.Bytes(), 0o644)
+}
+
+func isTimeTime(e ast.Expr) bool {
+	sel, ok := e.(*ast.SelectorExpr)
+	return ok && isIdent(sel.X, "time") && sel.Sel.Name == "Time"
+}
+
+func isIdent(e ast.Expr, name string) bool {
+	ident, ok := e.(*ast.Ident)
+	return ok && ident.Name == name
+}
+
+// dropImport removes the import of path from file, and the import declaration
+// with it when that was its only spec.
+func dropImport(file *ast.File, path string) {
+	quoted := strconv.Quote(path)
+	for i, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.IMPORT {
+			continue
+		}
+		for j, spec := range gen.Specs {
+			if spec.(*ast.ImportSpec).Path.Value != quoted {
+				continue
+			}
+			gen.Specs = append(gen.Specs[:j], gen.Specs[j+1:]...)
+			if len(gen.Specs) == 0 {
+				file.Decls = append(file.Decls[:i], file.Decls[i+1:]...)
+			}
+			imports := file.Imports[:0]
+			for _, imp := range file.Imports {
+				if imp.Path.Value != quoted {
+					imports = append(imports, imp)
+				}
+			}
+			file.Imports = imports
+			return
+		}
+	}
 }
 
 type schemaProp struct {
