@@ -95,20 +95,20 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         function(args)
     except AirflowCtlException as e:
         # The base class, so a new AirflowCtl error never regresses to a raw traceback.
-        rich.print(f"command failed due to {e}", file=sys.stderr)
+        rich.print(f"command failed due to {escape(str(e))}", file=sys.stderr)
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
-        rich.print(f"[red]Remote protocol error: {e}[/red]", file=sys.stderr)
+        rich.print(f"[red]Remote protocol error: {escape(str(e))}[/red]", file=sys.stderr)
         if "Server disconnected without sending a response." in str(e):
             rich.print(
-                f"[red]Server response error: {e}. "
+                f"[red]Server response error: {escape(str(e))}. "
                 "Please check if the server is running and the API URL is correct.[/red]",
                 file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.TimeoutException as e:
-        rich.print(f"[red]Request timeout error: {e}[/red]", file=sys.stderr)
+        rich.print(f"[red]Request timeout error: {escape(str(e))}[/red]", file=sys.stderr)
         if "timed out" in str(e):
             rich.print(
                 "[red]Please check if the server is running and the API ready to accept calls.[/red]",
@@ -117,7 +117,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
-        rich.print(f"Server response error: {e}", file=sys.stderr)
+        rich.print(f"Server response error: {escape(str(e))}", file=sys.stderr)
         if "Client error message:" in str(e):
             rich.print(
                 "[red]Client error, [/red] "
@@ -131,7 +131,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
     # as the bare httpx error.
     except httpx.HTTPStatusError as e:
-        rich.print(f"[red]Server response error: {e}[/red]", file=sys.stderr)
+        rich.print(f"[red]Server response error: {escape(str(e))}[/red]", file=sys.stderr)
         if e.response.is_redirect:
             rich.print(
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
