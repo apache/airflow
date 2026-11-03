@@ -842,6 +842,37 @@ class TestCliConfigMethods:
             assert text in err
 
     @pytest.mark.parametrize(
+        "raised_exception",
+        [
+            AirflowCtlNotFoundException("not found [/bogus]"),
+            httpx.RemoteProtocolError("protocol error [/bogus]"),
+            httpx.ReadTimeout("timed out [/bogus]"),
+            httpx.HTTPStatusError(
+                "status error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(302),
+            ),
+            ServerResponseError(
+                "server error [/bogus]",
+                request=httpx.Request("GET", "http://localhost:8080/api/v2/dags"),
+                response=httpx.Response(500, json={"detail": "boom"}),
+            ),
+        ],
+        ids=["airflowctl", "protocol", "timeout", "http-status", "server-response"],
+    )
+    def test_safe_call_command_prints_error_text_containing_markup(self, raised_exception, capsys):
+        def raise_error(_args):
+            raise raised_exception
+
+        with pytest.raises(SystemExit) as ctx:
+            safe_call_command(raise_error, args=argparse.Namespace())
+
+        assert ctx.value.code == 1
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert "[/bogus]" in captured.err
+
+    @pytest.mark.parametrize(
         ("response", "hint_expected"),
         [
             pytest.param(
