@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 import tarfile
 from pathlib import Path
 from unittest import mock
@@ -342,6 +343,62 @@ class TestS3DagBundle:
         assert (bundle.path / "dag_new.py").is_file()
         assert not (bundle.path / "dag_01.py").exists()
         assert not sentinel.exists()
+
+    def test_initialize_restages_when_bundle_dir_cleared_and_etag_matches(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        marker = bundle._archive_etag_path()
+        etag = marker.read_text()
+        assert (bundle.path / "dag_01.py").is_file()
+
+        shutil.rmtree(bundle.path)
+        assert not bundle.path.exists()
+        assert marker.is_file()
+        assert marker.read_text() == etag
+
+        client = bundle.s3_hook.get_conn()
+        recorded: list[dict] = []
+        original = client.get_object
+
+        def record_get_object(**kwargs):
+            recorded.append(kwargs)
+            return original(**kwargs)
+
+        with mock.patch.object(client, "get_object", record_get_object):
+            bundle.initialize()
+
+        assert recorded
+        assert (bundle.path / "dag_01.py").is_file()
+        assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
+
+    def test_prefix_refresh_drops_archive_etag_marker(self, s3_bucket, s3_client):
+        archive = _make_archive({"archive_only.py": b"from archive"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        archive_bundle = self._archive_bundle()
+        archive_bundle.initialize()
+        marker = archive_bundle._archive_etag_path()
+        assert marker.is_file()
+        assert (archive_bundle.path / "archive_only.py").is_file()
+
+        prefix_bundle = S3DagBundle(
+            name="test",
+            aws_conn_id=AWS_CONN_ID_WITH_REGION,
+            prefix=S3_BUCKET_PREFIX,
+            bucket_name=S3_BUCKET_NAME,
+        )
+        prefix_bundle.initialize()
+        assert not marker.exists()
+        assert (prefix_bundle.path / "dag_01.py").is_file()
+        assert not (prefix_bundle.path / "archive_only.py").exists()
+
+        archive_bundle = self._archive_bundle()
+        archive_bundle.initialize()
+        assert (archive_bundle.path / "archive_only.py").read_bytes() == b"from archive"
+        assert not (archive_bundle.path / "dag_01.py").exists()
 
     def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
         bundle = self._archive_bundle()

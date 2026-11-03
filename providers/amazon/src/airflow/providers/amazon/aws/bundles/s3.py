@@ -166,6 +166,7 @@ class S3DagBundle(BaseDagBundle):
             if self.archive_key:
                 self._refresh_from_archive()
                 return
+            self._archive_etag_path().unlink(missing_ok=True)
             self._log.debug(
                 "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
             )
@@ -184,6 +185,9 @@ class S3DagBundle(BaseDagBundle):
 
     def _archive_etag_path(self) -> Path:
         return self._archive_state_dir() / "etag"
+
+    def _bundle_dir_has_files(self) -> bool:
+        return self.s3_dags_dir.is_dir() and any(path.is_file() for path in self.s3_dags_dir.rglob("*"))
 
     def _remove_stale_archive_staging_dirs(self) -> None:
         state_dir = self._archive_state_dir()
@@ -216,7 +220,7 @@ class S3DagBundle(BaseDagBundle):
         etag: str = head.get("ETag", "")
 
         marker = self._archive_etag_path()
-        if etag and marker.is_file() and marker.read_text() == etag:
+        if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
             self._log.debug(
                 "Dag bundle archive 's3://%s/%s' is unchanged (ETag %s), skipping staging",
                 self.bucket_name,
