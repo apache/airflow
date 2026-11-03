@@ -66,6 +66,24 @@ Extra (Optional)
     For AWS/GCP/Azure deployments, prefer using IAM roles or environment-based
     credentials and pass only the ``warehouse`` path in extra.
 
+Appending rows
+--------------
+
+``IcebergHook.append`` writes rows through pyiceberg using the connection's catalog:
+
+.. code-block:: python
+
+    from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
+
+    IcebergHook().append(
+        "analytics.events",
+        [{"id": 1, "name": "alpha"}],
+    )
+
+Unknown keys are dropped against the table schema. On ``CommitFailedException``
+the hook reloads the table and retries. Pass a ``list[dict]`` or a ``pyarrow.Table``;
+do not pass a ``RecordBatchReader``.
+
 Migration from 1.x
 -------------------
 
