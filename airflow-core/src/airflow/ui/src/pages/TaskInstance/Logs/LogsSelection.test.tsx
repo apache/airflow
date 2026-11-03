@@ -20,6 +20,9 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
+// Resolve the route module during test collection, outside the per-test timeout.
+import "src/pages/TaskInstance";
+
 import { AppWrapper } from "src/utils/AppWrapper";
 
 const ITEM_HEIGHT = 20;
