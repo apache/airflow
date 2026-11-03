@@ -860,7 +860,10 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log.exception("Failed to upload trigger logs to remote", trigger_id=trigger_id)
             finally:
                 # Upload failures must not leak the underlying file descriptor.
-                factory.close()
+                try:
+                    factory.close()
+                except OSError:
+                    log.warning("Failed to close trigger log file", trigger_id=trigger_id, exc_info=True)
 
     def should_stop(self) -> bool:
         """Return True when the run loop should exit."""

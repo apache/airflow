@@ -1537,14 +1537,24 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
-@pytest.mark.parametrize("upload_fails", [False, True])
-def test_close_uploads_remaining_trigger_logs(jobless_supervisor, mocker, tmp_path, upload_fails):
+@pytest.mark.parametrize("failure", [None, "upload", "close"])
+def test_close_uploads_remaining_trigger_logs(jobless_supervisor, mocker, tmp_path, cap_structlog, failure):
     factories = {}
     for trigger_id in (1, 2):
         factory = TriggerLoggingFactory(log_path=str(tmp_path / f"trigger.{trigger_id}.log"))
         factory(logging_processors(json_output=True)).info("poll before shutdown")
         factories[trigger_id] = factory
     jobless_supervisor.logger_cache.update(factories)
+
+    if failure == "close":
+        close = TriggerLoggingFactory.close
+
+        def close_log(factory):
+            close(factory)
+            if factory is factories[1]:
+                raise OSError("filesystem close failed")
+
+        mocker.patch.object(TriggerLoggingFactory, "close", autospec=True, side_effect=close_log)
 
     def drain_logs(supervisor):
         for factory in supervisor.logger_cache.values():
@@ -1557,7 +1567,7 @@ def test_close_uploads_remaining_trigger_logs(jobless_supervisor, mocker, tmp_pa
 
     def upload(logger, ti):
         trigger_id = next(key for key, factory in factories.items() if factory.bound_logger is logger)
-        if upload_fails and trigger_id == 1:
+        if failure == "upload" and trigger_id == 1:
             raise RuntimeError("remote storage unavailable")
         uploaded[trigger_id] = Path(factories[trigger_id].log_path).read_bytes()
 
@@ -1568,12 +1578,15 @@ def test_close_uploads_remaining_trigger_logs(jobless_supervisor, mocker, tmp_pa
     assert mock_upload.call_count == 2
     assert jobless_supervisor.logger_cache == {}
     assert all(factory._filehandle.closed for factory in factories.values())
-    assert set(uploaded) == ({2} if upload_fails else {1, 2})
+    assert set(uploaded) == ({2} if failure == "upload" else {1, 2})
     for content in uploaded.values():
         assert [msgspec.json.decode(line)["event"] for line in content.splitlines()] == [
             "poll before shutdown",
             "final shutdown log",
         ]
+
+    if failure == "close":
+        assert {"event": "Failed to close trigger log file", "trigger_id": 1} in cap_structlog
 
     jobless_supervisor.close()
     assert mock_upload.call_count == 2
