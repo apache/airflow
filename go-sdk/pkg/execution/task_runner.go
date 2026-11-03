@@ -60,7 +60,7 @@ func RunTask(
 		)
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateRemoved,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 
@@ -80,9 +80,9 @@ func RunTask(
 		sdk.DagRun{
 			DagID:             details.TI.DagID,
 			RunID:             details.TI.RunID,
-			LogicalDate:       ifaceTimePtr(dagRun.LogicalDate),
-			DataIntervalStart: ifaceTimePtr(dagRun.DataIntervalStart),
-			DataIntervalEnd:   ifaceTimePtr(dagRun.DataIntervalEnd),
+			LogicalDate:       (*time.Time)(dagRun.LogicalDate),
+			DataIntervalStart: (*time.Time)(dagRun.DataIntervalStart),
+			DataIntervalEnd:   (*time.Time)(dagRun.DataIntervalEnd),
 		},
 	)
 
@@ -146,7 +146,7 @@ func failTask(shouldRetry bool, err error) any {
 	}
 	return genmodels.TaskState{
 		State:   genmodels.TaskStateStateFailed,
-		EndDate: time.Now().UTC(),
+		EndDate: genmodels.TimePtr(time.Now().UTC()),
 	}
 }
 
@@ -269,7 +269,7 @@ func executeTask(
 			} else {
 				result = genmodels.TaskState{
 					State:   genmodels.TaskStateStateFailed,
-					EndDate: time.Now().UTC(),
+					EndDate: genmodels.TimePtr(time.Now().UTC()),
 				}
 			}
 		}
@@ -288,7 +288,7 @@ func executeTask(
 		}
 		return genmodels.TaskState{
 			State:   genmodels.TaskStateStateFailed,
-			EndDate: time.Now().UTC(),
+			EndDate: genmodels.TimePtr(time.Now().UTC()),
 		}
 	}
 

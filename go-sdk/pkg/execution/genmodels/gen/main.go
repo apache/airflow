@@ -39,11 +39,10 @@
 //     on a nullable interface{}/enum field), seeding it before decode since
 //     msgpack applies no defaults. Pointer-widened fields (see 2) are skipped:
 //     their default is simply nil.
-//  6. Retypes every time.Time to the package's UTC-decoding Time, since msgpack
-//     decodes a bare time.Time in the worker's local zone. go-jsonschema emits
-//     time.Time only for a date-time, so each one (field, pointer or list
-//     element) becomes Time by type alone. A time.Time it misses fails to
-//     compile once the time import is dropped.
+//  6. Retypes every schema date-time to the package's UTC-decoding Time, since
+//     msgpack decodes a bare time.Time in the worker's local zone: time.Time
+//     becomes Time, and a nullable date-time, which go-jsonschema emits as
+//     interface{}, becomes *Time.
 //
 // Constants and cases key on the generated struct names (read from models.gen.go)
 // matched to the schema's wire values case-insensitively, since go-jsonschema may
@@ -113,7 +112,11 @@ func main() {
 	if err := pointerizeFields(*modelsPath, pointerized); err != nil {
 		log.Fatalf("gen: pointerizing %s: %v", *modelsPath, err)
 	}
-	if err := retypeDateTimes(*modelsPath); err != nil {
+	nullableDateTimes, err := findNullableDateTimes(doc, structByKey)
+	if err != nil {
+		log.Fatalf("gen: %v", err)
+	}
+	if err := retypeDateTimes(*modelsPath, nullableDateTimes); err != nil {
 		log.Fatalf("gen: retyping date-times in %s: %v", *modelsPath, err)
 	}
 	if err := genlicense.EnsureHeader(*modelsPath); err != nil {
@@ -365,10 +368,79 @@ func identUseCounts(file *ast.File) map[string]int {
 // timeTypeName is the hand-written UTC-decoding type in the genmodels package.
 const timeTypeName = "Time"
 
-// retypeDateTimes rewrites every time.Time in models.gen.go to Time, drops the
-// time import, and writes the file back only when something changed. A
-// time.Time left anywhere fails to compile once the import is gone.
-func retypeDateTimes(path string) error {
+func (p schemaProp) isDateTime() bool { return p.Format == "date-time" }
+
+func (p schemaProp) isNull() bool { return p.Type == "null" }
+
+// hasDateTime reports whether p carries a date-time anywhere, so a shape
+// findNullableDateTimes does not recognise fails generation instead of being skipped.
+func (p schemaProp) hasDateTime() bool {
+	if p.isDateTime() || (p.Items != nil && p.Items.hasDateTime()) {
+		return true
+	}
+	for _, branch := range p.AnyOf {
+		if branch.hasDateTime() {
+			return true
+		}
+	}
+	return false
+}
+
+// nonNullBranch returns X for an anyOf [X, null] prop.
+func (p schemaProp) nonNullBranch() (schemaProp, bool) {
+	if len(p.AnyOf) != 2 {
+		return schemaProp{}, false
+	}
+	value, null := p.AnyOf[0], p.AnyOf[1]
+	if value.isNull() {
+		value, null = null, value
+	}
+	return value, null.isNull()
+}
+
+// findNullableDateTimes returns structName -> wire tag for every
+// anyOf [date-time, null] prop. go-jsonschema renders those as interface{},
+// which the AST cannot tell apart from other nullable scalars; every other
+// date-time it renders as time.Time, which retypeDateTimes swaps by type alone.
+func findNullableDateTimes(
+	doc *schemaDoc,
+	structByKey map[string]string,
+) (map[string]map[string]bool, error) {
+	set := map[string]map[string]bool{}
+	for defName, def := range doc.Defs {
+		structName, ok := structByKey[strings.ToUpper(defName)]
+		if !ok {
+			continue
+		}
+		for propName, prop := range def.Properties {
+			if !prop.hasDateTime() {
+				continue
+			}
+			value, nullable := prop.nonNullBranch()
+			switch {
+			case prop.isDateTime(), nullable && value.Items != nil && value.Items.isDateTime():
+				continue
+			case nullable && value.isDateTime():
+				if set[structName] == nil {
+					set[structName] = map[string]bool{}
+				}
+				set[structName][propName] = true
+			default:
+				return nil, fmt.Errorf(
+					"%s.%s: unsupported date-time schema shape",
+					defName,
+					propName,
+				)
+			}
+		}
+	}
+	return set, nil
+}
+
+// retypeDateTimes swaps every time.Time for Time and each nullable date-time
+// field from interface{} to *Time. Dropping the time import makes a time.Time
+// it misses fail to compile; an already retyped file is left untouched.
+func retypeDateTimes(path string, nullable map[string]map[string]bool) error {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -380,8 +452,15 @@ func retypeDateTimes(path string) error {
 	}
 
 	changed := false
+	var retypeErr error
 	ast.Inspect(file, func(n ast.Node) bool {
 		switch n := n.(type) {
+		case *ast.TypeSpec:
+			if st, ok := n.Type.(*ast.StructType); ok && nullable[n.Name.Name] != nil {
+				if err := retypeNullable(st, nullable[n.Name.Name], &changed); err != nil {
+					retypeErr = fmt.Errorf("%s.%w", n.Name.Name, err)
+				}
+			}
 		case *ast.Field:
 			if isTimeTime(n.Type) {
 				n.Type = ast.NewIdent(timeTypeName)
@@ -398,8 +477,11 @@ func retypeDateTimes(path string) error {
 				changed = true
 			}
 		}
-		return true
+		return retypeErr == nil
 	})
+	if retypeErr != nil {
+		return retypeErr
+	}
 	if !changed {
 		return nil
 	}
@@ -412,6 +494,25 @@ func retypeDateTimes(path string) error {
 	return os.WriteFile(path, buf.Bytes(), 0o644)
 }
 
+// retypeNullable rewrites the struct's nullable date-time fields from
+// interface{} to *Time; one already *Time is left alone.
+func retypeNullable(st *ast.StructType, tags map[string]bool, changed *bool) error {
+	for _, field := range st.Fields.List {
+		if field.Tag == nil || len(field.Names) != 1 || !tags[msgpackName(field.Tag.Value)] {
+			continue
+		}
+		switch {
+		case isEmptyInterface(field.Type):
+			field.Type = &ast.StarExpr{X: ast.NewIdent(timeTypeName)}
+			*changed = true
+		case isStarIdent(field.Type, timeTypeName):
+		default:
+			return fmt.Errorf("%s: nullable date-time is not interface{}", field.Names[0].Name)
+		}
+	}
+	return nil
+}
+
 func isTimeTime(e ast.Expr) bool {
 	sel, ok := e.(*ast.SelectorExpr)
 	return ok && isIdent(sel.X, "time") && sel.Sel.Name == "Time"
@@ -420,6 +521,16 @@ func isTimeTime(e ast.Expr) bool {
 func isIdent(e ast.Expr, name string) bool {
 	ident, ok := e.(*ast.Ident)
 	return ok && ident.Name == name
+}
+
+func isStarIdent(e ast.Expr, name string) bool {
+	star, ok := e.(*ast.StarExpr)
+	return ok && isIdent(star.X, name)
+}
+
+func isEmptyInterface(e ast.Expr) bool {
+	iface, ok := e.(*ast.InterfaceType)
+	return ok && (iface.Methods == nil || len(iface.Methods.List) == 0)
 }
 
 // dropImport removes the import of path from file, and the import declaration
@@ -454,6 +565,10 @@ func dropImport(file *ast.File, path string) {
 type schemaProp struct {
 	Const   string          `json:"const"`
 	Default json.RawMessage `json:"default"`
+	Type    any             `json:"type"` // a string, or a list for a multi-type prop
+	Format  string          `json:"format"`
+	Items   *schemaProp     `json:"items"`
+	AnyOf   []schemaProp    `json:"anyOf"`
 }
 
 type schemaDoc struct {

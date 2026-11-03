@@ -125,9 +125,9 @@ func TestDecodeStartupDetails(t *testing.T) {
 	assert.Equal(t, "example_dags", details.BundleInfo.Name)
 	assert.Equal(t, "1.0.0", ifaceString(details.BundleInfo.Version))
 	assert.Equal(t, startDate, time.Time(details.StartDate))
-	assert.Equal(t, logical, *ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
-	assert.Equal(t, intervalStart, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
-	assert.Equal(t, intervalEnd, *ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
+	assert.Equal(t, logical, time.Time(*details.TIContext.DagRun.LogicalDate))
+	assert.Equal(t, intervalStart, time.Time(*details.TIContext.DagRun.DataIntervalStart))
+	assert.Equal(t, intervalEnd, time.Time(*details.TIContext.DagRun.DataIntervalEnd))
 	// max_tries / should_retry drive the retry decision and live at the top
 	// level of ti_context, not under dag_run.
 	assert.Equal(t, 3, details.TIContext.MaxTries)
@@ -149,9 +149,9 @@ func TestDecodeStartupDetails_MissingOptionalTimestamps(t *testing.T) {
 	require.NoError(t, err)
 	details := body.(*genmodels.StartupDetails)
 	assert.True(t, time.Time(details.StartDate).IsZero())
-	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.LogicalDate))
-	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalStart))
-	assert.Nil(t, ifaceTimePtr(details.TIContext.DagRun.DataIntervalEnd))
+	assert.Nil(t, details.TIContext.DagRun.LogicalDate)
+	assert.Nil(t, details.TIContext.DagRun.DataIntervalStart)
+	assert.Nil(t, details.TIContext.DagRun.DataIntervalEnd)
 	// map_index is a pointer now, so an omitted key decodes to nil (the natural
 	// "unmapped") rather than being seeded to the -1 sentinel.
 	assert.Nil(t, details.TI.MapIndex)
@@ -405,7 +405,7 @@ func TestSucceedTaskWire(t *testing.T) {
 func TestTaskStateWire(t *testing.T) {
 	endDate := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	m := decodeToMap(t, genmodels.TaskState{
-		Type: genmodels.TypeTaskState, State: genmodels.TaskStateStateFailed, EndDate: endDate,
+		Type: genmodels.TypeTaskState, State: genmodels.TaskStateStateFailed, EndDate: genmodels.TimePtr(endDate),
 	})
 	assert.Equal(t, "TaskState", m["type"])
 	assert.Equal(t, "failed", m["state"])
@@ -561,21 +561,6 @@ func TestIfaceStringHelpers(t *testing.T) {
 	assert.Nil(t, ifaceStringPtr(42))
 	if p := ifaceStringPtr(""); assert.NotNil(t, p) {
 		assert.Equal(t, "", *p) // explicit "" stays distinct from "not set"
-	}
-}
-
-func TestIfaceTimePtr(t *testing.T) {
-	assert.Nil(t, ifaceTimePtr(nil))
-	assert.Nil(t, ifaceTimePtr("not a time"))
-	now := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
-	if p := ifaceTimePtr(now); assert.NotNil(t, p) {
-		assert.Equal(t, now, *p)
-	}
-	// 2024-01-15 04:00 at UTC+8 is still 2024-01-14 in UTC.
-	zoned := time.Date(2024, 1, 15, 4, 0, 0, 0, time.FixedZone("UTC+8", 8*60*60))
-	if p := ifaceTimePtr(zoned); assert.NotNil(t, p) {
-		assert.Equal(t, time.Date(2024, 1, 14, 20, 0, 0, 0, time.UTC), *p)
-		assert.Equal(t, "2024-01-14", p.Format(time.DateOnly))
 	}
 }
 

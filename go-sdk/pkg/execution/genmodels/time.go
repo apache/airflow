@@ -60,3 +60,9 @@ func (t *Time) DecodeMsgpack(dec *msgpack.Decoder) error {
 	*t = Time(v.UTC())
 	return nil
 }
+
+// TimePtr returns t as a *Time, for setting a nullable date-time field.
+func TimePtr(t time.Time) *Time {
+	v := Time(t)
+	return &v
+}

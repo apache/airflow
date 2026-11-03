@@ -32,8 +32,8 @@
 // go-jsonschema's dead anyOf-branch typedefs, widens concrete int/float/bool
 // fields whose schema default their Go zero value does not satisfy to pointers
 // (so an unset value is omitted on the wire and the supervisor reapplies the
-// default, while an explicit 0/false still encodes), retypes every time.Time
-// to the UTC-decoding Time in time.go, and emits discriminators.gen.go and
+// default, while an explicit 0/false still encodes), retypes every date-time
+// field to the UTC-decoding Time in time.go, and emits discriminators.gen.go and
 // defaults.gen.go.
 package genmodels
 
