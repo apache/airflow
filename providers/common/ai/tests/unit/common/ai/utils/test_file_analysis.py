@@ -397,6 +397,27 @@ class TestBuildFileAnalysisRequest:
         assert "beta, 2" not in request.user_content
         assert "gamma, 3" not in request.user_content
 
+    def test_csv_values_keep_their_quotes(self, tmp_path):
+        path = tmp_path / "people.csv"
+        path.write_text(
+            'name,city,note\n"Smith, John","Vancouver, BC","said ""hi""\nthen left"\n', encoding="utf-8"
+        )
+
+        request = build_file_analysis_request(
+            file_path=str(path),
+            file_conn_id=None,
+            prompt="Analyze",
+            multi_modal=False,
+            max_files=1,
+            max_file_size_bytes=1024,
+            max_total_size_bytes=1024,
+            max_text_chars=500,
+            sample_rows=10,
+        )
+
+        assert "Header: name, city, note" in request.user_content
+        assert '"Smith, John", "Vancouver, BC", "said ""hi""\nthen left"' in request.user_content
+
 
 class TestFileAnalysisHelpers:
     @pytest.mark.parametrize(
