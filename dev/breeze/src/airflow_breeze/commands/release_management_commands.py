@@ -304,7 +304,7 @@ AIRFLOW_USE_UV = False
 GITPYTHON_VERSION = "3.2.1"
 RICH_VERSION = "15.0.0"
 PREK_VERSION = "0.5.7"
-HATCH_VERSION = "1.18.1"
+HATCH_VERSION = "1.18.2"
 PYYAML_VERSION = "6.0.3"
 
 # prek environment and this is done with node, no python installation is needed.
@@ -4027,7 +4027,7 @@ SOURCE_API_YAML_PATH = (
     AIRFLOW_ROOT_PATH / "airflow-core/src/airflow/api_fastapi/core_api/openapi/v2-rest-api-generated.yaml"
 )
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v2.yaml"
-OPENAPI_GENERATOR_CLI_VER = "7.26.0"
+OPENAPI_GENERATOR_CLI_VER = "7.27.0"
 
 GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
     Path("airflow_client") / "client",

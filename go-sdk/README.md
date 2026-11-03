@@ -117,7 +117,7 @@ prek hook regenerate it.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.5.0 · supervisor schema: 2027-02-28*
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|

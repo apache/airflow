@@ -112,7 +112,10 @@ NON_MODULE_SERVICES: set[str] = set()
 # (chat or embedding) that reaches them. `elevenlabs` (added in pydantic-ai-slim 2.59.0) is
 # the same: its provider only backs ElevenLabs speech/realtime models, which `infer_model`
 # does not route to (`UserError: Unknown model: elevenlabs:...`, checked on 2.59.0).
-UNREACHABLE_MODULES = {"voyageai", "sentence_transformers", "elevenlabs"}
+# `openai_compatible` (added in pydantic-ai-slim 2.63.0) is a generic provider for any
+# OpenAI-compatible endpoint that must be constructed with a service `name`; `infer_model` has no
+# prefix for it (`UserError: Unknown model: openai-compatible:...`, checked on 2.63.0).
+UNREACHABLE_MODULES = {"voyageai", "sentence_transformers", "elevenlabs", "openai_compatible"}
 
 # Modules that ARE reachable through `infer_model` (unlike UNREACHABLE_MODULES) but are
 # excluded by decision because pydantic-ai itself marks the upstream backend dead:
