@@ -197,11 +197,15 @@ x-ol-common: &ol-common
     - --
 
 # Each probe of the scheduler, dag-processor, triggerer and worker runs a whole Airflow or Celery CLI (~1.5s of CPU);
-# probing all four every 30s takes a tenth of a CI runner. Nothing waits for them to be healthy (the harness checks
-# every component by running the warmup Dag), so their probes are off. The API server's probe is a cheap curl that
-# the worker waits for before it starts: probe it every 2s until it is up, instead of every 30s.
-x-ol-no-healthcheck: &ol-no-healthcheck
-  test: ["NONE"]
+# probing all four every 30s takes a tenth of a CI runner. Only `docker compose up --wait` waits for them to be healthy
+# (the harness checks every component by running the warmup Dag), so their probe just runs `true`. It is not turned
+# off with `test: ["NONE"]`: Compose 2.x (on the CI runners) then waits for a health status those containers never
+# report, and `up --wait` fails. The API server's probe is a cheap curl that the worker waits for before it starts:
+# probe it every 2s until it is up, instead of every 30s.
+x-ol-cheap-healthcheck: &ol-cheap-healthcheck
+  test: ["CMD", "true"]
+  start_period: 5m
+  start_interval: 1s
 
 services:
   airflow-apiserver:
@@ -211,13 +215,13 @@ services:
       start_interval: 2s
   airflow-scheduler:
     <<: *ol-common
-    healthcheck: *ol-no-healthcheck
+    healthcheck: *ol-cheap-healthcheck
   airflow-dag-processor:
     <<: *ol-common
-    healthcheck: *ol-no-healthcheck
+    healthcheck: *ol-cheap-healthcheck
   airflow-triggerer:
     <<: *ol-common
-    healthcheck: *ol-no-healthcheck
+    healthcheck: *ol-cheap-healthcheck
   airflow-worker:
     <<: *ol-common
-    healthcheck: *ol-no-healthcheck
+    healthcheck: *ol-cheap-healthcheck
