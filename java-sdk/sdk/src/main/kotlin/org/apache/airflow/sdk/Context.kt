@@ -25,6 +25,7 @@ import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.internal.bindConf
 import java.time.Duration
 import java.time.OffsetDateTime
+import java.util.concurrent.TimeUnit
 import org.apache.airflow.sdk.execution.comm.DagRun.DagRunType as CommDagRunType
 
 private val logger = Logger(Context::class)
@@ -191,10 +192,8 @@ data class Context(
   /** Registration of the executing task; resolves wired data inputs. */
   internal var taskDef: TaskDef? = null
 
-  // The value is read once, when the context is made. The server sets Cancellation.running back to
-  // null once it is done with the task, so a context that read the field on every call would stop
-  // seeing the stop request in code that runs after that, such as a JVM shutdown hook.
-  private val cancellation = Cancellation.current()
+  // Only from() sets this field. A context made in any other way, including with copy(), keeps it null.
+  private var cancellation: Cancellation? = null
 
   /**
    * Whether Airflow has asked this task to stop.
@@ -204,42 +203,52 @@ data class Context(
    * the JVM, then sends the JVM SIGTERM. If the JVM is still running after a
    * grace period, the supervisor sends SIGKILL.
    *
-   * Only a [StoppableTask] can see a stop request, because the SDK catches the
-   * stop signal only for that type of task. For any other task, the JVM handles
-   * the signal as it would without the SDK: by default the JVM runs its shutdown
-   * hooks and exits. This method therefore returns false until the JVM exits, and
-   * the SDK logs a warning the first time such a task calls it.
+   * Only a [StoppableTask] can call this method, because the SDK catches the stop
+   * signal only for that type of task. For any other task, the JVM handles the
+   * signal as it would without the SDK: by default the JVM runs its shutdown hooks
+   * and exits. Such a task could never see a stop request, so this method throws
+   * instead of returning false.
    *
-   * Every context made while the task runs sees the same stop request,
-   * including a context made with `copy()`, and keeps seeing it after the task
-   * returns. A context made when the server is not running a task, for example
-   * in a unit test that calls a task directly, never sees a stop request.
+   * The context that the SDK passes to the task keeps seeing the stop request
+   * after the task returns. A context made in any other way never sees a stop
+   * request, and this method returns false for it. That includes a context that
+   * a unit test makes to call a task directly, and a context made with `copy()`.
+   *
+   * @throws IllegalStateException if the running task is not a [StoppableTask].
    */
-  fun isCancelled(): Boolean = cancellation.check()
+  fun isCancelled(): Boolean = cancellation?.check() ?: false
 
   /**
    * Waits until Airflow asks this task to stop, or until [timeout] passes.
    *
    * Use this method in place of [Thread.sleep] in a polling loop, so the task
    * stops waiting as soon as Airflow asks it to stop. See [isCancelled] for when
-   * Airflow asks a task to stop.
+   * Airflow asks a task to stop, and for which tasks can call this method.
    *
-   * A context made when the server is not running a task never sees a stop
-   * request. On such a context, this method waits for the whole [timeout] and
-   * returns false.
+   * On a context that never sees a stop request, as described in [isCancelled],
+   * this method waits for the whole [timeout] and returns false.
    *
    * @param timeout How long to wait at most.
    * @return `true` if Airflow asked the task to stop, `false` if [timeout]
    *    passed first.
+   * @throws IllegalStateException if the running task is not a [StoppableTask].
    * @throws InterruptedException if the waiting thread is interrupted.
    */
   @Throws(InterruptedException::class)
-  fun awaitCancellation(timeout: Duration): Boolean = cancellation.await(timeout)
+  fun awaitCancellation(timeout: Duration): Boolean {
+    val cancellation = cancellation
+    if (cancellation == null) {
+      TimeUnit.NANOSECONDS.sleep(TimeUnit.NANOSECONDS.convert(timeout))
+      return false
+    }
+    return cancellation.await(timeout)
+  }
 
   internal companion object {
     fun from(
       request: StartupDetails,
       taskDef: TaskDef? = null,
+      cancellation: Cancellation? = null,
     ): Context =
       Context(
         dagRun =
@@ -256,6 +265,9 @@ data class Context(
             )
           },
         ti = with(request.ti) { TaskInstance(dagId, runId, taskId, mapIndex, tryNumber) },
-      ).also { it.taskDef = taskDef }
+      ).also {
+        it.taskDef = taskDef
+        it.cancellation = cancellation
+      }
   }
 }

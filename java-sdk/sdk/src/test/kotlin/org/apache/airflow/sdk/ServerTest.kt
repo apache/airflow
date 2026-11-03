@@ -94,28 +94,6 @@ class StopAwareTask : StoppableTask {
   override fun onKill(context: Context) = Unit
 }
 
-/** The copy that [CopyCheckingTask] checked, kept so the test can check it again after the task returns. */
-@Volatile
-private var checkedCopy: Context? = null
-
-/**
- * This task works like [StopAwareTask], but it checks for a stop request only through a copy of its
- * context that another thread made.
- */
-class CopyCheckingTask : StoppableTask {
-  override fun execute(
-    context: Context,
-    client: Client,
-  ) {
-    thread { checkedCopy = context.copy() }.join()
-    val copy = checkNotNull(checkedCopy)
-    taskEvents.put("started")
-    taskEvents.put("awaitCancellation returned ${copy.awaitCancellation(Duration.ofSeconds(20))}")
-  }
-
-  override fun onKill(context: Context) = Unit
-}
-
 /** Blocks without looking at its context, so only [onKill] can make it return. */
 class BlockedTask : StoppableTask {
   private val released = CountDownLatch(1)
@@ -299,20 +277,28 @@ class SignalInConstructorTask : StoppableTask {
   }
 }
 
-/** Runs until the test releases it. As a plain [Task], it cannot see a stop request, even though it checks for one. */
+/** Runs until the test releases it. */
+class PlainBlockedTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    taskEvents.put("started")
+    releaseTask.poll(20, TimeUnit.SECONDS)
+  }
+}
+
+/** Checks for a stop request, which a plain [Task] cannot see. */
 class PlainCheckingTask : Task {
   override fun execute(
     context: Context,
     client: Client,
   ) {
-    taskEvents.put("isCancelled() returned ${context.isCancelled()}")
-    taskEvents.put("started")
-    releaseTask.poll(20, TimeUnit.SECONDS)
-    taskEvents.put("isCancelled() returned ${context.isCancelled()}")
+    context.isCancelled()
   }
 }
 
-/** Waits briefly for a stop request. As a plain [Task], it cannot see one. */
+/** Waits briefly for a stop request, which a plain [Task] cannot see. */
 class PlainWaitingTask : Task {
   override fun execute(
     context: Context,
@@ -485,14 +471,12 @@ class ServerTest {
   /**
    * Runs [taskClass] as task "a" of Dag "c" through [CoordinatorServer.dispatchTask] and returns the
    * result that the task reports. A thread that plays the supervisor sends the startup details, calls
-   * [whileRunning], reads the result, and calls [beforeAck] before it acknowledges the result. With
-   * [ack] set to false, that thread closes the connection instead, so reporting the result fails.
+   * [whileRunning], reads the result, and calls [beforeAck] before it acknowledges the result.
    */
   private fun dispatchTask(
     taskClass: Class<out Task>,
     whileRunning: () -> Unit = {},
     beforeAck: () -> Unit = {},
-    ack: Boolean = true,
     dag: DagDef = DagDef("c").addTask(TaskDef("a", taskClass)),
   ): IncomingFrame {
     taskEvents.clear()
@@ -513,7 +497,7 @@ class ServerTest {
           val result = CoordinatorComm.decode(payload)
           reported.put(result)
           beforeAck()
-          if (ack) toServer.writeFrame(ackFrame(result.id)) else comm.close()
+          toServer.writeFrame(ackFrame(result.id))
         }
       }
 
@@ -525,9 +509,6 @@ class ServerTest {
     }
     return reported.take()
   }
-
-  /** How many times the runtime warned that the running task cannot see a stop request. */
-  private fun plainTaskWarnings(): Int = LogSender.messages.count { it.event == PLAIN_TASK_WARNING }
 
   /** The events the runtime logged for the stop signals it got, in order. */
   private fun signalLogs(): List<String> = LogSender.messages.map { it.event }.filter { it in SIGNAL_EVENTS }
@@ -583,52 +564,6 @@ class ServerTest {
       Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task returned, so its success is reported")
       Assertions.assertEquals(listOf("Asking the task to stop", "Letting the JVM handle the signal"), signalLogs())
       Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "the second SIGTERM should reach the JVM's handler")
-      Assertions.assertEquals(0, plainTaskWarnings(), "a stoppable task can see the request")
-    }
-
-  @Test
-  @DisplayName(
-    "Should let a task that checks for a stop request only through a copy of its context see SIGTERM, " +
-      "and let the copy still see it after the task returns",
-  )
-  @Timeout(value = 60, unit = TimeUnit.SECONDS)
-  fun copiedContextSeesStopSignal() =
-    withSignalRecorder("TERM") { recorded ->
-      checkedCopy = null
-      dispatchTask(
-        CopyCheckingTask::class.java,
-        whileRunning = {
-          awaitTaskEvent("started")
-          Signal.raise(Signal("TERM"))
-        },
-      )
-
-      Assertions.assertEquals(listOf("awaitCancellation returned true"), taskEvents.toList(), "the copy should see the SIGTERM")
-      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
-      Assertions.assertNull(recorded.poll(), "the SDK should keep the SIGTERM for the task")
-      val copy = checkNotNull(checkedCopy)
-      Assertions.assertTrue(copy.isCancelled(), "the copy should still see the stop request after the task returns")
-      Assertions.assertFalse(copy.copy().isCancelled(), "a context made after the task returns should not see the stop request")
-    }
-
-  @Test
-  @DisplayName("Should not show the stop request to a context made after the task when reporting the result fails")
-  @Timeout(value = 60, unit = TimeUnit.SECONDS)
-  fun stopRequestEndsWhenReportingFails() =
-    withSignalRecorder("TERM") { _ ->
-      Assertions.assertThrows(ApiError::class.java) {
-        dispatchTask(
-          StopAwareTask::class.java,
-          whileRunning = {
-            awaitTaskEvent("started")
-            Signal.raise(Signal("TERM"))
-          },
-          ack = false,
-        )
-      }
-
-      Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
-      Assertions.assertFalse(taskContext().isCancelled(), "a context made after the failed report should not see the stop request")
     }
 
   @Test
@@ -666,13 +601,13 @@ class ServerTest {
     }
 
   @Test
-  @DisplayName("Should leave SIGTERM to the JVM for a plain task, even one that checks for a stop request")
+  @DisplayName("Should leave SIGTERM to the JVM for a plain task")
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
   fun signalGoesToTheJvmForPlainTask() =
     withSignalRecorder("TERM") { recorded ->
       val handedBack = LinkedBlockingQueue<String>()
       dispatchTask(
-        PlainCheckingTask::class.java,
+        PlainBlockedTask::class.java,
         whileRunning = {
           awaitTaskEvent("started")
           Signal.raise(Signal("TERM"))
@@ -682,18 +617,21 @@ class ServerTest {
       )
 
       Assertions.assertEquals("SIGTERM", handedBack.take(), "SIGTERM should reach the JVM's handler while the task runs")
-      Assertions.assertEquals(listOf("isCancelled() returned false"), taskEvents.toList(), "a plain task should not see the request")
       Assertions.assertEquals(emptyList<String>(), signalLogs(), "the SDK should not see a signal it does not catch")
-      Assertions.assertEquals(1, plainTaskWarnings(), "the task checked twice, and should get one warning")
     }
 
   @Test
-  @DisplayName("Should warn a plain task that waits for a stop request")
+  @DisplayName("Should fail a plain task that checks for a stop request, because it can never see one")
   @Timeout(value = 60, unit = TimeUnit.SECONDS)
-  fun warnsPlainTaskThatWaitsForStopRequest() {
-    dispatchTask(PlainWaitingTask::class.java)
+  fun failsPlainTaskThatChecksForStopRequest() {
+    for (taskClass in listOf(PlainCheckingTask::class.java, PlainWaitingTask::class.java)) {
+      val result = dispatchTask(taskClass)
 
-    Assertions.assertEquals(1, plainTaskWarnings())
+      Assertions.assertEquals(TaskState.State.FAILED, (result.body as TaskState).state, taskClass.simpleName)
+      val error = LogSender.messages.single { it.event == "Error executing task" }.arguments["error"]
+      Assertions.assertInstanceOf(IllegalStateException::class.java, error, taskClass.simpleName)
+      Assertions.assertEquals(NOT_STOPPABLE_TASK_ERROR, (error as Throwable).message, taskClass.simpleName)
+    }
   }
 
   @Test
@@ -964,7 +902,8 @@ class ServerTest {
 
   private companion object {
     val SIGNAL_EVENTS = setOf("Asking the task to stop", "Letting the JVM handle the signal")
-    const val PLAIN_TASK_WARNING = "The task checked for a stop request, but only a StoppableTask can see one"
+    const val NOT_STOPPABLE_TASK_ERROR =
+      "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method"
 
     // [2, msg, null] with msg coming from
     // https://github.com/astronomer/airflow/blob/f39c8da8/task-sdk/tests/task_sdk/execution_time/test_comms.py#L73-L108
