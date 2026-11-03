@@ -1104,13 +1104,27 @@ class TestAttemptLiveness:
             assert client.delete(path).status_code == 410
             assert client.get(path).status_code == 410
 
-    def test_unknown_execution_identity_cannot_write(self, client, caller):
-        _, token = caller
+    def test_unknown_execution_identity_cannot_write_xcom(self, client, caller, session):
+        ti, token = caller
         token.id = uuid4()
+        path = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/result"
+
+        assert client.post(path, json="unowned").status_code == 404
+        assert session.scalar(select(XComModel).where(XComModel.dag_id == ti.dag_id)) is None
+
+    @pytest.mark.parametrize("identity", ["unknown", "archived"])
+    def test_non_ti_identity_can_write_variables(self, client, caller, session, identity):
+        ti, token = caller
+        if identity == "archived":
+            ti.prepare_db_for_next_try(session)
+            session.commit()
+        else:
+            token.id = uuid4()
         key = f"attempt-liveness-{uuid4()}"
         try:
-            response = client.put(f"/execution/variables/{key}", json={"value": "unowned"})
-            assert response.status_code == 404
+            assert client.put(f"/execution/variables/{key}", json={"value": "unowned"}).status_code == 201
+            assert Variable.get(key) == "unowned"
+            assert client.delete(f"/execution/variables/{key}").status_code == 204
             with pytest.raises(KeyError):
                 Variable.get(key)
         finally:
@@ -1127,8 +1141,6 @@ class TestAttemptLiveness:
         ("delete", "/execution/store/asset/by-name/clear?name=asset", None),
         ("post", "/execution/dag-runs/target/run", {}),
         ("post", "/execution/dag-runs/target/run/clear", None),
-        ("put", "/execution/variables/key", {"value": "stale"}),
-        ("delete", "/execution/variables/key", None),
         ("post", "/execution/xcoms/{dag_id}/{run_id}/{task_id}/key", "late"),
     ]
 
@@ -1273,14 +1285,12 @@ class TestAttemptLiveness:
         )
         assert XComModelV2.get_for_attempt(archived.id, "key", session=session).value == "archived"
 
-    @pytest.mark.parametrize("operation", ["xcom_write", "xcom_delete", "rtif_write", "variable_write"])
+    @pytest.mark.parametrize("operation", ["xcom_write", "xcom_delete", "rtif_write"])
     def test_admitted_child_mutation_stays_with_archived_uuid(
-        self, client, caller, session, monkeypatch, request, operation
+        self, client, caller, session, monkeypatch, operation
     ):
         attempt, _ = caller
         old_id = attempt.id
-        variable_key = f"attempt-liveness-{uuid4()}"
-        request.addfinalizer(lambda: Variable.delete(variable_key))
         xcom_path = f"/execution/xcoms/{attempt.dag_id}/{attempt.run_id}/{attempt.task_id}/value"
         XComModel.set_for_attempt(
             task_instance_id=old_id, key="value", value="original", serialize=False, session=session
@@ -1307,19 +1317,9 @@ class TestAttemptLiveness:
                 )
             )
         session.commit()
-        path = {
-            "rtif_write": f"/execution/task-instances/{old_id}/rtif",
-            "variable_write": f"/execution/variables/{variable_key}",
-        }.get(operation, xcom_path)
-        method = {
-            "xcom_write": "POST",
-            "xcom_delete": "DELETE",
-            "rtif_write": "PUT",
-            "variable_write": "PUT",
-        }[operation]
-        body = {"rtif_write": {"field": "late"}, "variable_write": {"value": "in flight"}}.get(
-            operation, "late"
-        )
+        path = {"rtif_write": f"/execution/task-instances/{old_id}/rtif"}.get(operation, xcom_path)
+        method = {"xcom_write": "POST", "xcom_delete": "DELETE", "rtif_write": "PUT"}[operation]
+        body = {"rtif_write": {"field": "late"}}.get(operation, "late")
         admitted, finish = Event(), Event()
         check = security._require_live_attempt
 
@@ -1348,9 +1348,7 @@ class TestAttemptLiveness:
             finally:
                 finish.set()
             response = pending.result(timeout=10)
-        expected_status = {"xcom_write": 201, "xcom_delete": 200, "rtif_write": 410, "variable_write": 201}[
-            operation
-        ]
+        expected_status = {"xcom_write": 201, "xcom_delete": 200, "rtif_write": 410}[operation]
         assert response.status_code == expected_status, response.text
         session.expire_all()
         assert XComModelV2.get_for_attempt(successor.id, "value", session=session).value == "successor"
@@ -1365,10 +1363,6 @@ class TestAttemptLiveness:
                 session.get(XComModelV1, (attempt.dag_run.id, attempt.task_id, attempt.map_index, "value"))
                 is None
             )
-        elif operation == "variable_write":
-            assert Variable.get(variable_key) == "in flight"
-            assert client.put(path, json={"value": "too late"}).status_code == 410
-            assert Variable.get(variable_key) == "in flight"
         else:
             assert RenderedTaskInstanceFields.get_for_attempt(old_id, session=session) is None
 

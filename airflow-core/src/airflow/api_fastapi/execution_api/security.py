@@ -145,6 +145,7 @@ _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
 _IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
+_ALLOW_NON_TI_WRITER = "allow_non_ti_writer"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
@@ -154,6 +155,12 @@ JOB_UNCHECKED_SCOPE = "job:unchecked"
 def skip_auto_ti_attempt_live(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
     """Mark a route that checks attempt liveness itself, so ``require_auth`` skips its automatic check."""
     setattr(endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, True)
+    return endpoint
+
+
+def allow_non_ti_writer(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Mark a route whose data no task attempt owns, so ``require_auth`` skips its automatic check."""
+    setattr(endpoint, _ALLOW_NON_TI_WRITER, True)
     return endpoint
 
 
@@ -288,6 +295,7 @@ async def require_auth(
         and not request.scope.get(_IN_PROCESS_NON_TI_CALLER)
         and not request.scope.get(_REQUEST_SCOPE_LIVE_ATTEMPT_KEY)
         and not getattr(route, _SKIP_AUTO_TI_ATTEMPT_LIVE, False)
+        and not getattr(route, _ALLOW_NON_TI_WRITER, False)
     ):
         # The versions package imports routes, which depend on this module.
         from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
@@ -477,12 +485,14 @@ class ExecutionAPIRoute(APIRoute):
 
     allowed_token_types: frozenset[str]
     skip_auto_ti_attempt_live: bool
+    allow_non_ti_writer: bool
 
     requires_open_job: bool
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.skip_auto_ti_attempt_live = bool(getattr(self.endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, False))
+        self.allow_non_ti_writer = bool(getattr(self.endpoint, _ALLOW_NON_TI_WRITER, False))
 
         all_scopes: set[str] = set()
         for dep in self.dependencies:
