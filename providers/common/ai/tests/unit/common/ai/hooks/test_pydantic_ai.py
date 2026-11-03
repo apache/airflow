@@ -1840,10 +1840,16 @@ class TestPydanticAIHookEnsureModelReady:
         *,
         model_id: str | None = "ollama:llama3",
         host: str | None = "http://ollama:11434/v1",
+        extra: dict | None = None,
         **hook_kwargs,
     ) -> tuple[PydanticAIHook, Connection]:
         hook = PydanticAIHook(llm_conn_id="local_conn", model_id=model_id, **hook_kwargs)
-        conn = Connection(conn_id="local_conn", conn_type="pydanticai", host=host)
+        conn = Connection(
+            conn_id="local_conn",
+            conn_type="pydanticai",
+            host=host,
+            extra=json.dumps(extra) if extra else None,
+        )
         return hook, conn
 
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
@@ -1930,13 +1936,57 @@ class TestPydanticAIHookEnsureModelReady:
         stub.load.assert_called_once()
         mock_ollama_cls.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {"model": "ollama:llama3"},
+            {"model": "llama3", "model_provider": "ollama"},
+        ],
+        ids=["prefixed-model-in-extra", "bare-model-with-model-provider-in-extra"],
+    )
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_model_configured_only_on_the_connection(self, mock_backend_cls, extra):
+        hook, conn = self._build_hook(model_id=None, extra=extra)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
     @pytest.mark.parametrize("host", [None, ""])
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_missing_host_raises_value_error(self, mock_backend_cls, host):
+    def test_missing_host_falls_back_to_ollama_base_url_env(self, mock_backend_cls, monkeypatch, host):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
         hook, conn = self._build_hook(host=host)
 
         with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(ValueError, match="host"):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://env-ollama:11434/v1", "llama3")
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_connection_host_wins_over_ollama_base_url_env(self, mock_backend_cls, monkeypatch):
+        monkeypatch.setenv("OLLAMA_BASE_URL", "http://env-ollama:11434/v1")
+        hook, conn = self._build_hook()
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready()
+
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
+
+    @pytest.mark.parametrize("host", [None, ""])
+    @pytest.mark.parametrize("env_value", [None, ""], ids=["env-unset", "env-empty"])
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_missing_host_and_ollama_base_url_env_raises_value_error(
+        self, mock_backend_cls, monkeypatch, host, env_value
+    ):
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        if env_value is not None:
+            monkeypatch.setenv("OLLAMA_BASE_URL", env_value)
+        hook, conn = self._build_hook(host=host)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            with pytest.raises(ValueError, match=r"needs a host, or the OLLAMA_BASE_URL"):
                 hook.ensure_model_ready()
 
         mock_backend_cls.assert_not_called()
