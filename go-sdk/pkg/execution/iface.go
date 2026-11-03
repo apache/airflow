@@ -58,6 +58,12 @@ func ifaceInt(v any, def int) int {
 	return def
 }
 
+// ifaceFloat converts a numeric value decoded as any into float64, reporting
+// false when it is not numeric.
+func ifaceFloat(v any) (float64, bool) {
+	return ifaceNumber[float64](v)
+}
+
 // ifaceNumber converts a numeric value decoded as any into T, reporting false
 // when it is not numeric. msgpack decodes a number into whichever int, uint or
 // float width fits it.

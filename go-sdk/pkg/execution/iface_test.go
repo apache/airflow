@@ -36,6 +36,25 @@ func TestIfaceInt(t *testing.T) {
 	assert.Equal(t, -1, ifaceInt("not a number", -1))
 }
 
+func TestIfaceFloat(t *testing.T) {
+	for _, v := range []any{
+		int(42), int8(42), int16(42), int32(42), int64(42),
+		uint(42), uint8(42), uint16(42), uint32(42), uint64(42),
+		float32(42), float64(42),
+	} {
+		f, ok := ifaceFloat(v)
+		assert.True(t, ok)
+		assert.Equal(t, 42.0, f)
+	}
+	f, ok := ifaceFloat(1.5)
+	assert.True(t, ok)
+	assert.Equal(t, 1.5, f)
+	for _, v := range []any{nil, "not a number"} {
+		_, ok := ifaceFloat(v)
+		assert.False(t, ok)
+	}
+}
+
 func TestIfaceStringHelpers(t *testing.T) {
 	assert.Equal(t, "v", ifaceString("v"))
 	assert.Equal(t, "", ifaceString(nil))
