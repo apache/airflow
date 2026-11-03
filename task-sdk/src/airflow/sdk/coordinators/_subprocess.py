@@ -451,6 +451,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         subprocess_schema_version: str | None = None,
         subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
+        cwd: pathlib.Path | None = None,
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
@@ -472,6 +473,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     stdout=stdout_w.fileno(),
                     stderr=stderr_w.fileno(),
                     env=_build_runtime_env(),
+                    cwd=cwd,
                     # Own process group, so the supervisor can signal everything the runtime
                     # spawned with os.killpg, as the Python task runner has done since #65505.
                     # Popen returns after exec, so the group exists before kill().
@@ -736,6 +738,14 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
+    def _get_working_directory(self) -> pathlib.Path | None:
+        """
+        Return the directory the runtime starts in, or ``None`` to keep the current one.
+
+        It is resolved after the command, while :meth:`_get_scan_roots` still answers.
+        """
+        return None
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
@@ -801,6 +811,7 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         with self._set_scan_roots([bundle_path]):
             command, schema_version = self._build_parse_dag_command(path=path)
+            cwd = self._get_working_directory()
         if schema_version is not None:
             get_schema_version_migrator().resolve_version(schema_version)
         argv = [
@@ -815,6 +826,8 @@ class SubprocessCoordinator(BaseCoordinator):
             if (sig := getattr(signal, name, None)) is not None:
                 signal.signal(sig, signal.SIG_DFL)
         _set_close_on_exec_above_stderr()
+        if cwd is not None:
+            os.chdir(cwd)
         os.execvpe(argv[0], argv, _build_runtime_env())
 
     @contextlib.contextmanager
@@ -936,6 +949,7 @@ class SubprocessCoordinator(BaseCoordinator):
                     )
                 else:
                     command, subprocess_schema_version = self._build_execute_task_command(what=what)
+                cwd = self._get_working_directory()
                 if subprocess_schema_version is not None:
                     _require_supported_schema_version(subprocess_schema_version)
             process = _PopenActivitySubprocess.start(
@@ -949,6 +963,7 @@ class SubprocessCoordinator(BaseCoordinator):
                 command=command,
                 subprocess_schema_version=subprocess_schema_version,
                 startup_timeout=self.task_startup_timeout,
+                cwd=cwd,
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)
