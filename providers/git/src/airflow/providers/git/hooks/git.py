@@ -28,7 +28,6 @@ import tempfile
 import warnings
 from collections.abc import Generator
 from datetime import UTC, datetime, timedelta
-from functools import cache
 from typing import Any
 from urllib.parse import unquote
 
@@ -36,26 +35,6 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
-
-
-@cache
-def _is_proactive_auth_supported() -> bool:
-    """Check once per process whether the installed git knows ``http.proactiveAuth`` (git 2.46+)."""
-    from git import Git
-    from git.exc import GitError
-
-    try:
-        version = Git().version_info
-    except (GitError, ValueError):
-        version = ()
-    if version >= (2, 46):
-        return True
-    log.warning(
-        "git %s does not support http.proactiveAuth (added in git 2.46). The access token will only "
-        "be sent when the server asks for it, so public repositories are fetched anonymously.",
-        ".".join(map(str, version)) or "of unknown version",
-    )
-    return False
 
 
 @contextlib.contextmanager
@@ -86,6 +65,7 @@ class GitHook(BaseHook):
 
     Connection extra fields:
 
+    * ``proactive_auth`` — send the token on the first HTTPS request (default off, git 2.46+).
     * ``key_file`` — path to an SSH private key file.
     * ``private_key`` — inline SSH private key string (mutually exclusive with ``key_file``).
     * ``private_key_passphrase`` — passphrase for the private key (key_file or inline).
@@ -149,6 +129,7 @@ class GitHook(BaseHook):
         embedded_user, embedded_token = self._strip_embedded_credentials()
         self.user_name = connection.login or embedded_user or "user"
         self.auth_token = connection.password or embedded_token
+        self.proactive_auth = extra.get("proactive_auth") is True
 
         # SSH key authentication
         self.private_key = extra.get("private_key")
@@ -353,24 +334,24 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
             # `credential.helper` would otherwise answer `get` first and our token would never
             # be used. git also invokes every helper on `approve`, so a `store` helper would
             # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
+            config = [
+                (f"credential.{scope}.helper", ""),
+                # git runs the value through a shell. The ! marks it as a command and preserves quoting.
+                (f"credential.{scope}.helper", "!" + shlex.quote(helper_path)),
+            ]
+            if self.proactive_auth and scope.startswith("https://"):
+                # Scope proactive auth to the repository URL so sibling repositories on the host
+                # do not inherit it just because they share the credential helper.
+                config.append((f"http.{self.repo_url}.proactiveAuth", "basic"))
             values = {
-                "GIT_CONFIG_COUNT": str(index + 2),
-                f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
-                f"GIT_CONFIG_VALUE_{index}": "",
-                f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
-                # git runs the value through a shell, so a temp dir containing a space would
-                # split into two words. ``!`` marks it as a command so the quoting survives.
-                f"GIT_CONFIG_VALUE_{index + 1}": "!" + shlex.quote(helper_path),
+                "GIT_CONFIG_COUNT": str(index + len(config)),
                 "GIT_TERMINAL_PROMPT": "0",
                 "AIRFLOW_GIT_USER": self.user_name,
                 "AIRFLOW_GIT_TOKEN": self.auth_token,
             }
-            # A public repository answers anonymous requests, so git never gets the 401 that makes
-            # it send the token, and the fetch counts against the server's anonymous rate limit.
-            if str(self.repo_url).startswith("https://") and _is_proactive_auth_supported():
-                values["GIT_CONFIG_COUNT"] = str(index + 3)
-                values[f"GIT_CONFIG_KEY_{index + 2}"] = f"http.{self.repo_url}.proactiveAuth"
-                values[f"GIT_CONFIG_VALUE_{index + 2}"] = "basic"
+            for offset, (key, value) in enumerate(config, start=index):
+                values[f"GIT_CONFIG_KEY_{offset}"] = key
+                values[f"GIT_CONFIG_VALUE_{offset}"] = value
             # ``self.env`` alone is not enough: callers only forward it on the initial clone,
             # so fetches would run without the credential and hang on the terminal prompt.
             envs = (os.environ, self.env)

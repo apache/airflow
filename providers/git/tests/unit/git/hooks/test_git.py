@@ -35,11 +35,10 @@ from unittest import mock
 
 import pytest
 from git import Git, Repo
-from git.exc import GitCommandNotFound
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.git.hooks.git import GitHook, _is_proactive_auth_supported
+from airflow.providers.git.hooks.git import GitHook
 
 from tests_common.test_utils.config import conf_vars
 
@@ -48,15 +47,6 @@ from tests_common.test_utils.config import conf_vars
 def bundle_temp_dir(tmp_path):
     with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
         yield tmp_path
-
-
-@pytest.fixture(autouse=True)
-def proactive_auth_supported():
-    # Off unless a test turns it on, so the expected GIT_CONFIG_* entries don't depend on local git.
-    with mock.patch(
-        "airflow.providers.git.hooks.git._is_proactive_auth_supported", autospec=True, return_value=False
-    ) as supported:
-        yield supported
 
 
 GIT_DEFAULT_BRANCH = "main"
@@ -109,24 +99,27 @@ def recording_git_server():
 
 
 @contextlib.contextmanager
-def recording_public_https_git_server(tmp_path: pathlib.Path):
-    """Serve 200s over https on loopback, like a public repository, recording every credential git sends.
+def recording_public_https_git_server(tmp_path: pathlib.Path, accepted_auth: str):
+    """Serve a public endpoint over HTTPS and reject unrecognized credentials.
 
-    Yields the port, the received credentials, and the certificate git needs to trust the server.
+    Yields the port, the received headers, and the certificate git needs to trust the server.
     """
     from cryptography import x509
     from cryptography.hazmat.primitives import hashes, serialization
     from cryptography.hazmat.primitives.asymmetric import ec
     from cryptography.x509.oid import NameOID
 
-    received: list[str] = []
+    received: list[str | None] = []
 
     class Public(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
             header = self.headers.get("Authorization")
-            if header and header.startswith("Basic "):
-                received.append(base64.b64decode(header[6:]).decode())
-            self.send_response(200)
+            received.append(header)
+            if header is None or header == accepted_auth:
+                self.send_response(200)
+            else:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="test"')
             self.send_header("Content-Length", "0")
             self.end_headers()
 
@@ -856,74 +849,82 @@ class TestGitHook:
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
 
     @pytest.mark.parametrize(
-        ("url", "supported", "expected_count", "expected_key"),
+        ("url", "extra", "enabled"),
         [
-            pytest.param(AIRFLOW_HTTPS_URL, True, "3", f"http.{AIRFLOW_HTTPS_URL}.proactiveAuth", id="https"),
-            pytest.param(AIRFLOW_HTTPS_URL, False, "2", None, id="git-older-than-2.46"),
-            pytest.param(AIRFLOW_HTTP_URL, True, "2", None, id="plain-http"),
+            pytest.param(AIRFLOW_HTTPS_URL, {}, False, id="default"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": False}, False, id="disabled"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "false"}, False, id="string"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": True}, True, id="https"),
+            pytest.param(AIRFLOW_HTTP_URL, {"proactive_auth": True}, False, id="plain-http"),
         ],
     )
-    def test_proactive_auth_config(
-        self,
-        url,
-        supported,
-        expected_count,
-        expected_key,
-        proactive_auth_supported,
-        create_connection_without_db,
-    ):
-        proactive_auth_supported.return_value = supported
+    def test_proactive_auth_config(self, url, extra, enabled, create_connection_without_db, monkeypatch):
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "http.proactiveAuth")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "none")
         create_connection_without_db(
-            Connection(conn_id="git_proactive_auth", host=url, password=ACCESS_TOKEN, conn_type="git")
+            Connection(
+                conn_id="git_proactive_auth", host=url, password=ACCESS_TOKEN, conn_type="git", extra=extra
+            )
         )
         hook = GitHook(git_conn_id="git_proactive_auth")
 
         with hook.configure_hook_env():
-            assert hook.env["GIT_CONFIG_COUNT"] == expected_count
-            assert hook.env.get("GIT_CONFIG_KEY_2") == expected_key
-            assert hook.env.get("GIT_CONFIG_VALUE_2") == ("basic" if expected_key else None)
+            assert hook.env["GIT_CONFIG_COUNT"] == ("4" if enabled else "3")
+            assert os.environ["GIT_CONFIG_VALUE_0"] == "none"
+            assert hook.env.get("GIT_CONFIG_KEY_3") == (f"http.{url}.proactiveAuth" if enabled else None)
+            assert hook.env.get("GIT_CONFIG_VALUE_3") == ("basic" if enabled else None)
 
-    @pytest.mark.skipif(Git().version_info < (2, 46), reason="http.proactiveAuth needs git 2.46+")
-    def test_token_reaches_a_public_repository_without_a_challenge(
-        self, proactive_auth_supported, create_connection_without_db, tmp_path
+        assert os.environ["GIT_CONFIG_COUNT"] == "1"
+        assert "GIT_CONFIG_KEY_3" not in hook.env
+
+    @pytest.mark.parametrize(
+        ("extra", "token"),
+        [
+            pytest.param({}, "revoked-token", id="default-with-revoked-token"),
+            pytest.param({"proactive_auth": True}, ACCESS_TOKEN, id="opt-in-with-valid-token"),
+            pytest.param({"proactive_auth": True}, "revoked-token", id="opt-in-with-revoked-token"),
+        ],
+    )
+    def test_first_request_to_a_public_repository(
+        self, extra, token, create_connection_without_db, tmp_path, monkeypatch
     ):
-        proactive_auth_supported.return_value = True
-        with recording_public_https_git_server(tmp_path) as (port, received, cert_file):
+        sends_token = bool(extra) and Git().version_info >= (2, 46)
+
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.delenv("GIT_CONFIG_PARAMETERS", raising=False)
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "0")
+        monkeypatch.delenv("GIT_SSL_NO_VERIFY", raising=False)
+        valid_auth = "Basic " + base64.b64encode(f"token_user:{ACCESS_TOKEN}".encode()).decode()
+        with recording_public_https_git_server(tmp_path, valid_auth) as (port, received, cert_file):
             url = f"https://127.0.0.1:{port}/repo.git"
             create_connection_without_db(
                 Connection(
                     conn_id="git_public_repo",
                     host=url,
                     login="token_user",
-                    password=ACCESS_TOKEN,
+                    password=token,
                     conn_type="git",
+                    extra=extra,
                 )
             )
             hook = GitHook(git_conn_id="git_public_repo")
 
             with hook.configure_hook_env():
-                git_ls_remote(url, {**hook.env, "GIT_SSL_CAINFO": str(cert_file)})
+                result = subprocess.run(
+                    [Git.GIT_PYTHON_GIT_EXECUTABLE, "ls-remote", url],
+                    cwd=tmp_path,
+                    timeout=10,
+                    check=False,
+                    capture_output=True,
+                    env={**os.environ, **hook.env, "GIT_SSL_CAINFO": str(cert_file), "no_proxy": "127.0.0.1"},
+                )
 
-        assert set(received) == {f"token_user:{ACCESS_TOKEN}"}
-
-    @pytest.mark.parametrize(
-        ("version_info", "side_effect", "expected"),
-        [
-            pytest.param((2, 46, 0), None, True, id="2.46"),
-            pytest.param((2, 51, 2), None, True, id="2.51"),
-            pytest.param((2, 45, 4), None, False, id="2.45"),
-            pytest.param((), GitCommandNotFound("git", "not found"), False, id="unknown"),
-        ],
-    )
-    @mock.patch("git.Git", autospec=True)
-    def test_is_proactive_auth_supported(self, mock_git, version_info, side_effect, expected):
-        mock_git.side_effect = side_effect
-        mock_git.return_value.version_info = version_info
-        _is_proactive_auth_supported.cache_clear()
-        try:
-            assert _is_proactive_auth_supported() is expected
-        finally:
-            _is_proactive_auth_supported.cache_clear()
+        encoded = base64.b64encode(f"token_user:{token}".encode()).decode()
+        assert received
+        assert received[0] == (f"Basic {encoded}" if sends_token else None)
+        assert (result.returncode == 0) == (not sends_token or token == ACCESS_TOKEN), result.stderr
 
     def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
         """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""

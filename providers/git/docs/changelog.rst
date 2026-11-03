@@ -19,6 +19,12 @@
 Changelog
 ---------
 
+.. warning::
+
+   Connections that opt in to proactive HTTPS authentication require Git 2.46 or later.
+   A public repository may reject a request carrying an expired or revoked token even if it
+   accepts anonymous requests. Replace the token or turn off ``proactive_auth`` to recover.
+
 1.0.1
 .....
 
