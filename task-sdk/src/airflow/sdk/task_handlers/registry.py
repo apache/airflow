@@ -25,6 +25,11 @@ TaskHandlerF = TypeVar("TaskHandlerF", bound=Callable)
 _REGISTRY: dict[tuple[str, str], Callable] = {}
 
 
+def _get_fileloc(fn: Callable) -> str | None:
+    """Return the source file a handler is defined in, or *None* if unknown."""
+    return code.co_filename if (code := getattr(fn, "__code__", None)) is not None else None
+
+
 def get_handler(dag_id: str, task_id: str) -> Callable | None:
     """Get the handler registered for the task, or *None* if none is."""
     return _REGISTRY.get((dag_id, task_id))
@@ -48,8 +53,12 @@ def task_handler(dag_id: str, task_id: str | None = None) -> Callable[[TaskHandl
     def _task_handler(fn: TaskHandlerF) -> TaskHandlerF:
         if not (resolved_task_id := task_id or getattr(fn, "__name__", None)):
             raise ValueError("task_id could not be derived from the handler; pass task_id explicitly")
-        if (key := (dag_id, resolved_task_id)) in _REGISTRY:
-            raise ValueError(f"handler already registered for dag_id={dag_id!r} task_id={resolved_task_id!r}")
+        key = (dag_id, resolved_task_id)
+        if (existing := _REGISTRY.get(key)) is not None and _get_fileloc(existing) != _get_fileloc(fn):
+            raise ValueError(
+                f"handler already registered for dag_id={dag_id!r} task_id={resolved_task_id!r} "
+                f"in {_get_fileloc(existing)!r}"
+            )
         _REGISTRY[key] = fn
         return fn
 

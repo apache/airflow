@@ -73,16 +73,27 @@ class TestRegistry:
     def test_unknown_lookup_returns_none(self):
         assert get_handler("nope", "nope") is None
 
-    def test_duplicate_registration_rejected(self):
-        @task_handler("d", "t")
-        def a(): ...
+    @staticmethod
+    def _register_from(filename, dag_id="d", task_id="t"):
+        """Register a handler as if defined in *filename*, to drive the fileloc check."""
+        src = f"from airflow.sdk import task_handler\n@task_handler({dag_id!r}, {task_id!r})\ndef h(): ...\n"
+        exec(compile(src, filename, "exec"), ns := {})
+        return ns["h"]
 
+    def test_same_file_reregistration_overwrites(self):
+        self._register_from("/bundle/handlers.py")
+        second = self._register_from("/bundle/handlers.py")
+        assert get_handler("d", "t") is second
+
+    def test_cross_file_duplicate_rejected(self):
+        self._register_from("/bundle_a/handlers.py")
         with pytest.raises(
-            ValueError, match=re.escape("handler already registered for dag_id='d' task_id='t'")
+            ValueError,
+            match=re.escape(
+                "handler already registered for dag_id='d' task_id='t' in '/bundle_a/handlers.py'"
+            ),
         ):
-
-            @task_handler("d", "t")
-            def b(): ...
+            self._register_from("/bundle_b/handlers.py")
 
 
 class TestDeclaration:
