@@ -28,8 +28,6 @@ from airflow.providers.amazon.version_compat import NOTSET, ArgNotSet
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
 try:
-    import duckdb
-
     from airflow.providers.duckdb.hooks.duckdb import DuckDBHook
 except ImportError:
     raise AirflowOptionalProviderFeatureException(
@@ -202,6 +200,8 @@ class AwsDuckDBHook(DuckDBHook):
 
     def configure_secrets(self, conn: DuckDBPyConnection) -> None:
         """Create the DuckDB S3 secret for this connection, and log the AWS identity it uses."""
+        import duckdb
+
         strategy = self.credential_strategy
         if strategy == "none":
             self.log.debug("credential_strategy is 'none'; not creating a DuckDB S3 secret.")
