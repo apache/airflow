@@ -20,6 +20,7 @@ import ast
 import difflib
 import itertools
 import json
+import math
 import os
 import re
 import sys
@@ -34,6 +35,7 @@ from typing import Any, TypeVar
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALL_TEST_TYPE,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
@@ -51,8 +53,11 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     JAVA_SDK_VERSION,
     KIND_VERSION,
+    LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON,
     NUMBER_OF_CORE_SLICES,
+    NUMBER_OF_CORE_SLICES_ON_RUNS_ON,
     NUMBER_OF_LOW_DEP_SLICES,
+    PROVIDER_TEST_SPLITS,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
@@ -72,6 +77,7 @@ from airflow_breeze.global_constants import (
     all_helm_test_packages,
     all_selective_core_test_types,
     get_airflow_version,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.utils.console import console_print, get_console
@@ -147,9 +153,11 @@ class FileGroupForCi(Enum):
     TASK_SDK_INTEGRATION_TEST_FILES = auto()
     AGENT_FRAMEWORK_FILES = auto()
     GO_SDK_FILES = auto()
+    GO_SDK_CONFORMANCE_FILES = auto()
     JAVA_SDK_FILES = auto()
     JAVA_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_FILES = auto()
+    TS_SDK_CONFORMANCE_FILES = auto()
     TS_SDK_DOCS_FILES = auto()
     AIRFLOW_CTL_FILES = auto()
     AIRFLOW_CTL_INTEGRATION_TEST_FILES = auto()
@@ -164,6 +172,7 @@ class FileGroupForCi(Enum):
     OPENLINEAGE_E2E_FILES = auto()
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
+    YAML_DAG_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -215,6 +224,15 @@ LANG_SDK_NATIVE_DAG_PARSING_FILES = (
     r"^task-sdk/src/airflow/sdk/coordinators/_dag_importer\.py$",
     r"^task-sdk/src/airflow/sdk/execution_time/coordinator\.py$",
     r"^task-sdk/src/airflow/sdk/importers/.*",
+)
+
+# What every language SDK's serialization conformance check compares the SDK against: Airflow's
+# serializer and schema, and the shared harness. They do not force full_tests_needed, so each SDK's
+# conformance group lists them next to the SDK's own files.
+LANG_SDK_CONFORMANCE_SHARED_FILES = (
+    r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
+    r"^airflow-core/src/airflow/serialization/schema\.json$",
+    r"^scripts/ci/lang_sdk_serialization/.*",
 )
 
 CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
@@ -323,6 +341,18 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^airflow-e2e-tests/docker/ts\.yml$",
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/node/.*",
+            *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.YAML_DAG_E2E_FILES: [
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/.*",
+            r"^airflow-e2e-tests/yaml-dags/.*",
+            r"^airflow-e2e-tests/docker/yaml-dag\.yml$",
+            # The mode runs the Dag's one code task on the Go example bundle, so the handler
+            # it registers counts, but the rest of the Go SDK is the go_sdk mode's business.
+            r"^go-sdk/example/bundle/yamldag/.*",
+            r"^go-sdk/example/bundle/main\.go$",
+            r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
+            r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
@@ -538,6 +568,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # everything else (go.mod, go.sum, build config) must trigger the unit tests.
             r"^go-sdk/(?!.*\.md$).*",
         ],
+        FileGroupForCi.GO_SDK_CONFORMANCE_FILES: [
+            # The Go SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^go-sdk/(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
+        ],
         FileGroupForCi.JAVA_SDK_FILES: [
             # `.md` excluded — doc-only edits do not affect the Gradle build.
             r"^java-sdk/(?!.*\.md$).*",
@@ -546,9 +582,7 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # The Java SDK, plus what its serialization conformance check compares it against:
             # Airflow's serializer and schema, and the shared harness.
             r"^java-sdk/(?!.*\.md$).*",
-            r"^airflow-core/src/airflow/serialization/serialized_objects\.py$",
-            r"^airflow-core/src/airflow/serialization/schema\.json$",
-            r"^scripts/ci/lang_sdk_serialization/.*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.TS_SDK_DOCS_FILES: [
             # TypeDoc renders the reference from the SDK sources and category entry points,
@@ -567,6 +601,12 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             # supervisor schema or the unit tests. `ts-sdk/docs/` is excluded too — it is the
             # docs toolchain's own package, with its own tests that vitest does not run.
             r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+        ],
+        FileGroupForCi.TS_SDK_CONFORMANCE_FILES: [
+            # The TS SDK, plus what its serialization conformance check compares it against:
+            # Airflow's serializer and schema, and the shared harness.
+            r"^ts-sdk/(?!api-docs/)(?!docs/)(?!.*\.md$).*",
+            *LANG_SDK_CONFORMANCE_SHARED_FILES,
         ],
         FileGroupForCi.ASSET_FILES: [
             r"^airflow-core/src/airflow/assets/",
@@ -877,11 +917,13 @@ def _get_test_type_description(provider_test_types: list[str]) -> str:
         first_provider = first_provider.replace("Providers[", "").replace("]", "")
     if last_provider.startswith("Providers["):
         last_provider = last_provider.replace("Providers[", "").replace("]", "")
-    return (
+    description = (
         f"{first_provider[:13]}...{last_provider[:13]}"
         if first_provider != last_provider
         else (first_provider[:29])
     )
+    # The description ends up in artifact names (via JOB_ID), which must not contain ":".
+    return description.replace(":", "-")
 
 
 def _get_test_list_as_json(list_of_list_of_types: list[list[str]]) -> list[dict[str, str]] | None:
@@ -1441,6 +1483,11 @@ class SelectiveChecks:
 
     @cached_property
     @_scoped_to_component_branch
+    def run_yaml_dag_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.YAML_DAG_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
@@ -1509,6 +1556,19 @@ class SelectiveChecks:
     @_scoped_to_component_branch
     def run_ts_sdk_docs(self) -> bool:
         return self._should_be_run(FileGroupForCi.TS_SDK_DOCS_FILES)
+
+    @cached_property
+    def lang_sdk_conformance_sdks(self) -> str:
+        """JSON list of the language SDKs whose serialization conformance check runs, as the matrix of its job."""
+        # No component branch runs it, as for the outputs scoped with _scoped_to_component_branch.
+        if self._component_branch is not None:
+            return json.dumps([])
+        groups = {
+            "go": FileGroupForCi.GO_SDK_CONFORMANCE_FILES,
+            "java": FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES,
+            "ts": FileGroupForCi.TS_SDK_CONFORMANCE_FILES,
+        }
+        return json.dumps([sdk for sdk, group in groups.items() if self._should_be_run(group)])
 
     @cached_property
     @_scoped_to_component_branch
@@ -1658,6 +1718,7 @@ class SelectiveChecks:
             or self.run_openlineage_e2e_tests
             or self.run_openlineage_e2e_compat_tests
             or self.run_ts_sdk_e2e_tests
+            or self.run_yaml_dag_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1870,9 +1931,10 @@ class SelectiveChecks:
         if not self.run_unit_tests:
             return None
         current_test_types = sorted(set(self._get_core_test_types_to_run()))
-        if len(current_test_types) <= NUMBER_OF_CORE_SLICES:
+        number_of_slices = NUMBER_OF_CORE_SLICES_ON_RUNS_ON if self._is_on_runs_on else NUMBER_OF_CORE_SLICES
+        if len(current_test_types) <= number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_CORE_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -1922,10 +1984,7 @@ class SelectiveChecks:
             if kept:
                 current_test_types.add(f"Providers[{','.join(kept)}]")
 
-    @cached_property
-    def providers_test_types_list_as_strings_in_json(self) -> str:
-        if not self.run_unit_tests:
-            return "[]"
+    def _get_providers_test_types_for_branch(self) -> set[str]:
         current_test_types = set(self._get_providers_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
@@ -1937,7 +1996,41 @@ class SelectiveChecks:
                     )
                     test_types_to_remove.add(test_type)
             current_test_types = current_test_types - test_types_to_remove
+        return current_test_types
+
+    @cached_property
+    def providers_test_types_list_as_strings_in_json(self) -> str:
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
         self._extract_long_provider_tests(current_test_types)
+        self._filter_platform_excluded_test_types(current_test_types)
+        return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
+
+    @cached_property
+    def providers_split_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the jobs running them in parallel in the CI image.
+
+        On RunsOn every provider (and every part of a split provider) is a test type of its own, in one
+        job: one serial pytest per provider keeps the 32 CPUs of the runner busy, where grouped providers
+        would leave the job waiting on the large "all other providers" group. The compatibility tests keep
+        the grouped list, as each of their test types installs an Airflow version first.
+        """
+        if not self.run_unit_tests:
+            return "[]"
+        if self._is_on_runs_on and self._get_providers_test_types_for_branch():
+            return json.dumps(_get_test_list_as_json([sorted(self._get_individual_providers_list())]))
+        return self.providers_test_types_list_as_strings_in_json
+
+    @cached_property
+    def providers_xdist_test_types_list_as_strings_in_json(self) -> str:
+        """Provider test types for the xdist jobs, which run them all in one pytest, so none is split out."""
+        if not self.run_unit_tests:
+            return "[]"
+        current_test_types = self._get_providers_test_types_for_branch()
+        if "Providers" in current_test_types and self._platform_excluded_providers:
+            current_test_types.remove("Providers")
+            current_test_types.add(f"Providers[-{','.join(sorted(self._platform_excluded_providers))}]")
         self._filter_platform_excluded_test_types(current_test_types)
         return json.dumps(_get_test_list_as_json([sorted(current_test_types)]))
 
@@ -1949,6 +2042,12 @@ class SelectiveChecks:
                 {f"Providers[{provider}]" for provider in get_available_distributions(include_not_ready=True)}
             )
         self._filter_platform_excluded_test_types(current_test_types)
+        if not self._is_on_runs_on:
+            return current_test_types
+        for provider_id in PROVIDER_TEST_SPLITS:
+            if f"Providers[{provider_id}]" in current_test_types:
+                current_test_types.remove(f"Providers[{provider_id}]")
+                current_test_types.update(get_provider_split_test_types(provider_id))
         return current_test_types
 
     @cached_property
@@ -1959,11 +2058,14 @@ class SelectiveChecks:
         current_test_types = sorted(self._get_individual_providers_list())
         if not current_test_types:
             return None
-        # We are hard-coding the number of lists as reasonable starting point to split the
-        # list of test types - and we can modify it in the future
-        if len(current_test_types) < NUMBER_OF_LOW_DEP_SLICES:
+        number_of_slices = (
+            math.ceil(len(current_test_types) / LOW_DEP_TEST_TYPES_PER_JOB_ON_RUNS_ON)
+            if self._is_on_runs_on
+            else NUMBER_OF_LOW_DEP_SLICES
+        )
+        if len(current_test_types) < number_of_slices:
             return json.dumps(_get_test_list_as_json([current_test_types]))
-        list_of_list_of_types = _split_list(current_test_types, NUMBER_OF_LOW_DEP_SLICES)
+        list_of_list_of_types = _split_list(current_test_types, number_of_slices)
         return json.dumps(_get_test_list_as_json(list_of_list_of_types))
 
     @cached_property
@@ -2144,14 +2246,10 @@ class SelectiveChecks:
             # depend on that resolution.
             prek_hooks_to_skip.add("regenerate-java-sdk-verification-metadata")
         if not self._matching_files(FileGroupForCi.JAVA_SDK_CONFORMANCE_FILES, CI_FILE_GROUP_MATCHES):
-            # This hook compiles the Java SDK with Gradle and resolves its dependencies from Maven
-            # Central. Skip it unless a java-sdk file, Airflow's serializer or schema, or the shared
-            # harness changed. Those last do not force full_tests_needed, so they need their own group.
-            prek_hooks_to_skip.add("check-java-sdk-serialization-conformance")
-            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped together
-            # with the conformance check, not with ktlint, because JAVA_SDK_CONFORMANCE_FILES
-            # includes airflow-core's schema.json. A PR that changes only schema.json can leave
-            # the Java SDK's copy of the schema out of date, and this hook detects the outdated copy.
+            # sync-java-sdk-dag-schema runs the Gradle wrapper too. This hook is skipped with
+            # JAVA_SDK_CONFORMANCE_FILES, not with ktlint, because that group includes airflow-core's
+            # schema.json. A PR that changes only schema.json can leave the Java SDK's copy of the
+            # schema out of date, and this hook detects the outdated copy.
             prek_hooks_to_skip.add("sync-java-sdk-dag-schema")
         if not self._matching_files(FileGroupForCi.TS_SDK_FILES, CI_FILE_GROUP_MATCHES):
             # This hook regenerates ts-sdk/src/generated/supervisor.ts from the vendored schema
@@ -2247,6 +2345,10 @@ class SelectiveChecks:
 
     @cached_property
     def helm_test_packages(self) -> str:
+        # A Helm test package takes about a minute under xdist on a RunsOn runner, against two to three
+        # minutes of preparing the image, so RunsOn runs all of them in one job.
+        if self._is_on_runs_on:
+            return json.dumps([ALL_TEST_TYPE])
         return json.dumps(all_helm_test_packages())
 
     @cached_property
@@ -2322,16 +2424,17 @@ class SelectiveChecks:
         return json.dumps([template.format(run_id=run_id)])
 
     @cached_property
+    def _is_on_runs_on(self) -> bool:
+        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
+        return self.runner_type not in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
+
+    @cached_property
     def in_memory_runner_type(self) -> str:
         """Runner labels like ``runner_type``, with docker on a RAM disk when the run is on RunsOn.
 
         The repository variable ``USE_IN_MEMORY_DOCKER=false`` keeps docker on disk.
         """
-        # Reuses the routing decision of runner_type, which may have asked the GitHub API.
-        if (
-            self.runner_type in (PUBLIC_AMD_RUNNERS, PUBLIC_ARM_RUNNERS)
-            or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false"
-        ):
+        if not self._is_on_runs_on or os.environ.get("USE_IN_MEMORY_DOCKER", "").casefold() == "false":
             return self.runner_type
         template = (
             RUNS_ON_ARM_IN_MEMORY_RUNNER_TEMPLATE

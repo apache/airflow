@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
-import json
 import logging
 import os
 import selectors
@@ -54,6 +53,7 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
@@ -451,6 +451,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         subprocess_schema_version: str | None = None,
         subprocess_logs_to_stdout: bool = False,
         startup_timeout: float = 10.0,
+        cwd: pathlib.Path | None = None,
         **kwargs,
     ) -> Self:
         process_log = logger or structlog.get_logger(logger_name="task").bind()
@@ -472,6 +473,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                     stdout=stdout_w.fileno(),
                     stderr=stderr_w.fileno(),
                     env=_build_runtime_env(),
+                    cwd=cwd,
                     # Own process group, so the supervisor can signal everything the runtime
                     # spawned with os.killpg, as the Python task runner has done since #65505.
                     # Popen returns after exec, so the group exists before kill().
@@ -546,7 +548,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
         )
-        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
         self._arm_execution_timeout()
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
@@ -562,6 +565,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         If an XCom cannot be deleted, this try fails and the task does not run.
         """
+        self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -595,11 +599,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
         # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            if (size := len(json.dumps(msg.value))) > limit:
+            if _json_size_exceeds(msg.value, limit):
                 self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
-                    size=size,
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
@@ -735,6 +738,14 @@ class SubprocessCoordinator(BaseCoordinator):
             )
         return self._active_scan_roots
 
+    def _get_working_directory(self) -> pathlib.Path | None:
+        """
+        Return the directory the runtime starts in, or ``None`` to keep the current one.
+
+        It is resolved after the command, while :meth:`_get_scan_roots` still answers.
+        """
+        return None
+
     def _build_execute_task_command(self, *, what: TaskInstance) -> tuple[list[str], str | None]:
         """
         Build the subprocess command and resolve its supervisor wire-schema version for *what*.
@@ -800,6 +811,7 @@ class SubprocessCoordinator(BaseCoordinator):
         """
         with self._set_scan_roots([bundle_path]):
             command, schema_version = self._build_parse_dag_command(path=path)
+            cwd = self._get_working_directory()
         if schema_version is not None:
             get_schema_version_migrator().resolve_version(schema_version)
         argv = [
@@ -814,6 +826,8 @@ class SubprocessCoordinator(BaseCoordinator):
             if (sig := getattr(signal, name, None)) is not None:
                 signal.signal(sig, signal.SIG_DFL)
         _set_close_on_exec_above_stderr()
+        if cwd is not None:
+            os.chdir(cwd)
         os.execvpe(argv[0], argv, _build_runtime_env())
 
     @contextlib.contextmanager
@@ -935,6 +949,7 @@ class SubprocessCoordinator(BaseCoordinator):
                     )
                 else:
                     command, subprocess_schema_version = self._build_execute_task_command(what=what)
+                cwd = self._get_working_directory()
                 if subprocess_schema_version is not None:
                     _require_supported_schema_version(subprocess_schema_version)
             process = _PopenActivitySubprocess.start(
@@ -948,6 +963,7 @@ class SubprocessCoordinator(BaseCoordinator):
                 command=command,
                 subprocess_schema_version=subprocess_schema_version,
                 startup_timeout=self.task_startup_timeout,
+                cwd=cwd,
             )
             exit_code = process.wait()
             return self.ExecutionResult(exit_code, process.final_state)

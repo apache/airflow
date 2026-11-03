@@ -127,10 +127,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -1373,7 +1373,7 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         Do not: the iterated task's own ``execution_timeout`` caps every indexed task.
 
         An indexed task runs in a worker thread, where ``TimeoutPosix`` cannot fire, and the
-        iterated task already started the supervisor's timeout; sending ``StartExecutionTimeout``
+        iterated task already set the supervisor's timeout; sending ``SetExecutionTimeout``
         again per indexed task would restart the supervisor's deadline at the last one started.
         """
         return False
@@ -2881,6 +2881,9 @@ def _run_task_state_change_callbacks(
     context: Context,
     log: Logger,
 ) -> None:
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
+
+    context["callback"] = CallbackMeta(source=CallbackSource.TASK)
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
@@ -3013,7 +3016,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(StartExecutionTimeout())
+            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)

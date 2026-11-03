@@ -162,11 +162,16 @@ AMD_ONLY_GATE_BLOCK = """  gate:
     # Fork CI gate (AIP-120): decides whether project CI runs for this event. Configuration and
     # code come from the base branch so a pull request cannot change its own eligibility. See
     # dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md. A pull request whose CI runs
-    # in the contributor's fork and changes this job, or how build-info depends on it, is closed
-    # by the fork CI monitor ("Gate protection" in that document).
+    # in the contributor's fork and changes this job, how build-info depends on it, any job that
+    # runs when it skips build-info (such as ci-passed), or the name of any job is closed by the
+    # fork CI monitor ("Gate protection" in that document).
     name: "Fork CI gate"
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 5
+    permissions:
+      contents: read
+      # Reads the creation time of this run, which decides for a pilot's older pull request.
+      actions: read
     outputs:
       project-ci: ${{ steps.gate.outputs.project-ci }}
       reason: ${{ steps.gate.outputs.reason }}

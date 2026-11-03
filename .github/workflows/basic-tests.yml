@@ -148,7 +148,7 @@ jobs:
       # Without a pin uv picks the runner's system Python, which can be older than Airflow supports.
       UV_PYTHON: "${{ inputs.default-python-version }}"
       SHARED_DISTRIBUTIONS: ${{ join(fromJSON(inputs.shared-distributions-as-json), ' ') }}
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -255,7 +255,7 @@ jobs:
   check-translation-completness:
     timeout-minutes: 15
     name: "Check translation completeness"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '32+64', '128+256') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

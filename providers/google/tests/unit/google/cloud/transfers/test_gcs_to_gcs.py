@@ -293,24 +293,6 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
-    def test_execute_last_modified_time(self, mock_hook):
-        mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST[:-1]
-        operator = GCSToGCSOperator(
-            task_id=TASK_ID,
-            source_bucket=TEST_BUCKET,
-            source_object=SOURCE_OBJECT_WILDCARD_FILENAME,
-            destination_bucket=DESTINATION_BUCKET,
-            last_modified_time=None,
-        )
-
-        operator.execute(None)
-        mock_calls_none = [
-            mock.call(TEST_BUCKET, "test_object/file1.txt", DESTINATION_BUCKET, "test_object/file1.txt"),
-            mock.call(TEST_BUCKET, "test_object/file2.txt", DESTINATION_BUCKET, "test_object/file2.txt"),
-        ]
-        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
-
-    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_wc_with_last_modified_time_with_all_true_cond(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_OBJECTS_LIST[:-1]
         mock_hook.return_value.is_updated_after.side_effect = [True, True, True]

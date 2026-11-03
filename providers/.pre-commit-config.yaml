@@ -355,7 +355,7 @@ repos:
         files: ^.*/src/airflow/providers/.*\.py$
         require_serial: true
   - repo: https://github.com/boidolr/ast-grep-pre-commit
-    rev: 94d054a7862021ae626589210e260ce68f4d8b78  # frozen: 0.50.0
+    rev: 13126a89e67880b0dac82cf40350abd2cfedd458  # frozen: 0.51.0
     hooks:
       - id: ast-grep
         name: Check providers import httpx2 rather than httpx

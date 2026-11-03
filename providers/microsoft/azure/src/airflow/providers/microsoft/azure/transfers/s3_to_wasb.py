@@ -93,6 +93,8 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         By default, SSL certificates are verified.
         You can provide the following values:
 
+        - ``None`` (default): use the ``verify`` setting from the AWS connection, falling back
+                 to botocore's default, which verifies certificates.
         - ``False``: do not validate SSL certificates. SSL will still be used
                  (unless use_ssl is False), but SSL certificates will not be
                  verified.
@@ -127,7 +129,7 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         blob_name: str | None = None,
         create_container: bool = False,
         replace: bool = False,
-        s3_verify: bool = False,
+        s3_verify: bool | str | None = None,
         s3_extra_args: dict | None = None,
         wasb_extra_args: dict | None = None,
         **kwargs,

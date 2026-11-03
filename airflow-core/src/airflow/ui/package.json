@@ -94,7 +94,6 @@
     "@typescript-eslint/parser": "^8.71.2",
     "@typescript-eslint/utils": "^8.71.2",
     "@vitejs/plugin-react": "^6.1.2",
-    "@vitejs/plugin-react-swc": "^4.3.3",
     "@vitest/coverage-v8": "^5.0.4",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^10.11.0",
@@ -126,7 +125,6 @@
   "pnpm": {
     "minimumReleaseAge": 5760,
     "onlyBuiltDependencies": [
-      "@swc/core",
       "esbuild",
       "msw"
     ],

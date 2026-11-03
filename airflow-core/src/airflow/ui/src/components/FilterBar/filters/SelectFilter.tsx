@@ -46,13 +46,6 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
 
     hasJustSelected.current = true;
     onChange(newValue);
-
-    // Trigger blur to close the editing mode after selection
-    setTimeout(() => {
-      const activeElement = document.activeElement as HTMLElement;
-
-      activeElement.blur();
-    }, 0);
   };
 
   const hasValue = filter.value !== null && filter.value !== undefined && filter.value !== "";
@@ -107,12 +100,16 @@ export const SelectFilter = ({ filter, onChange, onRemove }: FilterPluginProps) 
             // open straight onto the options instead of making the user click again.
             defaultOpen={!hasValue}
             h="full"
-            // Dismissing the menu hands focus back to the trigger inside the pill, so no blur
-            // fires and the pill would stay in edit mode. A close that follows a selection is
-            // left alone: the blur that selection triggers collapses the pill instead.
+            // Closing the menu hands focus back to the trigger inside the pill, so no blur fires
+            // and the pill would stay in edit mode. A close that follows a selection waits a tick,
+            // so the pill sees the chosen value instead of dropping the filter as abandoned.
             onOpenChange={({ open }) => {
-              if (!open && !hasJustSelected.current) {
-                onRequestClose();
+              if (!open) {
+                if (hasJustSelected.current) {
+                  setTimeout(onRequestClose, 0);
+                } else {
+                  onRequestClose();
+                }
               }
               hasJustSelected.current = false;
             }}

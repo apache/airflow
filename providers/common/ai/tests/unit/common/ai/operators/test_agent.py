@@ -106,6 +106,7 @@ from tests_common.test_utils.compat import OperatorSerialization
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.sandbox.fake_tags import TaggedBackend
+from unit.common.ai.tool_parts import is_tool_retry
 
 try:
     from airflow.sdk.serde import (
@@ -480,7 +481,7 @@ class TestAgentOperatorToolsetTemplating:
         assert "Rendered toolset sql-tenant_acme" in caplog.messages
 
     def test_rendering_twice_logs_once(self, caplog):
-        """@task.agent renders a second time; by then the id no longer changes."""
+        """On a second render the id no longer changes."""
         op = AgentOperator(
             task_id="t",
             prompt="p",
@@ -4110,7 +4111,7 @@ class TestAgentOperatorMasksToolOutput:
     @pytest.mark.parametrize(
         ("error", "reply_is"),
         [
-            pytest.param(ModelRetry, lambda part: isinstance(part, RetryPromptPart), id="model-retry"),
+            pytest.param(ModelRetry, is_tool_retry, id="model-retry"),
             pytest.param(
                 ToolFailed,
                 lambda part: isinstance(part, ToolReturnPart) and part.outcome == "failed",
