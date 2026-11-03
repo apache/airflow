@@ -224,6 +224,17 @@ def update_hitl_detail(
                 "and is not allowed to write again."
             ),
         )
+    if (
+        update_hitl_detail_payload.request_created_at is not None
+        and update_hitl_detail_payload.request_created_at != hitl_detail_model.created_at
+    ):
+        # The task asked again since the client loaded the request, so this answer was given
+        # while reading other content (an operator that pauses more than once in one run).
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The Human-in-the-loop request was replaced after it was loaded. Reload it and answer "
+            "the request that is waiting now.",
+        )
 
     user_id = user.get_id()
     user_name = user.get_name()
@@ -256,27 +267,29 @@ def update_hitl_detail(
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
 
+    if locked_ti.state not in (TaskInstanceState.AWAITING_INPUT, TaskInstanceState.DEFERRED):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The Task Instance is no longer waiting for a response, so this Human-in-the-loop response "
+            "was not recorded.",
+        )
+
     hitl_detail_model.responded_by = dict(hitl_user)
     hitl_detail_model.responded_at = timezone.utcnow()
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
     session.add(hitl_detail_model)
 
-    # Event-driven resume: if the task is parked waiting for this input, transition it directly,
-    # without a trigger. handle_event_submit packs the response into next_kwargs["event"], sets
-    # state=SCHEDULED + scheduled_dttm; the scheduler then re-queues execute_complete. Gated on the
-    # parked states so a finished/cleared TI is never resurrected. `locked_ti` was locked at the top
-    # (TI-before-HITLDetail order), so a concurrent clear cannot interleave between this state check
-    # and the resume and have its reset silently overwritten.
-    if locked_ti is not None and locked_ti.state in (
-        TaskInstanceState.AWAITING_INPUT,
-        TaskInstanceState.DEFERRED,
-    ):
-        handle_event_submit(
-            TriggerEvent(hitl_detail_model.as_resume_event_payload()),
-            task_instance=locked_ti,
-            session=session,
-        )
+    # Event-driven resume: transition the parked task directly, without a trigger.
+    # handle_event_submit packs the response into next_kwargs["event"], sets state=SCHEDULED +
+    # scheduled_dttm; the scheduler then re-queues execute_complete. `locked_ti` was locked at the top
+    # (TI-before-HITLDetail order), so a concurrent clear cannot interleave between the state check
+    # above and the resume and have its reset silently overwritten.
+    handle_event_submit(
+        TriggerEvent(hitl_detail_model.as_resume_event_payload()),
+        task_instance=locked_ti,
+        session=session,
+    )
     return HITLDetailResponse.model_validate(hitl_detail_model)
 
 

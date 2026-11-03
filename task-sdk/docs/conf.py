@@ -57,7 +57,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "airflow_intersphinx",
     "exampleinclude",
-    "sphinxcontrib.mermaid",
+    "mermaid_svg",
     "airflow_spelling",
 ]
 

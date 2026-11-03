@@ -83,7 +83,7 @@ const createColumns = (
     cell: ({ row: { original } }: FileRow) =>
       // Only worth clicking when there is an error behind the count. A bare badge reads as a
       // status rather than a control, so the clickable form carries an icon and its own label.
-      original.import_error_count === null || original.import_error_count === 0 ? (
+      original.import_error_count === 0 ? (
         <ImportErrorCount count={original.import_error_count} />
       ) : (
         <Button
@@ -113,7 +113,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
   const { pagination } = tableURLState;
   const [errorFileloc, setErrorFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isFetching, isLoading } = useDagBundleServiceGetDagBundleFiles(
+  const { data, error, isLoading, refetch } = useDagBundleServiceGetDagBundleFiles(
     {
       bundleName,
       limit: pagination.pageSize,
@@ -127,9 +127,14 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
     <Box pt={2}>
       <FileImportError
         bundleName={bundleName}
+        hasImportError={
+          (data?.dag_bundle_files.find((file) => file.relative_fileloc === errorFileloc)
+            ?.import_error_count ?? 0) > 0
+        }
         onClose={() => {
           setErrorFileloc(undefined);
         }}
+        recheckImportError={refetch}
         relativeFileloc={errorFileloc}
       />
       <DataTable
@@ -137,7 +142,6 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="browse:dagBundles.files.file"
         onStateChange={setTableURLState}

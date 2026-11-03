@@ -35,6 +35,7 @@ from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import greenback
+import httpx2
 import msgspec
 import pendulum
 import pytest
@@ -46,10 +47,13 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import TypeAdapter
-from sqlalchemy import delete, update
+from sqlalchemy import create_engine, delete, event, func, select, text, update
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.pool import NullPool
 from structlog.typing import FilteringBoundLogger
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -57,24 +61,29 @@ from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import (
     _REASSIGNED_CANCEL_MSG,
     _USER_ACTION_CANCEL_MSG,
+    TRIGGER_RECOVERY_UPTIME,
     ToTriggerRunner,
     ToTriggerSupervisor,
     TriggerCommsDecoder,
     TriggererJobRunner,
     TriggerEventEntry,
+    TriggerFailureTracker,
     TriggerLoggingFactory,
     TriggerRunner,
     TriggerRunnerSupervisor,
     _make_trigger_span,
+    format_trigger_error,
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
+from airflow.models.asset import AssetModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.trigger import RecordedFailure
 from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -83,6 +92,7 @@ from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDe
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
+from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time import supervisor
@@ -95,6 +105,8 @@ from airflow.sdk.execution_time.comms import (
     ErrorResponse,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
+    GetXCom,
+    MaskSecret,
     OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
@@ -330,6 +342,30 @@ def test_start_opts_into_fork_exec(monkeypatch, mocker, platform_uses_exec):
     assert base_start.call_args.kwargs["target"] == TriggerRunnerSupervisor.run_in_process
 
 
+@pytest.mark.parametrize("platform_uses_exec", [True, False])
+def test_start_freezes_gc_before_bare_fork(monkeypatch, mocker, platform_uses_exec):
+    """On bare-fork platforms the runner is forked with the GC frozen and left frozen, so a later
+    full GC can't split the COW-shared pages; when the child execs there is no sharing, so skip it."""
+    monkeypatch.setattr(supervisor, "_should_use_exec", lambda: platform_uses_exec)
+    mock_gc = mocker.patch("airflow.jobs.triggerer_job_runner.gc", autospec=True)
+    base_start = mocker.patch(
+        "airflow.sdk.execution_time.supervisor.WatchedSubprocess.start", return_value=MagicMock()
+    )
+    manager = mocker.MagicMock()
+    manager.attach_mock(mock_gc.freeze, "freeze")
+    manager.attach_mock(base_start, "start")
+
+    TriggerRunnerSupervisor.start(job=Job(id=999), capacity=10)
+
+    mock_gc.unfreeze.assert_not_called()
+    if platform_uses_exec:
+        mock_gc.freeze.assert_not_called()
+        base_start.assert_called_once()
+    else:
+        # Freeze must happen before the fork (super().start) and never unfreeze.
+        assert [c[0] for c in manager.mock_calls] == ["freeze", "start"]
+
+
 @pytest.mark.parametrize("option_value", ["True", "False"])
 def test_start_ignores_execute_tasks_new_python_interpreter(mocker, option_value):
     """
@@ -518,6 +554,40 @@ def test_client_delegates_to_make_client_and_caches_result(supervisor_builder, m
     make_client.assert_called_once_with(supervisor)
 
 
+@pytest.mark.parametrize("has_job", [True, False])
+def test_handle_requests_sends_the_trigger_ti_id_header_only_for_the_frames_own_requests(
+    supervisor_builder, jobless_supervisor, mocker, has_job
+):
+    ti_id = uuid.uuid4()
+    expected = str(ti_id) if has_job else None
+    seen: dict[str, str | None] = {}
+    supervisor = supervisor_builder() if has_job else jobless_supervisor
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        key = request.url.path.rsplit("/", 1)[-1]
+        seen[key] = request.headers.get(TRIGGER_TI_ID_HEADER)
+        if key == "with-trigger":
+            other_thread = threading.Thread(
+                target=lambda: supervisor.client.xcoms.get("d", "r", "t", "from-thread")
+            )
+            other_thread.start()
+            other_thread.join()
+        return httpx2.Response(200, json={"key": key, "value": 1})
+
+    in_process_api = mocker.patch("airflow.jobs.triggerer_job_runner.InProcessExecutionAPI", autospec=True)
+    in_process_api.return_value.transport = httpx2.MockTransport(handler)
+    requests = supervisor.handle_requests(log=mocker.Mock(spec=FilteringBoundLogger))
+    next(requests)
+
+    def get_xcom_body(key: str) -> dict:
+        return GetXCom(key=key, dag_id="d", run_id="r", task_id="t").model_dump()
+
+    requests.send(_RequestFrame(id=1, body=get_xcom_body("with-trigger"), ti_id=ti_id))
+    requests.send(_RequestFrame(id=2, body=get_xcom_body("without-trigger")))
+
+    assert seen == {"with-trigger": expected, "from-thread": None, "without-trigger": None}
+
+
 def test_run_context_exits_when_subprocess_dies(supervisor_builder, mocker):
     """Breaking out of the loop on a dead subprocess still unwinds run_context."""
     from contextlib import contextmanager
@@ -647,6 +717,71 @@ def test_heartbeat_watchdog_disabled_when_threshold_is_zero(supervisor_builder, 
     perform_heartbeat_mock.assert_called_once()
 
 
+def _is_trigger_delete(statement: str) -> bool:
+    return "delete from trigger" in " ".join(statement.lower().replace('"', "").replace("`", "").split())
+
+
+def test_clean_unused_retries_failed_batches_in_new_transactions(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    delete_attempt_count = 0
+    begin_count = 0
+
+    def fail_first_two_deletes(connection, cursor, statement, parameters, context, executemany):
+        nonlocal delete_attempt_count
+        if _is_trigger_delete(statement):
+            delete_attempt_count += 1
+            if delete_attempt_count <= 2:
+                raise OperationalError(statement, parameters, RuntimeError("injected cleanup failure"))
+
+    def count_begin(cleanup_session, transaction, connection):
+        nonlocal begin_count
+        begin_count += 1
+
+    event.listen(session.bind, "before_cursor_execute", fail_first_two_deletes)
+    event.listen(session.__class__, "after_begin", count_begin)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", fail_first_two_deletes)
+        event.remove(session.__class__, "after_begin", count_begin)
+
+    assert (delete_attempt_count, begin_count) == (3, 3)
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
+@pytest.mark.backend("postgres")
+def test_clean_unused_recovers_after_the_database_connection_drops(jobless_supervisor, session):
+    session.add(Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={}))
+    session.commit()
+
+    killer_engine = create_engine(session.bind.url, poolclass=NullPool)
+    terminated = []
+
+    def terminate_connection_before_delete(connection, cursor, statement, parameters, context, executemany):
+        if not terminated and _is_trigger_delete(statement):
+            backend_pid = connection.connection.dbapi_connection.info.backend_pid
+            with killer_engine.connect() as killer:
+                terminated.append(
+                    killer.execute(
+                        text("SELECT pg_terminate_backend(:pid, 5000)"), {"pid": backend_pid}
+                    ).scalar()
+                )
+
+    event.listen(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+    try:
+        jobless_supervisor.clean_unused()
+    finally:
+        event.remove(session.bind, "before_cursor_execute", terminate_connection_before_delete)
+        killer_engine.dispose()
+
+    assert terminated == [True]
+    session.expire_all()
+    assert session.scalar(select(func.count()).select_from(Trigger)) == 0
+
+
 def test_metric_tags_default_uses_job_hostname(supervisor_builder):
     """metric_tags() defaults to {"hostname": job.hostname} when a job is present."""
     supervisor = supervisor_builder()
@@ -671,9 +806,11 @@ def test_emit_metrics_uses_metric_tags_override(jobless_supervisor, mocker):
 
     jobless_supervisor.emit_metrics()
 
-    assert gauge.call_count == 2
+    # Two triggerer gauges, and the failing-triggers gauge once per trigger kind
+    assert gauge.call_count == 2 + 3
     for call in gauge.call_args_list:
-        assert call.kwargs["tags"] == {"hostname": "astro-host", "deployment": "demo"}
+        tags = {k: v for k, v in call.kwargs["tags"].items() if k != "trigger_kind"}
+        assert tags == {"hostname": "astro-host", "deployment": "demo"}
 
 
 def test_load_triggers_raises_without_job(jobless_supervisor, mocker):
@@ -719,6 +856,7 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
     trigger.id = 7
     trigger.classpath = "some.path.Trigger"
     trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None  # nothing recorded on the row
     trigger.task_instance.dag_version_id = uuid.uuid4()
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
@@ -748,6 +886,7 @@ def test_create_workload_uses_supervisor_id_without_job(jobless_supervisor, mock
 
     factory = jobless_supervisor.logger_cache[trigger.id]
     assert factory.log_path == f"/logs/ti.trigger.{jobless_supervisor.id}.log"
+    assert jobless_supervisor.trigger_kinds[trigger.id] == "task"
 
 
 @pytest.mark.parametrize(
@@ -763,6 +902,7 @@ def test_create_workload_resolves_serialized_dag_from_run(jobless_supervisor, mo
     trigger.id = 8
     trigger.classpath = "some.path.Trigger"
     trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None  # nothing recorded on the row
     trigger.task_instance.dag_version_id = bumped_ti_version
     trigger.task_instance.task_id = "t"
     trigger.task_instance.trigger_timeout = None
@@ -838,6 +978,38 @@ def test_load_triggers_survives_task_missing_from_resolved_dag_version(superviso
     assert "Task not found in resolved Dag version; building plain workload" in caplog
 
 
+def test_create_workload_sets_up_logging_for_callback_trigger(jobless_supervisor, mocker):
+    """_create_workload() populates logger_cache for callback triggers so their logs are captured."""
+    callback_id = uuid.uuid4()
+    callback = mocker.Mock()
+    callback.id = callback_id
+    callback.data = {
+        "dag_id": "test_dag",
+        "kwargs": {"context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "manual__2024-01-01"}}},
+    }
+
+    trigger = mocker.Mock()
+    trigger.id = 8
+    trigger.classpath = "airflow.triggers.callback.CallbackTrigger"
+    trigger.encrypted_kwargs = ""
+    trigger.consecutive_failures = None  # nothing recorded on the row
+    trigger.task_instance = None
+    trigger.assets = None
+    trigger.callback = callback
+
+    workload = jobless_supervisor._create_workload(
+        trigger=trigger,
+        dag_bag=mocker.Mock(),
+        render_log_fname=mocker.Mock(),
+        session=mocker.Mock(),
+    )
+
+    assert workload is not None
+    factory = jobless_supervisor.logger_cache[trigger.id]
+    assert factory.log_path == f"triggerer_callbacks/test_dag/manual__2024-01-01/{callback_id}/callback.log"
+    assert factory.ti is None
+
+
 def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supervisor, mocker):
     """_create_workload() should populate watched_assets when trigger.task_instance is None and assets exist."""
     asset1 = mocker.Mock(spec=Asset)
@@ -854,6 +1026,7 @@ def test_create_workload_sets_watched_assets_for_asset_only_trigger(jobless_supe
     trigger.encrypted_kwargs = "encrypted"
     trigger.task_instance = None  # Not tied to a Task (similar to a BaseEventTrigger)
     trigger.assets = [asset1, asset2]
+    trigger.consecutive_failures = None  # nothing recorded on the row
 
     workload = jobless_supervisor._create_workload(
         trigger=trigger,
@@ -872,6 +1045,7 @@ def test_create_workload_watched_assets_none_when_no_assets(jobless_supervisor, 
     trigger.id = 43
     trigger.classpath = "some.path.Trigger"
     trigger.encrypted_kwargs = "encrypted"
+    trigger.consecutive_failures = None  # nothing recorded on the row
     trigger.task_instance = None
     trigger.assets = []  # No Assets are attached to the trigger
 
@@ -1807,6 +1981,47 @@ class TestTriggerRunner:
         assert isinstance(err, TypeError)
         assert "got an unexpected keyword argument 'not_exists_arg'" in str(err)
 
+    @pytest.mark.parametrize(
+        "decode_error",
+        [
+            pytest.param(KeyError("__var"), id="key_error"),
+            pytest.param(ImportError("not in allowed_deserialization_classes"), id="import_error"),
+        ],
+    )
+    @patch("airflow.jobs.triggerer_job_runner.Trigger._decrypt_kwargs", autospec=True)
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    @pytest.mark.asyncio
+    async def test_create_triggers_fails_only_trigger_with_undecodable_kwargs(
+        self, mock_get_trigger_by_classpath, mock_decrypt_kwargs, decode_error, cap_structlog
+    ) -> None:
+        moment = timezone.utcnow() + datetime.timedelta(hours=1)
+
+        def decrypt(encrypted_kwargs):
+            if encrypted_kwargs == "bad":
+                raise decode_error
+            return {"moment": moment}
+
+        mock_decrypt_kwargs.side_effect = decrypt
+
+        trigger_runner = TriggerRunner()
+        trigger_runner.to_create.extend(
+            [
+                workloads.RunTrigger.model_construct(id=1, classpath="abc", encrypted_kwargs="bad"),
+                workloads.RunTrigger.model_construct(id=2, classpath="abc", encrypted_kwargs="good"),
+            ]
+        )
+        await trigger_runner.create_triggers()
+
+        assert list(trigger_runner.failed_triggers) == [(1, decode_error)]
+        assert list(trigger_runner.triggers) == [2]
+        assert {"event": "Trigger failed to inflate", "trigger_id": 1, "error": decode_error} in cap_structlog
+
+        trigger_runner.triggers[2]["task"].cancel()
+        await trigger_runner.cleanup_finished_triggers()
+
     @pytest.mark.asyncio
     @patch("airflow.sdk.execution_time.task_runner.SUPERVISOR_COMMS", create=True)
     async def test_invalid_trigger(self, supervisor_builder):
@@ -2331,6 +2546,36 @@ def test_failed_trigger(session, dag_maker, supervisor_builder):
     assert task_instance.next_kwargs["traceback"][-1] == "ModuleNotFoundError: No module named 'fake'\n"
 
 
+def test_failure_from_triggerer_that_lost_the_trigger_leaves_task_deferred(
+    session, dag_maker, supervisor_builder
+):
+    trigger_orm = Trigger(classpath="fake.classpath", kwargs={})
+    session.add(trigger_orm)
+    session.flush()
+    with dag_maker(dag_id="test_reassigned_trigger", session=session):
+        EmptyOperator(task_id="dummy1")
+    task_instance = dag_maker.create_dagrun().task_instances[0]
+    task_instance.state = TaskInstanceState.DEFERRED
+    task_instance.trigger_id = trigger_orm.id
+    session.commit()
+    supervisor = supervisor_builder()
+    supervisor.load_triggers()
+    other_triggerer = Job()
+    session.add(other_triggerer)
+    session.flush()
+    session.execute(
+        update(Trigger).where(Trigger.id == trigger_orm.id).values(triggerer_id=other_triggerer.id)
+    )
+    session.commit()
+    supervisor.failed_triggers.append((trigger_orm.id, ["ModuleNotFoundError: No module named 'fake'\n"]))
+
+    supervisor.handle_failed_triggers()
+
+    task_instance.refresh_from_db()
+    assert task_instance.state == TaskInstanceState.DEFERRED
+    assert task_instance.trigger_id == trigger_orm.id
+
+
 class CustomTrigger(BaseTrigger):
     """Custom Trigger that will access one Variable and one Connection."""
 
@@ -2435,6 +2680,17 @@ class DummyTriggerRunnerSupervisor(TriggerRunnerSupervisor):
         super().handle_events()
 
 
+def run_dummy_supervisor_until_events_handled(job: Job) -> None:
+    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
+    try:
+        supervisor.run()
+    finally:
+        # run() returns once the events are handled, but the forked runner keeps running. A leaked runner
+        # holds the multiprocessing resource tracker's pipe open, and on Python 3.12.16 pytest then hangs
+        # at exit: ResourceTracker.__del__ waits for the tracker process, which never sees EOF.
+        supervisor.kill(force=True)
+
+
 @pytest.mark.asyncio
 @pytest.mark.execution_timeout(20)
 async def test_trigger_can_call_variables_connections_and_xcoms_methods(session, dag_maker):
@@ -2499,8 +2755,7 @@ async def test_trigger_can_call_variables_connections_and_xcoms_methods(session,
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
@@ -2603,8 +2858,7 @@ async def test_trigger_can_fetch_trigger_dag_run_count_and_state_in_deferrable(s
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
@@ -2704,8 +2958,7 @@ async def test_trigger_can_fetch_dag_run_count_ti_count_in_deferrable(session, d
     session.add(job)
     session.commit()
 
-    supervisor = DummyTriggerRunnerSupervisor.start(job=job, capacity=1, logger=None)
-    supervisor.run()
+    run_dummy_supervisor_until_events_handled(job)
 
     parent_task.refresh_from_db()
     task_instance.refresh_from_db()
@@ -3159,6 +3412,22 @@ class TestTriggererMessageTypes:
         )
 
 
+def _make_ti_dto(task_id="my_task", map_index=-1, context_carrier=None):
+    return TaskInstanceDTO(
+        id=uuid.uuid4(),
+        dag_version_id=uuid.uuid4(),
+        task_id=task_id,
+        dag_id="test_dag",
+        run_id="test_run",
+        try_number=1,
+        map_index=map_index,
+        pool_slots=1,
+        queue="default",
+        priority_weight=1,
+        context_carrier=context_carrier,
+    )
+
+
 class TestMakeTriggerSpan:
     """Tests for the _make_trigger_span helper in the triggerer job runner."""
 
@@ -3171,29 +3440,14 @@ class TestMakeTriggerSpan:
         with mock.patch("airflow.jobs.triggerer_job_runner.tracer", test_tracer):
             yield
 
-    def _make_ti_dto(self, task_id="my_task", map_index=-1, context_carrier=None):
-        return TaskInstanceDTO(
-            id=uuid.uuid4(),
-            dag_version_id=uuid.uuid4(),
-            task_id=task_id,
-            dag_id="test_dag",
-            run_id="test_run",
-            try_number=1,
-            map_index=map_index,
-            pool_slots=1,
-            queue="default",
-            priority_weight=1,
-            context_carrier=context_carrier,
-        )
-
     def test_make_trigger_span_name_with_task_instance(self):
-        ti = self._make_ti_dto(task_id="sensor_task", map_index=-1)
+        ti = _make_ti_dto(task_id="sensor_task", map_index=-1)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
         assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task"
 
     def test_make_trigger_span_name_with_mapped_task(self):
-        ti = self._make_ti_dto(task_id="sensor_task", map_index=2)
+        ti = _make_ti_dto(task_id="sensor_task", map_index=2)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
         assert self.exporter.get_finished_spans()[0].name == "trigger.sensor_task_2"
@@ -3213,7 +3467,7 @@ class TestMakeTriggerSpan:
         TraceContextTextMapPropagator().inject(ti_carrier, context=parent_ctx)
         expected_parent_span_id = parent_span.get_span_context().span_id
 
-        ti = self._make_ti_dto(context_carrier=ti_carrier)
+        ti = _make_ti_dto(context_carrier=ti_carrier)
         with _make_trigger_span(ti=ti, trigger_id=1, name="MySensor"):
             pass
 
@@ -3223,7 +3477,7 @@ class TestMakeTriggerSpan:
         assert spans[0].parent.span_id == expected_parent_span_id
 
     def test_make_trigger_span_sets_attributes_with_ti(self):
-        ti = self._make_ti_dto(task_id="my_task", map_index=1)
+        ti = _make_ti_dto(task_id="my_task", map_index=1)
         with _make_trigger_span(ti=ti, trigger_id=5, name="MyTrigger"):
             pass
 
@@ -3415,6 +3669,34 @@ async def test_unknown_frame_id_doesnt_crash_reader(decoder_pair):
 
     assert decoder._reader_task is not None
     assert not decoder._reader_task.done(), "reader loop crashed unexpectedly"
+
+
+@pytest.mark.asyncio
+@pytest.mark.execution_timeout(15)
+async def test_asend_frame_carries_the_current_trigger_ti_id(decoder_pair):
+    decoder, server_sock = decoder_pair
+    frames: list[_RequestFrame] = []
+
+    def serve():
+        frame = _read_frame_sync(server_sock)
+        frames.append(frame)
+        server_sock.sendall(
+            _ResponseFrame(
+                id=frame.id, body={"type": "TriggerStateSync", "to_create": [], "to_cancel": []}
+            ).as_bytes()
+        )
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+    ti = _make_ti_dto()
+    token = _current_trigger_ti.set(ti)
+    try:
+        await decoder.asend(messages.TriggerStateChanges(events=None, finished=[1], failures=None))
+    finally:
+        _current_trigger_ti.reset(token)
+    thread.join(timeout=5)
+
+    assert [frame.ti_id for frame in frames] == [ti.id]
 
 
 def test_trigger_state_messages_round_trip_with_seqs():
@@ -3625,6 +3907,79 @@ def test_run_trigger_appends_none_seq_for_non_shared_trigger():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("has_task_instance", [True, False])
+async def test_run_trigger_sets_current_trigger_ti_only_for_task_instance_triggers(has_task_instance):
+    ti = _make_ti_dto(map_index=3)
+    ti.region_id, ti.region_index = uuid.uuid4(), 2
+    seen: list[TaskInstanceDTO | None] = []
+
+    class _RecordingTrigger(BaseTrigger):
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        async def run(self):
+            seen.append(_current_trigger_ti.get())
+            yield TriggerEvent(True)
+
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "t", "events": 0}
+    }
+    trigger = _RecordingTrigger()
+    if has_task_instance:
+        trigger.task_instance = ti
+
+    await asyncio.create_task(trigger_runner.run_trigger(5, trigger))
+
+    assert seen == [ti if has_task_instance else None]
+
+
+@pytest.mark.asyncio
+async def test_shared_stream_group_tasks_do_not_inherit_the_subscribing_trigger_ti():
+    ti = _make_ti_dto(map_index=3)
+    seen: dict[str, TaskInstanceDTO | None] = {}
+
+    class _SharedTrigger(BaseEventTrigger):
+        def serialize(self):
+            return (f"{type(self).__module__}.{type(self).__qualname__}", {})
+
+        def shared_stream_key(self):
+            return "key"
+
+        @classmethod
+        async def open_shared_stream(cls, kwargs):
+            seen["group"] = _current_trigger_ti.get()
+            yield {}
+            await asyncio.Event().wait()
+
+        async def filter_shared_stream(self, shared_stream):
+            seen["trigger"] = _current_trigger_ti.get()
+            async for raw in shared_stream:
+                yield TriggerEvent(raw)
+
+        async def run(self):  # pragma: no cover - replaced by filter_shared_stream
+            yield TriggerEvent({})
+
+    trigger_runner = TriggerRunner()
+    trigger_runner.triggers = {
+        5: {"task": MagicMock(spec=asyncio.Task), "is_watcher": True, "name": "t", "events": 0}
+    }
+    trigger = _SharedTrigger()
+    trigger.task_instance = ti
+
+    run_task = asyncio.create_task(trigger_runner.run_trigger(5, trigger))
+    for _ in range(100):
+        await asyncio.sleep(0.01)
+        if trigger_runner.events:
+            break
+    run_task.cancel()
+    with contextlib.suppress(asyncio.CancelledError):
+        await run_task
+
+    assert seen == {"group": None, "trigger": ti}
+
+
+@pytest.mark.asyncio
 async def test_trigger_event_payload_not_logged_at_info(cap_structlog):
     """Ensure the full event payload is not logged at INFO level."""
     runner = TriggerRunner()
@@ -3698,3 +4053,428 @@ async def test_trigger_event_payload_available_at_debug(cap_structlog):
         log.get("event") == "Trigger fired event payload" and log.get("result") == TriggerEvent(payload)
         for log in debug_logs
     ), "Full event payload must be logged at DEBUG level"
+
+
+class TestTriggerFailureRecording:
+    @pytest.mark.parametrize(
+        ("exc", "expected"),
+        [
+            pytest.param(
+                [
+                    "Traceback (most recent call last):\n",
+                    '  File "x.py", line 1\n',
+                    "ValueError: expired token\n",
+                ],
+                "ValueError: expired token",
+                id="type-and-message-only",
+            ),
+            pytest.param(None, "The trigger exited without yielding an event", id="no-exception"),
+            pytest.param([f"ValueError: {'x' * 5000}\n"], f"ValueError: {'x' * 988}", id="truncated"),
+            pytest.param(["ValueError: a\x00b\n"], "ValueError: a\\x00b", id="nul-escaped"),
+            pytest.param(["ValueError: a\udcffb\n"], "ValueError: a\\udcffb", id="lone-surrogate-escaped"),
+        ],
+    )
+    def test_format_trigger_error(self, exc, expected):
+        assert format_trigger_error(exc) == expected
+
+    @pytest.fixture
+    def clock(self, mocker):
+        return mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=1000.0)
+
+    @pytest.fixture
+    def supervisor(self, jobless_supervisor, mocker, clock):
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        return jobless_supervisor
+
+    @staticmethod
+    def _fail(supervisor, trigger_id, error="ValueError: expired\n", req_id=1):
+        supervisor._handle_request(
+            messages.TriggerStateChanges(failures=[(trigger_id, [error])], finished=[trigger_id]),
+            log=MagicMock(),
+            req_id=req_id,
+        )
+
+    @staticmethod
+    def _start(supervisor, trigger_id, req_id=1):
+        supervisor.creating_triggers.append(
+            RunTrigger(id=trigger_id, classpath="x.Y", encrypted_kwargs="", ti=None)
+        )
+        supervisor._handle_request(messages.TriggerStateChanges(), log=MagicMock(), req_id=req_id)
+
+    @pytest.mark.enable_redact
+    def test_failure_is_recorded_redacted_with_the_secrets_the_runner_masked(self, supervisor, mocker):
+        submit = mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        password = f"EnvPw-{uuid.uuid4().hex[:8]}"
+        # What the runner sends after it resolves a connection.
+        supervisor._handle_request(MaskSecret(value=password, name="password"), log=MagicMock(), req_id=1)
+        traceback = [f"PermissionError: auth failed for user:{password}@host\n"]
+        self._fail(supervisor, 1, error=traceback[0], req_id=2)
+
+        supervisor.handle_failed_triggers()
+
+        submit.assert_called_once_with(
+            trigger_id=1,
+            exc=traceback,
+            triggerer_id=None,
+            failure=RecordedFailure(
+                consecutive_failures=1, error="PermissionError: auth failed for user:***@host"
+            ),
+        )
+
+    def test_every_failure_is_recorded_with_its_count(self, supervisor, mocker):
+        submit = mocker.patch.object(Trigger, "submit_failure", autospec=True)
+
+        for req_id in (1, 2, 3):
+            self._start(supervisor, 1, req_id=10 + req_id)
+            self._fail(supervisor, 1, req_id=req_id)
+            supervisor.handle_failed_triggers()
+
+        assert [c.kwargs["failure"] for c in submit.call_args_list] == [
+            RecordedFailure(consecutive_failures=n, error="ValueError: expired") for n in (1, 2, 3)
+        ]
+
+    def test_deferred_task_trigger_failure_is_recorded(self, supervisor, mocker):
+        submit = mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        supervisor.trigger_kinds[2] = "task"
+        self._fail(supervisor, 2, error="TimeoutError: boom\n")
+
+        supervisor.handle_failed_triggers()
+
+        assert submit.call_args.kwargs["failure"] == RecordedFailure(
+            consecutive_failures=1, error="TimeoutError: boom"
+        )
+
+    @pytest.mark.parametrize(
+        ("failures_after_event", "cleared"),
+        [pytest.param(None, {1}, id="recovered"), pytest.param([(1, None)], None, id="failed-again")],
+    )
+    def test_an_event_clears_the_row_unless_the_trigger_failed_again(
+        self, supervisor, mocker, cap_structlog, failures_after_event, cleared
+    ):
+        clear = mocker.patch.object(Trigger, "clear_recorded_failures", autospec=True)
+        supervisor.failure_tracker.continue_from(1, 3)
+        event = TriggerEventEntry(trigger_id=1, event=TriggerEvent(True), persist_seq=None)
+
+        supervisor._handle_request(
+            messages.TriggerStateChanges(events=[event], failures=failures_after_event),
+            log=MagicMock(),
+            req_id=1,
+        )
+        supervisor.handle_recovered_triggers()
+        supervisor.handle_recovered_triggers()
+
+        if cleared:
+            clear.assert_called_once_with(cleared, triggerer_id=None)
+            assert {"event": "Trigger recovered", "trigger_id": 1, "after_failures": 3} in [
+                {k: e.get(k) for k in ("event", "trigger_id", "after_failures")} for e in cap_structlog
+            ]
+        else:
+            # The event ended the old run of failures; the failure after it starts a new one.
+            clear.assert_not_called()
+            assert supervisor.failure_tracker.consecutive(1) == 1
+
+    def test_a_trigger_that_stays_up_recovers(self, supervisor, mocker, clock, cap_structlog):
+        mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        clear = mocker.patch.object(Trigger, "clear_recorded_failures", autospec=True)
+        self._fail(supervisor, 1)
+        supervisor.handle_failed_triggers()
+        self._start(supervisor, 1, req_id=2)
+
+        clock.return_value = 1000.0 + TRIGGER_RECOVERY_UPTIME - 1
+        supervisor.handle_recovered_triggers()
+        clear.assert_not_called()
+        assert supervisor.failure_tracker.consecutive(1) == 1
+
+        clock.return_value = 1000.0 + TRIGGER_RECOVERY_UPTIME
+        supervisor.handle_recovered_triggers()
+        clear.assert_called_once_with({1}, triggerer_id=None)
+        assert supervisor.failure_tracker.consecutive(1) == 0
+        assert "Trigger recovered" in cap_structlog
+
+    def test_a_trigger_that_has_not_been_restarted_yet_does_not_recover(self, supervisor, clock):
+        self._fail(supervisor, 1)
+        clock.return_value = 1000.0 + 10 * TRIGGER_RECOVERY_UPTIME
+
+        assert supervisor.failure_tracker.pop_recovered(clock.return_value) == {}
+
+    def test_a_crash_after_staying_up_starts_a_new_count(self, supervisor, mocker, clock):
+        submit = mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        supervisor.failure_tracker.continue_from(1, 5)
+        self._start(supervisor, 1)
+
+        # Fails before the loop got to notice it had recovered.
+        clock.return_value = 1000.0 + TRIGGER_RECOVERY_UPTIME + 1
+        self._fail(supervisor, 1, req_id=2)
+        supervisor.handle_failed_triggers()
+
+        assert submit.call_args.kwargs["failure"].consecutive_failures == 1
+
+    @pytest.mark.parametrize("kind", ["asset_watcher", "callback"])
+    def test_new_owner_continues_the_recorded_count(self, supervisor, mocker, kind):
+        callback = mocker.Mock(data={}, id=uuid.uuid4()) if kind == "callback" else None
+        trigger = mocker.Mock(
+            spec=Trigger,
+            id=1,
+            callback=callback,
+            task_instance=None,
+            classpath="x.Y",
+            encrypted_kwargs="",
+            assets=[mocker.Mock(uri="s3://b/k")] if kind == "asset_watcher" else [],
+            asset_watchers=[],
+            consecutive_failures=4,
+        )
+        for asset in trigger.assets:
+            asset.name = "a"
+        mocker.patch.object(
+            TriggerRunnerSupervisor,
+            "build_trigger_workloads",
+            autospec=True,
+            side_effect=lambda sup, ids: [
+                sup._create_workload(trigger, dag_bag=None, render_log_fname=None, session=None) for _ in ids
+            ],
+        )
+
+        supervisor.update_triggers({1})
+
+        assert supervisor.failure_tracker.consecutive(1) == 4
+        # Without a backoff it is re-created right away, as before.
+        assert [w.id for w in supervisor.creating_triggers] == [1]
+
+    def test_a_trigger_no_longer_assigned_here_is_forgotten(self, supervisor):
+        self._fail(supervisor, 1)
+        supervisor.failed_triggers.clear()  # handled
+
+        supervisor.update_triggers(set())
+
+        assert supervisor.failure_tracker.failures == {}
+
+    def test_failure_state_survives_a_move_to_another_triggerer(self, session, supervisor_builder, mocker):
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        trigger = Trigger.from_object(SuccessTrigger())
+        session.add(trigger)
+        session.flush()
+        asset = AssetModel(name="moved", uri="s3://b/moved")
+        asset.add_trigger(trigger, "moved_watcher")
+        session.add(asset)
+        first = supervisor_builder()
+        trigger.triggerer_id = first.job.id
+        session.commit()
+
+        first.update_triggers({trigger.id})
+        first._handle_request(messages.TriggerStateChanges(), log=MagicMock(), req_id=1)
+        self._fail(first, trigger.id, error="ValueError: boom\n", req_id=2)
+        first.handle_failed_triggers()
+        session.expire_all()
+        row = session.get(Trigger, trigger.id)
+        assert (row.consecutive_failures, row.last_error) == (1, "ValueError: boom")
+        first_failed_at = row.first_failed_at
+
+        second = supervisor_builder()
+        row.triggerer_id = second.job.id
+        session.commit()
+        second.update_triggers({trigger.id})
+        second._handle_request(messages.TriggerStateChanges(), log=MagicMock(), req_id=1)
+        self._fail(second, trigger.id, error="ValueError: again\n", req_id=2)
+        second.handle_failed_triggers()
+
+        session.expire_all()
+        row = session.get(Trigger, trigger.id)
+        assert (row.consecutive_failures, row.first_failed_at, row.last_error) == (
+            2,
+            first_failed_at,
+            "ValueError: again",
+        )
+
+
+class TestTriggerFailureTracker:
+    def test_only_triggers_that_failed_are_tracked(self):
+        tracker = TriggerFailureTracker(recovery_uptime=10)
+
+        tracker.record_started([1, 2], now=0)
+        tracker.continue_from(3, None)
+
+        assert tracker.failures == {}
+
+    def test_counts_until_an_event(self):
+        tracker = TriggerFailureTracker(recovery_uptime=10)
+
+        assert [tracker.record_failure(1, now=n) for n in range(3)] == [1, 2, 3]
+        assert tracker.record_success(1) == 3
+        assert tracker.record_success(1) == 0
+        assert tracker.consecutive(1) == 0
+
+    def test_counts_until_it_stays_up(self):
+        tracker = TriggerFailureTracker(recovery_uptime=10)
+        tracker.record_failure(1, now=0)
+        tracker.record_failure(2, now=0)
+        tracker.record_started([1, 2], now=1)
+        tracker.record_failure(2, now=5)
+
+        assert tracker.pop_recovered(now=10) == {}
+        assert tracker.pop_recovered(now=11) == {1: 1}
+        assert tracker.consecutive(2) == 2
+
+
+class TestTriggerMetrics:
+    @pytest.fixture
+    def supervisor(self, jobless_supervisor):
+        jobless_supervisor.trigger_kinds.update({1: "asset_watcher", 2: "callback", 3: "task"})
+        return jobless_supervisor
+
+    @mock.patch.object(TriggerRunnerSupervisor, "on_trigger_failure", autospec=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.stats.incr")
+    def test_failures_are_tagged_by_kind(self, incr, _, supervisor):
+        supervisor.failed_triggers.extend([(1, None), (2, None), (3, None)])
+
+        supervisor.handle_failed_triggers()
+
+        assert incr.call_args_list == [
+            mock.call("triggers.failed", tags={"trigger_kind": "asset_watcher"}),
+            mock.call("triggers.failed", tags={"trigger_kind": "callback"}),
+            mock.call("triggers.failed", tags={"trigger_kind": "task"}),
+        ]
+
+    @mock.patch.object(TriggerRunnerSupervisor, "on_trigger_failure", autospec=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.stats.incr")
+    def test_trigger_failures_carry_the_team(self, incr, _, supervisor):
+        supervisor.team_name = "team_a"
+        supervisor.failed_triggers.append((1, None))
+
+        supervisor.handle_failed_triggers()
+
+        incr.assert_called_once_with(
+            "triggers.failed", tags={"trigger_kind": "asset_watcher", "team_name": "team_a"}
+        )
+
+    @mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.stats.incr")
+    def test_kind_is_kept_until_a_removed_trigger_is_handled(self, incr, _, supervisor):
+        # The trigger left the requested set (its Dag was paused, say) with its event still queued.
+        supervisor.events.append(TriggerEventEntry(1, TriggerEvent(True), None))
+
+        supervisor.update_triggers(set())
+        supervisor.handle_events()
+
+        incr.assert_called_once_with("triggers.succeeded", tags={"trigger_kind": "asset_watcher"})
+
+    @mock.patch.object(TriggerRunnerSupervisor, "on_trigger_event", autospec=True)
+    @mock.patch("airflow.jobs.triggerer_job_runner.stats.incr")
+    def test_events_are_tagged_by_kind(self, incr, _, supervisor):
+        supervisor.events.append(TriggerEventEntry(3, TriggerEvent(True), None))
+
+        supervisor.handle_events()
+
+        incr.assert_called_once_with("triggers.succeeded", tags={"trigger_kind": "task"})
+
+    def test_failing_triggers_gauge_counts_triggers_with_failures_per_kind(self, supervisor_builder, mocker):
+        supervisor = supervisor_builder()
+        supervisor.trigger_kinds.update(
+            {1: "asset_watcher", 2: "asset_watcher", 3: "callback", 4: "asset_watcher"}
+        )
+        supervisor.failure_tracker.continue_from(1, 2)
+        supervisor.failure_tracker.continue_from(3, 1)
+        # Re-created after its failures: still failing until it recovers.
+        supervisor.failure_tracker.continue_from(4, 3)
+        supervisor.failure_tracker.record_started([4], now=0)
+        gauge = mocker.patch("airflow.jobs.triggerer_job_runner.stats.gauge")
+
+        supervisor.emit_metrics()
+
+        hostname = supervisor.job.hostname
+        assert [c for c in gauge.call_args_list if c.args[0] == "triggers.failing"] == [
+            mock.call("triggers.failing", 0, tags={"hostname": hostname, "trigger_kind": "task"}),
+            mock.call("triggers.failing", 1, tags={"hostname": hostname, "trigger_kind": "callback"}),
+            mock.call("triggers.failing", 2, tags={"hostname": hostname, "trigger_kind": "asset_watcher"}),
+        ]
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected"),
+        [
+            pytest.param(
+                {"assets": [mock.Mock(uri="s3://b/k")], "callback": None}, "asset_watcher", id="watcher"
+            ),
+            pytest.param({"assets": [], "callback": mock.Mock(data={})}, "callback", id="callback"),
+        ],
+    )
+    def test_kind_is_recorded_when_the_workload_is_built_and_dropped_with_the_trigger(
+        self, jobless_supervisor, mocker, kwargs, expected
+    ):
+        for asset in kwargs["assets"]:
+            asset.name = "a"
+        trigger = mocker.Mock(
+            spec=Trigger,
+            id=4,
+            task_instance=None,
+            classpath="x.Y",
+            encrypted_kwargs="",
+            consecutive_failures=None,
+            asset_watchers=[],
+            **kwargs,
+        )
+        jobless_supervisor._create_workload(
+            trigger=trigger, dag_bag=mocker.Mock(), render_log_fname=mocker.Mock(), session=mocker.Mock()
+        )
+        assert jobless_supervisor.trigger_kinds[4] == expected
+
+        jobless_supervisor.update_triggers(set())
+
+        assert 4 not in jobless_supervisor.trigger_kinds
+
+
+class TestOwnerOfTriggersCreatedWithoutOne:
+    """Rows created by components still on the previous version during a rolling upgrade have no owner."""
+
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_the_owner_of_a_deferred_tasks_trigger_is_recorded(self, session, jobless_supervisor):
+        trigger = Trigger.from_object(SuccessTrigger())
+        session.add(trigger)
+        session.flush()
+        with DAG(dag_id="owner_dag") as dag:
+            task = PythonOperator(task_id="owner_task", python_callable=print)
+        session.add(DagModel(dag_id="owner_dag", bundle_name="testing"))
+        SerializedDagModel.write_dag(LazyDeserializedDAG.from_dag(dag), bundle_name="testing")
+        dag_run = DagRun(dag.dag_id, run_id="owner_run", run_type="manual", run_after=timezone.utcnow())
+        ti = create_task_instance(
+            task,
+            run_id=dag_run.run_id,
+            state=TaskInstanceState.DEFERRED,
+            dag_version_id=DagVersion.get_latest_version(dag.dag_id).id,
+        )
+        ti.trigger_id = trigger.id
+        session.add_all([dag_run, ti])
+        session.commit()
+
+        jobless_supervisor.build_trigger_workloads({trigger.id})
+
+        session.expire_all()
+        row = session.get(Trigger, trigger.id)
+        assert (row.dag_id, row.owner_ref) == ("owner_dag", {"ti_id": str(ti.id)})
+
+    @pytest.mark.parametrize(
+        ("data", "expected_dag_id"),
+        [
+            pytest.param({"dag_id": "data_dag"}, "data_dag", id="dag-id-in-data"),
+            pytest.param(
+                {"kwargs": {"context": {"dag_run": {"dag_id": "context_dag"}}}},
+                "context_dag",
+                id="in-context",
+            ),
+        ],
+    )
+    def test_the_owner_of_a_callbacks_trigger_is_recorded(self, mocker, data, expected_dag_id):
+        callback = mocker.Mock(data=data, id=uuid.uuid4())
+        callback.get_dag_id.return_value = data.get("dag_id")
+        trigger = mocker.Mock(
+            spec=Trigger, owner_ref=None, dag_id=None, task_instance=None, callback=callback
+        )
+
+        TriggerRunnerSupervisor._record_missing_owner(trigger)
+
+        assert (trigger.dag_id, trigger.owner_ref) == (expected_dag_id, {"callback_id": str(callback.id)})
+
+    def test_a_recorded_owner_is_kept(self, mocker):
+        trigger = mocker.Mock(spec=Trigger, owner_ref={"ti_id": "x"}, dag_id="d", task_instance=mocker.Mock())
+
+        TriggerRunnerSupervisor._record_missing_owner(trigger)
+
+        assert (trigger.dag_id, trigger.owner_ref) == ("d", {"ti_id": "x"})

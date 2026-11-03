@@ -56,6 +56,8 @@ from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
+    CallbackMeta as CallbackMeta,
+    CallbackSource as CallbackSource,
     Context as Context,
     get_current_context as get_current_context,
     get_parsing_context as get_parsing_context,
@@ -70,6 +72,7 @@ from airflow.sdk.definitions.decorators import (
 )
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
+from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
@@ -182,6 +185,7 @@ __all__ = [
     "HourWindow",
     "IdentityMapper",
     "Label",
+    "LoopDecision",
     "Metadata",
     "MinimumCount",
     "MonthWindow",

@@ -35,17 +35,17 @@ internal class BundleTest {
   class Nested
 
   /** A Dag class that the processor generated [WiredDagBuilder] for. */
-  @Builder.Dag(id = "wired")
+  @Airflow.Dag(id = "wired")
   class WiredDag
 
   /** A Dag class whose generated [BrokenDagBuilder] fails, as an invalid wiring would. */
-  @Builder.Dag
+  @Airflow.Dag
   class BrokenDag
 
   /** A Dag class that also holds a task handler, so the processor generated both. */
-  @Builder.Dag(id = "mixed")
+  @Airflow.Dag(id = "mixed")
   class MixedDag {
-    @Builder.TaskHandler(dag = "etl", task = "score")
+    @Airflow.TaskHandler(dag = "etl", task = "score")
     fun score() = Unit
   }
 
@@ -150,7 +150,7 @@ internal class BundleTest {
   }
 
   @Test
-  @DisplayName("Should register the Dag a @Builder.Dag class's generated builder builds")
+  @DisplayName("Should register the Dag an @Airflow.Dag class's generated builder builds")
   fun shouldRegisterDagFromBuilderClass() {
     val bundle = Bundle().register(WiredDag::class.java)
 
@@ -209,7 +209,7 @@ internal class BundleTest {
 
     Assertions.assertEquals(
       "No generated registrar org.apache.airflow.sdk.BundleTest_NoOpHandlers for " +
-        "${NoOp::class.java.name}; does it carry @Builder.Dag or @Builder.TaskHandler, " +
+        "${NoOp::class.java.name}; does it carry @Airflow.Dag or @Airflow.TaskHandler, " +
         "and is airflow-sdk-processor on the annotationProcessor path?",
       error.message,
     )

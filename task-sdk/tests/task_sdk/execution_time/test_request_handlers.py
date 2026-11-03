@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock
 
-import httpx
+import httpx2
 import pytest
 from task_sdk import make_client
 
@@ -93,10 +93,10 @@ def test_loop_selectors_survive_comms_and_http_transport(
 
     def respond(request):
         requests.append(request)
-        return httpx.Response(200, content=json.dumps(response), headers={"Content-Range": "map_indexes 1"})
+        return httpx2.Response(200, content=json.dumps(response), headers={"Content-Range": "map_indexes 1"})
 
     handler(
-        make_client(transport=httpx.MockTransport(respond)),
+        make_client(transport=httpx2.MockTransport(respond)),
         message.model_validate_json(msg.model_dump_json()),
     )
 

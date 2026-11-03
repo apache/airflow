@@ -38,6 +38,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { useHITLReviewTabs } from "src/hooks/useHITLReviewTabs";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { type TabItem, useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useResolvePassCoordinate } from "src/hooks/useResolvePassCoordinate";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
 import { useDefaultTaskInstanceTab } from "src/hooks/useUserSettings";
@@ -54,9 +55,10 @@ export const TaskInstance = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const coordinates = useTaskInstanceCoordinates();
+  const isResolvingCoordinate = useResolvePassCoordinate();
   const { error, historical, historicalTaskInstance, isLoading, liveTaskInstance, taskInstance } =
     useTaskInstanceView();
-  const isRegional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
+  const regional = liveTaskInstance !== undefined && isLoopTaskInstance(liveTaskInstance);
   const tryNumber = searchParams.get(SearchParamsKeys.TRY_NUMBER);
   const coordinateSearch = new URLSearchParams();
 
@@ -131,7 +133,7 @@ export const TaskInstance = () => {
       search: tab.search ?? (coordinateSearch.toString() || undefined),
     }));
   const newTabs =
-    taskInstance && taskInstance.map_index > -1 && !isRegional && !historical
+    taskInstance && taskInstance.map_index > -1 && !regional && !historical
       ? [
           ...scopedTabs.slice(0, 1),
           {
@@ -174,7 +176,9 @@ export const TaskInstance = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      {/* Held rather than rendered empty: a looped task instance cannot be asked for without a
+          coordinate, so the children must not run their queries until the pass resolves. */}
+      <DetailsLayout error={error} isLoading={isLoading || isResolvingCoordinate} tabs={displayTabs}>
         {taskInstance === undefined ? (
           isLoading ? undefined : (
             <Heading p={2} size="lg">

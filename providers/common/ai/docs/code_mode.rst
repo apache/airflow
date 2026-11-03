@@ -92,8 +92,9 @@ already made are not undone, and the model has to split the work across several 
 agent fans out over a list, for example one tool call per row or per file, set it above the
 largest list you expect.
 
-Code mode cannot be combined with ``durable=True`` (see :doc:`capabilities` for which
-capabilities durable replay covers), and it turns off :doc:`tool_approval`. A tool that needs
+With ``durable=True``, a retry runs each ``run_code`` snippet again and replays the tool
+calls it makes, and ``eager`` and ``speculate`` are off; see :ref:`durable-code-mode`.
+Code mode turns off :doc:`tool_approval`. A tool that needs
 approval and is called from ``run_code`` does not run: the model gets an error back and may
 carry on without it, so the task can still succeed. To keep such a tool out of ``run_code``,
 list the other tools in ``CodeMode(tools=[...])``; called directly, it fails the task.

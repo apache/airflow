@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 # [START refine_estimate]
-from airflow.sdk import dag, task, task_group
+from airflow.sdk import LoopDecision, dag, task, task_group
 
 
 @dag(schedule=None, catchup=False, tags=["example"])
@@ -28,7 +28,7 @@ def refine_estimate():
     def refine():
         @task
         def improve(*, loop):
-            estimate = 1.0 if loop.index == 0 else loop.previous["estimate"]
+            estimate = 1.0 if loop.index == 1 else loop.previous["estimate"]
             return (estimate + 2.0 / estimate) / 2.0
 
         @task
@@ -38,7 +38,9 @@ def refine_estimate():
         evaluate(improve())
 
     def accurate_enough(*, loop):
-        return loop.result["error"] < 0.000001
+        error = loop.result["error"]
+        threshold = 0.000001
+        return LoopDecision(stop=error < threshold, reason=f"error {error:.2g}, needs < {threshold:g}")
 
     @task
     def finished():
@@ -59,7 +61,7 @@ def fixed_task_loop():
     def accumulate():
         @task
         def increment(*, loop):
-            return (0 if loop.index == 0 else loop.previous) + 1
+            return (0 if loop.index == 1 else loop.previous) + 1
 
         increment()
 
@@ -77,7 +79,7 @@ def mapped_task_loop():
     def process_batch():
         @task
         def choose_items(*, loop):
-            return [1, 2] if loop.index == 0 else [value + 1 for value in loop.previous]
+            return [1, 2] if loop.index == 1 else [value + 1 for value in loop.previous]
 
         @task
         def process(value, *, loop, ti):
@@ -87,7 +89,7 @@ def mapped_task_loop():
         process.expand(value=choose_items())
 
     def batch_ready(*, loop):
-        return min(loop.result) >= 2
+        return min(loop.result) >= 3
 
     process_batch.loop(max_iterations=3, until=batch_ready)
 
@@ -103,7 +105,7 @@ def partial_override_loop():
     def accumulate(increment_by):
         @task
         def increment(increment_by, *, loop):
-            return (0 if loop.index == 0 else loop.previous) + increment_by
+            return (0 if loop.index == 1 else loop.previous) + increment_by
 
         increment(increment_by)
 

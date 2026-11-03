@@ -25,7 +25,7 @@ import structlog
 from fastapi import HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import delete, select, tuple_
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 from sqlalchemy.orm.session import Session
 
@@ -57,7 +57,6 @@ from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import lock_dag_runs
 from airflow.models.dynamic_region import (
-    LOOP_DECISION_KEY,
     SENTINEL_REGION_ID,
     DynamicRegion,
     load_region_ancestry,
@@ -65,13 +64,11 @@ from airflow.models.dynamic_region import (
 )
 from airflow.models.renderedtifields import load_legacy_rendered_fields
 from airflow.models.task_coordinates import (
-    LOOP_GATE_OPERATOR,
     TaskCoordinateResolver,
     enclosing_loop,
     public_map_index_expression,
 )
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances, select_loop_clear_scope
-from airflow.models.xcom import XComModelV2
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.state.metastore import _get_db_backend
 from airflow.utils.state import TaskInstanceState
@@ -518,12 +515,6 @@ def _patch_selected_task_state(
         [ti for ti in tis if ti.id not in superseded], later_loop_iterations=False, session=session
     )
     for ti in changed:
-        if ti.operator == LOOP_GATE_OPERATOR:
-            session.execute(
-                delete(XComModelV2).where(
-                    XComModelV2.task_instance_id == ti.id, XComModelV2.key == LOOP_DECISION_KEY
-                )
-            )
         if ti.state == TaskInstanceState.RESTARTING and ti.id in superseded:
             ti.complete_restart(session=session, terminal_outcome=data["new_state"])
         else:

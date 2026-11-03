@@ -1,0 +1,20 @@
+``airflow.utils.email`` is deprecated in favor of the SMTP provider
+
+The functions in ``airflow.utils.email`` (``send_email``, ``send_email_smtp``, ``send_mime_email``,
+``build_mime_message`` and ``get_email_address_list``) now live in
+``airflow.providers.smtp.utils.emailer``. The old names still work and raise a ``DeprecatedImportWarning``.
+Airflow now requires ``apache-airflow-providers-smtp>=3.2.0``.
+
+Keep ``[email] email_backend`` set to ``airflow.utils.email.send_email_smtp``. Airflow treats that value as
+"send task emails with ``SmtpNotifier``", which reads all SMTP settings from the Connection. Changing it to
+the provider path sends through the ``[smtp]`` settings instead.
+
+If you call these functions directly:
+
+* The SMTP Connection is looked up with ``BaseHook.get_connection``. A script that runs outside Airflow's
+  processes needs the Connection in an environment variable or a secrets backend, not only in the metadata
+  database.
+* Settings are read through the Task SDK configuration, so values changed at runtime with
+  ``airflow.configuration.conf.set()`` are not seen. ``airflow.cfg`` and environment variables work as before.
+* Tests that patch ``airflow.utils.email.send_mime_email`` no longer intercept the call made by
+  ``send_email_smtp``. Patch ``airflow.providers.smtp.utils.emailer.send_mime_email`` instead.

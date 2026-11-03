@@ -51,7 +51,7 @@ function. Supply a positive integer ``max_iterations`` to limit the number of
 iterations. An optional ``until`` callable decides when to stop early.
 
 Airflow evaluates ``until`` in a gate task downstream of the body's terminal task.
-It must return a ``bool``:
+It must return a ``bool``, or a ``LoopDecision`` as described in :ref:`loops-decision-reason`:
 
 * ``True`` means stop: the condition has been met.
 * ``False`` means continue, provided another iteration is allowed.
@@ -110,6 +110,30 @@ give another loop a different ``group_id``:
    :start-after: [START partial_override_loop]
    :end-before: [END partial_override_loop]
 
+.. _loops-decision-reason:
+
+Explain a decision
+------------------
+
+As well as a ``bool``, ``until`` can return a ``LoopDecision``, which lets you provide free text
+for display to users in the UI. The text is shown as plain text: HTML and Markdown are not rendered.
+
+Returning a ``LoopDecision(stop=..., reason=...)`` instead of a ``bool`` lets you include more
+detailed information about why the loop continued or finished. ``stop`` has the same meaning as the
+plain ``bool`` return value. The ``reason`` field is optional text, written by the Dag author, that
+the Airflow UI shows next to the iteration's outcome, for example ``error 0.17, needs < 1e-06``. It
+is limited to 512 bytes of UTF-8; anything longer will result in the gate task failing outright. This
+decision will then show up in the UI on Task Instance Details section of the gate task.
+
+The reason is also recorded when the loop fails because it reached ``max_iterations`` without
+stopping.
+
+The ``accurate_enough`` condition in the ``refine_estimate`` example above returns a
+``LoopDecision``, so each iteration of that loop shows its error next to its outcome.
+:doc:`Refine a draft within a budget <apache-airflow-providers-common-ai:use_cases/refine_a_draft_within_a_budget>`
+uses the same pattern for LLM calls, stopping with a reason when a judge passes the draft or when
+the loop has spent its dollar or token budget.
+
 Read the loop context
 =====================
 
@@ -124,21 +148,33 @@ definition.
    * - Attribute
      - Meaning
    * - ``loop.index``
-     - The current iteration number, starting at zero.
+     - The current iteration number, starting at one.
    * - ``loop.max_iterations``
      - The configured limit on the number of iterations.
    * - ``loop.previous``
-     - The previous iteration's result, or ``None`` in iteration 0.
+     - The previous iteration's result, or ``None`` in iteration 1.
    * - ``loop.result``
      - The terminal body task's result (the XCom pushed under the key ``return_value``) for the current iteration, used by the gate.
+   * - ``loop.region_id``
+     - The id of the loop execution (trajectory) that holds this iteration. It is the same for every task
+       instance of the iteration, mapped ones included.
+   * - ``loop.trajectory``
+     - The number of that trajectory: 1 for the loop's first execution, and one more each time a rerun
+       replaces later iterations, see :ref:`loops-trajectories`.
+   * - ``loop.forked_from_region_id``
+     - The ``loop.region_id`` of the previous trajectory, or ``None`` in trajectory 1.
+   * - ``loop.resumes_from_index``
+     - The first iteration this trajectory holds, or ``None`` in trajectory 1, which holds them from 1.
 
 Use ``loop.index`` for the loop iteration and ``ti.map_index`` for a mapped
 task instance's position. Each task instance can have several tries, each with its own ``ti.try_number``.
+The task instance also exposes the loop context as ``ti.loop``, and for a mapped task
+``ti.expanded_ti_count`` is the number of instances in its expansion, counted within the iteration.
 
 Pass data between iterations
 ============================
 
-Between iterations, use ``loop.previous``. Check ``loop.index == 0`` to handle
+Between iterations, use ``loop.previous``. Check ``loop.index == 1`` to handle
 the first iteration. Do not test ``loop.previous is None``: it is also ``None``
 when the previous terminal task returned nothing, and a previous result of
 ``0``, ``False``, or an empty collection can be valid data.
@@ -179,6 +215,7 @@ task's latest iteration.
 Limitations:
 
 * ``include_prior_dates=True`` cannot select a loop iteration from another Dag run. Push the result to XCom through a task outside the loop if later Dag runs need to retrieve it with an ordinary XCom pull; see :ref:`loops-outside-result`.
+* A Dag that uses a loop needs an XCom backend that supports loops. The default backend does. If your backend does not, for example a custom one written before loops existed, the Dag fails with an error when it is parsed and again when a task starts. See Custom XCom Backends in :doc:`/core-concepts/xcoms`.
 * The experimental DagRun wait API also requires an outside-loop result task. Marking a loop member as the Dag result raises ``ValueError`` while the Dag is parsed, and the wait API rejects results selected directly from a loop member. Mark a task outside the loop as the result instead, for example one that returns the last element of a loop task's results. See :ref:`dag-result`.
 
 Connect a loop to other tasks
@@ -218,8 +255,8 @@ The task receives a sequence (``LazyXComSequence``) with one element for each
 iteration the loop ran, in iteration order, so ``results[-1]`` is the last
 iteration's result and ``len(results)`` is the number of iterations. A mapped
 loop task gives one element per mapped instance for each iteration, ordered by
-iteration first and then by map index: all instances of iteration 0, then all
-instances of iteration 1, and so on. ``ti.xcom_pull(task_ids=...)`` and
+iteration first and then by map index: all instances of iteration 1, then all
+instances of iteration 2, and so on. ``ti.xcom_pull(task_ids=...)`` and
 ``{{ ti.xcom_pull(task_ids=...) }}`` in a template return the same sequence.
 
 Only the current executions are included. Iterations that a rerun replaced do
@@ -236,9 +273,10 @@ gate's state. A trigger rule such as ``always`` does not wait for the loop and
 may see only the iterations that exist so far.
 
 Inside the loop nothing changes: use ``loop.result`` and ``loop.previous``. A
-task outside the loop cannot pull a single value from a loop task, because the
-task ran once for each iteration, and cannot use its output to expand a mapped
-task.
+``ti.xcom_pull`` of another task in the same loop returns that task's value from the
+current iteration. A task outside the loop cannot pull a single value from a loop
+task, because the task ran once for each iteration, and cannot use its output to
+expand a mapped task.
 
 .. _loops-mapped-tasks:
 
@@ -268,9 +306,10 @@ first iteration, then each previous result plus one.
    :start-after: [START mapped_loop]
    :end-before: [END mapped_loop]
 
-The loop iteration and mapped position are separate "coordinates". In this
-example, each iteration has mapped instances 0 and 1, so mapped instance 1 in
-iteration 0 is distinct from mapped instance 1 in iteration 1.
+The loop iteration and mapped position are separate "coordinates", and they do
+not count from the same number: iterations start at 1 and map indexes start at
+0. In this example iteration 1 has mapped instances 0 and 1, so mapped instance
+1 in iteration 1 is distinct from mapped instance 1 in iteration 2.
 Mapped instances appear within their loop iteration, so you can inspect their
 states, tries, and logs separately.
 
@@ -293,9 +332,10 @@ counts iterations.
 
 An exception in ``until`` fails the gate task and appears in its logs; the
 gate is retried according to ``retries``. An ``until`` that returns anything
-other than a ``bool``, and a loop that reaches its iteration limit without
-meeting ``until``, fail the gate without retrying, because a retry would see the
-same result. In the second case the final gate fails; downstream tasks with the
+other than a ``bool`` or a valid ``LoopDecision``, a reason longer than 512
+bytes, and a loop that reaches its iteration limit without meeting ``until``,
+fail the gate without retrying, because a retry would see the same result. When
+the loop reaches its limit, the final gate fails; downstream tasks with the
 default ``all_success`` trigger rule will not run, as described under
 non-convergence above.
 
@@ -322,6 +362,12 @@ or creating another iteration. This is an explicit override of normal gate
 execution. Downstream tasks then run as they would after any successful gate: they cannot tell a
 gate that was marked successful by hand from one that stopped because ``until`` returned ``True``.
 Any later iterations retained after a selective clear remain unchanged.
+
+The gate's task instance exposes its decision as ``ti.loop_decision``, a ``LoopDecision``, once the gate
+has evaluated it. With ``until``, ``stop`` is ``True`` when ``until`` ended the loop, even at its last
+iteration. When ``stop`` is ``False`` at the last iteration (``loop.index == loop.max_iterations - 1``),
+the loop reached ``max_iterations`` without meeting ``until`` and the gate fails. A gate that fails before
+deciding, for example because ``until`` raised, or that was marked successful by hand, has no decision.
 
 Iterations and execution history
 ================================
@@ -362,14 +408,14 @@ Suppose each iteration contains this sequence:
 
    prepare → process → consume → gate
 
-The loop has already run iterations 0 through 4. You clear ``process`` in
+The loop has already run iterations 1 through 4. You clear ``process`` in
 iteration 2 with **Clear downstream tasks** and **Clear later loop iterations** both selected:
 
 * ``prepare`` in iteration 2 remains completed.
 * ``process``, ``consume``, and the gate in iteration 2 run again.
 * Later iterations 3 and 4 are cleared. Whether replacement iterations run
   depends on the new gate decisions.
-* Iterations 0 and 1 remain untouched.
+* Iteration 1 remains untouched.
 
 If the gate now stops at iteration 2, replacement iterations 3 and 4 are not
 created.
@@ -390,3 +436,17 @@ which leave them in place. To keep later iterations, clear from the UI or the
 REST endpoint.
 
 Tasks you leave uncleared are not recomputed using the results of the rerun.
+
+.. _loops-trajectories:
+
+Reruns and trajectories
+-----------------------
+
+Clearing later iterations starts a new execution of the loop that replaces the previous ones from the
+iteration after the rerun gate. Each execution is a trajectory, identified by ``loop.region_id`` and
+numbered by ``loop.trajectory``: 1 for the first one, growing by one with each rerun. The rerun gate, and
+whatever you clear in its iteration, run again in the trajectory that iteration belongs to, with their
+next try. The replacement iterations run in the new trajectory, from ``loop.resumes_from_index``, and their
+tries count from 1 again for each task. In the example above, iteration 2 stays in trajectory 1, while
+replacement iterations 3 and 4 run in trajectory 2, with ``loop.resumes_from_index`` 3. Task log paths show
+the trajectory after the iteration, as in ``pass=3.2``.

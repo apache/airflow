@@ -92,7 +92,6 @@
   "dagRun_other": "Execucions de Dag",
   "dagRunId": "ID d'Execució del Dag",
   "dagRunState": "Estat de l'execució de Dag",
-  "dagWarnings": "Advertències/errors del Dag",
   "delete": "Eliminar",
   "diff": "Diferència",
   "diffCompareWith": "Comparar amb",

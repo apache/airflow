@@ -47,6 +47,13 @@
   "dagWarnings": {
     "error_one": "1 hiba",
     "errorAndWarning": "1 hiba és {{warningText}}",
+    "types": {
+      "asset conflict": "Adatkészlet-ütközés",
+      "duplicate dag id": "Ismétlődő Dag ID",
+      "non-existent pool": "Nem létező Pool",
+      "runtime varying value": "Futásidőben változó érték",
+      "task group cycle": "Ciklus a feladatcsoportban"
+    },
     "warning_one": "1 figyelmeztetés",
     "warning_other": "{{count, number}} figyelmeztetés"
   },

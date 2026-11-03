@@ -87,7 +87,6 @@
   "dagRun_other": "Run del Dag",
   "dagRun_zero": "Nessun run del Dag",
   "dagRunId": "ID del Run del Dag",
-  "dagWarnings": "Avvisi/Errori del Dag",
   "defaultToGraphView": "Default to vista grafica",
   "defaultToGridView": "Default to vista griglia",
   "direction": "Direzione",

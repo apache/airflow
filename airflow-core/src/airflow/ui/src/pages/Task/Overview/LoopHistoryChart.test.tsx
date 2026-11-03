@@ -124,6 +124,6 @@ describe("LoopHistoryChart", () => {
       </BaseWrapper>,
     );
     fireEvent.click(screen.getByRole("button", { name: "bar" }));
-    expect(screen.getByTestId("location")).toHaveTextContent("loop_region_id=selected-nested-region");
+    expect(screen.getByTestId("location")).toHaveTextContent("region_id=selected-nested-region");
   });
 });

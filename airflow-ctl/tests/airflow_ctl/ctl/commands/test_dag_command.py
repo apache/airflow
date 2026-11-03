@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 from types import SimpleNamespace
 from unittest import mock
 from unittest.mock import Mock, call, create_autospec
@@ -279,6 +280,53 @@ class TestDagCommands:
                 self.parser.parse_args(["dags", "drain", self.dag_id]),
                 api_client=api_client,
             )
+
+    @pytest.mark.parametrize(
+        ("operation", "response_attr"),
+        [
+            ("pause", "dag_response_paused"),
+            ("unpause", "dag_response_unpaused"),
+            ("drain", "dag_response_draining"),
+        ],
+    )
+    def test_update_dag_state_json_output_is_parseable(
+        self, operation, response_attr, api_client_maker, capsys
+    ):
+        dag_response = getattr(self, response_attr)
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json=dag_response.model_dump(mode="json"),
+            expected_http_status_code=200,
+            kind=ClientKind.CLI,
+        )
+        getattr(dag_command, operation)(
+            self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+            api_client=api_client,
+        )
+        captured = capsys.readouterr()
+        assert json.loads(captured.out)[0]["dag_id"] == self.dag_id
+        assert _normalize_rich_output(captured.err) == (
+            f"Dag {operation} successful {self.dag_id} Further Dag details:"
+        )
+
+    @pytest.mark.parametrize("operation", ["pause", "unpause", "drain"])
+    def test_update_dag_state_error_goes_to_stderr(self, operation, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "DAG not found"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            getattr(dag_command, operation)(
+                self.parser.parse_args(["dags", operation, self.dag_id, "--output", "json"]),
+                api_client=api_client,
+            )
+        assert exc_info.value.code == 1
+        captured = capsys.readouterr()
+        error_message = f"Error while trying to {operation} Dag {self.dag_id}"
+        assert error_message in _normalize_rich_output(captured.err)
+        assert error_message not in _normalize_rich_output(captured.out)
 
     def test_next_execution(self, api_client_maker):
         api_client = api_client_maker(
@@ -622,7 +670,14 @@ class TestDagCommands:
             ),
         )
 
-    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self):
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            pytest.param("2025-01-01T08:00:00+08:00", "2025-01-02T17:00:00+08:00", id="aware"),
+            pytest.param("2025-01-01T00:00:00", "2025-01-02T00:00:00", id="naive"),
+        ],
+    )
+    def test_clear_by_partition_date_uses_calendar_dates_from_datetimes(self, start, end):
         api_client = self._api_client_mock()
         api_client.dag_runs.list.return_value = SimpleNamespace(
             dag_runs=[self._dag_run("scheduled__2025-01-01")],
@@ -637,42 +692,9 @@ class TestDagCommands:
                     "clear",
                     self.dag_id,
                     "--partition-date-start",
-                    "2025-01-01T08:00:00+08:00",
+                    start,
                     "--partition-date-end",
-                    "2025-01-02T17:00:00+08:00",
-                    "--yes",
-                ]
-            ),
-            api_client=api_client,
-        )
-
-        assert result == {"dag_run_count": 1, "cleared_task_instances": 1}
-        api_client.dag_runs.list.assert_called_once_with(
-            dag_id=self.dag_id,
-            offset=0,
-            order_by="partition_date",
-            partition_date_gte=datetime.date(2025, 1, 1),
-            partition_date_lte=datetime.date(2025, 1, 2),
-        )
-
-    def test_clear_by_partition_date_accepts_naive_datetime_as_calendar_date(self):
-        api_client = self._api_client_mock()
-        api_client.dag_runs.list.return_value = SimpleNamespace(
-            dag_runs=[self._dag_run("scheduled__2025-01-01")],
-            total_entries=1,
-        )
-        api_client.tasks.clear.return_value = SimpleNamespace(total_entries=1)
-
-        result = dag_command.clear(
-            self.parser.parse_args(
-                [
-                    "dags",
-                    "clear",
-                    self.dag_id,
-                    "--partition-date-start",
-                    "2025-01-01T00:00:00",
-                    "--partition-date-end",
-                    "2025-01-02T00:00:00",
+                    end,
                     "--yes",
                 ]
             ),

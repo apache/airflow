@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import tenacity
@@ -29,6 +30,7 @@ from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.triggers.base import TriggerEvent
+from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
@@ -186,45 +188,23 @@ class EksPodTrigger(KubernetesPodTrigger):
 
     async def run(self):
         """Generate fresh kubeconfig, then delegate to the parent trigger."""
-        from airflow.utils import yaml
-
         eks_hook = EksHook(
             aws_conn_id=self._aws_conn_id,
             region_name=self.region,
         )
-        session = eks_hook.get_session()
-        credentials_obj = session.get_credentials()
-        if credentials_obj is None:
-            raise RuntimeError(
-                "Unable to retrieve AWS credentials for EKS trigger. "
-                "Credentials may have expired or not been configured."
+        with eks_hook.generate_config_file_with_credentials(
+            eks_cluster_name=self.eks_cluster_name, pod_namespace=self.pod_namespace
+        ) as (config_file_path, _):
+            self.config_dict = yaml.safe_load(
+                Path(config_file_path).read_text()  # noqa: ASYNC240
             )
-        credentials = credentials_obj.get_frozen_credentials()
 
-        # Create fresh credential and kubeconfig files.  The context managers
-        # keep the temp files alive for the entire duration of the trigger.
-        with eks_hook._secure_credential_context(
-            credentials.access_key, credentials.secret_key, credentials.token
-        ) as credentials_file:
-            with eks_hook.generate_config_file(
-                eks_cluster_name=self.eks_cluster_name,
-                pod_namespace=self.pod_namespace,
-                credentials_file=credentials_file,
-            ) as config_file_path:
-                # Reading a small local temp file created by the context manager above.
-                # Blocking I/O is acceptable here as the file is tiny and local.
-                from pathlib import Path
+            # Invalidate any previously cached hook so the new config_dict
+            # is picked up when the parent creates the AsyncKubernetesHook.
+            self.__dict__.pop("hook", None)
 
-                self.config_dict = yaml.safe_load(
-                    Path(config_file_path).read_text()  # noqa: ASYNC240
-                )
-
-                # Invalidate any previously cached hook so the new config_dict
-                # is picked up when the parent creates the AsyncKubernetesHook.
-                self.__dict__.pop("hook", None)
-
-                async for event in super().run():
-                    yield event
+            async for event in super().run():
+                yield event
 
 
 class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):

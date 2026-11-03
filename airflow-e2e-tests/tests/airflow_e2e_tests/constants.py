@@ -103,6 +103,10 @@ GO_SDK_BUNDLE_NAME = "example_dags"
 # The native-Dag example: Dags declared in Go and parsed from the binary by the Dag processor.
 GO_SDK_NATIVE_BUNDLE_PKG = "./example/native"
 GO_SDK_NATIVE_BUNDLE_NAME = "go_native_dags"
+# The dynamic example: Dags generated from a dags.yaml shipped next to the packed binary.
+GO_SDK_DYNAMIC_BUNDLE_PKG = "./example/dynamic"
+GO_SDK_DYNAMIC_BUNDLE_NAME = "go_dynamic_dags"
+GO_SDK_DYNAMIC_YAML_PATH = GO_SDK_ROOT_PATH / "example" / "dynamic" / "dags.yaml"
 # Where airflow-go-pack writes the packed bundle inside the repo (go-sdk/bin is gitignored).
 GO_SDK_BIN_PATH = GO_SDK_ROOT_PATH / "bin"
 GO_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "go.yml"
@@ -122,6 +126,12 @@ TS_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "ts.yml"
 NODE_IMAGE = os.environ.get("NODE_IMAGE", "node:22-slim")
 # Writable HOME for the containerized pnpm build; gitignored, caches persist.
 TS_SDK_BUILD_HOME_PATH = AIRFLOW_ROOT_PATH / "files" / "pnpm-home"
+
+# YAML Dag E2E test paths
+YAML_DAGS_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "yaml-dags"
+YAML_DAG_COMPOSE_PATH = AIRFLOW_ROOT_PATH / "airflow-e2e-tests" / "docker" / "yaml-dag.yml"
+# Must match "params.bucket" in yaml-dags/yaml_s3_roundtrip.yaml.
+YAML_DAG_BUCKET = "airflow-yaml-dag"
 
 # Local provider sources are mounted into the airflow containers under this directory so
 # ``_PIP_ADDITIONAL_REQUIREMENTS`` can install the in-tree (latest, possibly unreleased)

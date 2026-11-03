@@ -26,19 +26,69 @@
 Changelog
 ---------
 
+.. note::
+
+    In multi-team mode, a team's ``AwsEksExecutor`` now reads ``[aws_eks_executor]`` from the team's
+    section and no longer falls back to the global one. Set ``cluster_name`` for each team, and
+    ``region_name`` and ``conn_id`` too if the team needs them.
+
+9.39.0
+......
+
+.. note::
+
+    Glue retries without a stored run ID search at most 2,000 recent runs for the task UUID.
+    An older matching run is no longer found and a new run may be submitted. Unexpected
+    non-AWS lookup errors now fail the task instead of being ignored.
+
+Features
+~~~~~~~~
+
+* ``Add AwsEksExecutor to the Amazon provider (#74399)``
+* ``Add EmrServerlessStopSessionOperator to Amazon provider (#74870)``
+* ``Centralize EKS kubeconfig and credential setup in EksHook (#74775)``
+* ``Add AthenaSparkSensor (#72229)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Include DMS stop reason in DmsTaskBaseSensor failure message (#75240)``
+* ``Skip or fail ECS tasks correctly when their CloudWatch log stream is missing (#74730)``
+* ``Prevent Dag processor crashes with AWS CloudWatch when its log directory is outside 'base_log_folder' (#74929)``
+* ``Limit Glue retry task UUID scan (#71546)``
+* ``Raise a clear error when SqlToS3Operator has no Parquet engine (#74817)``
+* ``Fix SqlToS3Operator failing for every format when df_type is polars (#74692)``
+* ``Declare pyarrow for Parquet output of SqlToS3Operator (#74691)``
+* ``Update the DMS replication_task_modified waiter states (#74522)``
+
+Misc
+~~~~
+
+* ``Raise boto3 and botocore dependency floors to 1.42.93 (#73822)``
+* ``Use the shared 'ResumableJobMixin' compatibility fallback in Glue and Redshift Data operators (#74673)``
+* ``Allow optional task instances in S3 and CloudWatch remote log reader type annotations (#73580)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Stop the EKS executor concurrency test from starving its own builders (#75197)``
+   * ``Exclude minimal and ECS Amazon Linux AMIs in get_latest_ami_id (#75171)``
+
+9.38.0
+......
+
 .. warning::
   ``S3DagBundle`` now appends ``/`` to non-empty directory prefixes when downloading Dags.
   For a configured prefix of ``dags``, listing requests now use ``dags/``. IAM policies
   that restrict ``s3:prefix`` by exact value must permit the directory prefix with its
   trailing slash. Empty prefixes and prefixes that already end in ``/`` are unchanged.
 
-9.38.0
-......
-
 Features
 ~~~~~~~~
 
-* ``Bind the AWS auth manager SAML response to the browser that started the login (#73698)``
+* ``Add EmrServerlessGetSessionEndpointOperator to Amazon provider (#70766)``
+* ``Add a document_classifier_deletable waiter for Amazon Comprehend (#74125)``
+* ``Bind the AWS auth manager SAML response to the browser that started the login (#73698, #74529)``
 * ``Carry task attempt UUIDs through remote executor providers (#73917)``
 * ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
 * ``Add DuckDB support to the Amazon provider (#73301)``
@@ -49,6 +99,8 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix deprecated provider lookup in Amazon AWS hooks (#74480)``
+* ``Respect 'waiter_delay' & 'waiter_max_attempts' in EKS delete operators (#74000)``
 * ``Document that DuckDB extension installs need a HOME directory (#74301)``
 * ``Keep S3 Dag bundle downloads within the configured directory (#73756)``
 * ``Distinguish credential failures from AWS waiter exhaustion (#73870)``
@@ -68,12 +120,16 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Add documentation and example Dag for 'ExasolToS3Operator' (#73940)``
 * ``Update provider READMEs for the Python 3.11 baseline (#74158)``
 * ``Fix docstring cross-references that Sphinx 9 cannot resolve (#74169)``
 * ``Document override semantics for EcsRunTaskOperator (#73860)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Pin loop definitions and carry region coordinates through task execution (#74345)``
+   * ``Start a real login in the AWS auth manager example Dag (#74431)``
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``Verify SSH host keys by default in SSH and SFTP hooks (#73419)``
    * ``Apply ruff Python 3.11 fixes to providers (#74155)``
    * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``

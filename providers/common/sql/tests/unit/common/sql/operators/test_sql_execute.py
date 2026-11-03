@@ -368,6 +368,95 @@ FORGOT TO COMMENT"""
     )
 
 
+class _SQLExecuteQueryOperatorForTest(SQLExecuteQueryOperator):
+    hook: Any
+
+    def get_db_hook(self):
+        return self.hook
+
+
+def _make_openlineage_operator(hook) -> _SQLExecuteQueryOperatorForTest:
+    hook.conn_name_attr = "conn_id"
+    hook.conn_id = "sql_default"
+    op = _SQLExecuteQueryOperatorForTest(task_id=TASK_ID, sql="SELECT 1;")
+    op.hook = hook
+    return op
+
+
+@mock.patch.object(SQLExecuteQueryOperator, "log", autospec=True)
+def test_openlineage_hook_without_database_info_method_returns_empty_lineage(mock_log):
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    op = _make_openlineage_operator(mock.MagicMock(spec=["get_connection", "conn_name_attr", "conn_id"]))
+
+    assert op.get_openlineage_facets_on_start() == OperatorLineage()
+    mock_log.warning.assert_not_called()
+
+
+@mock.patch.object(SQLExecuteQueryOperator, "log", autospec=True)
+def test_openlineage_error_from_database_info_is_logged_and_does_not_lose_other_lineage(mock_log):
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=DbApiHook)
+    hook.get_openlineage_database_info.side_effect = AttributeError("broken import")
+    hook.get_openlineage_database_specific_lineage.return_value = OperatorLineage(
+        run_facets={"externalQuery": mock.sentinel.facet}
+    )
+    op = _make_openlineage_operator(hook)
+
+    assert op.get_openlineage_facets_on_start() == OperatorLineage()
+    lineage = op.get_openlineage_facets_on_complete(None)
+
+    assert lineage.run_facets == {"externalQuery": mock.sentinel.facet}
+    assert mock_log.warning.call_count == 2
+    assert mock_log.warning.call_args.args[1] == "sql_default"
+    assert str(mock_log.warning.call_args.args[2]) == "broken import"
+
+
+@mock.patch.object(SQLExecuteQueryOperator, "log", autospec=True)
+def test_openlineage_error_from_dialect_is_logged_with_conn_id(mock_log):
+    hook = mock.MagicMock(spec=DbApiHook)
+    hook.get_openlineage_database_info.return_value = mock.sentinel.database_info
+    hook.get_openlineage_database_dialect.side_effect = AttributeError("broken import")
+    op = _make_openlineage_operator(hook)
+
+    assert op.get_openlineage_facets_on_start() is None
+    mock_log.warning.assert_called_once()
+    assert mock_log.warning.call_args.args[1] == "sql_default"
+    assert str(mock_log.warning.call_args.args[2]) == "broken import"
+
+
+@mock.patch.object(SQLExecuteQueryOperator, "log", autospec=True)
+def test_openlineage_error_from_database_specific_lineage_is_logged_and_falls_back(mock_log):
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=DbApiHook)
+    hook.get_openlineage_database_info.return_value = None
+    hook.get_openlineage_database_specific_lineage.side_effect = AttributeError("broken import")
+    op = _make_openlineage_operator(hook)
+
+    assert op.get_openlineage_facets_on_complete(None) == OperatorLineage()
+    mock_log.warning.assert_called_once()
+    assert mock_log.warning.call_args.args[1] == "sql_default"
+    assert str(mock_log.warning.call_args.args[2]) == "broken import"
+
+
+@mock.patch("airflow.providers.openlineage.sqlparser.SQLParser", autospec=True)
+def test_openlineage_sqlalchemy_engine_failure_does_not_lose_lineage(mock_sql_parser):
+    from airflow.providers.openlineage.extractors import OperatorLineage
+
+    hook = mock.MagicMock(spec=DbApiHook)
+    hook.get_sqlalchemy_engine.side_effect = RuntimeError("no dialect")
+    hook.get_openlineage_database_info.return_value = mock.sentinel.database_info
+    op = _make_openlineage_operator(hook)
+    expected = OperatorLineage()
+    mock_sql_parser.return_value.generate_openlineage_metadata_from_sql.return_value = expected
+
+    assert op.get_openlineage_facets_on_start() is expected
+    generate = mock_sql_parser.return_value.generate_openlineage_metadata_from_sql
+    assert generate.call_args.kwargs["sqlalchemy_engine"] is None
+
+
 def test_with_no_openlineage_provider():
     import importlib
 
