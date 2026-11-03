@@ -96,7 +96,14 @@ class DurableStorage:
             if not isinstance(cache, dict):
                 # JSON that is not an object holds no steps, just like a cut-off file.
                 raise ValueError("the journal file does not hold a JSON object")
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+        except FileNotFoundError:
+            cache = {}
+        except OSError:
+            log.warning(
+                "Durable: could not load journal; stopping task to avoid replaying steps", exc_info=True
+            )
+            raise
+        except (json.JSONDecodeError, ValueError):
             cache = {}
         self._cache = cache
         return self._cache
