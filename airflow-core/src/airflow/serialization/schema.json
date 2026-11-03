@@ -147,7 +147,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "kind": { "type": "string", "enum": [ "xcom", "literal", "sequence", "local" ] },
         "value_schema": { "type": "object" },
         "task_id": { "type": "string" },
         "value": {},
@@ -156,7 +156,7 @@
       "required": [ "name", "kind" ]
     },
     "arg_binding_param": {
-      "$comment": "Per-parameter metadata of a mapped @task.stub task, in dict-encoded form and declaration order. The inner object stays open so future metadata fields keep validating on older cores",
+      "$comment": "Per-parameter metadata of a @task.stub task whose arguments differ per map index, in dict-encoded form and declaration order. The inner object stays open so future metadata fields keep validating on older cores",
       "type": "object",
       "properties": {
         "__type": {
@@ -167,8 +167,10 @@
           "type": "object",
           "properties": {
             "name": { "type": "string" },
-            "value_schema": { "$ref": "#/definitions/typed_dict" },
-            "default": {}
+            "value_schema": { "type": "object" },
+            "default": {},
+            "value": {},
+            "group_arg": { "type": "object" }
           },
           "required": [ "name" ]
         }
@@ -382,6 +384,7 @@
         "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
         "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
         "partial_kwargs": { "type": "object" },
+        "expand_input": { "type": "object" },
         "_disallow_kwargs_override": { "type": "boolean"},
         "_expand_input_attr": { "type": "string" },
         "map_index_template": { "type": "string" },
@@ -408,7 +411,7 @@
           "items": { "$ref": "#/definitions/arg_binding" }
         },
         "_mapped_arg_binding_params": {
-          "$comment": "Only present on mapped @task.stub tasks with parameters; ordered per-parameter binding metadata",
+          "$comment": "Only present on @task.stub tasks with parameters that are mapped or inside a mapped task group; ordered per-parameter binding metadata",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding_param" }
         }
