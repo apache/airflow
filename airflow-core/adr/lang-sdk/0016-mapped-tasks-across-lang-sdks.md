@@ -144,8 +144,9 @@ the real Dag, so no binding carries a callable or a reference to one.
 
 ## What the Execution API sends
 
-The in-flight stub-task work adds `map_index` and `element_index` to an XCom binding. On top of
-that, three binding kinds:
+An XCom binding carries the coordinate of this index's element: `map_index` for a row of a mapped
+upstream, `element_index` for one element of an unmapped upstream's output. Three further kinds
+complete the set:
 
 ```python
 class XComSequenceArgBinding(_ArgBindingBase):
@@ -244,23 +245,21 @@ runtime starts.
                 └─ transform({ region: "eu", row: … })
 ```
 
-What the server puts in each binding, per authoring form. "Server support" is where the resolution
-lands: per-map-index bindings for stub tasks are already in flight, and every other row is this
-ADR's work.
+What the server puts in each binding, per authoring form.
 
-| Authoring form | Binding | What the SDK runtime does | Server support |
-|---|---|---|---|
-| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | use it | in flight |
-| `.expand({ row: rows })` | `xcom`, `task_id`, `map_index=-1`, `element_index=i` | GET the one row, take `value[element_index]` | in flight |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | GET that row | in flight |
-| `.expand({ a: …, b: … })` | one binding per argument, each already decomposed | use each | in flight |
-| `.partial({ region: … })` | `literal`, or `xcom` with no index | same value every index | in flight |
-| `.expandKwargs(…)` | one binding per parameter of this index's mapping | use each | this ADR |
-| `.zip(a, b)` | `tuple`, `parts` — one binding per zipped argument | pull each part, assemble | this ADR |
-| `.concat(a, b)` | `xcom` for whichever argument owns this index | GET that row | this ADR |
-| `.map(f)` | the wrapped form's binding, or `local` | see below | this ADR |
-| Mapped task group | the member's binding, taken through the innermost common mapped ancestor | use it | this ADR |
-| Reduce, in a downstream task | `sequence`, `task_id` | build a lazy handle, fetch nothing yet | this ADR |
+| Authoring form | Binding | What the SDK runtime does |
+|---|---|---|
+| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | use it |
+| `.expand({ row: rows })` | `xcom`, `task_id`, `map_index=-1`, `element_index=i` | GET the one row, take `value[element_index]` |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | GET that row |
+| `.expand({ a: …, b: … })` | one binding per argument, each already decomposed | use each |
+| `.partial({ region: … })` | `literal`, or `xcom` with no index | same value every index |
+| `.expandKwargs(…)` | one binding per parameter of this index's mapping | use each |
+| `.zip(a, b)` | `tuple`, `parts` — one binding per zipped argument | pull each part, assemble |
+| `.concat(a, b)` | `xcom` for whichever argument owns this index | GET that row |
+| `.map(f)` | the wrapped form's binding, or `local` | see below |
+| Mapped task group | the member's binding, taken through the innermost common mapped ancestor | use it |
+| Reduce, in a downstream task | `sequence`, `task_id` | build a lazy handle, fetch nothing yet |
 
 A Dag definition and a Python Dag with stub TaskHandler differ in nothing else.
 
