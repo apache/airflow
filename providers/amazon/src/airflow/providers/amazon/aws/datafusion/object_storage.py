@@ -36,10 +36,10 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         return StorageType.S3
 
     def _credentials_from_connection(self, conn_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
-        """Derive S3 credentials and endpoint settings from an Airflow connection; only ``aws`` connections are resolved."""
+        """Derive S3 credentials and endpoint settings from an Airflow connection; only ``aws`` connections are supported."""
         conn = BaseHook.get_connection(conn_id)
         if conn.conn_type != "aws":
-            return {}, {}
+            raise ValueError(f"Unknown connection type {conn.conn_type}")
         aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
         creds = aws_hook.get_credentials()
 
@@ -65,14 +65,13 @@ class S3ObjectStorageProvider(ObjectStorageProvider):
         if connection_config is None:
             raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
 
+        credentials = connection_config.credentials
+        extra_config = connection_config.extra_config
+        if not credentials:
+            credentials, conn_extra_config = self._credentials_from_connection(connection_config.conn_id)
+            extra_config = {**conn_extra_config, **extra_config}
+
         try:
-            credentials = connection_config.credentials
-            extra_config = connection_config.extra_config
-
-            if not credentials:
-                credentials, conn_extra_config = self._credentials_from_connection(connection_config.conn_id)
-                extra_config = {**conn_extra_config, **extra_config}
-
             bucket = self.get_bucket(path)
             s3_store = AmazonS3(**credentials, **extra_config, bucket_name=bucket)
             self.log.info("Created S3 object store for bucket %s", bucket)
