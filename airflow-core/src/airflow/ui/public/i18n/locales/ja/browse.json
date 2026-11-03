@@ -30,7 +30,7 @@
       },
       "file_one": "ファイル",
       "file_other": "ファイル",
-      "importErrorGone": "このインポートエラーは今後記録されません。再パースによって修正されたものと思われます",
+      "importErrorGone": "このインポートエラーはもう記録されていません。再パースによって修正されたものと思われます",
       "neverParsed": "一度もパースされていない",
       "showImportError_one": "エラーを表示する",
       "showImportError_other": "{{count}} 件のエラーを表示する"
@@ -42,7 +42,7 @@
   },
   "deadlines": {
     "columns": {
-      "alertName": "アラート名称",
+      "alertName": "アラート名",
       "deadlineTime": "期限時刻",
       "status": "ステータス"
     },

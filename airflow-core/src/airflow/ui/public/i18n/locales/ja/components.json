@@ -93,7 +93,7 @@
     "validationErrorArrayNotArray": "値は配列でなければなりません",
     "validationErrorArrayNotNumbers": "配列内のすべての要素が数値でなければなりません",
     "validationErrorArrayNotObject": "配列内のすべての要素がオブジェクトでなければなりません",
-    "validationErrorDuration": "無効な ISO 8601 期間形式",
+    "validationErrorDuration": "不正な ISO 8601 期間形式",
     "validationErrorRequired": "この項目は必須です"
   },
   "graph": {
@@ -112,7 +112,7 @@
   },
   "jsonPreview": {
     "items_one": "1 項目",
-    "items_other": "{{count}} 件項目"
+    "items_other": "{{count}} 項目"
   },
   "limitedList": "その他 +{{count}} 件",
   "limitedList.allItems": "全 {{count}} 件:",
@@ -136,10 +136,10 @@
     "empty": "この範囲内には、完了したタスクインスタンスはありません",
     "title": "最も時間がかかったタスクインスタンス"
   },
+  "sortMultiColumnHint": "複数列で並べ替えるには、 Shift を押しながらクリックします",
   "sortedAscending": "昇順ソート",
   "sortedDescending": "降順でソート",
   "sortedUnsorted": "未ソート",
-  "sortMultiColumnHint": "複数列で並べ替えるには、 Shift を押しながらクリックします",
   "taskTries": "タスクの試行",
   "taskTryPlaceholder": "タスクの試行",
   "team": {
@@ -161,8 +161,8 @@
     "loading": "Dag 情報を読込中...",
     "loadingFailed": "情報読込に失敗しました。もう一度試してください",
     "manualRunDenied": "この Dag は手動実行が許可されていません",
-    "partitionKeyHelp": "オプション- パーティション化された Dag にのみ適用されます",
-    "runIdHelp": "オプション- 指定しない場合自動的に生成されます",
+    "partitionKeyHelp": "任意：パーティション化された Dag にのみ適用されます",
+    "runIdHelp": "任意：指定しない場合自動的に生成されます",
     "selectDescription": "この Dag の単体での実行をトリガーします",
     "selectLabel": "単体での実行",
     "title": "Dag のトリガー",

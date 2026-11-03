@@ -1,7 +1,7 @@
 {
   "alerts": {
     "seeLessContext": "表示を減らす",
-    "seeMoreContext": "もっと見る",
+    "seeMoreContext": "表示を増やす",
     "showMoreAlerts_one": "その他に {{count}} 件の警告があります",
     "showMoreAlerts_other": "その他に {{count}} 件の警告があります"
   },
@@ -18,7 +18,7 @@
     "title": "期限"
   },
   "deferredSlotsNotCounted": "スロットにカウントされていない遅延タスク： {{count}}",
-  "deferredSlotsNotCountedTooltip": "バーに表示されている遅延タスクは、プールスロットとしてカウントされます。バーの下部に表示されている遅延タスクは、遅延タスクをスロット数にカウントしないプールに属しています",
+  "deferredSlotsNotCountedTooltip": "バーに表示されている遅延タスクは、Pool スロットとしてカウントされます。バーの下部に表示されている遅延タスクは、遅延タスクをスロット数にカウントしない Pool に属しています",
   "favorite": {
     "favoriteDags_one": "先頭 {{count}} 件のお気に入り Dag",
     "favoriteDags_other": "先頭 {{count}} 件のお気に入り Dag",
@@ -59,9 +59,9 @@
     "searchByFile": "ファイルで検索",
     "timestamp": "タイムスタンプ"
   },
-  "managePools": "プールの管理",
+  "managePools": "Pools の管理",
   "noAssetEvents": "アセットイベントが見つかりません",
-  "poolSlots": "プールスロット",
+  "poolSlots": "Pool スロット",
   "sortBy": {
     "newestFirst": "新しい順",
     "oldestFirst": "古い順",
