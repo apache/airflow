@@ -1,7 +1,7 @@
 [
     {"eventType": "START", "job": {"name": "openlineage_task_outcomes_dag"}},
     {
-        "$since": "3.4",
+        "$since": "3.3.1",
         "eventType": "FAIL",
         "job": {"name": "openlineage_task_outcomes_dag.defer_unserializable"},
         "run": {
@@ -27,7 +27,7 @@
         }
     },
     {
-        "$since": "3.4",
+        "$since": "3.3.1",
         "eventType": "START",
         "job": {"name": "openlineage_task_outcomes_dag.defer_unserializable"},
         "run": {
@@ -894,7 +894,7 @@
         }
     },
     {
-        "$since": "3.1",
+        "$since": "3.1.8",
         "eventType": "COMPLETE",
         "job": {"name": "openlineage_task_outcomes_dag.trigger_existing_skip"},
         "run": {
@@ -917,7 +917,7 @@
         }
     },
     {
-        "$since": "3.1",
+        "$since": "3.1.8",
         "eventType": "START",
         "job": {"name": "openlineage_task_outcomes_dag.trigger_existing_skip"},
         "run": {
@@ -1007,7 +1007,7 @@
         }
     },
     {
-        "$since": "3.4",
+        "$since": "3.3.1",
         "eventType": "FAIL",
         "job": {"name": "openlineage_task_outcomes_dag.trigger_missing_dag"},
         "run": {
@@ -1033,7 +1033,7 @@
         }
     },
     {
-        "$since": "3.4",
+        "$since": "3.3.1",
         "eventType": "START",
         "job": {"name": "openlineage_task_outcomes_dag.trigger_missing_dag"},
         "run": {
@@ -1159,5 +1159,6 @@
         "eventType": "START",
         "job": {"name": "openlineage_task_outcomes_dag_child__notrigger"},
         "run": {"runId": "{{ is_uuid(result) }}", "facets": {"airflowDagRun": {"dagRun": {"clear_number": 0}}}}
-    }
+    },
+    {"$absent": "Fails on rendering its templates, before the listener is told it runs", "eventType": "START", "job": {"name": "openlineage_task_outcomes_dag.template_render_fails"}}
 ]

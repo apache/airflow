@@ -1,4 +1,5 @@
 [
+    {"eventType": "START", "job": {"name": "openlineage_hitl_dag"}},
     {
         "$absent": "Skipped operator should not emit OL events.",
         "eventType": "START",
