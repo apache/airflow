@@ -117,7 +117,7 @@ def _generate_queued_event_where_clause(
     before: datetime | str | None = None,
     permitted_dag_ids: set[str] | None = None,
 ) -> list[ColumnElement[bool]]:
-    """Get the where clause selecting queued events of ``model``."""
+    """Get the asset, Dag and time filters shared by the queued event tables."""
     where_clause: list[ColumnElement[bool]] = []
     if dag_id is not None:
         where_clause.append(model.target_dag_id == dag_id)
@@ -137,8 +137,8 @@ QueuedEventPartitionKeyQuery = Annotated[
             "Delete queued events of partitioned assets emitted for this partition key whose "
             "Dag run has not been created yet, instead of queued events of non-partitioned assets. "
             "The key is matched against the partition key the asset event was emitted for, not "
-            "against the partition key of the Dag run the event would create; a partition mapper "
-            "can make the two differ."
+            "against the partition keys of the Dag runs the event feeds; a partition mapper can "
+            "make them differ."
         ),
     ),
 ]
@@ -157,8 +157,8 @@ def _delete_pending_partitioned_queued_events(
     Delete queued partitioned asset events whose Dag run has not been created yet.
 
     ``partition_key`` is matched against the partition key of the asset event, as in
-    ``POST /assets/{asset_id}/materialize``, not against the partition key of the Dag run
-    the event would create; a partition mapper can make the two differ.
+    ``POST /assets/{asset_id}/materialize``, not against the partition keys of the Dag
+    runs the event feeds; a partition mapper can make them differ.
 
     Only events of an existing ``AssetPartitionDagRun`` whose Dag run has not been created
     yet are deleted; ``PartitionedAssetKeyLog`` rows left behind once their Dag run was
