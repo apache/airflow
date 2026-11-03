@@ -144,8 +144,8 @@ the real Dag, so no binding carries a callable or a reference to one.
 
 ## What the Execution API sends
 
-[#70570](https://github.com/apache/airflow/pull/70570) already adds `map_index` and `element_index`
-to an XCom binding. On top of that, three binding kinds:
+The in-flight stub-task work adds `map_index` and `element_index` to an XCom binding. On top of
+that, three binding kinds:
 
 ```python
 class XComSequenceArgBinding(_ArgBindingBase):
@@ -245,15 +245,16 @@ runtime starts.
 ```
 
 What the server puts in each binding, per authoring form. "Server support" is where the resolution
-lands: #70570 covers stub tasks today, and every other row is this ADR's work.
+lands: per-map-index bindings for stub tasks are already in flight, and every other row is this
+ADR's work.
 
 | Authoring form | Binding | What the SDK runtime does | Server support |
 |---|---|---|---|
-| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | use it | #70570 |
-| `.expand({ row: rows })` | `xcom`, `task_id`, `map_index=-1`, `element_index=i` | GET the one row, take `value[element_index]` | #70570 |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | GET that row | #70570 |
-| `.expand({ a: …, b: … })` | one binding per argument, each already decomposed | use each | #70570 |
-| `.partial({ region: … })` | `literal`, or `xcom` with no index | same value every index | #70570 |
+| `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | use it | in flight |
+| `.expand({ row: rows })` | `xcom`, `task_id`, `map_index=-1`, `element_index=i` | GET the one row, take `value[element_index]` | in flight |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | GET that row | in flight |
+| `.expand({ a: …, b: … })` | one binding per argument, each already decomposed | use each | in flight |
+| `.partial({ region: … })` | `literal`, or `xcom` with no index | same value every index | in flight |
 | `.expandKwargs(…)` | one binding per parameter of this index's mapping | use each | this ADR |
 | `.zip(a, b)` | `tuple`, `parts` — one binding per zipped argument | pull each part, assemble | this ADR |
 | `.concat(a, b)` | `xcom` for whichever argument owns this index | GET that row | this ADR |
