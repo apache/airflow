@@ -33,3 +33,36 @@ To send Airflow's email notifications through this module, set:
 Unlike :class:`~airflow.providers.smtp.hooks.smtp.SmtpHook`, which takes all of its
 settings from the SMTP Connection, this module reads the server settings from the
 ``[smtp]`` configuration section.
+
+The ``[smtp]`` options and their defaults:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Option
+     - Default
+     - Description
+   * - ``smtp_host``
+     - ``localhost``
+     - Host of the SMTP server.
+   * - ``smtp_port``
+     - ``25``
+     - Port of the SMTP server.
+   * - ``smtp_starttls``
+     - ``True``
+     - Send the STARTTLS command after connecting.
+   * - ``smtp_ssl``
+     - ``False``
+     - Connect over SSL.
+   * - ``smtp_mail_from``
+     - ``airflow@example.com``
+     - Sender address. It is used instead of the ``from_email`` argument.
+   * - ``smtp_timeout``
+     - ``30``
+     - Seconds to wait for the connection to the server.
+   * - ``smtp_retry_limit``
+     - ``5``
+     - How many more times to try connecting after the first attempt fails.
+
+Set them in ``airflow.cfg`` or with environment variables such as ``AIRFLOW__SMTP__SMTP_HOST``.
+``[email] ssl_context`` (``default`` or ``none``) sets the TLS context used by ``smtp_ssl`` and STARTTLS.
