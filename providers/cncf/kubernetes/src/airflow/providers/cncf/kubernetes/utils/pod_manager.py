@@ -257,10 +257,16 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
-    if not pod_status.container_statuses:
+    # Init containers first: while one of them is stuck pulling, the main
+    # container only reports ``PodInitializing``, which matches no state below.
+    container_statuses = [
+        *(pod_status.init_container_statuses or []),
+        *(pod_status.container_statuses or []),
+    ]
+    if not container_statuses:
         return None
 
-    for container_status in pod_status.container_statuses:
+    for container_status in container_statuses:
         container_state: V1ContainerState = container_status.state
         container_waiting: V1ContainerStateWaiting | None = container_state.waiting
         if not container_waiting:

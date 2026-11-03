@@ -194,14 +194,27 @@ def test_log_pod_event_multiple_events():
     assert mock_pod_manager.log.info.call_count == 2
 
 
-def _pod_with_waiting_container(reason: str, message: str):
-    pod = mock.MagicMock()
+def _waiting_container_status(reason: str, message: str):
     container_status = mock.MagicMock()
     waiting_state = mock.MagicMock()
     waiting_state.reason = reason
     waiting_state.message = message
     container_status.state.waiting = waiting_state
-    pod.status.container_statuses = [container_status]
+    return container_status
+
+
+def _pod_with_waiting_container(reason: str, message: str):
+    pod = mock.MagicMock()
+    pod.status.init_container_statuses = []
+    pod.status.container_statuses = [_waiting_container_status(reason, message)]
+    return pod
+
+
+def _pod_with_waiting_init_container(reason: str, message: str):
+    """Pod whose init container is stuck, so the main container only reports ``PodInitializing``."""
+    pod = mock.MagicMock()
+    pod.status.init_container_statuses = [_waiting_container_status(reason, message)]
+    pod.status.container_statuses = [_waiting_container_status("PodInitializing", "")]
     return pod
 
 
@@ -247,6 +260,28 @@ def test_detect_pod_terminate_early_issues_returns_error_for_fatal_messages(reas
     assert error is not None
     assert reason in error
     assert message in error
+
+
+@pytest.mark.parametrize(
+    ("reason", "message"),
+    [
+        ("InvalidImageName", "Failed to apply default image tag"),
+        ("ErrImageNeverPull", "Container image pull policy is Never"),
+        ("ErrImagePull", "manifest unknown"),
+    ],
+)
+def test_detect_pod_terminate_early_issues_detects_fatal_init_container(reason, message):
+    """A fatal init container image must fail fast rather than wait out ``startup_timeout``."""
+    pod = _pod_with_waiting_init_container(reason, message)
+    error = detect_pod_terminate_early_issues(pod)
+    assert error is not None
+    assert reason in error
+    assert message in error
+
+
+def test_detect_pod_terminate_early_issues_returns_none_for_transient_init_container():
+    pod = _pod_with_waiting_init_container("ErrImagePull", "registry returned 503 Service Unavailable")
+    assert detect_pod_terminate_early_issues(pod) is None
 
 
 class TestPodManager:
