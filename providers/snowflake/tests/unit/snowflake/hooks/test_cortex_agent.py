@@ -399,7 +399,7 @@ class TestSnowflakeCortexAgentHook:
         assert headers["Authorization"] == "Bearer my-pat-value"
         assert headers["X-Snowflake-Authorization-Token-Type"] == "PROGRAMMATIC_ACCESS_TOKEN"
 
-    @mock.patch("airflow.providers.snowflake.utils._rest_auth._fetch_gcp_identity_token")
+    @mock.patch("airflow.providers.snowflake.utils._rest_auth._fetch_gcp_identity_token", autospec=True)
     @mock.patch(f"{MODULE_PATH}.requests.request", autospec=True)
     @mock.patch(f"{HOOK_PATH}.get_private_key", autospec=True, return_value=None)
     @mock.patch(f"{HOOK_PATH}._get_conn_params", autospec=True)

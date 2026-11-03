@@ -21,8 +21,10 @@ import time
 from datetime import UTC, datetime, timedelta
 from unittest import mock
 
+import boto3
 import jwt
 import pytest
+from botocore.stub import Stubber
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
@@ -204,12 +206,24 @@ class TestSnowflakeRestTokenProvider:
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        with mock.patch(FETCH_TOKEN.format(provider_name.lower()), return_value=credential) as fetch:
+        with mock.patch(
+            FETCH_TOKEN.format(provider_name.lower()), autospec=True, return_value=credential
+        ) as fetch:
             token = provider.get_token()
 
         assert token.token == f"WIF.{provider_name.upper()}.{credential}"
         assert token.token_type == "WORKLOAD_IDENTITY_FEDERATION"
         fetch.assert_called_once_with()
+
+    @pytest.mark.parametrize("authenticator", [None, "snowflake", "externalbrowser"])
+    @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True)
+    @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
+    def test_provider_extra_does_not_enable_wif(self, conn_params, fetch, authenticator):
+        conn_params.return_value = {**CONN_PARAMS_WIF, "authenticator": authenticator}
+        provider = SnowflakeRestTokenProvider(SnowflakeHook(), private_key_loader=lambda: None)
+        with pytest.raises(ValueError, match="none is configured"):
+            provider.get_token()
+        fetch.assert_not_called()
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
     def test_get_token_workload_identity_oidc_token(self, mock_conn_params):
@@ -224,13 +238,15 @@ class TestSnowflakeRestTokenProvider:
         assert provider.get_token().token == "WIF.OIDC.oidc-id-token"
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity_oidc_token_file(self, mock_conn_params, tmp_path):
+    @pytest.mark.parametrize("static_token", [None, "leftover-static-token"])
+    def test_get_token_workload_identity_oidc_token_file(self, mock_conn_params, tmp_path, static_token):
         token_file = tmp_path / "token"
         token_file.write_text("file-id-token\n")
         mock_conn_params.return_value = {
             **CONN_PARAMS_WIF,
             "workload_identity_provider": "OIDC",
             "token_file_path": str(token_file),
+            "token": static_token,
         }
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
@@ -262,7 +278,7 @@ class TestSnowflakeRestTokenProvider:
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
         with mock.patch(
-            FETCH_TOKEN.format("gcp"), return_value=_make_jwt(exp=int(time.time()) + 3600)
+            FETCH_TOKEN.format("gcp"), autospec=True, return_value=_make_jwt(exp=int(time.time()) + 3600)
         ) as fetch:
             first = provider.get_token()
             second = provider.get_token()
@@ -285,7 +301,7 @@ class TestSnowflakeRestTokenProvider:
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        with mock.patch(FETCH_TOKEN.format("gcp"), return_value=_make_jwt(**claims)) as fetch:
+        with mock.patch(FETCH_TOKEN.format("gcp"), autospec=True, return_value=_make_jwt(**claims)) as fetch:
             provider.get_token()
             provider.get_token()
 
@@ -297,7 +313,7 @@ class TestSnowflakeRestTokenProvider:
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
-        with mock.patch(FETCH_TOKEN.format("gcp"), return_value="opaque-access-token"):
+        with mock.patch(FETCH_TOKEN.format("gcp"), autospec=True, return_value="opaque-access-token"):
             assert provider.get_token().token == "WIF.GCP.opaque-access-token"
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
@@ -471,9 +487,6 @@ class TestFetchIdentityTokens:
     def test_aws_requests_regional_web_identity_token(
         self, metadata, aws_region, default_region, metadata_region, expected, monkeypatch
     ):
-        import boto3
-        from botocore.stub import Stubber
-
         for name, value in (("AWS_REGION", aws_region), ("AWS_DEFAULT_REGION", default_region)):
             if value:
                 monkeypatch.setenv(name, value)
@@ -555,20 +568,27 @@ class TestFetchIdentityTokens:
                 fetch()
         assert installation in str(exc.value)
 
-    @pytest.mark.parametrize("workload", [False, True])
+    @pytest.mark.parametrize(("workload", "file_exists"), [(False, False), (True, False), (True, True)])
     @pytest.mark.parametrize("fails", [False, True])
     @mock.patch("azure.identity.ManagedIdentityCredential", autospec=True)
     @mock.patch("azure.identity.WorkloadIdentityCredential", autospec=True)
-    def test_azure_credential_selection_and_cleanup(self, aks, managed, workload, fails, monkeypatch):
+    def test_azure_credential_selection_and_cleanup(
+        self, aks, managed, workload, file_exists, fails, monkeypatch, tmp_path
+    ):
         from azure.core.credentials import AccessToken
 
+        token_file = tmp_path / "azure-token"
+        if file_exists:
+            token_file.write_text("projected-token")
         for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE"):
             if workload:
-                monkeypatch.setenv(name, "configured")
+                monkeypatch.setenv(
+                    name, str(token_file) if name == "AZURE_FEDERATED_TOKEN_FILE" else "configured"
+                )
             else:
                 monkeypatch.delenv(name, raising=False)
         monkeypatch.setenv("MANAGED_IDENTITY_CLIENT_ID", "mi-client-id")
-        selected, unused = (aks, managed) if workload else (managed, aks)
+        selected, unused = (aks, managed) if workload and file_exists else (managed, aks)
         selected.return_value.get_token.return_value = AccessToken("azure-token", 3600)
         if fails:
             selected.return_value.get_token.side_effect = RuntimeError("unavailable")
@@ -576,7 +596,7 @@ class TestFetchIdentityTokens:
                 _fetch_azure_identity_token()
         else:
             assert _fetch_azure_identity_token() == "azure-token"
-        if workload:
+        if workload and file_exists:
             selected.assert_called_once_with()
         else:
             selected.assert_called_once_with(client_id="mi-client-id")
@@ -586,6 +606,11 @@ class TestFetchIdentityTokens:
         )
         selected.return_value.close.assert_called_once_with()
 
+    @pytest.fixture
+    def google_auth(self):
+        pytest.importorskip("google.auth")
+
+    @pytest.mark.usefixtures("google_auth")
     @mock.patch("google.auth.compute_engine.IDTokenCredentials", autospec=True)
     @mock.patch("google.auth.transport.requests.Request", autospec=True)
     def test_gcp_uses_metadata_identity_even_with_application_credentials(

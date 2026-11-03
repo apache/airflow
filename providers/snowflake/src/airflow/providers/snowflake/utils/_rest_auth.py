@@ -77,8 +77,9 @@ class SnowflakeRestTokenProvider:
     reads the token ``hook._get_conn_params()`` already resolved (which itself refreshes an
     expiring OAuth or Azure token, so this provider does not cache that branch at all);
     ``authenticator == "programmatic_access_token"`` reads the PAT from the connection password;
-    a connection without a private key that sets ``workload_identity_provider`` uses Workload
-    Identity Federation; anything else signs a key-pair JWT. The private key is loaded once and
+    a connection without a private key that sets ``authenticator=WORKLOAD_IDENTITY`` and
+    ``workload_identity_provider`` uses Workload Identity Federation; anything else signs a key-pair JWT.
+    The private key is loaded once and
     kept. The ``JWTGenerator`` is built once and kept, because it renews its own token on the
     ``token_renewal_delta`` schedule. The workload identity token is requested from the cloud
     with its own client library (``boto3``, ``azure-identity`` or ``google-auth``, imported only
@@ -144,7 +145,9 @@ class SnowflakeRestTokenProvider:
                 self._private_key = self._private_key_loader()
                 self._private_key_loaded = True
             if self._private_key is None:
-                if conn_config.get("workload_identity_provider"):
+                if (
+                    conn_config.get("authenticator") or ""
+                ).upper() == "WORKLOAD_IDENTITY" and conn_config.get("workload_identity_provider"):
                     return self._get_workload_identity_token(conn_config)
                 raise ValueError(
                     "Snowflake REST API authentication requires an OAuth access token, a "
@@ -212,10 +215,10 @@ class SnowflakeRestTokenProvider:
     @staticmethod
     def _get_oidc_token(conn_config: dict[str, Any]) -> str:
         """Return the OIDC ID token from the connection ``token`` or ``token_file_path`` extra."""
-        if token := conn_config.get("token"):
-            return token
         if token_file_path := conn_config.get("token_file_path"):
             return Path(token_file_path).read_text().strip()
+        if token := conn_config.get("token"):
+            return token
         raise ValueError(
             "Workload Identity Federation with the OIDC provider requires the connection extra "
             "'token' or 'token_file_path'."
@@ -287,7 +290,7 @@ def _fetch_aws_identity_token() -> str:
     if not hasattr(sts, "get_web_identity_token"):
         raise AirflowOptionalProviderFeatureException(
             "Workload Identity Federation with the AWS provider requires a boto3 version that "
-            "supports sts:GetWebIdentityToken. Upgrade boto3."
+            "supports sts:GetWebIdentityToken (botocore>=1.41.0). Upgrade boto3."
         )
     response = sts.get_web_identity_token(Audience=[WIF_AUDIENCE], SigningAlgorithm="ES384")
     return response["WebIdentityToken"]
@@ -312,7 +315,7 @@ def _fetch_azure_identity_token() -> str:
     credential: ManagedIdentityCredential | WorkloadIdentityCredential
     if all(
         os.environ.get(name) for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE")
-    ):
+    ) and os.path.exists(os.environ["AZURE_FEDERATED_TOKEN_FILE"]):
         credential = WorkloadIdentityCredential()
     else:
         credential = ManagedIdentityCredential(client_id=os.environ.get("MANAGED_IDENTITY_CLIENT_ID"))

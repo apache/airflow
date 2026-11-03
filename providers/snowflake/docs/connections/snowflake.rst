@@ -196,7 +196,8 @@ The token is requested from the cloud and reused until shortly before it expires
 sets a private key uses key-pair authentication for these REST hooks. Each provider needs its cloud's client
 library installed:
 
-* ``AWS``: ``boto3`` with ``sts:GetWebIdentityToken`` support. The workload's IAM role must be allowed to
+* ``AWS``: ``boto3`` with ``botocore>=1.41.0`` for ``sts:GetWebIdentityToken`` support.
+  The workload's IAM role must be allowed to
   call it, and AWS outbound identity federation must be enabled for the account. The call is not available on
   the global STS endpoint. Region resolution uses ``AWS_REGION``, then ``AWS_DEFAULT_REGION``,
   then EC2 instance metadata. If none resolves, authentication fails with a configuration error.
