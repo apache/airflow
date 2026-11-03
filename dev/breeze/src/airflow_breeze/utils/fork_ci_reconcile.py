@@ -185,6 +185,16 @@ DEFERRED_RUNS_BEFORE_ALERT = 3
 # GitHub answering with rate limits in this many consecutive runs is reported: a single burst is
 # retried, while a persisting one means the repository's shared limits are close to exhausted.
 RATE_LIMITED_RUNS_BEFORE_ALERT = 2
+# Reading a fork run's jobs fails now and then on GitHub server errors (HTTP 502, a reset HTTP/2
+# stream) that the next run gets past, so a pull request whose job statuses failed is only reported
+# when it failed in this many consecutive runs.
+JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT = 3
+# Fixed text, so the item is posted to Slack once while the failure persists, whatever the error;
+# the run log has each run's error.
+JOB_STATUSES_FAILED_REASON = (
+    f"reporting job statuses failed in {JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT} runs in a row; "
+    "the run log has the errors"
+)
 # A pull request whose fork run finished this long ago with job statuses still not all posted is
 # reported by itself: deferring is expected to catch up within a few runs, not to leave one behind.
 MIRROR_DELAY_BEFORE_ALERT = timedelta(hours=1)
@@ -2100,6 +2110,7 @@ def drop_reported(
     record: bool = True,
     deferred_runs: int = 0,
     rate_limited_runs: int = 0,
+    job_status_failure_runs: dict[int, int] | None = None,
 ) -> tuple[list[tuple[int, str]], list[tuple[int, str]], list[str]]:
     """
     Leave out the items the previous run already reported, and record this run's items.
@@ -2109,6 +2120,8 @@ def drop_reported(
 
     :param deferred_runs: the consecutive runs that deferred job statuses, recorded for the next run.
     :param rate_limited_runs: the consecutive runs GitHub rate-limited, recorded for the next run.
+    :param job_status_failure_runs: per pull request, the consecutive runs whose job statuses failed,
+        recorded for the next run.
     """
     current: dict[str, Any] = {
         "unknown": [list(item) for item in unknown],
@@ -2116,6 +2129,9 @@ def drop_reported(
         "notes": notes,
         "deferred_runs": deferred_runs,
         "rate_limited_runs": rate_limited_runs,
+        "job_status_failure_runs": {
+            str(number): runs for number, runs in (job_status_failure_runs or {}).items()
+        },
     }
     try:
         previous = json.loads(reported_file.read_text())
@@ -2146,6 +2162,24 @@ def read_run_count(reported_file: Path | None, key: str) -> int | None:
     # A record written before the count was kept has none.
     count = previous.get(key, 0)
     return count if isinstance(count, int) and not isinstance(count, bool) else 0
+
+
+def read_job_status_failure_runs(reported_file: Path | None) -> dict[int, int]:
+    """Per pull request, the consecutive runs whose job statuses failed, as the previous run recorded."""
+    if reported_file is None:
+        return {}
+    try:
+        previous = json.loads(reported_file.read_text())
+    except (OSError, ValueError):
+        return {}
+    counts = previous.get("job_status_failure_runs") if isinstance(previous, dict) else None
+    if not isinstance(counts, dict):
+        return {}
+    return {
+        int(number): runs
+        for number, runs in counts.items()
+        if number.isdigit() and isinstance(runs, int) and not isinstance(runs, bool)
+    }
 
 
 def log_rate_limits(client: GitHubClient) -> None:
@@ -2243,6 +2277,8 @@ def run_reconcile(
         client, repo=repo, budget=max(MAX_JOB_STATUSES_PER_RUN - ci_run_started_writes, 0), now=now
     )
 
+    previous_job_status_failure_runs = read_job_status_failure_runs(reported_file)
+    job_status_failure_runs: dict[int, int] = {}
     shared_heads = find_heads_shared_across_bases(prs)
     gate_change_finder = GateChangeFinder(client, repo=repo)
     for listed in prs:
@@ -2262,8 +2298,14 @@ def run_reconcile(
                 try:
                     jobs_reported = job_reporter.report(pr, fork)
                 except Exception as e:
-                    console_print(f"[warning]#{pr.number}: reporting job statuses failed: {e}[/]")
-                    unknown.append((pr.number, f"reporting job statuses failed: {type(e).__name__}: {e}"))
+                    failure_runs = previous_job_status_failure_runs.get(pr.number, 0) + 1
+                    job_status_failure_runs[pr.number] = failure_runs
+                    console_print(
+                        f"[warning]#{pr.number}: reporting job statuses failed ({failure_runs} runs in a "
+                        f"row): {type(e).__name__}: {e}[/]"
+                    )
+                    if failure_runs >= JOB_STATUS_FAILURE_RUNS_BEFORE_ALERT:
+                        unknown.append((pr.number, JOB_STATUSES_FAILED_REASON))
 
             base_config = configs.get(pr.base_ref)
             if base_config is not None:
@@ -2338,6 +2380,7 @@ def run_reconcile(
             record=not client.dry_run,
             deferred_runs=deferred_runs,
             rate_limited_runs=rate_limited_runs,
+            job_status_failure_runs=job_status_failure_runs,
         )
     has_alerts = bool(unknown or attention or notes)
     if has_alerts:

@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
     JOB_STATUSES_DEFERRED_NOTE,
+    JOB_STATUSES_FAILED_REASON,
     RATE_LIMITED_NOTE,
     BaseGateConfigs,
     BypassFinder,
@@ -78,6 +79,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     pull_request_changes_ci_files,
     read_ci_run_at,
     read_head_status,
+    read_job_status_failure_runs,
     read_project_ci_run_url,
     report_project_ci_runs_started,
     run_reconcile,
@@ -2252,6 +2254,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "notes": [],
         "deferred_runs": 0,
         "rate_limited_runs": 0,
+        "job_status_failure_runs": {},
     }
 
 
@@ -2646,10 +2649,63 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
     mock_reporter.return_value.deferred = []
     mock_reporter.return_value.delayed = []
 
-    assert _reconcile_with_reporter(client, tmp_path) is True
+    _reconcile_with_reporter(client, tmp_path)
 
     assert mock_classify.call_args.kwargs["jobs_reported"] is None
-    assert "reporting job statuses failed" in (tmp_path / "s.json").read_text()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
+    client.dry_run = False
+    reported_file = tmp_path / "reported.json"
+    reported_file.write_text("{}")
+    alerts = []
+    errors = [
+        GitHubError("HTTP 502"),
+        GitHubError("HTTP 502"),
+        None,
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+    ]
+    for error in errors:
+        mock_reporter.return_value.report.side_effect = error
+        mock_reporter.return_value.report.return_value = None
+        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+
+    assert alerts == [False, False, False, False, False, True, False]
+    assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param(None, {}, id="missing"),
+        pytest.param("not json", {}, id="not-json"),
+        pytest.param("[]", {}, id="not-a-dict"),
+        pytest.param('{"deferred_runs": 1}', {}, id="recorded-before-the-count"),
+        pytest.param('{"job_status_failure_runs": []}', {}, id="malformed-counts"),
+        pytest.param(
+            '{"job_status_failure_runs": {"1": 2, "x": 3, "4": true, "5": "6"}}',
+            {1: 2},
+            id="malformed-entries",
+        ),
+    ],
+)
+def test_read_job_status_failure_runs(tmp_path, content, expected):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert read_job_status_failure_runs(reported_file) == expected
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
