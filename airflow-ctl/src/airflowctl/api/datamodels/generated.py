@@ -582,7 +582,7 @@ class DagBundleDetailResponse(BaseModel):
     bundle_url: Annotated[
         str | None,
         Field(
-            description="A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.",
+            description="A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.",
             title="Bundle Url",
         ),
     ]
@@ -591,16 +591,16 @@ class DagBundleDetailResponse(BaseModel):
         Field(description="The team owning the bundle, in a multi-team deployment.", title="Team Name"),
     ]
     import_error_count: Annotated[
-        int | None,
+        int,
         Field(
-            description="Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.",
+            description="Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.",
             title="Import Error Count",
         ),
     ]
     dag_count: Annotated[
         int,
         Field(
-            description="Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.",
+            description="Number of live Dags recorded against the bundle, including Dags the caller may not read.",
             title="Dag Count",
         ),
     ]
@@ -615,7 +615,8 @@ class DagBundleFileResponse(BaseModel):
     dag_count: Annotated[
         int,
         Field(
-            description="Number of live Dags the file defines that the caller may read.", title="Dag Count"
+            description="Number of live Dags the file defines, including Dags the caller may not read.",
+            title="Dag Count",
         ),
     ]
     last_parsed_time: Annotated[
@@ -633,9 +634,9 @@ class DagBundleFileResponse(BaseModel):
         ),
     ]
     import_error_count: Annotated[
-        int | None,
+        int,
         Field(
-            description="Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.",
+            description="Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.",
             title="Import Error Count",
         ),
     ]
@@ -671,7 +672,7 @@ class DagBundleResponse(BaseModel):
     bundle_url: Annotated[
         str | None,
         Field(
-            description="A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.",
+            description="A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.",
             title="Bundle Url",
         ),
     ]
@@ -680,9 +681,9 @@ class DagBundleResponse(BaseModel):
         Field(description="The team owning the bundle, in a multi-team deployment.", title="Team Name"),
     ]
     import_error_count: Annotated[
-        int | None,
+        int,
         Field(
-            description="Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.",
+            description="Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.",
             title="Import Error Count",
         ),
     ]

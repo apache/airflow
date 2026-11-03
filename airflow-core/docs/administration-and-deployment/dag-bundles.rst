@@ -238,14 +238,16 @@ when a Dag processor last refreshed it, its import-error count, and whether it i
 refreshes itself while open, and the same data is available at ``GET /api/v2/dagBundles`` for a
 deployment pipeline to poll.
 
-.. note::
+Bundles have their own permission rather than following Dag access, so a user who holds it sees
+every file and count in a bundle, whatever Dags they can read. By default it is held by:
 
-   Under the FAB auth manager the *Browse* entry needs a ``apache-airflow-providers-fab`` release
-   that maps the new menu item onto the ``DAGs`` resource; upgrade to the latest one if the entry is
-   missing. On an older release the lookup falls back to a FAB resource named after the menu item,
-   no such resource exists, and the entry is hidden for every role including ``Admin``. The page is
-   still reachable at ``/dag_bundles`` and the API is unaffected, so a missing *Browse* entry means
-   the provider needs upgrading, not that the feature is off.
+* Simple auth manager: ``op`` and ``admin``.
+* FAB auth manager: ``Op`` and ``Admin``. This needs an ``apache-airflow-providers-fab`` release with
+  the ``Dag Bundles`` resource; on an older release the page and the API are denied to every role,
+  including ``Admin``.
+* Keycloak auth manager: every role, ``Viewer`` included. In multi-team mode, ``SuperAdmin`` only.
+  This needs an ``apache-airflow-providers-keycloak`` release that knows the view; on an older
+  release every team role can read it.
 
 ``version`` is whatever the bundle reports; for a Git Dag bundle it is the commit SHA of the tracking
 ref. Bundles that do not support versioning, such as ``LocalDagBundle``, report ``null``.
@@ -263,17 +265,12 @@ Some caveats:
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
   so do not treat the pair as a deployment-health check. Import errors are not recorded against a
-  version, a file whose parse exceeds
+  version, and a file whose parse exceeds
   :ref:`config:dag_processor__dag_file_processor_timeout` is killed without writing an import-error
-  row at all, and the count only covers errors you are allowed to read. A count of zero therefore
-  means "nothing I can show you", not "this commit is healthy". To tie a running Dag to a commit,
-  read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
+  row at all. A count of zero therefore does not mean "this commit is healthy". To tie a running Dag
+  to a commit, read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
 * With several Dag processors the row reflects whichever refreshed last, as they share one row per
   bundle.
-* A bundle is listed for users who can read at least one Dag recorded against it. A bundle holding
-  no registered Dag at all -- a first deploy whose only file fails to import, for instance -- has no
-  Dag to authorize against, so it is listed only for users who may read import errors for files with
-  no registered Dag (``Admin`` by default under the FAB auth manager).
 
 ``active`` is false when the bundle was missing from the configuration of whatever last ran a full
 sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate

@@ -22,6 +22,7 @@ import type { FC, ReactNode } from "react";
 import { LuInfo } from "react-icons/lu";
 
 import { NoModelInfo } from "src/components/NoModelInfo";
+import { SkillsSection } from "src/components/SkillsSection";
 import { Tooltip } from "src/components/Tooltip";
 import { useModelInfo } from "src/hooks/useModelInfo";
 import type { TaskRegion } from "src/region";
@@ -86,13 +87,13 @@ export const ModelLoading: FC = () => (
 );
 
 export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex, region }) => {
-  const { modelName, usage, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex, region);
+  const { modelName, usage, skills, loading, error } = useModelInfo(dagId, runId, taskId, mapIndex, region);
 
   if (loading) {
     return <ModelLoading />;
   }
 
-  if (!modelName && !usage) {
+  if (!modelName && !usage && !skills) {
     return <NoModelInfo error={error} />;
   }
 
@@ -141,6 +142,8 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
           <StatBox label="Cost" tooltip={COST_TOOLTIP} value={formatCost(usage.cost)} />
         </SimpleGrid>
       )}
+
+      {skills && skills.length > 0 && <SkillsSection skills={skills} />}
     </Box>
   );
 };
