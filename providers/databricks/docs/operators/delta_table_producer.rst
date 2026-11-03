@@ -76,6 +76,11 @@ not change the checkpoint.
 ``checkpoint_key`` defaults to ``"<dag_id>.<task_id>"``. Renaming the Dag or task, or changing the
 key, starts again with enrollment.
 
+How the checkpoint is found depends on the Airflow version. Versions that can filter asset events by
+``extra`` ask the API server for the newest event with the producer's ``checkpoint_key``. Airflow 3.2
+and 3.3 read the asset's events newest first, 100 per request, and stop at the first match. Airflow 3.0
+and 3.1 cannot order or limit asset events, so each run reads all events on the asset.
+
 On the first run without a checkpoint, the producer publishes an ``enrollment`` event for the current
 version, so that later runs have a checkpoint. To avoid triggering consumers on enrollment, pass
 ``baseline_version``. It is used as the checkpoint until the first event is published.

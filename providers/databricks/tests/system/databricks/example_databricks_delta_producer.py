@@ -28,7 +28,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow import DAG
+from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.databricks.assets.databricks import UnityTableIdentity
 from airflow.providers.databricks.operators.databricks_delta_table import (
     DatabricksDeltaTableVersionProducerOperator,
