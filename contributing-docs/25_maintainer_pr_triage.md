@@ -260,7 +260,9 @@ for them, and the triage skill must treat those pull requests as out of scope fo
   removes it when a new push starts a new run.
 - **`needs project ci`.** The reconciler adds it when the fork run is green but the pull request
   changes CI-defining files, and removes it once the state is anything else. These pull requests
-  stay in draft and wait for a maintainer to review the CI change and add `use project ci`.
+  are not drafted and get no `ready for maintainer review` label. Their `Fork CI / Tests (AMD)`
+  status stays pending without `CI passed`, and they keep `needs project ci` until a maintainer
+  reviews the CI change and adds `use project ci`.
 - **Closing for changing the gate.** The reconciler closes a pull request that changes the fork
   CI gate (its code, configuration other than the author's own `[pilot]` entry, the `gate` job
   of `ci-amd.yml` or the monitor), and reports it on Slack. Add `use project ci` to accept such
@@ -275,11 +277,13 @@ releases it on its next run; removing `fork ci required` by hand is not enough, 
 labels a gated pull request again. Adding the label does not start project CI by itself, and the
 reconciler deletes the gated `Tests (AMD)` runs, so there is usually nothing to re-run: close and
 reopen the pull request (`gh pr close <n> -R apache/airflow && gh pr reopen <n> -R apache/airflow`),
-or ask the author to push. Pull requests that change CI-defining files stay in draft even
-when the fork run is green and are labelled `needs project ci`, for a maintainer to review and run
-project CI with `use project ci`. When the fork run is green and trusted, the reconciler also posts
-the `CI passed` status the merge ruleset requires, so these pull requests can be merged or
-auto-merged without project CI. See
+or ask the author to push. Pull requests that change CI-defining files are not drafted
+and get no `ready for maintainer review` label even when the fork run is green. Their
+`Fork CI / Tests (AMD)` status stays pending without `CI passed`, and they are labelled
+`needs project ci` until a maintainer reviews the CI change and adds `use project ci`. For
+every other pull request, when the fork run is green and trusted, the reconciler also posts the
+`CI passed` status the merge ruleset requires, so it can be merged or auto-merged without project
+CI. See
 [Fork CI for external contributors](../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md).
 
 ## For contributors
