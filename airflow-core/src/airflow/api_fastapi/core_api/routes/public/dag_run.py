@@ -313,7 +313,9 @@ def get_upstream_asset_events(
     )
     events = session.scalars(events_select).unique().all()
     return AssetEventCollectionResponse(
-        asset_events=serialize_asset_events(events, session=session),
+        asset_events=serialize_asset_events(
+            events, readable_dag_ids=readable_asset_events_filter.value, session=session
+        ),
         total_entries=len(events),
     )
 

@@ -28,10 +28,13 @@ from click.testing import CliRunner
 from airflow_breeze.commands.workflow_commands import (
     find_providers_missing_from_site_index,
     get_lines_added_to_site_index,
+    workflow_run_mirror_base_images,
     workflow_run_publish,
     workflow_run_sync_staging_to_main,
+    workflow_run_upgrade_check,
 )
 from airflow_breeze.utils.confirm import Answer
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 
 def _make_gh_response(ref: str | None) -> CompletedProcess:
@@ -389,3 +392,57 @@ class TestSyncStagingToMain:
         assert "Could not compare staging to main in apache/airflow-site" in result.output
         assert "commit(s)" not in mock_confirm.call_args.args[0]
         assert mock_trigger.call_count == 2
+
+
+@pytest.mark.parametrize(
+    ("args", "trigger_upgrade_check"),
+    [
+        pytest.param([], True, id="default"),
+        pytest.param(["--no-trigger-upgrade-check"], False, id="called-by-the-main-upgrade"),
+    ],
+)
+@patch("airflow_breeze.commands.workflow_commands.mirror_hardened_base_images", autospec=True)
+def test_mirror_base_images_runs_the_mirror(mock_mirror, args, trigger_upgrade_check):
+    result = CliRunner().invoke(workflow_run_mirror_base_images, args, catch_exceptions=False)
+
+    assert result.exit_code == 0
+    mock_mirror.assert_called_once_with("apache/airflow", trigger_upgrade_check=trigger_upgrade_check)
+
+
+@patch("airflow_breeze.commands.workflow_commands.run_command", autospec=True)
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_upgrade_check_for_main_runs_the_workflow_that_opens_a_pr(mock_trigger, mock_run_command):
+    result = CliRunner().invoke(workflow_run_upgrade_check, ["--branch", "main"], catch_exceptions=False)
+
+    assert result.exit_code == 0
+    mock_trigger.assert_called_once_with(
+        workflow_name="scheduled-upgrade-check-main.yml", repo="apache/airflow", branch="main"
+    )
+    mock_run_command.assert_not_called()
+
+
+@pytest.mark.parametrize("returncode", [0, 1])
+@patch("airflow_breeze.commands.workflow_commands.run_command", autospec=True)
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_upgrade_check_for_a_release_branch_pushes_the_upgrade_from_here(
+    mock_trigger, mock_run_command, returncode
+):
+    mock_run_command.return_value = CompletedProcess([], returncode)
+
+    result = CliRunner().invoke(workflow_run_upgrade_check, ["--branch", "v3-4-test"], catch_exceptions=False)
+
+    assert result.exit_code == returncode
+    mock_run_command.assert_called_once_with(
+        ["breeze", "ci", "upgrade", "--target-branch", "v3-4-test", "--push-to-target-branch"],
+        check=False,
+        cwd=AIRFLOW_ROOT_PATH,
+    )
+    mock_trigger.assert_not_called()
+
+
+@patch("airflow_breeze.commands.workflow_commands.trigger_workflow_and_monitor", autospec=True)
+def test_upgrade_check_offers_only_branches_with_an_upgrade_workflow(mock_trigger):
+    result = CliRunner().invoke(workflow_run_upgrade_check, ["--branch", "v3-4-stable"])
+
+    assert result.exit_code == 2
+    mock_trigger.assert_not_called()

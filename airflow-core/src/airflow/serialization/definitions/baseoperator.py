@@ -103,7 +103,7 @@ class SerializedBaseOperator(DAGNode):
     map_index_template: str | None = None
     max_active_tis_per_dag: int | None = None
     max_active_tis_per_dagrun: int | None = None
-    max_retry_delay: datetime.timedelta | float | None = None
+    max_retry_delay: datetime.timedelta | None = None
     multiple_outputs: bool = False
 
     # Boolean flags for callback existence

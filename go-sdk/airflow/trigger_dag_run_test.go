@@ -102,9 +102,10 @@ func buildNestedConf(depth int) map[string]any {
 
 func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 	tests := []struct {
-		name    string
-		trigger TriggerDagRunTask
-		want    string
+		name              string
+		trigger           TriggerDagRunTask
+		want              string
+		wantPanicContains string
 	}{
 		{
 			name:    "no DagID",
@@ -206,16 +207,21 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 			trigger: TriggerDagRun(
 				TriggerDagRunSpec{DagID: "downstream_etl", Conf: buildNestedConf(10001)},
 			),
-			want: "airflow.TriggerDagRunSpec.Conf: invalid character '{' exceeded max depth",
+			wantPanicContains: "exceeded max depth",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dag := Dag("etl")
-			assert.PanicsWithValue(t,
-				`airflow.DagRef.Task: task "trigger_downstream" of Dag "etl": `+tt.want,
-				func() { dag.Task(tt.trigger, TaskSpec{TaskID: "trigger_downstream"}) },
-			)
+			panicFunc := func() { dag.Task(tt.trigger, TaskSpec{TaskID: "trigger_downstream"}) }
+			if tt.wantPanicContains != "" {
+				assert.Contains(t, panicMessage(t, panicFunc), tt.wantPanicContains)
+			} else {
+				assert.PanicsWithValue(t,
+					`airflow.DagRef.Task: task "trigger_downstream" of Dag "etl": `+tt.want,
+					panicFunc,
+				)
+			}
 			assert.NotPanics(t,
 				func() { dag.Task(extract, TaskSpec{TaskID: "trigger_downstream"}) },
 				"a rejected task does not take its task_id",

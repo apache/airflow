@@ -69,8 +69,13 @@ def example_llm_analysis_pipeline():
         ),
         output_type=TicketAnalysis,
     )
+    # [START howto_decorator_llm_prompt_argument]
     def analyze_ticket(ticket: str):
-        return f"Analyze this support ticket:\n\n{ticket}"
+        # The returned prompt is rendered as a Jinja template. Reference the argument by name so
+        # the ticket text is inserted as it is, rather than formatting it into the template.
+        return "Analyze this support ticket:\n\n{{ ticket }}"
+
+    # [END howto_decorator_llm_prompt_argument]
 
     @task
     def store_results(analyses: list[TicketAnalysis]):

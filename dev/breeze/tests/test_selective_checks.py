@@ -1796,6 +1796,46 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run go e2e tests when ExecutableCoordinator changes",
         ),
         pytest.param(
+            ("airflow-e2e-tests/yaml-dags/yaml_s3_roundtrip.yaml",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+                "prod-image-build": "true",
+            },
+            id="Run only the YAML Dag e2e tests when the YAML Dag fixture changes",
+        ),
+        pytest.param(
+            ("airflow-e2e-tests/tests/airflow_e2e_tests/yaml_dag_tests/test_yaml_dag.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "false",
+            },
+            id="Run only the YAML Dag e2e tests when its suite changes",
+        ),
+        pytest.param(
+            ("go-sdk/example/bundle/yamldag/handlers.go",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests alongside go's when the Dag's Go handler changes",
+        ),
+        pytest.param(
+            ("task-sdk/src/airflow/sdk/importers/yaml_importer/builder.py",),
+            {
+                "run-yaml-dag-e2e-tests": "true",
+            },
+            id="Run the YAML Dag e2e tests when the YAML importer changes",
+        ),
+        pytest.param(
+            ("go-sdk/sdk/variable.go",),
+            {
+                "run-yaml-dag-e2e-tests": "false",
+                "run-go-sdk-e2e-tests": "true",
+            },
+            id="Skip the YAML Dag e2e tests for a go-sdk change outside the Dag's handler",
+        ),
+        pytest.param(
             ("providers/openlineage/src/airflow/providers/openlineage/plugins/adapter.py",),
             {
                 "run-openlineage-e2e-tests": "true",
@@ -5157,20 +5197,15 @@ def test_providers_with_test_side_effects_are_shared_process_providers():
         assert provider not in LONG_RUNNING_TEST_PROVIDERS
 
 
-RUNS_ON_AMD = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5/image=ubuntu22-full-x64/volume=150gb/spot=co'
-    '/cpu={0}/ram={1}"]'
-)
-RUNS_ON_ARM = (
-    '["runs-on=42/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
-)
+RUNS_ON_AMD = '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i/image=ubuntu22-full-x64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
+RUNS_ON_ARM = '["runs-on=42/env=flex/family=m8g+m7g+m6g/image=ubuntu22-full-arm64/volume=150gb/spot=co/cpu={0}/ram={1}"]'
 RUNS_ON_AMD_IN_MEMORY = (
-    '["runs-on=42/family=m8a+m8i+m7a+m7i+m6a+m6i+m5a+m5+r8i+r7a+r7i+r6a+r6i'
+    '["runs-on=42/env=flex/family=m8a+m8i+m7a+m7i+m6i+r8i'
     "/image=ubuntu22-full-x64/volume=150gb/spot=co"
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 RUNS_ON_ARM_IN_MEMORY = (
-    '["runs-on=42/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
+    '["runs-on=42/env=flex/family=m8g+m7g+m6g+r8g+r7g+r6g/image=ubuntu22-full-arm64/volume=150gb/spot=co'
     '/cpu={0}/ram={1}/extras=tmpfs"]'
 )
 

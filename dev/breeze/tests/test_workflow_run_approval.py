@@ -494,6 +494,27 @@ def test_write_step_summary_shows_failed_pull_requests_as_failed(tmp_path, monke
     assert NEED_WORKFLOW_APPROVAL_LABEL not in text
 
 
+def test_write_step_summary_does_not_show_the_label_on_a_pull_request_left_without_it(tmp_path, monkeypatch):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+
+    write_step_summary(
+        [
+            PullRequestResult(
+                pr_number=10,
+                head_sha="abcdef0123456789",
+                run_ids=[1],
+                decision=ApprovalDecision(approve=False, reasons=["it changes CI"], add_approval_label=False),
+            )
+        ],
+        "apache/airflow",
+    )
+
+    text = summary.read_text()
+    assert "| `abcdef0123` | waits for a maintainer |" in text
+    assert NEED_WORKFLOW_APPROVAL_LABEL not in text
+
+
 @pytest.mark.parametrize(
     ("paths", "approve"),
     [
@@ -900,6 +921,7 @@ def test_decide_for_pull_request_gated_to_fork_ci(
     else:
         assert decision.comment is not None
         assert all(f"`{path}`" in decision.comment for path in ci_files)
+        assert decision.add_approval_label is False
 
 
 @pytest.mark.parametrize(
@@ -1295,6 +1317,22 @@ def test_apply_decision_does_not_recheck_the_runs_when_nothing_was_written():
     api.set_approval_status.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("labels", "expected_remove_label_calls"),
+    [((), []), ((NEED_WORKFLOW_APPROVAL_LABEL,), [mock.call(10, NEED_WORKFLOW_APPROVAL_LABEL)])],
+)
+def test_apply_decision_without_the_approval_label_removes_it(labels, expected_remove_label_calls):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.get_approval_status.return_value = _status("pending", "Waits for a maintainer: it changes CI")
+    decision = ApprovalDecision(approve=False, reasons=["it changes CI"], add_approval_label=False)
+
+    apply_decision(api=api, pr=_pr(10, "aaa", labels=labels), run_ids=[1], decision=decision)
+
+    api.add_label.assert_not_called()
+    assert api.remove_label.call_args_list == expected_remove_label_calls
+    api.is_run_waiting_for_approval.assert_not_called()
+
+
 @mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
 def test_process_waiting_runs_clears_a_failed_pull_request_whose_runs_were_approved_meanwhile(mock_decide):
     api = _api_with_prs([_pr(10, "aaa")], [_run(1, "aaa")])
@@ -1308,3 +1346,65 @@ def test_process_waiting_runs_clears_a_failed_pull_request_whose_runs_were_appro
     api.is_run_waiting_for_approval.assert_called_once_with(1)
     assert api.set_approval_status.call_args_list[-1] == mock.call("aaa", "success", "Workflow runs approved")
     api.remove_label.assert_called_once_with(10, NEED_WORKFLOW_APPROVAL_LABEL)
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_does_not_approve_runs_before_the_decisions_cutoff(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [
+        _run(2, "aaa", created_at="2026-10-22T10:00:00Z"),
+        _run(3, "aaa", created_at="2026-10-22T11:00:00Z"),
+    ]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = None
+    mock_decide.return_value = ApprovalDecision(
+        approve=True, reasons=["gated"], not_before=datetime(2026, 10, 22, 10, 30, tzinfo=UTC)
+    )
+
+    process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    assert api.approve_run.call_args_list == [mock.call(3)]
+
+
+@pytest.mark.parametrize(
+    ("joined_at", "gated", "not_before"),
+    [
+        pytest.param(
+            datetime(2026, 10, 23, tzinfo=UTC),
+            True,
+            datetime(2026, 10, 23, tzinfo=UTC),
+            id="pilot-joined-after-opening",
+        ),
+        pytest.param(datetime(2026, 10, 21, tzinfo=UTC), True, None, id="pilot-joined-before-opening"),
+        pytest.param(datetime(2026, 10, 31, tzinfo=UTC), False, None, id="pilot-joining-later"),
+    ],
+)
+@mock.patch(f"{MODULE}.decide_approval", autospec=True)
+@mock.patch(f"{MODULE}.build_selective_checks", autospec=True)
+@mock.patch(f"{MODULE}.load_config", autospec=True)
+@mock.patch(f"{MODULE}.get_changed_files", autospec=True, return_value=LARGE_SOURCE_CHANGE)
+@mock.patch(f"{MODULE}.fetch_merge_commit", autospec=True, return_value="merge")
+def test_decide_for_pull_request_gates_an_older_pilot_pull_request_from_joining(
+    mock_fetch,
+    mock_get_changed_files,
+    mock_load_config,
+    mock_selective_checks,
+    mock_decide_approval,
+    joined_at,
+    gated,
+    not_before,
+):
+    mock_load_config.return_value = GateConfig(pilot={"contributor": joined_at})
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+
+    decision = decide_for_pull_request(api=api, pr=_gated_pr(), now=datetime(2026, 10, 30, tzinfo=UTC))
+
+    if gated:
+        assert decision.approve is True
+        assert decision.not_before == not_before
+        mock_decide_approval.assert_not_called()
+    else:
+        assert decision is mock_decide_approval.return_value

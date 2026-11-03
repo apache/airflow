@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``OSSKeySensor.get_hook`` property has been removed. Use ``hook`` instead.
+
 3.5.2
 .....
 

@@ -1552,6 +1552,7 @@ option_e2e_test_mode = click.option(
             "go_sdk",
             "openlineage",
             "ts_sdk",
+            "yaml_dag",
         ],
         case_sensitive=False,
     ),
