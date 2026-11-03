@@ -34,11 +34,13 @@ import (
 // RunTask executes a task based on StartupDetails received from the supervisor.
 //
 // It looks up the task in the bundle, creates a CoordinatorClient for SDK
-// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, executes
-// the task, and returns the terminal body to ship as the final response frame:
+// calls, deletes the XComs that ti_context.xcom_keys_to_clear lists, sends the
+// supervisor the task's execution_timeout, executes the task, and returns the
+// terminal body to ship as the final response frame:
 // one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
 // is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
-// delete an XCom, or arg_bindings is invalid, the task fails without running.
+// delete an XCom, cannot resolve the execution_timeout, finds it has already elapsed, or
+// arg_bindings is invalid, the task fails without running.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -108,6 +110,37 @@ func RunTask(
 				"dag_id", details.TI.DagID,
 				"task_id", details.TI.TaskID,
 				"key", key,
+				"error", err,
+			)
+			return failTask(details.TIContext.ShouldRetry, err)
+		}
+	}
+
+	timeoutSeconds, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
+	if err != nil {
+		logger.Error("Invalid execution_timeout",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		return failTask(details.TIContext.ShouldRetry, err)
+	}
+	// Same rules as the Python task runner: zero means no timeout, negative has already elapsed.
+	switch {
+	case timeoutSeconds == nil || *timeoutSeconds == 0:
+	case *timeoutSeconds < 0:
+		err := fmt.Errorf("execution_timeout of %g seconds has already elapsed", *timeoutSeconds)
+		logger.Error("Task timed out",
+			"dag_id", details.TI.DagID,
+			"task_id", details.TI.TaskID,
+			"error", err,
+		)
+		return failTask(details.TIContext.ShouldRetry, err)
+	default:
+		if err := client.setExecutionTimeout(ctx, *timeoutSeconds); err != nil {
+			logger.Error("Unable to send execution_timeout to the supervisor",
+				"dag_id", details.TI.DagID,
+				"task_id", details.TI.TaskID,
 				"error", err,
 			)
 			return failTask(details.TIContext.ShouldRetry, err)
