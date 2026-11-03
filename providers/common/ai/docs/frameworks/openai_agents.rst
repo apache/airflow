@@ -24,8 +24,8 @@ You have an agent built with the `OpenAI Agents SDK
 <https://openai.github.io/openai-agents-python/>`__ and you want it to run as an Airflow
 task: on a schedule, after an upstream task, or when an asset updates, reading data
 through connections your deployment already manages. The agent, its runner, handoffs,
-guardrails and your own function tools stay plain OpenAI Agents SDK. Airflow adds three
-things, each of which you can use without the others:
+guardrails and your own function tools stay plain OpenAI Agents SDK. Airflow adds these,
+each of which you can use without the others:
 
 - :func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync` runs the
   agent so that a task retry replays the model and tool calls the failed try completed,
@@ -239,13 +239,13 @@ it:
   object that is not JSON-compatible. ``HttpHook.run`` returns a ``requests.Response``,
   which the model would see as ``<Response [200]>``.
 
-:ref:`hook-toolset-restricted` shows a hook that passes all three: ``S3Hook`` with
+:ref:`hook-toolset-restricted` shows a hook that passes these checks: ``S3Hook`` with
 ``list_keys`` and ``read_key`` and the bucket pinned. The same toolset works in
 ``AirflowTools(...)``.
 
-Two controls that pydantic-ai toolsets offer do not reach the SDK through
-``AirflowTools``. ``.filtered()`` and ``.approval_required()`` return wrappers that
-``AirflowTools`` cannot read, and building it fails:
+``.filtered()`` and ``.approval_required()``, which pydantic-ai toolsets offer, do not
+reach the SDK through ``AirflowTools``. They return wrappers that ``AirflowTools`` cannot
+read, and building it fails:
 
 .. code-block:: text
 
@@ -259,7 +259,7 @@ options: :ref:`howto/toolsets`.
 Tools
 -----
 
-An agent's tools can come from four places, and each behaves differently in a task:
+Where an agent's tools come from decides how they behave in a task:
 
 .. list-table::
     :header-rows: 1
@@ -618,7 +618,7 @@ replayed conversation does not describe.
 Sessions, approvals and streaming
 ---------------------------------
 
-Three SDK features interact with Airflow in ways the SDK documentation does not cover:
+These SDK features interact with Airflow in ways the SDK documentation does not cover:
 
 - A ``session`` works, but under ``run_durably`` it makes every retry run live, as
   above.
