@@ -145,6 +145,26 @@ describe("FilterBar select filters", () => {
     expect(valueText).not.toBeNull();
     expect(globalThis.getComputedStyle(valueText as HTMLElement).overflow).toBe("visible");
   });
+
+  it("collapses the pill after a selection even when focus stays inside it", async () => {
+    // WebKit hands focus back to the select trigger, so blurring the active element leaves the pill open.
+    const blur = vi.spyOn(HTMLElement.prototype, "blur").mockImplementation(() => undefined);
+    const selectConfig: FilterConfig = {
+      key: "state",
+      label: "State",
+      options: [{ label: "Failed", value: "failed" }],
+      type: "select",
+    };
+
+    render(<FilterBar configs={[selectConfig]} onFiltersChange={vi.fn()} />, { wrapper });
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+    fireEvent.click(await screen.findByTestId("add-filter-state"));
+    fireEvent.click(await screen.findByTestId("state-filter-failed"));
+
+    await waitFor(() => expect(screen.getByTestId("state-pill")).toBeInTheDocument());
+    blur.mockRestore();
+  });
 });
 
 describe("FilterBar multiselect filters", () => {

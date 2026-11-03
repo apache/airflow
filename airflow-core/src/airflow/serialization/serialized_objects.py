@@ -238,19 +238,6 @@ def _encode_priority_weight_strategy(var: PriorityWeightStrategy | str) -> str:
     return importable_string
 
 
-def _decode_priority_weight_strategy(var: str) -> PriorityWeightStrategy:
-    """
-    Decode a previously serialized priority weight strategy.
-
-    In this version, we only store the importable string, so we just need to get the class
-    from the dictionary of registered classes and instantiate it with no parameters.
-    """
-    priority_weight_strategy_class = _get_registered_priority_weight_strategy(var)
-    if priority_weight_strategy_class is None:
-        raise _PriorityWeightStrategyNotRegistered(var)
-    return priority_weight_strategy_class()
-
-
 # Builtin exceptions a BASE_EXC_SER node can rebuild into. A user defined subclass
 # (e.g. a custom KeyError) serializes to a name absent here and won't round-trip --
 # unchanged from before, since builtins never held it either.
@@ -1223,8 +1210,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             elif k == "_on_failure_fail_dagrun":
                 k = "on_failure_fail_dagrun"
             elif k == "weight_rule":
+                # Decoded by SerializedBaseOperator.weight_rule, so loading a Dag does not need the plugin.
                 k = "_weight_rule"
-                v = _decode_priority_weight_strategy(v)
             elif k == "retry_exponential_backoff":
                 if isinstance(v, bool):
                     v = 2.0 if v else 0
@@ -1877,9 +1864,7 @@ class DagSerialization(BaseSerialization):
                 # Value structure matches exactly
                 pass
             elif k == "timetable":
-                v = decode_timetable(v)
-            elif k == "weight_rule":
-                v = _decode_priority_weight_strategy(v)
+                k = "_encoded_timetable"
             elif k in cls._decorated_fields:
                 v = cls.deserialize(v)
             elif k == "params":
@@ -2211,22 +2196,21 @@ class DagSerialization(BaseSerialization):
             )
         try:
             deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
+            timetable = deserialized.timetable
         except Exception as e:
             cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
             ) from e
-        if (
-            limit := deserialized.timetable.active_runs_limit
-        ) is not None and deserialized.max_active_runs > limit:
+        if (limit := timetable.active_runs_limit) is not None and deserialized.max_active_runs > limit:
             raise DeserializationError(
                 dag_id,
                 f"Dag {dag_id!r} sets max_active_runs {deserialized.max_active_runs}, "
-                f"but {type(deserialized.timetable).__name__} allows at most {limit}",
+                f"but {type(timetable).__name__} allows at most {limit}",
             )
         if (
             deserialized.catchup
-            and deserialized.timetable.can_be_scheduled
+            and timetable.can_be_scheduled
             and not (deserialized.start_date or "start_date" in deserialized.default_args)
         ):
             raise DeserializationError(dag_id, f"Dag {dag_id!r} sets catchup but no start_date")

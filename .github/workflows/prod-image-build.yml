@@ -119,7 +119,7 @@ jobs:
   build-prod-packages:
     name: "Build Airflow and provider distributions"
     timeout-minutes: 10
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     if: inputs.prod-image-build == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
@@ -151,6 +151,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages - all providers built from sources"
         shell: bash
@@ -199,7 +201,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
     timeout-minutes: 80
     name: "Build PROD ${{ inputs.build-type }} image ${{ matrix.python-version }}"
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], 8, 32) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     needs:
       - build-prod-packages
     env:

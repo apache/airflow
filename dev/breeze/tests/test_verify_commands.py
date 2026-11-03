@@ -32,6 +32,7 @@ from airflow_breeze.commands.verify_commands import (
     has_merged_commits_missing_from,
     verify,
 )
+from airflow_breeze.utils.shared_options import set_dry_run
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -360,3 +361,17 @@ def test_merged_commits_missing_from_the_base_are_warned_about(mock_files, mock_
     assert warning in " ".join(ANSI.sub("", stream).split())
     if as_json:
         assert json.loads(result.stdout)["base_ref"] == "upstream/main"
+
+
+@patch(
+    "airflow_breeze.utils.run_utils.subprocess.run",
+    autospec=True,
+    side_effect=[
+        CompletedProcess(args=[], returncode=0, stdout="abc123\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="file.py\n", stderr=""),
+        CompletedProcess(args=[], returncode=0, stdout="", stderr=""),
+    ],
+)
+def test_changed_files_are_computed_in_dry_run(mock_subprocess_run):
+    set_dry_run(True)
+    assert get_changed_files_against("main") == ("file.py",)

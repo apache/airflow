@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import threading
+from http.cookies import SimpleCookie
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -35,6 +36,15 @@ from airflow.api_fastapi.core_api.security import USER_INJECTED_BY_TRUSTED_MIDDL
 from tests_common.test_utils.config import conf_vars
 
 MODULE = "airflow.api_fastapi.auth.middlewares.refresh_token"
+
+
+def _get_browser_cookies(response) -> dict[tuple[str, str], str | None]:
+    """Apply the ``Set-Cookie`` headers in order like a browser, keyed on name and path; ``None`` is cleared."""
+    cookies: dict[tuple[str, str], str | None] = {}
+    for header in response.headers.get_list("set-cookie"):
+        for name, morsel in SimpleCookie(header).items():
+            cookies[(name, morsel["path"])] = None if morsel["max-age"] == "0" else morsel.value
+    return cookies
 
 
 def _build_app(static_dir=None, root_path: str = "") -> tuple[FastAPI, dict]:
@@ -62,6 +72,19 @@ def _build_app(static_dir=None, root_path: str = "") -> tuple[FastAPI, dict]:
         response.set_cookie(
             COOKIE_NAME_JWT_TOKEN, "issued_token", path=refresh_token.get_cookie_path(), httponly=True
         )
+        return response
+
+    @app.get("/auth/login_callback_with_extra_cookie")
+    def login_callback_with_extra_cookie():
+        response = PlainTextResponse("logged in")
+        response.set_cookie(COOKIE_NAME_JWT_TOKEN, "issued_token", path=refresh_token.get_cookie_path())
+        response.set_cookie("foo", "issued_foo", path=refresh_token.get_cookie_path())
+        return response
+
+    @app.get("/auth/clear_root_extra_cookie")
+    def clear_root_extra_cookie():
+        response = PlainTextResponse("cleared")
+        response.delete_cookie("foo", path="/")
         return response
 
     @app.get("/api/v2/auth/logout")
@@ -158,9 +181,7 @@ class TestJWTRefreshMiddleware:
 
         response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get("/auth/login_callback")
 
-        assert response.headers.get_list("set-cookie") == [
-            "_token=issued_token; HttpOnly; Path=/; SameSite=lax"
-        ]
+        assert _get_browser_cookies(response) == {(COOKIE_NAME_JWT_TOKEN, "/"): "issued_token"}
 
     def test_refreshed_token_does_not_override_logout(self, mock_resolve_user, mock_auth_manager):
         mock_auth_manager.refresh_user.return_value = MagicMock(spec=BaseUser)
@@ -169,10 +190,9 @@ class TestJWTRefreshMiddleware:
 
         response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "valid_token"}).get("/api/v2/auth/logout")
 
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert len(set_cookie_headers) == 1
-        assert "Max-Age=0" in set_cookie_headers[0]
-        assert "new_token" not in set_cookie_headers[0]
+        assert _get_browser_cookies(response) == {(COOKIE_NAME_JWT_TOKEN, "/"): None}
+        # Clients that don't apply Set-Cookie headers in order must not pick up a token minted during logout
+        assert not any("new_token" in header for header in response.headers.get_list("set-cookie"))
 
     @patch(f"{MODULE}.get_cookie_path", autospec=True, return_value="/team-a/")
     def test_root_cookie_cleared_when_route_sets_token(
@@ -183,10 +203,10 @@ class TestJWTRefreshMiddleware:
 
         response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get("/auth/login_callback")
 
-        set_cookie_headers = response.headers.get_list("set-cookie")
-        assert len(set_cookie_headers) == 2
-        assert set_cookie_headers[0] == "_token=issued_token; HttpOnly; Path=/team-a/; SameSite=lax"
-        assert "Max-Age=0; Path=/;" in set_cookie_headers[1]
+        assert _get_browser_cookies(response) == {
+            (COOKIE_NAME_JWT_TOKEN, "/team-a/"): "issued_token",
+            (COOKIE_NAME_JWT_TOKEN, "/"): None,
+        }
 
     def test_refresh_user_runs_off_the_event_loop(self, mock_resolve_user, mock_auth_manager):
         """``refresh_user`` is synchronous and may do blocking I/O, so it must not block the loop."""
@@ -317,16 +337,14 @@ class TestJWTRefreshMiddleware:
         )
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("new_user", [(MagicMock(),), (None,)])
-    async def test_generate_new_user_token(self, mock_auth_manager, new_user):
+    @pytest.mark.parametrize(
+        ("new_user", "expected_token"), [(MagicMock(spec=BaseUser), "new_token"), (None, "")]
+    )
+    async def test_generate_new_user_token(self, mock_auth_manager, new_user, expected_token):
         mock_auth_manager.generate_jwt.return_value = "new_token"
         app, seen = _build_app()
         middleware = JWTRefreshMiddleware(app)
-        new_token = await middleware.generate_new_user_token(MagicMock(), new_user)
-        if new_user is None:
-            assert new_token == ""
-        else:
-            assert new_token == "new_token"
+        assert await middleware.generate_new_user_token(MagicMock(), new_user) == expected_token
 
     @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
     def test_refresh_user_with_extra_cookies(
@@ -375,3 +393,41 @@ class TestJWTRefreshMiddleware:
             response.headers["set-cookie"]
             == '_token=new_token; HttpOnly; Path=/; SameSite=lax, foo=""; HttpOnly; Max-Age=0; Path=/; SameSite=lax'
         )
+
+    @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
+    def test_invalid_token_does_not_clear_extra_cookie_set_by_route(
+        self, mock_get_extra_cookies: MagicMock, mock_resolve_user, mock_auth_manager
+    ):
+        mock_get_extra_cookies.return_value = {"foo": "", "bar": ""}
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
+
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get(
+            "/auth/login_callback_with_extra_cookie"
+        )
+
+        assert _get_browser_cookies(response) == {
+            (COOKIE_NAME_JWT_TOKEN, "/"): "issued_token",
+            ("foo", "/"): "issued_foo",
+            ("bar", "/"): None,
+        }
+
+    @patch(f"{MODULE}.get_cookie_path", autospec=True, return_value="/team-a/")
+    @patch(f"{MODULE}.JWTRefreshMiddleware.get_extra_cookies")
+    def test_extra_cookie_cleared_on_cookie_path_when_route_clears_it_on_another_path(
+        self, mock_get_extra_cookies: MagicMock, mock_cookie_path, mock_resolve_user, mock_auth_manager
+    ):
+        mock_get_extra_cookies.return_value = {"foo": ""}
+        mock_resolve_user.side_effect = HTTPException(status_code=403, detail="Invalid JWT token")
+        app, _ = _build_app()
+
+        response = TestClient(app, cookies={COOKIE_NAME_JWT_TOKEN: "stale_token"}).get(
+            "/auth/clear_root_extra_cookie"
+        )
+
+        assert _get_browser_cookies(response) == {
+            (COOKIE_NAME_JWT_TOKEN, "/team-a/"): None,
+            (COOKIE_NAME_JWT_TOKEN, "/"): None,
+            ("foo", "/team-a/"): None,
+            ("foo", "/"): None,
+        }

@@ -298,12 +298,6 @@ def _create_assets_events_with_sensitive_extra(session, num: int = 2) -> None:
     session.commit()
 
 
-def _create_provided_asset_event(session, asset_event: AssetEvent) -> None:
-    _ensure_source_dag(session)
-    session.add(asset_event)
-    session.commit()
-
-
 def _create_dag_run(session, num: int = 2):
     _ensure_source_dag(session)
     dag_runs = [
@@ -382,10 +376,6 @@ class TestAssets:
     @provide_session
     def create_assets_events_with_sensitive_extra(self, num: int = 2, *, session):
         _create_assets_events_with_sensitive_extra(session=session, num=num)
-
-    @provide_session
-    def create_provided_asset_event(self, asset_event: AssetEvent, *, session):
-        _create_provided_asset_event(session=session, asset_event=asset_event)
 
     @provide_session
     def create_dag_run(self, num: int = 2, *, session):
@@ -1111,6 +1101,46 @@ class TestGetAssetEventsPerDagScoping(TestAssets):
         assert [event["id"] for event in body["asset_events"]] == [2, 4]
         assert body["total_entries"] == 2
 
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"dag_a"}, ["dag_a"], id="one-readable-consumer-dag"),
+            pytest.param({"dag_a", "dag_b"}, ["dag_a", "dag_b"], id="both-consumer-dags-readable"),
+            pytest.param(set(), [], id="no-readable-consumer-dags"),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_endpoint_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session, readable_dags, expected_run_dags
+    ):
+        """The Dag runs an event created are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        _ensure_dags(session, "dag_a", "dag_b")
+        self.create_assets(session=session, num=1)
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(id=1, asset_id=1, extra={}, timestamp=DEFAULT_DATE)
+        session.add(event)
+        session.flush()
+        for dag_id in ("dag_a", "dag_b"):
+            dag_run = DagRun(
+                dag_id=dag_id,
+                run_id=f"{dag_id}_run",
+                run_type=DagRunType.ASSET_TRIGGERED,
+                logical_date=DEFAULT_DATE,
+                start_date=DEFAULT_DATE,
+                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                state=DagRunState.SUCCESS,
+            )
+            dag_run.consumed_asset_events.append(event)
+            session.add(dag_run)
+        session.commit()
+
+        response = test_client.get("/assets/events")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
+
 
 class TestGetAssetEvents(TestAssets):
     @pytest.mark.parametrize("unknown", [False, True])
@@ -1278,7 +1308,7 @@ class TestGetAssetEvents(TestAssets):
 
     def test_should_return_created_dag_run_without_start_date(self, test_client, session):
         self.create_assets(num=1, session=session)
-        _ensure_dags(session, "producer_dag")
+        _ensure_dags(session, "producer_dag", "consumer_dag")
         asset_event = AssetEvent(
             asset_id=1,
             source_dag_id="producer_dag",

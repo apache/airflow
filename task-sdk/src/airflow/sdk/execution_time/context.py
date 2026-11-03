@@ -31,6 +31,7 @@ from uuid import UUID
 
 import attrs
 import structlog
+from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
 from airflow.sdk._shared.state import AssetScope
@@ -92,7 +93,6 @@ if TYPE_CHECKING:
 
     from pydantic.types import JsonValue
 
-    from airflow.sdk import Variable
     from airflow.sdk._shared.state import TaskScope
     from airflow.sdk.bases.operator import BaseOperator
     from airflow.sdk.definitions.connection import Connection
@@ -105,7 +105,6 @@ if TYPE_CHECKING:
         ConnectionResult,
         OKResponse,
         ReceiveMsgType,
-        VariableResult,
     )
     from airflow.sdk.state import BaseStoreBackend
     from airflow.sdk.types import OutletEventAccessorsProtocol
@@ -159,6 +158,8 @@ NEVER_EXPIRE: timedelta = timedelta.max
 
 _EXTERNAL_STATE_REF_KEY = "__airflow_state_ref__"
 
+_AWARE_DATETIME_ADAPTER = TypeAdapter(AwareDatetime)
+
 
 def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
     return {_EXTERNAL_STATE_REF_KEY: ref}
@@ -166,6 +167,33 @@ def _wrap_external_ref(ref: str) -> dict[str, JsonValue]:
 
 def _unwrap_external_ref(stored: dict) -> str | None:
     return stored.get(_EXTERNAL_STATE_REF_KEY)
+
+
+def _json_size_exceeds(value: JsonValue, limit: int) -> bool:
+    """
+    Whether ``len(json.dumps(value))`` exceeds ``limit``.
+
+    Encoding stops at the first piece that crosses the limit, so a large list or dict is never
+    encoded in full. Each string is still escaped whole before it is counted.
+    """
+    size = 0
+    for chunk in json.JSONEncoder().iterencode(value):
+        size += len(chunk)
+        if size > limit:
+            return True
+    return False
+
+
+def _warn_if_oversized(kind: str, key: str, stored: JsonValue) -> None:
+    limit = conf.getint("state_store", "max_value_storage_bytes")
+    if limit > 0 and _json_size_exceeds(stored, limit):
+        log.warning(
+            "%s state store value for key %r exceeds configured max_value_storage_bytes=%d. "
+            "Consider configuring [workers] state_store_backend to offload large payloads.",
+            kind,
+            key,
+            limit,
+        )
 
 
 T = TypeVar("T")
@@ -198,16 +226,6 @@ async def _amask_connection_secrets(conn: Connection) -> None:
         await amask_secret(conn.password)
     if conn.extra:
         await amask_secret(conn.extra)
-
-
-def _convert_variable_result_to_variable(var_result: VariableResult, deserialize_json: bool) -> Variable:
-    from airflow.sdk.definitions.variable import Variable
-
-    if deserialize_json:
-        import json
-
-        var_result.value = json.loads(var_result.value)  # type: ignore
-    return Variable(**var_result.model_dump(exclude={"type"}))
 
 
 _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
@@ -828,16 +846,7 @@ class TaskStateStoreAccessor:
 
         msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Task", key, stored)
 
         return msg
 
@@ -1000,16 +1009,7 @@ class AssetStateStoreAccessor:
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Asset", key, stored)
 
         msg: ToSupervisor
         if self._name:
@@ -1397,8 +1397,8 @@ class OutletEventAccessors(
 
 @attrs.define(init=False)
 class InletEventsAccessor(Sequence["AssetEventResult"]):
-    _after: str | datetime | None
-    _before: str | datetime | None
+    _after: datetime | None
+    _before: datetime | None
     _ascending: bool
     _limit: int | None
     _partition_key: str | None
@@ -1422,13 +1422,13 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         self._partition_key_regexp_pattern = None
         self._extra: dict[str, str] = {}
 
-    def after(self, after: str) -> Self:
-        self._after = after
+    def after(self, after: datetime | str) -> Self:
+        self._after = _AWARE_DATETIME_ADAPTER.validate_python(after)
         self._reset_cache()
         return self
 
-    def before(self, before: str) -> Self:
-        self._before = before
+    def before(self, before: datetime | str) -> Self:
+        self._before = _AWARE_DATETIME_ADAPTER.validate_python(before)
         self._reset_cache()
         return self
 

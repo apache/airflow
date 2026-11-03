@@ -693,6 +693,13 @@ Constraints are generated separately for each python version and there are separ
   providers. If you want to manage Airflow separately and then add providers individually, you can
   use those.
 
+In the ``constraints`` mode every provider is pinned at the newest version PyPI holds for it. Pre-releases
+are only picked up with ``--allow-pre-releases`` (the constraints of a release candidate), except for the
+candidates the current constraints branch already pins: those are kept while PyPI still serves them, so a
+regular run does not undo a release candidate's constraints. ``--fail-on-pending-provider-candidates``
+(the constraints of a final release) fails instead when a provider's newest version is a candidate that
+was neither released nor yanked.
+
 These are all available flags of ``generate-constraints`` command:
 
 .. image:: ./images/output_release-management_generate-constraints.svg
@@ -1048,6 +1055,17 @@ To check what documents will be published to S3, you can use the ``--dry-run`` f
      breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
      --destination-location s3://airflow-docs/docs --dry-run
 
+After the sync the command rebuilds ``manifest/packages-metadata.json`` from a scan of every package in
+the bucket. When several publishes to one bucket can run at once, sync with ``--skip-packages-metadata``
+and rebuild the file in a separate, serialised step with ``--packages-metadata-only``, which needs no
+``--source-dir-path``. The ``Publish Docs to S3`` workflow does this so that provider and Airflow docs
+publishes can sync side by side.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3 --destination-location s3://airflow-docs/docs \
+     --packages-metadata-only
+
 These are all available flags of ``release-management publish-docs-to-s3`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
@@ -1128,9 +1146,11 @@ the workflow existed.
 
 The stage is derived from ``--version`` alone, so it cannot be set inconsistently with it. A candidate
 (``3.1.3rc1``) resolves allowing pre-releases for ``apache-airflow-providers-*`` — the providers of the wave
-being voted on are on PyPI only as ``rcN`` versions — and lands on a branch of its own, leaving the shared
-``constraints-X-Y`` branch where it was. A final (``3.1.3``) resolves without them and commits onto
-``constraints-X-Y``, which is what makes the released constraints the baseline everything downstream reads.
+being voted on are on PyPI only as ``rcN`` versions. A final (``3.1.3``) resolves without them, and fails
+while any provider's newest version on PyPI is still a candidate: each one has to be released or yanked
+first (yanked versions are skipped), so the released constraints neither pin a candidate nor silently pass
+over one. Both commit onto ``constraints-X-Y`` and tag the result ``constraints-<VERSION>``; the final's
+commit is what makes the released constraints the baseline everything downstream reads.
 
 These are all available flags of ``workflow-run release-constraints`` command:
 
@@ -1138,6 +1158,42 @@ These are all available flags of ``workflow-run release-constraints`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
   :width: 100%
   :alt: Breeze workflow-run release-constraints
+
+Refreshing the base images before a release
+"""""""""""""""""""""""""""""""""""""""""""
+
+The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
+Python patch releases. Only the "Upgrade important CI environment" upgrade moves those pins, to images the
+mirror already has, so the release manager runs it before every beta (for ``main``) and before every
+test-to-stable PR (for the release branch), with one command.
+
+``breeze workflow-run upgrade-check`` mirrors the latest hardened base images first and waits for it, then
+upgrades the branch - by default the branch breeze comes from. For ``main`` it runs the upgrade check
+workflow, which opens an upgrade PR, and waits for it. For a ``vX-Y-test`` branch it runs
+``breeze ci upgrade --push-to-target-branch`` in your checkout, which pushes the upgrade straight to the
+branch, the head of the test-to-stable PR. That runs locally, as the release branch rules let only
+committers push without CI having passed. It fails, rather than switching, resetting or cleaning anything,
+when the checkout is not at the tip of the branch or has local changes. Both need ``gh`` credentials that
+may dispatch ``apache/airflow`` workflows, and check that first.
+
+These are all available flags of ``workflow-run upgrade-check`` command:
+
+.. image:: ./images/output_workflow-run_upgrade-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_upgrade-check.svg
+  :width: 100%
+  :alt: Breeze workflow-run upgrade-check
+
+``breeze workflow-run mirror-base-images`` runs only the mirror on ``main`` and waits for it. The mirror is
+shared by all branches, and ``main`` mirrors every Python version an active release branch still builds
+on. The upgrade check workflow runs it in a job of its own, so the token that may dispatch workflows never
+reaches the job running the upgraded tools.
+
+These are all available flags of ``workflow-run mirror-base-images`` command:
+
+.. image:: ./images/output_workflow-run_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze workflow-run mirror-base-images
 
 Publishing the schema files to S3
 """""""""""""""""""""""""""""""""

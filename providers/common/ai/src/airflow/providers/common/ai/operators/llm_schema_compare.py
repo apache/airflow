@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.operators.llm import LLMOperator
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
@@ -363,7 +364,7 @@ class LLMSchemaCompareOperator(LLMOperator):
             body = (
                 f"Compatible: {output.compatible}"
                 + (f" (mismatches: {summary})" if summary else "")
-                + f"\n\n```\nPrompt: {self.prompt}\n\n{output.model_dump_json(indent=2)}\n```"
+                + f"\n\n```\nPrompt: {describe_prompt(self.prompt)}\n\n{output.model_dump_json(indent=2)}\n```"
             )
             self.defer_for_approval(context, output, body=body)  # type: ignore[misc]
 
