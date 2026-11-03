@@ -4853,7 +4853,107 @@
       "title": "LiteralArgBinding",
       "type": "object"
     },
+    "LocalArgBinding": {
+      "description": "One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.\n\nThe worker resolves it from the Dag file before the runtime starts the task.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "local",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "title": "LocalArgBinding",
+      "type": "object"
+    },
     "TaskArgBinding": {
+      "discriminator": {
+        "mapping": {
+          "literal": "#/$defs/LiteralArgBinding",
+          "local": "#/$defs/LocalArgBinding",
+          "sequence": "#/$defs/XComSequenceArgBinding",
+          "tuple": "#/$defs/TupleArgBinding",
+          "xcom": "#/$defs/XComArgBinding"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/XComArgBinding"
+        },
+        {
+          "$ref": "#/$defs/LiteralArgBinding"
+        },
+        {
+          "$ref": "#/$defs/XComSequenceArgBinding"
+        },
+        {
+          "$ref": "#/$defs/TupleArgBinding"
+        },
+        {
+          "$ref": "#/$defs/LocalArgBinding"
+        }
+      ],
+      "title": "TaskArgBinding"
+    },
+    "TupleArgBinding": {
+      "description": "One ``zip()`` element: one part per zipped argument, gathered into a single argument.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "tuple",
+          "title": "Kind",
+          "type": "string"
+        },
+        "parts": {
+          "items": {
+            "$ref": "#/$defs/TupleArgBindingPart"
+          },
+          "title": "Parts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "parts"
+      ],
+      "title": "TupleArgBinding",
+      "type": "object"
+    },
+    "TupleArgBindingPart": {
       "discriminator": {
         "mapping": {
           "literal": "#/$defs/LiteralArgBinding",
@@ -4869,7 +4969,7 @@
           "$ref": "#/$defs/LiteralArgBinding"
         }
       ],
-      "title": "TaskArgBinding"
+      "title": "TupleArgBindingPart"
     },
     "XComArgBinding": {
       "description": "One positional stub-task argument pulled from an upstream task's XCom.",
@@ -4897,6 +4997,35 @@
         "task_id": {
           "title": "Task Id",
           "type": "string"
+        },
+        "map_index": {
+          "default": -1,
+          "title": "Map Index",
+          "type": "integer"
+        },
+        "element_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Element Index"
+        },
+        "mapping_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mapping Key"
         }
       },
       "required": [
@@ -4905,6 +5034,42 @@
         "task_id"
       ],
       "title": "XComArgBinding",
+      "type": "object"
+    },
+    "XComSequenceArgBinding": {
+      "description": "One stub-task argument reading a mapped task's whole output as a lazy sequence.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "sequence",
+          "title": "Kind",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "task_id"
+      ],
+      "title": "XComSequenceArgBinding",
       "type": "object"
     },
     "AssetEventDagRunReference": {

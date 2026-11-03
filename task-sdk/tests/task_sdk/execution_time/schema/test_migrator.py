@@ -579,6 +579,49 @@ class TestRealBundleArgBindingsDowngrade:
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 
+    @pytest.mark.parametrize(
+        "binding",
+        [
+            pytest.param({"name": "totals", "kind": "sequence", "task_id": "transform"}, id="sequence"),
+            pytest.param({"name": "row", "kind": "local"}, id="local"),
+            pytest.param(
+                {"name": "row", "kind": "tuple", "parts": [{"name": "row", "kind": "literal", "value": 1}]},
+                id="tuple",
+            ),
+            pytest.param(
+                {"name": "row", "kind": "xcom", "task_id": "extract", "map_index": 1}, id="map-index"
+            ),
+            pytest.param(
+                {"name": "row", "kind": "xcom", "task_id": "extract", "element_index": 1}, id="element-index"
+            ),
+            pytest.param(
+                {"name": "row", "kind": "xcom", "task_id": "extract", "mapping_key": "row"}, id="mapping-key"
+            ),
+        ],
+    )
+    def test_downgrade_strips_mapped_arg_bindings_for_previous_version(
+        self, real_migrator, startup_details, binding
+    ):
+        from airflow.sdk.api.datamodels._generated import TaskArgBinding
+
+        startup_details.ti_context.arg_bindings = [
+            *startup_details.ti_context.arg_bindings,
+            TaskArgBinding.model_validate(binding),
+        ]
+        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump()["ti_context"]
+        assert "arg_bindings" not in context
+
+    def test_downgrade_keeps_plain_arg_bindings_for_previous_version(self, real_migrator, startup_details):
+        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
+            "ti_context"
+        ]
+        assert context["arg_bindings"][1] == {
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object"},
+            "task_id": "extract",
+        }
+
 
 class TestRealBundleRetryReason:
     """

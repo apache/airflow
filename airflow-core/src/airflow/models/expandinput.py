@@ -165,24 +165,24 @@ class SchedulerDictOfListsExpandInput:
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
     def resolve_expansion_sub_indexes(
-        self, map_index: int, run_id: str, *, session: Session
+        self,
+        map_index: int,
+        run_id: str,
+        *,
+        session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
     ) -> dict[str, int]:
         """
         Decompose a task instance's map index into one index per expanded kwarg.
 
-        Server-side counterpart of the index decomposition in the SDK's
-        ``DictOfListsExpandInput._expand_mapped_field``: the cross-product of the
-        expanded kwargs is ordered with the last kwarg varying fastest. A single
-        expanded kwarg maps one-to-one, skipping the upstream length lookups.
+        Server-side counterpart of the SDK's ``DictOfListsExpandInput._expand_mapped_field``: the
+        cross product of the expanded kwargs is ordered with the last kwarg varying fastest.
 
         :raises NotFullyPopulated: if upstream map lengths are not all known yet.
-        :raises ValueError: if an expanded kwarg's recorded length is zero, e.g. an
-            upstream was cleared and re-ran to an empty list after this task instance
-            was expanded (the SDK twin guards the same case).
+        :raises ValueError: if an expanded kwarg's recorded length is zero, e.g. an upstream was
+            cleared and re-ran to an empty list after this task instance was expanded.
         """
-        if len(self.value) == 1:
-            return dict.fromkeys(self.value, map_index)
-        lengths = self._get_map_lengths(run_id, session=session)
+        lengths = self._get_map_lengths(run_id, session=session, producer_contexts=producer_contexts)
         sub_indexes = {}
         for key in reversed(self.value):
             if (length := lengths[key]) < 1:

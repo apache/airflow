@@ -26,7 +26,11 @@ import pytest
 
 from airflow.providers.standard.decorators.stub import stub
 from airflow.sdk import DAG, task_group
-from airflow.serialization.stub_arg_bindings import _infer_value_schema, build_mapped_arg_binding_params
+from airflow.serialization.stub_arg_bindings import (
+    _infer_value_schema,
+    build_mapped_arg_binding_params,
+    build_task_group_arg_binding_params,
+)
 
 
 @pytest.mark.parametrize(
@@ -232,11 +236,34 @@ class TestMappedStubArgBindingParams:
 
         assert self.get_hook_fields(result.operator) == {}
 
-    def test_expand_kwargs_rejected_for_parameterful_stub(self):
+    @pytest.mark.parametrize(
+        "mappings",
+        [
+            pytest.param(
+                [{"country": "uk", "extracted": {}}, {"country": "fr", "extracted": {}}], id="literal"
+            ),
+            pytest.param([{"country": "uk"}], id="literal-partial-mapping"),
+        ],
+    )
+    def test_expand_kwargs_over_literal_mappings_captures_params(self, mappings):
         with DAG(dag_id="d"):
-            result = stub(fn_transform).expand_kwargs([{"country": "uk", "extracted": {}}])
+            result = stub(fn_transform).expand_kwargs(mappings)
 
-        with pytest.raises(ValueError, match="does not support expand_kwargs"):
+        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+
+    def test_expand_kwargs_over_upstream_output_captures_params(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).expand_kwargs(stub(fn_extract)())
+
+        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+
+    def test_expand_kwargs_mapping_with_unknown_parameter_rejected(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).expand_kwargs([{"country": "uk", "region": "eu"}])
+
+        with pytest.raises(ValueError, match=r"unknown parameters \['region'\]"):
             self.get_hook_fields(result.operator)
 
     def test_missing_required_parameter_rejected(self):
@@ -246,14 +273,33 @@ class TestMappedStubArgBindingParams:
         with pytest.raises(ValueError, match="does not bind to its signature"):
             self.get_hook_fields(result.operator)
 
-    def test_partial_kwarg_over_mapped_upstream_rejected(self):
+    @pytest.mark.parametrize(
+        "make_value",
+        [
+            pytest.param(lambda vals, out: vals, id="mapped-upstream"),
+            pytest.param(lambda vals, out: out.map(str), id="map"),
+            pytest.param(lambda vals, out: out.zip(vals), id="zip"),
+            pytest.param(lambda vals, out: out.concat(vals), id="concat"),
+        ],
+    )
+    def test_partial_kwarg_over_any_upstream_output_allowed(self, make_value):
         def fn_produce(n: int): ...
 
         with DAG(dag_id="d"):
             vals = stub(fn_produce).expand(n=[1, 2])
-            result = stub(fn_transform).partial(extracted=vals).expand(country=["uk"])
+            out = stub(fn_extract)()
+            result = stub(fn_transform).partial(extracted=make_value(vals, out)).expand(country=["uk"])
 
-        with pytest.raises(ValueError, match="aggregated output of the mapped task"):
+        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
+
+    def test_custom_xcom_key_inside_zip_rejected(self):
+        with DAG(dag_id="d"):
+            out = stub(fn_extract)()
+            other = stub(fn_extract)()
+            result = stub(fn_transform).partial(country="uk").expand(extracted=out.zip(other["rows"]))
+
+        with pytest.raises(ValueError, match="references the XCom key 'rows'"):
             self.get_hook_fields(result.operator)
 
     def test_expand_over_mapped_upstream_allowed(self):
@@ -294,3 +340,45 @@ class TestMappedStubArgBindingParams:
         with DAG(dag_id="d"):
             with pytest.raises(NotImplementedError, match="expansion in an expanded task group"):
                 group.expand(n=[1, 2])
+
+
+class TestTaskGroupArgBindingParams:
+    """A stub inside a mapped task group records each call argument for ti_run to resolve per map index."""
+
+    def test_records_group_args_values_and_defaults(self):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_transform)(country, extracted)
+
+        with DAG(dag_id="d"):
+            extracted = stub(fn_extract)()
+            group.expand(country=["uk", "fr"])
+
+        params = build_task_group_arg_binding_params(captured["op"].operator)
+        assert params == [
+            {
+                "name": "country",
+                "value_schema": {"type": "string"},
+                "group_arg": {"group_id": "group", "key": "country"},
+            },
+            {
+                "name": "extracted",
+                "value_schema": {"type": "object", "additionalProperties": True},
+                "value": extracted,
+            },
+            {"name": "retries_num", "value_schema": {"type": "integer", "format": "int64"}, "default": 3},
+        ]
+
+    def test_argless_call_captures_nothing(self):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["op"] = stub(fn_extract)()
+
+        with DAG(dag_id="d"):
+            group.expand(country=["uk"])
+
+        assert build_task_group_arg_binding_params(captured["op"].operator) is None
