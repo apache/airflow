@@ -156,8 +156,9 @@ _STATE_TEXTS = {
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
     "fork, but this pull request changes files that decide which CI jobs run and where (`.github/`, "
-    "the breeze sources or the breeze installation), and the fork run used those changed files. A "
-    "maintainer will review the change and run project CI for it before it can be merged.",
+    "the breeze sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those "
+    "changed files. A maintainer will review the change and run project CI for it before it can be "
+    "merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
@@ -298,14 +299,20 @@ def ci_change_approval_comment(*, ci_files: list[str]) -> str:
 CI_MODIFICATION_MARKER = "<!-- workflow-approval: ci-modification -->"
 
 
-def ci_modification_note_comment(*, ci_files: list[str]) -> str:
+GATED_NOTE_SENTENCE = (
+    " CI for this pull request runs in the author's fork, so any green result and `CI passed` status will "
+    "come from a run that executed these changed files."
+)
+
+
+def ci_modification_note_comment(*, ci_files: list[str], gated: bool) -> str:
     return (
         f"{CI_MODIFICATION_MARKER}\n\n"
         "**This pull request changes CI files.** It changes files that CI uses:\n\n"
         + build_ci_file_list(ci_files)
         + "\n\nThey do not decide which CI jobs run or on which runners, so its workflow runs are not "
         "held for this. A maintainer reviewing the pull request will check the CI change together with "
-        "the rest of it." + FOOTER
+        "the rest of it." + (GATED_NOTE_SENTENCE if gated else "") + FOOTER
     )
 
 

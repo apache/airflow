@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 from datetime import UTC, datetime
 
@@ -30,6 +31,7 @@ from airflow_breeze.utils.fork_ci_messages import (
     CI_PASSED_DESCRIPTION,
     CI_PASSED_REVOKED_DESCRIPTION,
     FOOTER,
+    GATED_NOTE_SENTENCE,
     JOB_NAME_MAX_LENGTH,
     JOB_STATUS_CONTEXT_PREFIX,
     MAX_LISTED_CI_FILES,
@@ -169,6 +171,8 @@ def test_job_status_context(name, expected):
     ],
 )
 def test_ci_file_comments_list_the_files(build_comment, marker):
+    if build_comment is ci_modification_note_comment:
+        build_comment = functools.partial(build_comment, gated=False)
     paths = [f".github/workflows/w{i}.yml" for i in range(MAX_LISTED_CI_FILES + 2)]
     comment = build_comment(ci_files=["dev/breeze/`evil`.py", ".github/a\n\n@someone.yml", *paths])
 
@@ -179,3 +183,11 @@ def test_ci_file_comments_list_the_files(build_comment, marker):
     assert "\n@someone" not in comment
     assert "- and 4 more" in comment
     assert f"`{paths[-1]}`" not in comment
+
+
+@pytest.mark.parametrize("gated", [True, False])
+def test_ci_modification_note_mentions_fork_execution_only_when_gated(gated):
+    comment = ci_modification_note_comment(ci_files=["Dockerfile.ci"], gated=gated)
+
+    assert (GATED_NOTE_SENTENCE in comment) is gated
+    assert comment.endswith(FOOTER)

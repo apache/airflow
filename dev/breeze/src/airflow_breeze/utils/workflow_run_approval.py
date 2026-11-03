@@ -718,6 +718,7 @@ def process_waiting_runs(api: GitHubApi, *, created_since: datetime) -> list[Pul
                                 "or changed a label its decision depends on"
                             ],
                             estimate=decision.estimate,
+                            note=decision.note,
                         )
                         pr_run_ids = run_ids
                 if decision.approve:
@@ -821,7 +822,9 @@ def decide_for_pull_request(
     ):
         decision = decide_gated_approval(changed_files=changed_files)
         decision.not_before = joined_at
+        gated = True
     else:
+        gated = False
         pr_labels = tuple(label["name"] for label in pr.get("labels", []))
         decision = decide_approval(
             base_branch=pr["base"]["ref"],
@@ -835,7 +838,7 @@ def decide_for_pull_request(
         )
     paths = [file.path for file in changed_files]
     if not find_fork_ci_definition_files(paths) and (ci_files := find_ci_modifying_files(paths)):
-        decision.note = ci_modification_note_comment(ci_files=ci_files)
+        decision.note = ci_modification_note_comment(ci_files=ci_files, gated=gated)
     return decision
 
 

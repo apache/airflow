@@ -27,7 +27,11 @@ from click.testing import CliRunner
 from airflow_breeze.commands.ci_commands import approve_workflow_runs
 from airflow_breeze.utils.ci_minutes_estimate import CiMinutesEstimate, EstimatedJobGroup
 from airflow_breeze.utils.fork_ci_gate import GateConfig
-from airflow_breeze.utils.fork_ci_messages import CI_CHANGE_MARKER, CI_MODIFICATION_MARKER
+from airflow_breeze.utils.fork_ci_messages import (
+    CI_CHANGE_MARKER,
+    CI_MODIFICATION_MARKER,
+    GATED_NOTE_SENTENCE,
+)
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 from airflow_breeze.utils.shared_options import set_dry_run
 from airflow_breeze.utils.workflow_run_approval import (
@@ -1003,6 +1007,7 @@ def test_decide_for_pull_request_notes_ci_files_that_do_not_hold_the_runs(
         assert decision.note is not None
         assert decision.note.startswith(CI_MODIFICATION_MARKER)
         assert all(f"`{path}`" in decision.note for path in noted_files)
+        assert (GATED_NOTE_SENTENCE in decision.note) is gated
     else:
         assert decision.note is None
 
@@ -1083,6 +1088,24 @@ def test_process_waiting_runs_skips_runs_started_before_a_test_selection_label_c
     process_waiting_runs(api, created_since=CREATED_SINCE)
 
     assert api.approve_run.call_args_list == [mock.call(run_id) for run_id in approved_runs]
+
+
+@mock.patch(f"{MODULE}.decide_for_pull_request", autospec=True)
+def test_process_waiting_runs_keeps_the_note_when_every_run_started_before_a_label_changed(mock_decide):
+    api = mock.MagicMock(spec=GitHubApi)
+    api.github_repository = "apache/airflow"
+    api.get_runs_waiting_for_approval.return_value = [_run(2, "aaa", created_at="2026-10-22T10:00:00Z")]
+    api.get_open_pull_requests.return_value = [_pr(10, "aaa")]
+    api.get_last_base_change.return_value = None
+    api.get_last_label_change.return_value = datetime(2026, 10, 22, 12, 0, tzinfo=UTC)
+    api.has_bot_comment.return_value = False
+    api.get_approval_status.return_value = None
+    mock_decide.return_value = ApprovalDecision(approve=True, reasons=["cheap"], note="note")
+
+    process_waiting_runs(api, created_since=CREATED_SINCE)
+
+    api.approve_run.assert_not_called()
+    assert api.create_comment.call_args_list == [mock.call(10, "note")]
 
 
 def test_get_last_label_change_ignores_other_labels_and_reads_the_timeline_once():

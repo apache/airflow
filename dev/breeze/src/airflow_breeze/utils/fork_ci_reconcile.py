@@ -137,10 +137,11 @@ GATE_MAX_DURATION = timedelta(minutes=5)
 # Paths that decide the build-info outputs (which jobs run and on which runners): the workflows
 # and actions, the breeze sources whose selective checks compute those outputs, the files that
 # install breeze, and scripts/ci/prek/, which holds the script selective checks runs to generate
-# the gitignored generated/provider_dependencies.json. That script runs with its directory first on
-# sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request changing them controls its own fork CI result and could
-# change where project CI runs. Other CI scripts, Dockerfiles and prek configuration only change
-# what a selected job does, which review of the diff covers like any other change.
+# the gitignored generated/provider_dependencies.json. That script runs with its directory first
+# on sys.path, so any module added there, such as a `yaml.py`, would run too. A pull request
+# changing them controls its own fork CI result and could change where project CI runs. Other CI
+# scripts, Dockerfiles and prek configuration only change what a selected job does, which review
+# of the diff covers like any other change.
 CI_DEFINING_PREFIXES = (
     ".github/",
     "dev/breeze/src/",
@@ -775,7 +776,7 @@ def classify(
         if LABEL_READY_FOR_REVIEW in labels:
             plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
     # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other draft with a pending fork CI status.
+    # otherwise look like any other pull request with a pending fork CI status.
     _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)

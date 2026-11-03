@@ -398,7 +398,8 @@ maintainer. One rule applies instead:
   `scripts/docker/`, `scripts/in_container/`, `Dockerfile*` or `.pre-commit-config.yaml`) is not
   held for them, but gets one comment listing them, so the reviewer checks the CI change with the
   rest of the diff. It starts with the marker `<!-- workflow-approval: ci-modification -->` and is
-  posted once per pull request, for pull requests that run project CI as well.
+  posted once per pull request, for pull requests that run project CI as well. Like the rest of
+  this workflow, it only reaches pull requests whose runs waited for approval.
 
 A run started before `use fork ci` or `use project ci` was last added or removed is approved too,
 so a committer can add `use fork ci` after the PR's first runs were created and before they are

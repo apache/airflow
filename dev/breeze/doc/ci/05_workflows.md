@@ -107,10 +107,12 @@ them, for the contributors the repository's approval setting covers. The
 
 - the PR targets `main`; PRs to release branches (`v3-4-test`, `airflow-ctl/v0-1-test`, ...) run those
   branches' own workflows and always wait for a maintainer
-- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/`,
-  `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`, a top-level `Dockerfile*`, a
-  `.pre-commit-config.yaml` in any directory),
-  which define the workflows, what their jobs run and the runners they use
+- the PR changes no file the fork CI reconciler counts as CI-defining (`.github/`, `dev/breeze/src/`,
+  `dev/breeze/pyproject.toml`, `dev/breeze/uv.lock`, `scripts/ci/install_breeze.sh` and
+  `scripts/ci/prek/`), which decide which jobs run and on which runners. Changes to the other files
+  CI uses (the rest of `dev/breeze/` and `scripts/ci/`, `scripts/docker/`, `scripts/in_container/`,
+  `Dockerfile*`, `.pre-commit-config.yaml`) are not held, but get a one-time
+  `<!-- workflow-approval: ci-modification -->` note comment on the PR for the reviewer
 - the PR changes no dependency manifest or lock file (`pyproject.toml`, `uv.lock`, `package.json`,
   `pnpm-lock.yaml`, `go.mod`, Gradle build files, ...) and adds no new provider (selective checks
   run from `main`'s tree and do not know it)
