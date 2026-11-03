@@ -1218,7 +1218,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
-            elif k in ("is_stub", "_arg_bindings", "_external_clear_target"):
+            elif k in ("is_stub", "_arg_bindings", "_external_clear_target", "_mapped_arg_binding_params"):
                 # All are restored unconditionally below: is_stub must fail closed rather than go
                 # through generic decoding, and the others are plain JSON, not {__type, __var}.
                 continue
@@ -1285,6 +1285,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
         setattr(op, "_external_clear_target", encoded_op.get("_external_clear_target"))
+        if (mapped_arg_binding_params := encoded_op.get("_mapped_arg_binding_params")) is not None:
+            setattr(op, "_mapped_arg_binding_params", cls.deserialize(mapped_arg_binding_params))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)
