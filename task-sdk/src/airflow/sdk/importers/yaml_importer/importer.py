@@ -28,6 +28,7 @@ objects they describe. It is not turned on by default; enable with::
 from __future__ import annotations
 
 import logging
+import re
 import traceback
 from typing import TYPE_CHECKING
 
@@ -55,10 +56,10 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# The sniff matches the canonical Dag ``$schema`` URL, not a bare ``$schema``, so a JSON-Schema
-# file (or any other YAML declaring a $schema) in the bundle is not queued and then stuck as a
-# parse error. Reuses the migrator's public prefix to stay in sync.
-_DAG_SCHEMA_PREFIX = DAG_SCHEMA_PREFIX.encode()
+# Sniff a file for the canonical $schema declaration. The URL is matched only as
+# a valid YAML or JSON key-value format (e.g. $schema: <url>) to reduce false
+# positives. The migrator's public prefix is reused to keep checks in sync.
+_DAG_SCHEMA_SNIFF_RE = re.compile(rb'\$schema["\']?\s*:\s*["\']?' + re.escape(DAG_SCHEMA_PREFIX.encode()))
 
 
 class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
@@ -154,11 +155,12 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
 
     def might_contain_dag(self, definition: DagDefinition, safe_mode: bool) -> bool:
         """
-        Cheap sniff: the file declares a ``$schema`` set to the canonical Dag URL.
+        Cheap snif ensuring the file declares a reasonable ``$schema``.
 
-        Both are required so a file that merely mentions the URL (without a ``$schema`` declaration)
-        is skipped. The sniff stays lenient past that -- a malformed Dag still reaches the parser and
-        gets a clear error rather than silently disappearing. Keep the file if the read fails.
+        This matches the URL as the ``$schema`` value, and skips a file that
+        does not have such a key or only mentions the URL in another field. A
+        malformed Dag may still reach the parser and get a clear error, rather
+        than silently disappearing.
         """
         if not safe_mode:
             return True
@@ -166,4 +168,4 @@ class YamlDagImporter(AbstractDagImporter[FileDagDefinition]):
             data = definition.read_bytes()
         except OSError:
             return True
-        return b"$schema" in data and _DAG_SCHEMA_PREFIX in data
+        return _DAG_SCHEMA_SNIFF_RE.search(data) is not None

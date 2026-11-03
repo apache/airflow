@@ -10,6 +10,36 @@
       "eventType": "इवेंट प्रकार"
     }
   },
+  "dagBundles": {
+    "active": "सक्रिय",
+    "columns": {
+      "active": "सक्रिय",
+      "importErrors": "इम्पोर्ट त्रुटियां",
+      "lastRefreshed": "अंतिम रिफ्रेश",
+      "name": "नाम",
+      "version": "वर्शन"
+    },
+    "detail": {
+      "status": "स्थिति"
+    },
+    "files": {
+      "columns": {
+        "file": "फ़ाइल",
+        "lastParsed": "अंतिम पार्स",
+        "parseDuration": "पार्स अवधि"
+      },
+      "file_one": "फ़ाइल",
+      "file_other": "फ़ाइलें",
+      "importErrorGone": "यह इम्पोर्ट त्रुटि अब दर्ज नहीं है। संभवतः इसे पुनः पार्स द्वारा ठीक कर दिया गया था।",
+      "neverParsed": "कभी नहीं",
+      "showImportError_one": "त्रुटि देखें",
+      "showImportError_other": "{{count, number}} त्रुटियां देखें"
+    },
+    "inactive": "निष्क्रिय",
+    "neverRefreshed": "कभी नहीं",
+    "notRefreshedYet": "अभी तक रिफ्रेश नहीं किया गया",
+    "notVersioned": "वर्शन रहित"
+  },
   "deadlines": {
     "columns": {
       "alertName": "अलर्ट नाम",
@@ -56,6 +86,8 @@
       "successTitle": "XCom अपडेट किया गया",
       "title": "XCom संपादित करें"
     },
+    "entry_one": "XCom प्रविष्टि",
+    "entry_other": "XCom प्रविष्टियां",
     "key": "कुंजी",
     "title": "XCom",
     "value": "मान"

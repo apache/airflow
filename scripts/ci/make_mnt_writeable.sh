@@ -22,13 +22,26 @@ function make_mnt_writeable {
     sudo blkid
     echo "Checking free space!"
     df -H
-    echo "Cleaning /mnt just in case it is not empty"
+    echo "Cleaning /mnt just in case it is not empty and making sure that /mnt is writeable"
     sudo mkdir -p /mnt
-    sudo rm -rf /mnt/*
+    if [[ "${RUNNER_ENVIRONMENT:-}" == "self-hosted" ]]; then
+        # RunsOn mounts an instance's local NVMe disks under /mnt and keeps docker, /home/runner and
+        # /tmp on them, so emptying or re-owning such a mount would break the running job.
+        local entry
+        for entry in /mnt/*; do
+            if mountpoint -q "${entry}"; then
+                echo "Keeping mount point ${entry}"
+            else
+                sudo rm -rf --one-file-system "${entry}"
+            fi
+        done
+        sudo chown "${USER}" /mnt
+    else
+        sudo rm -rf /mnt/*
+        sudo chown -R "${USER}" /mnt
+    fi
     echo "Checking free space!"
     df -H
-    echo "Making sure that /mnt is writeable"
-    sudo chown -R "${USER}" /mnt
 }
 
 make_mnt_writeable

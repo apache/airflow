@@ -129,6 +129,7 @@
     "dagRuns": "搜尋 $t(common:dagRun_other)",
     "dags": "搜尋 Dags",
     "hotkey": "+K",
+    "mapIndexes": "搜尋 $t(common:mapIndex)",
     "tasks": "搜尋任務"
   },
   "sort": {

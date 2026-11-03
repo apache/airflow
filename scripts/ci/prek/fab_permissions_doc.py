@@ -46,6 +46,7 @@ from extract_permissions import (
     PermissionEntry,
     RouteParseError,
     extract_all_permissions,
+    strip_path_converters,
 )
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -303,7 +304,7 @@ def _fab_route_entries() -> list[tuple[str, str, str, str]]:
         if route_file.name in {"__init__.py", "router.py"}:
             continue
         for node in ast.walk(_parse(route_file)):
-            if not isinstance(node, ast.FunctionDef):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             for deco in node.decorator_list:
                 if not isinstance(deco, ast.Call):
@@ -311,11 +312,17 @@ def _fab_route_entries() -> list[tuple[str, str, str, str]]:
                 verb = _name_of(deco.func)
                 if verb is None or verb.upper() not in _METHOD_TO_ACTION:
                     continue
-                if not deco.args or not isinstance(deco.args[0], ast.Constant):
+                # FastAPI takes the path positionally or as ``path=``; accept both so a
+                # route written the other way does not quietly drop out of the table.
+                path_node = deco.args[0] if deco.args else None
+                if path_node is None:
+                    path_node = next((kw.value for kw in deco.keywords if kw.arg == "path"), None)
+                if not isinstance(path_node, ast.Constant):
                     continue
-                path = deco.args[0].value
+                path = path_node.value
                 if not isinstance(path, str):
                     continue
+                path = strip_path_converters(path)
 
                 perms: list[str] = []
                 for kw in deco.keywords:

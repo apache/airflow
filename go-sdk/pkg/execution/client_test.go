@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -397,6 +398,81 @@ func TestCoordinatorClientPushXComMapIndex(t *testing.T) {
 	}
 }
 
+// The supervisor drops a SetXCom it cannot decode without replying, so a value
+// that is not JSON must be rejected before it is sent or the task hangs.
+func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   any
+		wantErr string
+	}{
+		{
+			name:    "datetime",
+			value:   time.Date(2026, 5, 15, 0, 0, 0, 0, time.UTC),
+			wantErr: "time.Time is not JSON representable",
+		},
+		{name: "uuid", value: uuid.New(), wantErr: "[]byte is not JSON representable"},
+		{name: "byte slice", value: []byte("raw"), wantErr: "[]byte is not JSON representable"},
+		{
+			// Regression: a key that decodes to a slice used to panic the decoder.
+			name:    "uuid map key",
+			value:   map[uuid.UUID]string{uuid.New(): "a"},
+			wantErr: "map keys must be strings",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&bytes.Buffer{}, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			err := client.PushXCom(context.Background(), ti, "return_value", tc.value)
+
+			require.ErrorContains(t, err, tc.wantErr)
+			assert.Zero(t, requestBuf.Len(), "a rejected value must not reach the supervisor")
+		})
+	}
+}
+
+// A task that returns a nil slice or a nil any pushes null, so PushXCom must not
+// inherit the task state store's nil rule.
+func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{name: "nil", value: nil},
+		{name: "typed nil", value: []string(nil)},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			responsePayload := encodeResponseFrame(t, 0, map[string]any{"type": "OKResponse"}, nil)
+			var responseBuf bytes.Buffer
+			require.NoError(t, writeFrame(&responseBuf, responsePayload))
+
+			var requestBuf bytes.Buffer
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			client := NewCoordinatorClient(
+				NewCoordinatorComm(&responseBuf, &requestBuf, logger), testTIID,
+			)
+			ti := sdk.TaskInstance{DagID: "d", RunID: "r", TaskID: "t"}
+
+			require.NoError(t, client.PushXCom(context.Background(), ti, "return_value", tc.value))
+
+			sent, err := readFrame(&requestBuf)
+			require.NoError(t, err)
+			sentMap := rawToMap(t, sent.Body)
+			require.Contains(t, sentMap, "value")
+			assert.Nil(t, sentMap["value"])
+		})
+	}
+}
+
 // TestCoordinatorClientGetXComMapIndex verifies the GetXCom frame omits
 // map_index when none is supplied and propagates a real index otherwise,
 // including index 0: a plain deref into the nullable interface{} field would let
@@ -470,6 +546,8 @@ func TestResolveDefaultExpiry(t *testing.T) {
 		unset   bool
 		want    any
 		wantErr string
+		// The timestamp only wraps for day counts that need a 64-bit int.
+		needs64BitInt bool
 	}{
 		{name: "unset is an error", unset: true, wantErr: "is not set"},
 		{name: "honours supervisor value", env: "7", want: now.UTC().AddDate(0, 0, 7)},
@@ -487,14 +565,23 @@ func TestResolveDefaultExpiry(t *testing.T) {
 			wantErr: "failed to convert value to int",
 		},
 		{
-			name:    "day count that wraps the timestamp is an error",
-			env:     "9223372036854775807",
-			wantErr: "overflows the expiry timestamp",
+			name:    "out of int range is an error",
+			env:     strconv.FormatUint(math.MaxInt+1, 10),
+			wantErr: "failed to convert value to int",
+		},
+		{
+			name:          "day count that wraps the timestamp is an error",
+			env:           "9223372036854775807",
+			wantErr:       "overflows the expiry timestamp",
+			needs64BitInt: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			if tc.needs64BitInt && strconv.IntSize < 64 {
+				t.Skip("requires 64-bit int")
+			}
 			// Setenv registers the restore, so unsetting it here is undone after.
 			t.Setenv(defaultRetentionDaysEnv, tc.env)
 			if tc.unset {

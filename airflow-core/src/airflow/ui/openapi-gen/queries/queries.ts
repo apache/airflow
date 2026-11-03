@@ -781,7 +781,7 @@ export const useDagWarningServiceListDagWarnings = <TData = Common.DagWarningSer
 * @param data.dagRunEndDateLte
 * @param data.dagRunEndDateLt
 * @param data.dagRunState
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
 * @param data.isFavorite
 * @param data.timetableType
 * @returns DAGCollectionResponse Successful Response
@@ -886,7 +886,7 @@ export const useDagServiceGetDagTags = <TData = Common.DagServiceGetDagTagsDefau
 * @param data.bundleName
 * @param data.bundleVersion
 * @param data.relativeFilelocPrefix Filter Dags by the folder (directory of ``relative_fileloc``) they live in. Matches the given folder and all of its subfolders.
-* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+* @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
 * @param data.isFavorite
 * @param data.hasAssetSchedule Filter Dags with asset-based scheduling
 * @param data.assetDependency Filter Dags by asset dependency (name or URI)
@@ -1380,7 +1380,7 @@ export const useTaskInstanceServiceGetMappedTaskInstance = <TData = Common.TaskI
 * @param data.regionId
 * @param data.regionIndex
 * @param data.loopId Task group id of a loop; matches every instance it produced.
-* @param data.iteration Narrow ``loop_id`` to a single pass of that loop.
+* @param data.iteration Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
 * @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.taskId
 * @param data.runAfterGte
@@ -1837,6 +1837,17 @@ export const useProviderServiceGetProviders = <TData = Common.ProviderServiceGet
   offset?: number;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }, queryKey), queryFn: () => ProviderService.getProviders({ limit, offset }) as TData, ...options });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const useProviderServiceGetProvider = <TData = Common.ProviderServiceGetProviderDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ providerName }: {
+  providerName: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }, queryKey), queryFn: () => ProviderService.getProvider({ providerName }) as TData, ...options });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -2152,6 +2163,13 @@ export const useLoginServiceLogin = <TData = Common.LoginServiceLoginDefaultResp
   next?: string;
 } = {}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }, queryKey), queryFn: () => LoginService.login({ next }) as TData, ...options });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const useLoginServiceGetCliLoginMetadata = <TData = Common.LoginServiceGetCliLoginMetadataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>(queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(queryKey), queryFn: () => LoginService.getCliLoginMetadata() as TData, ...options });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response
@@ -2280,23 +2298,25 @@ export const useDeadlinesServiceGetDeadlines = <TData = Common.DeadlinesServiceG
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }, queryKey), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) as TData, ...options });
 /**
 * Get Dag Deadline Alerts
-* Get all deadline alerts defined on a Dag.
+* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
 * @param data.limit
+* @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const useDeadlinesServiceGetDagDeadlineAlerts = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, offset, orderBy, versionNumber }: {
+export const useDeadlinesServiceGetDagDeadlineAlerts = <TData = Common.DeadlinesServiceGetDagDeadlineAlertsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) as TData, ...options });
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, namePattern, offset, orderBy, versionNumber }, queryKey), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, namePattern, offset, orderBy, versionNumber }) as TData, ...options });
 /**
 * Get Callback Logs
 * Get the execution logs of a deadline callback.
@@ -2476,13 +2496,29 @@ export const useGridServiceGetLoopHistory = <TData = Common.GridServiceGetLoopHi
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runId
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns GanttResponse Successful Response
 * @throws ApiError
 */
-export const useGanttServiceGetGanttData = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runId }: {
+export const useGanttServiceGetGanttData = <TData = Common.GanttServiceGetGanttDataDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runId: string;
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, runId }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, runId }) as TData, ...options });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useQuery<TData, TError>({ queryKey: Common.UseGanttServiceGetGanttDataKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => GanttService.getGanttData({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runId, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
 /**
 * Get Calendar
 * Get calendar data for a Dag including historical and planned Dag runs.

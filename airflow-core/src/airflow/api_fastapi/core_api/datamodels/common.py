@@ -83,6 +83,20 @@ def find_reserved_keys(
     return walk(value, root)
 
 
+def check_conf_reserved_keys(conf: dict | None, *, root: str) -> dict | None:
+    """Reject a Dag run conf holding reserved serialization keys, as XCom and HITL values do."""
+    # Conf reaches code that runs a full serde decode (e.g. the Deadline callback context). Unlike
+    # XCom, nothing parses a string conf value back into a container, so strings stay unchecked.
+    found = find_reserved_keys(conf, root=root)
+    if found is not None:
+        path, keys = found
+        raise ValueError(
+            f"{path} contains reserved serialization keys: {', '.join(keys)}. "
+            "These keys are reserved for internal use."
+        )
+    return conf
+
+
 # Asset Scheduling Expression Data Models
 #
 # These mirror the JSON produced by ``BaseAsset.as_expression()`` (see
@@ -205,6 +219,22 @@ MaybeAssetExpression = Annotated[
     BeforeValidator(_coerce_unrecognized_expression_to_none),
 ]
 """``AssetExpression | None`` that degrades a legacy/unrecognized stored shape to ``None``."""
+
+
+_maybe_asset_expression_adapter: TypeAdapter[Union[AssetExpression, None]] = TypeAdapter(MaybeAssetExpression)
+
+
+def validate_asset_expression(value: Any) -> AssetExpression | None:
+    """
+    Validate a raw ``asset_expression`` tree into the typed model, the way a response field does.
+
+    A route that rewrites the tree after its response model is built -- redacting the assets the
+    caller may not read, for instance -- must assign the result of this rather than the raw tree.
+    FastAPI does not validate the nested models of an already-built response, so a raw tree would
+    bypass ``MaybeAssetExpression`` and reach the client verbatim, legacy shapes included.
+    """
+    return _maybe_asset_expression_adapter.validate_python(value)
+
 
 # Common Bulk Data Models
 T = TypeVar("T")

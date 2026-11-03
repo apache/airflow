@@ -104,7 +104,7 @@ def _run_through_checkpoints(agent: Agent, prompt: str) -> AgentResult:
     result = agent(prompt)
     while result.checkpoint is not None:
         # Strands types the prompt as AgentInput, which leaves out its checkpointResume block.
-        result = agent({"checkpointResume": {"checkpoint": result.checkpoint.to_dict()}})  # type: ignore[arg-type]
+        result = agent({"checkpointResume": {"checkpoint": result.checkpoint.to_dict()}})
     return result
 
 

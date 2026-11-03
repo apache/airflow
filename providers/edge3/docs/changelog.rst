@@ -27,6 +27,9 @@
 Changelog
 ---------
 
+5.1.0
+.....
+
 .. note::
   Instead of strict queue order, ``EdgeExecutor`` now hands out queued callbacks first, then tasks
   by ``priority_weight``, as in the other executors. A steady stream of higher-priority tasks can
@@ -35,6 +38,23 @@ Changelog
   downstream tasks. Upstream tasks of large Dags therefore go first even when no ``priority_weight``
   is set. Setting the rule to ``absolute`` keeps tasks without their own ``priority_weight`` in
   queue order among themselves. The rule affects every executor.
+
+Features
+~~~~~~~~
+
+* ``Support priority_weight in EdgeExecutor (#72057)``
+* ``Keep Edge worker logs separate for each task attempt and loop iteration (#74345)``
+
+Misc
+~~~~
+
+* ``Bump Edge UI dependencies: @tanstack/react-query to 5.104.2, @types/node to 26.6.5, @typescript-eslint packages and typescript-eslint to 8.71.1, @vitejs/plugin-react to 6.1.2, eslint to 10.12.0, globals to 17.13.0, happy-dom to 20.14.6, prettier to 3.9.10, vite to 8.3.4 and vite-plugin-dts to 5.1.2 (#74879)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Pass runtime values to example Dag shell commands through env (#73787)``
+   * ``Run loop gates and advance iterations atomically (#74348)``
 
 5.0.0
 .....

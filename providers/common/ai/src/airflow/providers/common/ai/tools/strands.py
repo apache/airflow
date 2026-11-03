@@ -111,7 +111,7 @@ class AirflowTools(Plugin):
         return self._name
 
     @property
-    def tools(self) -> list[AgentTool]:  # type: ignore[override]
+    def tools(self) -> list[AgentTool]:
         # Plugin types this as its decorated tools; the registry takes any AgentTool.
         return self._airflow_tools
 

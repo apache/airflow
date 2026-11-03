@@ -38,13 +38,8 @@ def get_bundle_url(plugin_prefix: str, bundle_filename: str) -> str:
     """
     Return the bundle URL for a plugin's React bundle.
 
-    Uses an absolute URL when api.base_url is a full URL so the bundle loads
-    correctly in Vite dev mode, where import() resolves relative to the script
-    origin (5173) rather than the document origin (28080).
+    Only the path is used, never the origin in api.base_url: the host UI resolves it against the
+    page it was loaded from, so the bundle still loads when the browser reaches Airflow through
+    a different origin than base_url names, such as a local proxy.
     """
-    path = get_base_url_path(f"{plugin_prefix}/static/{bundle_filename}")
-    base_url = conf.get("api", "base_url", fallback="/")
-    if base_url.startswith(("http://", "https://")):
-        parsed = urlparse(base_url)
-        return f"{parsed.scheme}://{parsed.netloc}" + path
-    return path
+    return get_base_url_path(f"{plugin_prefix}/static/{bundle_filename}")

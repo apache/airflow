@@ -28,6 +28,17 @@
 Changelog
 ---------
 
+4.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``dbt Cloud: emit OpenLineage events via the OpenLineage public API (#74754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.0
 ......
 

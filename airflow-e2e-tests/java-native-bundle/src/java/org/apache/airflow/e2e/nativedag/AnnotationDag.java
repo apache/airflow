@@ -24,58 +24,59 @@ import static org.apache.airflow.e2e.NativeBundleBuilder.QUEUE;
 
 import org.apache.airflow.sdk.*;
 
-/** A native Java Dag declared with annotations; its tasks use the interface Dag's queue. */
+/** A native Java Dag declared with annotations; it sets the same queue as the interface Dag. */
 @Airflow.Dag(
     id = "java_native_annotation_e2e",
     description = "Native Java Dag of the Airflow E2E tests, declared with annotations",
     catchup = false,
+    queue = QUEUE,
     tags = {"java-sdk", "native", "e2e"})
 public class AnnotationDag {
-  @Airflow.Task(id = "extract", queue = QUEUE)
+  @Airflow.Task(id = "extract")
   public long extract() {
     return 42L;
   }
 
-  @Airflow.Task(id = "transform", queue = QUEUE)
+  @Airflow.Task(id = "transform")
   public long transform(long extracted, double factor) {
     return (long) (extracted * factor);
   }
 
   /** Fails the run unless the value reached it, so a successful run proves the XCom flow. */
-  @Airflow.Task(id = "load", queue = QUEUE)
+  @Airflow.Task(id = "load")
   public void load(long transformed) {
     if (transformed != 63L) {
       throw new IllegalStateException("load expected 63 from transform, got " + transformed);
     }
   }
 
-  @Airflow.Task(id = "report_many", queue = QUEUE)
+  @Airflow.Task(id = "report_many")
   public void reportMany() {}
 
-  @Airflow.Task(id = "report_few", queue = QUEUE)
+  @Airflow.Task(id = "report_few")
   public void reportFew() {}
 
   /** Picks one of {@link #reportMany} and {@link #reportFew}; the other is skipped. */
-  @Airflow.If(id = "has_rows", queue = QUEUE)
+  @Airflow.If(id = "has_rows")
   public boolean hasRows(long transformed) {
     return transformed > 0;
   }
 
-  @Airflow.Task(id = "report_long", queue = QUEUE)
+  @Airflow.Task(id = "report_long")
   public void reportLong() {}
 
-  @Airflow.Task(id = "report_short", queue = QUEUE)
+  @Airflow.Task(id = "report_short")
   public void reportShort() {}
 
   /** Names the one of {@link #reportLong} and {@link #reportShort} that runs; the other is skipped. */
-  @Airflow.Switch(id = "pick_report", queue = QUEUE)
+  @Airflow.Switch(id = "pick_report")
   public Class<? extends Task> pickReport(long transformed) {
     return transformed > 100 ? AnnotationDagBuilder.ReportLong.class : AnnotationDagBuilder.ReportShort.class;
   }
 
   // A task that starts a run of another Dag. The method runs when this Dag is
   // built, not when the task runs, so it takes no arguments.
-  @Airflow.Task(id = "trigger_downstream", queue = QUEUE)
+  @Airflow.Task(id = "trigger_downstream")
   public TriggerDagRun triggerDownstream() {
     return new TriggerDagRun("java_native_target_e2e");
   }
@@ -84,7 +85,7 @@ public class AnnotationDag {
   // the task "checks.audit".
   @Airflow.TaskGroup(id = "checks")
   static class Checks {
-    @Airflow.Task(id = "audit", queue = QUEUE)
+    @Airflow.Task(id = "audit")
     public void audit() {}
   }
 

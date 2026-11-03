@@ -596,6 +596,12 @@ ARG_DB_ERROR_ON_CLEANUP_FAILURE = Arg(
     help="Command will exit with a non-zero exit code if any table cleanup failed. By default errors are suppressed and the command exits 0.",
     action="store_true",
 )
+ARG_ASSET_IDS = Arg(
+    ("--asset-ids",),
+    default=None,
+    help="Only clean events for these comma-separated positive integer asset IDs; requires --tables asset_event",
+    type=lambda value: [positive_int(allow_zero=False)(item) for item in string_list_type(value)],
+)
 ARG_DAG_IDS = Arg(
     ("--dag-ids",),
     default=None,
@@ -890,7 +896,7 @@ ARG_CONN_PASSWORD = Arg(
 ARG_CONN_SCHEMA = Arg(
     ("--conn-schema",), help="Connection schema, optional when adding a connection", type=str
 )
-ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=str)
+ARG_CONN_PORT = Arg(("--conn-port",), help="Connection port, optional when adding a connection", type=int)
 ARG_CONN_EXTRA = Arg(
     ("--conn-extra",), help="Connection `Extra` field, optional when adding a connection", type=str
 )
@@ -1030,6 +1036,16 @@ ARG_UPDATE_CONFIG_FIX = Arg(
 ARG_UPDATE_ALL_RECOMMENDATIONS = Arg(
     ("--all-recommendations",),
     help="Include non-breaking (recommended) changes along with breaking ones. (Also use with --fix)",
+    action="store_true",
+)
+
+ARG_UPDATE_CONFIG_SHOW_SENSITIVE = Arg(
+    ("--show-sensitive",),
+    help=(
+        "Show real values of sensitive options (passwords, keys, tokens, etc.) in the dry-run "
+        "preview instead of masking them as '< hidden >'. Has no effect together with --fix, "
+        "which always writes real values to airflow.cfg."
+    ),
     action="store_true",
 )
 
@@ -1826,6 +1842,7 @@ DB_COMMANDS = (
             ARG_YES,
             ARG_DB_SKIP_ARCHIVE,
             ARG_DB_BATCH_SIZE,
+            ARG_ASSET_IDS,
             ARG_DAG_IDS,
             ARG_EXCLUDE_DAG_IDS,
             ARG_DB_ERROR_ON_CLEANUP_FAILURE,
@@ -2080,6 +2097,7 @@ CONFIG_COMMANDS = (
             ARG_VERBOSE,
             ARG_UPDATE_CONFIG_FIX,
             ARG_UPDATE_ALL_RECOMMENDATIONS,
+            ARG_UPDATE_CONFIG_SHOW_SENSITIVE,
         ),
     ),
 )

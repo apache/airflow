@@ -547,6 +547,54 @@ class TestGetDagRuns(TestPublicDagEndpoint):
         assert response.status_code == 200
         assert [dag["dag_id"] for dag in response.json()["dags"]] == [DAG2_ID, DAG1_ID]
 
+    @pytest.mark.parametrize("order_by", ["state", "start_date", "-state"])
+    def test_rejects_sort_by_dag_run_column_names(self, test_client, order_by):
+        # #44345 moved these two behind `last_run_state` and `last_run_start_date` in `to_replace`
+        # but left the DagRun column names in the allowed list, so the spec advertised them and
+        # sorting by either raised AttributeError on DagModel.
+        response = test_client.get("/dags", params={"order_by": order_by})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            f"Ordering with '{order_by.lstrip('-')}' is disallowed or "
+            f"the attribute does not exist on the model"
+        )
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(self, mock_get_authorized_assets, test_client, session):
+        dag_model = session.get(DagModel, DAG1_ID)
+        dag_model.asset_expression = {
+            "any": [
+                {"asset": {"uri": "s3://bucket/visible", "name": "visible", "group": "asset", "id": 1}},
+                {"asset": {"uri": "s3://bucket/secret", "name": "secret", "group": "asset", "id": 2}},
+            ]
+        }
+        session.commit()
+        mock_get_authorized_assets.return_value = {1}
+
+        response = test_client.get("/dags", params={"dag_ids": [DAG1_ID]})
+
+        assert response.status_code == 200
+        assert response.json()["dags"][0]["asset_expression"] == {
+            "any": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": 1,
+                        "hidden": False,
+                    }
+                },
+                # The route is served with ``response_model_exclude_none``, so the blanked fields
+                # drop out of the payload entirely.
+                {"asset": {"group": "asset", "hidden": True}},
+            ]
+        }
+        assert "s3://bucket/secret" not in response.text
+
     def test_get_dags_no_n_plus_one_queries(self, session, test_client):
         """Test that fetching DAGs with tags doesn't trigger n+1 queries."""
         num_dags = 5

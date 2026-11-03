@@ -341,7 +341,9 @@ class SecretsMasker(logging.Filter):
         *,
         replacement: str = "***",
     ) -> Redacted:
-        if depth > max_depth or isinstance(item, str):
+        # The key is sensitive, so every leaf is replaced whatever its type: a numeric secret
+        # (e.g. a PIN that json.loads() turned into an int) must not come back in the clear.
+        if depth > max_depth or not isinstance(item, (dict, tuple, set, list)):
             return replacement
         if isinstance(item, dict):
             return {
@@ -357,16 +359,19 @@ class SecretsMasker(logging.Filter):
             return list(
                 self._redact_all(subval, depth + 1, max_depth, replacement=replacement) for subval in item
             )
-        return item
+        # Fail closed if a container type is added to the walk above without a branch here.
+        return replacement
 
     def _redact(
         self, item: Redactable, name: str | None, depth: int, max_depth: int, replacement: str = "***"
     ) -> Redacted:
         try:
-            # Key-name-based redaction is unbounded by depth — sensitive keys
-            # must fail closed at any nesting level. The depth cutoff below is
-            # only used to bound the work of pattern-based string masking and
-            # to terminate recursion through self-referential iterables.
+            # Both key-name-based and pattern-based redaction apply at any
+            # nesting depth: a registered secret or a sensitive key must fail
+            # closed wherever it sits in the structure. ``max_depth`` only bounds
+            # the fail-closed walk of a value already known to be sensitive
+            # (``_redact_all``); self-referential structures are stopped by
+            # Python's recursion limit and the except clause below.
             if name and self.should_hide_value_for_key(name):
                 return self._redact_all(item, depth, max_depth, replacement=replacement)
             # Always walk dicts so deeper sensitive keys are still caught;
@@ -402,11 +407,6 @@ class SecretsMasker(logging.Filter):
                     )
                     for subval in item
                 ]
-            # The depth cutoff only bounds the work of pattern-based string
-            # masking below — key-name redaction (dicts and iterables above) is
-            # unbounded so sensitive keys fail closed at any depth.
-            if depth > max_depth:
-                return item
             if isinstance(item, Enum):
                 return self._redact(
                     item=item.value, name=name, depth=depth, max_depth=max_depth, replacement=replacement
@@ -455,11 +455,9 @@ class SecretsMasker(logging.Filter):
         replacement: str,
     ) -> Redacted:
         """Merge a redacted item with its original unredacted counterpart."""
-        if depth > max_depth:
-            if isinstance(new_item, str) and new_item == "***":
-                return old_item
-            return new_item
-
+        # Walk containers at any depth, as _redact does, or a deeply nested secret is saved as "***".
+        # A subtree _redact_all cut off at max_depth arrives as "***" with force_sensitive set, and the
+        # last branch below restores it.
         try:
             # Determine if we should treat this as sensitive
             is_sensitive = force_sensitive or (name is not None and self.should_hide_value_for_key(name))
@@ -529,7 +527,7 @@ class SecretsMasker(logging.Filter):
                 return old_item
             return new_item
 
-        except (TypeError, AttributeError, ValueError):
+        except (TypeError, AttributeError, ValueError, RecursionError):
             return new_item
 
     def redact(
@@ -641,7 +639,9 @@ class SecretsMasker(logging.Filter):
                         self.patterns.add(pattern)
                         new_mask = True
             if new_mask:
-                self.replacer = re.compile("|".join(self.patterns))
+                # Regex alternation takes the first alternative that matches, not the longest, so
+                # longer secrets must come first or a secret that is a prefix of another leaves its tail.
+                self.replacer = re.compile("|".join(sorted(self.patterns, key=len, reverse=True)))
 
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:

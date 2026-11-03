@@ -831,16 +831,6 @@ class TestWorker:
             is None
         )
 
-    def test_kerberos_init_container_default_different_versions(self):
-        docs = render_chart(
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
-        )
-
     def test_kerberos_init_container_enable(self):
         docs = render_chart(
             values={

@@ -17,23 +17,12 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
+import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
-
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledFrame: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.
@@ -73,16 +62,14 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: ["consumer_dag"], hasEvents }));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents }));
     expect(screen.getByTestId("has_events-pill")).toBeInTheDocument();
 
-    fireEvent.click(
-      within(screen.getByTestId("has_events-pill")).getByRole("button", { name: /Remove .* filter/u }),
-    );
+    fireEvent.click(screen.getByTestId("has_events-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents: null }));
   });
@@ -166,9 +153,9 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual(["consumer_dag"]));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual([]));
     expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();

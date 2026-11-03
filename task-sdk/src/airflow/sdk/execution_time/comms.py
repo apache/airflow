@@ -1347,12 +1347,12 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
-    | SetExecutionTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | SetExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState

@@ -236,6 +236,11 @@ export type Index = number;
 export type MaxIterations = number;
 export type TerminalTaskId = string;
 export type TerminalIsMapped = boolean;
+export type RegionId1 = string;
+export type Trajectory = number;
+export type ForkedFromRegionId = string;
+export type ResumesFromIndex = number;
+export type ExpandedTiCount = number;
 export type TaskRescheduleCount = number;
 export type FirstTaskRescheduleStartDate = string | null;
 export type MaxTries = number;
@@ -265,6 +270,10 @@ export type TaskId1 = string;
 export type Name9 = string;
 export type Kind1 = "literal";
 export type FromDefault = boolean;
+/**
+ * The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.
+ */
+export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
@@ -547,7 +556,7 @@ export type EndDate4 = string | null;
 export type State4 = string | null;
 export type TryNumber2 = number;
 export type MapIndex6 = number | null;
-export type RegionId1 = string | null;
+export type RegionId2 = string | null;
 export type RegionIndex1 = number | null;
 export type Duration = number | null;
 export type Type60 = "PreviousTIResult";
@@ -1051,6 +1060,7 @@ export interface TaskCallbackRequest {
 export interface TIRunContext {
   dag_run: DagRun;
   loop?: LoopContext | null;
+  expanded_ti_count?: ExpandedTiCount;
   task_reschedule_count?: TaskRescheduleCount;
   first_task_reschedule_start_date?: FirstTaskRescheduleStartDate;
   max_tries: MaxTries;
@@ -1062,6 +1072,7 @@ export interface TIRunContext {
   should_retry?: ShouldRetry;
   start_date?: StartDate2;
   arg_bindings?: ArgBindings;
+  execution_timeout?: ExecutionTimeout;
   multi_team?: MultiTeam;
 }
 /**
@@ -1076,6 +1087,10 @@ export interface LoopContext {
   max_iterations: MaxIterations;
   terminal_task_id: TerminalTaskId;
   terminal_is_mapped: TerminalIsMapped;
+  region_id: RegionId1;
+  trajectory: Trajectory;
+  forked_from_region_id?: ForkedFromRegionId;
+  resumes_from_index?: ResumesFromIndex;
 }
 /**
  * Variable schema for responses with fields that are needed for Runtime.
@@ -1686,7 +1701,7 @@ export interface PreviousTIResponse {
   state?: State4;
   try_number: TryNumber2;
   map_index?: MapIndex6;
-  region_id?: RegionId1;
+  region_id?: RegionId2;
   region_index?: RegionIndex1;
   duration?: Duration;
 }
@@ -2038,4 +2053,4 @@ export interface XComSequenceSliceResult {
  *  (e.g. bundle metadata) and runs the migrator accordingly.
  *  Exposed so the SDK author / operator can confirm which schema
  *  version their build is pinned to. */
-export const SUPERVISOR_API_VERSION = "2026-10-30" as const;
+export const SUPERVISOR_API_VERSION = "2027-02-28" as const;

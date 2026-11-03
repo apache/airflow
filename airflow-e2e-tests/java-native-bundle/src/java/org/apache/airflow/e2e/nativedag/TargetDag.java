@@ -39,8 +39,9 @@ public class TargetDag {
         new DagDef("java_native_target_e2e")
             .config("description", "Native Java Dag the e2e's other native Dags trigger")
             .config("catchup", false)
-            .config("tags", List.of("java-sdk", "native", "e2e"));
-    dag.task("receive", Receive.class).config("queue", QUEUE);
+            .config("tags", List.of("java-sdk", "native", "e2e"))
+            .config("queue", QUEUE);
+    dag.task("receive", Receive.class);
     return dag;
   }
 }

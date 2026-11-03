@@ -72,6 +72,7 @@ from airflow.sdk.api.datamodels._generated import (
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
+    TIRunContext,
 )
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskAlreadyRunningError
@@ -1708,16 +1709,9 @@ class TestWatchedSubprocess:
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        proc = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
-            id=TI_ID,
-            pid=12345,
-            stdin=mocker.Mock(),
-            process=mocker.Mock(),
-            client=mocker.Mock(),
-        )
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
 
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
 
         monotonic.return_value += 34
         proc._handle_execution_timeout_if_needed()
@@ -1728,12 +1722,58 @@ class TestWatchedSubprocess:
         mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
         proc.process_log.error.assert_called_once_with(
             "Task did not stop before execution_timeout elapsed; terminating process",
-            timeout_seconds=30,
+            timeout_seconds=30.0,
             grace_period_seconds=5.0,
         )
 
         proc._handle_execution_timeout_if_needed()
         mock_kill.assert_called_once()
+
+    @staticmethod
+    def _start_activity_subprocess(mocker, *, execution_timeout):
+        client = mocker.Mock()
+        client.task_instances.start.return_value = TIRunContext.model_construct(
+            should_retry=False, execution_timeout=execution_timeout
+        )
+        proc = ActivitySubprocess(
+            process_log=mocker.MagicMock(),
+            id=TI_ID,
+            pid=12345,
+            stdin=mocker.Mock(),
+            process=mocker.Mock(),
+            client=client,
+        )
+        mocker.patch.object(ActivitySubprocess, "send_msg", autospec=True)
+        proc._on_child_started(
+            ti=TaskInstance(
+                id=TI_ID, task_id="b", dag_id="c", run_id="d", try_number=1, dag_version_id=uuid7()
+            ),
+            dag_rel_path="d.py",
+            bundle_info=BundleInfo(name="my-bundle", version=None),
+            sentry_integration="",
+        )
+        return proc
+
+    def test_python_task_does_not_arm_execution_timeout_at_startup(self, mocker):
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
+
+        monotonic.return_value += 3600
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_not_called()
+
+    def test_set_execution_timeout_uses_task_process_value(self, mocker):
+        mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
+        mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
+        monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=3600.0)
+
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
+
+        monotonic.return_value += 35
+        proc._handle_execution_timeout_if_needed()
+        mock_kill.assert_called_once_with(signal.SIGTERM, force=True, escalation_delay=5.0)
 
     @pytest.mark.parametrize(
         ("terminal_state", "exit_code"),
@@ -1746,15 +1786,8 @@ class TestWatchedSubprocess:
         mocker.patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
         mock_kill = mocker.patch("airflow.sdk.execution_time.supervisor.WatchedSubprocess.kill")
         monotonic = mocker.patch("time.monotonic", autospec=True, return_value=1.0)
-        proc = ActivitySubprocess(
-            process_log=mocker.MagicMock(),
-            id=TI_ID,
-            pid=12345,
-            stdin=mocker.Mock(),
-            process=mocker.Mock(),
-            client=mocker.Mock(),
-        )
-        proc._handle_request(SetExecutionTimeout(timeout_seconds=30), log=mocker.Mock(), req_id=1)
+        proc = self._start_activity_subprocess(mocker, execution_timeout=30.0)
+        proc._handle_request(SetExecutionTimeout(timeout_seconds=30.0), log=mocker.Mock(), req_id=1)
         proc._terminal_state = terminal_state
         proc._exit_code = exit_code
 
@@ -5568,6 +5601,30 @@ def test_process_log_messages_reserved_kwarg_names_are_forwarded(mock_reconfigur
     gen.send(json.dumps({"level": "info", "event": "deploying", key: "prod"}).encode() + b"\n")
 
     target_logger.log.assert_called_once_with(logging.INFO, "deploying", **{key: "prod"})
+
+
+@pytest.mark.parametrize(
+    "bad_timestamp",
+    [
+        pytest.param(1697190085, id="epoch-number"),
+        pytest.param("2026-10-13T17:41", id="no-seconds"),
+        # msgspec raises a plain DecodeError (not a ValidationError) for the newline, so this case
+        # fails if the except clause only catches ValidationError.
+        pytest.param("2026-10-13\n17:41:25", id="newline"),
+    ],
+)
+def test_process_log_messages_keeps_line_with_invalid_timestamp(bad_timestamp, caplog, time_machine):
+    time_machine.move_to(timezone.datetime(2026, 10, 15, 8, 0), tick=False)
+
+    gen = process_log_messages_from_subprocess(loggers=(structlog.get_logger(),))
+    next(gen)
+
+    gen.send(
+        msgspec.json.encode({"level": "info", "event": "Batch done", "timestamp": bad_timestamp}) + b"\n"
+    )
+
+    assert caplog.messages == ["Batch done"]
+    assert {"timestamp": "2026-10-15T08:00:00Z", "invalid_timestamp": bad_timestamp} in caplog
 
 
 @pytest.mark.parametrize(

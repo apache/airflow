@@ -375,13 +375,16 @@ Parameters
   ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
 - ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
   etc.). See :ref:`capabilities`.
-- ``enable_tool_logging``: Wrap the assembled function toolset in
-  :class:`~airflow.providers.common.ai.toolsets.logging.LoggingToolset` so that
-  tools supplied through ``toolsets=``, ``agent_params={"tools": [...]}``, and
-  capabilities are logged in real time, including tools the model found through
+- ``enable_tool_logging``: Append a
+  :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`, which
+  wraps the assembled function toolset, so that tools supplied through ``toolsets=``,
+  ``agent_params={"tools": [...]}``, and capabilities are logged in real time, including
+  tools the model found through
   :ref:`tool search <howto/toolset:progressive-disclosure>`. Output tools, provider-native
-  tools, and tools another capability adds through its own wrapper (code mode's
-  ``run_code``, ToolSearch's ``search_tools``) are not covered. Default ``True``.
+  tools, and tools another capability adds through its own wrapper (code mode's ``run_code``,
+  ToolSearch's ``search_tools``) are not covered. If ``capabilities`` already holds a
+  ``ToolLoggingCapability``, the operator adds none and uses that one's ``logger``.
+  Default ``True``.
 - ``agent_params``: Additional keyword arguments passed to the pydantic-ai
   ``Agent`` constructor (e.g. ``retries``, ``model_settings``).
 - .. _agent-usage-budget:
@@ -451,6 +454,9 @@ Parameters
   When set, the post-run transcript is pushed to XCom under the key
   ``message_history`` for the next run to resume. Default ``None`` (single-turn).
   See :doc:`../message_history`.
+- ``emit_message_history``: Push the post-run transcript to XCom under the key
+  ``message_history``. Defaults to ``True`` when ``message_history`` is set and ``False``
+  otherwise; ``True`` records a single-turn run without seeding it. See :doc:`../message_history`.
 - ``serialize_output``: If ``True`` and ``output_type`` is a Pydantic
   ``BaseModel`` subclass, the model instance is dumped to a ``dict`` via
   ``model_dump()`` before being pushed to XCom. Default ``False`` -- the

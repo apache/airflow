@@ -206,6 +206,21 @@ With structured output:
     :start-after: [START howto_decorator_llm_structured]
     :end-before: [END howto_decorator_llm_structured]
 
+The returned prompt is rendered as a Jinja template, like the operator's ``prompt``
+argument, so ``{{ ds }}`` and other template variables work in it. Text you insert into
+the returned string yourself, for example with an f-string, is rendered as part of the
+template too. To include text that comes from a function argument, such as a document or
+an upstream task's output, reference the argument by name in the template instead of
+formatting it into the string, as the examples above do with ``{{ text }}``. Every argument
+the task is called with, positionally or by keyword, is available when the prompt is
+rendered, and its value is inserted as it is. A parameter left at its default value is not
+available; pass it explicitly to reference it:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_analysis_pipeline.py
+    :language: python
+    :start-after: [START howto_decorator_llm_prompt_argument]
+    :end-before: [END howto_decorator_llm_prompt_argument]
+
 Multimodal prompts
 ^^^^^^^^^^^^^^^^^^
 
@@ -213,9 +228,9 @@ Multimodal prompts
 may return either a ``str`` or a non-empty ``Sequence[UserContent]`` (e.g.,
 ``["Describe this:", ImageUrl(url="...")]``) for vision, audio, or document
 inputs. See :ref:`@task.agent multimodal prompts <howto/operator:agent-multimodal>` for
-the full example. ``require_approval=True`` is not supported with a ``Sequence``
-prompt: the approval session model expects a string, and the task raises at the
-approval boundary.
+the full example. With ``require_approval=True``, the review shows the
+prompt's text and a placeholder such as ``[image/png, 2048 bytes]`` for each
+non-text part.
 
 Classification with ``Literal``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -315,3 +330,11 @@ After each LLM call, the operator logs a summary with model name, token usage,
 and request count at INFO level. At DEBUG level, the LLM output is also logged
 (truncated to 500 characters). See :ref:`AgentOperator logging <howto/operator:agent>`
 for details on the log format.
+
+The same request/token/cost counts are also pushed to XCom under the ``usage``
+key, the same shape ``AgentOperator`` uses. Alongside it, the operator pushes a
+``run_id`` XCom and stamps the task's identity on the run's GenAI spans, the
+same way ``AgentOperator`` does -- see :doc:`../observability` for how the join
+key and identity attributes work. Both XComs are pushed on a failed run too, so
+a downstream ``all_done`` task or failure callback can read what was spent, and
+which run, before it raised.

@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 import time_machine
-from httpx import Client
 from sqlalchemy import select
 from uuid6 import uuid7
 
@@ -187,7 +186,7 @@ def test_upsert_hitl_detail_with_empty_option(
 
 @time_machine.travel(datetime(2025, 7, 3, 0, 0, 0), tick=False)
 @pytest.mark.usefixtures("sample_hitl_detail")
-def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
+def test_update_hitl_detail(client: TestClient, sample_ti: TaskInstance) -> None:
     response = client.patch(
         f"/execution/hitlDetails/{sample_ti.id}",
         json={
@@ -206,7 +205,7 @@ def test_update_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
     }
 
 
-def test_update_hitl_detail_without_option(client: Client, sample_ti: TaskInstance) -> None:
+def test_update_hitl_detail_without_option(client: TestClient, sample_ti: TaskInstance) -> None:
     response = client.patch(
         f"/execution/hitlDetails/{sample_ti.id}",
         json={
@@ -218,7 +217,7 @@ def test_update_hitl_detail_without_option(client: Client, sample_ti: TaskInstan
     assert response.status_code == 422
 
 
-def test_update_hitl_detail_without_ti(client: Client) -> None:
+def test_update_hitl_detail_without_ti(client: TestClient) -> None:
     ti_id = str(uuid7())
     response = client.patch(
         f"/execution/hitlDetails/{ti_id}",
@@ -238,13 +237,13 @@ def test_update_hitl_detail_without_ti(client: Client) -> None:
 
 
 @pytest.mark.usefixtures("sample_hitl_detail")
-def test_get_hitl_detail(client: Client, sample_ti: TaskInstance) -> None:
+def test_get_hitl_detail(client: TestClient, sample_ti: TaskInstance) -> None:
     response = client.get(f"/execution/hitlDetails/{sample_ti.id}")
     assert response.status_code == 200
     assert response.json() == expected_empty_hitl_detail_response_part
 
 
-def test_get_hitl_detail_without_ti(client: Client) -> None:
+def test_get_hitl_detail_without_ti(client: TestClient) -> None:
     response = client.get(f"/execution/hitlDetails/{uuid7()}")
     assert response.status_code == 404
     assert response.json() == {

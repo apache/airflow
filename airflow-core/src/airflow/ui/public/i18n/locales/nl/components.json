@@ -47,6 +47,13 @@
   "dagWarnings": {
     "error_one": "1 fout",
     "errorAndWarning": "1 fout en {{warningText}}",
+    "types": {
+      "asset conflict": "Asset-conflict",
+      "duplicate dag id": "Dubbele Dag ID",
+      "non-existent pool": "Niet-bestaande Pool",
+      "runtime varying value": "Waarde die tijdens runtime verandert",
+      "task group cycle": "Cyclus in de taakgroep"
+    },
     "warning_one": "1 waarschuwing",
     "warning_other": "{{count, number}} waarschuwingen"
   },
