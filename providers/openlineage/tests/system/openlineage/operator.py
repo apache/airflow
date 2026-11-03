@@ -33,14 +33,17 @@ from dateutil.parser import parse
 from jinja2 import Environment, TemplateError
 from packaging.version import Version
 
+from airflow import __version__ as airflow_version
 from airflow.providers.common.compat.sdk import BaseOperator, Variable
-
-from system.openlineage.expected_events import AIRFLOW_VERSION
 
 try:
     from airflow.sdk.exceptions import AirflowRuntimeError as NoVariableError  # AF3
 except (ImportError, ModuleNotFoundError, AttributeError):
     NoVariableError = KeyError  # type: ignore[misc, assignment]  # AF2
+
+# Not imported from the system tests' expected_events: operator.py imports nothing else of the system tests, so it can
+# be copied as is next to Dags whose `system.` imports are rewritten
+AIRFLOW_VERSION = Version(airflow_version)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

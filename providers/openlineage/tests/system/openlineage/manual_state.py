@@ -46,7 +46,8 @@ import requests
 from system.openlineage.expected_events import AIRFLOW_VERSION
 from system.openlineage.operator import log_validation_error
 
-API_URL = os.getenv("SYSTEM_TESTS_OL_API_URL", "http://airflow-apiserver:8080").rstrip("/")
+# An empty value (e.g. an unset Docker build arg) counts as unset
+API_URL = (os.getenv("SYSTEM_TESTS_OL_API_URL") or "http://airflow-apiserver:8080").rstrip("/")
 IS_API_V2 = AIRFLOW_VERSION.major >= 3
 POLL_INTERVAL_SECONDS = 2
 TOKEN_ATTEMPTS = 10
@@ -72,8 +73,13 @@ def _log_errors(func: Callable) -> Callable:
 def _get_auth() -> dict[str, Any]:
     if token := os.getenv("SYSTEM_TESTS_OL_API_TOKEN"):
         return {"headers": {"Authorization": f"Bearer {token}"}}
-    username = os.environ["SYSTEM_TESTS_OL_API_USERNAME"]
-    password = os.environ["SYSTEM_TESTS_OL_API_PASSWORD"]
+    username = os.getenv("SYSTEM_TESTS_OL_API_USERNAME")
+    password = os.getenv("SYSTEM_TESTS_OL_API_PASSWORD")
+    if not (username and password):
+        raise RuntimeError(
+            "Set SYSTEM_TESTS_OL_API_TOKEN, or SYSTEM_TESTS_OL_API_USERNAME and SYSTEM_TESTS_OL_API_PASSWORD, for "
+            f"the REST API of this deployment ({API_URL})"
+        )
     if not IS_API_V2:
         return {"auth": (username, password)}
     for attempt in range(1, TOKEN_ATTEMPTS + 1):
