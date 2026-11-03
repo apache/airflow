@@ -212,7 +212,8 @@ so bound repeated refused reads with ``max_turns``.
 
 Back each check with the connection's own permissions: a database role granted
 ``SELECT`` on the two tables, and credentials that can read only the reports prefix. The
-permissions still hold if a check has a gap, or if you give the agent more tools later.
+database and the store enforce those themselves, including for a query or path that a
+toolset's check lets through.
 
 ``SQLToolset`` and ``DataFusionToolset`` refuse statements that change data unless you
 pass ``allow_writes=True``, and ``ObjectStorageToolset`` cannot write at all. To store what
@@ -427,8 +428,8 @@ and raise for anything else. An ``AirflowTool`` you build has no retry limit of 
 so only ``max_turns`` bounds how often the model retries it. The masker knows the
 secrets Airflow has registered, such as connection passwords and sensitive connection
 extras. It does not recognize a credential that exists only in the data a tool returns,
-so the permissions of the connection's database role or cloud identity remain the real
-limit on what the agent can reach.
+such as an API key stored in a table row. To keep one from the agent, deny the
+connection's database role or cloud identity access to it.
 
 Agents as tools and handoffs
 ----------------------------
