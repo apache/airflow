@@ -82,6 +82,44 @@ XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 XCOM_STATEMENT_ID_KEY = "statement_id"
 
+# Databricks splits run state across life_cycle_state and result_state, while the ResumableJobMixin
+# status interface is a single string. The durable operators encode both as "LIFE_CYCLE:RESULT" and
+# decode them with the predicates below, so all three share one view of what counts as reconnectable.
+RUN_NOT_FOUND_STATUS = "NOT_FOUND:"
+ACTIVE_RUN_LIFE_CYCLE_STATES = (
+    "PENDING",
+    "QUEUED",
+    "RUNNING",
+    "TERMINATING",
+    "BLOCKED",
+    "WAITING_FOR_RETRY",
+)
+
+
+def fetch_run_status(hook: DatabricksHook, run_id: JsonValue) -> str:
+    """Return the encoded status of ``run_id``, or a sentinel if its run history is gone."""
+    try:
+        run_info = hook.get_run(run_id)
+    except DatabricksApiError as e:
+        # A stored run whose history expired (or was deleted) returns 404. The sentinel is neither
+        # active nor succeeded, so the mixin resubmits fresh instead of failing the task.
+        if e.http_status_code == 404:
+            return RUN_NOT_FOUND_STATUS
+        raise
+    state = RunState(**run_info["state"])
+    return f"{state.life_cycle_state}:{state.result_state}"
+
+
+def is_run_active(status: str) -> bool:
+    """Whether an encoded status means the run is still reconnectable."""
+    return status.split(":", 1)[0] in ACTIVE_RUN_LIFE_CYCLE_STATES
+
+
+def is_run_succeeded(status: str) -> bool:
+    """Whether an encoded status means the run finished successfully."""
+    return status == "TERMINATED:SUCCESS"
+
+
 # Mapping from Airflow TriggerRule to Databricks RunIf condition.
 # Only non-default rules are included; ALL_SUCCESS is the Databricks default
 # and is omitted to keep the task JSON minimal.
@@ -1018,33 +1056,13 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
-        # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
-        # is_job_active / is_job_succeeded.
-        try:
-            run_info = self._hook.get_run(external_id)
-        except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
-                return "NOT_FOUND:"
-            raise
-        state = RunState(**run_info["state"])
-        return f"{state.life_cycle_state}:{state.result_state}"
+        return fetch_run_status(self._hook, external_id)
 
     def is_job_active(self, status: str) -> bool:
-        life_cycle_state = status.split(":", 1)[0]
-        return life_cycle_state in (
-            "PENDING",
-            "QUEUED",
-            "RUNNING",
-            "TERMINATING",
-            "BLOCKED",
-            "WAITING_FOR_RETRY",
-        )
+        return is_run_active(status)
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == "TERMINATED:SUCCESS"
+        return is_run_succeeded(status)
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         # submit_job and the stored external id are always Databricks run ids (int).
@@ -1514,33 +1532,13 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
-        # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
-        # is_job_active / is_job_succeeded.
-        try:
-            run_info = self._hook.get_run(external_id)
-        except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
-                return "NOT_FOUND:"
-            raise
-        state = RunState(**run_info["state"])
-        return f"{state.life_cycle_state}:{state.result_state}"
+        return fetch_run_status(self._hook, external_id)
 
     def is_job_active(self, status: str) -> bool:
-        life_cycle_state = status.split(":", 1)[0]
-        return life_cycle_state in (
-            "PENDING",
-            "QUEUED",
-            "RUNNING",
-            "TERMINATING",
-            "BLOCKED",
-            "WAITING_FOR_RETRY",
-        )
+        return is_run_active(status)
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == "TERMINATED:SUCCESS"
+        return is_run_succeeded(status)
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         # submit_job and the stored external id are always Databricks run ids (int).
@@ -2005,15 +2003,15 @@ class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
         """Get run json to be used for task submissions."""
         if self.new_cluster and self.existing_cluster_id:
             raise ValueError("Both new_cluster and existing_cluster_id are set. Only one should be set.")
-        # LOCAL MANUAL-TEST HACK -- NOT PART OF THIS PR. Allows no compute spec so the run
-        # lands on serverless. Revert before pushing.
-        cluster: dict[str, Any] = {}
+        cluster: dict[str, Any]
         if self.new_cluster:
             cluster = {"new_cluster": self.new_cluster}
         elif self.existing_cluster_id:
             cluster = {"existing_cluster_id": self.existing_cluster_id}
+        else:
+            raise ValueError("Must specify either existing_cluster_id or new_cluster.")
 
-        if cluster and not self._has_retry_settings():
+        if not self._has_retry_settings():
             # No retry settings: keep the legacy single-task runs/submit shape unchanged.
             return {"run_name": self.databricks_task_key, **self._get_task_base_json(), **cluster}
 
@@ -2030,16 +2028,24 @@ class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
     def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
+        # Return as soon as the run exists. A page URL lookup or an xcom push here would run
+        # before the mixin can persist the run id, so a failure would strand the run and let the
+        # retry submit a duplicate.
         self.databricks_run_id = self._hook.submit_run(run_json)
+        self.log.info("Run submitted with run_id: %s", self.databricks_run_id)
+        return self.databricks_run_id
+
+    def _record_run_details(self, context: Context) -> None:
+        """Log the run page URL and push the run xcoms, at most once per attempt."""
+        if self._run_xcoms_pushed or self.databricks_run_id is None:
+            return
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
-
-        if self.do_xcom_push and context is not None:
-            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
-            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
-            self._run_xcoms_pushed = True
-
-        return self.databricks_run_id
+        ti = context.get("ti") if context else None
+        if self.do_xcom_push and ti is not None:
+            ti.xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            ti.xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+        self._run_xcoms_pushed = True
 
     def _handle_terminal_run_state(self, run_state: RunState, errors: list) -> None:
         """Handle the terminal state of the run."""
@@ -2291,44 +2297,25 @@ class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         self.databricks_run_id = cast("int", external_id)
-        try:
-            run = self._hook.get_run(external_id)
-        except DatabricksApiError as e:
-            # Run history expired or was deleted: neither active nor succeeded, so the mixin
-            # resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
-                return "NOT_FOUND:"
-            raise
-        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
-        # interface is a single string, so encode both and decode them in the predicates below.
-        state = RunState(**run["state"])
-        return f"{state.life_cycle_state}:{state.result_state}"
+        return fetch_run_status(self._hook, external_id)
 
     def is_job_active(self, status: str) -> bool:
-        return status.split(":", 1)[0] in (
-            "PENDING",
-            "QUEUED",
-            "RUNNING",
-            "TERMINATING",
-            "BLOCKED",
-            "WAITING_FOR_RETRY",
-        )
+        return is_run_active(status)
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == "TERMINATED:SUCCESS"
+        return is_run_succeeded(status)
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         self.databricks_run_id = cast("int", external_id)
+        # The mixin's reconnect branch returns from here without reaching get_job_result, so the
+        # xcoms must be pushed before monitoring or a crash-recovered attempt leaves them unset.
+        self._record_run_details(context)
         if self.wait_for_termination:
             self.monitor_databricks_job()
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
         self.databricks_run_id = cast("int", external_id)
-        # The already-succeeded retry path never launches, so push the run xcoms here for parity.
-        ti = context.get("ti") if context else None
-        if not self._run_xcoms_pushed and self.do_xcom_push and ti is not None:
-            ti.xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
-            ti.xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=self._hook.get_run_page_url(self.databricks_run_id))
+        self._record_run_details(context)
         return None
 
     def execute(self, context: Context) -> None:

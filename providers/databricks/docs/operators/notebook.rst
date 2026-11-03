@@ -67,8 +67,9 @@ whole Airflow task:
     )
 
 Airflow ``retries`` behaves differently depending on where the operator runs. For a standalone
-operator, a retry reconnects to the run it already submitted (see `Durable execution`_ below).
-Inside a
+operator, a retry reconnects to the run the previous try submitted only when that try was lost
+while the run was still going; a run that already reached a terminal failure on Databricks is
+replaced by a fresh submit (see `Durable execution`_ below). Inside a
 :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
 the Airflow task monitors a sub-run that was already submitted by the workflow launch task, so a
 retry only re-polls the terminal sub-run. Use ``max_retries`` to retry Databricks work inside a
@@ -88,9 +89,9 @@ Durable execution
 
 Outside a
 :class:`~airflow.providers.databricks.operators.databricks_workflow.DatabricksWorkflowTaskGroup`,
-this operator submits a run and polls it to completion on the worker. By default it runs in a
-*durable* mode: the Databricks run id is persisted to
-:doc:`task state store <apache-airflow:core-concepts/task-state-store>` before polling begins, so if
+this operator submits a run and then waits for it, on the worker or in the Triggerer when
+``deferrable=True``. By default it runs in a *durable* mode: the Databricks run id is persisted to
+:doc:`task state store <apache-airflow:core-concepts/task-state-store>` before the wait begins, so if
 the worker crashes or is preempted and the task is retried, the operator reconnects to the run that
 is already executing on Databricks instead of submitting a duplicate.
 
@@ -102,6 +103,12 @@ On retry the operator checks the prior run's state:
 
 Pass ``durable=False`` to always submit a fresh run on retry.
 
+Unlike :class:`~airflow.providers.databricks.operators.databricks.DatabricksSubmitRunOperator` and
+:class:`~airflow.providers.databricks.operators.databricks.DatabricksRunNowOperator`, where
+``durable`` has no effect in deferrable mode, durable execution here also covers
+``deferrable=True``: the run id is stored before the task defers, so a try lost while the Triggerer
+was waiting still reconnects on the next one.
+
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
 earlier Airflow versions the flag is a no-op and the operator always submits a fresh run on retry.
 If the task state store is unavailable at runtime, the operator logs that crash recovery is
@@ -111,5 +118,15 @@ Inside a ``DatabricksWorkflowTaskGroup`` nothing changes: the run is submitted b
 launch task and this operator only monitors its own task within that shared run, so a retry already
 reconnects rather than resubmitting.
 
-See :doc:`apache-airflow:core-concepts/resumable-tasks` for how clearing a task interacts with the
-stored run id, and for the retention caveats around ``airflow state-store clean``.
+The stored run id is not deleted automatically; that only happens when someone runs
+``airflow state-store clean``. If a task's ``retry_delay`` is longer than
+``[state_store] default_retention_days`` (30 days by default) and cleanup runs in between, the run
+id is gone by the next retry and the operator submits a fresh run instead of reconnecting. Avoid
+running cleanup on a schedule shorter than your longest ``retry_delay``. See
+:doc:`apache-airflow:administration-and-deployment/task-and-asset-state-store-cleanup`.
+
+Clearing a task is treated the same as a retry, which matters for a task whose run already
+succeeded: clearing does not delete the stored run id, so the next attempt reads it back and
+returns without submitting a new run. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
