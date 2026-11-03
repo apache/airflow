@@ -68,7 +68,8 @@ class AssetEventTimeBound(Protocol):
 
 
 class _ContextTimeBound(AssetEventTimeBound):
-    _label: ClassVar[str]
+    # This is a serialized identifier; changing its value changes the serialized Dag's hash.
+    _anchor: ClassVar[str]
 
     def __init__(self, *, offset: timedelta = timedelta(0)) -> None:
         self.offset = offset
@@ -78,7 +79,7 @@ class _ContextTimeBound(AssetEventTimeBound):
 
     def serialize(self) -> dict[str, str | float]:
         """Return the bound configuration for serialized task metadata."""
-        return {"anchor": self._label, "offset_seconds": self.offset.total_seconds()}
+        return {"anchor": self._anchor, "offset_seconds": self.offset.total_seconds()}
 
     @abstractmethod
     def _get_timestamp(self, context: Context) -> datetime | None: ...
@@ -87,7 +88,7 @@ class _ContextTimeBound(AssetEventTimeBound):
         """Resolve the bound during template rendering, before the sensor polls."""
         timestamp = self._get_timestamp(context)
         if timestamp is None:
-            raise ValueError(f"{type(self).__name__} requires {self._label!r} in the task context.")
+            raise ValueError(f"{type(self).__name__} requires {self._anchor!r} in the task context.")
         return timestamp + self.offset
 
 
@@ -98,7 +99,7 @@ class RunStart(_ContextTimeBound):
     :param offset: Signed duration to add to ``dag_run.start_date``.
     """
 
-    _label = "dag_run.start_date"
+    _anchor = "dag_run.start_date"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         dag_run = context.get("dag_run")
@@ -115,7 +116,7 @@ class RunAfter(_ContextTimeBound):
     :param offset: Signed duration to add to ``dag_run.run_after``.
     """
 
-    _label = "dag_run.run_after"
+    _anchor = "dag_run.run_after"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         dag_run = context.get("dag_run")
@@ -129,7 +130,7 @@ class LogicalDate(_ContextTimeBound):
     :param offset: Signed duration to add to ``logical_date``.
     """
 
-    _label = "logical_date"
+    _anchor = "logical_date"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         return context.get("logical_date")
@@ -142,7 +143,7 @@ class DataIntervalStart(_ContextTimeBound):
     :param offset: Signed duration to add to ``data_interval_start``.
     """
 
-    _label = "data_interval_start"
+    _anchor = "data_interval_start"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         return context.get("data_interval_start")
@@ -155,7 +156,7 @@ class DataIntervalEnd(_ContextTimeBound):
     :param offset: Signed duration to add to ``data_interval_end``.
     """
 
-    _label = "data_interval_end"
+    _anchor = "data_interval_end"
 
     def _get_timestamp(self, context: Context) -> datetime | None:
         return context.get("data_interval_end")
@@ -230,13 +231,6 @@ class AssetEventSensor(BaseSensorOperator):
         process_result: Callable[[list[AssetEventResult]], list[Any]] | None = None,
         **kwargs,
     ) -> None:
-        if not AIRFLOW_V_3_4_PLUS and (
-            partition_key is not None or partition_key_regexp_pattern is not None or extra is not None
-        ):
-            raise AirflowOptionalProviderFeatureException(
-                "AssetEventSensor filters partition_key, partition_key_regexp_pattern and extra "
-                "need Airflow 3.4+."
-            )
         super().__init__(**kwargs)
         if expected_count < 0:
             raise ValueError(f"`expected_count` must be a non-negative integer, got {expected_count}.")
@@ -271,6 +265,13 @@ class AssetEventSensor(BaseSensorOperator):
         self._validate_filters()
 
     def _validate_filters(self) -> None:
+        if not AIRFLOW_V_3_4_PLUS and (
+            self.partition_key is not None or self.partition_key_regexp_pattern is not None or self.extra
+        ):
+            raise AirflowOptionalProviderFeatureException(
+                "AssetEventSensor filters partition_key, partition_key_regexp_pattern and extra "
+                "need Airflow 3.4+."
+            )
         if (
             self.after is None
             and self.before is None

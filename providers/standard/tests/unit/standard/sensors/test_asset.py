@@ -163,7 +163,7 @@ class TestInit:
             {"ascending": False},
             {"process_result": only_us_partitions},
             {"expected_count": 0, "count_policy": "exact"},
-            pytest.param({"extra": {}}, marks=requires_3_4),
+            {"extra": {}},
         ],
         ids=["none", "null-bounds", "limit", "order", "processing", "count", "empty-extra"],
     )
@@ -255,10 +255,20 @@ class TestInit:
         with pytest.raises(AirflowOptionalProviderFeatureException, match="need Airflow 3.4"):
             AssetEventSensor(task_id="s", asset=asset, **filters)
 
-    def test_other_filters_do_not_require_airflow_3_4(self, mocker, asset):
+    @pytest.mark.parametrize("extra", [None, {}], ids=["no-extra", "empty-extra"])
+    def test_other_filters_do_not_require_airflow_3_4(self, mocker, asset, mock_supervisor_comms, extra):
         mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
-        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), limit=1)
-        assert sensor.limit == 1
+        sensor = AssetEventSensor(task_id="s", asset=asset, after=_get_timestamp(1), limit=1, extra=extra)
+        mock_supervisor_comms.send.return_value = AssetEventsResult(asset_events=[])
+        assert not sensor.poke(_get_context(sensor))
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetAssetEventByAsset(name=ASSET_NAME, uri=ASSET_URI, after=_get_timestamp(1), limit=1)
+        )
+
+    def test_empty_extra_requires_another_filter_before_airflow_3_4(self, mocker, asset):
+        mocker.patch("airflow.providers.standard.sensors.asset.AIRFLOW_V_3_4_PLUS", False)
+        with pytest.raises(ValueError, match="requires at least one filter"):
+            AssetEventSensor(task_id="s", asset=asset, extra={})
 
     def test_template_fields(self):
         assert set(AssetEventSensor.template_fields) == {

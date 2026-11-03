@@ -177,8 +177,8 @@ configure the timetable's ``interval``.
 
 A bound raises ``ValueError`` if its selected timestamp is missing; it does not
 substitute another timestamp. Manual runs can have a data interval when a logical
-date is supplied. Use ``after=RunStart()`` to wait for events at or after the actual
-start of an asset-triggered run.
+date is supplied. For asset-triggered runs, use ``RunStart()`` or ``RunAfter()``
+instead. See the table for how they differ when a run is cleared.
 
 Airflow resolves the objects during template rendering, before polling. Their
 run-relative values stay fixed while the sensor polls and after rescheduling.
