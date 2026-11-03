@@ -84,7 +84,7 @@
   "jobs": {
     "columns": {
       "executorClass": "エクゼキュータクラス",
-      "hostname": "ホストネーム",
+      "hostname": "ホスト名",
       "id": "ID",
       "jobType": "ジョブタイプ",
       "latestHeartbeat": "最新のハートビート",
@@ -104,20 +104,20 @@
     "columns": {
       "source": "ソース"
     },
-    "importError_one": "プラグインのインポートエラー",
-    "importError_other": "プラグインのインポートエラー",
-    "plugin_one": "プラグイン",
-    "plugin_other": "プラグイン",
+    "importError_one": "Plugin のインポートエラー",
+    "importError_other": "Plugin のインポートエラー",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
     "searchPlaceholder": "ファイルで検索"
   },
   "pools": {
-    "add": "プールを追加",
+    "add": "Pool を追加",
     "deferredSlotsIncluded": "遅延スロットも含める",
     "delete": {
-      "title": "プールを削除",
-      "warning": "プールに関連するすべてのメタデータを削除します。プールを使用中のタスクに影響する可能性があります"
+      "title": "Pool を削除",
+      "warning": "Pool に関連するすべてのメタデータを削除します。Pool を使用中のタスクに影響する可能性があります"
     },
-    "edit": "プールを編集",
+    "edit": "Pool を編集",
     "form": {
       "checkbox": "空きスロットの計算に遅延タスクも含める",
       "description": "説明",
@@ -127,10 +127,10 @@
       "slots": "スロット",
       "slotsHelperText": "無制限にするには -1 を使用してください"
     },
-    "noPoolsFound": "プールが見つかりません",
-    "pool_one": "プール",
-    "pool_other": "プール",
-    "searchPlaceholder": "プールを検索",
+    "noPoolsFound": "Pools が見つかりません",
+    "pool_one": "Pool",
+    "pool_other": "Pools",
+    "searchPlaceholder": "Pool を検索",
     "sort": {
       "asc": "名前 (A-Z)",
       "desc": "名前 (Z-A)",

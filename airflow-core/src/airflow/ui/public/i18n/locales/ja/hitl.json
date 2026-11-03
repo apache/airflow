@@ -31,7 +31,7 @@
     "list": {
       "completedRequiredActions": "完了した必須アクション ({{count}})",
       "loadError": "必須アクションを読み込めません",
-      "loadingActions": "必須アクションを読み込む中...",
+      "loadingActions": "必須アクションを読み込み中...",
       "pendingRequiredActions": "未対応の必須アクション ({{count}})"
     },
     "openReviewDrawer": "レビューパネルを開く",

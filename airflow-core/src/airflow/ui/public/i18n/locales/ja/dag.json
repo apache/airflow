@@ -61,7 +61,7 @@
     "missed": "過ぎた",
     "missedCount_one": "{{count}} 件が期限切れ",
     "missedCount_other": "{{count}} 件が期限切れ",
-    "mixedCount": "{{missedCount}} 件が期限切れになっています。 {{upcomingCount}} 件がまもなく期限期限切れになります",
+    "mixedCount": "{{missedCount}} 件が期限切れになっています。 {{upcomingCount}} 件がまもなく期限切れになります",
     "stillRunning": "実行中",
     "upcoming": "まもなく期限切れ",
     "upcomingCount_one": "{{count}} 件が期限切れ間近",
@@ -180,11 +180,11 @@
       "direction": "方向",
       "label": "フィルタ",
       "mode": "モード",
+      "modeTooltip": "固定モードではタスクを切替えても現在のビューは変更されず、順次処理モードではタスクをクリックするとフィルタ条件が自動的に更新されるため、Dag 構造を閲覧しやすくなります",
       "modes": {
         "static": "固定",
         "traverse": "順次処理"
       },
-      "modeTooltip": "固定モードではタスクを切替えても現在のビューは変更されず、順次処理モードではタスクをクリックするとフィルタ条件が自動的に更新されるため、Dag 構造を閲覧しやすくなります",
       "options": {
         "both": "上流と下流の両方",
         "downstream": "下流",
@@ -248,7 +248,7 @@
       "custom": "ユーザー定義",
       "default": "デフォルト ({{interval}})",
       "label": "期限切れ",
-      "never": "永遠に"
+      "never": "なし"
     },
     "title": "タスク状態ストア"
   }

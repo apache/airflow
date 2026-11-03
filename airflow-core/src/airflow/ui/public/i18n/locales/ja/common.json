@@ -2,8 +2,8 @@
   "admin": {
     "Config": "設定",
     "Connections": "接続",
-    "Plugins": "プラグイン",
-    "Pools": "プール",
+    "Plugins": "Plugins",
+    "Pools": "Pools",
     "Providers": "Providers",
     "Variables": "変数"
   },
@@ -24,7 +24,7 @@
   },
   "backfill_one": "過去分の再実行",
   "backfill_other": "過去分の再実行",
-  "breadcrumb": "Breadcrumb",
+  "breadcrumb": "パンくず",
   "browse": {
     "auditLog": "監査ログ",
     "dagBundles": "Dag バンドル",
@@ -168,12 +168,12 @@
   "generateToken": "トークンを発行する",
   "includedIn": "含まれている",
   "key": "キー",
-  "logicalDate": "論理日付",
   "logLevel": {
     "hide": "ログレベルを隠す",
     "hotkey": "l",
     "show": "ログレベルを表示する"
   },
+  "logicalDate": "論理日付",
   "logout": "ログアウト",
   "logoutConfirmation": "ログアウトしてもよろしいですか",
   "mapIndex": "Map Index",
@@ -196,7 +196,7 @@
     "docs": "ヘルプ",
     "home": "ホーム",
     "legacyFabViews": "旧式ビュー",
-    "plugins": "プラグイン",
+    "plugins": "Plugins",
     "security": "セキュリティ"
   },
   "noItemsFound": "{{modelName}} が見つかりません",
@@ -236,7 +236,7 @@
     "save": "保存する",
     "setDefault": "デフォルトとして設定する",
     "title": "プリセットフィルタ条件",
-    "unsetDefault": "デフォルトを削除する"
+    "unsetDefault": "デフォルトをクリアする"
   },
   "reset": "リセット",
   "runId": "実行 ID",
@@ -267,23 +267,23 @@
     "roles": "ロール",
     "users": "ユーザ"
   },
-  "selected": "選択済み",
   "selectLanguage": "言語を選択",
+  "selected": "選択済み",
   "settings": {
     "clearing": {
       "preventRunningTask": {
-        "helper": "タスクインスタンスを消去する際に、現在実行中のタスクをスキップする",
-        "label": "実行中のタスクの消去を防ぐ"
+        "helper": "タスクインスタンスをクリアする際に、現在実行中のタスクをスキップする",
+        "label": "実行中のタスクのクリアを防ぐ"
       },
       "runSelection": {
-        "helper": "Dag の実行を削除する際に、デフォルトで選択されるオプション",
+        "helper": "Dag の実行をクリアする際に、デフォルトで選択されるオプション",
         "label": "実行時のデフォルトオプションをクリアする"
       },
       "taskSelection": {
-        "helper": "タスクインスタンスを削除する際に、デフォルトで選択されるオプション",
+        "helper": "タスクインスタンスをクリアする際に、デフォルトで選択されるオプション",
         "label": "タスクのデフォルトオプションをクリアする"
       },
-      "title": "削除"
+      "title": "クリア"
     },
     "description": "これらの設定は、このブラウザにのみ保存され、アプリケーション全体に適用されます",
     "general": {
@@ -336,8 +336,8 @@
       "search": "検索"
     },
     "descriptions": {
-      "clearRun": "$t(dagRun_one) のリセット",
-      "clearTaskInstance": "$t(taskInstance_one) のリセット",
+      "clearRun": "$t(dagRun_one) のクリア",
+      "clearTaskInstance": "$t(taskInstance_one) のクリア",
       "downloadLogs": "ログのダウンロード",
       "focusFilterSearch": "検索ボックスにフォーカスを合わせる",
       "focusLogSearch": "ログの検索",
@@ -428,7 +428,7 @@
     "operator": "オペレータ",
     "retries": "再試行",
     "triggerRule": "トリガールール",
-    "waitForDownstream": "下流工程の完了を待つ"
+    "waitForDownstream": "下流の完了を待つ"
   },
   "task_one": "タスク",
   "task_other": "タスク",
@@ -447,8 +447,8 @@
     "id": "ID",
     "maxTries": "最大試行回数",
     "pid": "PID",
-    "pool": "プール",
-    "poolSlots": "プールスロット",
+    "pool": "Pool",
+    "poolSlots": "Pool スロット",
     "priorityWeight": "優先度",
     "queue": "キュー",
     "queuedWhen": "キューイング時刻",
@@ -494,10 +494,10 @@
   },
   "toaster": {
     "bulkClear": {
-      "error": "{{resourceName}} の一括リセットリクエストが失敗しました",
+      "error": "{{resourceName}} の一括クリアリクエストが失敗しました",
       "success": {
-        "description": "{{count}} 件の {{resourceName}} リセットが完了しました。キー: {{keys}}",
-        "title": "{{resourceName}} の一括リセットリクエストが送信されました"
+        "description": "{{count}} 件の {{resourceName}} クリアが完了しました。キー: {{keys}}",
+        "title": "{{resourceName}} の一括クリアリクエストが送信されました"
       }
     },
     "bulkDelete": {
@@ -551,7 +551,7 @@
     "generate": "生成",
     "selectType": "生成するトークンの種類を選択してください",
     "title": "トークンを生成する",
-    "tokenExpiresIn": "このトークは {{duration}} 後に失効します",
+    "tokenExpiresIn": "このトークンは {{duration}} 後に失効します",
     "tokenGenerated": "トークンが生成されました",
     "tokenShownOnce": "このトークンは 1 回しか表示されません。すぐにコピーしてください"
   },

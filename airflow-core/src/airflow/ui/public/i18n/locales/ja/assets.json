@@ -59,7 +59,7 @@
   "scheduling": "スケジューリング",
   "searchPlaceholder": "アセットを検索",
   "taskDependencies": "タスク間の依存関係",
-  "watcher_one": "リスナー",
-  "watcher_other": "リスナー",
-  "watchers": "リスナー"
+  "watcher_one": "ウォッチャー",
+  "watcher_other": "ウォッチャー",
+  "watchers": "ウォッチャー"
 }
