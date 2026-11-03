@@ -19,7 +19,7 @@
 
 # Developing the Airflow TypeScript SDK
 
-Contributor and release-manager reference for `apache-airflow-ts-sdk`. See
+Contributor and release-manager reference for `@apache-airflow/ts-sdk`. See
 [`README.md`](README.md) for the user-facing package documentation.
 
 ## Building and testing
@@ -122,7 +122,7 @@ so both release paths share a single configuration pinned to a single GitHub
 environment:
 
 ```bash
-npm trust github apache-airflow-ts-sdk \
+npm trust github @apache-airflow/ts-sdk \
   --repo apache/airflow \
   --file ts-sdk-release.yml \
   --environment ts-sdk-npm-release \
@@ -130,7 +130,7 @@ npm trust github apache-airflow-ts-sdk \
   --allow-publish
 ```
 
-Confirm it with `npm trust list apache-airflow-ts-sdk`. A second `npm trust
+Confirm it with `npm trust list @apache-airflow/ts-sdk`. A second `npm trust
 github` for the same package is rejected, so replace an outdated configuration
 with `npm trust revoke` first.
 
@@ -148,8 +148,8 @@ names the source commit that produced the tarball. The tag must already exist
 on `apache/airflow` before the dispatch below can reference it as `--ref`:
 
 ```bash
-git tag ts-sdk/1.0.0-beta1 <commit-sha>
-git push upstream ts-sdk/1.0.0-beta1
+git tag ts-sdk/1.0.0-beta2 <commit-sha>
+git push upstream ts-sdk/1.0.0-beta2
 ```
 
 The commit you tag must be on `main` or on a core release branch (`vX-Y-test`
@@ -160,9 +160,9 @@ change there first, then tag that branch's commit.
 To submit the package to npm's private staging area for review, run:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta2 \
   -f release_type=staged \
-  -f tag=ts-sdk/1.0.0-beta1 \
+  -f tag=ts-sdk/1.0.0-beta2 \
   -f npm_tag=beta
 ```
 
@@ -172,7 +172,7 @@ until a maintainer reviews and approves it with 2FA. The following commands
 require npm 11.15 or later:
 
 ```bash
-npm stage list apache-airflow-ts-sdk
+npm stage list @apache-airflow/ts-sdk
 npm stage view <stage-id>
 npm stage download <stage-id>
 npm stage approve <stage-id>
@@ -186,14 +186,14 @@ that is already staged; approve or reject that staged version instead.
 To publish directly without npm's staging review, trigger the formal path:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta2 \
   -f release_type=formal \
-  -f tag=ts-sdk/1.0.0-beta1 \
+  -f tag=ts-sdk/1.0.0-beta2 \
   -f npm_tag=beta
 ```
 
 Use `latest` for stable releases. A prerelease may only use the channel derived
-from its own prerelease identifier (`1.0.0-beta1` → `beta`) or `next` —
+from its own prerelease identifier (`1.0.0-beta2` → `beta`) or `next` —
 `scripts/validate-release-inputs.mjs` rejects any other tag. The workflow also
 rejects a dispatch that would move the selected npm dist-tag backward as of
 when it runs. For a staged release, the dist-tag only actually moves later, at

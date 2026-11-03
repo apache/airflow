@@ -119,10 +119,10 @@ from airflow.sdk.execution_time.comms import (
     ResendLoggingFD,
     RetryTask,
     SentFDs,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetRenderedMapIndex,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskBreadcrumbsResult,
@@ -2226,6 +2226,9 @@ def _run_task_state_change_callbacks(
     context: Context,
     log: Logger,
 ) -> None:
+    from airflow.sdk.definitions.context import CallbackMeta, CallbackSource
+
+    context["callback"] = CallbackMeta(source=CallbackSource.TASK)
     callback: Callable[[Context], None]
     for i, callback in enumerate(getattr(task, kind)):
         try:
@@ -2353,7 +2356,7 @@ def _run_execute_callable(
             # It's possible we're already timed out, so fast-fail if true
             if timeout_seconds <= 0:
                 raise AirflowTaskTimeout()
-            SUPERVISOR_COMMS.send(StartExecutionTimeout())
+            SUPERVISOR_COMMS.send(SetExecutionTimeout(timeout_seconds=timeout_seconds))
             # Run task in timeout wrapper
             with timeout(timeout_seconds):
                 result = ctx.run(execute, context=context)

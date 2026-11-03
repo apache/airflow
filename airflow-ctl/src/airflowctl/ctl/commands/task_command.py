@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING
 import rich
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
-from airflowctl.api.datamodels.generated import TaskInstanceState
+from airflowctl.api.datamodels.generated import StructuredLogMessage, TaskInstanceState
 from airflowctl.ctl.console_formatting import AirflowConsole
 from airflowctl.ctl.utils.dag_run import resolve_dag_run_id
 
@@ -158,3 +158,27 @@ def state(args, api_client=NEW_API_CLIENT) -> None:
     # Unset states print as None to stay drop-in compatible with the deprecated
     # `airflow tasks state`, which prints its nullable `ti.state` column directly.
     print(task_instance.state.value if task_instance.state else None)
+
+
+@provide_api_client(kind=ClientKind.CLI)
+def logs(args, api_client=NEW_API_CLIENT) -> None:
+    """Get the logs of a task instance for a given try."""
+    try:
+        response = api_client.task_instances.logs(
+            dag_id=args.dag_id,
+            dag_run_id=args.dag_run_id,
+            task_id=args.task_id,
+            try_number=args.try_number,
+            map_index=args.map_index,
+            suppress_error_log=True,
+        )
+    except ServerResponseError as e:
+        if e.response.status_code == 404:
+            rich.print(
+                f"[red]{_task_instance_not_found_message(args.dag_id, args.dag_run_id, args.task_id, args.map_index, e)}[/red]"
+            )
+            sys.exit(1)
+        raise
+
+    for entry in response.content:
+        print(entry.event if isinstance(entry, StructuredLogMessage) else entry)
