@@ -73,6 +73,23 @@ class TestFindPathFromDirectory:
         with pytest.raises(RuntimeError, match=error_message):
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
+    @pytest.mark.parametrize("ignore_file_syntax", ["glob", "regexp"])
+    def test_find_path_from_directory_skips_kubernetes_volume_internals(self, tmp_path, ignore_file_syntax):
+        """Files of a Kubernetes ConfigMap or Secret volume are found once, via their visible symlinks."""
+        # the kubelet keeps the files in a timestamped directory, linked as "..data"
+        timestamped_dir = tmp_path / "..2026_10_31_12_00_00.123456789"
+        (timestamped_dir / "subdir").mkdir(parents=True)
+        (timestamped_dir / ".airflowignore").write_text("ignored.py")
+        for name in ("plugin.py", "ignored.py", "subdir/nested.py"):
+            (timestamped_dir / name).touch()
+        (tmp_path / "..data").symlink_to(timestamped_dir.name)
+        for name in (".airflowignore", "plugin.py", "ignored.py", "subdir"):
+            (tmp_path / name).symlink_to(Path("..data", name))
+
+        found = sorted(find_path_from_directory(tmp_path, ".airflowignore", ignore_file_syntax))
+
+        assert found == [str(tmp_path / "plugin.py"), str(tmp_path / "subdir" / "nested.py")]
+
     def test_find_path_from_directory_keeps_inherited_rules_on_symlink_switch(self, tmp_path):
         """Ignore rules inherited by a subdirectory still apply if the Dag folder symlink is switched mid-walk."""
         for revision in ("rev1", "rev2"):

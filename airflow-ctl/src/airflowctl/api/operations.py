@@ -79,9 +79,12 @@ from airflowctl.api.datamodels.generated import (
     ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
+    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
+    TaskInstancesLogResponse,
+    TaskResponse,
     TaskStateStoreBody,
     TaskStateStoreCollectionResponse,
     TaskStateStorePatchBody,
@@ -188,6 +191,8 @@ def _check_flag_and_exit_if_server_response_error(func):
             if "Connection refused" in str(e):
                 raise AirflowCtlConnectionException("Connection refused. Is the API server running?")
             raise AirflowCtlConnectionException(f"Connection error: {e}")
+        except httpx.ConnectTimeout:
+            raise AirflowCtlConnectionException("Connection timed out. Is the API server running?")
 
     return wrapped
 
@@ -614,7 +619,7 @@ class DagsOperations(BaseOperations):
 
     def update(self, dag_id: str, dag_body: DAGPatchBody) -> DAGResponse | ServerResponseError:
         self.response = self.client.patch(
-            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json")
+            f"dags/{_quote_path_param(dag_id)}", json=dag_body.model_dump(mode="json", exclude_none=True)
         )
         return validate_response(self.response.content, DAGResponse)
 
@@ -695,8 +700,8 @@ class DagRunOperations(BaseOperations):
 
         Args:
             state: Filter Dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter Dag runs by start date (optional)
-            end_date: Filter Dag runs by end date (optional)
+            start_date: Return only Dag runs that started at or after this time (optional)
+            end_date: Return only Dag runs that ended at or before this time (optional)
             limit: Limit the number of results returned
             offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
@@ -718,8 +723,8 @@ class DagRunOperations(BaseOperations):
             limit=limit,
             offset=offset,
             state=str(state) if state is not None else None,
-            start_date=start_date,
-            end_date=end_date,
+            start_date_gte=start_date,
+            end_date_lte=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
             partition_date_gte=partition_date_gte,
@@ -875,6 +880,32 @@ class TaskInstancesOperations(BaseOperations):
         )
         return validate_response(self.response.content, TaskDependencyCollectionResponse)
 
+    def logs(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        try_number: int,
+        map_index: int | None = None,
+        *,
+        suppress_error_log: bool = False,
+    ) -> TaskInstancesLogResponse | ServerResponseError:
+        """Get the logs of a task instance for a given try number."""
+        path = _build_task_instance_path(
+            dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=None
+        )
+        # Without full_content the endpoint returns one chunk and a continuation token, so a running or
+        # remotely stored log would print only partially.
+        params: dict[str, Any] = {"full_content": True}
+        if map_index is not None and map_index >= 0:
+            params["map_index"] = map_index
+        self.response = self.client.get(
+            f"{path}/logs/{try_number}",
+            params=params,
+            extensions={"airflowctl_suppress_error_log": suppress_error_log},
+        )
+        return TaskInstancesLogResponse.model_validate_json(self.response.content)
+
     def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
         """List task instances for a Dag run."""
         return super().execute_list(
@@ -966,6 +997,26 @@ class TaskInstancesOperations(BaseOperations):
 
 class TasksOperations(BaseOperations):
     """Tasks operations."""
+
+    def get(
+        self, dag_id: str, task_id: str, version_number: int | None = None
+    ) -> TaskResponse | ServerResponseError:
+        """Get a task for a Dag."""
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/tasks/{_quote_path_param(task_id)}",
+            params=_build_query_params(version_number=version_number),
+        )
+        return validate_response(self.response.content, TaskResponse)
+
+    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
+        """List tasks for a Dag."""
+        # The server returns every task for the Dag in one response, so this
+        # intentionally does not use execute_list's limit/offset pagination.
+        self.response = self.client.get(
+            f"dags/{_quote_path_param(dag_id)}/tasks",
+            params=_build_query_params(order_by=order_by),
+        )
+        return validate_response(self.response.content, TaskCollectionResponse)
 
     def clear(
         self, dag_id: str, clear_task_instances: ClearTaskInstancesBody

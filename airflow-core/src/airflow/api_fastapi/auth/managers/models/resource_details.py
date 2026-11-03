@@ -105,6 +105,9 @@ class AccessView(Enum):
     # view rather than riding on Dag-level ``DagAccessEntity.AUDIT_LOG`` access.
     AUDIT_LOGS_ALL = "AUDIT_LOGS_ALL"
     CLUSTER_ACTIVITY = "CLUSTER_ACTIVITY"
+    # Dag bundles, the files in them and their parse state. A bundle is deployed as a whole, so it
+    # is authorized on its own rather than through the Dags it happens to hold.
+    DAG_BUNDLES = "DAG_BUNDLES"
     DOCS = "DOCS"
     IMPORT_ERRORS = "IMPORT_ERRORS"
     # Import errors for files with no registered Dag: there is no per-Dag key to
