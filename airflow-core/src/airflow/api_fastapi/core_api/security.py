@@ -1270,17 +1270,25 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
-def requires_access_dag_bundles() -> Callable[[BaseUser, BaseAuthManager], None]:
+def requires_access_dag_bundles() -> Callable[[BaseUser, BaseAuthManager, PermittedDagBundleFilter], None]:
     """
-    Require ``AccessView.DAG_BUNDLES``, without a team.
+    Require ``AccessView.DAG_BUNDLES``.
 
-    In a multi-team deployment this only admits the caller to the route, and
-    ``ReadableDagBundlesFilterDep`` then narrows the bundles to the caller's teams. Goes through
-    ``authorize_view`` rather than ``requires_access_view`` so that an auth manager that cannot map
-    the view (raises ``KeyError``) denies it instead of failing the request.
+    In a multi-team deployment it is enough to hold it for one of the caller's teams or without a
+    team, the same set ``ReadableDagBundlesFilterDep`` narrows the bundles to.
+
+    Goes through ``authorize_view`` rather than ``requires_access_view`` so that an auth manager
+    that cannot map the view (raises ``KeyError``) denies it instead of failing the request.
     """
 
-    def inner(user: GetUserDep, auth_manager: AuthManagerDep) -> None:
+    def inner(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+        readable_dag_bundles_filter: ReadableDagBundlesFilterDep,
+    ) -> None:
+        if (permitted_teams := readable_dag_bundles_filter.value) is not None:
+            _requires_access(is_authorized_callback=lambda: bool(permitted_teams))
+            return
         _requires_access(
             is_authorized_callback=lambda: auth_manager.authorize_view(
                 access_view=AccessView.DAG_BUNDLES, user=user

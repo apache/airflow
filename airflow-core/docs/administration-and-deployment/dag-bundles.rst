@@ -238,11 +238,16 @@ when a Dag processor last refreshed it, its import-error count, and whether it i
 refreshes itself while open, and the same data is available at ``GET /api/v2/dagBundles`` for a
 deployment pipeline to poll.
 
-.. note::
+Bundles have their own permission rather than following Dag access, so a user who holds it sees
+every file and count in a bundle, whatever Dags they can read. By default it is held by:
 
-   Under the FAB auth manager the page needs a ``apache-airflow-providers-fab`` release with the
-   ``Dag Bundles`` resource, which ``Op`` and ``Admin`` get by default. On an older release the page
-   and the API are denied to every role, including ``Admin``, so upgrade the provider.
+* Simple auth manager: ``op`` and ``admin``.
+* FAB auth manager: ``Op`` and ``Admin``. This needs an ``apache-airflow-providers-fab`` release with
+  the ``Dag Bundles`` resource; on an older release the page and the API are denied to every role,
+  including ``Admin``.
+* Keycloak auth manager: every role, ``Viewer`` included. In multi-team mode, ``SuperAdmin`` only.
+  This needs an ``apache-airflow-providers-keycloak`` release that knows the view; on an older
+  release every team role can read it.
 
 ``version`` is whatever the bundle reports; for a Git Dag bundle it is the commit SHA of the tracking
 ref. Bundles that do not support versioning, such as ``LocalDagBundle``, report ``null``.
@@ -266,9 +271,6 @@ Some caveats:
   to a commit, read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
 * With several Dag processors the row reflects whichever refreshed last, as they share one row per
   bundle.
-* Bundles have their own permission rather than following Dag access, so a user who holds it sees
-  every file and count in a bundle, whatever Dags they can read. Which users hold it by default is
-  up to the auth manager.
 
 ``active`` is false when the bundle was missing from the configuration of whatever last ran a full
 sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate

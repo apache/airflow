@@ -44,7 +44,11 @@ class DagBundleResponse(BaseModel):
         )
     )
     bundle_url: str | None = Field(
-        description=("A link to view the bundle at ``version``, when the bundle is configured with one.")
+        description=(
+            "A link to view the bundle at ``version``. Null when the bundle has no URL template, when "
+            "the template needs a version and the bundle has not been refreshed yet, or when the "
+            "template cannot be rendered."
+        )
     )
     team_name: str | None = Field(description="The team owning the bundle, in a multi-team deployment.")
     import_error_count: int = Field(

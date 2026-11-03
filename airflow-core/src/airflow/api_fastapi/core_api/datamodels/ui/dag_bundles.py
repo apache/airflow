@@ -20,6 +20,6 @@ from airflow.api_fastapi.core_api.base import BaseModel
 
 
 class DagBundleCountResponse(BaseModel):
-    """Number of Dag bundles holding a Dag the caller may read."""
+    """Number of Dag bundles holding a Dag or an import error the caller may read."""
 
     total_entries: int

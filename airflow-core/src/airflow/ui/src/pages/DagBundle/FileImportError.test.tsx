@@ -62,21 +62,37 @@ const Harness = ({
   );
 };
 
+const IMPORT_ERROR = {
+  bundle_name: "dags-folder",
+  filename: "broken.py",
+  import_error_id: 1,
+  stack_trace: "Traceback: broken again",
+  timestamp: "2026-11-02T00:00:00Z",
+};
+
 const renderWith = ({
   fixedOnRecheck = false,
   hasImportError,
+  reappearsOnRecheck = false,
   status,
 }: {
   readonly fixedOnRecheck?: boolean;
   readonly hasImportError: boolean;
+  readonly reappearsOnRecheck?: boolean;
   readonly status: number;
 }) => {
+  let requests = 0;
+
   server.use(
-    http.get("/api/v2/importErrors", () =>
-      status === 200
-        ? HttpResponse.json({ import_errors: [], total_entries: 0 })
-        : HttpResponse.json({ detail: "boom" }, { status }),
-    ),
+    http.get("/api/v2/importErrors", () => {
+      requests += 1;
+      if (status !== 200) {
+        return HttpResponse.json({ detail: "boom" }, { status });
+      }
+      const importErrors = reappearsOnRecheck && requests > 1 ? [IMPORT_ERROR] : [];
+
+      return HttpResponse.json({ import_errors: importErrors, total_entries: importErrors.length });
+    }),
   );
   const onRecheck = vi.fn();
 
@@ -111,6 +127,13 @@ describe("FileImportError", () => {
     const onRecheck = renderWith({ fixedOnRecheck: true, hasImportError: true, status: 200 });
 
     expect(await screen.findByText(GONE)).toBeInTheDocument();
+    expect(onRecheck).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an error that came back since an empty result was fetched", async () => {
+    const onRecheck = renderWith({ hasImportError: true, reappearsOnRecheck: true, status: 200 });
+
+    expect(await screen.findByText(IMPORT_ERROR.stack_trace)).toBeInTheDocument();
     expect(onRecheck).toHaveBeenCalledTimes(1);
   });
 

@@ -57,7 +57,7 @@ export const FileImportError = ({
   const { t: translate } = useTranslation("browse");
   const [recheckedFileloc, setRecheckedFileloc] = useState<string | undefined>(undefined);
 
-  const { data, error, isLoading } = useImportErrorServiceGetImportErrors(
+  const { data, error, isLoading, refetch } = useImportErrorServiceGetImportErrors(
     { bundleName, filename: relativeFileloc ?? "" },
     undefined,
     { enabled: relativeFileloc !== undefined },
@@ -67,7 +67,8 @@ export const FileImportError = ({
 
   // ``GET /importErrors`` leaves out errors the caller may not read, so an empty result is told
   // apart by the file list, whose count is not filtered by caller. The badge was clicked on a
-  // count that may predate a fix, so the list is refetched once before the count is trusted.
+  // count that may predate a fix, and the empty result may be cached from before the error came
+  // back, so both are refetched once before the count is trusted.
   const needsRecheck =
     relativeFileloc !== undefined &&
     data !== undefined &&
@@ -77,11 +78,11 @@ export const FileImportError = ({
 
   useEffect(() => {
     if (needsRecheck) {
-      void recheckImportError().finally(() => {
+      void Promise.all([recheckImportError(), refetch()]).finally(() => {
         setRecheckedFileloc(relativeFileloc);
       });
     }
-  }, [needsRecheck, recheckImportError, relativeFileloc]);
+  }, [needsRecheck, recheckImportError, refetch, relativeFileloc]);
 
   const close = () => {
     setRecheckedFileloc(undefined);

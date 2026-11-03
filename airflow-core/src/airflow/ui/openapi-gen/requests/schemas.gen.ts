@@ -4867,7 +4867,7 @@ export const $DagBundleDetailResponse = {
                 }
             ],
             title: 'Bundle Url',
-            description: 'A link to view the bundle at ``version``, when the bundle is configured with one.'
+            description: 'A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.'
         },
         team_name: {
             anyOf: [
@@ -5019,7 +5019,7 @@ export const $DagBundleResponse = {
                 }
             ],
             title: 'Bundle Url',
-            description: 'A link to view the bundle at ``version``, when the bundle is configured with one.'
+            description: 'A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.'
         },
         team_name: {
             anyOf: [
@@ -12260,7 +12260,7 @@ export const $DagBundleCountResponse = {
     type: 'object',
     required: ['total_entries'],
     title: 'DagBundleCountResponse',
-    description: 'Number of Dag bundles holding a Dag the caller may read.'
+    description: 'Number of Dag bundles holding a Dag or an import error the caller may read.'
 } as const;
 
 export const $DagFolderCollectionResponse = {

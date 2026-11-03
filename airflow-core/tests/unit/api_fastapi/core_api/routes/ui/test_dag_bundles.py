@@ -23,14 +23,16 @@ import pytest
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.errors import ParseImportError
 from airflow.utils.session import create_session
 
-from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags
+from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_import_errors
 
 pytestmark = pytest.mark.db_test
 
 
 def _clear() -> None:
+    clear_db_import_errors()
     clear_db_dags()
     clear_db_dag_bundles()
 
@@ -63,6 +65,28 @@ def test_counts_bundles_holding_only_stale_dags(test_client):
     assert response.json() == {"total_entries": 3}
 
 
+def _get_token(test_client, role: str) -> str:
+    auth_manager = test_client.app.state.auth_manager
+    return auth_manager._get_token_signer().generate(
+        auth_manager.serialize_user(SimpleAuthManagerUser(username=role, role=role))
+    )
+
+
+@pytest.mark.parametrize(("role", "expected_count"), [("admin", 4), ("viewer", 3)])
+def test_counts_a_bundle_whose_files_never_registered_a_dag_for_import_error_readers(
+    test_client, role, expected_count
+):
+    with create_session() as session:
+        session.add(DagBundleModel(name="bundle_broken"))
+        session.add(ParseImportError(filename="broken.py", bundle_name="bundle_broken", stacktrace="boom"))
+
+    response = test_client.get(
+        "/dagBundles/count", headers={"Authorization": f"Bearer {_get_token(test_client, role)}"}
+    )
+
+    assert response.json() == {"total_entries": expected_count}
+
+
 def test_counts_only_bundles_holding_a_readable_dag(test_client):
     with mock.patch.object(
         test_client.app.state.auth_manager,
@@ -73,19 +97,6 @@ def test_counts_only_bundles_holding_a_readable_dag(test_client):
         response = test_client.get("/dagBundles/count")
 
     assert response.json() == {"total_entries": 1}
-
-
-def test_a_viewer_may_count_bundles(test_client):
-    """Viewers lack the bundle view, so this is how the import-error dialogs learn the count."""
-    auth_manager = test_client.app.state.auth_manager
-    token = auth_manager._get_token_signer().generate(
-        auth_manager.serialize_user(SimpleAuthManagerUser(username="viewer", role="viewer"))
-    )
-
-    response = test_client.get("/dagBundles/count", headers={"Authorization": f"Bearer {token}"})
-
-    assert response.status_code == 200
-    assert response.json() == {"total_entries": 3}
 
 
 def test_should_raise_403_without_dag_read(unauthorized_test_client):

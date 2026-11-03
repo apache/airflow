@@ -16,15 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 import textwrap
-from pathlib import Path
 from unittest import mock
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
-
-import fab_permissions_doc  # noqa: E402
+import fab_permissions_doc
 
 
 def test_entity_maps_reads_views_mapped_by_assignment(tmp_path):

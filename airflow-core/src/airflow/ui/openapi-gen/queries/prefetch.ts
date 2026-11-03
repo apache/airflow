@@ -685,11 +685,13 @@ export const prefetchUseDagBundleServiceGetDagBundleFiles = (queryClient: QueryC
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
 /**
 * Get Dag Bundle Count
-* Count the Dag bundles holding a Dag the caller may read.
+* Count the Dag bundles holding a Dag or an import error the caller may read.
 *
 * Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI can tell whether a
-* bundle name is worth showing next to an import error. A bundle holding only stale Dags is
-* counted too: that is a bundle whose every file fails to import, where the name matters most.
+* bundle name is worth showing next to an import error. Stale Dags count, and so do import errors
+* in files that never registered a Dag, which ``GET /importErrors`` shows to holders of
+* ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import is where the name
+* matters most.
 * @returns DagBundleCountResponse Successful Response
 * @throws ApiError
 */

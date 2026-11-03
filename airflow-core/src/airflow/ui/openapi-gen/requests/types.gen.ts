@@ -1262,7 +1262,7 @@ export type DagBundleDetailResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when the bundle is configured with one.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1328,7 +1328,7 @@ export type DagBundleResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when the bundle is configured with one.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -3102,7 +3102,7 @@ export type DAGsRunStateCountsCollectionResponse = {
 };
 
 /**
- * Number of Dag bundles holding a Dag the caller may read.
+ * Number of Dag bundles holding a Dag or an import error the caller may read.
  */
 export type DagBundleCountResponse = {
     total_entries: number;

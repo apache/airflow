@@ -18,7 +18,7 @@
  */
 import { useDagBundleServiceGetDagBundleCount } from "openapi/queries";
 
-/** Whether the user can read Dags in more than one bundle, i.e. whether a bundle name tells anything apart. */
+/** Whether the user can read Dags or import errors in more than one bundle, i.e. whether a bundle name tells anything apart. */
 export const useHasMultipleDagBundles = (): boolean => {
   const { data } = useDagBundleServiceGetDagBundleCount();
 

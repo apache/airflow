@@ -15702,8 +15702,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          description: A link to view the bundle at ``version``, when the bundle is
-            configured with one.
+          description: A link to view the bundle at ``version``. Null when the bundle
+            has no URL template, when the template needs a version and the bundle
+            has not been refreshed yet, or when the template cannot be rendered.
         team_name:
           anyOf:
           - type: string
@@ -15820,8 +15821,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          description: A link to view the bundle at ``version``, when the bundle is
-            configured with one.
+          description: A link to view the bundle at ``version``. Null when the bundle
+            has no URL template, when the template needs a version and the bundle
+            has not been refreshed yet, or when the template cannot be rendered.
         team_name:
           anyOf:
           - type: string

@@ -55,9 +55,8 @@ TEAM_NAME = "team_a"
 # ``dag_in_git_bundle`` is seeded at ``dag_0.py``, so this is a file with a registered Dag.
 REGISTERED_FILE = "dag_0.py"
 UNREGISTERED_FILE = "broken.py"
-# A second registered file in GIT_BUNDLE. Tests that take away Dag read use it to show the bundle
-# pages are not narrowed to the Dags the caller may read.
-UNREADABLE_FILE = "secret.py"
+# A second registered file in GIT_BUNDLE, which also has an import error.
+SECOND_REGISTERED_FILE = "second.py"
 
 GIT_VERSION = "8f0e5b1c9a2d4e6f8a0b1c2d3e4f5a6b7c8d9e0f"
 REFRESHED_AT = datetime(2026, 9, 10, 12, 0, tzinfo=UTC)
@@ -69,7 +68,7 @@ WITH_DAGS = (GIT_BUNDLE, LOCAL_BUNDLE, GONE_BUNDLE, OTHER_TEAM_BUNDLE)
 REMOVED_DAG_ID = "removed_from_dag_0"
 # Sorted by name, which is the endpoint's default order.
 ALL_BUNDLES = [DAGLESS_BUNDLE, GIT_BUNDLE, GONE_BUNDLE, LOCAL_BUNDLE, OTHER_TEAM_BUNDLE]
-GIT_BUNDLE_FILES = [UNREGISTERED_FILE, REGISTERED_FILE, UNREADABLE_FILE]
+GIT_BUNDLE_FILES = [UNREGISTERED_FILE, REGISTERED_FILE, SECOND_REGISTERED_FILE]
 
 
 def _sign(url_template: str, bundle_name: str) -> str:
@@ -173,9 +172,9 @@ def bundles() -> Generator[None, None, None]:
         # A second live Dag in GIT_BUNDLE, in a file of its own.
         session.add(
             DagModel(
-                dag_id="unreadable_in_git_bundle",
-                fileloc=UNREADABLE_FILE,
-                relative_fileloc=UNREADABLE_FILE,
+                dag_id="second_in_git_bundle",
+                fileloc=SECOND_REGISTERED_FILE,
+                relative_fileloc=SECOND_REGISTERED_FILE,
                 bundle_name=GIT_BUNDLE,
                 is_paused=False,
                 is_stale=False,
@@ -199,8 +198,8 @@ def bundles() -> Generator[None, None, None]:
                 ),
                 ParseImportError(
                     bundle_name=GIT_BUNDLE,
-                    filename=UNREADABLE_FILE,
-                    stacktrace="not yours",
+                    filename=SECOND_REGISTERED_FILE,
+                    stacktrace="boom in a second file",
                     timestamp=REFRESHED_AT,
                 ),
             ]
@@ -455,8 +454,7 @@ class TestDagBundleTeamScoping:
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_lists_only_the_bundles_of_permitted_teams(self, test_client):
-        # A team member passes the unscoped check that admits them to the route, as they do
-        # under SimpleAuthManager; ``None`` also authorizes the team-less bundles.
+        # ``None`` authorizes the team-less bundles.
         with _patch_dag_bundles_view(test_client, lambda team_name: team_name in (None, TEAM_NAME)):
             body = test_client.get("/dagBundles").json()
 
@@ -477,6 +475,18 @@ class TestDagBundleTeamScoping:
             GONE_BUNDLE,
             LOCAL_BUNDLE,
         ]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_admits_a_caller_granted_the_view_for_only_one_team(self, test_client):
+        with _patch_dag_bundles_view(test_client, lambda team_name: team_name == TEAM_NAME):
+            response = test_client.get("/dagBundles")
+
+        assert response.status_code == 200
+        assert [bundle["name"] for bundle in response.json()["dag_bundles"]] == [GIT_BUNDLE]
+
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_should_raise_403_without_the_view_for_any_team(self, no_bundle_view_client):
+        assert no_bundle_view_client.get("/dagBundles").status_code == 403
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_hides_another_teams_bundles_when_the_view_ignores_the_team(self, test_client):
@@ -578,8 +588,8 @@ class TestGetDagBundleFiles:
 
         by_path = {file["relative_fileloc"]: file for file in body["dag_bundle_files"]}
         assert list(by_path) == GIT_BUNDLE_FILES
-        assert by_path[UNREADABLE_FILE]["dag_count"] == 1
-        assert by_path[UNREADABLE_FILE]["import_error_count"] == 1
+        assert by_path[SECOND_REGISTERED_FILE]["dag_count"] == 1
+        assert by_path[SECOND_REGISTERED_FILE]["import_error_count"] == 1
 
     def test_an_op_sees_a_file_that_registered_no_dag(self, op_headers, test_client):
         """The case the page most needs to show: a file that failed before defining a Dag."""
@@ -646,7 +656,7 @@ class TestGetDagBundleFiles:
         ("params", "expected"),
         [
             pytest.param({"limit": 1}, [UNREGISTERED_FILE], id="limit"),
-            pytest.param({"offset": 1}, [REGISTERED_FILE, UNREADABLE_FILE], id="offset"),
+            pytest.param({"offset": 1}, [REGISTERED_FILE, SECOND_REGISTERED_FILE], id="offset"),
             pytest.param({"limit": 1, "offset": 1}, [REGISTERED_FILE], id="limit-and-offset"),
             # ``limit`` is a non-negative int, and ``Select.limit(0)`` returns nothing, so zero
             # has to mean nothing here too rather than being read as "unlimited".

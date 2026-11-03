@@ -582,7 +582,7 @@ class DagBundleDetailResponse(BaseModel):
     bundle_url: Annotated[
         str | None,
         Field(
-            description="A link to view the bundle at ``version``, when the bundle is configured with one.",
+            description="A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.",
             title="Bundle Url",
         ),
     ]
@@ -672,7 +672,7 @@ class DagBundleResponse(BaseModel):
     bundle_url: Annotated[
         str | None,
         Field(
-            description="A link to view the bundle at ``version``, when the bundle is configured with one.",
+            description="A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.",
             title="Bundle Url",
         ),
     ]
