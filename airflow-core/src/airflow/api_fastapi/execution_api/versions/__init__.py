@@ -74,6 +74,7 @@ from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddExecutionTimeoutToTIRunContext,
     AddExternalClearTargetField,
     MakeVariableValueNonNullable,
+    AddMappedStubArgBindings,
 )
 
 bundle = VersionBundle(
@@ -85,6 +86,7 @@ bundle = VersionBundle(
         AddExternalClearTargetField,
         MakeVariableValueNonNullable,
         AddCallbackStateEndpoint,
+        AddMappedStubArgBindings,
     ),
     Version(
         "2026-10-30",

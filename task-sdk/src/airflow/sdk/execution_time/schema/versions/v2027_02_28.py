@@ -26,6 +26,8 @@ New bodies in this version:
 
 from __future__ import annotations
 
+from typing import Any
+
 from cadwyn import (
     RequestInfo,
     ResponseInfo,
@@ -36,9 +38,14 @@ from cadwyn import (
     schema,
 )
 
-from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
+from airflow.sdk.api.datamodels._generated import (
+    TIRunContext,
+    TISuccessStatePayload,
+    VariableResponse,
+    XComArgBinding,
+)
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
+from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable, StartupDetails
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -77,6 +84,12 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
 
     The supervisor-schema mirror of the execution API's ``MakeVariableValueNonNullable``,
     named apart so the two migrations are not confused.
+class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``local`` kinds, and the XCom element fields.
+
+    The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
+    the two migrations are not confused.
     """
 
     description = __doc__
@@ -93,6 +106,27 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
         if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
+        schema(XComArgBinding).field("map_index").didnt_exist,
+        schema(XComArgBinding).field("element_index").didnt_exist,
+        schema(XComArgBinding).field("mapping_key").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
+    def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``arg_bindings`` holding any shape an older runtime cannot read."""
+        ti_context = response.body.get("ti_context") or {}
+        if any(_is_mapped_binding(binding) for binding in ti_context.get("arg_bindings") or ()):
+            ti_context.pop("arg_bindings")
+
+
+def _is_mapped_binding(binding: dict[str, Any]) -> bool:
+    if binding["kind"] in ("sequence", "tuple", "local"):
+        return True
+    return binding["kind"] == "xcom" and (
+        binding.get("map_index", -1) != -1
+        or binding.get("element_index") is not None
+        or binding.get("mapping_key") is not None
+    )
 
 
 class AddXComBackendErrorType(VersionChange):

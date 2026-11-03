@@ -17,8 +17,9 @@
 """
 Positional-argument binding spec for stub (foreign-runtime) tasks.
 
-Captured at parse time from the ``@task.stub`` TaskFlow call, stored in the serialized
-Dag, and delivered to the lang-SDK runtime via ``TIRunContext.arg_bindings``.
+Captured at parse time from the ``@task.stub`` TaskFlow call, or derived per map index at
+``ti_run`` for a mapped stub, and delivered to the lang-SDK runtime via
+``TIRunContext.arg_bindings``.
 """
 
 from __future__ import annotations
@@ -64,10 +65,14 @@ class XComArgBinding(_ArgBindingBase):
     """Map index of the upstream XCom row to pull; -1 is the unmapped row."""
 
     element_index: int | None = None
-    """When set, the pulled value is a sequence and this binding takes the element at
-    this index (the stub was expanded over an unmapped upstream's output). The lang-SDK
-    side will GET the single row ``(task_id, map_index=-1)``, decode it, and take
-    ``value[element_index]``."""
+    """When set, the pulled value is a sequence and this binding takes its element at this index."""
+
+    mapping_key: str | None = None
+    """When set, the selected value is a mapping and this binding takes its entry at this key.
+
+    Applied after ``element_index``. Sent for ``expand_kwargs()`` over an upstream output, whose
+    keys are unknown until it runs, so a missing key fails the task rather than falling back to
+    the parameter's default."""
 
 
 class LiteralArgBinding(_ArgBindingBase):
@@ -83,11 +88,48 @@ class LiteralArgBinding(_ArgBindingBase):
     """True when the value was filled from the stub signature's default rather than passed in the call."""
 
 
+class XComSequenceArgBinding(_ArgBindingBase):
+    """One stub-task argument reading a mapped task's whole output as a lazy sequence."""
+
+    kind: Literal["sequence"]
+
+    task_id: str
+    """Task whose ``return_value`` rows make up the sequence; the runtime fetches them on demand."""
+
+
+TupleArgBindingPart = TypeAliasType(
+    "TupleArgBindingPart",
+    Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TupleArgBindingPart")],
+)
+
+
+class TupleArgBinding(_ArgBindingBase):
+    """One ``zip()`` element: one part per zipped argument, gathered into a single argument."""
+
+    kind: Literal["tuple"]
+
+    parts: list[TupleArgBindingPart]
+    """One part per zipped argument, in zip order; a ``fillvalue`` arrives as a literal part."""
+
+
+class LocalArgBinding(_ArgBindingBase):
+    """
+    One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.
+
+    The worker resolves it from the Dag file before the runtime starts the task.
+    """
+
+    kind: Literal["local"]
+
+
 # A named alias with an explicit title so the union lands in every schema as its own
 # named definition, which the supervisor-schema dump dedups with its task-sdk twin by title.
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
-    Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")],
+    Annotated[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding,
+        Field(discriminator="kind", title="TaskArgBinding"),
+    ],
 )
 """One positional argument of a stub (foreign-runtime) task, in declaration order."""
 

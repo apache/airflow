@@ -21,12 +21,14 @@ from cadwyn import (
     RequestInfo,
     ResponseInfo,
     VersionChange,
+    VersionChangeWithSideEffects,
     convert_request_to_next_version_for,
     convert_response_to_previous_version_for,
     endpoint,
     schema,
 )
 
+from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import XComArgBinding
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
 
@@ -79,6 +81,12 @@ class MakeVariableValueNonNullable(VersionChange):
 
     A Variable read never returned null; a missing Variable is a 404. Setting a Variable to null
     stored the string ``"None"``. Older clients may still send null, which keeps doing that.
+class AddMappedStubArgBindings(VersionChangeWithSideEffects):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``local`` kinds, and the XCom element fields.
+
+    Older clients keep the earlier behavior: a mapped stub gets no ``arg_bindings``, and a run context
+    holding any of the new shapes drops ``arg_bindings`` entirely.
     """
 
     description = __doc__
@@ -102,4 +110,23 @@ class AddCallbackStateEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+        schema(XComArgBinding).field("map_index").didnt_exist,
+        schema(XComArgBinding).field("element_index").didnt_exist,
+        schema(XComArgBinding).field("mapping_key").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
+    def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``arg_bindings`` holding any shape an older client cannot read."""
+        if any(_is_mapped_binding(binding) for binding in response.body.get("arg_bindings") or ()):
+            response.body.pop("arg_bindings")
+
+
+def _is_mapped_binding(binding: dict) -> bool:
+    if binding["kind"] in ("sequence", "tuple", "local"):
+        return True
+    return binding["kind"] == "xcom" and (
+        binding.get("map_index", -1) != -1
+        or binding.get("element_index") is not None
+        or binding.get("mapping_key") is not None
     )

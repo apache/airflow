@@ -51,6 +51,7 @@ def get_bundle() -> VersionBundle:
         AddExternalClearTargetToSucceedTask,
         AddXComBackendErrorType,
         MakeSupervisorVariableValueNonNullable,
+        AddMappedStubArgBindingsToSupervisorTIRunContext,
     )
 
     return VersionBundle(
@@ -61,6 +62,7 @@ def get_bundle() -> VersionBundle:
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,
             AddXComBackendErrorType,
+            AddMappedStubArgBindingsToSupervisorTIRunContext,
         ),
         Version(
             "2026-10-30",

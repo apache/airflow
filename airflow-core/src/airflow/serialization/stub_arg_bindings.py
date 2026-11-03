@@ -23,9 +23,10 @@ gets its ordered positional-argument spec built here, from the live operator's a
 ``OperatorSerialization._serialize_node`` the same way ``is_stub`` itself is derived, so no
 provider needs to duplicate this against the execution API's ``TaskArgBinding`` schema.
 
-A mapped (``.expand()``) stub cannot have its values resolved at parse time, so it instead
-captures per-parameter metadata (declaration order, defaults, value schemas) that ti_run
-combines with the serialized expand input to derive the spec per map index.
+A stub whose values differ per map index (a mapped stub, or one inside a mapped task group)
+cannot have them resolved at parse time, so it instead captures per-parameter metadata
+(declaration order, defaults, value schemas, and for a task group member its call arguments)
+that ti_run combines with the serialized Dag to derive the spec per map index.
 """
 
 from __future__ import annotations
@@ -45,8 +46,8 @@ from pydantic.json_schema import GenerateJsonSchema
 
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk import XComArg
+from airflow.sdk.definitions._internal.expandinput import MappedArgument
 from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
-from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 if TYPE_CHECKING:
@@ -193,31 +194,33 @@ def _ensure_json_literal(value: Any, task_id: str, name: str) -> None:
         )
 
 
-def _validate_xcom_value(value: Any, task_id: str, name: str, *, allow_mapped_upstream: bool = False) -> bool:
-    """Validate an XComArg argument, returning True when it is a bindable direct upstream output."""
-    if isinstance(value, PlainXComArg):
-        if value.key != XCOM_RETURN_KEY:
+def _validate_xcom_value(value: Any, task_id: str, name: str) -> bool:
+    """Validate an XComArg argument, returning True when *value* is one."""
+    if not isinstance(value, XComArg):
+        return False
+    for operator, key in value.iter_references():
+        if key != XCOM_RETURN_KEY:
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} references the XCom key "
-                f"{value.key!r}; only an upstream task's return value can cross the language "
-                "boundary -- indexing an output by a custom key is not supported"
+                f"{key!r} of task {operator.task_id!r}; only an upstream task's return value can "
+                "cross the language boundary -- indexing an output by a custom key is not supported"
             )
-        # isinstance, not .is_mapped: Airflow 2.11 operators have no is_mapped attribute.
-        if isinstance(value.operator, MappedOperator) and not allow_mapped_upstream:
-            raise ValueError(
-                f"@task.stub task {task_id!r} parameter {name!r} references the aggregated "
-                f"output of the mapped task {value.operator.task_id!r}; a foreign runtime "
-                "pulls single XCom rows, so a mapped upstream's combined output is not "
-                "supported -- use .expand() on the stub to consume it per element"
-            )
-        return True
-    if isinstance(value, XComArg):
-        raise ValueError(
-            f"@task.stub task {task_id!r} parameter {name!r} received a "
-            f"{type(value).__name__}; only direct upstream task outputs can cross the "
-            "language boundary -- .map()/.zip()/.concat() results are not supported"
-        )
-    return False
+    return True
+
+
+def _validate_value(value: Any, task_id: str, name: str) -> None:
+    if not _validate_xcom_value(value, task_id, name):
+        _ensure_json_literal(value, task_id, name)
+
+
+def _build_xcom_binding(value: XComArg, name: str) -> dict[str, Any]:
+    """Bind the whole output of *value*, for a stub whose arguments are the same at every map index."""
+    if not isinstance(value, PlainXComArg):
+        # Only the worker can apply map() callables or assemble a zip()/concat() result.
+        return {"name": name, "kind": "local"}
+    if value.operator.get_needs_expansion():
+        return {"name": name, "kind": "sequence", "task_id": value.operator.task_id}
+    return {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
 
 
 def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
@@ -225,13 +228,14 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
     Bind the TaskFlow call arguments to the stub signature and build the ordered arg spec.
 
     The caller owns the precondition: ``OperatorSerialization._serialize_node`` calls this only for
-    a non-mapped ``DecoratedOperator`` flagged ``is_stub``, and nothing here re-checks it.
+    a non-mapped ``DecoratedOperator`` flagged ``is_stub`` outside any mapped task group, and
+    nothing here re-checks it.
 
     Each spec entry is a plain dict matching one variant of the execution API's
-    ``TaskArgBinding`` union: an ``XComArgBinding`` (``kind="xcom"``) for upstream TaskFlow
-    outputs, or a ``LiteralArgBinding`` (``kind="literal"``) for everything else. ``name`` is
-    always the stub function's parameter name, so a foreign runtime can bind by name in
-    addition to the existing positional order.
+    ``TaskArgBinding`` union: ``xcom`` for an unmapped upstream's output, ``sequence`` for a
+    mapped upstream's whole output, ``local`` for a ``map()``/``zip()``/``concat()`` result, and
+    ``literal`` for everything else. ``name`` is always the stub function's parameter name, so a
+    foreign runtime can bind by name in addition to the existing positional order.
 
     Returns ``None`` for argless calls: the binding contract (including the signature checks
     below) applies only once a TaskFlow call actually passes arguments, so pre-TaskFlow stub
@@ -245,18 +249,6 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
     if not op_args and not op_kwargs:
         return None
 
-    # Direct .expand() on the stub needs no spec here (ti_run derives per-map-index
-    # bindings from the serialized expand input), but a mapped task group creates
-    # per-map-index instances of the tasks inside it with no expand input of their own,
-    # so their arg values are unresolvable both here and server-side.
-    if op.get_closest_mapped_task_group() is not None:
-        raise ValueError(
-            f"@task.stub task {task_id!r} passes TaskFlow call arguments inside a mapped "
-            "task group; the captured spec cannot carry values that resolve per map index at "
-            "runtime, so stub tasks with arguments are not supported under a task group's "
-            ".expand()"
-        )
-
     op_signature = signature(python_callable)
     _validate_stub_signature(op_signature, task_id)
 
@@ -269,80 +261,124 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
     spec: list[dict[str, Any]] = []
     for name in op_signature.parameters:
         value = bound.arguments[name]
-        value_schema = _infer_value_schema(annotations[name])
         if _validate_xcom_value(value, task_id, name):
-            xcom_entry: dict[str, Any] = {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
-            if value_schema is not None:
-                xcom_entry["value_schema"] = value_schema
-            spec.append(xcom_entry)
-            continue
-        _ensure_json_literal(value, task_id, name)
-        entry: dict[str, Any] = {"name": name, "kind": "literal", "value": value}
-        if value_schema is not None:
+            entry = _build_xcom_binding(value, name)
+        else:
+            _ensure_json_literal(value, task_id, name)
+            entry = {"name": name, "kind": "literal", "value": value}
+            if name not in explicitly_bound:
+                entry["from_default"] = True
+        if (value_schema := _infer_value_schema(annotations[name])) is not None:
             # Key omission (never ``None``) is the wire contract for "unconstrained":
             # ti_run responds with ``exclude_unset``, so an absent key stays absent.
             entry["value_schema"] = value_schema
-        if name not in explicitly_bound:
-            entry["from_default"] = True
         spec.append(entry)
     return spec
 
 
+def _build_param_entry(name: str, param: Parameter, annotation: Any, task_id: str) -> dict[str, Any]:
+    entry: dict[str, Any] = {"name": name}
+    if (value_schema := _infer_value_schema(annotation)) is not None:
+        entry["value_schema"] = value_schema
+    if param.default is not Parameter.empty:
+        _ensure_json_literal(param.default, task_id, name)
+        entry["default"] = param.default
+    return entry
+
+
 def build_mapped_arg_binding_params(op: DecoratedMappedOperator) -> list[dict[str, Any]] | None:
     """
-    Build the ordered per-parameter metadata for a mapped (``.expand()``) stub task.
+    Build the ordered per-parameter metadata for a mapped (``.expand()``/``.expand_kwargs()``) stub task.
 
     The caller owns the precondition: ``OperatorSerialization.serialize_mapped_operator`` calls
     this only for a decorated mapped operator flagged ``is_stub``, and nothing here re-checks it.
 
     Per-map-index values only resolve at run time, so unlike ``build_arg_bindings`` this captures
     what the server-side derivation cannot recover from the serialized Dag alone: the declaration
-    order the wire contract promises, defaults for parameters no kwarg covers, and each
-    parameter's value schema. Returns ``None`` for parameterless stubs (the legacy fan-out shape
-    whose call args were always ignored keeps serializing).
+    order the wire contract promises, each parameter's default, and its value schema. Returns
+    ``None`` for parameterless stubs (the legacy fan-out shape whose call args were always ignored
+    keeps serializing).
     """
     python_callable = op.python_callable
     task_id = op.task_id
     partial_op_kwargs = op.partial_kwargs.get("op_kwargs") or {}
-    expand_input = op._get_specified_expand_input()
+    expand_value = op._get_specified_expand_input().value
 
     op_signature = signature(python_callable)
     if not op_signature.parameters:
         return None
     _validate_stub_signature(op_signature, task_id)
-    if not isinstance(expand_input.value, Mapping):
-        # expand_kwargs() carries a list (or upstream XCom) of kwarg dicts whose
-        # parameter names are unknowable at parse time.
-        raise ValueError(
-            f"@task.stub task {task_id!r} does not support expand_kwargs(); the parameter "
-            "binding must be derivable at parse time, so use .expand() with explicit kwargs"
-        )
-    expand_kwargs = expand_input.value
 
+    if isinstance(expand_value, Mapping):
+        call_kwargs = {**partial_op_kwargs, **expand_value}
+    else:
+        # expand_kwargs(): the per-index mappings bind at run time, so only check the ones written
+        # in the Dag file.
+        call_kwargs = partial_op_kwargs
+        if not isinstance(expand_value, XComArg):
+            for mapping in expand_value:
+                if isinstance(mapping, XComArg):
+                    _validate_xcom_value(mapping, task_id, "expand_kwargs()")
+                    continue
+                if unknown := set(mapping).difference(op_signature.parameters):
+                    raise ValueError(
+                        f"@task.stub task {task_id!r} expand_kwargs() mapping passes unknown "
+                        f"parameters {sorted(unknown)}"
+                    )
+                for name, value in mapping.items():
+                    _validate_value(value, task_id, name)
+        else:
+            _validate_xcom_value(expand_value, task_id, "expand_kwargs()")
     try:
-        bound = op_signature.bind(**{**partial_op_kwargs, **expand_kwargs})
+        bound = op_signature.bind_partial(**call_kwargs)
     except TypeError as e:
         raise ValueError(f"@task.stub task {task_id!r} TaskFlow mapping does not bind to its signature: {e}")
-    bound.apply_defaults()
+    if isinstance(expand_value, Mapping):
+        bound.apply_defaults()
+        if missing := set(op_signature.parameters).difference(bound.arguments):
+            raise ValueError(
+                f"@task.stub task {task_id!r} TaskFlow mapping does not bind to its signature: "
+                f"missing parameters {sorted(missing)}"
+            )
 
     annotations = _resolve_param_annotations(python_callable, op_signature)
-
     params: list[dict[str, Any]] = []
-    for name in op_signature.parameters:
-        entry: dict[str, Any] = {"name": name}
-        if (value_schema := _infer_value_schema(annotations[name])) is not None:
-            entry["value_schema"] = value_schema
-        if name in expand_kwargs:
-            # The whole expanded collection ships through XCom/serialization; an upstream
-            # output is consumed per element, so a mapped upstream is fine here.
-            if not _validate_xcom_value(expand_kwargs[name], task_id, name, allow_mapped_upstream=True):
-                _ensure_json_literal(expand_kwargs[name], task_id, name)
-        elif name in partial_op_kwargs:
-            if not _validate_xcom_value(partial_op_kwargs[name], task_id, name):
-                _ensure_json_literal(partial_op_kwargs[name], task_id, name)
-        else:
-            default = bound.arguments[name]
-            _ensure_json_literal(default, task_id, name)
-            entry["default"] = default
+    for name, param in op_signature.parameters.items():
+        if name in call_kwargs:
+            _validate_value(call_kwargs[name], task_id, name)
+        params.append(_build_param_entry(name, param, annotations[name], task_id))
+    return params
+
+
+def build_task_group_arg_binding_params(op: DecoratedOperator) -> list[dict[str, Any]] | None:
+    """
+    Build the ordered per-parameter metadata for an unmapped stub task inside a mapped task group.
+
+    Its arguments can name the group's expand arguments or outputs of tasks in the same group,
+    which resolve per map index, so each entry also records the call argument: ``value`` for a
+    literal or an upstream output, and ``group_arg`` for an expand argument of an enclosing group.
+    Returns ``None`` for argless calls, as ``build_arg_bindings`` does.
+    """
+    python_callable = op.python_callable
+    task_id = op.task_id
+    if not op.op_args and not op.op_kwargs:
+        return None
+
+    op_signature = signature(python_callable)
+    _validate_stub_signature(op_signature, task_id)
+    bound = op_signature.bind(*op.op_args, **op.op_kwargs)
+
+    annotations = _resolve_param_annotations(python_callable, op_signature)
+    params: list[dict[str, Any]] = []
+    for name, param in op_signature.parameters.items():
+        entry = _build_param_entry(name, param, annotations[name], task_id)
+        if name in bound.arguments:
+            value = bound.arguments[name]
+            if isinstance(value, MappedArgument):
+                group = next(g for g in op.iter_mapped_task_groups() if g._expand_input is value._input)
+                entry["group_arg"] = {"group_id": group.group_id, "key": value._key}
+            else:
+                _validate_value(value, task_id, name)
+                entry["value"] = value
         params.append(entry)
     return params
