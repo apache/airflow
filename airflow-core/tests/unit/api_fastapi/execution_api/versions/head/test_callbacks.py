@@ -160,9 +160,10 @@ class TestUpdateCallbackState:
 
     @pytest.mark.parametrize(
         "state",
-        [CallbackState.QUEUED, CallbackState.PENDING, CallbackState.SUCCESS, CallbackState.FAILED],
+        [CallbackState.QUEUED, CallbackState.PENDING, CallbackState.FAILED],
     )
     def test_only_a_running_callback_can_be_reported(self, client, session, running_callback, state):
+        """A row that is neither RUNNING nor already in the reported state is refused."""
         running_callback.state = state
         session.commit()
 
@@ -178,6 +179,41 @@ class TestUpdateCallbackState:
         session.expire_all()
         session.refresh(running_callback)
         assert running_callback.state == state
+
+    @pytest.mark.parametrize("state", [CallbackState.SUCCESS, CallbackState.FAILED])
+    def test_repeat_report_of_the_same_state_is_accepted(self, client, session, running_callback, state):
+        """A retry after a lost response must not look like a failure to the supervisor."""
+        running_callback.state = state
+        running_callback.output = "reported on the first attempt"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/callbacks/{running_callback.id}/state",
+            json={"state": str(state), "output": "reported on the first attempt"},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        session.refresh(running_callback)
+        assert running_callback.state == state
+        assert running_callback.output == "reported on the first attempt"
+
+    def test_repeat_report_replaces_output_written_by_the_scheduler(self, client, session, running_callback):
+        """The scheduler can reach FAILED first with a placeholder; the real output still wins."""
+        running_callback.state = CallbackState.FAILED
+        running_callback.output = "Execution failed"
+        session.commit()
+
+        response = client.patch(
+            f"/execution/callbacks/{running_callback.id}/state",
+            json={"state": "failed", "output": "exited with code 3"},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        session.refresh(running_callback)
+        assert running_callback.state == CallbackState.FAILED
+        assert running_callback.output == "exited with code 3"
 
     def test_returns_404_for_nonexistent(self, client):
         response = client.patch(
