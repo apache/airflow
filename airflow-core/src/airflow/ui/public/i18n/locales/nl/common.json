@@ -516,8 +516,8 @@
   "taskInstance_one": "Taakinstantie",
   "taskInstance_other": "Taakinstanties",
   "teams": {
-    "more_one": "en {{count}} meer",
-    "more_other": "en {{count}} meer",
+    "more_one": "en {{count, number}} meer",
+    "more_other": "en {{count, number}} meer",
     "none": "Geen team",
     "title": "Teams"
   },

@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "Bekijk minder",
     "seeMoreContext": "Bekijk meer",
-    "showMoreAlerts_one": "+{{count}} andere waarschuwing",
-    "showMoreAlerts_other": "+{{count}} meer waarschuwingen"
+    "showMoreAlerts_one": "+{{count, number}} andere waarschuwing",
+    "showMoreAlerts_other": "+{{count, number}} meer waarschuwingen"
   },
   "deadlines": {
     "pending": {
@@ -40,8 +40,8 @@
       "bundles": "Bundels",
       "hostname": "Host",
       "team": "Team",
-      "title_one": "{{title}} — {{status}} ({{count}} instantie)",
-      "title_other": "{{title}} — {{status}} ({{count}} instanties)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} instantie)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} instanties)",
       "unknownHostname": "Onbekende host"
     },
     "lastHeartbeat": "Laatste hartslag",

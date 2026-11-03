@@ -33,8 +33,8 @@
       "importErrorForbidden": "Je hebt geen rechten om deze importfout te bekijken.",
       "importErrorGone": "Deze importfout wordt niet langer geregistreerd. Waarschijnlijk is het opgelost door een herparsing.",
       "neverParsed": "Nooit",
-      "showImportError_one": "Bekijk {{count}} fout",
-      "showImportError_other": "Bekijk {{count}} fouten"
+      "showImportError_one": "Bekijk {{count, number}} fout",
+      "showImportError_other": "Bekijk {{count, number}} fouten"
     },
     "inactive": "Inactief",
     "neverRefreshed": "Nooit",
