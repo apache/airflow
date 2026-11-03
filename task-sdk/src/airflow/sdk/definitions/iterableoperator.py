@@ -22,6 +22,7 @@ import copy
 import os
 import threading
 import time
+from collections import OrderedDict
 from collections.abc import (
     AsyncIterator,
     Awaitable,
@@ -211,7 +212,15 @@ class CheckpointBatch:
     @classmethod
     def read(cls, store: TaskStateStoreAccessor, number: int) -> CheckpointBatch | None:
         """Read the batch numbered ``number``, or None when it is missing or not a batch."""
-        value = store.get(f"{cls.KEY_PREFIX}{number}")
+        return cls._of(number, store.get(f"{cls.KEY_PREFIX}{number}"))
+
+    @classmethod
+    async def aread(cls, store: TaskStateStoreAccessor, number: int) -> CheckpointBatch | None:
+        """:meth:`read` from inside the event loop, where the synchronous store call would block it."""
+        return cls._of(number, await store.aget(f"{cls.KEY_PREFIX}{number}"))
+
+    @classmethod
+    def _of(cls, number: int, value: Any) -> CheckpointBatch | None:
         if not isinstance(value, Mapping):
             return None
         try:
@@ -260,25 +269,83 @@ class EarlierCheckpoints:
 
     The batches are read in order until the first missing or unreadable one, the latest entry of an
     index winning: an index run again after a clear appears in several.
+
+    The values a checkpoint carries (the result and the other pushed XComs) are not kept from that
+    read: on a large input they are the whole dataset, gigabytes a retry would hold for its full
+    length. An entry without values is kept as it is; for one with values only the number of its
+    batch is, and the batch is fetched again when one of its indexed tasks is replayed. The last
+    :attr:`CACHED_BATCHES` batches fetched stay in memory: batches follow completion order and the
+    indexed tasks are replayed about in index order, so each batch is fetched about once. A retry
+    therefore holds :attr:`CACHED_BATCHES` batches plus the indexed tasks in flight, not the dataset.
     """
 
+    #: How many fetched batches stay in memory while their indexed tasks are replayed. Two are enough
+    #: for the indexed tasks in flight to straddle a batch boundary without fetching a batch twice;
+    #: each batch more costs a batch of memory and saves no read.
+    CACHED_BATCHES: ClassVar[int] = 2
+
     def __init__(self) -> None:
-        self._outcomes: dict[int, Any] = {}
+        self._store: TaskStateStoreAccessor | None = None
+        # The entries without values, as stored.
+        self._entries: dict[int, Any] = {}
+        # The batch number of the entries with values.
+        self._batch_numbers: dict[int, int] = {}
+        self._cached: OrderedDict[int, Mapping[int, Any]] = OrderedDict()
+        # A fetch in flight per batch number, which the indexed tasks replayed meanwhile await
+        # instead of fetching the batch again.
+        self._fetches: dict[int, asyncio.Future[Mapping[int, Any]]] = {}
         #: How many batches were read, which is the number the next batch gets.
         self.count = 0
 
     def read(self, store: TaskStateStoreAccessor) -> None:
+        self._store = store
         while (batch := CheckpointBatch.read(store, self.count)) is not None:
-            self._outcomes.update(batch.outcomes)
+            for index, raw in batch.outcomes.items():
+                if IndexedTaskState.holds_values(raw):
+                    self._batch_numbers[index] = batch.number
+                    self._entries.pop(index, None)
+                else:
+                    self._entries[index] = raw
+                    self._batch_numbers.pop(index, None)
             self.count += 1
 
-    def state_of(self, index: int) -> IndexedTaskState | None:
+    async def state_of(self, index: int) -> IndexedTaskState | None:
         """
         Return the checkpoint of ``index``, or None when it has none.
 
-        Raises :class:`CheckpointDeserializationError` when the checkpoint cannot be restored.
+        A checkpoint with values is fetched with its batch; a batch gone since it was read (expired)
+        leaves the indexed task without a checkpoint, so it runs again. Raises
+        :class:`CheckpointDeserializationError` when the checkpoint cannot be restored.
         """
-        return IndexedTaskState.deserialize(self._outcomes.get(index))
+        if (number := self._batch_numbers.get(index)) is None:
+            return IndexedTaskState.deserialize(self._entries.get(index))
+        return IndexedTaskState.deserialize((await self._outcomes_of(number)).get(index))
+
+    async def _outcomes_of(self, number: int) -> Mapping[int, Any]:
+        if (outcomes := self._cached.get(number)) is not None:
+            self._cached.move_to_end(number)
+            return outcomes
+        fetch = self._fetches.get(number)
+        # A fetch of an earlier pass, whose event loop has closed since (a kill or a deferral during
+        # the fetch), is never awaited from this one.
+        if fetch is None or fetch.get_loop() is not asyncio.get_running_loop():
+            fetch = self._fetches[number] = asyncio.ensure_future(self._fetch(number))
+            fetch.add_done_callback(
+                lambda done: self._fetches.pop(number, None) if self._fetches.get(number) is done else None
+            )
+        # Shielded: an indexed task cancelled while it waits does not cancel the fetch the others
+        # wait for.
+        return await asyncio.shield(fetch)
+
+    async def _fetch(self, number: int) -> Mapping[int, Any]:
+        if self._store is None:
+            raise RuntimeError("EarlierCheckpoints.read() must run before a checkpoint is fetched")
+        batch = await CheckpointBatch.aread(self._store, number)
+        outcomes = batch.outcomes if batch is not None else {}
+        self._cached[number] = outcomes
+        while len(self._cached) > self.CACHED_BATCHES:
+            self._cached.popitem(last=False)
+        return outcomes
 
 
 class CheckpointBatches:
@@ -407,7 +474,8 @@ class Checkpoints:
     The outcomes are written a round of ``task_concurrency`` at a time (see :class:`CheckpointBatches`),
     each round as one ``_iterable_batch_<n>`` key in the ``task_state_store`` table, or behind a
     reference with a ``[workers] state_store_backend``: a run makes about ``input length /
-    task_concurrency`` writes, and a retry about as many reads, instead of one per index. The marker
+    task_concurrency`` writes, and a retry about as many reads, instead of one per index, plus one
+    more per batch whose values it replays (see :class:`EarlierCheckpoints`). The marker
     is written after the last batch. A last batch that cannot be written is logged and the marker still
     written: the attempt's indexed tasks did finish, and on a retry those without a checkpoint run
     again, as they would without the marker.
@@ -480,9 +548,9 @@ class Checkpoints:
         """
         return checkpoint.try_number >= self.since and checkpoint.fingerprint == input_fingerprint
 
-    def read(self, task: IndexedTaskInstance) -> IndexedTaskState | None:
+    async def read(self, task: IndexedTaskInstance) -> IndexedTaskState | None:
         """Return the checkpoint an earlier attempt left for ``task`` (see :class:`EarlierCheckpoints`)."""
-        return self.earlier.state_of(task.index)
+        return await self.earlier.state_of(task.index)
 
     async def record(self, task: IndexedTaskInstance, state: IndexedTaskState) -> None:
         """Record ``task``'s outcome; it is written with its round (see :class:`CheckpointBatches`)."""
@@ -1035,7 +1103,7 @@ class IndexedTaskLifecycle:
         task = self.task
         log = self._run.log
         try:
-            indexed_task_state = self._run.checkpoints.read(task)
+            indexed_task_state = await self._run.checkpoints.read(task)
         except CheckpointDeserializationError as e:
             # Refused on this attempt, it is refused on every one: kept as the outcome, the indexed
             # task could never finish again, so it runs as if there were no checkpoint.

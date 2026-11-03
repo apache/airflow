@@ -439,9 +439,11 @@ Each indexed task records a checkpoint when it finishes, and the checkpoints are
 task state store a round of ``task_concurrency`` at a time, as one entry per round, plus one for
 what is left when the attempt ends. A run over ``n`` items makes about ``n / task_concurrency``
 writes instead of ``n``, and a retry reads them back once, when it starts: indexed tasks that
-succeeded or skipped keep that outcome, and only the others run again. A round that cannot be
-written is kept and written with the next one. An attempt killed hard loses what it had not written
-yet, its last round unless a write failed before, and those indexed tasks run again.
+succeeded or skipped keep that outcome, and only the others run again. The retry keeps only the
+outcomes from that read, not the results: a round's results are read again when its indexed tasks
+are replayed, a few rounds at a time, so a retry's memory does not grow with the input. A round
+that cannot be written is kept and written with the next one. An attempt killed hard loses what it
+had not written yet, its last round unless a write failed before, and those indexed tasks run again.
 
 What a clear does depends on whether it keeps the task state, where the checkpoints live:
 

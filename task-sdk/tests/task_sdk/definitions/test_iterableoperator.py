@@ -4976,6 +4976,119 @@ class TestCheckpoints:
         store.set.assert_called_once_with("_iterable_completed", self._completed(3, since=2))
 
 
+class CountingTaskStateStoreAccessor(MockTaskStateStoreAccessor):
+    """A store that counts the asynchronous reads of each key."""
+
+    def __init__(self):
+        super().__init__()
+        self.fetched: list[str] = []
+
+    async def aget(self, key: str, default: Any = None) -> Any:
+        self.fetched.append(key)
+        return await super().aget(key, default)
+
+
+class TestEarlierCheckpoints:
+    """A retry holds the light part of each checkpoint and fetches a batch's values on replay."""
+
+    @staticmethod
+    def _state(status: str = "success", try_number: int = 1, result: Any = None) -> IndexedTaskState:
+        return IndexedTaskState(
+            status=TaskInstanceState(status), fingerprint="digest", try_number=try_number, result=result
+        )
+
+    def _store(self, batches: list[list[int]]) -> CountingTaskStateStoreAccessor:
+        store = CountingTaskStateStoreAccessor()
+        for number, indices in enumerate(batches):
+            store._data[f"_iterable_batch_{number}"] = {
+                str(index): self._state(result=f"value {index}").serialize() for index in indices
+            }
+        return store
+
+    def test_reading_keeps_no_values_in_memory(self):
+        store = self._store([[0, 1], [2, 3]])
+        store._data["_iterable_batch_2"] = {"4": self._state("skipped").serialize()}
+        earlier = EarlierCheckpoints()
+
+        earlier.read(store)
+
+        assert earlier.count == 3
+        assert not earlier._cached
+        assert all("result" not in raw for raw in earlier._entries.values())
+        assert earlier._batch_numbers == {0: 0, 1: 0, 2: 1, 3: 1}
+        # The entry without values is answered from memory, without a fetch.
+        assert asyncio.run(earlier.state_of(4)).status == "skipped"
+        assert store.fetched == []
+        assert asyncio.run(earlier.state_of(3)).result == "value 3"
+        assert store.fetched == ["_iterable_batch_1"]
+
+    def test_a_batch_is_fetched_once_while_its_indices_are_replayed_in_order(self):
+        store = self._store([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+
+        async def replay():
+            return [(await earlier.state_of(index)).result for index in range(9)]
+
+        assert asyncio.run(replay()) == [f"value {index}" for index in range(9)]
+        assert store.fetched == [f"_iterable_batch_{number}" for number in range(3)]
+
+    def test_only_the_last_batches_fetched_stay_in_memory(self):
+        cached = EarlierCheckpoints.CACHED_BATCHES
+        store = self._store([[number] for number in range(cached + 2)])
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+
+        async def replay():
+            for index in range(cached + 2):
+                await earlier.state_of(index)
+
+        asyncio.run(replay())
+        assert list(earlier._cached) == list(range(2, cached + 2))
+
+    def test_indexed_tasks_replayed_together_share_one_fetch(self):
+        store = self._store([[0, 1, 2, 3]])
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+
+        async def replay():
+            return await asyncio.gather(*(earlier.state_of(index) for index in range(4)))
+
+        assert [state.result for state in asyncio.run(replay())] == [f"value {index}" for index in range(4)]
+        assert store.fetched == ["_iterable_batch_0"]
+
+    def test_a_later_entry_without_values_wins_over_an_earlier_one_with_values(self):
+        store = self._store([[0]])
+        store._data["_iterable_batch_1"] = {"0": self._state("skipped", try_number=2).serialize()}
+        store._data["_iterable_batch_2"] = {"1": self._state("skipped").serialize()}
+        store._data["_iterable_batch_3"] = {"1": self._state(try_number=2, result="value 1").serialize()}
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+
+        assert asyncio.run(earlier.state_of(0)).status == "skipped"
+        assert asyncio.run(earlier.state_of(1)).result == "value 1"
+        assert store.fetched == ["_iterable_batch_3"]
+
+    def test_a_batch_gone_since_it_was_read_leaves_its_indices_to_run_again(self):
+        store = self._store([[0]])
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+        del store._data["_iterable_batch_0"]
+
+        assert asyncio.run(earlier.state_of(0)) is None
+
+    def test_a_fetch_left_by_a_closed_event_loop_is_not_awaited(self):
+        store = self._store([[0]])
+        earlier = EarlierCheckpoints()
+        earlier.read(store)
+        # A fetch of a pass whose loop closed before it finished.
+        stale_loop = asyncio.new_event_loop()
+        earlier._fetches[0] = stale_loop.create_future()
+        stale_loop.close()
+
+        assert asyncio.run(earlier.state_of(0)).result == "value 0"
+
+
 class TestCheckpointBatches:
     """The indexed tasks' outcomes are written a round of ``task_concurrency`` at a time, one key per round."""
 
@@ -5099,9 +5212,9 @@ class TestCheckpointBatches:
         batches.flush()
 
         assert earlier.count == 2
-        assert earlier.state_of(0).try_number == 2
-        assert earlier.state_of(1) == self._state()
-        assert earlier.state_of(5) is None
+        assert asyncio.run(earlier.state_of(0)).try_number == 2
+        assert asyncio.run(earlier.state_of(1)) == self._state()
+        assert asyncio.run(earlier.state_of(5)) is None
         assert list(store._data["_iterable_batch_2"]) == ["7"]
 
     def test_a_value_that_is_no_batch_ends_the_read(self):

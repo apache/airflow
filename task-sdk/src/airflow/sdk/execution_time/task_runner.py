@@ -1123,6 +1123,11 @@ class IndexedTaskState:
             data["xcoms"] = {key: serde_serialize(value) for key, value in self.xcoms.items()}
         return data
 
+    @staticmethod
+    def holds_values(raw: Any) -> bool:
+        """Whether the stored checkpoint ``raw`` carries pushed values: a result or other XComs."""
+        return isinstance(raw, Mapping) and ("result" in raw or "xcoms" in raw)
+
     @classmethod
     def deserialize(cls, raw: Any) -> IndexedTaskState | None:
         """
