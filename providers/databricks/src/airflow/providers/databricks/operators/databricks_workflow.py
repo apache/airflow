@@ -31,7 +31,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRepairAllFailedLink,
     WorkflowJobRunLink,
     store_databricks_job_run_link,
-    store_databricks_repair_link,
 )
 from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -273,7 +272,6 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
                 metadata=self.workflow_run_metadata,
                 logger=self.log,
             )
-            store_databricks_repair_link(context=context, launch_task_id=self.task_id, logger=self.log)
 
         return {
             "conn_id": self.databricks_conn_id,
