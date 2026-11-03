@@ -125,7 +125,7 @@ __all__ = [
     "teardown",
 ]
 
-__version__ = "1.4.0"
+__version__ = "1.5.0"
 
 if TYPE_CHECKING:
     from airflow.sdk import lineage
