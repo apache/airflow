@@ -60,10 +60,6 @@ the SDK:
 
     pip install "apache-airflow-providers-common-ai[sql]>=1.0.0" "openai-agents>=0.20.0"
 
-Install them without Airflow's constraints file. It pins each provider at the version
-that was current when that Airflow was released, which can be one without
-``AirflowTools``.
-
 ``openai-agents`` 0.21 and later require ``openai`` 3. Where ``openai`` is held below 3,
 the resolver picks ``openai-agents`` 0.20, the last release that accepts ``openai`` 2.
 ``AirflowTools``, ``AirflowTraceProcessor`` and ``run_durably`` work with both.
