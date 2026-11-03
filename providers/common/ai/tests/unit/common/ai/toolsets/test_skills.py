@@ -270,14 +270,40 @@ def _calling(*tool_calls):
 _GET_CONTEXT = "airflow.providers.common.ai.toolsets.skills.get_current_context"
 
 
+class _FakeTaskInstance:
+    """Keeps what is pushed, so a later pull in the same task instance reads it back."""
+
+    task_id = "agent"
+    map_index = -1
+
+    def __init__(self, stored=None):
+        self.task = types.SimpleNamespace(do_xcom_push=True)
+        self.xcoms = {} if stored is None else {SKILLS_XCOM_KEY: stored}
+
+    def xcom_pull(self, key, task_ids, map_indexes):
+        assert (task_ids, map_indexes) == (self.task_id, self.map_index)
+        return self.xcoms.get(key)
+
+    def xcom_push(self, key, value):
+        self.xcoms[key] = value
+
+
+def _skill_entry(name, path, calls):
+    return {
+        "name": name,
+        "description": f"A {name} skill for tests.",
+        "source": {"path": os.path.realpath(path)},
+        "calls": calls,
+    }
+
+
 class TestSkillsXCom:
     @patch(_GET_CONTEXT, autospec=True)
     def test_pushes_available_skills_and_the_calls_made_for_each(self, mock_get_context, tmp_path):
         alpha = _write_skill(tmp_path, "alpha")
         (alpha / "notes.md").write_text("notes")
-        _write_skill(tmp_path, "beta")
-        ti = MagicMock()
-        ti.task.do_xcom_push = True
+        beta = _write_skill(tmp_path, "beta")
+        ti = _FakeTaskInstance()
         mock_get_context.return_value = {"ti": ti}
         model = _calling(
             ("load_skill", {"skill_name": "alpha"}),
@@ -288,36 +314,62 @@ class TestSkillsXCom:
 
         Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
 
-        ti.xcom_push.assert_called_once_with(
-            key=SKILLS_XCOM_KEY,
-            value=[
-                {
-                    "name": "alpha",
-                    "description": "A alpha skill for tests.",
-                    "source": {"path": os.path.realpath(alpha)},
-                    "calls": {"load_skill": 1, "read_skill_resource": 1},
-                },
-                {
-                    "name": "beta",
-                    "description": "A beta skill for tests.",
-                    "source": {"path": os.path.realpath(tmp_path / "beta")},
-                    "calls": {},
-                },
-            ],
-        )
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [
+            _skill_entry("alpha", alpha, {"load_skill": 1, "read_skill_resource": 1}),
+            _skill_entry("beta", beta, {}),
+        ]
 
     @patch(_GET_CONTEXT, autospec=True)
-    def test_calls_add_up_across_runs_of_one_toolset(self, mock_get_context, tmp_path):
-        _write_skill(tmp_path, "alpha")
-        ti = MagicMock()
-        ti.task.do_xcom_push = True
+    def test_counts_calls_from_the_message_history(self, mock_get_context, tmp_path):
+        # A run resumed after an approval pause or replayed on a durable retry starts in a new
+        # process, with its earlier calls given back as history rather than run again.
+        alpha = _write_skill(tmp_path, "alpha")
+        ti = _FakeTaskInstance()
         mock_get_context.return_value = {"ti": ti}
-        agent = Agent(toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])])
+        earlier = Agent(
+            _calling(("load_skill", {"skill_name": "alpha"})),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+        ).run_sync("go")
 
-        for _ in range(2):
-            agent.run_sync("go", model=_calling(("load_skill", {"skill_name": "alpha"})))
+        Agent(
+            _calling(("load_skill", {"skill_name": "alpha"})),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+        ).run_sync("go on", message_history=earlier.all_messages())
 
-        assert ti.xcom_push.call_args.kwargs["value"][0]["calls"] == {"load_skill": 2}
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"load_skill": 2})]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_replaces_its_own_stored_skills_and_keeps_the_others(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path, "alpha")
+        other = _skill_entry("other", tmp_path / "elsewhere", {"load_skill": 3})
+        ti = _FakeTaskInstance(stored=[_skill_entry("alpha", alpha, {"load_skill": 1}), other])
+        mock_get_context.return_value = {"ti": ti}
+
+        Agent(_calling(), toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {}), other]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_two_prefixed_toolsets_each_count_their_own_skills(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path / "one", "alpha")
+        beta = _write_skill(tmp_path / "two", "beta")
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        toolsets = [
+            AgentSkillsToolset(sources=[str(tmp_path / "one")]).prefixed("one"),
+            AgentSkillsToolset(sources=[str(tmp_path / "two")]).prefixed("two"),
+        ]
+        model = _calling(
+            ("one_load_skill", {"skill_name": "alpha"}),
+            ("two_load_skill", {"skill_name": "beta"}),
+        )
+
+        Agent(model, toolsets=toolsets).run_sync("go")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [
+            _skill_entry("alpha", alpha, {"load_skill": 1}),
+            _skill_entry("beta", beta, {"load_skill": 1}),
+        ]
 
     @pytest.mark.parametrize(
         "context",
@@ -347,6 +399,7 @@ class TestSkillsXCom:
         _write_skill(tmp_path, "alpha")
         ti = MagicMock()
         ti.task.do_xcom_push = True
+        ti.xcom_pull.return_value = None
         ti.xcom_push.side_effect = RuntimeError("xcom backend down")
         mock_get_context.return_value = {"ti": ti}
         cleanup = MagicMock()

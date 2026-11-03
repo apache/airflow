@@ -140,8 +140,10 @@ from an earlier one can be traced to a change in the skill between two commits.
 
 The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
 first, with a link to the skill's folder at that commit for a repository on GitHub or
-GitLab. When one toolset serves several agent runs in the same task, their calls add up
-in the same list. Nothing is published when the task sets ``do_xcom_push=False``.
+GitLab. The counts cover the whole conversation, so calls made before a tool-approval
+pause, a human-review regeneration or a durable retry still count. Several skills toolsets
+on one agent, each wrapped with ``prefixed()`` to keep their tool names apart, share the
+same list. Nothing is published when the task sets ``do_xcom_push=False``.
 
 Parameters
 ----------
