@@ -308,7 +308,7 @@ class TestBaseOperations:
     def test_execute_list_advances_by_entries_received_when_server_caps_limit(self):
         """A server with a lower ``api.maximum_page_limit`` returns fewer entries than requested;
         paging must continue from what was received or the entries in between are skipped."""
-        mock_client = Mock()
+        mock_client = Mock(spec=Client)
         mock_client.get.side_effect = [
             Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 5})),
             Mock(content=json.dumps({"hellos": [{"name": "c"}, {"name": "d"}], "total_entries": 5})),
