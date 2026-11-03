@@ -53,16 +53,16 @@ switched on with one argument. See :ref:`howto/operator:agent`.
 Installation
 ------------
 
-Install the provider with its SQL extra, and the SDK:
+Install the provider with the ``sql`` extra, which the examples' SQL toolset needs, and
+the SDK:
 
 .. code-block:: bash
 
     pip install "apache-airflow-providers-common-ai[sql]>=1.0.0" "openai-agents>=0.20.0"
 
-``AirflowTools`` and ``run_durably`` arrived in version 1.0.0 of this provider, and the
-``sql`` extra brings the SQL toolset the examples use. The constraints file of an Airflow
-release pins the provider version that was current when that Airflow was released,
-which can be older than 1.0.0, so install these two packages without it.
+Install them without Airflow's constraints file. It pins each provider at the version
+that was current when that Airflow was released, which can be one without
+``AirflowTools``.
 
 ``openai-agents`` 0.21 and later require ``openai`` 3. Where ``openai`` is held below 3,
 the resolver picks ``openai-agents`` 0.20, the last release that accepts ``openai`` 2.
