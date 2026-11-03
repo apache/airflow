@@ -849,8 +849,9 @@ signal stops a task that does not stop when asked.
 A task that can check for a stop request in a loop can leave ``onKill``, or its ``@Airflow.OnKill`` method,
 empty. The task can check ``Context.isCancelled()``, or call ``Context.awaitCancellation(timeout)`` where it
 would otherwise wait with ``Thread.sleep``. Unlike ``Thread.sleep``, ``awaitCancellation`` returns as soon as
-Airflow asks the task to stop. Only a ``StoppableTask`` can see the stop request. For any other task,
-``isCancelled`` stays false until the JVM exits, and the SDK logs a warning the first time the task calls it.
+Airflow asks the task to stop. Only a ``StoppableTask`` can call these two methods. Any other task never sees
+a stop request, because the JVM exits on the signal. If such a task calls either method, the method throws
+``IllegalStateException``.
 
 .. _java-sdk/task-state-store:
 

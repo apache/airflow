@@ -38,7 +38,6 @@ internal class Cancellation : AutoCloseable {
   private val claimed = AtomicBoolean()
   private val requested = CountDownLatch(1)
   private val signalHandled = CompletableFuture<Unit>()
-  private val warned = AtomicBoolean()
 
   @Volatile
   private var trap: AutoCloseable? = null
@@ -47,23 +46,20 @@ internal class Cancellation : AutoCloseable {
   private var hook: (() -> Unit)? = null
 
   fun check(): Boolean {
-    warnIfTaskCannotSeeRequest()
+    throwIfTaskCannotSeeRequest()
     return requested.count == 0L
   }
 
   fun await(timeout: Duration): Boolean {
-    warnIfTaskCannotSeeRequest()
+    throwIfTaskCannotSeeRequest()
     return requested.await(TimeUnit.NANOSECONDS.convert(timeout), TimeUnit.NANOSECONDS)
   }
 
-  /**
-   * The SDK catches the stop signal only for a [StoppableTask], so the JVM exits before any other task
-   * can see a stop request. Such a task compiles and runs, so this warning is the only sign that its
-   * check cannot see the request.
-   */
-  private fun warnIfTaskCannotSeeRequest() {
-    if (running === this && trap == null && warned.compareAndSet(false, true)) {
-      logger.warning("The task checked for a stop request, but only a StoppableTask can see one")
+  private fun throwIfTaskCannotSeeRequest() {
+    if (trap == null) {
+      throw IllegalStateException(
+        "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method",
+      )
     }
   }
 
@@ -120,25 +116,6 @@ internal class Cancellation : AutoCloseable {
     } finally {
       signalHandled.complete(Unit)
     }
-  }
-
-  companion object {
-    /**
-     * The stop request of the task that the server is running in this JVM. The server sets this field
-     * before the task starts. When the server is done with the task, it sets the field back to null.
-     * Every [org.apache.airflow.sdk.Context] made while the task runs keeps this instance, so a copy
-     * of a context made during the task also sees the same request. A single field is enough because
-     * the server runs one task at a time in a JVM, and a stop signal reaches the whole JVM, not one
-     * task.
-     */
-    @Volatile
-    var running: Cancellation? = null
-
-    /**
-     * Returns [running]. When the server is not running a task, for example in a unit test that calls
-     * a task directly, it returns a new [Cancellation] that nobody asks to stop.
-     */
-    fun current(): Cancellation = running ?: Cancellation()
   }
 }
 

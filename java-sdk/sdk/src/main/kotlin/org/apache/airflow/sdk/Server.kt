@@ -236,22 +236,16 @@ class CoordinatorServer(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    val cancellation = Cancellation()
-    Cancellation.running = cancellation
-    try {
-      // For a StoppableTask, the signal trap stays open until the SDK reports the task's result. If the
-      // first signal arrives during the report, it therefore cannot stop the JVM before the result is sent.
-      cancellation.use {
-        val result = runTask(bundle, startup, coordinator)
-        cancellation.finish()
-        // The task or its onKill can leave this thread interrupted. runBlocking in serve would then throw
-        // InterruptedException, and the JVM would exit with code 1 before the supervisor acknowledges the
-        // task's result.
-        Thread.interrupted()
-        coordinator.communicate<Unit>(result)
-      }
-    } finally {
-      Cancellation.running = null
+    // For a StoppableTask, the signal trap stays open until the SDK reports the task's result. If the
+    // first signal arrives during the report, it therefore cannot stop the JVM before the result is sent.
+    Cancellation().use { cancellation ->
+      val result = runTask(bundle, startup, coordinator, cancellation)
+      cancellation.finish()
+      // The task or its onKill can leave this thread interrupted. runBlocking in serve would then throw
+      // InterruptedException, and the JVM would exit with code 1 before the supervisor acknowledges the
+      // task's result.
+      Thread.interrupted()
+      coordinator.communicate<Unit>(result)
     }
   }
 
