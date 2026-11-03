@@ -23,6 +23,7 @@ from contextlib import ExitStack
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from fastapi import HTTPException
 from jwt import InvalidTokenError
 from keycloak import KeycloakPostError
 
@@ -58,6 +59,7 @@ if AIRFLOW_V_3_2_PLUS:
 else:
     TeamDetails = None  # type: ignore[assignment,misc]
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.auth.tokens import JWTValidator
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
 
@@ -292,7 +294,7 @@ class TestKeycloakAuthManager:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Browser tokens omit the Keycloak JWTs")
     @pytest.mark.asyncio
-    async def test_browser_token_without_cookies_is_not_authenticated(self, auth_manager):
+    async def test_browser_token_without_cookies_is_rejected(self, auth_manager):
         """A browser token carries no Keycloak JWTs, so it cannot stand in for the cookies."""
         browser_claims = auth_manager.serialize_user(
             KeycloakAuthManagerUser(
@@ -306,10 +308,44 @@ class TestKeycloakAuthManager:
 
         mock_token_validator = Mock()
         mock_token_validator.avalidated_claims = AsyncMock(return_value=browser_claims)
-        with patch.object(
-            KeycloakAuthManager, "_get_token_validator", Mock(return_value=mock_token_validator)
+        with (
+            patch.object(
+                KeycloakAuthManager, "_get_token_validator", Mock(return_value=mock_token_validator)
+            ),
+            pytest.raises(InvalidTokenError, match="No Keycloak tokens"),
         ):
-            assert await auth_manager.get_user_from_token("token") is None
+            await auth_manager.get_user_from_token("token")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Browser tokens omit the Keycloak JWTs")
+    @pytest.mark.asyncio
+    async def test_browser_token_without_cookies_is_refused_by_the_api(self, auth_manager):
+        """The API answers 403 "Invalid JWT token", which sends the UI to the login page, instead of a 500."""
+        from airflow.api_fastapi.core_api.security import resolve_user_from_token
+
+        browser_claims = auth_manager.serialize_user(
+            KeycloakAuthManagerUser(
+                user_id="user_id",
+                name="name",
+                access_token=keycloak_token("user_id"),
+                refresh_token="refresh_token",
+            )
+        )
+
+        mock_token_validator = Mock(spec=JWTValidator)
+        mock_token_validator.avalidated_claims = AsyncMock(return_value=browser_claims)
+        with (
+            patch.object(KeycloakAuthManager, "_get_token_validator", return_value=mock_token_validator),
+            patch(
+                "airflow.api_fastapi.core_api.security.get_auth_manager",
+                autospec=True,
+                return_value=auth_manager,
+            ),
+            pytest.raises(HTTPException) as exc_info,
+        ):
+            await resolve_user_from_token("token")
+
+        assert exc_info.value.status_code == 403
+        assert exc_info.value.detail == "Invalid JWT token"
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
@@ -325,8 +361,9 @@ class TestKeycloakAuthManager:
                 "get_user_from_token",
                 mock_get_user_from_token,
             ),
+            pytest.raises(InvalidTokenError, match="No Keycloak tokens"),
         ):
-            assert await auth_manager.get_user_from_token("token") is None
+            await auth_manager.get_user_from_token("token")
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
     @pytest.mark.asyncio
