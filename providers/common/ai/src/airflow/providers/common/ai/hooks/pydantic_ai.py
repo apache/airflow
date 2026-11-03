@@ -21,6 +21,7 @@ import concurrent.futures
 import contextvars
 import functools
 import math
+import os
 import re
 import time
 from pathlib import Path
@@ -613,9 +614,13 @@ class PydanticAIHook(BaseHook):
         unprefixed_name = _get_unprefixed_model_name(model_name)
         if backend_factory is not None:
             return backend_factory(model_name=unprefixed_name, base_url=base_url)
-        if not base_url:
-            raise ValueError(f"Connection '{self.llm_conn_id}' needs a host to load the model.")
-        return OllamaBackend(base_url, unprefixed_name)
+        # pydantic-ai's OllamaProvider falls back to OLLAMA_BASE_URL when no base_url is passed.
+        if not (ollama_url := base_url or os.getenv("OLLAMA_BASE_URL")):
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' needs a host, or the OLLAMA_BASE_URL environment "
+                "variable, to load the model."
+            )
+        return OllamaBackend(ollama_url, unprefixed_name)
 
     def ensure_model_ready(
         self,
@@ -646,7 +651,8 @@ class PydanticAIHook(BaseHook):
             still resolved from the hook argument or the connection, and a missing model still
             raises ``ValueError``.
         :raises ValueError: If *timeout* is not a positive finite number, no model is configured,
-            or *backend_factory* is not given and the connection has no host.
+            or *backend_factory* is not given and neither the connection host nor the
+            OLLAMA_BASE_URL environment variable is set.
         :raises NotImplementedError: If *backend_factory* is not given and the model's provider
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.
