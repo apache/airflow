@@ -49,6 +49,37 @@ func TestTimeDecodeMsgpack_UTC(t *testing.T) {
 	assert.Equal(t, time.UTC, time.Time(got).Location())
 }
 
+func TestTimeDecodeMsgpack_String(t *testing.T) {
+	withLocalZone(t)
+	want := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	tests := map[string]struct {
+		wire    string
+		wantErr bool
+	}{
+		"RFC 3339 Z":       {wire: "2026-01-02T03:04:05Z"},
+		"offset +00:00":    {wire: "2026-01-02T03:04:05+00:00"},
+		"offset +08:00":    {wire: "2026-01-02T11:04:05+08:00"},
+		"naive is refused": {wire: "2026-01-02T03:04:05", wantErr: true},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			raw, err := msgpack.Marshal(tc.wire)
+			require.NoError(t, err)
+
+			var got Time
+			err = msgpack.Unmarshal(raw, &got)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, want, time.Time(got))
+			assert.Equal(t, time.UTC, time.Time(got).Location())
+		})
+	}
+}
+
 func TestTimeDecodeMsgpack_Nil(t *testing.T) {
 	raw, err := msgpack.Marshal(map[string]any{"value": nil, "nullable": nil})
 	require.NoError(t, err)
