@@ -399,13 +399,8 @@ class DagBundlesManager(LoggingMixin):
                     self.log.debug("Signed URL template for bundle %s", bundle_name)
             return new_template_, new_params_
 
-        # _extract_and_sign_template can read a connection from the metadata database. For example,
-        # GitDagBundle reads its connection in its constructor, and S3DagBundle and WasbDagBundle read their
-        # connections in view_url_template(). Each of these reads goes through
-        # MetastoreBackend.get_connection, whose @provide_session wrapper gets the scoped session that
-        # sync_bundles_to_db uses and closes that session after the read. Closing the scoped session detaches
-        # every row that the session loaded. A write to a detached row is lost without an error. So call
-        # _extract_and_sign_template for every bundle before loading any row.
+        # Bundle initialization and template generation can close the shared session,
+        # detaching loaded rows. Complete them before loading rows to update.
         templates: dict[str, tuple[str | None, dict | None]] = {}
         for name in self._bundle_config:
             try:
@@ -431,9 +426,7 @@ class DagBundlesManager(LoggingMixin):
             if name in templates:
                 new_template, new_params = templates[name]
             elif bundle:
-                # Creating this bundle or building its URL template failed, so keep the stored URL fields.
-                # The bundle is still in the config, so the code below sets its row to active and applies
-                # the team from the config.
+                # Template failure does not mean the bundle was removed from configuration.
                 new_template, new_params = bundle.signed_url_template, bundle.template_params
             else:
                 continue

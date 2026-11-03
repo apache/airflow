@@ -666,12 +666,7 @@ def test_multiple_bundles_one_fails(clear_db, session):
 
 
 class BundleReadingConnection(BasicBundle):
-    """
-    Test bundle that reads a connection from the metadata database.
-
-    It reads the connection in its constructor, as ``GitDagBundle`` does, or when it builds
-    its URL template, as ``WasbDagBundle`` does.
-    """
+    """Read a connection during construction or URL-template generation."""
 
     def __init__(self, *, conn_id: str, subdir: str, read_in_constructor: bool = False, **kwargs):
         super().__init__(**kwargs)
