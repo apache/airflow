@@ -18,7 +18,8 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+import textwrap
+from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import quote, unquote, urlencode, urlsplit
 
 from airflow.exceptions import TaskInstanceNotFound
@@ -380,56 +381,13 @@ def store_databricks_job_run_link(
         logger.warning("Failed to store Databricks job run link: %s", e)
 
 
-def store_databricks_repair_link(
-    context: Context,
-    launch_task_id: str,
-    logger: Logger,
-    *,
-    task_id: str | None = None,
-) -> None:
-    """
-    Store a repair link in XCom during task execution.
-
-    Stores the single-task repair link for ``task_id``, or the repair-all link when ``task_id`` is
-    omitted. The API server renders it from XCom like any other stored link, so it needs no
-    Databricks code to do so.
-    """
-    if not AIRFLOW_V_3_1_1_PLUS:
-        return  # The repair backend is only registered on 3.1.1+ (see DatabricksWorkflowPlugin).
-
-    try:
-        ti = context["ti"]
-        if task_id is None:
-            key = WorkflowJobRepairAllFailedLink().xcom_key
-            link = _build_repair_url(ti.dag_id, ti.run_id, launch_task_id, repair_all=True)
-        else:
-            key = WorkflowJobRepairSingleTaskLink().xcom_key
-            link = _build_repair_url(ti.dag_id, ti.run_id, launch_task_id, task_id=task_id)
-        ti.xcom_push(key=key, value=link)
-        logger.info("Stored Databricks repair link in XCom: %s", link)
-    except Exception as e:
-        logger.warning("Failed to store Databricks repair link: %s", e)
-
-
-def _get_link_from_xcom(ti_key: TaskInstanceKey | None, key: str, logger: Logger) -> str:
-    if ti_key is None:
-        return ""
-    try:
-        return XCom.get_value(ti_key=ti_key, key=key) or ""
-    except Exception as e:
-        logger.warning("Failed to retrieve Databricks link from XCom: %s", e)
-        return ""
-
-
 class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
     """Constructs a link to send a request to repair all failed tasks in the Databricks workflow."""
 
     name = "Repair All Failed Tasks"
 
-    @property
-    def xcom_key(self) -> str:
-        """XCom key where the link is stored during task execution."""
-        return "databricks_repair_all_failed_link"
+    xcom_key: ClassVar[str] = "databricks_repair_all_failed_link"
+    """XCom key where the link is stored during task execution."""
 
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
@@ -439,7 +397,11 @@ class WorkflowJobRepairAllFailedLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            return _get_link_from_xcom(ti_key, self.xcom_key, self.log)
+            # Runs on the worker: the task runner pushes the returned link to XCom under ``xcom_key``
+            # when the task finishes, and the API server renders it from there.
+            if not AIRFLOW_V_3_1_1_PLUS or ti_key is None:
+                return ""  # The repair backend is only registered on 3.1.1+ (see DatabricksWorkflowPlugin).
+            return _build_repair_url(ti_key.dag_id, ti_key.run_id, ti_key.task_id, repair_all=True)
 
         if not ti_key:
             ti = get_task_instance(operator, dttm)
@@ -531,10 +493,8 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
     name = "Repair a single task"
 
-    @property
-    def xcom_key(self) -> str:
-        """XCom key where the link is stored during task execution."""
-        return "databricks_repair_single_task_link"
+    xcom_key: ClassVar[str] = "databricks_repair_single_task_link"
+    """XCom key where the link is stored during task execution."""
 
     def get_link(  # type: ignore[override]  # Signature intentionally kept this way for Airflow 2.x compatibility
         self,
@@ -544,7 +504,16 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
         ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if AIRFLOW_V_3_0_PLUS:
-            return _get_link_from_xcom(ti_key, self.xcom_key, self.log)
+            # Runs on the worker: the task runner pushes the returned link to XCom under ``xcom_key``
+            # when the task finishes, and the API server renders it from there.
+            if not AIRFLOW_V_3_1_1_PLUS or ti_key is None:
+                return ""  # The repair backend is only registered on 3.1.1+ (see DatabricksWorkflowPlugin).
+            return _build_repair_url(
+                ti_key.dag_id,
+                ti_key.run_id,
+                get_launch_task_id(operator.task_group),
+                task_id=ti_key.task_id,
+            )
 
         if not ti_key:
             ti = get_task_instance(operator, dttm)
@@ -584,8 +553,8 @@ class WorkflowJobRepairSingleTaskLink(BaseOperatorLink, LoggingMixin):
 
 
 # Airflow-3 repair backend. Flask-AppBuilder was dropped in Airflow 3, so the repair
-# action is re-implemented as a FastAPI sub-application mounted on the API server. The workflow
-# tasks store the repair links pointing at it in XCom (``store_databricks_repair_link``).
+# action is re-implemented as a FastAPI sub-application mounted on the API server. The repair
+# links' ``get_link`` builds the URLs pointing at it.
 REPAIR_URL_PREFIX = "/databricks/workflow/repair"
 
 
@@ -606,7 +575,7 @@ def _build_repair_url(
     link — the endpoint derives them server-side, so the request cannot point the repair at an
     arbitrary connection or Databricks run.
 
-    Called on the worker at task execution, so the path prefix comes from the worker's
+    The links are built on the worker (in ``get_link``), so the path prefix comes from the worker's
     ``[api] base_url``.
     """
     query: dict[str, Any] = {"launch_task_id": launch_task_id}
@@ -665,8 +634,7 @@ if AIRFLOW_V_3_1_1_PLUS:
         operator's default derivation, ``md5(dag_id__task_id)`` — correct for any task that did not
         set an explicit key (the common case).
         """
-        mapped = task_key_map.get(task_id)
-        if mapped:
+        if mapped := task_key_map.get(task_id):
             return mapped
         import hashlib
 
@@ -744,22 +712,46 @@ if AIRFLOW_V_3_1_1_PLUS:
     .cancel:hover { background: var(--bg); }
     """
 
+    # Filled with ``str.format`` after dedenting, so the multi-line stylesheet does not affect the
+    # dedent. Request-derived values are HTML-escaped by the caller.
+    _CONFIRMATION_PAGE_TEMPLATE = textwrap.dedent(
+        """\
+        <!doctype html>
+        <html lang="en">
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Repair Databricks workflow</title>
+          <style>{style}</style>
+        </head>
+        <body>
+          <main class="card">
+            <h1>Repair Databricks workflow tasks</h1>
+            <dl><dt>Dag</dt><dd>{dag_id}</dd><dt>Run</dt><dd>{run_id}</dd></dl>
+            <p>{summary}</p>
+            <form method="post" action="{action}" class="actions">
+              <a class="cancel" href="{cancel_url}">Cancel</a>
+              <button type="submit">Repair</button>
+            </form>
+          </main>
+        </body>
+        </html>
+        """
+    )
+
     def _repair_confirmation_page(
         dag_id: str, run_id: str, action: str, summary: str, cancel_url: str
     ) -> HTMLResponse:
         """Render the read-only confirmation page whose form issues the state-changing POST."""
         return HTMLResponse(
-            '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-            '<meta name="viewport" content="width=device-width, initial-scale=1">'
-            f"<title>Repair Databricks workflow</title><style>{_CONFIRMATION_PAGE_STYLE}</style>"
-            '</head><body><main class="card">'
-            "<h1>Repair Databricks workflow tasks</h1>"
-            f"<dl><dt>Dag</dt><dd>{escape(dag_id)}</dd><dt>Run</dt><dd>{escape(run_id)}</dd></dl>"
-            f"<p>{escape(summary)}</p>"
-            f'<form method="post" action="{escape(action)}" class="actions">'
-            f'<a class="cancel" href="{escape(cancel_url)}">Cancel</a>'
-            '<button type="submit">Repair</button></form>'
-            "</main></body></html>"
+            _CONFIRMATION_PAGE_TEMPLATE.format(
+                style=_CONFIRMATION_PAGE_STYLE,
+                dag_id=escape(dag_id),
+                run_id=escape(run_id),
+                summary=escape(summary),
+                action=escape(action),
+                cancel_url=escape(cancel_url),
+            )
         )
 
     @repair_app.get("/{dag_id}/{run_id}", dependencies=[Depends(_require_dag_run_edit)])

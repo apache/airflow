@@ -88,3 +88,9 @@ On Airflow 3.1.1+ the repair action is served by a FastAPI endpoint registered b
 links are stored when the tasks run, so they appear for runs executed after the provider is installed.
 Airflow 3.0 to 3.1.0 do not offer repair links. On Airflow 2 the repair action is served by the legacy
 Flask-AppBuilder view. In both cases the repair links are authorized with Dag-run edit access.
+
+.. note::
+
+    On Airflow 3 the repair endpoint reads the ``launch`` task's XCom result directly from the metadata
+    database on the API server. Repair is therefore not supported when a custom XCom backend stores XCom
+    values outside the metadata database.

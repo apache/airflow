@@ -41,7 +41,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_databricks_task_ids,
     get_launch_task_id,
     store_databricks_job_run_link,
-    store_databricks_repair_link,
 )
 
 from tests_common import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
@@ -369,49 +368,27 @@ class TestDatabricksWorkflowPluginAirflow3:
         assert "https://" not in url
         assert "host.example" not in url
 
-    @pytest.mark.parametrize(
-        ("link", "xcom_key"),
-        [
-            (WorkflowJobRepairSingleTaskLink(), "databricks_repair_single_task_link"),
-            (WorkflowJobRepairAllFailedLink(), "databricks_repair_all_failed_link"),
-        ],
-    )
-    def test_repair_link_reads_stored_url_from_xcom(self, link, xcom_key):
-        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
-        with patch("airflow.providers.databricks.plugins.databricks_workflow.XCom") as mock_xcom:
-            mock_xcom.get_value.return_value = "/databricks/workflow/repair/my_dag/run1?x=1"
-            assert link.get_link(Mock(), ti_key=ti_key) == "/databricks/workflow/repair/my_dag/run1?x=1"
-        mock_xcom.get_value.assert_called_once_with(ti_key=ti_key, key=xcom_key)
-
-    def test_repair_link_renders_empty_when_nothing_stored(self):
-        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
-        with patch("airflow.providers.databricks.plugins.databricks_workflow.XCom") as mock_xcom:
-            mock_xcom.get_value.return_value = None
-            assert WorkflowJobRepairSingleTaskLink().get_link(Mock(), ti_key=ti_key) == ""
-
-    def test_store_repair_link_single_task(self):
-        ti = Mock(dag_id="my_dag", run_id="run 1")
-        store_databricks_repair_link({"ti": ti}, "grp.launch", logger, task_id="grp.nb")
-        ti.xcom_push.assert_called_once()
-        assert ti.xcom_push.call_args.kwargs["key"] == "databricks_repair_single_task_link"
-        url = ti.xcom_push.call_args.kwargs["value"]
+    def test_repair_all_link_points_at_own_launch_task(self):
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.launch", run_id="run 1", try_number=1)
+        url = WorkflowJobRepairAllFailedLink().get_link(Mock(), ti_key=ti_key)
         assert url.startswith(f"{REPAIR_URL_PREFIX}/my_dag/run%201?")
+        assert "repair_all=true" in url
+        assert "launch_task_id=grp.launch" in url
+
+    def test_single_task_link_points_at_group_launch_task(self):
+        operator = Mock()
+        operator.task_group.get_child_by_label.return_value.task_id = "grp.launch"
+        ti_key = TaskInstanceKey(dag_id="my_dag", task_id="grp.nb", run_id="run1", try_number=1)
+        url = WorkflowJobRepairSingleTaskLink().get_link(operator, ti_key=ti_key)
+        operator.task_group.get_child_by_label.assert_called_once_with("launch")
+        assert url.startswith(f"{REPAIR_URL_PREFIX}/my_dag/run1?")
         assert "launch_task_id=grp.launch" in url
         assert "task_id=grp.nb" in url
         assert "repair_all" not in url
 
-    def test_store_repair_link_repair_all(self):
-        ti = Mock(dag_id="my_dag", run_id="run1")
-        store_databricks_repair_link({"ti": ti}, "grp.launch", logger)
-        assert ti.xcom_push.call_args.kwargs["key"] == "databricks_repair_all_failed_link"
-        url = ti.xcom_push.call_args.kwargs["value"]
-        assert "repair_all=true" in url
-        assert "launch_task_id=grp.launch" in url
-
-    def test_store_repair_link_does_not_raise_on_xcom_failure(self):
-        ti = Mock(dag_id="my_dag", run_id="run1")
-        ti.xcom_push.side_effect = Exception("xcom down")
-        store_databricks_repair_link({"ti": ti}, "grp.launch", logger, task_id="grp.nb")
+    @pytest.mark.parametrize("link", [WorkflowJobRepairAllFailedLink(), WorkflowJobRepairSingleTaskLink()])
+    def test_repair_link_empty_without_ti_key(self, link):
+        assert link.get_link(Mock(), ti_key=None) == ""
 
     def test_get_confirmation_page_does_not_mutate(self):
         """GET renders a read-only confirmation form and never repairs or clears."""
@@ -803,7 +780,7 @@ class TestDatabricksWorkflowPluginAirflow3:
 
     @pytest.mark.db_test
     def test_repair_links_survive_serialized_dag_round_trip(self, dag_maker, session):
-        """After serialization the API server renders the repair URLs the tasks stored in XCom."""
+        """After serialization the API server renders the repair URLs the worker pushed to XCom."""
         from airflow.models.serialized_dag import SerializedDagModel
         from airflow.models.xcom import XComModel
         from airflow.providers.databricks.operators.databricks import DatabricksNotebookOperator
@@ -815,16 +792,21 @@ class TestDatabricksWorkflowPluginAirflow3:
         dag_run = dag_maker.create_dagrun()
         serialized = SerializedDagModel.get_dag("repair_roundtrip", session=session)
 
-        def _xcom_ti(task_id):
-            def _push(key, value):
-                XComModel.set(
-                    key, value, dag_id=dag_run.dag_id, task_id=task_id, run_id=dag_run.run_id, session=session
-                )
-
-            return Mock(dag_id=dag_run.dag_id, run_id=dag_run.run_id, xcom_push=_push)
-
-        store_databricks_repair_link({"ti": _xcom_ti("wf.nb")}, "wf.launch", logger, task_id="wf.nb")
-        store_databricks_repair_link({"ti": _xcom_ti("wf.launch")}, "wf.launch", logger)
+        # Mirror the task runner's ``finalize``, which pushes each link's ``get_link`` result under its
+        # ``xcom_key`` on the worker.
+        for task_id in ("wf.nb", "wf.launch"):
+            task = dag_maker.dag.get_task(task_id)
+            ti_key = TaskInstanceKey(dag_run.dag_id, task_id, dag_run.run_id, try_number=1)
+            for link in task.operator_extra_links:
+                if isinstance(link, (WorkflowJobRepairAllFailedLink, WorkflowJobRepairSingleTaskLink)):
+                    XComModel.set(
+                        link.xcom_key,
+                        link.get_link(task, ti_key=ti_key),
+                        dag_id=dag_run.dag_id,
+                        task_id=task_id,
+                        run_id=dag_run.run_id,
+                        session=session,
+                    )
         session.flush()
 
         member_ti = next(ti for ti in dag_run.task_instances if ti.task_id == "wf.nb")
