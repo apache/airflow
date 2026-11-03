@@ -153,16 +153,37 @@ jobs:
           python: ${{ matrix.python-version }}
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
+      # Scheduled and dispatched canaries on main leave the explanations to dependency-upgrade-report.yml
+      # and save the constraints they checked for it. Saving them never fails this step.
       - name: "Deps: ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
         shell: bash
-        run: >
-          breeze release-management constraints-version-check
-          --python "${MATRIX_PYTHON_VERSION}"
-          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
+        run: |
+          REPORT_ARGS=(--explain-why)
+          if [[ "${INDEPENDENT_REPORT}" == "true" ]]; then
+            REPORT_ARGS=(--no-explain-why --save-constraints-to files/dependency-report)
+          fi
+          breeze release-management constraints-version-check \
+            --python "${MATRIX_PYTHON_VERSION}" \
+            --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" "${REPORT_ARGS[@]}"
         env:
           MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"
           MATRIX_CONSTRAINTS_MODE: "${{ matrix.constraints-mode }}"
+          INDEPENDENT_REPORT: >-
+            ${{ github.ref == 'refs/heads/main' &&
+                (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
           VERBOSE: "false"
+      - name: "Upload dependency report inputs"
+        if: >-
+          !cancelled() && hashFiles('files/dependency-report/constraints-commit.txt') != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: "dependency-report-inputs-${{ matrix.python-version }}-${{ matrix.constraints-mode }}\
+            -${{ inputs.use-uv }}-${{ github.run_attempt }}"
+          path: files/dependency-report/
+          if-no-files-found: error
+          retention-days: 2
+          overwrite: true
 
   push-buildx-cache-to-github-registry:
     name: Push Regular Image Cache ${{ inputs.platform }}

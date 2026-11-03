@@ -36,7 +36,6 @@ from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
-    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturnPart,
@@ -49,6 +48,8 @@ from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
 from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
+
+from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
     from pydantic_ai.toolsets.abstract import ToolsetTool
@@ -72,7 +73,7 @@ def responses_so_far(messages: list[ModelMessage]) -> int:
 
 
 def tool_returns(messages: list[ModelMessage]) -> list[ToolReturnPart]:
-    return [part for message in messages for part in message.parts if isinstance(part, ToolReturnPart)]
+    return [part for message in messages for part in message.parts if is_tool_result(part)]
 
 
 async def attempt(storage, agent: Agent[Any, Any], prompt: str = "go", **run_kwargs: Any) -> Any:
@@ -511,7 +512,7 @@ class TestAirflowToolsets:
             if fail_final[0]:
                 raise RuntimeError("worker died")
             retry = messages[-1].parts[0]
-            assert isinstance(retry, RetryPromptPart)
+            assert is_tool_retry(retry)
             return ModelResponse(parts=[TextPart(f"retry said: {retry.content}")])
 
         def build() -> Agent[None, str]:

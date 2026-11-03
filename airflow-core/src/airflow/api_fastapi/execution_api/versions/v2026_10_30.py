@@ -93,20 +93,6 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
         response.body.pop("arg_bindings", None)
 
 
-class AddExecutionTimeoutToTIRunContext(VersionChange):
-    """Add ``execution_timeout`` so the supervisor can enforce it."""
-
-    description = __doc__
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("execution_timeout").didnt_exist,
-    )
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``execution_timeout`` from the run context for older clients."""
-        response.body.pop("execution_timeout", None)
-
-
 class AddCallbackRunEndpoint(VersionChange):
     """Add the callbacks/{callback_id}/run endpoint a worker uses to exchange its single-use callback token."""
 

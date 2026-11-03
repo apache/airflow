@@ -71,15 +71,15 @@ ARG AIRFLOW_VERSION="3.3.2"
 # build fails if a version passed here does not match it. Breeze passes the Python patchlevel that
 # "breeze ci upgrade" last moved, so a new patch release also rebuilds the legacy flavor.
 ARG AIRFLOW_IMAGE_FLAVOR="hardened"
-ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:9ed60ac490ee5038920b1e69ea9adb256f9f95ca285b65800d2ddab73b6e3a1e"
+ARG BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev@sha256:cacda18986eefebc42b0c6c03565ec2d65a4507b6adff559e4daf0f1e2bfe338"
 ARG AIRFLOW_PYTHON_VERSION=""
 
 # You can swap comments between those two args to test pip from the main version
 # When you attempt to test if the version of `pip` from specified branch works for our builds
 # Also use `force pip` label on your PR to swap all places we use `uv` to `pip`
-ARG AIRFLOW_PIP_VERSION=26.2.1
+ARG AIRFLOW_PIP_VERSION=26.2.2
 # ARG AIRFLOW_PIP_VERSION="git+https://github.com/pypa/pip.git@main"
-ARG AIRFLOW_UV_VERSION=0.13.4
+ARG AIRFLOW_UV_VERSION=0.13.6
 ARG AIRFLOW_USE_UV="false"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
@@ -331,12 +331,35 @@ function prefer_hardened_apt_repository() {
     # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
     # dhi.io's build of a package it publishes, but may take a newer version from another repository
     # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
-    # ">= 18.6" and dhi.io does not carry. Pinning the base image to a digest CI has passed on keeps
-    # dhi.io and the image consistent, so the renumbering that once needed a forced "downgrade" of the
-    # image's copy (docker-hardened-images/catalog#689) no longer arises within a build.
+    # ">= 18.6" and dhi.io does not carry. The renumbered builds that sort below the image's own copy
+    # are handled by align_image_packages_with_hardened_repository instead.
     # The preference covers every apt run - this build's and those of images extending it.
     mkdir -p /etc/apt/preferences.d
     printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
+function align_image_packages_with_hardened_repository() {
+    # The dhi.io apt repository is live, so it moves on even under a base image pinned to a digest.
+    # Docker renumbered its builds ("14.2.0-19+dhi5" became "14.2.0-19+deb13u0+dhi5", which sorts
+    # lower) and the repository dropped the old numbers, while the image still ships them. Packages
+    # depending on the exact new version (gcc-14 on gcc-14-base, libgmp-dev on libgmp10) are then
+    # uninstallable, because apt will not downgrade the image's copy at a priority below 1000
+    # (docker-hardened-images/catalog#689). Only installed versions no repository offers any more
+    # ("local" ones) are moved to dhi.io's build, so newer packages from other repositories - such as
+    # PGDG's libpq5 - are left alone.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ {print $2; exit}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y --no-install-recommends --allow-downgrades "${downgrades[@]}"
+    fi
 }
 
 function refresh_ldconfig_after_dpkg() {
@@ -404,6 +427,7 @@ function install_debian_dev_dependencies() {
     apt-get update
     apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -700,6 +724,7 @@ function install_debian_runtime_dependencies() {
     apt-get update
     apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -1540,6 +1565,15 @@ function install_from_sources() {
     if [[ ${VIRTUAL_ENV=} != "" ]]; then
         extra_sync_flags="--active"
     fi
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
+            echo
+            echo "${COLOR_YELLOW}Upgrade builds resolve dependencies anew; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        extra_sync_flags="${extra_sync_flags} --no-install-workspace"
+    fi
     if [[ "${UPGRADE_RANDOM_INDICATOR_STRING=}" != "" ]]; then
         if [[ ${PACKAGING_TOOL_CMD} == "pip" ]]; then
             set +x
@@ -1560,19 +1594,35 @@ function install_from_sources() {
             ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
             --no-python-downloads --no-managed-python
     else
-        set +x
-        echo
-        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
-        echo
         # Use uv sync --frozen to install exactly what is pinned in uv.lock without re-resolving.
         # --no-binary-package is needed in order to avoid libxml and xmlsec using different version of
         # libxml2 (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
+        # shellcheck disable=SC2206 # extra_sync_flags holds several flags
+        local -a frozen_sync=(uv sync --all-packages --frozen --group ci-image
+            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec
+            --no-python-downloads --no-managed-python)
+        set +x
+        # Without the workspace sources a lock that does not match the manifests cannot be re-resolved;
+        # the installation that adds the workspace packages does that later.
+        if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]] && ! "${frozen_sync[@]}" --dry-run; then
+            echo
+            echo "${COLOR_YELLOW}uv.lock does not match the dependency manifests; skipping the locked third-party installation.${COLOR_RESET}"
+            echo
+            return
+        fi
+        echo
+        echo "${COLOR_BLUE}Installing all packages from uv.lock (frozen).${COLOR_RESET}"
+        echo
         set -x
-        if ! uv sync --all-packages --frozen --group ci-image \
-            ${extra_sync_flags} --no-binary-package lxml --no-binary-package xmlsec \
-            --no-python-downloads --no-managed-python; then
+        if ! "${frozen_sync[@]}"; then
             set +x
+            if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+                echo
+                echo "${COLOR_RED}Failing because the locked third-party installation failed although uv.lock matches the dependency manifests.${COLOR_RESET}"
+                echo
+                exit 1
+            fi
             if [[ ${AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION} != "true" ]]; then
                 echo
                 echo "${COLOR_RED}Failing because frozen uv.lock installation failed and fallback is disabled.${COLOR_RESET}"
@@ -1662,6 +1712,10 @@ function install_airflow_when_building_images() {
         install_from_external_spec
     fi
     set +x
+    if [[ ${INSTALL_LOCKED_THIRD_PARTY_ONLY=} == "true" ]]; then
+        # Packaging tools and 'pip check' are handled by the installation that adds the workspace packages
+        return
+    fi
     common::install_packaging_tools
     echo
     echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"

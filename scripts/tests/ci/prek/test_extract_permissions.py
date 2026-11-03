@@ -514,6 +514,23 @@ class TestExtractFromFile:
         assert e.resource == "View.PLUGINS"
         assert e.required_permission == "PLUGINS"
 
+    def test_dag_bundles_access_is_a_view(self, tmp_path):
+        f = _make_route_file(
+            tmp_path,
+            """
+            from fastapi import Depends
+            dag_bundles_router = AirflowRouter(tags=["Dag Bundle"], prefix="/dagBundles")
+
+            @dag_bundles_router.get("", dependencies=[Depends(requires_access_dag_bundles())])
+            def get_dag_bundles(): ...
+            """,
+        )
+        entries = extract_from_file(f)
+        assert len(entries) == 1
+        e = entries[0]
+        assert e.resource == "View.DAG_BUNDLES"
+        assert e.required_permission == "DAG_BUNDLES"
+
     def test_no_dependencies_kwarg_extracted_as_public(self, tmp_path):
         f = _make_route_file(
             tmp_path,

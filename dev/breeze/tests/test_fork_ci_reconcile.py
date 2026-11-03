@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
     JOB_STATUSES_DEFERRED_NOTE,
+    RATE_LIMITED_NOTE,
     BaseGateConfigs,
     BypassFinder,
     DraftChange,
@@ -71,6 +72,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     is_own_pilot_change,
     jobs_show_project_ci,
     load_workflow_triggers,
+    log_rate_limits,
     mark_older_pilot_pull_request,
     parse_pull_request,
     pull_request_changes_ci_files,
@@ -225,12 +227,24 @@ def test_setup_required_comment_gives_the_command():
     assert "gh workflow enable ci-amd.yml -R someone/airflow" in plan.marker_comment
 
 
-def test_non_green_drafts_and_removes_review_label():
+@pytest.mark.parametrize(
+    ("fork", "draft"),
+    [
+        pytest.param(ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL), None, id="running"),
+        pytest.param(
+            ForkObservation(suite_status="COMPLETED", suite_conclusion="FAILURE", run_url=RUN_URL),
+            True,
+            id="failed",
+        ),
+        pytest.param(ForkObservation(workflow_state="disabled_fork"), True, id="setup-required"),
+    ],
+)
+def test_non_green_removes_review_label_and_drafts_only_when_the_author_must_act(fork, draft):
     pr = _pr(is_draft=False, labels=("fork ci required", "ready for maintainer review"))
 
-    plan, _, _ = _classify(pr, ForkObservation(suite_status="IN_PROGRESS", run_url=RUN_URL))
+    plan, _, _ = _classify(pr, fork)
 
-    assert plan.draft is True
+    assert plan.draft is draft
     assert plan.remove_labels == ["ready for maintainer review"]
 
 
@@ -919,8 +933,6 @@ def _finder(
         return [{"total_count": count, "workflow_runs": event_runs}]
 
     def rest_get(path, paginate=False, items_key=None):
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return list(jobs)
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
@@ -930,6 +942,7 @@ def _finder(
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = list(jobs)
     return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
 
 
@@ -938,6 +951,7 @@ def client():
     github = mock.create_autospec(GitHubClient, instance=True)
     github.repo = REPO
     github.calls = {}
+    github.rate_limited = 0
     return github
 
 
@@ -1115,9 +1129,7 @@ def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
-        TAMPERED_JOBS
-        if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"number": 42, "closed_at": None}]
+        [{"number": 42, "closed_at": None}]
         if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
@@ -1568,6 +1580,14 @@ def _suite(
     }
 
 
+def _run_json(run_id, workflow_file="ci-amd.yml", *, path=None, conclusion=None):
+    return {
+        "html_url": f"https://github.com/apache/airflow/actions/runs/{run_id}",
+        "path": path or f".github/workflows/{workflow_file}",
+        "conclusion": conclusion,
+    }
+
+
 @pytest.mark.parametrize(
     ("node", "expected"),
     [
@@ -1591,6 +1611,27 @@ def _suite(
             id="other-runs-only",
         ),
         pytest.param(
+            _project_node(
+                1,
+                suites=[
+                    _suite(7, path=".github/workflows/airflow-ctl-tests.yml"),
+                    _suite(8, path=".github/workflows/codeql.yml", created="2026-11-10T11:00:00Z"),
+                ],
+            ),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="airflow-ctl-release-branch",
+        ),
+        pytest.param(
+            _project_node(1, suites=[_suite(7, path=".github/workflows/ci-amd-arm.yml")]),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="release-branch-without-ci-amd",
+        ),
+        pytest.param(
+            _project_node(1, suites=[_suite(7, path=".github/workflows/ci.yml")]),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="v2-or-providers-release-branch",
+        ),
+        pytest.param(
             _project_node(1, suites=[_suite(7, conclusion="ACTION_REQUIRED")]),
             None,
             id="waiting-for-approval",
@@ -1605,28 +1646,37 @@ def test_find_project_ci_run_url(node, expected):
 @pytest.mark.parametrize(
     ("statuses", "runs", "expected"),
     [
-        pytest.param(
-            [],
-            [{"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}],
-            "https://github.com/apache/airflow/actions/runs/9",
-            id="run-found",
-        ),
-        pytest.param(
-            [{"context": CI_RUN_STARTED_CONTEXT, "state": "success"}],
-            [{"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}],
-            None,
-            id="already-reported",
-        ),
+        pytest.param([], [_run_json(9)], "https://github.com/apache/airflow/actions/runs/9", id="run-found"),
         pytest.param(
             [],
             [
-                {
-                    "html_url": "https://github.com/apache/airflow/actions/runs/9",
-                    "conclusion": "action_required",
-                }
+                _run_json(9, path=".github/workflows/codeql-analysis.yml"),
+                _run_json(8, "airflow-ctl-tests.yml"),
             ],
+            "https://github.com/apache/airflow/actions/runs/8",
+            id="airflow-ctl-release-branch",
+        ),
+        pytest.param(
+            [],
+            [_run_json(9, "ci-amd-arm.yml")],
+            "https://github.com/apache/airflow/actions/runs/9",
+            id="release-branch-without-ci-amd",
+        ),
+        pytest.param(
+            [],
+            [_run_json(9, "ci.yml")],
+            "https://github.com/apache/airflow/actions/runs/9",
+            id="v2-or-providers-release-branch",
+        ),
+        pytest.param(
+            [{"context": CI_RUN_STARTED_CONTEXT, "state": "success"}],
+            [_run_json(9)],
             None,
-            id="waiting-for-approval",
+            id="already-reported",
+        ),
+        pytest.param([], [_run_json(9, conclusion="action_required")], None, id="waiting-for-approval"),
+        pytest.param(
+            [], [_run_json(9, path=".github/workflows/codeql-analysis.yml")], None, id="other-runs-only"
         ),
         pytest.param([], [], None, id="no-run-yet"),
     ],
@@ -1636,10 +1686,7 @@ def test_read_project_ci_run_url(client, statuses, runs, expected):
         if path == f"repos/{REPO}/commits/sha1/status?per_page=100":
             assert (paginate, items_key) == (True, "statuses")
             return statuses
-        assert (
-            path
-            == f"repos/{REPO}/actions/workflows/ci-amd.yml/runs?event=pull_request&head_sha=sha1&per_page=1"
-        )
+        assert path == f"repos/{REPO}/actions/runs?event=pull_request&head_sha=sha1&per_page=100"
         return {"workflow_runs": runs}
 
     client.rest_get.side_effect = rest_get
@@ -1651,11 +1698,7 @@ def test_report_project_ci_runs_started_reads_a_head_commit_the_search_did_not_l
     client.graphql.return_value = _search_result(_project_node(1, suites=[_suite(7)], oid="older"))
     client.rest_get.side_effect = [
         [],
-        {
-            "workflow_runs": [
-                {"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}
-            ]
-        },
+        {"workflow_runs": [_run_json(9)]},
     ]
 
     assert report_project_ci_runs_started(client, repo=REPO, skip=set()) == [1]
@@ -1809,6 +1852,7 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
                         },
                         {
                             "createdAt": "2026-11-02T00:00:00Z",
+                            "updatedAt": "2026-11-02T00:40:00Z",
                             "status": "COMPLETED",
                             "conclusion": "SUCCESS",
                             "workflowRun": {
@@ -1848,7 +1892,12 @@ def test_fork_observations_use_the_fork_name_and_latest_suite(client):
     observations = fetch_fork_observations(client, [pr])
 
     assert observations[1] == ForkObservation(
-        suite_status="COMPLETED", suite_conclusion="SUCCESS", run_url="new", run_id=77, run_attempt=2
+        suite_status="COMPLETED",
+        suite_conclusion="SUCCESS",
+        run_url="new",
+        run_id=77,
+        run_attempt=2,
+        completed_at=datetime(2026, 11, 2, 0, 40, tzinfo=UTC),
     )
     assert client.graphql.call_args.args[1] == {"o0": "someone", "n0": "my-airflow", "s0": "sha1"}
 
@@ -2035,13 +2084,12 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
     def rest_get(path, paginate=False, items_key=None):
         if path.endswith("/actions/workflows/ci-amd.yml"):
             return {"state": "active"}
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return GATED_JOBS
         if "/compare/" in path:
             return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = GATED_JOBS
     (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
 
     run_reconcile(
@@ -2181,6 +2229,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "attention": [],
         "notes": [],
         "deferred_runs": 0,
+        "rate_limited_runs": 0,
     }
 
 
@@ -2308,7 +2357,7 @@ def _fork_job(name, status="completed", conclusion="success", url=None):
     }
 
 
-def test_build_job_statuses_reports_each_started_or_queued_job():
+def test_build_job_statuses_reports_each_finished_job():
     jobs = [
         _fork_job("Static checks"),
         _fork_job("Postgres tests: core / A", conclusion="failure"),
@@ -2328,8 +2377,6 @@ def test_build_job_statuses_reports_each_started_or_queued_job():
     } == {
         "Static checks": "success",
         "Postgres tests: core / A": "failure",
-        "Helm tests": "pending",
-        "Kubernetes tests": "pending",
         "Special tests": "failure",
     }
     assert statuses[f"{JOB_STATUS_CONTEXT_PREFIX}Static checks"][1] == "https://job/Static checks"
@@ -2362,13 +2409,14 @@ COMPLETED_RUN = ForkObservation(
 
 def _reporter_client(client, jobs, current=()):
     def rest_get(path, paginate=False, items_key=None):
-        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
-            return jobs
         if path.startswith(f"repos/{REPO}/commits/abc123/status"):
             return list(current)
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.side_effect = lambda repo, run_id: (
+        jobs if (repo, run_id) == ("someone/airflow", 1) else pytest.fail(f"{repo} run {run_id}")
+    )
     return client
 
 
@@ -2408,10 +2456,11 @@ def test_job_status_reporter_leaves_what_does_not_fit_in_the_budget_for_the_next
 
 
 def test_job_status_reporter_does_not_record_a_run_in_progress(client):
-    _reporter_client(client, [_fork_job("A", status="in_progress", conclusion=None)])
+    _reporter_client(client, [_fork_job("A"), _fork_job("B", status="in_progress", conclusion=None)])
 
     assert JobStatusReporter(client, repo=REPO).report(_pr(), RUNNING_RUN) is None
     client.set_status.assert_called_once()
+    assert client.set_status.call_args.kwargs["context"] == f"{JOB_STATUS_CONTEXT_PREFIX}A"
 
 
 @pytest.mark.parametrize(
@@ -2463,6 +2512,7 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = "7:SUCCESS"
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
@@ -2487,11 +2537,9 @@ def test_run_reconcile_reports_job_statuses_before_classifying(
     assert mock_classify.call_args.kwargs["jobs_reported"] == "7:SUCCESS"
 
 
-def test_build_job_statuses_reports_a_queued_job_like_a_running_one():
-    queued = build_job_statuses([_fork_job("A", status="queued", conclusion=None, url="u")])
-    running = build_job_statuses([_fork_job("A", status="in_progress", conclusion=None, url="u")])
-
-    assert queued == running
+@pytest.mark.parametrize("status", ["queued", "in_progress", "waiting"])
+def test_build_job_statuses_leaves_unfinished_jobs_to_the_aggregate_status(status):
+    assert build_job_statuses([_fork_job("A", status=status, conclusion=None, url="u")]) == {}
 
 
 def _stale(state):
@@ -2574,6 +2622,7 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.side_effect = GitHubError("HTTP 502")
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
 
     assert _reconcile_with_reporter(client, tmp_path) is True
 
@@ -2586,6 +2635,7 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
 def test_run_reconcile_without_job_statuses(mock_classify, mock_reporter, client, tmp_path):
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
 
     _reconcile_with_reporter(client, tmp_path, config=dataclasses.replace(CONFIG, job_statuses=False))
 
@@ -2610,6 +2660,7 @@ def test_run_reconcile_reports_deferred_job_statuses_to_slack(
     mock_classify.return_value = Plan(state=ForkState.RUNNING)
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = deferred
+    mock_reporter.return_value.delayed = []
 
     assert _reconcile_with_reporter(client, tmp_path) is has_alerts
 
@@ -2630,6 +2681,7 @@ def test_run_reconcile_reports_deferred_job_statuses_only_when_deferring_persist
     alerts = []
     for deferred in ([1], [1], [], [1], [1], [1]):
         mock_reporter.return_value.deferred = deferred
+        mock_reporter.return_value.delayed = []
         alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
 
     assert alerts == [False, False, False, False, False, True]
@@ -3143,7 +3195,7 @@ def test_run_reconcile_retries_a_pull_request_whose_head_moved(client, tmp_path)
 
 @pytest.mark.parametrize(
     ("fails", "job_status_budget"),
-    [pytest.param(False, 58, id="reported"), pytest.param(True, 30, id="fails")],
+    [pytest.param(False, 38, id="reported"), pytest.param(True, 20, id="fails")],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.report_project_ci_runs_started", autospec=True)
@@ -3157,6 +3209,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
     mock_report.return_value = [7, 8]
     mock_reporter.return_value.report.return_value = None
     mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
     client.graphql.side_effect = [
         _search_result(),
         _search_result(),
@@ -3179,7 +3232,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
 
     assert mock_classify.call_args.args[0].ci_run_at == datetime(2026, 11, 2, tzinfo=UTC)
     mock_report.assert_called_once_with(client, repo=REPO, skip={1})
-    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget)
+    mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW)
     assert has_alerts is fails
     if fails:
         assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
@@ -3220,3 +3273,99 @@ def test_older_pilot_pull_request_stays_checked_for_tampering_after_its_gated_ru
     )
 
     assert find_bypass.called
+
+
+@pytest.mark.parametrize(
+    ("resources", "logged"),
+    [
+        pytest.param(
+            {"core": {"remaining": 900, "limit": 1000}, "graphql": {"remaining": 990, "limit": 1000}},
+            "core 900/1000, graphql 990/1000",
+            id="read",
+        ),
+        pytest.param(
+            GitHubError("gh api failed: HTTP 500"), "Could not read the rate limits", id="unreadable"
+        ),
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.console_print", autospec=True)
+def test_log_rate_limits(mock_print, client, resources, logged):
+    client.rest_get.side_effect = (
+        [resources] if isinstance(resources, Exception) else [{"resources": resources}]
+    )
+
+    log_rate_limits(client)
+
+    client.rest_get.assert_called_once_with("rate_limit")
+    assert logged in mock_print.call_args.args[0]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_rate_limiting_only_when_it_persists(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
+    client.dry_run = False
+    reported_file = tmp_path / "reported.json"
+    reported_file.write_text("{}")
+    alerts = []
+    for rate_limited in (1, 0, 3, 2):
+        client.rate_limited = rate_limited
+        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+
+    assert alerts == [False, False, False, True]
+    assert RATE_LIMITED_NOTE in (tmp_path / "s.json").read_text()
+    assert json.loads(reported_file.read_text())["rate_limited_runs"] == 2
+
+
+@pytest.mark.parametrize(
+    ("completed_minutes_ago", "delayed"),
+    [
+        pytest.param(61, True, id="finished-over-an-hour-ago"),
+        pytest.param(30, False, id="finished-recently"),
+        pytest.param(None, False, id="still-running"),
+    ],
+)
+def test_job_status_reporter_reports_statuses_deferred_long_after_the_run_finished(
+    client, completed_minutes_ago, delayed
+):
+    fork = dataclasses.replace(
+        COMPLETED_RUN,
+        completed_at=None
+        if completed_minutes_ago is None
+        else NOW - timedelta(minutes=completed_minutes_ago),
+    )
+    reporter = JobStatusReporter(client, repo=REPO, budget=0, now=NOW)
+
+    assert reporter.report(_pr(), fork) is None
+
+    assert reporter.deferred == [42]
+    assert reporter.delayed == (
+        [
+            (
+                42,
+                f"job statuses of fork run {fork.run_url} are still not all posted more than 1:00:00 after it finished",
+            )
+        ]
+        if delayed
+        else []
+    )
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_delayed_job_statuses_as_attention_items(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.report.return_value = None
+    mock_reporter.return_value.deferred = [1]
+    mock_reporter.return_value.delayed = [(1, "job statuses of fork run R are still not all posted")]
+
+    assert _reconcile_with_reporter(client, tmp_path) is True
+
+    assert "job statuses of fork run R are still not all posted" in (tmp_path / "s.json").read_text()

@@ -342,6 +342,10 @@ export const UseDagBundleServiceGetDagBundleFilesKeyFn = ({ bundleName, limit, o
   limit?: number;
   offset?: number;
 }, queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleFilesKey, ...(queryKey ?? [{ bundleName, limit, offset }])];
+export type DagBundleServiceGetDagBundleCountDefaultResponse = Awaited<ReturnType<typeof DagBundleService.getDagBundleCount>>;
+export type DagBundleServiceGetDagBundleCountQueryResult<TData = DagBundleServiceGetDagBundleCountDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useDagBundleServiceGetDagBundleCountKey = "DagBundleServiceGetDagBundleCount";
+export const UseDagBundleServiceGetDagBundleCountKeyFn = (queryKey?: Array<unknown>) => [useDagBundleServiceGetDagBundleCountKey, ...(queryKey ?? [])];
 export type DagStatsServiceGetDagStatsDefaultResponse = Awaited<ReturnType<typeof DagStatsService.getDagStats>>;
 export type DagStatsServiceGetDagStatsQueryResult<TData = DagStatsServiceGetDagStatsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useDagStatsServiceGetDagStatsKey = "DagStatsServiceGetDagStats";

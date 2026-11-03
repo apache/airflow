@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
-import json
 import logging
 import os
 import selectors
@@ -54,6 +53,7 @@ from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.execution_time.bundles import initialize_ti_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
@@ -546,7 +546,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
         )
-        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
         self._arm_execution_timeout()
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
@@ -562,6 +563,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         If an XCom cannot be deleted, this try fails and the task does not run.
         """
+        self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -595,11 +597,10 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
         # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            if (size := len(json.dumps(msg.value))) > limit:
+            if _json_size_exceeds(msg.value, limit):
                 self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
-                    size=size,
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
