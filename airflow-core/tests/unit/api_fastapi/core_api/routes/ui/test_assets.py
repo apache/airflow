@@ -35,6 +35,7 @@ from airflow.models.asset import (
     AssetWatcherModel,
     DagScheduleAssetReference,
     PartitionedAssetKeyLog,
+    TaskInletAssetReference,
     TaskOutletAssetReference,
 )
 from airflow.models.dagbundle import DagBundleModel
@@ -84,8 +85,9 @@ class TestNextRunAssets:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        # 4 queries for the endpoint plus 1 to resolve the assets the caller may read.
-        with assert_queries_count(5):
+        # 4 queries for the endpoint, 1 to resolve the assets the caller may read and
+        # 1 for the caller-independent scheduling asset count.
+        with assert_queries_count(6):
             response = test_client.get("/next_run_assets/upstream")
 
         assert response.status_code == 200
@@ -118,11 +120,12 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 }
             ],
+            "scheduling_asset_count": 1,
             "pending_partition_count": None,
         }
 
     @mock.patch(
-        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets",
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
         autospec=True,
     )
     def test_asset_expression_hides_assets_the_caller_may_not_read(
@@ -161,6 +164,112 @@ class TestNextRunAssets:
         redacted = json.dumps(response.json()["asset_expression"])
         assert "hidden_asset" not in redacted
         assert "s3://bucket/hidden" not in redacted
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_should_return_only_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        with dag_maker(
+            dag_id="hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/visible", name="visible_asset"),
+                Asset(uri="s3://bucket/hidden", name="hidden_asset"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible_asset"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        response = test_client.get("/next_run_assets/hidden_upstream")
+
+        assert response.status_code == 200
+        assert [event["name"] for event in response.json()["events"]] == ["visible_asset"]
+        assert response.json()["scheduling_asset_count"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_scheduling_asset_count_is_unaffected_when_no_asset_is_readable(
+        self, mock_get_authorized_assets, test_client, dag_maker
+    ):
+        with dag_maker(
+            dag_id="all_hidden_upstream",
+            schedule=[
+                Asset(uri="s3://bucket/hidden1", name="hidden_asset1"),
+                Asset(uri="s3://bucket/hidden2", name="hidden_asset2"),
+            ],
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task1")
+        dag_maker.sync_dagbag_to_db()
+        mock_get_authorized_assets.return_value = set()
+
+        response = test_client.get("/next_run_assets/all_hidden_upstream")
+
+        assert response.status_code == 200
+        assert response.json()["events"] == []
+        assert response.json()["scheduling_asset_count"] == 2
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_partitioned_dag_should_hide_keys_of_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/part_visible", name="part_visible")
+        hidden = Asset(uri="s3://bucket/part_hidden", name="part_hidden")
+        with dag_maker(
+            dag_id="part_hidden_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & hidden),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset_models = {
+            am.name: am
+            for am in session.scalars(
+                select(AssetModel).where(AssetModel.name.in_(["part_visible", "part_hidden"]))
+            )
+        }
+        pdr = AssetPartitionDagRun(
+            target_dag_id="part_hidden_dag", partition_key="2024-01-01", created_dag_run_id=None
+        )
+        session.add(pdr)
+        session.flush()
+        for am in asset_models.values():
+            event = AssetEvent(asset_id=am.id, timestamp=(dr.logical_date or pendulum.now()).add(minutes=5))
+            session.add(event)
+            session.flush()
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=am.id,
+                    asset_event_id=event.id,
+                    asset_partition_dag_run_id=pdr.id,
+                    source_partition_key="2024-01-01",
+                    target_dag_id="part_hidden_dag",
+                    target_partition_key="2024-01-01",
+                )
+            )
+        session.commit()
+        mock_get_authorized_assets.return_value = {asset_models["part_visible"].id}
+
+        response = test_client.get("/next_run_assets/part_hidden_dag")
+
+        assert response.status_code == 200
+        events = response.json()["events"]
+        assert [event["name"] for event in events] == ["part_visible"]
+        assert events[0]["received_keys"] == ["2024-01-01"]
+        assert events[0]["required_keys"] == ["2024-01-01"]
+        assert response.json()["scheduling_asset_count"] == 2
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/next_run_assets/upstream")
@@ -257,6 +366,7 @@ class TestNextRunAssets:
                     "asset_inactive": False,
                 },
             ],
+            "scheduling_asset_count": 2,
             "pending_partition_count": None,
         }
 
@@ -577,7 +687,9 @@ class TestGetAssetsUi:
         assert body["total_entries"] == 1
         assert body["assets"][0]["name"] == "ui_asset"
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_assets")
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets"
+    )
     def test_should_return_only_assets_the_caller_may_read(
         self, mock_get_authorized_assets, test_client, session
     ):
@@ -595,6 +707,42 @@ class TestGetAssetsUi:
         assert [asset["name"] for asset in body["assets"]] == ["asset1"]
         # The count must be scoped too, so the existence of hidden assets does not leak.
         assert body["total_entries"] == 1
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_should_return_only_references_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, session
+    ):
+        bundle = DagBundleModel(name="testing")
+        session.add(bundle)
+        asset = AssetModel(name="shared", uri="s3://bucket/shared", group="asset")
+        session.add(asset)
+        session.add(AssetActive.for_asset(asset))
+        session.flush()
+        for dag_id in ("dag_a", "dag_b"):
+            session.add_all(
+                [
+                    DagModel(dag_id=dag_id, bundle_name="testing"),
+                    DagScheduleAssetReference(dag_id=dag_id, asset=asset),
+                    TaskOutletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_producer", asset=asset),
+                    TaskInletAssetReference(dag_id=dag_id, task_id=f"{dag_id}_consumer", asset=asset),
+                ]
+            )
+        session.commit()
+        mock_get_authorized_dag_ids.return_value = {"dag_a"}
+
+        response = test_client.get("/assets")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        result = body["assets"][0]
+        assert [ref["dag_id"] for ref in result["scheduled_dags"]] == ["dag_a"]
+        assert [(ref["dag_id"], ref["task_id"]) for ref in result["producing_tasks"]] == [
+            ("dag_a", "dag_a_producer")
+        ]
+        assert [(ref["dag_id"], ref["task_id"]) for ref in result["consuming_tasks"]] == [
+            ("dag_a", "dag_a_consumer")
+        ]
 
     def test_sort_by_last_asset_event_timestamp(self, test_client, session):
         older = AssetModel(name="older", uri="s3://bucket/older", group="asset")
@@ -916,8 +1064,9 @@ class TestGetAssetsUi:
             assets[i].aliases.append(AssetAliasModel(name=f"alias{i}", group=""))
         session.commit()
 
-        # One of these queries resolves the caller's readable assets so the list can be scoped to them.
-        with assert_queries_count(9):
+        # Two of these queries resolve the caller's readable assets and readable Dags, so the list
+        # and its nested Dag and task references can be scoped to them.
+        with assert_queries_count(10):
             assert test_client.get("/assets").status_code == 200
 
     @conf_vars({("core", "multi_team"): "True"})

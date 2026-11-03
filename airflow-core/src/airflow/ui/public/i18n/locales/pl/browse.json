@@ -34,10 +34,10 @@
       "file_other": "Pliki",
       "importErrorGone": "Ten błąd importu nie jest już rejestrowany. Prawdopodobnie został naprawiony przez ponowne przetworzenie.",
       "neverParsed": "Nigdy",
-      "showImportError_few": "Zobacz {{count}} błędy",
-      "showImportError_many": "Zobacz {{count}} błędów",
+      "showImportError_few": "Zobacz {{count, number}} błędy",
+      "showImportError_many": "Zobacz {{count, number}} błędów",
       "showImportError_one": "Zobacz błąd",
-      "showImportError_other": "Zobacz {{count}} błędy"
+      "showImportError_other": "Zobacz {{count, number}} błędy"
     },
     "inactive": "Nieaktywna",
     "neverRefreshed": "Nigdy",

@@ -32,8 +32,11 @@ from airflow.api_fastapi.app import cached_app
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import _jwt_bearer
 from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.session import create_session
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from tests_common.pytest_plugin import CreateTaskInstance
@@ -52,6 +55,27 @@ def reset_state_tables():
 def _api_url(ti_id, key: str | None = None) -> str:
     base = f"/execution/store/ti/{ti_id}"
     return f"{base}/{key}" if key else base
+
+
+@pytest.mark.parametrize("clear_all", [False, True])
+def test_task_uuid_isolates_state_in_different_regions(client, create_task_instance, session, clear_all):
+    first = create_task_instance(session=session)
+    region = DynamicRegion(dag_id=first.dag_id, run_id=first.run_id, node_id="loop")
+    session.add(region)
+    session.flush()
+    second = TaskInstance(task=first.task, run_id=first.run_id, dag_version_id=first.dag_version_id)
+    second.region_id = region.id
+    second.region_index = first.region_index
+    session.add(second)
+    session.commit()
+
+    assert client.put(_api_url(first.id, "key"), json={"value": "first"}).status_code == 204
+    assert client.put(_api_url(second.id, "key"), json={"value": "second"}).status_code == 204
+    assert client.get(_api_url(first.id, "key")).json() == {"value": "first"}
+    assert client.get(_api_url(second.id, "key")).json() == {"value": "second"}
+    assert client.delete(_api_url(second.id, None if clear_all else "key")).status_code == 204
+    assert client.get(_api_url(second.id, "key")).status_code == 404
+    assert client.get(_api_url(first.id, "key")).json() == {"value": "first"}
 
 
 class TestGetTaskState:
@@ -86,6 +110,23 @@ class TestGetTaskState:
 
         assert response.status_code == 200
         assert response.json() == {"value": "spark_001"}
+
+    @pytest.mark.parametrize("method", ["get", "put", "delete"])
+    def test_archived_attempt_returns_404(
+        self, client: TestClient, create_task_instance: CreateTaskInstance, session, method
+    ):
+        ti = create_task_instance(state=TaskInstanceState.RUNNING)
+        session.commit()
+        old_id = ti.id
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+        client.headers["Airflow-API-Version"] = "2026-06-30"
+        kwargs = {"json": {"value": "stale"}} if method == "put" else {}
+
+        response = getattr(client, method)(_api_url(old_id, "job_id"), **kwargs)
+
+        assert response.status_code == 404
+        assert "Task instance" in response.json()["detail"]["message"]
 
 
 class TestPutTaskState:
@@ -293,7 +334,7 @@ class TestClearTaskState:
                         dag_id=ti.dag_id,
                         run_id=ti.run_id,
                         task_id=ti.task_id,
-                        map_index=idx,
+                        region_index=idx,
                         key="job_id",
                         value=f"app_{idx}",
                         updated_at=now,
@@ -314,7 +355,7 @@ class TestClearTaskState:
         with create_session() as session:
             remaining_indices = sorted(
                 session.scalars(
-                    select(TaskStateStoreModel.map_index).where(
+                    select(TaskStateStoreModel.region_index).where(
                         TaskStateStoreModel.dag_id == ti.dag_id,
                         TaskStateStoreModel.task_id == ti.task_id,
                     )

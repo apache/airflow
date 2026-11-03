@@ -19,10 +19,9 @@
 
 from __future__ import annotations
 
-import os
 import pathlib
 import stat
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any
 
 import attrs
 import structlog
@@ -36,24 +35,6 @@ if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators")
-
-
-class _UnsetArtifactRoots:
-    """Sentinel distinguishing an omitted artifact-roots option from an empty value."""
-
-
-ARTIFACT_ROOTS_NOT_CONFIGURED: Final = _UnsetArtifactRoots()
-
-
-def convert_roots(
-    value: None | os.PathLike[str] | pathlib.Path | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize a coordinator's root-directories kwarg into a list of expanded paths."""
-    if value is None:
-        return []
-    if isinstance(value, (str, os.PathLike, pathlib.Path)):
-        return [pathlib.Path(value).expanduser()]
-    return [pathlib.Path(v).expanduser() for v in value]
 
 
 def walk_files(
@@ -103,30 +84,6 @@ def _sorted_children(directory: pathlib.Path) -> list[pathlib.Path]:
         return []
 
 
-def convert_configured_roots(
-    value: _UnsetArtifactRoots
-    | None
-    | os.PathLike[str]
-    | pathlib.Path
-    | list[os.PathLike[str] | pathlib.Path],
-) -> list[pathlib.Path]:
-    """Normalize configured roots while rejecting explicitly empty values."""
-    if isinstance(value, _UnsetArtifactRoots):
-        return []
-    if isinstance(value, (str, os.PathLike)):
-        values = [value]
-    elif value:
-        values = value
-    else:
-        values = []
-    if not values or any(not os.fspath(v).strip() for v in values):
-        raise ValueError(
-            "Artifact roots must contain at least one path when provided, and each path must be non-empty; "
-            "omit the option to use the task's Dag bundle."
-        )
-    return convert_roots(values)
-
-
 def validate_schema_version(instance, _, value) -> str:
     """Attrs validator resolving a bundle's supervisor schema version to a known one."""
     return get_schema_version_migrator().resolve_version(str(value))
@@ -167,3 +124,19 @@ def extract_supervisor_schema_version(metadata: dict[str, Any]) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError("missing or invalid sdk.supervisor_schema_version")
     return value
+
+
+def resolve_source_path(metadata: dict[str, Any], dag_id: str | None) -> str | None:
+    """
+    Return the embedded source path to show for *dag_id*, or ``None`` when there is none.
+
+    A Dag mapped in ``dag_source_paths`` resolves to its own file. Any other Dag, such as one built
+    dynamically, and a *dag_id* of ``None`` resolve to ``entrypoint_path``.
+    """
+    dag_source_paths = metadata.get("dag_source_paths")
+    if dag_id is not None and isinstance(dag_source_paths, dict):
+        mapped = dag_source_paths.get(dag_id)
+        if isinstance(mapped, str):
+            return mapped
+    entrypoint_path = metadata.get("entrypoint_path")
+    return entrypoint_path if isinstance(entrypoint_path, str) else None

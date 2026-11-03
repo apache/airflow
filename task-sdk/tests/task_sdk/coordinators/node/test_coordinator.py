@@ -21,21 +21,27 @@ from __future__ import annotations
 import json
 import pathlib
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from task_sdk.coordinators.node._bundle_test_utils import (
     BUNDLE_NAME,
     mutate_byte,
+    mutate_section,
     read_layout,
     write_bundle,
 )
 from uuid6 import uuid7
 
-from airflow.sdk.api.datamodels._generated import TaskInstance
+from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstance
+from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.node import _bundle_reader as _reader
 from airflow.sdk.coordinators.node._bundle_reader import _digest_cache
 from airflow.sdk.coordinators.node.coordinator import NodeCoordinator, _Bundle
+from airflow.sdk.execution_time.coordinator import TaskLaunchError
+from airflow.sdk.importers import reset_importer_registry
+
+from tests_common.test_utils.config import conf_vars
 
 SCHEMA_VERSION = "2026-06-16"
 
@@ -60,49 +66,21 @@ def _make_ti(dag_id: str = "test_dag", queue: str = "ts") -> TaskInstance:
 
 class TestNodeCoordinatorAttributes:
     def test_default_kwargs(self):
-        coordinator = NodeCoordinator(bundles_root="/airflow/ts-bundles")
+        coordinator = NodeCoordinator()
 
         assert coordinator.node_executable == "node"
-        assert coordinator.bundles_root == [pathlib.Path("/airflow/ts-bundles")]
         assert coordinator.task_startup_timeout == 10.0
 
     def test_custom_kwargs(self):
         coordinator = NodeCoordinator(
             node_executable="/opt/node/bin/node",
-            bundles_root=["/airflow/ts-bundles", "~/extra-bundles"],
+            task_handler_bundle_name="ts-task-handlers",
             task_startup_timeout=30.0,
         )
 
         assert coordinator.node_executable == "/opt/node/bin/node"
-        assert coordinator.bundles_root == [
-            pathlib.Path("/airflow/ts-bundles"),
-            pathlib.Path("~/extra-bundles").expanduser(),
-        ]
+        assert coordinator.task_handler_bundle_name == "ts-task-handlers"
         assert coordinator.task_startup_timeout == 30.0
-
-    def test_bundles_root_optional_defaults_to_empty(self):
-        coordinator = NodeCoordinator()
-        assert coordinator.bundles_root == []
-        assert coordinator.dag_bundle_name is None
-
-    @pytest.mark.parametrize(
-        "bundles_root",
-        [None, [], "", "  ", [""]],
-        ids=["none", "empty-list", "empty-str", "blank-str", "list-of-empty-str"],
-    )
-    def test_explicit_empty_bundles_root_raises(self, bundles_root):
-        with pytest.raises(ValueError, match="and each path must be non-empty"):
-            NodeCoordinator(bundles_root=bundles_root)
-
-    def test_root_and_dag_bundle_name_are_mutually_exclusive(self):
-        with pytest.raises(ValueError, match="at most one of 'bundles_root' or 'dag_bundle_name'"):
-            NodeCoordinator(bundles_root="/airflow/ts-bundles", dag_bundle_name="artifacts")
-
-    @patch("airflow.sdk.coordinators._subprocess.DagBundlesManager")
-    def test_unconfigured_dag_bundle_name_raises(self, mock_manager):
-        mock_manager.is_bundle_configured.return_value = False
-        with pytest.raises(ValueError, match="unconfigured Dag bundle 'ghost'"):
-            NodeCoordinator(dag_bundle_name="ghost")
 
     def test_build_command_scans_passed_roots_in_colocated_mode(self, tmp_path):
         bundle = write_bundle(tmp_path, "test_dag")
@@ -116,10 +94,7 @@ class TestNodeCoordinatorAttributes:
 class TestNodeCoordinatorExecuteTaskCommand:
     def test_selects_bundle_by_dag_id(self, tmp_path):
         selected = write_bundle(tmp_path, "sales")
-        coordinator = NodeCoordinator(
-            node_executable="/opt/node/bin/node",
-            bundles_root=tmp_path,
-        )
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
 
         with coordinator._set_scan_roots([tmp_path]):
             command, schema_version = coordinator._build_execute_task_command(what=_make_ti(dag_id="sales"))
@@ -129,16 +104,118 @@ class TestNodeCoordinatorExecuteTaskCommand:
 
     def test_build_execute_task_command_returns_node_bundle_and_schema_version(self, tmp_path):
         bundle = write_bundle(tmp_path, "test_dag")
-        coordinator = NodeCoordinator(
-            node_executable="/opt/node/bin/node",
-            bundles_root=tmp_path,
-        )
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
 
         with coordinator._set_scan_roots([tmp_path]):
             command, schema_version = coordinator._build_execute_task_command(what=_make_ti())
 
         assert command == ["/opt/node/bin/node", str(bundle)]
         assert schema_version == SCHEMA_VERSION
+
+
+@pytest.fixture
+def mock_client(make_ti_context):
+    client = MagicMock()
+    client.task_instances.start.return_value = make_ti_context()
+    return client
+
+
+class TestNodeCoordinatorExecuteNativeDag:
+    """With a NodeCoordinator configured, a task of a native TypeScript Dag runs the bundle of its Dag."""
+
+    @pytest.fixture(autouse=True)
+    def _node_coordinator_config(self):
+        coordinators = {"ts": {"classpath": "airflow.sdk.coordinators.node.NodeCoordinator"}}
+        reset_importer_registry()
+        with conf_vars({("sdk", "coordinators"): json.dumps(coordinators)}):
+            yield
+        reset_importer_registry()
+
+    @pytest.fixture
+    def mock_start(self, tmp_path):
+        write_bundle(tmp_path, "sales", name="a.min.mjs", schema_version="2026-06-16")
+        write_bundle(tmp_path, "sales", name="b.min.mjs", schema_version="2026-10-30")
+        bundle = MagicMock(path=tmp_path, version="v1")
+        bundle.name = "dags-folder"
+        with (
+            patch("airflow.sdk.coordinators._subprocess._initialize_pinned_bundle", return_value=bundle),
+            patch("airflow.sdk.coordinators._subprocess.BundleVersionLock"),
+            patch.object(_PopenActivitySubprocess, "start") as mock_start,
+        ):
+            mock_start.return_value.wait.return_value = 0
+            yield mock_start
+
+    def _execute(self, rel_path: str, client):
+        return NodeCoordinator().execute_task(
+            what=_make_ti(dag_id="sales"),
+            dag_rel_path=rel_path,
+            bundle_info=BundleInfo(name="dags-folder", version="v1"),
+            client=client,
+            subprocess_logs_to_stdout=False,
+        )
+
+    def test_runs_the_bundle_of_the_dag_and_not_the_first_bundle_by_path(
+        self, mock_start, mock_client, tmp_path
+    ):
+        self._execute("b.min.mjs", mock_client)
+
+        assert mock_start.call_args.kwargs["command"] == ["node", str(tmp_path / "b.min.mjs")]
+        assert mock_start.call_args.kwargs["subprocess_schema_version"] == "2026-10-30"
+
+    def test_fails_without_starting_node_for_a_bundle_that_fails_its_integrity_check(
+        self, mock_start, mock_client, tmp_path
+    ):
+        mutate_section(tmp_path / "b.min.mjs", "code")
+
+        with pytest.raises(TaskLaunchError, match="code SHA-256 mismatch"):
+            self._execute("b.min.mjs", mock_client)
+
+        mock_start.assert_not_called()
+
+
+class TestNodeCoordinatorDagFileCommand:
+    def test_runs_the_bundle_the_dag_was_parsed_from(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales", schema_version="2026-10-30")
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+
+        command, schema_version = coordinator._build_dag_file_command(
+            what=_make_ti(dag_id="sales"), path=bundle
+        )
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == "2026-10-30"
+
+    def test_leaves_it_to_the_runtime_to_report_a_dag_the_bundle_does_not_declare(self, tmp_path):
+        bundle = write_bundle(tmp_path, "inventory")
+
+        command, _ = NodeCoordinator()._build_dag_file_command(what=_make_ti(dag_id="sales"), path=bundle)
+
+        assert command == ["node", str(bundle)]
+
+    def test_tampered_bundle_raises(self, tmp_path):
+        bundle = write_bundle(tmp_path, "sales")
+        mutate_section(bundle, "code")
+
+        with pytest.raises(ValueError, match="code SHA-256 mismatch"):
+            NodeCoordinator()._build_dag_file_command(what=_make_ti(dag_id="sales"), path=bundle)
+
+
+class TestNodeCoordinatorParseDagCommand:
+    def test_returns_node_and_bundle_schema_version(self, tmp_path):
+        bundle = write_bundle(tmp_path / "typescript", "native_dag")
+        coordinator = NodeCoordinator(node_executable="/opt/node/bin/node")
+
+        command, schema_version = coordinator._build_parse_dag_command(path=bundle)
+
+        assert command == ["/opt/node/bin/node", str(bundle)]
+        assert schema_version == SCHEMA_VERSION
+
+    def test_tampered_bundle_raises(self, tmp_path):
+        bundle = write_bundle(tmp_path, "native_dag")
+        mutate_section(bundle, "code")
+
+        with pytest.raises(ValueError, match="code SHA-256 mismatch"):
+            NodeCoordinator()._build_parse_dag_command(path=bundle)
 
 
 class TestBundleFind:

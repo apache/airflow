@@ -43,7 +43,7 @@ export const useRefreshOnNewDagRuns = (
 
   const { data: latestDagRun } = useDagServiceGetLatestRunInfo({ dagId }, undefined, {
     enabled: Boolean(dagId),
-    refetchInterval: Boolean(dagId) && !hasPendingRuns && !isPaused ? pollIntervalMs : false,
+    refetchInterval: Boolean(dagId) && !hasPendingRuns && !isPaused && pollIntervalMs,
   });
 
   useEffect(() => {

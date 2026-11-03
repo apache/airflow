@@ -64,12 +64,6 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
-# A Dag bundle is visible to whoever can read a Dag inside it, so this entry belongs with ``DAGS``
-# in the base team set rather than the admin one: every team role that can already reach the
-# bundles through the API should be able to find the page. Guarded because this provider also runs
-# against Airflow versions predating the menu item.
-if hasattr(MenuItem, "DAG_BUNDLES"):
-    TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,
     MenuItem.POOLS,
@@ -747,7 +741,7 @@ def _update_admin_permission_resources(
         r["_id"]
         for r in resources
         if any(r["name"].startswith(f"{resource}:") for resource in TEAM_SCOPED_RESOURCE_NAMES)
-        or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
+        or r["name"] in TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
     existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)

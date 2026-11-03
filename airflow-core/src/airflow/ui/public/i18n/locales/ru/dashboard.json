@@ -2,10 +2,10 @@
   "alerts": {
     "seeLessContext": "Свернуть",
     "seeMoreContext": "Подробнее",
-    "showMoreAlerts_few": "+ ещё {{count}} оповещения",
-    "showMoreAlerts_many": "+ ещё {{count}} оповещений",
-    "showMoreAlerts_one": "+ ещё {{count}} оповещение",
-    "showMoreAlerts_other": "+ ещё {{count}} оповещений"
+    "showMoreAlerts_few": "+ ещё {{count, number}} оповещения",
+    "showMoreAlerts_many": "+ ещё {{count, number}} оповещений",
+    "showMoreAlerts_one": "+ ещё {{count, number}} оповещение",
+    "showMoreAlerts_other": "+ ещё {{count, number}} оповещений"
   },
   "deadlines": {
     "pending": {
@@ -19,13 +19,13 @@
     "showMore": "Показать больше",
     "title": "Крайние сроки"
   },
-  "deferredSlotsNotCounted": "Отложенные не учтены в слотах: {{count}}",
+  "deferredSlotsNotCounted": "Отложенные не учтены в слотах: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Отложенные задачи, показанные на полосе, учитываются в слотах пула. Отложенные задачи под полосой относятся к пулам, которые не учитывают отложенные задачи в слотах.",
   "favorite": {
-    "favoriteDags_few": "Первые {{count}} избранных Dag-а",
-    "favoriteDags_many": "Первые {{count}} избранных Dag-ов",
-    "favoriteDags_one": "Первый {{count}} избранный Dag",
-    "favoriteDags_other": "Первые {{count}} избранных Dag-ов",
+    "favoriteDags_few": "Первые {{count, number}} избранных Dag-а",
+    "favoriteDags_many": "Первые {{count, number}} избранных Dag-ов",
+    "favoriteDags_one": "Первый {{count, number}} избранный Dag",
+    "favoriteDags_other": "Первые {{count, number}} избранных Dag-ов",
     "noDagRuns": "Для этого Dag-а еще нет запусков.",
     "noFavoriteDags": "Ещё нет избранных. Нажмите на иконку со звёздочкой рядом с Dag-ом в списке, чтобы добавить его в избранное."
   },

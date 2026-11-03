@@ -124,6 +124,16 @@ export const i18nBaseOptions = {
   interpolation: {
     escapeValue: false,
   },
+  // i18next renders an explicitly undefined `{{count}}` as blank but prints `{{count, number}}`
+  // verbatim, because it looks the passed value up under the whole "count, number" expression.
+  missingInterpolationHandler: (
+    _text: string,
+    [placeholder, expression = ""]: RegExpExecArray,
+    options?: object,
+  ) =>
+    options !== undefined && Object.hasOwn(options, expression.split(",")[0]?.trim() ?? "")
+      ? ""
+      : placeholder,
   ns: namespaces,
   react: {
     useSuspense: false,

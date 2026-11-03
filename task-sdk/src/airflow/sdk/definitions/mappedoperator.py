@@ -379,7 +379,6 @@ class MappedOperator(AbstractOperator):
             "_needs_expansion",
             "partial_kwargs",
             "operator_extra_links",
-            "returns_dag_result",
             "is_stub",
         }
 

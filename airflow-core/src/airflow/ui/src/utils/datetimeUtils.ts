@@ -21,6 +21,8 @@ import dayjsDuration from "dayjs/plugin/duration";
 import tz from "dayjs/plugin/timezone";
 import i18n from "i18next";
 
+import { createIntlCache, DEFAULT_LOCALE } from "./intlCache";
+
 dayjs.extend(dayjsDuration);
 dayjs.extend(tz);
 
@@ -28,7 +30,6 @@ export const DATE_FORMAT = "YYYY-MM-DD";
 export const DEFAULT_DATETIME_FORMAT = `${DATE_FORMAT} HH:mm:ss`;
 export const DEFAULT_DATETIME_FORMAT_WITH_TZ = `${DEFAULT_DATETIME_FORMAT} z`;
 
-const DEFAULT_LOCALE = "en";
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86_400;
@@ -41,34 +42,6 @@ type DurationPart = { fractionDigits?: number; unit: DurationUnit; value: number
 
 /** `narrow` ("1h 2m") suits dense tables and charts; `long` ("1 hour, 2 minutes") suits prose. */
 type DurationStyle = "long" | "narrow";
-
-// Intl constructors are costly and durations render in every table row and chart tick callback, so
-// instances are reused. A stored language Intl rejects must not blank out every duration in the UI,
-// hence the fallback to DEFAULT_LOCALE rather than letting the RangeError escape.
-const createIntlCache = <T>() => {
-  const cache = new Map<string, T>();
-
-  return (variant: string, locale: string, construct: (forLocale: string) => T): T => {
-    const key = `${locale}|${variant}`;
-    const cached = cache.get(key);
-
-    if (cached !== undefined) {
-      return cached;
-    }
-
-    let formatter: T;
-
-    try {
-      formatter = construct(locale);
-    } catch {
-      formatter = construct(DEFAULT_LOCALE);
-    }
-
-    cache.set(key, formatter);
-
-    return formatter;
-  };
-};
 
 const unitFormatter = createIntlCache<Intl.NumberFormat>();
 const listFormatter = createIntlCache<Intl.ListFormat>();
@@ -200,11 +173,9 @@ const formatDuration = (
 
   // Below a millisecond the digits are timestamp resolution and clock skew rather than signal. "<"
   // is mathematical notation, not prose, so CLDR has no pattern for it and none is needed.
-  if (seconds > 0 && seconds < 0.001) {
-    return `<${formatParts([{ unit: "millisecond", value: 1 }], locale, style)}`;
-  }
-
-  return formatParts(getDurationParts(seconds), locale, style);
+  return seconds > 0 && seconds < 0.001
+    ? `<${formatParts([{ unit: "millisecond", value: 1 }], locale, style)}`
+    : formatParts(getDurationParts(seconds), locale, style);
 };
 
 /**
@@ -231,16 +202,11 @@ const DURATION_TICK_STEPS_SECONDS = [
   604_800,
 ];
 
-export const getDurationTickStep = (maxSeconds: number, maxTicks = 8): number => {
-  if (!Number.isFinite(maxSeconds) || maxSeconds <= 0) {
-    return 1;
-  }
-
-  return (
-    DURATION_TICK_STEPS_SECONDS.find((candidate) => maxSeconds / candidate <= maxTicks) ??
-    Math.ceil(maxSeconds / maxTicks)
-  );
-};
+export const getDurationTickStep = (maxSeconds: number, maxTicks = 8): number =>
+  !Number.isFinite(maxSeconds) || maxSeconds <= 0
+    ? 1
+    : (DURATION_TICK_STEPS_SECONDS.find((candidate) => maxSeconds / candidate <= maxTicks) ??
+      Math.ceil(maxSeconds / maxTicks));
 
 /** Elapsed seconds between two timestamps, counting an absent `endDate` as still running. */
 export const getElapsedSeconds = (startDate?: string | null, endDate?: string | null): number | undefined => {
@@ -261,13 +227,10 @@ export const formatDate = (
   date: number | string | null | undefined,
   timezone: string,
   format: string = DEFAULT_DATETIME_FORMAT,
-) => {
-  if (date === null || date === undefined || !dayjs(date).isValid()) {
-    return dayjs().tz(timezone).format(format);
-  }
-
-  return dayjs(date).tz(timezone).format(format);
-};
+) =>
+  date === null || date === undefined || !dayjs(date).isValid()
+    ? dayjs().tz(timezone).format(format)
+    : dayjs(date).tz(timezone).format(format);
 
 // Ordered largest first so the first unit the difference reaches wins: "45 minutes ago" rather than
 // "2700 seconds ago". Months and years use the mean Gregorian lengths CLDR assumes for relative

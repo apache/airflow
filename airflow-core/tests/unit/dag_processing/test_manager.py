@@ -46,11 +46,13 @@ from sqlalchemy.exc import OperationalError
 from uuid6 import uuid7
 
 from airflow._shared.timezones import timezone
-from airflow.callbacks.callback_requests import DagCallbackRequest
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleVersion
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
+from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.manager import (
     BundleState,
     DagFileInfo,
@@ -71,9 +73,9 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import DAG as SdkDAG
+from airflow.sdk import DAG as SdkDAG, BaseOperator
 from airflow.sdk.importers import DagDefinition, DagImporterRegistry, DagImportError, DagSourceCode
-from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils.net import get_hostname
 from airflow.utils.session import create_session
 
@@ -89,6 +91,12 @@ from tests_common.test_utils.db import (
     clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
+)
+from unit.dag_processing.fake_lang_sdk import (
+    FakeCoordinator,
+    fake_coordinator,
+    play_runtime,
+    write_native_file,
 )
 from unit.models import TEST_DAGS_FOLDER
 
@@ -307,6 +315,18 @@ class LateResolvingBundle(BaseDagBundle):
 
     def refresh(self) -> None:
         pass
+
+
+def _found_files(*rel_paths: str):
+    """Stand in for ``_find_files_in_bundle``, listing *rel_paths* in the bundle."""
+
+    def find(manager, bundle):
+        return {
+            DagFileInfo(rel_path=Path(rel_path), bundle_name=bundle.name, bundle_path=bundle.path)
+            for rel_path in rel_paths
+        }
+
+    return find
 
 
 class TestDagFileProcessorManager:
@@ -1127,7 +1147,8 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == OrderedDict()
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_prepare_file_queue_skips_file_when_versioned_stat_is_at_run_limit(self):
+    def test_prepare_file_queue_ignores_versioned_stat_at_run_limit(self):
+        """A callback's versioned stat doesn't stand for a parse, so it doesn't count towards the run limit."""
         manager = DagFileProcessorManager(max_runs=1)
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
@@ -1136,10 +1157,11 @@ class TestDagFileProcessorManager:
 
         manager.prepare_file_queue(known_files={"testing": {known_file}})
 
-        assert manager._file_queue == OrderedDict()
+        assert manager._file_queue == OrderedDict.fromkeys([known_file])
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
-    def test_prepare_file_queue_skips_recently_processed_file_with_versioned_stats(self):
+    def test_prepare_file_queue_ignores_recent_versioned_stat(self):
+        """A callback's versioned stat doesn't stand for a parse, so a recent one doesn't hold the file back."""
         manager = DagFileProcessorManager(max_runs=3)
         versioned_file = _get_versioned_file_info("file_1.py")
         known_file = _get_file_infos(["file_1.py"])[0]
@@ -1151,11 +1173,11 @@ class TestDagFileProcessorManager:
 
         manager.prepare_file_queue(known_files={"testing": {known_file}})
 
-        assert manager._file_queue == OrderedDict()
+        assert manager._file_queue == OrderedDict.fromkeys([known_file])
 
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
     @mock.patch("airflow.utils.file.os.path.getmtime")
-    def test_recently_modified_file_uses_versioned_stats_without_creating_duplicate_entries(
+    def test_recently_modified_file_with_versioned_stat_does_not_create_duplicate_entries(
         self, mock_getmtime
     ):
         freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
@@ -1176,6 +1198,106 @@ class TestDagFileProcessorManager:
         assert manager._file_queue == OrderedDict.fromkeys([known_file])
         assert known_file not in manager._file_stats
         assert versioned_file in manager._file_stats
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    @pytest.mark.parametrize(
+        "callback_first",
+        [
+            pytest.param(False, id="scan-recorded-first"),
+            pytest.param(True, id="callback-recorded-first"),
+        ],
+    )
+    def test_callback_only_parse_does_not_requeue_recently_parsed_file(self, callback_first):
+        """A callback-only parse records no ``last_finish_time``, which must not requeue the file."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+        scan_stat = DagFileStat(1, 0, freezed_base_time - timedelta(seconds=5), 1.0, 1, 1)
+
+        manager = DagFileProcessorManager(max_runs=3)
+        processor, _ = self.mock_processor(start_time=time.monotonic() - 1)
+        processor.had_callbacks = True
+        processor.parsing_result = None
+
+        with time_machine.travel(freezed_base_time):
+            if not callback_first:
+                manager._file_stats[known_file] = scan_stat
+            manager.handle_parsing_result(versioned_file, processor)
+            assert manager._file_stats[versioned_file].last_finish_time is None
+            if callback_first:
+                manager._file_stats[known_file] = scan_stat
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert manager._file_queue == OrderedDict()
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
+    def test_timed_out_callback_does_not_delay_due_parse(self, mock_kill):
+        """A callback processor that times out must not make a due file look recently parsed."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(
+            1, 0, freezed_base_time - timedelta(seconds=60), 1.0, 1, 1
+        )
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
+
+        with time_machine.travel(freezed_base_time):
+            manager._kill_timed_out_processors()
+            mock_kill.assert_called_once_with(processor, signal.SIGKILL)
+            assert manager._file_stats[versioned_file].last_finish_time is not None
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert known_file in manager._file_queue
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "modified_time"})
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
+    @mock.patch("airflow.utils.file.os.path.getmtime")
+    def test_timed_out_callback_does_not_hide_an_edit(self, mock_getmtime, mock_kill):
+        """An edit after the last parse is picked up even if a callback processor times out later."""
+        freezed_base_time = timezone.datetime(2020, 1, 5, 0, 0, 0)
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(
+            1, 0, freezed_base_time - timedelta(seconds=10), 1.0, 1, 1
+        )
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
+        mock_getmtime.return_value = (freezed_base_time - timedelta(seconds=7)).timestamp()
+
+        with time_machine.travel(freezed_base_time - timedelta(seconds=5)):
+            manager._kill_timed_out_processors()
+        mock_kill.assert_called_once_with(processor, signal.SIGKILL)
+        assert manager._file_stats[versioned_file].last_finish_time is not None
+        with time_machine.travel(freezed_base_time):
+            manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        assert known_file in manager._file_queue
+
+    @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
+    @mock.patch.object(DagFileProcessorProcess, "kill", autospec=True)
+    @mock.patch("airflow.dag_processing.manager.stats.gauge")
+    def test_timed_out_callback_is_not_reported_as_an_import_error(self, mock_gauge, mock_kill):
+        """The ``import_errors=1`` a timeout leaves on a callback's entry must not reach the gauge."""
+        known_file = _get_file_infos(["file_1.py"])[0]
+        versioned_file = _get_versioned_file_info("file_1.py")
+
+        manager = DagFileProcessorManager(max_runs=3, processor_timeout=5)
+        manager._file_stats[known_file] = DagFileStat(1, 2, timezone.datetime(2020, 1, 5), 1.0, 1, 1)
+        processor, _ = self.mock_processor(start_time=time.monotonic() - manager.processor_timeout - 1)
+        manager._processors = {versioned_file: processor}
+
+        manager._kill_timed_out_processors()
+        assert manager._file_stats[versioned_file].import_errors == 1
+        manager._parsing_start_time = time.perf_counter()
+        manager.prepare_file_queue(known_files={"testing": {known_file}})
+
+        mock_gauge.assert_any_call("dag_processing.import_errors", 2)
 
     def test_file_paths_in_queue_sorted_by_priority(self):
         from airflow.models.dagbag import DagPriorityParsingRequest
@@ -1661,6 +1783,221 @@ class TestDagFileProcessorManager:
         _, kwargs = mock_start.call_args
         assert kwargs["subprocess_logs_to_stdout"] is expected_subprocess_logs_to_stdout
 
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_create_process_parses_a_coordinator_file_with_its_runtime(self, mock_get_logger, tmp_path):
+        mock_get_logger.return_value = (MagicMock(), MagicMock())
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path("dags.native"), bundle_path=tmp_path)
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_start,
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._create_process(dag_file)
+
+        kwargs = mock_start.call_args.kwargs
+        assert (kwargs["path"], kwargs["dag_file_rel_path"]) == (tmp_path / "dags.native", "dags.native")
+        assert kwargs["client"] is manager.client
+
+    @pytest.mark.parametrize("rel_path", ["my_dag.py", "dags.fake"])
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_create_process_keeps_the_python_parse_for_other_files(self, mock_get_logger, rel_path, tmp_path):
+        mock_get_logger.return_value = (MagicMock(), MagicMock())
+        dag_file = DagFileInfo(bundle_name="testing", rel_path=Path(rel_path), bundle_path=tmp_path)
+
+        with (
+            fake_coordinator(),
+            mock.patch.object(DagFileProcessorProcess, "start", autospec=True) as mock_start,
+            mock.patch.object(LangSDKDagFileProcessorProcess, "start", autospec=True) as mock_lang_sdk_start,
+        ):
+            DagFileProcessorManager(max_runs=1)._create_process(dag_file)
+
+        mock_start.assert_called_once()
+        mock_lang_sdk_start.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("request_", "expected"),
+        [
+            pytest.param(
+                DagCallbackRequest(
+                    filepath="dags.native",
+                    dag_id="native_dag",
+                    run_id="run",
+                    bundle_name="testing",
+                    bundle_version="v1",
+                ),
+                "Dropping DagCallbackRequest for dags.native (dag_id=native_dag run_id=run): "
+                "Lang-SDK runtimes do not run callbacks",
+                id="dag",
+            ),
+            pytest.param(
+                TaskCallbackRequest(
+                    filepath="dags.native",
+                    ti=TIDataModel(
+                        id=uuid7(),
+                        dag_id="native_dag",
+                        task_id="extract",
+                        run_id="run",
+                        try_number=1,
+                        dag_version_id=uuid7(),
+                    ),
+                    bundle_name="testing",
+                    bundle_version="v1",
+                ),
+                "Dropping TaskCallbackRequest for dags.native (dag_id=native_dag run_id=run "
+                "task_id=extract): Lang-SDK runtimes do not run callbacks",
+                id="task",
+            ),
+        ],
+    )
+    @mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
+    def test_a_callback_for_a_coordinator_file_is_dropped(
+        self, mock_prepare_callback_bundle, request_, expected, caplog
+    ):
+        with (
+            fake_coordinator(),
+            caplog.at_level(logging.WARNING, logger="airflow.dag_processing.manager"),
+        ):
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._add_callback_to_queue(request_)
+
+        mock_prepare_callback_bundle.assert_not_called()
+        assert not manager._callback_to_execute
+        assert not manager._file_queue
+        assert [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING] == [expected]
+
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("good.native"),
+    )
+    def test_coordinator_files_are_persisted(
+        self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
+    ):
+        def reply(request, comms):
+            with SdkDAG("native_dag", schedule=None) as dag:
+                BaseOperator(task_id="extract")
+            data = DagSerialization.to_dict(dag)
+            data["dag"].update(fileloc=request.file, relative_fileloc="good.native")
+            return DagFileParsingResult(
+                fileloc=request.file, serialized_dags=[LazyDeserializedDAG(data=data)]
+            )
+
+        mock_parse_dag.side_effect = play_runtime(reply)
+        write_native_file(tmp_path / "good.native")
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            DagFileProcessorManager(max_runs=1, processor_timeout=60).run()
+
+        with create_session() as session:
+            serialized_dag = session.scalar(
+                select(SerializedDagModel).where(SerializedDagModel.dag_id == "native_dag")
+            )
+            dag_code = session.scalar(select(DagCode).where(DagCode.dag_id == "native_dag"))
+
+        assert serialized_dag.data["dag"]["tasks"][0]["__var"]["task_id"] == "extract"
+        assert dag_code.source_code == (tmp_path / "good.native").read_text()
+
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("garbage.native", "python_dag.py"),
+    )
+    def test_an_invalid_frame_does_not_stop_other_files_parsing(
+        self, mock_find_files, mock_parse_dag, tmp_path, configure_testing_dag_bundle
+    ):
+        def reply(request, comms):
+            comms.socket.sendall(bytes.fromhex("00000003c1c1c1"))
+            time.sleep(60)
+
+        mock_parse_dag.side_effect = play_runtime(reply)
+        write_native_file(tmp_path / "garbage.native")
+        (tmp_path / "python_dag.py").write_text(
+            "from airflow.sdk import DAG\nfrom airflow.sdk.bases.operator import BaseOperator\n\n"
+            'with DAG("python_dag", schedule=None):\n    BaseOperator(task_id="task")\n'
+        )
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            manager.run()
+
+        with create_session() as session:
+            dag_ids = session.scalars(select(SerializedDagModel.dag_id)).all()
+            import_errors = session.scalars(select(ParseImportError)).all()
+
+        assert dag_ids == ["python_dag"]
+        [import_error] = import_errors
+        assert import_error.filename == "garbage.native"
+        assert import_error.stacktrace.startswith("The Lang-SDK runtime sent an invalid frame: ")
+        assert manager.selector.get_map() == {}
+
+    @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True, return_value=1)
+    @mock.patch.object(FakeCoordinator, "parse_dag", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("slow.native"),
+    )
+    def test_a_coordinator_file_past_the_import_timeout_is_an_import_error(
+        self, mock_find_files, mock_parse_dag, mock_timeout, tmp_path, configure_testing_dag_bundle
+    ):
+        mock_parse_dag.side_effect = play_runtime(lambda request, comms: time.sleep(60))
+        slow = write_native_file(tmp_path / "slow.native")
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=1, processor_timeout=60)
+            manager.run()
+
+        with create_session() as session:
+            [import_error] = session.scalars(select(ParseImportError)).all()
+
+        assert import_error.filename == "slow.native"
+        assert import_error.stacktrace == (
+            f"The Lang-SDK runtime did not parse {slow} within 1.0s, "
+            "the limit set by [core] dagbag_import_timeout or the get_dagbag_import_timeout policy"
+        )
+        assert manager.selector.get_map() == {}
+
+    @mock.patch("airflow.settings.get_dagbag_import_timeout", autospec=True)
+    @mock.patch.object(
+        DagFileProcessorManager,
+        "_find_files_in_bundle",
+        autospec=True,
+        side_effect=_found_files("broken.native", "python_dag.py"),
+    )
+    def test_a_failing_import_timeout_policy_fails_only_its_file(
+        self, mock_find_files, mock_timeout, tmp_path, configure_testing_dag_bundle
+    ):
+        def get_dagbag_import_timeout(dag_file_path):
+            if dag_file_path.endswith(".native"):
+                raise RuntimeError("policy bug")
+            return 30
+
+        mock_timeout.side_effect = get_dagbag_import_timeout
+        write_native_file(tmp_path / "broken.native")
+        (tmp_path / "python_dag.py").write_text(
+            "from airflow.sdk import DAG\nfrom airflow.sdk.bases.operator import BaseOperator\n\n"
+            'with DAG("python_dag", schedule=None):\n    BaseOperator(task_id="task")\n'
+        )
+
+        with fake_coordinator(), configure_testing_dag_bundle(tmp_path):
+            DagFileProcessorManager(max_runs=1, processor_timeout=60).run()
+
+        with create_session() as session:
+            dag_ids = session.scalars(select(SerializedDagModel.dag_id)).all()
+            [import_error] = session.scalars(select(ParseImportError)).all()
+
+        assert dag_ids == ["python_dag"]
+        assert (import_error.filename, import_error.stacktrace) == (
+            "broken.native",
+            "Cannot start the Lang-SDK runtime: RuntimeError: policy bug",
+        )
+
     def test_terminate_orphan_processes_kills_then_closes_processor(self):
         manager = DagFileProcessorManager(max_runs=1)
         processor, _ = self.mock_processor()
@@ -2087,7 +2424,7 @@ class TestDagFileProcessorManager:
         last_runtime = manager._file_stats[file_info].last_duration
         statsd_timing_mock.assert_any_call(
             "dag_processing.last_duration",
-            last_runtime,
+            timedelta(seconds=last_runtime),
             tags={"bundle_name": bundle_name, "file_name": dag_filename[:-3]},
         )
 
@@ -2224,7 +2561,7 @@ class TestDagFileProcessorManager:
 
     @mock.patch("airflow.dag_processing.manager.update_dag_parsing_results_in_db", autospec=True)
     def test_persist_parsing_result_passes_parsed_definitions_and_source_codes(self, mock_update):
-        source_codes = {"/bundle/dags.zip/a.py": DagSourceCode(source_code="src", language="python")}
+        source_codes = {"a": DagSourceCode(source_code="src", language="python")}
         parsing_result = DagFileParsingResult(
             fileloc="/bundle/dags.zip",
             serialized_dags=[],
@@ -4486,7 +4823,7 @@ class TestMultiTeamMetrics:
 
         mock_timing.assert_called_once_with(
             "dag_processing.last_duration",
-            1.5,
+            timedelta(seconds=1.5),
             tags={"bundle_name": "testing", "file_name": "dag", "team_name": "team_alpha"},
         )
 
@@ -4508,7 +4845,7 @@ class TestMultiTeamMetrics:
 
         mock_timing.assert_called_once_with(
             "dag_processing.last_duration",
-            1.5,
+            timedelta(seconds=1.5),
             tags={"bundle_name": "testing", "file_name": "dag"},
         )
 

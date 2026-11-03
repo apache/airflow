@@ -26,6 +26,7 @@ import { ConfirmationModal } from "src/components/ConfirmationModal";
 import { PauseOrDrainChoiceModal } from "src/components/PauseOrDrainChoiceModal";
 
 import { useBulkSetDagSchedulingState } from "src/queries/useBulkSetDagSchedulingState";
+import { formatNumber } from "src/utils";
 
 type Props = {
   readonly deselectKeys: (keys: Array<string>) => void;
@@ -33,7 +34,7 @@ type Props = {
 };
 
 const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
-  const { t: translate } = useTranslation(["common", "dags"]);
+  const { i18n, t: translate } = useTranslation(["common", "dags"]);
   const { onClose, onOpen, open } = useDisclosure();
   const { bulkAction, data, error, isPending, reset } = useBulkSetDagSchedulingState({
     deselectKeys,
@@ -44,7 +45,7 @@ const BulkPauseDrainDagsButton = ({ deselectKeys, selectedDags }: Props) => {
   // for the whole batch — skip the drain-vs-pause choice, same as the single-Dag toggle does.
   // Already-paused Dags are never drained (see runBulkAction), so their runs don't count.
   const allIdle = selectedDags.every((dag) => dag.is_paused || !dag.has_unfinished_runs);
-  const displayName = `${selectedDags.length} ${translate("dag", { count: selectedDags.length })}`;
+  const displayName = `${formatNumber(selectedDags.length, i18n.language)} ${translate("dag", { count: selectedDags.length })}`;
 
   const runBulkAction = (schedulingState: DagSchedulingState) => {
     bulkAction({

@@ -82,7 +82,7 @@ def expand_mapped_task_instances(
     session: Session,
 ) -> tuple[Sequence[TaskInstance], int]:
     # -1 sorts first, so this picks the unmapped TI where a test still has one.
-    ti = session.scalars(
+    query = (
         select(TaskInstance)
         .where(
             TaskInstance.dag_id == mapped.dag_id,
@@ -91,7 +91,8 @@ def expand_mapped_task_instances(
         )
         .order_by(TaskInstance.map_index)
         .limit(1)
-    ).one()
+    )
+    ti = session.scalars(query).one()
     ti.task = mapped
     return ti.expand_mapped_task(session=session)
 
@@ -103,13 +104,12 @@ def expand_mapped_task(
     length: int,
     session: Session,
 ):
-    upstream_ti = session.scalars(
-        select(TaskInstance).where(
-            TaskInstance.dag_id == mapped.dag_id,
-            TaskInstance.task_id == upstream_task_id,
-            TaskInstance.run_id == run_id,
-            TaskInstance.map_index == -1,
-        )
-    ).one()
+    query = select(TaskInstance).where(
+        TaskInstance.dag_id == mapped.dag_id,
+        TaskInstance.task_id == upstream_task_id,
+        TaskInstance.run_id == run_id,
+        TaskInstance.map_index == -1,
+    )
+    upstream_ti = session.scalars(query).one()
     push_mapped_length(upstream_ti, list(range(length)), session=session)
     expand_mapped_task_instances(mapped, run_id, session=session)

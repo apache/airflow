@@ -18,7 +18,7 @@
     "emptyState": "El magatzem d'Asset emmagatzema valors limitats a una identitat d'Asset, compartits entre totes les execucions de Dag. Els workers poden escriure al magatzem d'Asset mitjançant el Task SDK.",
     "entry_one": "Entrada",
     "entry_other": "Entrades",
-    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedBy": "Darrera actualització feta per",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
     "title": "Magatzem d'Asset"
@@ -49,6 +49,7 @@
   "events": "Esdeveniments",
   "filters": {
     "groupPlaceholder": "Cercar grup",
+    "hasEvents": "Té esdeveniments",
     "lastEventDateRange": "Data del darrer esdeveniment"
   },
   "group": "Grup",

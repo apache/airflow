@@ -23,7 +23,7 @@ import copy
 import re
 import weakref
 from collections import deque
-from collections.abc import Generator, Iterator, Sequence
+from collections.abc import Collection, Generator, Iterator, Sequence
 from typing import TYPE_CHECKING, Any
 
 import attrs
@@ -32,7 +32,6 @@ from airflow.sdk import TriggerRule
 from airflow.sdk._shared.dagnode.node import TaskGroupMixin
 from airflow.sdk.definitions._internal.node import DAGNode, validate_group_key
 from airflow.sdk.exceptions import (
-    AirflowDagCycleException,
     DuplicateTaskIdFound,
     NodeNotFound,
     TaskAlreadyInTaskGroup,
@@ -561,7 +560,8 @@ class TaskGroup(TaskGroupMixin, DAGNode):
           traversal, O((V + E) log V), avoids the O(N²) blowup the sweep would hit.
 
         Both branches produce the same emission order: level-by-legacy-pass, ties broken by
-        children insertion order.
+        children insertion order. Siblings that depend on each other in a cycle, which
+        ``DAG.check_cycle`` allows, are ordered as one unit (see ``_sort_cyclic_projection``).
         """
         children = self.children
         if not children:
@@ -595,7 +595,15 @@ class TaskGroup(TaskGroupMixin, DAGNode):
         id_to_idx: dict[str, int],
         group_dict: dict[str, TaskGroup],
     ) -> tuple[int, ...]:
-        upstream_ids = child._topological_upstream_ids
+        return self._project_upstream_ids(child_idx, child._topological_upstream_ids, id_to_idx, group_dict)
+
+    def _project_upstream_ids(
+        self,
+        child_idx: int,
+        upstream_ids: Collection[str],
+        id_to_idx: dict[str, int],
+        group_dict: dict[str, TaskGroup],
+    ) -> tuple[int, ...]:
         if not upstream_ids:
             return ()
         sib_deps: set[int] = set()
@@ -657,50 +665,50 @@ class TaskGroup(TaskGroupMixin, DAGNode):
                 emitted[i] = 1
                 order_append(nodes[i])
             if len(next_pending) == len(pending):
-                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+                return self._sort_cyclic_projection(nodes, projected)
             pending = next_pending
         return order
 
     def _sort_via_pass_numbering(
         self, nodes: list[DAGNode], projected: list[tuple[int, ...]]
     ) -> list[DAGNode]:
-        # Sort by (pass_number, insertion_index). pass_number(X) is the earliest pass at
-        # which a greedy-sweep emission of X would occur:
-        #   pass(X) = max over deps d of (pass(d) if idx(d) < idx(X) else pass(d)+1)
-        # A dep declared before X can be emitted in the same pass; a dep declared after X
-        # forces X into the next pass. Computed via Kahn's traversal in O(V + E).
-        n = len(nodes)
-        in_degree = [len(deps) for deps in projected]
-        successors: list[list[int]] = [[] for _ in range(n)]
-        for i, deps in enumerate(projected):
-            for d in deps:
-                successors[d].append(i)
-
-        pass_of = [0] * n
-        queue: deque[int] = deque(i for i in range(n) if in_degree[i] == 0)
-        processed = 0
-        while queue:
-            i = queue.popleft()
-            my_pass = 1
-            for d in projected[i]:
-                d_pass = pass_of[d]
-                if d < i:
-                    if d_pass > my_pass:
-                        my_pass = d_pass
-                elif d_pass + 1 > my_pass:
-                    my_pass = d_pass + 1
-            pass_of[i] = my_pass
-            processed += 1
-            for s in successors[i]:
-                in_degree[s] -= 1
-                if in_degree[s] == 0:
-                    queue.append(s)
-
-        if processed != n:
-            raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
-
-        sorted_indices = sorted(range(n), key=lambda i: (pass_of[i], i))
+        sorted_indices = self._compute_pass_order(projected)
+        if len(sorted_indices) != len(nodes):
+            return self._sort_cyclic_projection(nodes, projected)
         return [nodes[i] for i in sorted_indices]
+
+    def _find_dependency_cycles(self, *, group_dict: dict[str, TaskGroup]) -> list[list[str]]:
+        """
+        Find children that depend on each other in a cycle when each child TaskGroup is one unit.
+
+        An edge into any task of a child group counts as an edge into the group, so a path that
+        leaves a group and comes back into it is a cycle even though the task-level graph is
+        acyclic. This is stricter than the ordering ``topological_sort`` needs, which only looks
+        at edges into a group's roots.
+
+        :return: one list of child node ids per cycle, each in insertion order
+        """
+        nodes = list(self.children.values())
+        id_to_idx = {nid: i for i, nid in enumerate(self.children)}
+        projected = [
+            self._project_upstream_ids(i, self._get_unit_upstream_ids(child), id_to_idx, group_dict)
+            for i, child in enumerate(nodes)
+        ]
+        members: dict[int, list[str]] = {}
+        for i, component in enumerate(self._find_projection_components(projected)):
+            members.setdefault(component, []).append(nodes[i].node_id)
+        return [node_ids for node_ids in members.values() if len(node_ids) > 1]
+
+    @staticmethod
+    def _get_unit_upstream_ids(child: DAGNode) -> Collection[str]:
+        if not isinstance(child, TaskGroup):
+            return child._topological_upstream_ids
+        # Not _topological_upstream_ids or iter(child): MappedTaskGroup.__iter__ raises for a
+        # trigger_rule="always" child, which would turn an acyclic Dag into an import error.
+        upstream_ids = set(child.upstream_task_ids)
+        upstream_ids.update(group_id for group_id in child.upstream_group_ids if group_id is not None)
+        upstream_ids.update(edge_id for task in child.iter_tasks() for edge_id in task.upstream_task_ids)
+        return upstream_ids
 
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """

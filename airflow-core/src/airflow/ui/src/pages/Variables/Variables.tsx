@@ -30,6 +30,7 @@ import type { VariableResponse } from "openapi/requests/types.gen";
 import { Tooltip, ActionBar } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
+import type { DataTableFeatures } from "src/components/DataTable/features";
 import {
   SelectionHeaderCheckbox,
   SelectionProvider,
@@ -46,7 +47,7 @@ import { TeamName } from "src/components/TeamName";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearch } from "src/hooks/useAdvancedSearch";
 import { useConfig } from "src/queries/useConfig.tsx";
-import { useDocumentTitle } from "src/utils";
+import { formatNumber, useDocumentTitle } from "src/utils";
 import { TrimText } from "src/utils/TrimText";
 
 import DeleteVariablesButton from "./DeleteVariablesButton";
@@ -65,8 +66,10 @@ const getColumns = ({
   multiTeam,
   open,
   translate,
-}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<ColumnDef<VariableResponse>> => {
-  const columns: Array<ColumnDef<VariableResponse>> = [
+}: { hasSelection: boolean } & ColumnProps & GetColumnsParams): Array<
+  ColumnDef<DataTableFeatures, VariableResponse>
+> => {
+  const columns: Array<ColumnDef<DataTableFeatures, VariableResponse>> = [
     {
       accessorKey: "select",
       cell: ({ row }) => <SelectionRowCheckbox rowKey={row.original.key} />,
@@ -131,6 +134,7 @@ const getColumns = ({
           <DeleteVariableButton deleteKey={original.key} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {
@@ -143,7 +147,7 @@ const getColumns = ({
 };
 
 export const Variables = () => {
-  const { t: translate } = useTranslation("admin");
+  const { i18n, t: translate } = useTranslation("admin");
 
   useDocumentTitle(translate("common:admin.Variables"));
 
@@ -161,7 +165,7 @@ export const Variables = () => {
   const orderBy = sort ? [`${sort.desc ? "-" : ""}${sort.id === "value" ? "_val" : sort.id}`] : ["-key"];
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
-  const { data, error, isFetching, isLoading } = useVariableServiceGetVariables({
+  const { data, error, isLoading } = useVariableServiceGetVariables({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     orderBy,
@@ -219,7 +223,6 @@ export const Variables = () => {
           />
         }
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="admin:variables.variable"
         noRowsMessage={translate("variables.noRowsMessage")}
@@ -246,7 +249,7 @@ export const Variables = () => {
       <ActionBar.Root closeOnInteractOutside={false} open={Boolean(selectedRows.size)}>
         <ActionBar.Content>
           <ActionBar.SelectionTrigger>
-            {selectedRows.size} {translate("deleteActions.selected")}
+            {formatNumber(selectedRows.size, i18n.language)} {translate("deleteActions.selected")}
           </ActionBar.SelectionTrigger>
           <ActionBar.Separator />
           <Tooltip content={translate("variables.delete.tooltip")}>

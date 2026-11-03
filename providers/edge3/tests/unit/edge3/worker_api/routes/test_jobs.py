@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -27,10 +28,15 @@ from fastapi import HTTPException, status
 from sqlalchemy import delete, select
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
-from airflow.providers.common.compat.sdk import Stats
+from airflow.providers.common.compat.sdk import Stats, timezone
 from airflow.providers.edge3.models.edge_job import EdgeJobModel
 from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWorkerState
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import (
+    CALLBACK_JOB_MAP_INDEX,
+    CALLBACK_JOB_TRY_NUMBER,
+    EXECUTE_CALLBACK_TAG,
+    build_callback_run_id,
+)
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes import jobs
 from airflow.providers.edge3.worker_api.routes.jobs import fetch, parse_command, state
@@ -310,6 +316,188 @@ class TestJobsApiRoutes:
             )
 
     @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_returns_highest_priority_job_first(self, mock_stats_incr, session: Session):
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            queued_dttm = timezone.datetime(2026, 1, 1)
+            for task_id, priority_weight, delay in [
+                ("low", 1, 0),
+                ("high", 100, 1),
+                ("medium_late", 10, 3),
+                ("medium_early", 10, 2),
+            ]:
+                session.add(
+                    EdgeJobModel(
+                        dag_id=DAG_ID,
+                        task_id=task_id,
+                        run_id=RUN_ID,
+                        try_number=1,
+                        map_index=-1,
+                        state=TaskInstanceState.QUEUED,
+                        queue=QUEUE,
+                        concurrency_slots=1,
+                        command=MOCK_COMMAND_STR,
+                        priority_weight=priority_weight,
+                        queued_dttm=queued_dttm + timedelta(seconds=delay),
+                    )
+                )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(4)]
+
+            assert [job.task_id for job in fetched if job] == ["high", "medium_early", "medium_late", "low"]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteCallback requires Airflow 3.3+")
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_returns_callbacks_before_higher_priority_tasks(self, mock_stats_incr, session: Session):
+        """Callbacks are fetched in queue order regardless of their own priority_weight."""
+        queued_dttm = timezone.datetime(2026, 1, 1)
+        callbacks = [
+            ("11111111-1111-1111-1111-111111111111", 100, queued_dttm),
+            ("22222222-2222-2222-2222-222222222222", 1, queued_dttm - timedelta(seconds=1)),
+        ]
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            for callback_id, priority_weight, callback_queued_dttm in callbacks:
+                callback = ExecuteCallback(
+                    callback=CallbackDTO(
+                        id=callback_id,
+                        fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                        data={"path": "builtins.dict", "kwargs": {}},
+                    ),
+                    dag_rel_path=Path("test.py"),
+                    bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+                    token="test_token",
+                    log_path="test.log",
+                )
+                session.add(
+                    EdgeJobModel(
+                        dag_id=EXECUTE_CALLBACK_TAG,
+                        task_id=callback_id,
+                        run_id=build_callback_run_id(callback_id),
+                        try_number=CALLBACK_JOB_TRY_NUMBER,
+                        map_index=CALLBACK_JOB_MAP_INDEX,
+                        state=TaskInstanceState.QUEUED,
+                        queue=QUEUE,
+                        concurrency_slots=1,
+                        command=callback.model_dump_json(),
+                        priority_weight=priority_weight,
+                        queued_dttm=callback_queued_dttm,
+                    )
+                )
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id="high",
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=100,
+                    queued_dttm=queued_dttm - timedelta(seconds=2),
+                )
+            )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(3)]
+
+            assert [job.task_id for job in fetched if job] == [callbacks[1][0], callbacks[0][0], "high"]
+
+    @pytest.mark.parametrize(
+        ("dag_id", "run_id", "try_number", "map_index"),
+        [
+            pytest.param(
+                DAG_ID,
+                build_callback_run_id("low"),
+                CALLBACK_JOB_TRY_NUMBER,
+                CALLBACK_JOB_MAP_INDEX,
+                id="only-dag-id-differs",
+            ),
+            pytest.param(
+                EXECUTE_CALLBACK_TAG,
+                build_callback_run_id("other"),
+                CALLBACK_JOB_TRY_NUMBER,
+                CALLBACK_JOB_MAP_INDEX,
+                id="only-run-id-differs",
+            ),
+            pytest.param(
+                EXECUTE_CALLBACK_TAG,
+                build_callback_run_id("low"),
+                CALLBACK_JOB_TRY_NUMBER + 1,
+                CALLBACK_JOB_MAP_INDEX,
+                id="only-try-number-differs",
+            ),
+            pytest.param(
+                EXECUTE_CALLBACK_TAG,
+                build_callback_run_id("low"),
+                CALLBACK_JOB_TRY_NUMBER,
+                CALLBACK_JOB_MAP_INDEX + 1,
+                id="only-map-index-differs",
+            ),
+        ],
+    )
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_needs_full_callback_identity_to_jump_the_queue(
+        self, mock_stats_incr, dag_id, run_id, try_number, map_index, session: Session
+    ):
+        queued_dttm = timezone.datetime(2026, 1, 1)
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id="high",
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=100,
+                    queued_dttm=queued_dttm + timedelta(seconds=1),
+                )
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=dag_id,
+                    task_id="low",
+                    run_id=run_id,
+                    try_number=try_number,
+                    map_index=map_index,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=1,
+                    queued_dttm=queued_dttm,
+                )
+            )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(2)]
+
+            assert [job.task_id for job in fetched if job] == ["high", "low"]
+
+    @patch(f"{Stats.__module__}.Stats.incr")
     def test_fetch_filters_by_worker_team_name(self, mock_stats_incr, session: Session):
         with create_session() as session:
             session.add(
@@ -469,7 +657,14 @@ class TestParseCommand:
         workload = self._make_execute_task()
         command_json = workload.model_dump_json()
 
-        result = parse_command(command_json, dag_id="test_dag", run_id="test_run")
+        result = parse_command(
+            command_json,
+            dag_id="test_dag",
+            task_id="test_task",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+        )
 
         assert isinstance(result, ExecuteTask)
         assert result.ti.dag_id == "test_dag"
@@ -479,10 +674,16 @@ class TestParseCommand:
         workload = self._make_execute_callback()
         command_json = workload.model_dump_json()
 
-        dag_id = EXECUTE_CALLBACK_TAG
-        run_id = f"{EXECUTE_CALLBACK_TAG}-{workload.callback.key}"
+        callback_id = workload.callback.id
 
-        result = parse_command(command_json, dag_id=dag_id, run_id=run_id)
+        result = parse_command(
+            command_json,
+            dag_id=EXECUTE_CALLBACK_TAG,
+            task_id=callback_id,
+            run_id=build_callback_run_id(callback_id),
+            try_number=CALLBACK_JOB_TRY_NUMBER,
+            map_index=CALLBACK_JOB_MAP_INDEX,
+        )
 
         assert isinstance(result, ExecuteCallback)
         assert result.callback.id == "12345678-1234-5678-1234-567812345678"
@@ -493,6 +694,13 @@ class TestParseCommand:
         workload = self._make_execute_task()
         command_json = workload.model_dump_json()
 
-        result = parse_command(command_json, dag_id="some_dag", run_id=f"{EXECUTE_CALLBACK_TAG}-something")
+        result = parse_command(
+            command_json,
+            dag_id="some_dag",
+            task_id="something",
+            run_id=build_callback_run_id("something"),
+            try_number=CALLBACK_JOB_TRY_NUMBER,
+            map_index=CALLBACK_JOB_MAP_INDEX,
+        )
 
         assert isinstance(result, ExecuteTask)

@@ -367,7 +367,8 @@ class Pool(Base):
         return int(
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots)).where(
-                    TaskInstance.pool == self.pool, TaskInstance.state == TaskInstanceState.DEFERRED
+                    TaskInstance.pool == self.pool,
+                    TaskInstance.state == TaskInstanceState.DEFERRED,
                 )
             )
             or 0
@@ -397,4 +398,4 @@ class Pool(Base):
         pool_names: list[str], *, session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = select(Pool.pool, Pool.team_name).where(Pool.pool.in_(pool_names))
-        return {pool: team_name for pool, team_name in session.execute(stmt)}
+        return {pool: team_name for pool, team_name in session.execute(stmt) if pool is not None}

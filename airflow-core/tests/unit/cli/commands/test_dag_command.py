@@ -21,7 +21,10 @@ import argparse
 import json
 import logging
 import os
+import shutil
+from contextlib import contextmanager
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -36,13 +39,14 @@ from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
+from airflow.dag_processing.bundles.base import BaseDagBundle
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun
 from airflow.models.dagbag import DBDagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances_for_runs
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseOperator, CronPartitionTimetable, PartitionedAssetTimetable, task
@@ -79,6 +83,45 @@ pytestmark = pytest.mark.db_test
 jan_1 = DEFAULT_DATE
 jan_6 = DEFAULT_DATE + timedelta(days=5)
 dec_27 = DEFAULT_DATE + timedelta(days=-5)
+
+
+class _DeferredPathBundle(BaseDagBundle):
+    """Bundle whose files only land on disk in ``initialize()``, like the Git bundle's clone."""
+
+    def __init__(self, *, source: str, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._source = Path(source)
+        self._path = self._source.parent / "checkout"
+
+    def initialize(self) -> None:
+        shutil.copytree(self._source, self._path, dirs_exist_ok=True)
+        super().initialize()
+
+    def get_current_version(self) -> None:
+        return None
+
+    def refresh(self) -> None:
+        """Nothing to refresh."""
+
+    @property
+    def path(self) -> Path:
+        return self._path
+
+
+@contextmanager
+def _configure_deferred_path_bundle(dag_file: Path, tmp_path: Path):
+    source = tmp_path / "source"
+    source.mkdir()
+    shutil.copy(dag_file, source)
+    bundle_config = [
+        {
+            "name": "deferred",
+            "classpath": f"{__name__}._DeferredPathBundle",
+            "kwargs": {"source": str(source), "refresh_interval": 0},
+        }
+    ]
+    with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config)}):
+        yield
 
 
 class TestCliDags:
@@ -420,6 +463,32 @@ class TestCliDags:
             )
         # Rebuild Test DB for other tests
         self.setup_class()
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_local_dags_initializes_bundle(self, tmp_path, stdout_capture):
+        args = self.parser.parse_args(
+            ["dags", "list", "--output", "json", "--local", "--bundle-name", "deferred"]
+        )
+        with _configure_deferred_path_bundle(TEST_DAGS_FOLDER / "test_example_bash_operator.py", tmp_path):
+            with stdout_capture as temp_stdout:
+                dag_command.dag_list_dags(args)
+            dag_list = json.loads(temp_stdout.getvalue())
+
+        assert [d["dag_id"] for d in dag_list] == ["test_example_bash_operator"]
+
+    @conf_vars({("core", "load_examples"): "false"})
+    def test_cli_list_import_errors_initializes_bundle(self, tmp_path, stdout_capture):
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "json", "--local", "--bundle-name", "deferred"]
+        )
+        with _configure_deferred_path_bundle(TEST_DAGS_FOLDER / "test_invalid_cron.py", tmp_path):
+            with stdout_capture as temp_stdout:
+                with pytest.raises(SystemExit) as err_ctx:
+                    dag_command.dag_list_import_errors(args)
+            errors = json.loads(temp_stdout.getvalue())
+
+        assert err_ctx.value.code == 1
+        assert [e["filepath"] for e in errors] == ["test_invalid_cron.py"]
 
     def test_cli_list_dags_custom_cols(self, stdout_capture):
         args = self.parser.parse_args(
@@ -1084,6 +1153,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=TEST_DAGS_FOLDER,
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -1105,6 +1175,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
@@ -1136,6 +1207,7 @@ class TestCliDags:
             bundle_path=TEST_DAGS_FOLDER,
             dag_folder=str(dag_file),
             bundle_name="testing",
+            parse_lang_sdk_files=False,
         )
 
     @mock.patch("airflow.models.dagrun.get_or_create_dagrun")
@@ -1254,7 +1326,7 @@ class TestCliDags:
         try:
             from airflow.utils.cli import get_bagged_dag
         except ImportError:  # Prior to Airflow 3.1.0.
-            from airflow.utils.cli import get_dag as get_bagged_dag  # type: ignore
+            from airflow.utils.cli import get_dag as get_bagged_dag
 
         with configure_testing_dag_bundle(TEST_DAGS_FOLDER / "test_sensor.py"):
             # example DAG should not be found since the testing bundle only exposes test_sensor.py
@@ -2124,16 +2196,16 @@ class TestCliDagsClear:
     def test_clears_each_matching_run_once_across_chunks(self, parser, chunk_size, expected_calls):
         """Every matching run is cleared exactly once, however run_ids split into chunks.
 
-        clear_task_instances is called once per chunk (not once per run), every matching
+        clear_task_instances_for_runs is called once per chunk (not once per run), every matching
         run is re-queued, and each run's clear_number advances by exactly 1 — proving a
         run's TIs are never split across chunks.
         """
         call_count = 0
 
-        def counting_clear(tis, session, **kwargs):
+        def counting_clear(tis, **kwargs):
             nonlocal call_count
             call_count += 1
-            return clear_task_instances(tis, session, **kwargs)
+            return clear_task_instances_for_runs(tis, **kwargs)
 
         args = parser.parse_args(
             [
@@ -2150,7 +2222,7 @@ class TestCliDagsClear:
         with (
             mock.patch.object(dag_command, "_RUN_CHUNK_SIZE", chunk_size),
             mock.patch(
-                "airflow.cli.commands.dag_command.clear_task_instances",
+                "airflow.cli.commands.dag_command.clear_task_instances_for_runs",
                 side_effect=counting_clear,
             ),
         ):
@@ -2169,6 +2241,36 @@ class TestCliDagsClear:
         assert clear_numbers["part_2026_03_10"] == 1
         assert clear_numbers["part_2026_03_14"] == 1
         assert clear_numbers["non_partitioned"] == 0
+
+    @pytest.mark.usefixtures("seeded_partitioned_runs")
+    @pytest.mark.parametrize(
+        ("only_failed", "only_running", "expect_whole"),
+        [
+            pytest.param(False, False, True, id="no-state-filter"),
+            pytest.param(True, False, False, id="only-failed"),
+            pytest.param(False, True, False, id="only-running"),
+        ],
+    )
+    @mock.patch("airflow.cli.commands.dag_command.clear_task_instances_for_runs", autospec=True)
+    def test_bulk_clear_scopes_loop_clearing_like_dag_clear(
+        self, mock_clear, session, only_failed, only_running, expect_whole
+    ):
+        run_id = "part_2026_03_08"
+        ti = session.scalar(
+            select(TaskInstance).where(TaskInstance.dag_id == self.DAG_ID, TaskInstance.run_id == run_id)
+        )
+        ti.state = TaskInstanceState.FAILED if only_failed else TaskInstanceState.RUNNING
+        session.flush()
+
+        dag_command._bulk_clear_runs(
+            self.DAG_ID, [run_id], only_failed=only_failed, only_running=only_running, session=session
+        )
+
+        mock_clear.assert_called_once()
+        assert mock_clear.call_args.kwargs["later_loop_iterations"] is expect_whole
+        assert mock_clear.call_args.kwargs["whole_task_keys"] == (
+            {(self.DAG_ID, run_id, ti.task_id)} if expect_whole else ()
+        )
 
     @pytest.mark.usefixtures("seeded_partitioned_runs")
     def test_does_not_clear_runs_of_other_dags(self, parser, dag_maker):

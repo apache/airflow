@@ -221,7 +221,7 @@ Note: these titles require a full phrase in Spanish — do not shorten at the ex
 
 - Match tone, style, gender agreement, and casing from existing `es/*.json` files
 - Use neutral, international Spanish readable across all Spanish-speaking regions
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{hotkey}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
 - Provide all needed plural suffixes (`_one`, `_other`) for each plural key
 - Check existing translations before adding new ones to maintain consistency
 

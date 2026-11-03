@@ -17,5 +17,6 @@
  * under the License.
  */
 export * from "./Crumb";
+export * from "./CrumbSwitcher";
 export * from "./Row";
 export * from "./segment";

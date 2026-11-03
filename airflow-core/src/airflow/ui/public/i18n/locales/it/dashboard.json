@@ -1,8 +1,8 @@
 {
   "favorite": {
-    "favoriteDags_many": "{{count}} Dags preferiti",
-    "favoriteDags_one": "Primo {{count}} Dag preferito",
-    "favoriteDags_other": "Primi {{count}} Dags preferiti",
+    "favoriteDags_many": "{{count, number}} Dags preferiti",
+    "favoriteDags_one": "Primo {{count, number}} Dag preferito",
+    "favoriteDags_other": "Primi {{count, number}} Dags preferiti",
     "favoriteDags_zero": "Nessun Dag preferito",
     "noDagRuns": "Non ci sono ancora DagRun per questo dag.",
     "noFavoriteDags": "Nessun preferito ancora. Clicca sull'icona stella accanto a un Dag nella lista per aggiungerlo ai tuoi preferiti."

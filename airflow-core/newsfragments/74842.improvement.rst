@@ -1,0 +1,1 @@
+The triggerer now validates that a triggerer callback path resolves to a coroutine function or an awaitable callable (for example an async notifier class) before running it, the same way trigger classpaths are validated. Other targets fail the callback without being called.

@@ -64,6 +64,62 @@ class TestPoolImportCommand:
         with pytest.raises(SystemExit, match="Invalid pool configuration: {'invalid': 'config'}"):
             pool_command.import_(mock.MagicMock(file=invalid_pool, action_on_existing_key="fail"))
 
+    @pytest.mark.parametrize(
+        ("pool_config", "expected_reason"),
+        [
+            (
+                {"name": "bad_pool", "slots": "many"},
+                "slots: Input should be a valid integer, unable to parse string as an integer",
+            ),
+            ({"name": "bad_pool", "slots": -5}, "slots: Input should be greater than or equal to -1"),
+            (
+                {"name": "bad_pool", "slots": 1, "include_deferred": "maybe"},
+                "include_deferred: Input should be a valid boolean, unable to interpret input",
+            ),
+            (
+                {"name": "bad_pool", "slots": "many", "include_deferred": "maybe"},
+                "slots: Input should be a valid integer, unable to parse string as an integer; "
+                "include_deferred: Input should be a valid boolean, unable to interpret input",
+            ),
+            ({"name": None, "slots": 1}, "missing required field(s): name"),
+        ],
+        ids=[
+            "non-integer-slots",
+            "slots-below-minimum",
+            "non-boolean-include-deferred",
+            "non-integer-slots-and-non-boolean-include-deferred",
+            "null-name",
+        ],
+    )
+    def test_import_reports_invalid_pool(self, mock_client, tmp_path, pool_config, expected_reason):
+        """Test that an invalid pool value is reported as a readable error instead of a traceback."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(json.dumps([pool_config]))
+
+        with pytest.raises(SystemExit) as exc_info:
+            pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
+
+        assert (
+            str(exc_info.value) == f"Invalid pool {pool_config['name']!r} in {pools_file}: {expected_reason}"
+        )
+        mock_client.pools.bulk.assert_not_called()
+
+    def test_import_reports_invalid_pool_after_valid_one(self, mock_client, tmp_path):
+        """Test that an invalid pool stops the whole import, so the valid pool before it is not sent."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(
+            json.dumps([{"name": "good_pool", "slots": 1}, {"name": "bad_pool", "slots": "many"}])
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="fail"))
+
+        assert str(exc_info.value) == (
+            f"Invalid pool 'bad_pool' in {pools_file}: "
+            "slots: Input should be a valid integer, unable to parse string as an integer"
+        )
+        mock_client.pools.bulk.assert_not_called()
+
     def test_import_success(self, mock_client, tmp_path, capsys):
         """Test successful pool import."""
         pools_file = tmp_path / "pools.json"
@@ -136,6 +192,23 @@ class TestPoolImportCommand:
         action = call_args["pools"].actions[0]
         assert action.action_on_existence == expected_enum
 
+    def test_import_forwards_team_name(self, mock_client, tmp_path):
+        """Test that team_name in the file reaches the server instead of being sent as null."""
+        pools_file = tmp_path / "pools.json"
+        pools_file.write_text(json.dumps([{"name": "test_pool", "slots": 1, "team_name": "data-team"}]))
+
+        mock_response = mock.MagicMock()
+        mock_response.success = ["test_pool"]
+        mock_response.errors = []
+        mock_bulk_builder = mock.MagicMock()
+        mock_bulk_builder.create = mock_response
+        mock_client.pools.bulk.return_value = mock_bulk_builder
+
+        pool_command.import_(mock.MagicMock(file=pools_file, action_on_existing_key="overwrite"))
+
+        sent = mock_client.pools.bulk.call_args[1]["pools"].model_dump(mode="json")
+        assert sent["actions"][0]["entities"][0]["team_name"] == "data-team"
+
 
 class TestPoolExportCommand:
     """Test cases for pool export command."""
@@ -155,6 +228,7 @@ class TestPoolExportCommand:
             "scheduled_slots": 0,
             "open_slots": 1,
             "deferred_slots": 0,
+            "team_name": None,
         }
         # Create a mock response with proper dictionary attributes
         mock_pools = mock.MagicMock()
@@ -191,6 +265,7 @@ class TestPoolExportCommand:
             "scheduled_slots": 0,
             "open_slots": 5,
             "deferred_slots": 0,
+            "team_name": None,
         }
         mock_pools = mock.MagicMock()
         mock_pools.pools = [type("Pool", (), pool_attrs)()]
@@ -203,6 +278,32 @@ class TestPoolExportCommand:
                 data=[pool_attrs],
                 output=output_format,
             )
+
+    def test_export_includes_team_name(self, mock_client, tmp_path):
+        """Test that export writes team_name so the file can be imported back without losing it."""
+        export_file = tmp_path / "export.json"
+        pool_attrs = {
+            "name": "test_pool",
+            "slots": 1,
+            "description": "Test pool",
+            "include_deferred": True,
+            "occupied_slots": 0,
+            "running_slots": 0,
+            "queued_slots": 0,
+            "scheduled_slots": 0,
+            "open_slots": 1,
+            "deferred_slots": 0,
+            "team_name": "data-team",
+        }
+        mock_pools = mock.MagicMock()
+        mock_pools.pools = [type("Pool", (), pool_attrs)()]
+        mock_pools.total_entries = 1
+        mock_client.pools.list.return_value = mock_pools
+
+        pool_command.export(mock.MagicMock(file=export_file, output="json"))
+
+        exported_data = json.loads(export_file.read_text())
+        assert exported_data[0]["team_name"] == "data-team"
 
     def test_export_failure(self, mock_client, tmp_path):
         """Test pool export with API failure."""

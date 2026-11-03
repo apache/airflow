@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -129,13 +129,13 @@ class TestProductMapper:
             pytest.param(
                 ProductMapper(StartOfDayMapper(), IdentityMapper()),
                 "2024-01-15|us-east-1",
-                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                datetime(2024, 1, 15, 0, 0, tzinfo=UTC),
                 id="one-temporal-one-categorical-returns-temporal-anchor",
             ),
             pytest.param(
                 ProductMapper(IdentityMapper(), StartOfDayMapper()),
                 "us-east-1|2024-01-15",
-                datetime(2024, 1, 15, 0, 0, tzinfo=timezone.utc),
+                datetime(2024, 1, 15, 0, 0, tzinfo=UTC),
                 id="categorical-first-temporal-second-returns-temporal-anchor",
             ),
             pytest.param(

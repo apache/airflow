@@ -2,8 +2,8 @@
   "alerts": {
     "seeLessContext": "Ver menos",
     "seeMoreContext": "Ver más",
-    "showMoreAlerts_one": "+{{count}} alerta más",
-    "showMoreAlerts_other": "+{{count}} alertas más"
+    "showMoreAlerts_one": "+{{count, number}} alerta más",
+    "showMoreAlerts_other": "+{{count, number}} alertas más"
   },
   "deadlines": {
     "pending": {
@@ -17,11 +17,11 @@
     "showMore": "Mostrar más",
     "title": "Plazos"
   },
-  "deferredSlotsNotCounted": "Diferidos no contados en slots: {{count}}",
+  "deferredSlotsNotCounted": "Diferidos no contados en slots: {{count, number}}",
   "deferredSlotsNotCountedTooltip": "Las tareas diferidas mostradas en la barra se cuentan contra los slots del pool. Las tareas diferidas mostradas debajo de la barra provienen de pools que no cuentan las tareas diferidas contra los slots.",
   "favorite": {
-    "favoriteDags_one": "Primer {{count}} Dag Favorito",
-    "favoriteDags_other": "Primeros {{count}} Dags Favoritos",
+    "favoriteDags_one": "Primer {{count, number}} Dag Favorito",
+    "favoriteDags_other": "Primeros {{count, number}} Dags Favoritos",
     "noDagRuns": "Aún no hay Ejecuciones de Dag para este Dag.",
     "noFavoriteDags": "Aún no hay favoritos. Haz clic en el ícono de estrella junto a un Dag en la lista para agregarlo a tus favoritos."
   },

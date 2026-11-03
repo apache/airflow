@@ -1334,10 +1334,6 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
         )
         self.conn.commit.assert_called_once()
 
-    @pytest.mark.skip(reason="Notice handling is callback-based in psycopg3 and cannot be tested this way.")
-    def test_get_all_db_log_messages(self, mocker):
-        pass
-
     @pytest.mark.usefixtures("reset_logging_config")
     def test_log_db_messages_by_db_proc(self, mocker):
         proc_name = "raise_notice"
