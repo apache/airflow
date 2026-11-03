@@ -24,10 +24,12 @@ import pytest
 from ci.prek.common_prek_utils import (
     ConsoleDiff,
     check_list_sorted,
+    get_changed_files,
     get_imports_from_file,
     get_provider_base_dir_from_path,
     get_provider_id_from_path,
     get_provider_namespace_from_path,
+    get_target_branch,
     initialize_breeze_prek,
     insert_documentation,
     is_duplicated_namespace_init,
@@ -41,6 +43,7 @@ from ci.prek.common_prek_utils import (
     read_default_python_major_minor_version_for_images,
     resolve_github_token,
     retrieve_gh_token,
+    temporary_target_branch_worktree,
     temporary_tsc_project,
 )
 
@@ -721,3 +724,49 @@ class TestTemporaryTscProject:
             content = Path(temp.name).read_text()
             assert f'"extends": "./{tsconfig.name}"' in content
             assert '"include": ["file.ts"]' in content
+
+
+class TestTargetBranchWorktree:
+    def test_get_target_branch_prefers_github_base_ref(self, monkeypatch):
+        monkeypatch.setenv("GITHUB_BASE_REF", "v3-0-test")
+        monkeypatch.setenv("DEFAULT_BRANCH", "main")
+        assert get_target_branch() == "v3-0-test"
+
+    def test_get_target_branch_falls_back_to_default_branch(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+        monkeypatch.setenv("DEFAULT_BRANCH", "v3-1-test")
+        assert get_target_branch() == "v3-1-test"
+
+    def test_get_target_branch_defaults_to_main(self, monkeypatch):
+        monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
+        monkeypatch.delenv("DEFAULT_BRANCH", raising=False)
+        assert get_target_branch() == "main"
+
+    def test_get_changed_files_returns_provided_filenames(self):
+        provided = ["foo.py", "bar.py"]
+        assert get_changed_files(provided) == provided
+
+    def test_get_changed_files_runs_git_diff_when_empty(self, monkeypatch):
+        def fake_run(cmd, capture_output, text, check):
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="a.py\nb.py\n", stderr="")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fake_run)
+        assert get_changed_files([]) == ["a.py", "b.py"]
+
+    def test_temporary_target_branch_worktree_lifecycle(self, monkeypatch):
+        commands_run = []
+
+        def fake_run(cmd, capture_output=None, text=None, check=None, env=None):
+            commands_run.append(cmd)
+            return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(common_prek_utils.subprocess, "run", fake_run)
+        monkeypatch.setattr(common_prek_utils, "get_remote_for_main", lambda: "upstream")
+        monkeypatch.setattr(common_prek_utils, "get_target_branch", lambda: "main")
+
+        with temporary_target_branch_worktree() as worktree:
+            assert isinstance(worktree, Path)
+            assert worktree.name == "airflow-main"
+            assert any(c[0:2] == ["git", "worktree"] and c[2] == "add" for c in commands_run)
+
+        assert any(c[0:2] == ["git", "worktree"] and c[2] == "remove" for c in commands_run)
