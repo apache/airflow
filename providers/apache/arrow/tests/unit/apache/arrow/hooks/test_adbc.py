@@ -22,7 +22,7 @@ import logging
 from unittest import mock
 
 import pytest
-from adbc_driver_manager import dbapi
+from adbc_driver_manager import NotSupportedError, dbapi
 from adbc_driver_manager.dbapi import Cursor
 from pyarrow import field, schema, string
 
@@ -84,6 +84,38 @@ class TestAdbcHook:
     def test_get_records_fetch_all_handler(self):
         result = self.hook.get_records("SELECT 1")
         assert result == [(1,), (2,)]
+
+    def test_get_records_preserves_driver_autocommit_by_default(self):
+        self.conn.autocommit = True
+        self.conn.adbc_connection.set_autocommit.side_effect = NotSupportedError("autocommit only")
+
+        result = self.hook.get_records("SELECT 1")
+
+        assert result == [(1,), (2,)]
+        self.conn.adbc_connection.set_autocommit.assert_not_called()
+        self.conn.commit.assert_not_called()
+
+    def test_get_records_commits_when_driver_autocommit_is_disabled(self):
+        self.conn.autocommit = False
+
+        self.hook.get_records("SELECT 1")
+
+        self.conn.adbc_connection.set_autocommit.assert_not_called()
+        self.conn.commit.assert_called_once()
+
+    def test_get_records_autocommit_false_is_explicit(self):
+        self.conn.adbc_connection.set_autocommit.side_effect = NotSupportedError("autocommit only")
+
+        with pytest.raises(NotSupportedError, match="autocommit only"):
+            self.hook.get_records("SELECT 1", autocommit=False)
+
+        self.conn.adbc_connection.set_autocommit.assert_called_once_with(False)
+
+    def test_get_records_autocommit_true_skips_commit(self):
+        self.hook.get_records("SELECT 1", autocommit=True)
+
+        self.conn.adbc_connection.set_autocommit.assert_called_once_with(True)
+        self.conn.commit.assert_not_called()
 
     def test_get_records_duplicate_column_names(self):
         """Duplicate column names (e.g. a JOIN) must not collapse to fewer columns."""
