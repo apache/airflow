@@ -254,7 +254,7 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
 
     FATAL_STATES = ["InvalidImageName", "ErrImageNeverPull"]
     TRANSIENT_STATES = ["ErrImagePull", "ImagePullBackOff"]
-    ERROR_MESSAGE = "Image cannot be pulled, unable to start: {reason}\n{message}"
+    ERROR_MESSAGE = "Image for container '{name}' cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
     # Init containers first: while one of them is stuck pulling, the main
@@ -263,27 +263,22 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
         *(pod_status.init_container_statuses or []),
         *(pod_status.container_statuses or []),
     ]
-    if not container_statuses:
-        return None
-
     for container_status in container_statuses:
         container_state: V1ContainerState = container_status.state
         container_waiting: V1ContainerStateWaiting | None = container_state.waiting
         if not container_waiting:
             continue
 
-        if container_waiting.reason in FATAL_STATES:
-            return ERROR_MESSAGE.format(
-                reason=container_waiting.reason, message=container_waiting.message or ""
-            )
+        reason = container_waiting.reason
+        message = container_waiting.message or ""
 
-        if container_waiting.reason in TRANSIENT_STATES:
-            message_lower = (container_waiting.message or "").lower()
-            is_transient = any(pattern in message_lower for pattern in TRANSIENT_ERROR_PATTERNS)
-            if not is_transient:
-                return ERROR_MESSAGE.format(
-                    reason=container_waiting.reason, message=container_waiting.message or ""
-                )
+        # The message can quote the image name, so a transient pattern can match by
+        # accident; it only ever excuses a TRANSIENT_STATES reason.
+        if reason in FATAL_STATES or (
+            reason in TRANSIENT_STATES
+            and not any(pattern in message.lower() for pattern in TRANSIENT_ERROR_PATTERNS)
+        ):
+            return ERROR_MESSAGE.format(name=container_status.name, reason=reason, message=message)
     return None
 
 
