@@ -1321,6 +1321,22 @@ class TestCliConfigMethods:
         assert mocked_print_as.call_args.kwargs["output"] == "json"
 
     @mock.patch.object(AirflowConsole, "print_as", autospec=True)
+    @mock.patch.object(ConnectionsOperations, "test", autospec=True)
+    def test_failed_connections_test_prints_result_and_exits_non_zero(self, mocked_test, mocked_print_as):
+        mocked_test.return_value = ConnectionTestResponse(status=False, message="Connection refused")
+        args = cli_parser.get_parser().parse_args(
+            ["connections", "test", "--connection-id", "my_conn", "--conn-type", "http"]
+        )
+
+        with pytest.raises(SystemExit) as exc_info:
+            args.func(args, api_client=mock.MagicMock(spec=Client))
+
+        assert exc_info.value.code == 1
+        assert mocked_print_as.call_args.kwargs["data"] == [
+            {"status": False, "message": "Connection refused"}
+        ]
+
+    @mock.patch.object(AirflowConsole, "print_as", autospec=True)
     @mock.patch.object(ConnectionsOperations, "create_defaults", autospec=True)
     def test_operation_returning_none_prints_success(self, mocked_create_defaults, mocked_print_as):
         """An operation that returns nothing is reported as a successful operation row."""
