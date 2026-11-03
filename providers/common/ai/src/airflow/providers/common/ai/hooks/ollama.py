@@ -18,25 +18,15 @@ from __future__ import annotations
 
 import httpx2
 
-DEFAULT_REQUEST_TIMEOUT = 30.0
-
 
 def build_ollama_native_root(base_url: str) -> str:
     """Return the server root of an Ollama URL, dropping a trailing ``/v1`` (the OpenAI-compatible path)."""
     return base_url.rstrip("/").removesuffix("/v1")
 
 
-def normalize_ollama_model_name(model_name: str) -> str:
-    """Return *model_name* with an explicit tag, treating a bare name as ``:latest``."""
-    last_segment = model_name.rsplit("/", 1)[-1]
-    return model_name if ":" in last_segment else f"{model_name}:latest"
-
-
 class OllamaBackend:
     """
-    Load state control for a model served by Ollama, through its native API (``/api/ps`` and ``/api/generate``).
-
-    Model names are compared as written; only a missing tag is normalized (to ``:latest``).
+    Load control for a model served by Ollama, through its native ``/api/generate`` endpoint.
 
     :param base_url: Ollama URL; a trailing ``/v1`` is dropped to reach the native API.
     :param model_name: Model name without the ``ollama:`` prefix.
@@ -57,24 +47,6 @@ class OllamaBackend:
         self.model_name = model_name
         self._transport = transport
 
-    def is_ready(self, *, timeout: float = DEFAULT_REQUEST_TIMEOUT) -> bool:
-        """
-        Return whether the model is loaded, waiting at most *timeout* seconds for the server.
-
-        :raises TimeoutError: If the server does not answer within *timeout*.
-        """
-        try:
-            with httpx2.Client(transport=self._transport, timeout=timeout) as client:
-                response = client.get(f"{self.root}/api/ps")
-                response.raise_for_status()
-        except httpx2.TimeoutException as e:
-            raise TimeoutError(
-                f"Ollama did not answer the readiness check for model '{self.model_name}' "
-                f"within {timeout} seconds."
-            ) from e
-        wanted = normalize_ollama_model_name(self.model_name)
-        return any(model.get("name") == wanted for model in response.json()["models"])
-
     def load(self, *, timeout: float) -> None:
         """
         Load the model, waiting at most *timeout* seconds.
@@ -82,9 +54,7 @@ class OllamaBackend:
         :raises TimeoutError: If the server cannot be reached or does not finish loading within *timeout*.
         """
         # A /api/generate request with no prompt and stream=False returns once the model is
-        # loaded. keep_alive only controls how long the model stays loaded afterwards. The caller
-        # still checks /api/ps once: that confirms the server lists the model under the name
-        # is_ready() compares, and that it was not unloaded right away (e.g. a zero keep-alive).
+        # available. keep_alive only controls how long the model stays loaded afterwards.
         try:
             with httpx2.Client(transport=self._transport, timeout=timeout) as client:
                 response = client.post(

@@ -1846,28 +1846,8 @@ class TestPydanticAIHookEnsureModelReady:
         conn = Connection(conn_id="local_conn", conn_type="pydanticai", host=host)
         return hook, conn
 
-    @staticmethod
-    def _install_fake_clock(module: str):
-        """
-        Return a patch of the hook module's ``time`` onto a clock that tests advance by hand.
-
-        A patched ``sleep`` may advance it too.
-
-        ``time_machine`` does not move ``time.monotonic``, which the hook uses for its deadline.
-        Returns ``(patcher, now)``; ``now[0]`` is the fake clock and may be advanced by tests.
-        """
-        now = [0.0]
-        patcher = patch(f"{module}.time", autospec=True)
-        return patcher, now
-
-    @staticmethod
-    def _wire_fake_clock(mock_time, now):
-        mock_time.monotonic.side_effect = lambda: now[0]
-        mock_time.sleep.side_effect = lambda seconds: now.__setitem__(0, now[0] + seconds)
-
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
     def test_builds_backend_from_host_and_unprefixed_model_name(self, mock_backend_cls):
-        mock_backend_cls.return_value.is_ready.return_value = True
         hook, conn = self._build_hook()
 
         with patch.object(hook, "get_connection", return_value=conn):
@@ -1875,150 +1855,79 @@ class TestPydanticAIHookEnsureModelReady:
 
         mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", "llama3")
 
+    @pytest.mark.parametrize(
+        ("model_id", "expected_name"),
+        [
+            ("ollama:library/llama3", "library/llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("ollama:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
+    )
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_returns_without_loading_when_already_ready(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.return_value = True
-        hook, conn = self._build_hook()
+    def test_unprefixed_name_splits_on_the_first_colon_only(self, mock_backend_cls, model_id, expected_name):
+        hook, conn = self._build_hook(model_id=model_id)
 
         with patch.object(hook, "get_connection", return_value=conn):
             hook.ensure_model_ready()
 
-        backend.load.assert_not_called()
+        mock_backend_cls.assert_called_once_with("http://ollama:11434/v1", expected_name)
 
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_loads_then_confirms_ready_with_one_check(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.side_effect = [False, True]
+    def test_load_is_called_once_with_the_given_timeout(self, mock_backend_cls):
         hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
 
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
+        with patch.object(hook, "get_connection", return_value=conn):
             hook.ensure_model_ready(timeout=60.0)
 
-        backend.load.assert_called_once_with(timeout=60.0)
-        assert backend.is_ready.call_count == 2
-        mock_time.sleep.assert_not_called()
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_load_receives_the_time_left_not_the_full_timeout(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-
-        results = iter([False, True])
-
-        def is_ready_taking_ten_seconds_once(*, timeout):
-            result = next(results)
-            if not result:
-                now[0] += 10.0
-            return result
-
-        backend.is_ready.side_effect = is_ready_taking_ten_seconds_once
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            hook.ensure_model_ready(timeout=60.0)
-
-        backend.load.assert_called_once_with(timeout=50.0)
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_load_using_up_the_time_raises_without_confirming(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.return_value = False
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-        backend.load.side_effect = lambda *, timeout: now.__setitem__(0, now[0] + timeout)
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            with pytest.raises(TimeoutError, match=r"ollama:llama3.*30\.0 seconds"):
-                hook.ensure_model_ready(timeout=30.0)
-
-        backend.is_ready.assert_called_once_with(timeout=30.0)
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_deadline_passed_before_load_raises_without_loading(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-
-        def is_ready_using_up_the_time(*, timeout):
-            now[0] += 30.0
-            return False
-
-        backend.is_ready.side_effect = is_ready_using_up_the_time
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            with pytest.raises(TimeoutError, match=r"ollama:llama3.*30\.0 seconds"):
-                hook.ensure_model_ready(timeout=30.0)
-
-        backend.load.assert_not_called()
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_model_missing_after_load_raises_runtime_error(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.side_effect = [False, False]
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            with pytest.raises(RuntimeError, match=r"ollama:llama3.*local_conn"):
-                hook.ensure_model_ready(timeout=5.0)
-
-        backend.load.assert_called_once()
-        assert backend.is_ready.call_count == 2
+        mock_backend_cls.return_value.load.assert_called_once_with(timeout=60.0)
 
     @pytest.mark.parametrize("model_id", ["openai:gpt-5", "anthropic:claude-opus-4-6"])
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_non_ollama_prefix_raises_not_implemented(self, mock_backend_cls, model_id):
+    def test_non_ollama_prefix_raises_not_implemented_pointing_at_backend_factory(
+        self, mock_backend_cls, model_id
+    ):
         hook, conn = self._build_hook(model_id=model_id)
 
         with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(NotImplementedError, match=r"Ollama.*backend="):
+            with pytest.raises(NotImplementedError, match=r"backend_factory=.*OllamaBackend"):
                 hook.ensure_model_ready()
 
         mock_backend_cls.assert_not_called()
 
     @pytest.mark.parametrize(
-        ("ready_results", "expected_load_calls"),
-        [([True], []), ([False, True], [call(timeout=60.0)])],
-        ids=["already-ready", "load-then-confirm"],
+        ("model_id", "expected_name"),
+        [
+            ("openai:llama3", "llama3"),
+            ("ollama:llama3:70b", "llama3:70b"),
+            ("openai:hf.co/org/model:q4", "hf.co/org/model:q4"),
+        ],
     )
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_injected_backend_is_used_instead_of_ollama(
-        self, mock_ollama_cls, ready_results, expected_load_calls
+    def test_backend_factory_gets_unprefixed_model_name_and_connection_host(
+        self, mock_ollama_cls, model_id, expected_name
     ):
         stub = create_autospec(ModelReadinessBackend, instance=True)
-        stub.is_ready.side_effect = ready_results
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            hook.ensure_model_ready(timeout=60.0, backend=stub)
-
-        assert stub.load.call_args_list == expected_load_calls
-        mock_ollama_cls.assert_not_called()
-
-    @pytest.mark.parametrize(
-        ("model_id", "host"),
-        [("openai:gpt-5", "http://ollama:11434/v1"), ("ollama:llama3", None)],
-        ids=["non-ollama-prefix", "no-host"],
-    )
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_injected_backend_skips_prefix_and_host_checks(self, mock_ollama_cls, model_id, host):
-        stub = create_autospec(ModelReadinessBackend, instance=True)
-        stub.is_ready.return_value = True
-        hook, conn = self._build_hook(model_id=model_id, host=host)
+        factory = MagicMock(return_value=stub)
+        hook, conn = self._build_hook(model_id=model_id)
 
         with patch.object(hook, "get_connection", return_value=conn):
-            hook.ensure_model_ready(backend=stub)
+            hook.ensure_model_ready(timeout=60.0, backend_factory=factory)
 
-        stub.is_ready.assert_called_once()
+        factory.assert_called_once_with(model_name=expected_name, base_url="http://ollama:11434/v1")
+        stub.load.assert_called_once_with(timeout=60.0)
+        mock_ollama_cls.assert_not_called()
+
+    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
+    def test_backend_factory_skips_the_host_check(self, mock_ollama_cls):
+        stub = create_autospec(ModelReadinessBackend, instance=True)
+        factory = MagicMock(return_value=stub)
+        hook, conn = self._build_hook(host=None)
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(backend_factory=factory)
+
+        factory.assert_called_once_with(model_name="llama3", base_url=None)
+        stub.load.assert_called_once()
         mock_ollama_cls.assert_not_called()
 
     @pytest.mark.parametrize("host", [None, ""])
@@ -2060,27 +1969,12 @@ class TestPydanticAIHookEnsureModelReady:
 
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
     def test_only_the_primary_connection_is_read_when_fallbacks_are_configured(self, mock_backend_cls):
-        mock_backend_cls.return_value.is_ready.return_value = True
         hook, conn = self._build_hook(fallback_conn_ids=["fallback_conn"])
 
         with patch.object(hook, "get_connection", autospec=True, return_value=conn) as mock_get_connection:
             hook.ensure_model_ready()
 
         mock_get_connection.assert_called_once_with("local_conn")
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_readiness_checks_are_capped_by_the_request_timeout_and_the_time_left(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.side_effect = [False, True]
-        backend.load.side_effect = lambda *, timeout: now.__setitem__(0, now[0] + 10.0)
-        hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
-
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
-            hook.ensure_model_ready(timeout=33.0)
-
-        assert backend.is_ready.call_args_list == [call(timeout=30.0), call(timeout=23.0)]
 
     @pytest.mark.parametrize(
         "error",
@@ -2092,43 +1986,13 @@ class TestPydanticAIHookEnsureModelReady:
         ids=["connect-error", "http-503", "request-timeout"],
     )
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_confirmation_check_errors_are_raised_as_is(self, mock_backend_cls, error):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.side_effect = [False, error]
+    def test_load_errors_are_raised_as_is(self, mock_backend_cls, error):
+        mock_backend_cls.return_value.load.side_effect = error
         hook, conn = self._build_hook()
-        clock, now = self._install_fake_clock(self._HOOK_MODULE)
 
-        with patch.object(hook, "get_connection", return_value=conn), clock as mock_time:
-            self._wire_fake_clock(mock_time, now)
+        with patch.object(hook, "get_connection", return_value=conn):
             with pytest.raises(type(error)):
-                hook.ensure_model_ready(timeout=60.0)
-
-        backend.load.assert_called_once()
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_first_readiness_check_fails_fast(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.side_effect = httpx2.ConnectError("refused")
-        hook, conn = self._build_hook()
-
-        with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(httpx2.ConnectError):
                 hook.ensure_model_ready()
-
-        backend.load.assert_not_called()
-
-    @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
-    def test_load_failure_fails_fast(self, mock_backend_cls):
-        backend = mock_backend_cls.return_value
-        backend.is_ready.return_value = False
-        backend.load.side_effect = httpx2.ConnectError("refused")
-        hook, conn = self._build_hook()
-
-        with patch.object(hook, "get_connection", return_value=conn):
-            with pytest.raises(httpx2.ConnectError):
-                hook.ensure_model_ready()
-
-        backend.is_ready.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
