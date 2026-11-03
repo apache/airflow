@@ -22,7 +22,7 @@ import logging
 from unittest import mock
 
 import pytest
-from adbc_driver_manager import dbapi
+from adbc_driver_manager import AdbcStatusCode, dbapi
 from adbc_driver_manager.dbapi import Cursor
 from pyarrow import RecordBatch, field, schema, string
 
@@ -134,6 +134,61 @@ class TestAdbcHook:
         self.cur.adbc_ingest.assert_not_called()
         self.cur.executemany.assert_called_once()
         assert self.cur.executemany.call_args[0][0] == "REPLACE INTO table (col) VALUES ($1)"
+
+    def test_insert_rows_replace_with_fast_executemany_logs_debug_not_info(self):
+        """The caller did not ask for ingest explicitly, so binding for replace=True is only a debug note."""
+        self.hook._log = mock.MagicMock()
+        with mock.patch.object(
+            AdbcHook, "_generate_insert_sql", return_value="REPLACE INTO table (col) VALUES ($1)"
+        ):
+            self.hook.insert_rows("table", [("a",)], replace=True)
+
+        self.hook._log.debug.assert_any_call(
+            "Bulk ingest cannot replace rows; binding them to the statement instead"
+        )
+        info_messages = [c.args[0] for c in self.hook._log.info.call_args_list]
+        assert not any("cannot replace" in m for m in info_messages)
+
+    def test_insert_rows_falls_back_to_executemany_when_ingest_not_supported(self):
+        """A driver without bulk ingest must fall back to binding, once, for every remaining batch."""
+        self.cur.adbc_ingest.side_effect = dbapi.NotSupportedError("NOT_IMPLEMENTED: ingest")
+        self.hook._log = mock.MagicMock()
+        rows = [("a",), ("b",), ("c",)]
+
+        self.hook.insert_rows("table", rows, commit_every=2)
+
+        self.cur.adbc_ingest.assert_called_once()
+        assert self.cur.executemany.call_count == 2
+        assert [c.args[0].startswith("INSERT INTO table") for c in self.cur.executemany.call_args_list] == [
+            True,
+            True,
+        ]
+        assert [c.args[1].num_rows for c in self.cur.executemany.call_args_list] == [2, 1]
+        assert self.conn.commit.call_count == 2
+        fallback_logs = [
+            c for c in self.hook._log.info.call_args_list if "does not support bulk ingest" in c.args[0]
+        ]
+        assert len(fallback_logs) == 1
+
+    def test_insert_rows_ingest_error_after_first_batch_is_not_swallowed(self):
+        """Only an unsupported first ingest falls back; later NotSupportedErrors propagate."""
+        self.cur.adbc_ingest.side_effect = [None, dbapi.NotSupportedError("boom")]
+
+        with pytest.raises(dbapi.NotSupportedError, match="boom"):
+            self.hook.insert_rows("table", [("a",), ("b",)], commit_every=1)
+
+        self.cur.executemany.assert_not_called()
+
+    def test_insert_rows_ingest_other_errors_propagate(self):
+        """Errors other than NotSupportedError from ingest are not hidden by the fallback."""
+        self.cur.adbc_ingest.side_effect = dbapi.ProgrammingError(
+            "bad table", status_code=AdbcStatusCode.INVALID_ARGUMENT
+        )
+
+        with pytest.raises(dbapi.ProgrammingError, match="bad table"):
+            self.hook.insert_rows("table", [("a",)])
+
+        self.cur.executemany.assert_not_called()
 
     def test_insert_rows_schema_qualified_table_uses_db_schema_name(self):
         """``schema.table`` must be split into the ingest target table and db_schema_name."""

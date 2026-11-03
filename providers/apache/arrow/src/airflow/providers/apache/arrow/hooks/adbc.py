@@ -26,7 +26,7 @@ from functools import cached_property, partial
 from importlib import resources as importlib_resources
 from typing import TYPE_CHECKING, Any
 
-from adbc_driver_manager.dbapi import Connection, connect
+from adbc_driver_manager.dbapi import Connection, NotSupportedError, connect
 from more_itertools import chunked
 from pyarrow import RecordBatch, Schema, array, schema
 
@@ -257,13 +257,39 @@ class AdbcHook(DbApiHook):
         ``cursor.executemany``, which most drivers execute once per row.
         ``replace=True`` always binds, because bulk ingest cannot carry the
         dialect's conflict clause.
+
+        ``fast_executemany`` is a hint: if the driver does not implement bulk ingest
+        (the first ``adbc_ingest`` call raises ``NotSupportedError``), that batch and
+        all following ones are bound with ``cursor.executemany`` instead.
         """
-        if fast_executemany and replace:
-            self.log.info("Bulk ingest cannot replace rows; binding them to the statement instead")
+        bind = partial(cursor.executemany, sql)
         if replace or not fast_executemany:
-            return partial(cursor.executemany, sql)
+            if replace and fast_executemany:
+                self.log.debug("Bulk ingest cannot replace rows; binding them to the statement instead")
+            return bind
+
         self.log.info("Using bulk ingest (adbc_ingest) for conn_id '%s'", self.get_conn_id())
-        return partial(cursor.adbc_ingest, table_name, mode="append", db_schema_name=schema_name)
+        ingest = partial(cursor.adbc_ingest, table_name, mode="append", db_schema_name=schema_name)
+        loader: Callable[[RecordBatch], object] | None = None
+
+        def execute_batch(batch: RecordBatch) -> object:
+            nonlocal loader
+            if loader is not None:
+                return loader(batch)
+            try:
+                result = ingest(batch)
+            except NotSupportedError:
+                self.log.info(
+                    "Driver for conn_id '%s' does not support bulk ingest; "
+                    "binding rows with executemany instead",
+                    self.get_conn_id(),
+                )
+                loader = bind
+                return bind(batch)
+            loader = ingest
+            return result
+
+        return execute_batch
 
     def insert_rows(
         self,
@@ -296,7 +322,8 @@ class AdbcHook(DbApiHook):
             :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows`;
             rows are always sent as one Arrow batch per chunk.
         :param fast_executemany: If True (default), load each batch with the driver's
-            bulk ingest (``cursor.adbc_ingest``, ``COPY`` on PostgreSQL). If False, bind
+            bulk ingest (``cursor.adbc_ingest``, ``COPY`` on PostgreSQL). If the driver
+            does not implement bulk ingest, falls back to binding. If False, bind
             each batch to the ``INSERT`` statement with ``cursor.executemany``.
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
