@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favoriete status",
     "favoriteStatePlaceholder": "Selecteer favoriete status…",
+    "hasImportErrors": "Heeft importfouten",
     "noTimetableTypesFound": "Geen timetable types gevonden",
     "paused": {
       "active": "Actief",

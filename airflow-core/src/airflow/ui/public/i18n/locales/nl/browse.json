@@ -30,6 +30,7 @@
       },
       "file_one": "Bestand",
       "file_other": "Bestanden",
+      "importErrorForbidden": "Je hebt geen rechten om deze importfout te bekijken.",
       "importErrorGone": "Deze importfout wordt niet langer geregistreerd. Waarschijnlijk is het opgelost door een herparsing.",
       "neverParsed": "Nooit",
       "showImportError_one": "Bekijk {{count}} fout",
@@ -69,6 +70,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Sleutel",
+      "timestamp": "Tijdstempel",
       "value": "Waarde"
     },
     "delete": {

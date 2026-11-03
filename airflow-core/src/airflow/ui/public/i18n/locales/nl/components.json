@@ -5,6 +5,7 @@
     "affectedNone": "Geen Runs komen overeen met de geselecteerde criteria.",
     "allRuns": "Alle Runs",
     "backwards": "Run achterstevoren",
+    "completed": "Voltooid",
     "dateRange": "Datumbereik",
     "errorStartDateBeforeEndDate": "Startdatum moet voor de einddatum",
     "exceptionReason": {
@@ -24,10 +25,12 @@
     "permissionDenied": "Dry Run mislukt: Gebruiker heeft geen toestemming om backfills te maken.",
     "reprocessBehavior": "Reprocess gedrag",
     "run": "Run Backfill",
+    "running": "Lopend",
     "scheduleNotBackfillable": "Het schema van deze Dag ondersteunt geen backfills",
     "schedulerPriorityHint": "Backfill Dag runs worden geordend na niet-backfill Dag runs in elke scheduler cyclus. Backfill runs kunnen langer in de wachtrij blijven als er andere niet-backfill runs aanwezig zijn.",
     "selectDescription": "Draai deze Dag voor een geselecteerd datumbereik",
     "selectLabel": "Backfill",
+    "status": "Status",
     "title": "Run Backfill",
     "toaster": {
       "success": {
@@ -96,6 +99,7 @@
     "placeholderArray": "Voer elke string in op een nieuwe regel",
     "placeholderExamples": "Start met typen om opties te zien",
     "placeholderMulti": "Selecteer een of meerdere waarden",
+    "validationErrorArrayElement": "Ongeldige waarde(n) voor {{type}}: {{values}}",
     "validationErrorArrayNotArray": "Waarde moet een array zijn.",
     "validationErrorArrayNotNumbers": "Alle elementen in de array moeten nummers zijn.",
     "validationErrorArrayNotObject": "Alle elementen in de array moeten objecten zijn.",
@@ -153,6 +157,7 @@
     "empty": "Geen voltooide taakinstanties in dit bereik",
     "title": "Langzaamste taakinstanties"
   },
+  "sort": "Sorteren",
   "sortMultiColumnHint": "Shift-klik om te sorteren op meerdere kolommen",
   "sortedAscending": "oplopend gesorteerd",
   "sortedDescending": "aflopend gesorteerd",
@@ -170,6 +175,12 @@
   "toggleTableView": "Toon tabelweergave",
   "triggerDag": {
     "button": "Trigger",
+    "dagStartEndDate": {
+      "both": "Startdatum van de Dag: {{startDate}}, einddatum: {{endDate}}",
+      "end": "Einddatum van de Dag: {{endDate}}",
+      "noTaskWillRun": "Er wordt geen taak uitgevoerd.",
+      "start": "Startdatum van de Dag: {{startDate}}"
+    },
     "dataInterval": "Gegevensinterval",
     "dataIntervalAuto": "Afgeleid van logische datum en tijdschema",
     "dataIntervalManual": "Specificeer handmatig",

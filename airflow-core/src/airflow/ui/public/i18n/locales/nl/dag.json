@@ -36,6 +36,21 @@
       "wednesday": "Wo"
     }
   },
+  "callbacks": {
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Deadlinewaarschuwing",
+      "callback": "Callback",
+      "deadlineTime": "Deadline tijd",
+      "missedBy": "Gemist door",
+      "type": "Type"
+    },
+    "types": {
+      "executor": "Synchroon",
+      "triggerer": "Asynchroon"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
@@ -98,8 +113,10 @@
     "noTryNumber": "Geen poging nummer",
     "search": {
       "matchCount": "{{current, number}} van {{total, number}}",
+      "nextMatch": "Volgende overeenkomst",
       "noMatches": "Geen overeenkomsten",
-      "placeholder": "Zoek in logs..."
+      "placeholder": "Zoek in logs...",
+      "previousMatch": "Vorige overeenkomst"
     },
     "settings": "Loginstellingen",
     "tryNotStarted": "Deze poging is nog niet gestart.",
@@ -244,6 +261,7 @@
     "auditLog": "Audit Log",
     "backfills": "Backfills",
     "calendar": "Kalender",
+    "callbacks": "Callbacks",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
@@ -286,7 +304,6 @@
     "title": "Task State Store"
   },
   "versions": {
-    "aboutThisComparison": "Over deze vergelijking",
     "base": "Vergelijk vanaf",
     "categories": {
       "asset": "Asset",
@@ -307,7 +324,6 @@
       "before": "Voor",
       "category": "Categorie",
       "impact": "Impact",
-      "occurrences": "Voorkomens",
       "operation": "Operatie",
       "path": "Pad"
     },
@@ -327,12 +343,15 @@
     "maxChanges": "Maximale wijzigingen",
     "maxChangesDefault": "Standaard",
     "noChanges": "Deze versies hebben dezelfde status.",
-    "observedStateBoundary": "Vergelijkt de huidig opgeslagen status, niet het bewijs van het aanmaakmoment. Bronvergelijking is niet beschikbaar voor historische versies; gebruik het tabblad Code om de bron te vergelijken.",
     "operations": {
       "added": "Toegevoegd",
       "changed": "Veranderd",
       "removed": "Verwijderd"
     },
+    "pathOccurrences_one": "{{count, number}} wijziging deelt dit pad",
+    "pathOccurrences_other": "{{count, number}} wijzigingen delen dit pad",
+    "pathOccurrencesAtLeast_one": "Ten minste {{count, number}} wijziging deelt dit pad",
+    "pathOccurrencesAtLeast_other": "Ten minste {{count, number}} wijzigingen delen dit pad",
     "record_one": "Record",
     "record_other": "Records",
     "schemaChange": "Gesserialiseerd schema {{baseSchema}} → {{targetSchema}}",

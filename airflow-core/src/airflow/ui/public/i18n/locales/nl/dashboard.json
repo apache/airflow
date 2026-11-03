@@ -54,6 +54,7 @@
   },
   "history": "Geschiedenis",
   "importErrors": {
+    "bundle": "Bundel",
     "dagImportError_one": "Dag leesfout",
     "dagImportError_other": "Dag leesfouten",
     "searchByFile": "Zoek op bestand",
