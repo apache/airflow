@@ -37,19 +37,6 @@ Proposed.
 | Binding | One resolved call argument delivered to a runtime. |
 | Reduce | Reading a mapped task's whole output from a downstream task, as a sequence rather than one value. |
 
-## Who runs what
-
-Five processes appear in the paths below. The coordinator is the supervisor of a Lang-SDK task,
-so "supervisor" and "coordinator" name the same process.
-
-| Process | Language | Its share of mapping |
-|---|---|---|
-| Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
-| API server, Execution API | Python | Picks this index's element and builds the bindings for `ti_run`. |
-| Supervisor / coordinator | Python, in the worker process | Measures the producer's map length; forwards every XCom request. |
-| `map()` helper | Python, one per consuming task instance | Imports a Python Dag file and applies its `map()` callables. |
-| SDK runtime | the SDK's own language | Runs the handler, applies the SDK's own `map()` callables, holds the reduce sequence. |
-
 ## Decision
 
 1. **Expansion stays in the scheduler for every language.** Map length, instance creation, regions, `REMOVED` handling and trigger rules are core's, not an SDK's.
@@ -72,11 +59,23 @@ authoring API builds it, serialization carries it, the scheduler materializes it
 resolves one element of it. Python implements all four. An SDK that copied that split would
 re-implement the scheduler's half in its own language, and the halves would diverge.
 
-The split this ADR draws is the smallest one that still lets an SDK feel native: an SDK owns
-*what to expand over* and *what to do with one element*, and core owns *how many* and *which*.
-Regions carry that split into task loops at no extra cost — each expansion is scoped to its
-enclosing iteration — so an SDK that implements this ADR gets per-iteration mapping for free and
-loops need no mapping story of their own.
+An SDK owns *what to expand over* and *what to do with one element*, and core owns *how many* and
+*which*. Regions carry that split into task loops at no extra cost — each expansion is scoped to
+its enclosing iteration — so an SDK that implements this ADR gets per-iteration mapping for free
+and loops need no mapping story of their own.
+
+## Who runs what
+
+Five processes appear in the paths below. The coordinator is the supervisor of a Lang-SDK task,
+so "supervisor" and "coordinator" name the same process.
+
+| Process | Language | Its share of mapping |
+|---|---|---|
+| Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
+| API server, Execution API | Python | Picks this index's element and builds the bindings for `ti_run`. |
+| Supervisor / coordinator | Python, in the worker process | Measures the producer's map length; forwards every XCom request. |
+| `map()` helper | Python, one per consuming task instance | Imports a Python Dag file and applies its `map()` callables. |
+| SDK runtime | the SDK's own language | Runs the handler, applies the SDK's own `map()` callables, holds the reduce sequence. |
 
 ## What the serialized Dag carries
 
@@ -116,10 +115,10 @@ Two details an SDK emitter has to get right:
 
 ### How a `map()` callable is serialized
 
-| Author wrote it in | Stored as | Applied by |
-|---|---|---|
-| Python | `inspect.getsource(f)`, one string per callable, in call order | the Python task process, or the `map()` helper when the consumer is not Python |
-| an SDK's own language | that language's source for the same closure, same field, same order | that SDK's runtime |
+| Author wrote it in | Stored as | What the SDK writes | Applied by |
+|---|---|---|---|
+| Python | `inspect.getsource(f)`, one string per callable, in call order | `"def clean(row):\n    return row.strip()\n"` | the Python task process, or the `map()` helper when the consumer is not Python |
+| an SDK's own language | that language's source for the same closure, same field, same order | `"(row) => row.trim()"`, from `fn.toString()` in TypeScript | that SDK's runtime |
 
 Neither form is executed from the serialized Dag. Core never deserializes the strings, so execution
 always re-enters the real Dag: Python imports the Dag file, an SDK runtime takes the closure from
