@@ -1267,10 +1267,10 @@ class TestTIRunState:
             transform.expand(extracted=extract())
 
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("transform")
+        ti = dr.get_task_instance("transform", session=dag_maker.session)
         ti.map_index = 1
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
+        ti.set_state(State.QUEUED, session=dag_maker.session)
+        dag_maker.session.commit()
 
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
@@ -1297,10 +1297,10 @@ class TestTIRunState:
             transform.expand(extracted=seed.expand(n=[1, 2]))
 
         dr = dag_maker.create_dagrun()
-        ti = dr.get_task_instance("transform")
+        ti = dr.get_task_instance("transform", session=dag_maker.session)
         ti.map_index = 1
-        ti.set_state(State.QUEUED)
-        dag_maker.session.flush()
+        ti.set_state(State.QUEUED, session=dag_maker.session)
+        dag_maker.session.commit()
 
         response = client.patch(f"/execution/task-instances/{ti.id}/run", json=self.RUN_PAYLOAD)
         assert response.status_code == 200
@@ -1405,6 +1405,8 @@ class TestTIRunState:
         ]
 
     def _run_stub_ti(self, client, ti, *, map_index=None, session):
+        # set_state() refreshes an instance outside the session, which would drop the new map index.
+        ti = session.merge(ti)
         if map_index is not None:
             ti.map_index = map_index
         ti.set_state(State.QUEUED, session=session)
