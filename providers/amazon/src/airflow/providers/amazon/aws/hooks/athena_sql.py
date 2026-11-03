@@ -152,6 +152,9 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
                 self.log.warning(
                     "Unable to find AWS Connection ID '%s', switching to empty.", self.aws_conn_id
                 )
+        else:
+            connection = athena_conn
+            connection.conn_type = "aws"
 
         return AwsConnectionWrapper(
             conn=connection,
