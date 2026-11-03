@@ -933,8 +933,6 @@ def _finder(
         return [{"total_count": count, "workflow_runs": event_runs}]
 
     def rest_get(path, paginate=False, items_key=None):
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return list(jobs)
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
@@ -944,6 +942,7 @@ def _finder(
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = list(jobs)
     return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
 
 
@@ -1130,9 +1129,7 @@ def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
-        TAMPERED_JOBS
-        if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"number": 42, "closed_at": None}]
+        [{"number": 42, "closed_at": None}]
         if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
@@ -2087,13 +2084,12 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
     def rest_get(path, paginate=False, items_key=None):
         if path.endswith("/actions/workflows/ci-amd.yml"):
             return {"state": "active"}
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return GATED_JOBS
         if "/compare/" in path:
             return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = GATED_JOBS
     (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
 
     run_reconcile(
@@ -2413,13 +2409,14 @@ COMPLETED_RUN = ForkObservation(
 
 def _reporter_client(client, jobs, current=()):
     def rest_get(path, paginate=False, items_key=None):
-        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
-            return jobs
         if path.startswith(f"repos/{REPO}/commits/abc123/status"):
             return list(current)
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.side_effect = lambda repo, run_id: (
+        jobs if (repo, run_id) == ("someone/airflow", 1) else pytest.fail(f"{repo} run {run_id}")
+    )
     return client
 
 
