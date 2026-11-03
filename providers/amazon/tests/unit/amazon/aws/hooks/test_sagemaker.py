@@ -38,6 +38,8 @@ from airflow.providers.amazon.aws.hooks.sagemaker import (
 )
 from airflow.providers.common.compat.sdk import AirflowException
 
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
+
 role = "arn:aws:iam:role/test-role"
 
 path = "local/data"
@@ -739,7 +741,7 @@ class TestSageMakerHook:
         mock_conn().stop_training_job.assert_called_once_with(TrainingJobName="job_name")
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
-    def test_stop_training_job_swallows_validation_exception(self, mock_conn, cap_structlog):
+    def test_stop_training_job_swallows_validation_exception(self, mock_conn):
         mock_conn().stop_training_job.side_effect = ClientError(
             error_response={"Error": {"Code": "ValidationException", "Message": "already Completed"}},
             operation_name="StopTrainingJob",
@@ -750,10 +752,26 @@ class TestSageMakerHook:
         hook.stop_training_job(training_job_name="job_name")
 
         mock_conn().stop_training_job.assert_called_once_with(TrainingJobName="job_name")
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_1_PLUS,
+        reason="caplog only supports structured assertions under structlog, from Airflow 3.1+",
+    )
+    @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
+    def test_stop_training_job_warns_when_the_job_is_not_running(self, mock_conn, caplog):
+        mock_conn().stop_training_job.side_effect = ClientError(
+            error_response={"Error": {"Code": "ValidationException", "Message": "already Completed"}},
+            operation_name="StopTrainingJob",
+        )
+
+        hook = SageMakerHook(aws_conn_id="aws_default")
+
+        hook.stop_training_job(training_job_name="job_name")
+
         assert {
             "event": re.compile(r"Could not stop training job job_name"),
             "log_level": "warning",
-        } in cap_structlog
+        } in caplog
 
     @patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.conn", new_callable=mock.PropertyMock)
     def test_stop_training_job_raises_other_client_errors(self, mock_conn):
