@@ -33,7 +33,12 @@ ends in a source build failure instead of a clear "file not found".
 
 For every affected tag the script commits the removal on top of the tagged commit and re-creates
 the tag there. Release branches (``constraints-X-Y``) get the removal committed on their tip.
-Nothing is pushed unless ``--push`` is passed; without ``--apply`` it only reports.
+Nothing is pushed unless ``--push`` is passed; without ``--apply`` it only reports. Every run,
+dry run included, fetches tags from the remote with ``--tags --force``, overwriting local tags that differ.
+
+Findings based only on the ``Programming Language`` classifiers are reported but skipped by ``--apply``
+and ``--push`` unless ``--include-classifier-only`` is passed, because classifiers can lag behind
+the Python versions a release actually supports (Airflow 2.3.0 supports 3.10 but does not list it).
 """
 
 from __future__ import annotations
@@ -67,10 +72,15 @@ class Finding:
     unsupported_pythons: list[str]
     files: list[str]
     reason: str
+    classifier_only: bool
 
 
 def run_git(*args: str, check: bool = True, env: dict[str, str] | None = None) -> str:
-    return subprocess.run(["git", *args], check=check, capture_output=True, text=True, env=env).stdout
+    try:
+        return subprocess.run(["git", *args], check=check, capture_output=True, text=True, env=env).stdout
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(e.stderr)
+        raise
 
 
 def read_file_at(ref: str, path: str) -> str | None:
@@ -91,8 +101,8 @@ def is_minor_allowed(specifier: SpecifierSet, minor: Version) -> bool:
     return specifier.contains(Version(f"{minor}.99"), prereleases=True)
 
 
-def find_supported_pythons(release_ref: str) -> tuple[set[str], str] | None:
-    """Return the Python versions a release supports and where that was read from."""
+def find_supported_pythons(release_ref: str) -> tuple[set[str], str, bool] | None:
+    """Return supported Pythons, where that was read from, and whether only classifiers say so."""
     for path in METADATA_FILES:
         content = read_file_at(release_ref, path)
         if not content:
@@ -102,7 +112,7 @@ def find_supported_pythons(release_ref: str) -> tuple[set[str], str] | None:
             continue
         match = REQUIRES_PYTHON_RE.search(content)
         if not match:
-            return set(classifiers), f"{path} classifiers"
+            return set(classifiers), f"{path} classifiers", True
         specifier = SpecifierSet(match.group(1).strip().rstrip(",").replace(" ", ""))
         allowed = [v for v in PROBE_PYTHON_VERSIONS if is_minor_allowed(specifier, v)]
         is_capped = bool(allowed) and any(
@@ -111,10 +121,10 @@ def find_supported_pythons(release_ref: str) -> tuple[set[str], str] | None:
         if is_capped:
             # Classifiers lag behind requires-python (3.1.x supports 3.13 but does not list it),
             # so a capped specifier is authoritative.
-            return {str(v) for v in allowed}, f"{path} requires-python {specifier}"
+            return {str(v) for v in allowed}, f"{path} requires-python {specifier}", False
         # Open "~=3.6"-style specifiers say nothing about newer Pythons; fall back to classifiers.
         supported = {c for c in classifiers if is_minor_allowed(specifier, Version(c))}
-        return supported, f"{path} classifiers within requires-python {specifier}"
+        return supported, f"{path} classifiers within requires-python {specifier}", True
     return None
 
 
@@ -158,7 +168,7 @@ def analyze(ref: str, release_ref: str) -> Finding | None:
     if supported is None:
         console.print(f"[yellow]Could not determine supported Pythons for {release_ref}, skipping {ref}")
         return None
-    supported_pythons, reason = supported
+    supported_pythons, reason, classifier_only = supported
     files_by_python = list_constraint_files(ref)
     unsupported = sorted((p for p in files_by_python if p not in supported_pythons), key=Version)
     if not unsupported:
@@ -169,6 +179,7 @@ def analyze(ref: str, release_ref: str) -> Finding | None:
         unsupported_pythons=unsupported,
         files=sorted(f for p in unsupported for f in files_by_python[p]),
         reason=reason,
+        classifier_only=classifier_only,
     )
 
 
@@ -196,8 +207,20 @@ def commit_removal(base: str, finding: Finding) -> str:
 @click.option("--include-prereleases", is_flag=True, help="Also fix beta and rc constraints tags.")
 @click.option("--apply", "do_apply", is_flag=True, help="Create the fix commits and move local refs.")
 @click.option("--push", is_flag=True, help="Force-push the rewritten tags and branches (implies --apply).")
+@click.option(
+    "--include-classifier-only",
+    is_flag=True,
+    help="Also apply or push findings based only on classifiers, which may be incomplete.",
+)
 @click.option("--sign/--no-sign", default=True, show_default=True, help="GPG-sign re-created tags.")
-def main(remote: str, include_prereleases: bool, do_apply: bool, push: bool, sign: bool):
+def main(
+    remote: str,
+    include_prereleases: bool,
+    do_apply: bool,
+    push: bool,
+    include_classifier_only: bool,
+    sign: bool,
+):
     run_git(
         "fetch", remote, "--tags", "--force", f"+refs/heads/constraints-*:refs/remotes/{remote}/constraints-*"
     )
@@ -222,7 +245,11 @@ def main(remote: str, include_prereleases: bool, do_apply: bool, push: bool, sig
         table.add_column(column)
     for finding, kind in findings:
         table.add_row(
-            finding.ref, kind, finding.airflow_version, ", ".join(finding.unsupported_pythons), finding.reason
+            finding.ref,
+            kind,
+            finding.airflow_version,
+            ", ".join(finding.unsupported_pythons),
+            finding.reason + (" (classifier-only)" if finding.classifier_only else ""),
         )
     console.print(table)
     if not findings:
@@ -230,6 +257,17 @@ def main(remote: str, include_prereleases: bool, do_apply: bool, push: bool, sig
     if not (do_apply or push):
         console.print("\nDry run. Re-run with [bold]--apply[/] to fix locally, [bold]--push[/] to publish.")
         return
+
+    if not include_classifier_only:
+        skipped = sum(finding.classifier_only for finding, _ in findings)
+        findings = [(finding, kind) for finding, kind in findings if not finding.classifier_only]
+        if skipped:
+            console.print(
+                f"\nSkipping {skipped} classifier-only finding(s); "
+                "pass [bold]--include-classifier-only[/] to include them."
+            )
+        if not findings:
+            return
 
     push_refspecs = []
     for finding, kind in findings:
