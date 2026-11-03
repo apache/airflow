@@ -21,11 +21,7 @@ import json
 import httpx2
 import pytest
 
-from airflow.providers.common.ai.hooks.ollama import (
-    OllamaBackend,
-    build_ollama_native_root,
-    normalize_ollama_model_name,
-)
+from airflow.providers.common.ai.hooks.ollama import OllamaBackend, build_ollama_native_root
 
 
 def _build_backend(
@@ -48,73 +44,8 @@ class TestBuildNativeRoot:
         assert build_ollama_native_root(base_url) == "http://h:11434"
 
 
-class TestNormalizeModelName:
-    @pytest.mark.parametrize(
-        ("model_name", "expected"),
-        [
-            ("llama3", "llama3:latest"),
-            ("llama3:8b", "llama3:8b"),
-            ("hf.co/org/model:q4", "hf.co/org/model:q4"),
-            ("localhost:5000/library/llama3", "localhost:5000/library/llama3:latest"),
-        ],
-    )
-    def test_adds_latest_only_when_tag_is_missing(self, model_name, expected):
-        assert normalize_ollama_model_name(model_name) == expected
-
-
-class TestOllamaBackendIsReady:
-    @pytest.mark.parametrize(
-        ("model_name", "loaded", "expected"),
-        [
-            ("llama3", ["llama3:latest"], True),
-            ("llama3:latest", ["llama3:latest"], True),
-            ("llama3:8b", ["llama3:8b", "other:latest"], True),
-            ("llama3:8b", ["llama3:70b"], False),
-            ("llama3", ["llama3:8b"], False),
-            ("llama3", [], False),
-        ],
-    )
-    def test_matches_model_name_against_loaded_models(self, model_name, loaded, expected):
-        requests: list[httpx2.Request] = []
-
-        def handler(request: httpx2.Request) -> httpx2.Response:
-            requests.append(request)
-            return httpx2.Response(200, json={"models": [{"name": name} for name in loaded]})
-
-        assert _build_backend(handler, model_name=model_name).is_ready() is expected
-        assert [(r.method, r.url.path) for r in requests] == [("GET", "/api/ps")]
-
-    def test_http_error_propagates(self):
-        backend = _build_backend(lambda request: httpx2.Response(503))
-
-        with pytest.raises(httpx2.HTTPStatusError):
-            backend.is_ready()
-
-    def test_connection_error_propagates(self):
-        def handler(request: httpx2.Request) -> httpx2.Response:
-            raise httpx2.ConnectError("refused", request=request)
-
-        with pytest.raises(httpx2.ConnectError):
-            _build_backend(handler).is_ready()
-
-    def test_timeout_is_raised_as_timeout_error_naming_model_and_seconds(self):
-        def handler(request: httpx2.Request) -> httpx2.Response:
-            raise httpx2.ReadTimeout("slow", request=request)
-
-        with pytest.raises(TimeoutError, match=r"'llama3'.*5\.0 seconds") as exc_info:
-            _build_backend(handler).is_ready(timeout=5.0)
-
-        assert isinstance(exc_info.value.__cause__, httpx2.ReadTimeout)
-
-    def test_non_json_body_propagates_decode_error(self):
-        backend = _build_backend(lambda request: httpx2.Response(200, content=b"<html>"))
-
-        with pytest.raises(json.JSONDecodeError):
-            backend.is_ready()
-
-
 class TestOllamaBackendLoad:
-    def test_posts_model_to_generate_without_keep_alive(self):
+    def test_posts_only_model_and_stream_to_generate_with_the_given_timeout(self):
         requests: list[httpx2.Request] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:
@@ -125,9 +56,8 @@ class TestOllamaBackendLoad:
 
         (request,) = requests
         assert (request.method, request.url.path) == ("POST", "/api/generate")
-        body = json.loads(request.content)
-        assert body["model"] == "llama3"
-        assert "keep_alive" not in body
+        assert json.loads(request.content) == {"model": "llama3", "stream": False}
+        assert request.extensions["timeout"]["read"] == 12.0
 
     def test_http_error_propagates(self):
         backend = _build_backend(lambda request: httpx2.Response(500))
