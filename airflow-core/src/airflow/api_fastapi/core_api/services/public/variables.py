@@ -73,12 +73,12 @@ def update_orm_from_pydantic(
         "value" in patch_body.model_fields_set
         and (not update_mask or "value" in update_mask)
         and isinstance(patch_body.value, str)
-        and old_variable.val is not None
+        and (old_value := old_variable.val) is not None
     ):
         try:
-            new_obj, old_obj = json.loads(patch_body.value), json.loads(old_variable.val)
+            new_obj, old_obj = json.loads(patch_body.value), json.loads(old_value)
         except json.JSONDecodeError:
-            merged_value = merge(patch_body.value, old_variable.val, old_variable.key)
+            merged_value = merge(patch_body.value, old_value, old_variable.key)
         else:
             merged = merge(new_obj, old_obj, old_variable.key)
             # Keep the caller's formatting when there was nothing to restore. indent=2 matches VariableBody.

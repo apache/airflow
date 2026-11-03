@@ -557,8 +557,8 @@ class SecretsMasker(logging.Filter):
         For sensitive fields that still contain "***" (or whatever the ``replacement`` is specified as), the
         original value is restored. For fields that have been updated, the new value is preserved.
 
-        ``max_depth`` is ignored: containers are walked at any depth, as ``redact`` does, and the
-        parameter is kept for backward compatibility.
+        ``max_depth`` is ignored and kept for backward compatibility. Containers are walked at any
+        depth; a sensitive subtree that ``redact`` collapsed at its ``max_depth`` is restored whole.
         """
         return self._merge(
             new_item,
