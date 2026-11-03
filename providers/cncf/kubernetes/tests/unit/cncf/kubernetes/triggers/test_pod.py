@@ -105,6 +105,26 @@ def get_read_pod_mock_containers(statuses_to_emit=None):
     return mock_read_namespaced_pod
 
 
+def _build_pod_without_base_container_status(spec=None):
+    """Build a pod whose ``container_statuses`` never mention ``BASE_CONTAINER_NAME``."""
+    return k8s.V1Pod(
+        metadata=k8s.V1ObjectMeta(name=POD_NAME, namespace=NAMESPACE),
+        spec=spec,
+        status=k8s.V1PodStatus(
+            container_statuses=[
+                k8s.V1ContainerStatus(
+                    name="sidecar",
+                    image="alpine",
+                    image_id="1",
+                    ready=True,
+                    restart_count=0,
+                    state=k8s.V1ContainerState(running=k8s.V1ContainerStateRunning()),
+                )
+            ]
+        ),
+    )
+
+
 class TestKubernetesPodTrigger:
     @staticmethod
     def _mock_pod_result(result_to_mock):
@@ -505,6 +525,81 @@ class TestKubernetesPodTrigger:
         )
 
         assert expected_state == trigger.define_container_state(pod)
+
+    def test_define_container_state_returns_undefined_when_base_container_missing(self, trigger):
+        pod = _build_pod_without_base_container_status()
+
+        assert trigger.define_container_state(pod) == ContainerState.UNDEFINED
+
+    def test_define_container_state_warns_once_about_missing_base_container(self, trigger, caplog):
+        pod = _build_pod_without_base_container_status()
+
+        trigger.define_container_state(pod)
+        trigger.define_container_state(pod)
+
+        warnings = [entry for entry in caplog if entry["log_level"] == "warning"]
+        assert len(warnings) == 1
+        assert "not found in the status" in warnings[0]["event"]
+
+    @pytest.mark.parametrize(
+        ("spec", "expected"),
+        [
+            pytest.param(
+                k8s.V1PodSpec(containers=[k8s.V1Container(name=BASE_CONTAINER_NAME)]),
+                True,
+                id="declared",
+            ),
+            pytest.param(
+                k8s.V1PodSpec(containers=[k8s.V1Container(name="sidecar")]), False, id="not-declared"
+            ),
+            pytest.param(None, True, id="spec-unavailable"),
+        ],
+    )
+    def test_has_base_container_in_spec(self, trigger, spec, expected):
+        assert trigger.has_base_container_in_spec(k8s.V1Pod(spec=spec)) is expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_loop_returns_failed_when_base_container_not_declared(
+        self, mock_hook, mock_wait_pod, trigger
+    ):
+        pod = _build_pod_without_base_container_status(
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="sidecar")])
+        )
+        mock_wait_pod.return_value = ContainerState.UNDEFINED
+        mock_hook.get_pod.return_value = self._mock_pod_result(pod)
+
+        actual_event = await asyncio.wait_for(trigger.run().asend(None), timeout=1)
+
+        assert actual_event == TriggerEvent(
+            {
+                "status": "failed",
+                "namespace": NAMESPACE,
+                "name": POD_NAME,
+                "message": (
+                    f"Base container {BASE_CONTAINER_NAME!r} is not declared by pod "
+                    f"{NAMESPACE}/{POD_NAME}; declared containers: ['sidecar']."
+                ),
+                "last_log_time": None,
+            }
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._wait_for_pod_start")
+    @mock.patch(f"{TRIGGER_PATH}.hook")
+    async def test_run_loop_keeps_waiting_when_declared_base_container_has_no_status_yet(
+        self, mock_hook, mock_wait_pod, trigger
+    ):
+        pod = _build_pod_without_base_container_status(
+            spec=k8s.V1PodSpec(containers=[k8s.V1Container(name=BASE_CONTAINER_NAME)])
+        )
+        mock_wait_pod.return_value = ContainerState.UNDEFINED
+        mock_hook.get_pod.return_value = self._mock_pod_result(pod)
+        trigger.poll_interval = 0.01
+
+        with pytest.raises(asyncio.TimeoutError):
+            await asyncio.wait_for(trigger.run().asend(None), timeout=0.2)
 
     def test_define_pod_container_state_returns_failed_when_init_container_fails(self, trigger):
         pod = k8s.V1Pod(

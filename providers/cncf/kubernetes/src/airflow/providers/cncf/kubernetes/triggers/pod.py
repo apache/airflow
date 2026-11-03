@@ -153,6 +153,7 @@ class KubernetesPodTrigger(BaseTrigger):
         self.trigger_kwargs = trigger_kwargs or {}
         self._fired_event = False
         self._since_time = None
+        self._warned_missing_base_container = False
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreatePodTrigger arguments and classpath."""
@@ -392,6 +393,25 @@ class KubernetesPodTrigger(BaseTrigger):
                 )
             pod = await self._get_pod()
             pod_container_state = self.define_pod_container_state(pod)
+            if pod_container_state == ContainerState.UNDEFINED and not self.has_base_container_in_spec(pod):
+                # Polling cannot make a container the pod never declares appear, and
+                # ``_execution_deadline`` is only set when the task sets ``execution_timeout``,
+                # so without this the loop would keep polling until the pod reaches a
+                # terminal phase.
+                return TriggerEvent(
+                    {
+                        "status": "failed",
+                        "namespace": self.pod_namespace,
+                        "name": self.pod_name,
+                        "message": (
+                            f"Base container {self.base_container_name!r} is not declared by pod "
+                            f"{self.pod_namespace}/{self.pod_name}; declared containers: "
+                            f"{[c.name for c in pod.spec.containers]}."
+                        ),
+                        "last_log_time": self.last_log_time,
+                        **self.trigger_kwargs,
+                    }
+                )
             if pod_container_state == ContainerState.TERMINATED:
                 return TriggerEvent(
                     {
@@ -590,7 +610,23 @@ class KubernetesPodTrigger(BaseTrigger):
         if pod.status is None or pod.status.container_statuses is None:
             return ContainerState.UNDEFINED
 
-        container = next(c for c in pod.status.container_statuses if c.name == self.base_container_name)
+        container = next(
+            (c for c in pod.status.container_statuses if c.name == self.base_container_name), None
+        )
+        if container is None:
+            # ``StopIteration`` must not escape here: Python turns it into an opaque
+            # ``RuntimeError: coroutine raised StopIteration`` once it leaves the calling
+            # coroutine. Callers distinguish "no status yet" from "not in the pod spec".
+            if not self._warned_missing_base_container:
+                self._warned_missing_base_container = True
+                self.log.warning(
+                    "Base container %r not found in the status of pod %s/%s; reported containers: %s.",
+                    self.base_container_name,
+                    self.pod_namespace,
+                    self.pod_name,
+                    [c.name for c in pod.status.container_statuses],
+                )
+            return ContainerState.UNDEFINED
 
         for state in (ContainerState.RUNNING, ContainerState.WAITING, ContainerState.TERMINATED):
             state_obj = getattr(container.state, state)
@@ -612,6 +648,17 @@ class KubernetesPodTrigger(BaseTrigger):
             return ContainerState.FAILED
 
         return self.define_container_state(pod)
+
+    def has_base_container_in_spec(self, pod: V1Pod) -> bool:
+        """
+        Tell whether the pod declares the base container at all.
+
+        A base container that is in the spec but missing from ``container_statuses`` may still
+        report a status, while one the spec never declares never will.
+        """
+        if pod.spec is None:
+            return True
+        return any(c.name == self.base_container_name for c in pod.spec.containers)
 
     @staticmethod
     def should_wait(pod_phase: PodPhase, container_state: ContainerState) -> bool:
