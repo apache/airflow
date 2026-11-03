@@ -3827,6 +3827,46 @@ def test_mapped_stub_param_metadata_round_trip():
     assert not hasattr(round_tripped.task_dict["plain"], "_mapped_arg_binding_params")
 
 
+def test_task_group_stub_param_metadata_round_trip():
+    """A stub inside a mapped task group keeps its call arguments in the metadata, not in a spec."""
+    from airflow.sdk import task, task_group
+    from airflow.serialization.serialized_objects import _XComRef
+
+    @task.stub
+    def extract(): ...
+
+    @task.stub
+    def transform(country: str, extracted, retries_num: int = 3): ...
+
+    with DAG(dag_id="task_group_arg_binding_params_dag", schedule=None) as dag:
+        extracted = extract()
+
+        @task_group
+        def group(country):
+            transform(country, extracted)
+
+        group.expand(country=["uk", "fr"])
+
+    ser_dag = DagSerialization.to_dict(dag)
+    DagSerialization.validate_schema(ser_dag)
+    transform_task = DagSerialization.from_dict(ser_dag).task_dict["group.transform"]
+
+    assert transform_task.arg_bindings is None
+    country, extracted_param, retries_num = transform_task._mapped_arg_binding_params
+    assert country == {
+        "name": "country",
+        "value_schema": {"type": "string"},
+        "group_arg": {"group_id": "group", "key": "country"},
+    }
+    assert isinstance(extracted_param["value"], _XComRef)
+    assert extracted_param["value"].data == {"task_id": "extract", "key": "return_value"}
+    assert retries_num == {
+        "name": "retries_num",
+        "value_schema": {"type": "integer", "format": "int64"},
+        "default": 3,
+    }
+
+
 def test_mapped_stub_capture_error_fails_serialization():
     """A rejected mapped capture surfaces as a Dag serialization (import) error."""
     from airflow.sdk import task

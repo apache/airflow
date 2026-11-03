@@ -50,6 +50,7 @@ def get_bundle() -> VersionBundle:
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExternalClearTargetToSucceedTask,
         MakeSupervisorVariableValueNonNullable,
+        AddMappedStubArgBindingsToSupervisorTIRunContext,
     )
 
     return VersionBundle(
@@ -59,6 +60,7 @@ def get_bundle() -> VersionBundle:
             AddExecutionTimeoutToSupervisorTIRunContext,
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,
+            AddMappedStubArgBindingsToSupervisorTIRunContext,
         ),
         Version(
             "2026-10-30",

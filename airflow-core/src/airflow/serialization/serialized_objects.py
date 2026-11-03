@@ -1091,15 +1091,18 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
             from airflow.sdk.bases.decorator import DecoratedOperator
-            from airflow.serialization.stub_arg_bindings import build_arg_bindings
+            from airflow.serialization.stub_arg_bindings import (
+                build_arg_bindings,
+                build_task_group_arg_binding_params,
+            )
 
             serialize_op["is_stub"] = True
-            if (
-                not op.is_mapped
-                and isinstance(op, DecoratedOperator)
-                and (arg_bindings := build_arg_bindings(op))
-            ):
-                serialize_op["_arg_bindings"] = arg_bindings
+            if not op.is_mapped and isinstance(op, DecoratedOperator):
+                if op.get_closest_mapped_task_group() is not None:
+                    if (params := build_task_group_arg_binding_params(op)) is not None:
+                        serialize_op["_mapped_arg_binding_params"] = cls.serialize(params)
+                elif arg_bindings := build_arg_bindings(op):
+                    serialize_op["_arg_bindings"] = arg_bindings
 
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)

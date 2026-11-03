@@ -126,6 +126,7 @@ export const UNEXPRESSIBLE_TASK_FIELDS = {
   template_fields_renderers: "a dict; an operator's field renderers are its own",
   downstream_task_ids: "an array holding the graph, which the Dag builds from its wiring",
   partial_kwargs: "an object; dynamic task mapping, which the SDK does not model yet",
+  expand_input: "an object; dynamic task mapping, which the SDK does not model yet",
   render_template_as_native_obj: "an anyOf the generator cannot narrow to one type",
   inlets: "an array of assets, which the SDK does not model yet",
   outlets: "an array of assets, which the SDK does not model yet",
