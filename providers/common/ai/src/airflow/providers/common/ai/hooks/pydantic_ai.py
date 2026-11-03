@@ -646,13 +646,14 @@ class PydanticAIHook(BaseHook):
         :param timeout: Seconds to wait for the load request, passed to the backend as is.
         :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
             resolved name without its provider prefix) and ``base_url`` (the connection host, or
-            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). When
+            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). The
+            ``base_url`` it receives is only the connection host, never ``OLLAMA_BASE_URL``. When
             given, the model prefix and connection host checks are skipped. The model name is
             still resolved from the hook argument or the connection, and a missing model still
             raises ``ValueError``.
         :raises ValueError: If *timeout* is not a positive finite number, no model is configured,
             or *backend_factory* is not given and neither the connection host nor the
-            OLLAMA_BASE_URL environment variable is set.
+            ``OLLAMA_BASE_URL`` environment variable is set.
         :raises NotImplementedError: If *backend_factory* is not given and the model's provider
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.

@@ -62,7 +62,7 @@ API Key (Password field)
 
 Host (optional)
     Base URL for the provider's API. Only needed for custom endpoints. For Ollama it can
-    instead come from the OLLAMA_BASE_URL environment variable:
+    instead come from the ``OLLAMA_BASE_URL`` environment variable:
 
     - Ollama: ``http://localhost:11434/v1``
     - vLLM: ``http://localhost:8000/v1``
