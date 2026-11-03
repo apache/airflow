@@ -180,6 +180,47 @@ What the server puts in each binding, per authoring form:
 
 A Dag definition and a Python Dag with stub TaskHandler differ in nothing else.
 
+## How map() callables run
+
+The server never runs a callable. It picks the element, then marks the binding for whoever can run
+the transform, which it knows from the consuming task: a stub task means the Dag file is Python, so
+the callables are Python; otherwise the Dag was authored in the SDK's language and so were they.
+
+```
+ CASE A — map() written in the SDK's language (Dag definition)
+
+   ti_run  ──▶  XComArgBinding{ name: "item", task_id: "extract", element_index: 3 }
+                     │                              the map wrapper is stripped for selection:
+                     │                              map is elementwise, so it cannot move an index
+   SDK RUNTIME       ├─ GET xcoms/…/extract/return_value        ──▶  ["a ", " b", "c ", "d "]
+                     ├─ take value[element_index]               ──▶  "d "
+                     ├─ find item's map() closures in its OWN bundle, by the binding's name
+                     ├─ apply them in order                     ──▶  clean("d ") == "d"
+                     └─ handler({ item: "d" })
+
+ CASE B — map() written in Python (Python Dag with stub TaskHandler)
+
+   ti_run  ──▶  LocalArgBinding{ name: "item" }     no value, no coordinate: Python has to run
+                     │
+   COORDINATOR       ├─ _prepare_ti_context sees a "local" binding and starts the helper
+                     │
+   map() HELPER      ├─ import the Dag file from the pinned bundle
+   (Python)          ├─ find the consumer's expand input for "item"
+                     ├─ ExpandInput.resolve() at this map index  ──▶  pulls the XCom, applies clean
+                     └─ return "d"
+                     │
+   COORDINATOR       └─ rewrite the binding to LiteralArgBinding{ name: "item", value: "d" }
+                     │
+   SDK RUNTIME       └─ handler({ item: "d" })      an ordinary literal; the runtime does nothing
+```
+
+In both cases the handler receives a finished value and the serialized `callables` strings are
+never executed. The runtime matches a binding to its own `map()` closures by parameter name, which
+is why no callable or callable reference has to cross the wire.
+
+The helper imports the Dag file once per task instance, however many arguments are marked `local`,
+and starts only for a task that has at least one.
+
 ## Reduce steps
 
 1. The server sends a `sequence` binding naming the producing task. Nothing is fetched.
@@ -193,7 +234,7 @@ A Dag definition and a Python Dag with stub TaskHandler differ in nothing else.
 ## Wire changes
 
 [#70570](https://github.com/apache/airflow/pull/70570) already adds `map_index` and `element_index`
-to an XCom binding. On top of that, two binding kinds:
+to an XCom binding. On top of that, three binding kinds:
 
 ```python
 class XComSequenceArgBinding(_ArgBindingBase):
@@ -204,6 +245,13 @@ class XComSequenceArgBinding(_ArgBindingBase):
     task_id: str
     """Task whose ``return_value`` rows make up the sequence. The server decides which rows
     are live and in what order; the runtime asks only for offsets."""
+
+
+class LocalArgBinding(_ArgBindingBase):
+    """An argument the server cannot finish: its ``map()`` callables are Python, so the
+    coordinator's helper resolves it and replaces this with a ``LiteralArgBinding``."""
+
+    kind: Literal["local"]
 
 
 class TupleArgBinding(_ArgBindingBase):
@@ -219,7 +267,7 @@ class TupleArgBinding(_ArgBindingBase):
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
     Annotated[
-        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding,
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding,
         Field(discriminator="kind", title="TaskArgBinding"),
     ],
 )
