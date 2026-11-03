@@ -531,15 +531,22 @@ class TestKubernetesPodTrigger:
 
         assert trigger.define_container_state(pod) == ContainerState.UNDEFINED
 
-    def test_define_container_state_warns_once_about_missing_base_container(self, trigger, caplog):
+    def test_define_container_state_warns_once_about_missing_base_container(self, trigger):
         pod = _build_pod_without_base_container_status()
 
-        trigger.define_container_state(pod)
-        trigger.define_container_state(pod)
+        # Before Airflow 3.1 ``caplog`` is the stock ``LogCaptureFixture``, which has no
+        # structured lookup, and the text APIs both fixtures share are planned for removal.
+        with mock.patch.object(trigger.log, "warning", autospec=True) as mock_warning:
+            trigger.define_container_state(pod)
+            trigger.define_container_state(pod)
 
-        warnings = [entry for entry in caplog if entry["log_level"] == "warning"]
-        assert len(warnings) == 1
-        assert "not found in the status" in warnings[0]["event"]
+        mock_warning.assert_called_once_with(
+            "Base container %r not found in the status of pod %s/%s; reported containers: %s.",
+            BASE_CONTAINER_NAME,
+            NAMESPACE,
+            POD_NAME,
+            ["sidecar"],
+        )
 
     @pytest.mark.parametrize(
         ("spec", "expected"),
