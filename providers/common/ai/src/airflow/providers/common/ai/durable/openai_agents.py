@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import TYPE_CHECKING, Any
 
 from pydantic import TypeAdapter, ValidationError
 from pydantic_core import to_jsonable_python
@@ -220,7 +220,7 @@ def _get_durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[in
 def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     # A tool whose approval depends on its arguments is left as it is: the SDK checks that the
     # arguments it approved are the ones the tool runs with only through its own invoker.
-    if not _is_durable_tool(tool):
+    if not (isinstance(tool, FunctionTool) and not callable(tool.needs_approval)):
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
@@ -264,10 +264,6 @@ def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
 
     durable_tool.on_invoke_tool = on_invoke_tool
     return durable_tool
-
-
-def _is_durable_tool(tool: Tool) -> TypeGuard[FunctionTool]:
-    return isinstance(tool, FunctionTool) and not callable(tool.needs_approval)
 
 
 def _build_tool_fingerprint(name: str, arguments: str, call_id: str) -> str | None:

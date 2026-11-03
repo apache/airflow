@@ -101,7 +101,7 @@ class JournalStep:
     # Agent runs started while this step executes; they are numbered under it.
     nested_runs: int = field(default=0, repr=False)
 
-    def take(self) -> None:
+    def count_as_replayed(self) -> None:
         """
         Count this step as replayed, once.
 
@@ -295,7 +295,7 @@ class DurableRun:
             step = None
         if step is None:
             step = self.claim(name, kind=kind, fingerprint=fingerprint)
-        step.take()
+        step.count_as_replayed()
         return step
 
     def claim(

@@ -340,7 +340,7 @@ class TestReserve:
         assert retry.journal.stats.replayed.total() == 0
 
         step = retry.claim_reserved("c", "t", kind="tool", fingerprint="t")
-        step.take()
+        step.count_as_replayed()
 
         assert (step.position, step.replayed, step.payload) == (0, True, "old")
         assert dict(retry.journal.stats.replayed) == {"tool": 1}
