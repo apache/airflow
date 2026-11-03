@@ -122,26 +122,22 @@ class TestAdbcHook:
         assert sql.startswith("INSERT INTO table")
         assert batch.num_rows == 2
 
-    def test_insert_rows_replace_binds_even_with_fast_executemany(self):
+    @mock.patch.object(AdbcHook, "_generate_insert_sql", return_value="REPLACE INTO table (col) VALUES ($1)")
+    def test_insert_rows_replace_binds_even_with_fast_executemany(self, generate_insert_sql):
         """replace=True cannot go through bulk ingest, so it must bind to the generated statement."""
         rows = [("a",), ("b",)]
-        with mock.patch.object(
-            AdbcHook, "_generate_insert_sql", return_value="REPLACE INTO table (col) VALUES ($1)"
-        ) as generate_insert_sql:
-            self.hook.insert_rows("table", rows, replace=True, fast_executemany=True)
+        self.hook.insert_rows("table", rows, replace=True, fast_executemany=True)
 
         assert generate_insert_sql.call_args[0][3] is True
         self.cur.adbc_ingest.assert_not_called()
         self.cur.executemany.assert_called_once()
         assert self.cur.executemany.call_args[0][0] == "REPLACE INTO table (col) VALUES ($1)"
 
-    def test_insert_rows_replace_with_fast_executemany_logs_debug_not_info(self):
+    @mock.patch.object(AdbcHook, "_generate_insert_sql", return_value="REPLACE INTO table (col) VALUES ($1)")
+    def test_insert_rows_replace_with_fast_executemany_logs_debug_not_info(self, _generate_insert_sql):
         """The caller did not ask for ingest explicitly, so binding for replace=True is only a debug note."""
-        self.hook._log = mock.MagicMock()
-        with mock.patch.object(
-            AdbcHook, "_generate_insert_sql", return_value="REPLACE INTO table (col) VALUES ($1)"
-        ):
-            self.hook.insert_rows("table", [("a",)], replace=True)
+        self.hook._log = mock.MagicMock(spec=logging.Logger)
+        self.hook.insert_rows("table", [("a",)], replace=True)
 
         self.hook._log.debug.assert_any_call(
             "Bulk ingest cannot replace rows; binding them to the statement instead"
@@ -152,7 +148,7 @@ class TestAdbcHook:
     def test_insert_rows_falls_back_to_executemany_when_ingest_not_supported(self):
         """A driver without bulk ingest must fall back to binding, once, for every remaining batch."""
         self.cur.adbc_ingest.side_effect = dbapi.NotSupportedError("NOT_IMPLEMENTED: ingest")
-        self.hook._log = mock.MagicMock()
+        self.hook._log = mock.MagicMock(spec=logging.Logger)
         rows = [("a",), ("b",), ("c",)]
 
         self.hook.insert_rows("table", rows, commit_every=2)
