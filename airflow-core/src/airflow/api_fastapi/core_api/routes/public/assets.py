@@ -134,7 +134,10 @@ QueuedEventPartitionKeyQuery = Annotated[
     Query(
         description=(
             "Delete queued events of partitioned assets emitted for this partition key whose "
-            "Dag run has not been created yet, instead of queued events of non-partitioned assets."
+            "Dag run has not been created yet, instead of queued events of non-partitioned assets. "
+            "The key is matched against the partition key the asset event was emitted for, not "
+            "against the partition key of the Dag run the event would create; a partition mapper "
+            "can make the two differ."
         ),
     ),
 ]
