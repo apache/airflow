@@ -285,9 +285,31 @@ Nothing calls it for you; it is opt-in. It has these limits:
 - The built-in Ollama backend does not send the connection's password, so an Ollama
   server behind authentication is not supported.
 
+``@task.llm`` and ``AgentOperator`` build their own hook from ``llm_conn_id`` and
+their ``model_id``, so call ``ensure_model_ready`` from an upstream task with
+the same connection and, if the downstream task sets ``model_id``, the same
+``model_id``. Otherwise the upstream task loads the connection's own model:
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+    from airflow.sdk import task
+
+
+    @task
+    def load_model():
+        hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="ollama:llama3")
+        hook.ensure_model_ready(timeout=300)
+
+The load request does not send ``keep_alive``, so Ollama unloads the model after
+its own keep-alive time (5 minutes by default) like any other model. If the
+downstream LLM task can wait in the queue longer than that, raise the server's
+default with the ``OLLAMA_KEEP_ALIVE`` environment variable.
+
 ``timeout`` is passed as is to the load request. Running out ends in a
-``TimeoutError`` naming the model. Nothing is retried, so a wrong host, a server
-error or a request timing out is raised right away.
+``TimeoutError`` naming the model, or the server when it cannot be reached.
+Nothing is retried, so a wrong host, a server error or a request timing out is
+raised right away.
 
 Using your own readiness backend
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -309,7 +331,7 @@ as is.
         def load(self, *, timeout: float) -> None: ...
 
 
-    hook.ensure_model_ready(backend_factory=lambda *, model_name, base_url: MyServerBackend(model_name, base_url))
+    hook.ensure_model_ready(backend_factory=MyServerBackend)
 
 The prefix is not used to detect the server, because ``openai:<model>`` can
 point at Ollama's ``/v1`` endpoint as well as at any other OpenAI-compatible

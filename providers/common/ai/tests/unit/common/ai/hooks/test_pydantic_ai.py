@@ -64,6 +64,9 @@ from airflow.providers_manager import HookInfo
 _GOOGLE_MODEL_PREFIX_RE = re.compile(r"google[\w-]*(?=:)")
 
 
+def build_backend(*, model_name: str, base_url: str | None) -> ModelReadinessBackend: ...
+
+
 def _assert_prefix_is_known_provider(prefix: str) -> None:
     """
     Assert pydantic-ai's provider registry recognizes ``prefix``.
@@ -1913,7 +1916,7 @@ class TestPydanticAIHookEnsureModelReady:
         self, mock_ollama_cls, model_id, expected_name
     ):
         stub = create_autospec(ModelReadinessBackend, instance=True)
-        factory = MagicMock(return_value=stub)
+        factory = create_autospec(build_backend, return_value=stub)
         hook, conn = self._build_hook(model_id=model_id)
 
         with patch.object(hook, "get_connection", return_value=conn):
@@ -1926,7 +1929,7 @@ class TestPydanticAIHookEnsureModelReady:
     @patch(f"{_HOOK_MODULE}.OllamaBackend", autospec=True)
     def test_backend_factory_skips_the_host_check(self, mock_ollama_cls):
         stub = create_autospec(ModelReadinessBackend, instance=True)
-        factory = MagicMock(return_value=stub)
+        factory = create_autospec(build_backend, return_value=stub)
         hook, conn = self._build_hook(host=None)
 
         with patch.object(hook, "get_connection", return_value=conn):
