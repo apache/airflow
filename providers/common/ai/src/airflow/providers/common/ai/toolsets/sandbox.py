@@ -55,6 +55,7 @@ from airflow.providers.common.ai.utils.tool_definition import (
     code_arg_kwargs,
     return_schema_kwargs,
 )
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset
 from airflow.providers.common.compat.sdk import ObjectStoragePath, get_current_context
 
@@ -167,7 +168,7 @@ _DESCRIPTIONS = {
 }
 
 
-class SandboxToolset(AirflowToolset):
+class SandboxToolset(ToolPrefixMixin, AirflowToolset):
     """
     Give an agent shell and file access inside a disposable sandbox, off the Airflow worker.
 
@@ -291,10 +292,7 @@ class SandboxToolset(AirflowToolset):
                 f"default_command_timeout ({default_command_timeout}) must not exceed "
                 f"max_command_timeout ({max_command_timeout})."
             )
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
+        self._set_tool_prefix(tool_prefix)
         if attach_to is not None:
             if not isinstance(backend, AttachableSandboxBackend):
                 raise ValueError(
@@ -355,7 +353,6 @@ class SandboxToolset(AirflowToolset):
         self._exports = dict(exports or {})
         self._export_conn_id = export_conn_id
         self._max_export_bytes = int(max_export_bytes)
-        self._tool_prefix = tool_prefix
         self._sandbox: str | None = None
         self._create_future: concurrent.futures.Future[str] | None = None
         # Set while attached: who this run claimed the sandbox as, when the sandbox ends
@@ -378,19 +375,10 @@ class SandboxToolset(AirflowToolset):
 
     @property
     def id(self) -> str:
-        suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
-        return f"sandbox-{self._backend.name}{suffix}"
-
-    def _build_tool_name(self, base: str) -> str:
-        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
+        return f"sandbox-{self._backend.name}{self._get_tool_prefix_id_suffix()}"
 
     def _base_name(self, tool_name: str) -> str | None:
-        if not self._tool_prefix:
-            return tool_name if tool_name in _SCHEMAS else None
-        prefix = f"{self._tool_prefix}_"
-        if not tool_name.startswith(prefix):
-            return None
-        base = tool_name[len(prefix) :]
+        base = self._find_base_tool_name(tool_name)
         return base if base in _SCHEMAS else None
 
     async def for_run(self, ctx: RunContext[Any]) -> AbstractToolset[Any]:
