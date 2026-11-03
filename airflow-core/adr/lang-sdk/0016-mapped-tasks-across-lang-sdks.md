@@ -142,6 +142,39 @@ A `map()` callable is stored as source text, one string per callable in call ord
 deserializes these strings; they exist so the UI can show the transform. Execution always re-enters
 the real Dag, so no binding carries a callable or a reference to one.
 
+### Stub-task parameter metadata
+
+Serialization drops `python_callable`, so a stub task's signature is lost, and a stub runtime never
+parses the Dag file. The server rebuilds bindings from that signature, so the Dag processor records
+it as `_mapped_arg_binding_params`: one entry per parameter, in declaration order, each
+BaseSerialization-encoded.
+
+```jsonc
+// @task.stub def transform(region: str, row: str) -> int: ...
+"_mapped_arg_binding_params": [
+  {"__type": "dict", "__var": {"name": "region", "value_schema": {"type": "string"}}},
+  {"__type": "dict", "__var": {"name": "row", "value_schema": {"type": "string"}}}
+]
+```
+
+| Key | Means |
+|---|---|
+| `name` | The parameter. Required, and the list order is the declaration order. |
+| `value_schema` | The JSON Schema derived from the annotation. |
+| `default` | The signature default, used when the call omits the parameter. |
+| `value` | A member of a mapped task group only: a literal or an XCom reference. |
+| `group_arg` | A member of a mapped task group only: `{group_id, key}`, an expand argument of the enclosing group. |
+
+The field is present only on a stub task that has parameters and is either mapped or unmapped
+inside a mapped task group. Absent, the task keeps its older behaviour of ignoring call arguments.
+Core reads it as `mapped_arg_binding_params`, beside `arg_bindings`.
+
+Declaration order is load-bearing: an SDK that binds by position, as Go does, has nothing else to
+go on. Otherwise a mapped stub's call arguments still come from `partial_kwargs.op_kwargs` and
+`expand_input`, and this field adds signature data only. A member of a mapped task group is the
+exception and carries its call arguments here, because an unmapped task's `op_kwargs` serializes as
+display strings the server cannot resolve.
+
 ## What the Execution API sends
 
 An XCom binding carries the coordinate of this index's element: `map_index` for a row of a mapped
