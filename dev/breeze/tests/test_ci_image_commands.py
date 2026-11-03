@@ -18,9 +18,11 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest import mock
 
 import pytest
+import yaml
 
 from airflow_breeze.commands.ci_image_commands import (
     build_ci_image_if_needed,
@@ -34,6 +36,7 @@ from airflow_breeze.commands.ci_image_commands import (
 from airflow_breeze.global_constants import CI_IMAGE_SOURCES_HASH_LABEL
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.utils.md5_build_check import calculate_ci_sources_hash
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 
 CI_IMAGE = BuildCiParams(python="3.11").airflow_image_name
 
@@ -235,6 +238,64 @@ def load_snapshot(snapshot_file, image_file_dir):
         snapshot_file=snapshot_file,
         tag_as=None,
     )
+
+
+def get_stash_key_of_workflow() -> str:
+    """The key that ci-image-build.yml stashes the image under, for linux/amd64 and Python 3.11."""
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github/workflows/ci-image-build.yml").read_text())
+    keys = [
+        step["with"]["key"]
+        for step in workflow["jobs"]["build-ci-images"]["steps"]
+        if step.get("uses", "").endswith("/stash-save")
+        and step["with"]["key"].startswith("ci-image-save-")
+        and "image-stash-ref" not in step["with"]["key"]
+    ]
+    assert len(keys) == 1
+    key = keys[0].replace("${{ inputs.platform }}", "linux_amd64")
+    return key.replace("${{ env.PYTHON_MAJOR_MINOR_VERSION }}", "3.11")
+
+
+@pytest.mark.parametrize("image_file", [None, Path("ci-image-save-v3-linux_amd64-custom-3.11.tar")])
+@pytest.mark.parametrize("source", ["from_run", "from_pr"])
+@mock.patch("airflow_breeze.commands.ci_image_commands.download_artifact_from_pr", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.download_artifact_from_run_id", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.run_command", autospec=True)
+@mock.patch("airflow_breeze.commands.ci_image_commands.perform_environment_checks", autospec=True)
+def test_load_downloads_the_artifact_stashed_by_the_workflow(
+    mock_perform_environment_checks,
+    mock_run_command,
+    mock_mark_image_as_rebuilt,
+    mock_download_from_run,
+    mock_download_from_pr,
+    source,
+    image_file,
+    tmp_path,
+):
+    mock_download = {"from_run": mock_download_from_run, "from_pr": mock_download_from_pr}[source]
+    mock_download.side_effect = lambda _id, _prefix, output_file, *_: output_file.touch()
+    mock_run_command.return_value = mock.MagicMock(returncode=0)
+    expected_file = tmp_path / (image_file or "ci-image-save-v3-linux_amd64-3.11.tar")
+
+    load.callback(
+        **{"from_run": "", "from_pr": "", source: "123"},
+        github_repository="apache/airflow",
+        github_token="token",
+        image_file=image_file,
+        image_file_dir=tmp_path,
+        platform="linux/amd64",
+        python="3.11",
+        skip_image_file_deletion=False,
+        snapshot_file=None,
+        tag_as=None,
+    )
+
+    mock_download.assert_called_once_with(
+        "123", get_stash_key_of_workflow(), expected_file, "apache/airflow", "token"
+    )
+    assert ["docker", "image", "load", "-i", expected_file.as_posix()] in [
+        call.args[0] for call in mock_run_command.call_args_list
+    ]
 
 
 @mock.patch("airflow_breeze.commands.ci_image_commands.mark_image_as_rebuilt", autospec=True)

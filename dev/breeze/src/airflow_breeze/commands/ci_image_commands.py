@@ -621,10 +621,15 @@ def load(
         )
         sys.exit(1)
 
+    artifact_prefix = f"ci-image-save-v3-{escaped_platform}-{python}"
     if from_run:
-        download_artifact_from_run_id(from_run, image_file_to_load, github_repository, github_token)
+        download_artifact_from_run_id(
+            from_run, artifact_prefix, image_file_to_load, github_repository, github_token
+        )
     elif from_pr:
-        download_artifact_from_pr(from_pr, image_file_to_load, github_repository, github_token)
+        download_artifact_from_pr(
+            from_pr, artifact_prefix, image_file_to_load, github_repository, github_token
+        )
 
     if not image_file_to_load.exists():
         console_print(f"[error]The image {image_file_to_load} does not exist.[/]")
