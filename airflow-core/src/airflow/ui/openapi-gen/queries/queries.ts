@@ -3515,7 +3515,7 @@ export const useVariableServiceBulkVariables = <TData = Common.VariableServiceBu
 * @param data The data for the request.
 * @param data.assetId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition key of the Dag run the event would create; a partition mapper can make the two differ.
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3533,7 +3533,7 @@ export const useAssetServiceDeleteAssetQueuedEvents = <TData = Common.AssetServi
 * @param data The data for the request.
 * @param data.dagId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition key of the Dag run the event would create; a partition mapper can make the two differ.
 * @returns void Successful Response
 * @throws ApiError
 */
@@ -3553,7 +3553,7 @@ export const useAssetServiceDeleteDagAssetQueuedEvents = <TData = Common.AssetSe
 * @param data.dagId
 * @param data.assetId
 * @param data.before
-* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets.
+* @param data.partitionKey Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition key of the Dag run the event would create; a partition mapper can make the two differ.
 * @returns void Successful Response
 * @throws ApiError
 */
