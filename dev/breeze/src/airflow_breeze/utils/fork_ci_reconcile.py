@@ -1395,11 +1395,7 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1552,11 +1548,7 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
