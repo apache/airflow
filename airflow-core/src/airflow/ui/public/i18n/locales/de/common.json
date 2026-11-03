@@ -221,6 +221,10 @@
     "write": "Schreiben"
   },
   "overallStatus": "Gesamtstatus",
+  "pagination": {
+    "nextPage": "Nächse Seite",
+    "previousPage": "Vorige Seite"
+  },
   "partition_one": "Partition",
   "partition_other": "Partitionen",
   "partitionedDagRun_one": "Partitionierter Dag Lauf",
@@ -267,7 +271,8 @@
   "search": {
     "advanced": {
       "description": "Übereinstimmung an beliebiger Stelle im Wert (Teilstring-Suche). Bei großen Installationen langsamer, da der standardmäßige Datenbank-Index nicht genutzt werden kann. Details hierzu finden Sie im Dokumentationsabschnitt zu benutzerdefinierten Metadaten-Indizes (Performance tuning (API and UI)).",
-      "title": "Übereinstimmung an beliebiger Stelle"
+      "title": "Übereinstimmung an beliebiger Stelle",
+      "toggleLabel": "Umschalten beliebige Suche"
     }
   },
   "security": {
@@ -381,10 +386,12 @@
       "scrollBottom": "Nach unten scrollen",
       "scrollTop": "Nach oben scrollen",
       "searchDags": "$t(dag_other) suchen",
+      "selectGridCellRange": "Bereich von $t(taskInstance_other) bis $t(taskGroup_other) wählen (ohne Schleifen-Tasks)",
       "showHelp": "$t(shortcuts.title) anzeigen",
       "toggleExpand": "Alle Gruppen ein- oder ausklappen",
       "toggleFullscreen": "Vollbild umschalten",
       "toggleGraphGrid": "Zwischen Graph- und Gitteransicht wechseln",
+      "toggleGridCellSelection": "$t(taskInstance_one) oder $t(taskGroup_one) Hinzufügen oder Löschen von der Auswahl (ohne Schleifen-Tasks)",
       "toggleLogLevel": "Loglevel umschalten",
       "toggleSource": "Quelle umschalten",
       "toggleTaskGroup": "$t(taskGroup_one) ein- oder ausklappen",
@@ -487,6 +494,7 @@
     "queue": "Warteschlange",
     "queuedWhen": "Wartend seit",
     "renderedMapIndex": "Planungs-Index Anzeige",
+    "retryAt": "Nochmals versuchen um",
     "scheduledWhen": "Geplant ab",
     "stateReason": "Grund für den Status",
     "stateReasonSummary": {
