@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_arg_bindings
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -71,14 +71,14 @@ def get_arg_bindings(
     A stub whose arguments differ per map index gets its spec derived for this map index; a Dag
     serialized before that metadata existed keeps the legacy ignored-args behavior.
 
-    :raises UndeliverableArgBindingsError: if an argument has no value at this map index.
+    :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
     """
     if not task.is_stub:
         return None
-    if (params := getattr(task, "_mapped_arg_binding_params", None)) is not None:
+    if (mapped_params := task.mapped_arg_binding_params) is not None:
         if not client_supports_mapped_arg_bindings():
             return None
-        return derive_arg_bindings(task, ti, params, dag_bag=dag_bag, session=session)
+        return derive_mapped_arg_bindings(task, ti, mapped_params, dag_bag=dag_bag, session=session)
     return task.arg_bindings
 
 
