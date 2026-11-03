@@ -700,8 +700,8 @@ class DagRunOperations(BaseOperations):
 
         Args:
             state: Filter Dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter Dag runs by start date (optional)
-            end_date: Filter Dag runs by end date (optional)
+            start_date: Return only Dag runs that started at or after this time (optional)
+            end_date: Return only Dag runs that ended at or before this time (optional)
             limit: Limit the number of results returned
             offset: Offset to start returning results from
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
@@ -723,8 +723,8 @@ class DagRunOperations(BaseOperations):
             limit=limit,
             offset=offset,
             state=str(state) if state is not None else None,
-            start_date=start_date,
-            end_date=end_date,
+            start_date_gte=start_date,
+            end_date_lte=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
             partition_date_gte=partition_date_gte,
