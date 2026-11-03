@@ -3380,19 +3380,10 @@ paths:
         up yet.
 
 
-        A bundle is visible to a user who can read at least one Dag recorded against
-        it. A bundle
+        Needs ``AccessView.DAG_BUNDLES``. In a multi-team deployment it is checked
+        against each
 
-        holding no registered Dag at all has nothing to authorize against, so it is
-        listed only for a
-
-        user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that
-        bundle''s team --
-
-        the same view, scoped the same way, that governs import errors for a file
-        that never
-
-        registered a Dag.'
+        bundle''s team, and bundles of a team the caller cannot see are left out.'
       operationId: get_dag_bundles
       security:
       - OAuth2PasswordBearer: []
@@ -3511,16 +3502,14 @@ paths:
       description: 'List the files in a Dag bundle, ordered by path.
 
 
-        A file is listed when the caller can read at least one Dag it defines. A file
-        that recorded an
+        Every file the bundle holds is listed, with counts covering the whole file:
+        the bundle is
 
-        import error without registering any Dag is listed too, on the same admin-by-default
-        terms as
+        authorized as a unit, so its contents are not narrowed to the Dags the caller
+        may read. What a
 
-        ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag
-        to authorize on,
-
-        and it is the case this page most needs to show.
+        file''s Dags contain, and the text of its import error, stay behind their
+        own permissions.
 
 
         ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that
@@ -15713,8 +15702,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          description: A link to view the bundle at ``version``, when one is configured
-            and the caller may read Dag versions.
+          description: A link to view the bundle at ``version``. Null when the bundle
+            has no URL template, when the template needs a version and the bundle
+            has not been refreshed yet, or when the template cannot be rendered.
         team_name:
           anyOf:
           - type: string
@@ -15722,18 +15712,15 @@ components:
           title: Team Name
           description: The team owning the bundle, in a multi-team deployment.
         import_error_count:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: integer
           title: Import Error Count
-          description: Number of Dag import errors recorded against this bundle that
-            the caller is permitted to see, counted on the same terms as ``GET /importErrors``.
-            Null when the caller may not read import errors.
+          description: Number of Dag import errors recorded against the bundle. Reading
+            the errors themselves is authorized separately, through ``GET /importErrors``.
         dag_count:
           type: integer
           title: Dag Count
-          description: Number of live Dags recorded against the bundle that the caller
-            is permitted to see, counted on the same terms as ``GET /dags``.
+          description: Number of live Dags recorded against the bundle, including
+            Dags the caller may not read.
       type: object
       required:
       - name
@@ -15770,7 +15757,8 @@ components:
         dag_count:
           type: integer
           title: Dag Count
-          description: Number of live Dags the file defines that the caller may read.
+          description: Number of live Dags the file defines, including Dags the caller
+            may not read.
         last_parsed_time:
           anyOf:
           - type: string
@@ -15786,13 +15774,11 @@ components:
           title: Last Parse Duration
           description: How long the last successful parse of the file took, in seconds.
         import_error_count:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: integer
           title: Import Error Count
           description: Number of import errors recorded against the file, which is
-            at most one. Null when the caller may not read import errors -- deliberately
-            not zero, which would read as a file with nothing wrong.
+            at most one. Reading the error itself is authorized separately, through
+            ``GET /importErrors``.
       type: object
       required:
       - relative_fileloc
@@ -15835,8 +15821,9 @@ components:
           - type: string
           - type: 'null'
           title: Bundle Url
-          description: A link to view the bundle at ``version``, when one is configured
-            and the caller may read Dag versions.
+          description: A link to view the bundle at ``version``. Null when the bundle
+            has no URL template, when the template needs a version and the bundle
+            has not been refreshed yet, or when the template cannot be rendered.
         team_name:
           anyOf:
           - type: string
@@ -15844,13 +15831,10 @@ components:
           title: Team Name
           description: The team owning the bundle, in a multi-team deployment.
         import_error_count:
-          anyOf:
-          - type: integer
-          - type: 'null'
+          type: integer
           title: Import Error Count
-          description: Number of Dag import errors recorded against this bundle that
-            the caller is permitted to see, counted on the same terms as ``GET /importErrors``.
-            Null when the caller may not read import errors.
+          description: Number of Dag import errors recorded against the bundle. Reading
+            the errors themselves is authorized separately, through ``GET /importErrors``.
       type: object
       required:
       - name

@@ -631,6 +631,39 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/dagBundles/count:
+    get:
+      tags:
+      - Dag Bundle
+      summary: Get Dag Bundle Count
+      description: 'Count the Dag bundles holding a Dag or an import error the caller
+        may read.
+
+
+        Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI
+        can tell whether a
+
+        bundle name is worth showing next to an import error. Stale Dags count, and
+        so do import errors
+
+        in files that never registered a Dag, which ``GET /importErrors`` shows to
+        holders of
+
+        ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import
+        is where the name
+
+        matters most.'
+      operationId: get_dag_bundle_count
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleCountResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags:
     get:
       tags:
@@ -3966,6 +3999,17 @@ components:
       - state_count_limit
       title: DAGsRunStateCountsCollectionResponse
       description: Collection of per-Dag DagRun-state counts for the Dag list page.
+    DagBundleCountResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - total_entries
+      title: DagBundleCountResponse
+      description: Number of Dag bundles holding a Dag or an import error the caller
+        may read.
     DagFolderCollectionResponse:
       properties:
         folders:

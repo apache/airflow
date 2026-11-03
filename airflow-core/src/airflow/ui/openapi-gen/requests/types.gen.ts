@@ -1262,7 +1262,7 @@ export type DagBundleDetailResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1270,11 +1270,11 @@ export type DagBundleDetailResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
     /**
-     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     * Number of live Dags recorded against the bundle, including Dags the caller may not read.
      */
     dag_count: number;
 };
@@ -1293,7 +1293,7 @@ export type DagBundleFileCollectionResponse = {
 export type DagBundleFileResponse = {
     relative_fileloc: string;
     /**
-     * Number of live Dags the file defines that the caller may read.
+     * Number of live Dags the file defines, including Dags the caller may not read.
      */
     dag_count: number;
     /**
@@ -1305,9 +1305,9 @@ export type DagBundleFileResponse = {
      */
     last_parse_duration: number | null;
     /**
-     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     * Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -1328,7 +1328,7 @@ export type DagBundleResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1336,9 +1336,9 @@ export type DagBundleResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -3102,6 +3102,13 @@ export type DAGsRunStateCountsCollectionResponse = {
 };
 
 /**
+ * Number of Dag bundles holding a Dag or an import error the caller may read.
+ */
+export type DagBundleCountResponse = {
+    total_entries: number;
+};
+
+/**
  * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
  */
 export type DagFolderCollectionResponse = {
@@ -4317,6 +4324,8 @@ export type GetDagBundleFilesData = {
 };
 
 export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
+
+export type GetDagBundleCountResponse = DagBundleCountResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -7354,6 +7363,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dagBundles/count': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCountResponse;
             };
         };
     };

@@ -158,6 +158,23 @@ def _entity_maps() -> tuple[dict[str, tuple[str, ...]], dict[str, str]]:
             if member and names:
                 view_map[member] = names[0]
 
+    # Views newer than FAB's minimum Airflow are mapped by subscript assignment, keyed on a
+    # ``<MEMBER>_ACCESS_VIEW`` name that is ``None`` on an older core.
+    for stmt in ast.walk(tree):
+        if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
+            continue
+        target = stmt.targets[0]
+        if not (
+            isinstance(target, ast.Subscript)
+            and _name_of(target.value) == "_MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE"
+            and isinstance(target.slice, ast.Name)
+            and target.slice.id.endswith("_ACCESS_VIEW")
+        ):
+            continue
+        names = _const_names(stmt.value)
+        if names:
+            view_map[target.slice.id.removesuffix("_ACCESS_VIEW")] = names[0]
+
     return dag_map, view_map
 
 
