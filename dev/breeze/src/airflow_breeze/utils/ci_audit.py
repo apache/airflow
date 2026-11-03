@@ -29,8 +29,10 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import yaml
 from packaging.version import Version
 
 from airflow_breeze.global_constants import APACHE_AIRFLOW_GITHUB_REPOSITORY, MIN_GH_VERSION
@@ -41,6 +43,8 @@ if TYPE_CHECKING:
 
 UPSTREAM_URL = f"https://github.com/{APACHE_AIRFLOW_GITHUB_REPOSITORY}.git"
 CI_WORKFLOW_FILE = "ci-amd.yml"
+# `..` is not allowed in a git ref name, so a dispatch to this ref can never start a run.
+PROBE_REF = "breeze-ci-audit..probe"
 # Commits a fork's main may lag behind upstream main before a sync is suggested.
 MAX_FORK_MAIN_BEHIND = 200
 
@@ -138,7 +142,65 @@ def fork_ci_required(role: Role, config: GateConfig) -> bool | None:
     return False
 
 
-def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str]) -> list[CheckResult]:
+def get_actions_problem(permissions_json: str, fork: str) -> str | None:
+    """Why the fork's GitHub Actions settings keep `Tests (AMD)` from running, or None."""
+    permissions = json.loads(permissions_json)
+    if not permissions.get("enabled"):
+        return f"GitHub Actions is disabled in {fork}, so `Tests (AMD)` never runs"
+    if permissions.get("allowed_actions") != "all":
+        return (
+            f"{fork} limits the actions workflows may use (`{permissions.get('allowed_actions')}`); "
+            "`Tests (AMD)` uses actions from other repositories, so it fails to start"
+        )
+    return None
+
+
+def is_actions_paused_by_github(*, fork: str, run: Runner) -> bool | None:
+    """
+    Whether GitHub itself has paused GitHub Actions in ``fork``; None when the answer is unclear.
+
+    The fork's settings still read as enabled then. A dispatch to a ref that does not exist tells
+    the two apart: it fails with "Actions has been disabled" instead of "No ref found".
+    """
+    probe = run(
+        [
+            "gh",
+            "api",
+            f"repos/{fork}/actions/workflows/{CI_WORKFLOW_FILE}/dispatches",
+            "-X",
+            "POST",
+            "-f",
+            f"ref={PROBE_REF}",
+        ]
+    )
+    output = f"{probe.stdout}{probe.stderr}"
+    if "Actions has been disabled" in output:
+        return True
+    if "No ref found" in output:
+        return False
+    return None
+
+
+def find_idle_fork_workflows(workflows_dir: Path) -> frozenset[str]:
+    """
+    Workflow files that only a schedule or another workflow's run starts.
+
+    Fork CI runs on push, so in a fork these workflows only start runs that fork CI does not need.
+    """
+    idle = set()
+    for path in workflows_dir.glob("*.y*ml"):
+        workflow = yaml.safe_load(path.read_text())
+        # YAML 1.1 reads an unquoted `on` key as True.
+        triggers = workflow.get("on", workflow.get(True)) or []
+        automatic = set([triggers] if isinstance(triggers, str) else triggers) - {"workflow_dispatch"}
+        if automatic and automatic <= {"schedule", "workflow_run"}:
+            idle.add(path.name)
+    return frozenset(idle)
+
+
+def run_audit(
+    *, run: Runner, config: GateConfig, collaborators: frozenset[str], idle_workflows: frozenset[str]
+) -> list[CheckResult]:
     results: list[CheckResult] = []
 
     gh_version = run(["gh", "--version"])
@@ -305,26 +367,54 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
     if fork_ok and fork is not None:
         workflow = run(["gh", "api", f"repos/{fork}/actions/workflows/{CI_WORKFLOW_FILE}", "--jq", ".state"])
         state = _out(workflow) if _ok(workflow) else "missing" if _is_not_found(workflow) else None
+        # Only the fork's owner can read these settings, and the audit runs as the owner.
+        actions = run(["gh", "api", f"repos/{fork}/actions/permissions"]) if required is True else None
+        actions_problem = (
+            get_actions_problem(_out(actions), fork) if actions is not None and _ok(actions) else None
+        )
+        # An enabled workflow still never runs while Actions is off or limited, so this fix goes first.
+        allow_actions: tuple[str, ...] = (
+            (f"gh api -X PUT repos/{fork}/actions/permissions -F enabled=true -f allowed_actions=all",)
+            if actions_problem
+            else ()
+        )
         if state is None:
+            not_checked = f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}"
             results.append(
                 CheckResult(
-                    5,
-                    "fork workflows",
-                    CheckStatus.INFO,
-                    f"could not check `Tests (AMD)` in {fork}: {(workflow.stderr or '').strip() or 'gh api failed'}",
+                    5, "fork workflows", CheckStatus.FAIL, f"{actions_problem}; {not_checked}", allow_actions
                 )
+                if actions_problem
+                else CheckResult(5, "fork workflows", CheckStatus.INFO, not_checked)
             )
         elif required is True and state != "active":
             enable: tuple[str, ...] = (f"gh workflow enable {CI_WORKFLOW_FILE} -R {fork}",)
             if state == "missing":
                 enable = (f"gh repo sync {fork} --branch main", *enable)
+            finding = f"`Tests (AMD)` is {state} in {fork}; enable it"
+            if actions_problem:
+                finding += f"; also, {actions_problem}"
+            results.append(
+                CheckResult(5, "fork workflows", CheckStatus.FAIL, finding, (*allow_actions, *enable))
+            )
+        elif actions is not None and not _ok(actions):
+            results.append(
+                CheckResult(
+                    5,
+                    "fork workflows",
+                    CheckStatus.INFO,
+                    f"could not check the GitHub Actions settings of {fork}: "
+                    f"{(actions.stderr or '').strip() or 'gh api failed'}",
+                )
+            )
+        elif actions_problem:
             results.append(
                 CheckResult(
                     5,
                     "fork workflows",
                     CheckStatus.FAIL,
-                    f"`Tests (AMD)` is {state} in {fork}; enable it",
-                    enable,
+                    actions_problem,
+                    allow_actions,
                 )
             )
         elif required is None:
@@ -342,9 +432,33 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                 )
             )
         else:
-            results.append(
-                CheckResult(5, "fork workflows", CheckStatus.OK, f"`Tests (AMD)` is {state} in {fork}")
-            )
+            paused = is_actions_paused_by_github(fork=fork, run=run) if required is True else False
+            if paused:
+                results.append(
+                    CheckResult(
+                        5,
+                        "fork workflows",
+                        CheckStatus.FAIL,
+                        f"GitHub has paused GitHub Actions in {fork}, so `Tests (AMD)` never runs "
+                        "although the settings allow it; turn it back on from the banner on the fork's "
+                        "Actions page",
+                        (f"echo Open https://github.com/{fork}/actions and enable the workflows",),
+                    )
+                )
+            elif paused is None:
+                results.append(
+                    CheckResult(
+                        5,
+                        "fork workflows",
+                        CheckStatus.INFO,
+                        f"`Tests (AMD)` is {state} in {fork}, but could not check whether GitHub "
+                        "has paused GitHub Actions there",
+                    )
+                )
+            else:
+                results.append(
+                    CheckResult(5, "fork workflows", CheckStatus.OK, f"`Tests (AMD)` is {state} in {fork}")
+                )
 
         compare = run(
             [
@@ -375,6 +489,47 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
                 CheckResult(6, "fork main", CheckStatus.OK, f"{behind} commits behind apache/airflow")
             )
 
+    idle_result = None
+    if fork_ok and fork is not None and required is True:
+        listed = run(
+            [
+                "gh",
+                "api",
+                f"repos/{fork}/actions/workflows",
+                "--paginate",
+                "--jq",
+                '.workflows[] | select(.state == "active") | .path',
+            ]
+        )
+        if not _ok(listed):
+            idle_result = CheckResult(
+                8,
+                "idle fork workflows",
+                CheckStatus.INFO,
+                f"could not list the workflows of {fork}: {(listed.stderr or '').strip() or 'gh api failed'}",
+            )
+        else:
+            active = {path.rsplit("/", 1)[-1] for path in _out(listed).splitlines()}
+            to_disable = sorted(active & idle_workflows)
+            idle_result = (
+                CheckResult(
+                    8,
+                    "idle fork workflows",
+                    CheckStatus.FAIL,
+                    f"{fork} has workflows that start only on a schedule or after another workflow, so "
+                    "every run they start there is wasted; GitHub pauses GitHub Actions in forks that "
+                    "waste runs",
+                    tuple(f"gh workflow disable {name} -R {fork}" for name in to_disable),
+                )
+                if to_disable
+                else CheckResult(
+                    8,
+                    "idle fork workflows",
+                    CheckStatus.OK,
+                    f"no workflow in {fork} starts runs that fork CI does not need",
+                )
+            )
+
     branch = _out(run(["git", "rev-parse", "--abbrev-ref", "HEAD"]))
     tracking = run(["git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"])
     if branch in ("main", "HEAD", ""):
@@ -388,4 +543,6 @@ def run_audit(*, run: Runner, config: GateConfig, collaborators: frozenset[str])
     else:
         finding = f"`{branch}` tracks {_out(tracking)}"
     results.append(CheckResult(7, "branch", CheckStatus.INFO, finding))
+    if idle_result is not None:
+        results.append(idle_result)
     return results

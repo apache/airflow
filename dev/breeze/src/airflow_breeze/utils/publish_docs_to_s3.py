@@ -25,7 +25,10 @@ from functools import cached_property
 
 import boto3
 
-from airflow_breeze.global_constants import PACKAGES_METADATA_EXCLUDE_NAMES
+from airflow_breeze.global_constants import (
+    PACKAGES_METADATA_EXCLUDE_NAMES,
+    PACKAGES_METADATA_EXCLUDE_VERSIONS,
+)
 from airflow_breeze.utils.console import console_print
 from airflow_breeze.utils.parallel import check_async_run_results, run_with_pool
 
@@ -45,9 +48,6 @@ NON_SHORT_NAME_PACKAGES = [
 
 s3_client = boto3.client("s3")
 cloudfront_client = boto3.client("cloudfront")
-
-
-SNAPSHOT_SUFFIX = "-SNAPSHOT"
 
 
 class VersionError:
@@ -347,11 +347,10 @@ class S3DocsPublish:
         console_print(f"[info]Getting package versions for {package_name} from:\n")
         console_print(versions)
         all_versions: list[Version] = []
+        excluded_versions = PACKAGES_METADATA_EXCLUDE_VERSIONS.get(package_name, [])
         for v in versions:
-            # A Maven development build such as the Java SDK's `1.0.0-SNAPSHOT` is not a release and
-            # is not a valid Python version either; one that reached S3 is left out, not an error.
-            if v.upper().endswith(SNAPSHOT_SUFFIX):
-                console_print(f"[warning]Skipping development build {v} of {package_name}\n")
+            if v in excluded_versions:
+                console_print(f"[info]Skipping excluded version {package_name}/{v}\n")
                 continue
             try:
                 all_versions.append(Version(v))

@@ -275,7 +275,7 @@ def test_green_is_not_trusted_when_ci_files_change():
     plan, _, changes = _classify(pr, GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.add_labels == ["needs project ci"]
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
@@ -286,6 +286,21 @@ def test_green_is_not_trusted_when_ci_files_change():
     assert plan.attention == []
     assert plan.ci_passed is None
     changes.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("last_draft_actor", "expected_draft"),
+    [
+        pytest.param("github-actions[bot]", False, id="bot-draft-undrafted"),
+        pytest.param("someone", None, id="author-draft-kept"),
+    ],
+)
+def test_green_unverified_does_not_keep_a_bot_draft(last_draft_actor, expected_draft):
+    plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
+
+    assert plan.state == ForkState.GREEN_UNVERIFIED
+    assert plan.draft is expected_draft
+    assert plan.add_labels == ["needs project ci"]
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -472,11 +487,18 @@ def test_find_heads_shared_across_bases():
         pytest.param([".github/workflows/ci-amd.yml"], True, id="workflow"),
         pytest.param([".github/actions/breeze/action.yml"], True, id="action"),
         pytest.param(["dev/breeze/src/airflow_breeze/utils/selective_checks.py"], True, id="breeze"),
-        pytest.param(["scripts/ci/prek/check_x.py"], True, id="ci-scripts"),
-        pytest.param(["Dockerfile.ci"], True, id="dockerfile"),
-        pytest.param(["scripts/in_container/run_ci_tests.sh"], True, id="in-container-scripts"),
-        pytest.param([".pre-commit-config.yaml"], True, id="root-prek-config"),
-        pytest.param(["dev/.pre-commit-config.yaml"], True, id="nested-prek-config"),
+        pytest.param(["dev/breeze/pyproject.toml"], True, id="breeze-project"),
+        pytest.param(["dev/breeze/uv.lock"], True, id="breeze-lock"),
+        pytest.param(["scripts/ci/install_breeze.sh"], True, id="breeze-install"),
+        pytest.param(["scripts/ci/prek/update_providers_dependencies.py"], True, id="provider-deps-script"),
+        pytest.param(["scripts/ci/prek/yaml.py"], True, id="module-next-to-provider-deps-script"),
+        pytest.param(["dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"], False, id="breeze-doc"),
+        pytest.param(["dev/breeze/tests/test_selective_checks.py"], False, id="breeze-tests"),
+        pytest.param(["scripts/ci/testing/run_unit_tests.sh"], False, id="ci-scripts"),
+        pytest.param(["Dockerfile.ci"], False, id="dockerfile"),
+        pytest.param(["scripts/docker/entrypoint_ci.sh"], False, id="docker-scripts"),
+        pytest.param(["scripts/in_container/run_ci_tests.sh"], False, id="in-container-scripts"),
+        pytest.param([".pre-commit-config.yaml"], False, id="prek-config"),
         pytest.param([f"airflow-core/f{i}.py" for i in range(3000)], True, id="too-many-files-to-list"),
     ],
 )
@@ -933,8 +955,6 @@ def _finder(
         return [{"total_count": count, "workflow_runs": event_runs}]
 
     def rest_get(path, paginate=False, items_key=None):
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return list(jobs)
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
@@ -944,6 +964,7 @@ def _finder(
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = list(jobs)
     return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
 
 
@@ -1130,9 +1151,7 @@ def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
-        TAMPERED_JOBS
-        if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"number": 42, "closed_at": None}]
+        [{"number": 42, "closed_at": None}]
         if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
@@ -2087,13 +2106,12 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
     def rest_get(path, paginate=False, items_key=None):
         if path.endswith("/actions/workflows/ci-amd.yml"):
             return {"state": "active"}
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return GATED_JOBS
         if "/compare/" in path:
             return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = GATED_JOBS
     (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
 
     run_reconcile(
@@ -2413,13 +2431,14 @@ COMPLETED_RUN = ForkObservation(
 
 def _reporter_client(client, jobs, current=()):
     def rest_get(path, paginate=False, items_key=None):
-        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
-            return jobs
         if path.startswith(f"repos/{REPO}/commits/abc123/status"):
             return list(current)
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.side_effect = lambda repo, run_id: (
+        jobs if (repo, run_id) == ("someone/airflow", 1) else pytest.fail(f"{repo} run {run_id}")
+    )
     return client
 
 

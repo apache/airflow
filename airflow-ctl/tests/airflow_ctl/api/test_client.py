@@ -254,6 +254,30 @@ class TestClient:
         client.refresh_base_url(base_url=base_url, kind=client_kind)
         assert client.base_url == URL(expected_base_url)
 
+    @pytest.mark.parametrize(
+        ("client_kind", "expected_authorization"),
+        [
+            pytest.param(ClientKind.CLI, "Bearer STORED_TOKEN", id="cli"),
+            pytest.param(ClientKind.AUTH, None, id="auth"),
+        ],
+    )
+    def test_authorization_header_by_kind(self, client_kind, expected_authorization):
+        requests: list[httpx.Request] = []
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(201, json={})
+
+        client = Client(
+            base_url="http://other-server",
+            token="STORED_TOKEN",
+            kind=client_kind,
+            transport=httpx.MockTransport(handle_request),
+        )
+        client.post("token/cli", json={})
+
+        assert requests[0].headers.get("Authorization") == expected_authorization
+
 
 class TestRequestRetries:
     @pytest.fixture(autouse=True)
