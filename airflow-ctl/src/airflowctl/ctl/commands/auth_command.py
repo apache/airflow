@@ -32,11 +32,13 @@ from airflowctl.api.client import (
     NEW_API_CLIENT,
     ClientKind,
     Credentials,
+    _read_api_url,
     get_default_api_url,
     provide_api_client,
 )
 from airflowctl.api.datamodels.auth_generated import LoginBody
 from airflowctl.ctl.console_formatting import AirflowConsole
+from airflowctl.exceptions import AirflowCtlCredentialInvalidException
 
 
 @provide_api_client(kind=ClientKind.AUTH)
@@ -187,11 +189,9 @@ def list_envs(args) -> None:
         config_status = "ok"
 
         try:
-            with open(config_path) as f:
-                config = json.load(f)
-                api_url = config.get("api_url", "unknown")
-        except (OSError, json.JSONDecodeError, KeyError) as e:
-            config_status = f"config error: {str(e)[:50]}"
+            api_url = _read_api_url(config_path)
+        except (OSError, ValueError, AirflowCtlCredentialInvalidException) as e:
+            config_status = f"config error: {e}"
             api_url = "error reading config"
 
         # Try to get token from keyring

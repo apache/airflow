@@ -79,24 +79,24 @@ Non-goals:
 ## Overview
 
 ```
-                 contributor fork                          apache/airflow
-   ┌──────────────────────────────────┐      ┌──────────────────────────────────────────┐
+             contributor fork                               apache/airflow
+   ┌──────────────────────────────────┐      ┌───────────────────────────────────────────┐
    │ git push feature-branch          │      │ pull_request event                        │
    │   └─ ci-amd.yml (push trigger)   │      │   └─ ci-amd.yml                           │
-   │        gate job: fork -> run     │      │        gate job: eligibility -> skip      │
-   │        build-info: fork mode     │      │        (build-info and everything after   │
-   │          changed files from      │      │         are skipped for gated PRs)        │
-   │          compare API vs upstream │      │                                           │
-   │        public runners only       │      │ fork-ci-monitor.yml (every 15 minutes)    │
+   │      ├─ gate job: fork -> run    │      │      └─ gate job: eligibility -> skip     │
+   │      ├─ build-info: fork mode    │      │         (build-info and everything after  │
+   │      │  changed files from       │      │          are skipped for gated PRs)       │
+   │      │  compare API vs upstream  │      │                                           │
+   │      └─ public runners only      │      │ fork-ci-monitor.yml (every 15 minutes)    │
    └──────────────────────────────────┘      │   └─ breeze ci fork-ci-reconcile          │
-                     ▲                        │        discover new gated PRs -> label    │
-                     │ GraphQL: checkSuites   │        per labelled PR: fork state ->     │
-                     │ REST: workflow state   │          draft/undraft, labels, comment,  │
-                     └────────────────────────│          commit status with run link,     │
-                                              │          close after 7 days or when the   │
-                                              │          PR tampered with the gate        │
-                                              │        unknown failures -> Slack          │
-                                              └──────────────────────────────────────────┘
+                     ▲                       │      ├─ discover new gated PRs -> label   │
+                     │ GraphQL: checkSuites  │      ├─ per labelled PR: fork state ->    │
+                     │ REST: workflow state  │      │    draft/undraft, labels, comment, │
+                     └───────────────────────│      │    commit status with run link,    │
+                                             │      │    close after 7 days or when the  │
+                                             │      │    PR tampered with the gate       │
+                                             │      └─ unknown failures -> Slack         │
+                                             └───────────────────────────────────────────┘
 ```
 
 Four pieces, in dependency order:
@@ -163,6 +163,14 @@ The `fork_schedule` rule exists because enabling `ci-amd.yml` in a fork also ena
 cron trigger, and selective checks force the full matrix for `schedule` events. Without it
 every enabled fork would run the full canary matrix twice a day on the contributor's
 concurrency cap. A manual `workflow_dispatch` in a fork still runs.
+
+The same applies to every other workflow with a `schedule` trigger: a fork that enables
+Actions gets all of their crons too. Their jobs carry a job-level
+`if: github.repository == 'apache/airflow'` guard, combined with
+`github.event_name != 'schedule'` when the workflow has other triggers that should still run
+in a fork. A new scheduled workflow needs the same guard. The guard skips the jobs but not
+the run itself, so the frequent crons still leave an empty run in every enabled fork. Check 8 of
+`breeze ci audit` offers to disable these workflows in the fork.
 
 | Rule | Decision | Reason |
 |---|---|---|
@@ -378,13 +386,14 @@ maintainer. One rule applies instead:
   "Trusting a green fork run"). The approved `ci-amd.yml` run executes only the gate, and the other
   `pull_request` workflows (CodeQL for the changed languages, the newsfragment check, dependency
   review) run on GitHub-hosted runners.
-- Otherwise the runs wait for a maintainer, the pull request is labelled `need workflow approval`,
-  its head commit gets a pending `Workflow approval` status naming the CI files (as for every
-  pull request whose runs wait), and the workflow posts one comment explaining that the change to the listed CI files needs a
+- Otherwise the runs wait for a maintainer, its head commit gets a pending `Workflow approval`
+  status naming the CI files (as for every pull request whose runs wait), and the workflow posts one comment explaining that the change to the listed CI files needs a
   maintainer to review it and approve the runs. The comment starts with the marker
   `<!-- workflow-approval: ci-change -->` and is posted once per pull request; only comments by
   `github-actions[bot]` with the marker count. A change to `.github/` can remove the gate or add a
-  workflow that does run, so such a run must not start without a review.
+  workflow that does run, so such a run must not start without a review. The pull request does
+  not get the `need workflow approval` label, and loses it if it has it. Approving its runs does
+  not start project CI. A maintainer adds `use project ci` for that.
 
 A run started before `use fork ci` or `use project ci` was last added or removed is approved too,
 so a committer can add `use fork ci` after the PR's first runs were created and before they are
@@ -937,13 +946,17 @@ with state `success` linking the run:
 - for a gated pull request, once the fork has a run of `ci-amd.yml` for the head commit, whatever
   its state; the fork run is linked, so the contributor can follow it before the state comment
   appears.
-- for every other open pull request, once project CI has a `ci-amd.yml` `pull_request` run for the
-  head commit that is not waiting for a maintainer's approval. One GraphQL search lists the open
+- for every other open pull request, once project CI has a `pull_request` run for the head commit
+  that is not waiting for a maintainer's approval. Which workflow runs project CI depends on the
+  base branch: `ci-amd.yml` on `main` and the release branches it was backported to,
+  `ci-amd-arm.yml` on release branches cut before it, `ci.yml` on the older v2 and providers
+  release branches, and `airflow-ctl-tests.yml` on the airflow-ctl release branches; a run of any
+  of them counts. One GraphQL search lists the open
   pull requests without `fork ci required`, most recently updated first, with the head commit's
   `CI run started` status and its GitHub Actions check suites. Pull requests discovery labelled in
   the same run are skipped, since the search index can still list them without the label. When the
   last commit listed is not the head, as after a rebase that keeps old commit dates, two REST calls
-  read the head commit's statuses and latest run instead.
+  read the head commit's statuses and its `pull_request` runs instead.
 
 Folding the check into the scheduled monitor costs no runner per push, at the price of a pull
 request waiting for the next monitor run before it can merge, which a CI run takes longer than
@@ -1090,9 +1103,10 @@ prints one row: status, finding, and the command that fixes it.
 | 2 | Remote naming | a remote named `upstream` points at `apache/airflow` and `origin` does not | `git remote rename`/`add` per `contributing-docs/10_working_with_git.rst` |
 | 3 | Fork exists | `origin` is a fork of `apache/airflow` owned by the authenticated user | `gh repo fork apache/airflow --remote=false` then add `origin`, unless check 2's fix already adds or repoints it |
 | 4 | Who you are | classifies the user in the gate's order: pilot participant (`[pilot]`, which gates whatever the role), committer (public `apache` membership, `GET /orgs/apache/public_members/<login>`, since the gate cannot see private membership), collaborator (`.asf.yaml`), exempted (`[allowlist]`), external; an external user whose `apache` membership is private is told to make it public or ask for `[allowlist]`; when the membership call fails for any reason but a 404, the role is reported as not checked and checks 2, 3 and 5 stay informational | informational |
-| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`; committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>` |
+| 5 | Fork workflows | external or pilot participant: `ci-amd.yml` state on the fork is `active`, GitHub Actions is enabled in the fork and allows all actions (`GET /repos/<fork>/actions/permissions`, readable by the fork's owner), and GitHub has not paused GitHub Actions in the fork (see below); committer/collaborator/exempted: always OK, whatever the state | `gh workflow enable ci-amd.yml -R <fork>`; `gh api -X PUT repos/<fork>/actions/permissions -F enabled=true -f allowed_actions=all`; for a paused fork, the banner on its Actions page |
 | 6 | Fork `main` freshness | fork `main` is not behind `upstream/main` by more than 200 commits (`MAX_FORK_MAIN_BEHIND`) | `gh repo sync <fork> --branch main` |
 | 7 | Current branch | not `main`, has an upstream tracking `origin` | informational |
+| 8 | Idle fork workflows | external or pilot participant: no workflow in `.github/workflows` of the checkout that only `schedule` or `workflow_run` starts (`workflow_dispatch` aside) is `active` in the fork | `gh workflow disable <file> -R <fork>` for each |
 
 The role is determined before checks 2 and 3, though printed as check 4. For a committer,
 collaborator or exempted contributor, whose pull requests run project CI, checks 2 and 3 are
@@ -1101,6 +1115,26 @@ informational: working from an `apache/airflow` clone without a fork is fine for
 is enabled or not. The audit never suggests disabling it: a committer trying fork CI with the
 `use fork ci` label needs it enabled, and a workflow disabled while a pull request waits for its
 fork CI leaves that pull request stuck until the workflow is enabled again.
+
+A workflow can be `active` while nothing in the fork runs. GitHub Actions can be disabled for the
+whole fork: then a push starts no run. Or it can allow only the owner's actions or a selected list:
+`ci-amd.yml` uses actions from other repositories, so its runs fail before any job starts. Only the
+fork's owner can read these settings, which is why check 5 reads them and the reconciler cannot.
+
+GitHub can also pause GitHub Actions in a fork on its own, to reduce wasted compute. The fork's
+Actions page then shows a banner, and GitHub sends no email. The settings still read as enabled
+and the workflow as `active`, so the reads above do not see it. Check 5 dispatches `ci-amd.yml`
+to the ref `breeze-ci-audit..probe` instead. Git does not allow `..` in a ref name, so the ref
+never exists and the dispatch never starts a run. GitHub answers "No ref found" when Actions
+can run, and "Actions has been disabled" when it is paused. The settings API cannot undo the
+pause, since it already reads as enabled; the banner on the fork's Actions page does. A push made
+while the fork was paused starts no run, also after that, so push again.
+
+Check 8 makes the pause less likely. Fork CI runs on push, so a workflow that only a schedule or
+another workflow's run starts has nothing to do in a fork, and every run it starts there is
+empty. The check reads the triggers from `.github/workflows` of the checkout and offers to disable
+those workflows where they are still `active` in the fork. Committers, collaborators and
+exempted contributors do not get check 8, and check 5 does not dispatch for them.
 
 A failed API call is reported as "could not check" rather than as a finding: a failed fork
 lookup is not "not a fork of apache/airflow", and a failed workflow lookup is not "missing".

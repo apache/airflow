@@ -933,8 +933,6 @@ def _finder(
         return [{"total_count": count, "workflow_runs": event_runs}]
 
     def rest_get(path, paginate=False, items_key=None):
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return list(jobs)
         if "/compare/" in path:
             assert not paginate, "the compare API returns files only on its first page"
             return {"files": [{"filename": name} for name in compare_files]}
@@ -944,6 +942,7 @@ def _finder(
 
     client.rest_get_pages.side_effect = rest_get_pages
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = list(jobs)
     return BypassFinder(client, repo=REPO, now=NOW, base_triggers=BASE_TRIGGERS, is_gated_base=is_gated_base)
 
 
@@ -1130,9 +1129,7 @@ def test_finder_reports_a_run_another_pull_request_may_own(client, other_pulls):
 def test_finder_catches_a_workflow_moved_away(client):
     finder = _finder(client, [_run(7)], jobs=TAMPERED_JOBS)
     client.rest_get.side_effect = lambda path, paginate=False, items_key=None: (
-        TAMPERED_JOBS
-        if path.endswith("jobs?filter=latest&per_page=100")
-        else [{"number": 42, "closed_at": None}]
+        [{"number": 42, "closed_at": None}]
         if "/pulls?head=" in path
         else {"files": [{"filename": "docs/x.yml", "previous_filename": ".github/workflows/x.yml"}]}
     )
@@ -1583,6 +1580,14 @@ def _suite(
     }
 
 
+def _run_json(run_id, workflow_file="ci-amd.yml", *, path=None, conclusion=None):
+    return {
+        "html_url": f"https://github.com/apache/airflow/actions/runs/{run_id}",
+        "path": path or f".github/workflows/{workflow_file}",
+        "conclusion": conclusion,
+    }
+
+
 @pytest.mark.parametrize(
     ("node", "expected"),
     [
@@ -1606,6 +1611,27 @@ def _suite(
             id="other-runs-only",
         ),
         pytest.param(
+            _project_node(
+                1,
+                suites=[
+                    _suite(7, path=".github/workflows/airflow-ctl-tests.yml"),
+                    _suite(8, path=".github/workflows/codeql.yml", created="2026-11-10T11:00:00Z"),
+                ],
+            ),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="airflow-ctl-release-branch",
+        ),
+        pytest.param(
+            _project_node(1, suites=[_suite(7, path=".github/workflows/ci-amd-arm.yml")]),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="release-branch-without-ci-amd",
+        ),
+        pytest.param(
+            _project_node(1, suites=[_suite(7, path=".github/workflows/ci.yml")]),
+            "https://github.com/apache/airflow/actions/runs/7",
+            id="v2-or-providers-release-branch",
+        ),
+        pytest.param(
             _project_node(1, suites=[_suite(7, conclusion="ACTION_REQUIRED")]),
             None,
             id="waiting-for-approval",
@@ -1620,28 +1646,37 @@ def test_find_project_ci_run_url(node, expected):
 @pytest.mark.parametrize(
     ("statuses", "runs", "expected"),
     [
-        pytest.param(
-            [],
-            [{"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}],
-            "https://github.com/apache/airflow/actions/runs/9",
-            id="run-found",
-        ),
-        pytest.param(
-            [{"context": CI_RUN_STARTED_CONTEXT, "state": "success"}],
-            [{"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}],
-            None,
-            id="already-reported",
-        ),
+        pytest.param([], [_run_json(9)], "https://github.com/apache/airflow/actions/runs/9", id="run-found"),
         pytest.param(
             [],
             [
-                {
-                    "html_url": "https://github.com/apache/airflow/actions/runs/9",
-                    "conclusion": "action_required",
-                }
+                _run_json(9, path=".github/workflows/codeql-analysis.yml"),
+                _run_json(8, "airflow-ctl-tests.yml"),
             ],
+            "https://github.com/apache/airflow/actions/runs/8",
+            id="airflow-ctl-release-branch",
+        ),
+        pytest.param(
+            [],
+            [_run_json(9, "ci-amd-arm.yml")],
+            "https://github.com/apache/airflow/actions/runs/9",
+            id="release-branch-without-ci-amd",
+        ),
+        pytest.param(
+            [],
+            [_run_json(9, "ci.yml")],
+            "https://github.com/apache/airflow/actions/runs/9",
+            id="v2-or-providers-release-branch",
+        ),
+        pytest.param(
+            [{"context": CI_RUN_STARTED_CONTEXT, "state": "success"}],
+            [_run_json(9)],
             None,
-            id="waiting-for-approval",
+            id="already-reported",
+        ),
+        pytest.param([], [_run_json(9, conclusion="action_required")], None, id="waiting-for-approval"),
+        pytest.param(
+            [], [_run_json(9, path=".github/workflows/codeql-analysis.yml")], None, id="other-runs-only"
         ),
         pytest.param([], [], None, id="no-run-yet"),
     ],
@@ -1651,10 +1686,7 @@ def test_read_project_ci_run_url(client, statuses, runs, expected):
         if path == f"repos/{REPO}/commits/sha1/status?per_page=100":
             assert (paginate, items_key) == (True, "statuses")
             return statuses
-        assert (
-            path
-            == f"repos/{REPO}/actions/workflows/ci-amd.yml/runs?event=pull_request&head_sha=sha1&per_page=1"
-        )
+        assert path == f"repos/{REPO}/actions/runs?event=pull_request&head_sha=sha1&per_page=100"
         return {"workflow_runs": runs}
 
     client.rest_get.side_effect = rest_get
@@ -1666,11 +1698,7 @@ def test_report_project_ci_runs_started_reads_a_head_commit_the_search_did_not_l
     client.graphql.return_value = _search_result(_project_node(1, suites=[_suite(7)], oid="older"))
     client.rest_get.side_effect = [
         [],
-        {
-            "workflow_runs": [
-                {"html_url": "https://github.com/apache/airflow/actions/runs/9", "conclusion": None}
-            ]
-        },
+        {"workflow_runs": [_run_json(9)]},
     ]
 
     assert report_project_ci_runs_started(client, repo=REPO, skip=set()) == [1]
@@ -2056,13 +2084,12 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
     def rest_get(path, paginate=False, items_key=None):
         if path.endswith("/actions/workflows/ci-amd.yml"):
             return {"state": "active"}
-        if path.endswith("jobs?filter=latest&per_page=100"):
-            return GATED_JOBS
         if "/compare/" in path:
             return {"files": [{"filename": "README.md"}]}
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.return_value = GATED_JOBS
     (tmp_path / "ci-amd.yml").write_text("on: [pull_request]\n")
 
     run_reconcile(
@@ -2382,13 +2409,14 @@ COMPLETED_RUN = ForkObservation(
 
 def _reporter_client(client, jobs, current=()):
     def rest_get(path, paginate=False, items_key=None):
-        if path.startswith("repos/someone/airflow/actions/runs/1/jobs"):
-            return jobs
         if path.startswith(f"repos/{REPO}/commits/abc123/status"):
             return list(current)
         raise AssertionError(path)
 
     client.rest_get.side_effect = rest_get
+    client.get_run_jobs.side_effect = lambda repo, run_id: (
+        jobs if (repo, run_id) == ("someone/airflow", 1) else pytest.fail(f"{repo} run {run_id}")
+    )
     return client
 
 

@@ -85,6 +85,12 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 
 CI_WORKFLOW_FILE = "ci-amd.yml"
+# The workflows that run a pull request's CI in apache/airflow, depending on its base branch:
+# ci-amd.yml on main and on release branches it was backported to, ci-amd-arm.yml on release
+# branches cut before ci-amd.yml existed, ci.yml on the older v2 and providers release branches,
+# airflow-ctl-tests.yml on the airflow-ctl release branches. A run of any of them reports
+# `CI run started`, which both CI rulesets require on every base.
+PROJECT_CI_WORKFLOW_FILES = frozenset({CI_WORKFLOW_FILE, "ci-amd-arm.yml", "ci.yml", "airflow-ctl-tests.yml"})
 # The files the gate job of ci-amd.yml reads from a pull request's base branch.
 GATE_CONFIG_PATH = ".github/fork-ci-gate.toml"
 GATE_SCRIPT_PATH = "dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py"
@@ -981,7 +987,7 @@ query($q: String!, $cursor: String) {
 
 def find_project_ci_run_url(node: dict[str, Any]) -> str | None:
     """
-    The latest ci-amd.yml pull_request run of a pull request's head commit that still needs `CI run started`.
+    The latest project CI pull_request run of a pull request's head commit that still needs `CI run started`.
 
     None when the commit already has the status, when its latest run has not started because it waits
     for a maintainer's approval or there is none yet, and when the last commit listed is not the head:
@@ -997,7 +1003,7 @@ def find_project_ci_run_url(node: dict[str, Any]) -> str | None:
         suite
         for suite in (commit.get("checkSuites") or {}).get("nodes") or []
         if (run := suite.get("workflowRun") or {}).get("event") == "pull_request"
-        and _workflow_file((run.get("workflow") or {}).get("resourcePath")) == CI_WORKFLOW_FILE
+        and _workflow_file((run.get("workflow") or {}).get("resourcePath")) in PROJECT_CI_WORKFLOW_FILES
     ]
     if not runs:
         return None
@@ -1021,10 +1027,14 @@ def read_project_ci_run_url(client: GitHubClient, repo: str, head_sha: str) -> s
         status["context"] == CI_RUN_STARTED_CONTEXT and status["state"] == "success" for status in statuses
     ):
         return None
-    runs = client.rest_get(
-        f"repos/{repo}/actions/workflows/{CI_WORKFLOW_FILE}/runs"
-        f"?event=pull_request&head_sha={head_sha}&per_page=1"
-    ).get("workflow_runs", [])
+    # Newest first, and across every workflow: which one runs CI depends on the base branch.
+    runs = [
+        run
+        for run in client.rest_get(
+            f"repos/{repo}/actions/runs?event=pull_request&head_sha={head_sha}&per_page=100"
+        ).get("workflow_runs", [])
+        if _workflow_file(run.get("path")) in PROJECT_CI_WORKFLOW_FILES
+    ]
     if not runs or runs[0].get("conclusion") == "action_required":
         return None
     return runs[0]["html_url"]
@@ -1385,11 +1395,7 @@ class JobStatusReporter:
         if self.remaining == 0:
             self._defer(pr, fork)
             return None
-        jobs = self._client.rest_get(
-            f"repos/{pr.head_repo}/actions/runs/{fork.run_id}/jobs?filter=latest&per_page=100",
-            paginate=True,
-            items_key="jobs",
-        )
+        jobs = self._client.get_run_jobs(pr.head_repo, fork.run_id)
         # By the case-folded context, as GitHub compares them.
         current = {
             status["context"].casefold(): (
@@ -1542,11 +1548,7 @@ class BypassFinder:
 
     def _get_jobs(self, run: WorkflowRun) -> list[dict[str, Any]]:
         if run.id not in self._jobs:
-            self._jobs[run.id] = self._client.rest_get(
-                f"repos/{self._repo}/actions/runs/{run.id}/jobs?filter=latest&per_page=100",
-                paginate=True,
-                items_key="jobs",
-            )
+            self._jobs[run.id] = self._client.get_run_jobs(self._repo, run.id)
         return self._jobs[run.id]
 
     def _did_run_project_ci(self, run: WorkflowRun) -> bool:
