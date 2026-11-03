@@ -94,6 +94,7 @@ services:
       - ../../../providers/google/tests:/opt/airflow/providers/google/tests
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
+      - ../../../empty:/opt/airflow/providers/hugginface/src
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
       - ../../../providers/ibm/db2/tests:/opt/airflow/providers/ibm/db2/tests
       - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
