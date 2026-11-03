@@ -621,8 +621,8 @@ class DagRunOperations(BaseOperations):
 
         Args:
             state: Filter Dag runs by state (optional; no filter applied when omitted)
-            start_date: Filter Dag runs by start date (optional)
-            end_date: Filter Dag runs by end date (optional)
+            start_date: Return only Dag runs that started at or after this time (optional)
+            end_date: Return only Dag runs that ended at or before this time (optional)
             limit: Limit the number of results returned
             dag_id: The Dag ID to filter by. If None, retrieves Dag runs for all Dags (using "~").
             logical_date_gte: Filter Dag runs with a logical date greater than or equal to this value.
@@ -637,8 +637,8 @@ class DagRunOperations(BaseOperations):
         params = _build_query_params(
             limit=limit,
             state=str(state) if state is not None else None,
-            start_date=start_date,
-            end_date=end_date,
+            start_date_gte=start_date,
+            end_date_lte=end_date,
             logical_date_gte=logical_date_gte,
             logical_date_lte=logical_date_lte,
             order_by=order_by,

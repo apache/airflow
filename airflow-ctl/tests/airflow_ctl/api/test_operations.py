@@ -1543,13 +1543,17 @@ class TestDagRunOperations:
     def test_list(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == f"/api/v2/dags/{self.dag_id}/dagRuns"
+            assert {key: value for key, value in request.url.params.items() if "date" in key} == {
+                "start_date_gte": "2025-01-01T00:00:00",
+                "end_date_lte": "2025-01-02T00:00:00",
+            }
             return httpx.Response(200, json=json.loads(self.dag_run_collection_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = client.dag_runs.list(
             dag_id=self.dag_id,
             start_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
-            end_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+            end_date=datetime.datetime(2025, 1, 2, 0, 0, 0),
             state=DagRunState.RUNNING,
             limit=1,
         )
