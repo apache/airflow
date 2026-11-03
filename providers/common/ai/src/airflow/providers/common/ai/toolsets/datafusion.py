@@ -45,6 +45,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_schema_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 
 if TYPE_CHECKING:
@@ -92,7 +93,7 @@ _RETRYABLE_QUERY_ERROR_PATTERNS = (
 )
 
 
-class DataFusionToolset(AirflowToolset):
+class DataFusionToolset(ToolPrefixMixin, AirflowToolset):
     """
     Curated toolset that gives an LLM agent SQL access to object-storage data via Apache DataFusion.
 
@@ -164,11 +165,7 @@ class DataFusionToolset(AirflowToolset):
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
-        self._tool_prefix = tool_prefix
+        self._set_tool_prefix(tool_prefix)
         if not datasource_configs:
             raise ValueError("datasource_configs must contain at least one DataSourceConfig")
         self._datasource_configs = datasource_configs
@@ -181,11 +178,7 @@ class DataFusionToolset(AirflowToolset):
     @property
     def id(self) -> str:
         suffix = "_".join(config.table_name.replace("-", "_") for config in self._datasource_configs)
-        prefix = f"_{self._tool_prefix}" if self._tool_prefix else ""
-        return f"sql_datafusion_{suffix}{prefix}"
-
-    def _build_tool_name(self, base: str) -> str:
-        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
+        return f"sql_datafusion_{suffix}{self._get_tool_prefix_id_suffix('_')}"
 
     def _get_engine(self) -> DataFusionEngine:
         """Lazily create and configure a DataFusionEngine from *datasource_configs*."""
@@ -232,7 +225,7 @@ class DataFusionToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        base = name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
+        base = self._strip_tool_prefix(name)
         if base == "list_tables":
             return await self.run_blocking(self._list_tables)
         if base == "get_schema":

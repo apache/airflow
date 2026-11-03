@@ -50,6 +50,7 @@ from airflow.providers.common.ai.utils.query_results import (
     build_schema_result,
 )
 from airflow.providers.common.ai.utils.tool_definition import build_args_validator, return_schema_kwargs
+from airflow.providers.common.ai.utils.tool_prefix import ToolPrefixMixin
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, validate_max_retries
 from airflow.providers.common.compat.sdk import BaseHook
 
@@ -173,7 +174,7 @@ class _CappedFetch:
         return rows
 
 
-class SQLToolset(AirflowToolset):
+class SQLToolset(ToolPrefixMixin, AirflowToolset):
     """
     Curated toolset that gives an LLM agent safe access to a SQL database.
 
@@ -300,11 +301,7 @@ class SQLToolset(AirflowToolset):
         max_retries: int | None = None,
     ) -> None:
         self._max_retries = validate_max_retries(max_retries)
-        if tool_prefix and not tool_prefix.isidentifier():
-            # The prefixed names are rendered as Python function signatures under
-            # code mode, so a name that is not an identifier breaks there.
-            raise ValueError(f"tool_prefix must be a valid Python identifier, got {tool_prefix!r}.")
-        self._tool_prefix = tool_prefix
+        self._set_tool_prefix(tool_prefix)
         self._allowed_tables: frozenset[str] | None
         if allowed_tables is _UNSET:
             self._allowed_tables = None
@@ -385,11 +382,7 @@ class SQLToolset(AirflowToolset):
 
     @property
     def id(self) -> str:
-        suffix = f"-{self._tool_prefix}" if self._tool_prefix else ""
-        return f"sql-{self._db_conn_id}{suffix}"
-
-    def _build_tool_name(self, base: str) -> str:
-        return f"{self._tool_prefix}_{base}" if self._tool_prefix else base
+        return f"sql-{self._db_conn_id}{self._get_tool_prefix_id_suffix()}"
 
     # ------------------------------------------------------------------
     # Lazy hook resolution
@@ -454,7 +447,7 @@ class SQLToolset(AirflowToolset):
         ctx: RunContext[Any],
         tool: ToolsetTool[Any],
     ) -> Any:
-        base = name.removeprefix(f"{self._tool_prefix}_") if self._tool_prefix else name
+        base = self._strip_tool_prefix(name)
         if base not in ("list_tables", "get_schema", "query", "check_query"):
             raise ValueError(f"Unknown tool: {name!r}")
         try:
