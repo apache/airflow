@@ -97,13 +97,13 @@ Dependent package                                                               
 Optional dependencies
 ----------------------
 
-===================  ======================================================
+===================  =====================================================
 Extra                Dependencies
-===================  ======================================================
-``common.ai``        ``apache-airflow-providers-common-ai[openai]>=0.10.0``
+===================  =====================================================
+``common.ai``        ``apache-airflow-providers-common-ai[openai]>=1.0.0``
 ``microsoft.azure``  ``apache-airflow-providers-microsoft-azure>=12.8.0``
 ``openlineage``      ``apache-airflow-providers-openlineage>=2.16.0``
-===================  ======================================================
+===================  =====================================================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-snowflake/6.21.0/changelog.html>`_.
