@@ -297,6 +297,48 @@ class TestBaseOperations:
         for call in mock_client.get.call_args_list:
             assert call.kwargs["params"]["limit"] == 2
 
+    def test_execute_list_advances_by_entries_received_when_server_caps_limit(self):
+        """A server with a lower ``api.maximum_page_limit`` returns fewer entries than requested;
+        paging must continue from what was received or the entries in between are skipped."""
+        mock_client = Mock(spec=Client)
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}, {"name": "b"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "c"}, {"name": "d"}], "total_entries": 5})),
+            Mock(content=json.dumps({"hellos": [{"name": "e"}], "total_entries": 5})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a", "b", "c", "d", "e"]
+        assert [call.kwargs["params"]["offset"] for call in mock_client.get.call_args_list] == [0, 2, 4]
+
+    def test_execute_list_stops_when_server_returns_an_empty_page(self):
+        mock_client = Mock()
+        mock_client.get.side_effect = [
+            Mock(content=json.dumps({"hellos": [{"name": "a"}], "total_entries": 3})),
+            Mock(content=json.dumps({"hellos": [], "total_entries": 3})),
+        ]
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=HelloCollectionResponse, limit=50)
+
+        assert [hello.name for hello in response.hellos] == ["a"]
+        assert mock_client.get.call_count == 2
+
+    def test_execute_list_returns_first_page_when_response_has_no_entries_list(self):
+        class _CountOnlyResponse(BaseModel):
+            total_entries: int
+
+        mock_client = Mock()
+        mock_client.get.return_value = Mock(content=json.dumps({"total_entries": 5}))
+        base_operation = BaseOperations(client=mock_client)
+
+        response = base_operation.execute_list(path="hello", data_model=_CountOnlyResponse, limit=2)
+
+        assert response == _CountOnlyResponse(total_entries=5)
+        assert mock_client.get.call_count == 1
+
     def test_execute_list_sends_offset_to_server(self):
         """``offset`` must reach the server on the first request, not only on subsequent pages."""
         rows = [{"name": name} for name in "abcdef"]
