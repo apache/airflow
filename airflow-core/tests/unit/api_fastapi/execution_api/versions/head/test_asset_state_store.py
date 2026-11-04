@@ -17,14 +17,15 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
 import pytest
 from fastapi import Request
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
-from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.api_fastapi.execution_api.security import ASSET_WATCHER_ID, _jwt_bearer, require_auth
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
 from airflow.models.dynamic_region import DynamicRegion
@@ -35,6 +36,9 @@ from airflow.utils.session import create_session
 from tests_common.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from uuid import UUID
+
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
     from pydantic import JsonValue
@@ -58,6 +62,17 @@ def _create_asset_store_row(asset_id: int, key: str, value: JsonValue) -> None:
 _BY_NAME_CLEAR = "/execution/store/asset/by-name/clear"
 _BY_URI_VALUE = "/execution/store/asset/by-uri/value"
 _BY_URI_CLEAR = "/execution/store/asset/by-uri/clear"
+
+
+def _authenticate_as(exec_app: FastAPI, monkeypatch: pytest.MonkeyPatch, token_id: UUID) -> None:
+    """Authenticate as ``token_id`` while keeping the real ``require_auth`` checks."""
+
+    async def _token() -> TIToken:
+        return TIToken(id=token_id, claims=TIClaims(scope="execution"))
+
+    jwt_bearer: Callable[..., Any] = _jwt_bearer
+    monkeypatch.delitem(exec_app.dependency_overrides, require_auth)
+    monkeypatch.setitem(exec_app.dependency_overrides, jwt_bearer, _token)
 
 
 @pytest.fixture(autouse=True)
@@ -451,19 +466,12 @@ class TestInactiveAssetRejected:
         assert response.status_code == 404
 
 
-class TestPutAssetStateWatcherWrite:
-    """PUT routes record WATCHER kind when no TI backs the token (WATCHER/triggerer path)."""
+class TestAssetStateWatcherWrite:
+    """An asset watcher token, which has no task instance behind it, can mutate asset state."""
 
     @pytest.fixture(autouse=True)
-    def setup_null_uuid_auth(self, exec_app: FastAPI):
-        from uuid import UUID
-
-        async def _watcher_auth(request: Request) -> TIToken:
-            return TIToken(
-                id=UUID("00000000-0000-0000-0000-000000000000"), claims=TIClaims(scope="execution")
-            )
-
-        exec_app.dependency_overrides[require_auth] = _watcher_auth
+    def setup_watcher_auth(self, exec_app: FastAPI, monkeypatch):
+        _authenticate_as(exec_app, monkeypatch, ASSET_WATCHER_ID)
 
     def test_put_by_name_creates_row(self, client: TestClient, asset: AssetModel, session):
         response = client.put(
@@ -521,3 +529,49 @@ class TestPutAssetStateWatcherWrite:
         assert row.last_updated_by_run_id is None
         assert row.last_updated_by_task_id is None
         assert row.last_updated_by_map_index is None
+
+    def test_delete_and_clear(self, client: TestClient, asset: AssetModel):
+        for k in ("watermark", "last_id"):
+            _create_asset_store_row(asset.id, k, "x")
+
+        assert client.delete(_BY_URI_VALUE, params={"uri": asset.uri, "key": "watermark"}).status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "watermark"}).status_code == 404
+        assert client.delete(_BY_NAME_CLEAR, params={"name": asset.name}).status_code == 204
+        assert client.get(_BY_NAME_VALUE, params={"name": asset.name, "key": "last_id"}).status_code == 404
+
+
+class TestAssetStateUnknownIdentityRejected:
+    """A token that is neither a live attempt nor the asset watcher cannot mutate asset state."""
+
+    @pytest.fixture(autouse=True)
+    def setup_unknown_auth(self, exec_app: FastAPI, monkeypatch):
+        _authenticate_as(exec_app, monkeypatch, uuid4())
+
+    @pytest.mark.parametrize(
+        ("method", "path", "by", "body"),
+        [
+            pytest.param("put", _BY_NAME_VALUE, "name", {"value": "stale"}, id="put-by-name"),
+            pytest.param("delete", _BY_NAME_VALUE, "name", None, id="delete-by-name"),
+            pytest.param("delete", _BY_NAME_CLEAR, "name", None, id="clear-by-name"),
+            pytest.param("put", _BY_URI_VALUE, "uri", {"value": "stale"}, id="put-by-uri"),
+            pytest.param("delete", _BY_URI_VALUE, "uri", None, id="delete-by-uri"),
+            pytest.param("delete", _BY_URI_CLEAR, "uri", None, id="clear-by-uri"),
+        ],
+    )
+    def test_mutation_rejected(self, client: TestClient, asset: AssetModel, method, path, by, body):
+        _create_asset_store_row(asset.id, "watermark", "original")
+        params = {by: getattr(asset, by)}
+        if path in (_BY_NAME_VALUE, _BY_URI_VALUE):
+            params["key"] = "watermark"
+
+        response = client.request(method, path, params=params, json=body)
+
+        assert response.status_code == 404, response.text
+        assert response.json()["detail"]["message"] == "Task Instance not found"
+        with create_session() as session:
+            value = session.scalar(
+                select(AssetStateStoreModel.value).where(
+                    AssetStateStoreModel.asset_id == asset.id, AssetStateStoreModel.key == "watermark"
+                )
+            )
+        assert value == '"original"'

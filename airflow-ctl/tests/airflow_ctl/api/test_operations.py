@@ -80,6 +80,8 @@ from airflowctl.api.datamodels.generated import (
     DAGWarningCollectionResponse,
     DAGWarningResponse,
     DagWarningType,
+    DryRunBackfillCollectionResponse,
+    DryRunBackfillResponse,
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
@@ -772,15 +774,29 @@ class TestBackfillOperations:
         backfills=[backfill_response],
         total_entries=1,
     )
+    dry_run_response = DryRunBackfillCollectionResponse(
+        backfills=[
+            DryRunBackfillResponse(
+                logical_date=datetime.datetime(2025, 1, 1, 0, 0, 0),
+                partition_key=None,
+                partition_date=None,
+            )
+        ],
+        total_entries=1,
+    )
 
     @pytest.mark.parametrize(
-        ("operation", "path"), [("create", "backfills"), ("create_dry_run", "backfills/dry_run")]
+        ("operation", "path", "server_response"),
+        [
+            ("create", "backfills", backfill_response),
+            ("create_dry_run", "backfills/dry_run", dry_run_response),
+        ],
     )
     @pytest.mark.parametrize(
         ("request_fields", "expected_fields"),
         [({}, {}), ({"drain_dag": False}, {}), ({"drain_dag": True}, {"drain_dag": True})],
     )
-    def test_create(self, operation, path, request_fields, expected_fields):
+    def test_create(self, operation, path, server_response, request_fields, expected_fields):
         expected_body = {
             "dag_id": "dag_id",
             "from_date": "2024-12-31T23:59:59",
@@ -795,13 +811,13 @@ class TestBackfillOperations:
             assert request.url.path == f"/api/v2/{path}"
             assert request.headers.get("content-type", "").startswith("application/json")
             assert json.loads(request.content.decode()) == expected_body
-            return httpx.Response(200, json=json.loads(self.backfill_response.model_dump_json()))
+            return httpx.Response(200, json=json.loads(server_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
         response = getattr(client.backfills, operation)(
             backfill=self.backfill_body.model_copy(update=request_fields)
         )
-        assert response == self.backfill_response
+        assert response == server_response
 
     def test_get(self):
         def handle_request(request: httpx.Request) -> httpx.Response:
