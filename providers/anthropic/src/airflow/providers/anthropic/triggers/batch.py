@@ -21,19 +21,13 @@ import time
 from collections.abc import AsyncIterator
 from typing import Any
 
-from anthropic import APIStatusError
-
 from airflow.providers.anthropic.hooks.anthropic import (
     MAX_CONSECUTIVE_POLL_FAILURES,
     AnthropicHook,
     BatchStatus,
+    _is_permanent_poll_error,
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-
-def _is_permanent_poll_error(error: Exception) -> bool:
-    """Return whether an Anthropic batch polling error cannot succeed on a retry."""
-    return isinstance(error, APIStatusError) and 400 <= error.status_code < 500 and error.status_code != 429
 
 
 class AnthropicBatchTrigger(BaseTrigger):
@@ -93,13 +87,13 @@ class AnthropicBatchTrigger(BaseTrigger):
                 # single poll does not stall every other trigger on this triggerer.
                 batch = await asyncio.to_thread(hook.get_batch, self.batch_id)
             except Exception as e:
-                if _is_permanent_poll_error(e):
-                    yield TriggerEvent({"status": "error", "batch_id": self.batch_id, "message": str(e)})
-                    return
-                # Tolerate retryable network, rate-limit, and server errors rather than
-                # failing a (up to 24h) wait on a single transient polling failure.
+                # Tolerate transient polling errors rather than failing a (up to 24h) wait.
                 consecutive_failures += 1
-                if consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES or time.time() > self.end_time:
+                if (
+                    _is_permanent_poll_error(e)
+                    or consecutive_failures >= MAX_CONSECUTIVE_POLL_FAILURES
+                    or time.time() > self.end_time
+                ):
                     yield TriggerEvent({"status": "error", "batch_id": self.batch_id, "message": str(e)})
                     return
                 self.log.warning("Polling batch %s failed (%s); retrying.", self.batch_id, e)
