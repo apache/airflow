@@ -359,7 +359,7 @@ class TestActionLoggingUserFields:
 
 
 class TestActionLoggingCommit:
-    def test_the_row_is_committed_without_blocking_the_event_loop(self):
+    def test_the_commit_is_awaited(self):
         """A blocking commit waits for a pooled connection on the event loop, stalling every request."""
         request = Request({"type": "http", "method": "POST", "headers": [], "query_string": b""})
         session = MagicMock(spec=AsyncSession)

@@ -233,6 +233,8 @@ async def _resolve_team_name(params: dict, *, dag_id: str | None, session: Async
 def action_logging(event: str | None = None):
     async def log_action(
         request: Request,
+        # Not the route's sync ``SessionDep``: this dependency runs on the event loop, where a sync
+        # pool checkout blocks the requests holding the pooled connections from releasing them.
         session: AsyncSessionDep,
         user: GetUserDep,
     ):
