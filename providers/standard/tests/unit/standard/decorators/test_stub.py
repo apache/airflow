@@ -279,9 +279,9 @@ class TestStubTaskflowArgs:
     @pytest.mark.parametrize(
         ("make_value", "expected"),
         [
-            pytest.param(lambda out, vals: out.map(str), {"kind": "local"}, id="map"),
-            pytest.param(lambda out, vals: out.zip(vals), {"kind": "local"}, id="zip"),
-            pytest.param(lambda out, vals: out.concat(vals), {"kind": "local"}, id="concat"),
+            pytest.param(lambda out, vals: out.map(str), {"kind": "unresolved"}, id="map"),
+            pytest.param(lambda out, vals: out.zip(vals), {"kind": "unresolved"}, id="zip"),
+            pytest.param(lambda out, vals: out.concat(vals), {"kind": "unresolved"}, id="concat"),
             pytest.param(
                 lambda out, vals: vals, {"kind": "sequence", "task_id": "fn_produce"}, id="mapped-upstream"
             ),

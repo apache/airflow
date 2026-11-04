@@ -83,7 +83,7 @@ class MakeVariableValueNonNullable(VersionChange):
     stored the string ``"None"``. Older clients may still send null, which keeps doing that.
 class AddMappedStubArgBindings(VersionChangeWithSideEffects):
     """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``local`` kinds, and the XCom element fields.
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``unresolved`` kinds, and the XCom element fields.
 
     Older clients keep the earlier behavior: a mapped stub gets no ``arg_bindings``, and a run context
     holding any of the new shapes drops ``arg_bindings`` entirely.
@@ -123,7 +123,7 @@ class AddCallbackStateEndpoint(VersionChange):
 
 
 def _is_mapped_binding(binding: dict) -> bool:
-    if binding["kind"] in ("sequence", "tuple", "local"):
+    if binding["kind"] in ("sequence", "tuple", "unresolved"):
         return True
     return binding["kind"] == "xcom" and (
         binding.get("map_index", -1) != -1

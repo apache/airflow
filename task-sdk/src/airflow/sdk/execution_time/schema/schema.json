@@ -4949,44 +4949,13 @@
       "title": "LiteralArgBinding",
       "type": "object"
     },
-    "LocalArgBinding": {
-      "description": "One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.\n\nThe worker resolves it from the Dag file before the runtime starts the task.",
-      "properties": {
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "value_schema": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ArgValueSchema"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
-        "kind": {
-          "const": "local",
-          "title": "Kind",
-          "type": "string"
-        }
-      },
-      "required": [
-        "name",
-        "kind"
-      ],
-      "title": "LocalArgBinding",
-      "type": "object"
-    },
     "TaskArgBinding": {
       "discriminator": {
         "mapping": {
           "literal": "#/$defs/LiteralArgBinding",
-          "local": "#/$defs/LocalArgBinding",
           "sequence": "#/$defs/XComSequenceArgBinding",
           "tuple": "#/$defs/TupleArgBinding",
+          "unresolved": "#/$defs/UnresolvedArgBinding",
           "xcom": "#/$defs/XComArgBinding"
         },
         "propertyName": "kind"
@@ -5005,7 +4974,7 @@
           "$ref": "#/$defs/TupleArgBinding"
         },
         {
-          "$ref": "#/$defs/LocalArgBinding"
+          "$ref": "#/$defs/UnresolvedArgBinding"
         }
       ],
       "title": "TaskArgBinding"
@@ -5066,6 +5035,37 @@
         }
       ],
       "title": "TupleArgBindingPart"
+    },
+    "UnresolvedArgBinding": {
+      "description": "An argument the server could not finish.\n\nIts ``map()`` callables are Python, or its nesting fits no single binding. The coordinator's\nPython helper resolves it against the Dag file and replaces it with a ``LiteralArgBinding``,\nso no SDK runtime ever receives this kind.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "value_schema": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ArgValueSchema"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "kind": {
+          "const": "unresolved",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "title": "UnresolvedArgBinding",
+      "type": "object"
     },
     "XComArgBinding": {
       "description": "One positional stub-task argument pulled from an upstream task's XCom.",
