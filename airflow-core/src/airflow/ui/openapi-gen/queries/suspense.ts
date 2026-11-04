@@ -663,6 +663,9 @@ export const useDagBundleServiceGetDagBundleSuspense = <TData = Common.DagBundle
 * authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
 * file's Dags contain, and the text of its import error, stay behind their own permissions.
 *
+* ``can_read_import_error`` is per caller, unlike the counts: it says whether ``GET /importErrors``
+* would return the file's error to them.
+*
 * ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
 * has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
 * stays listed on the strength of a live Dag *or* an import error, so a file that has just broken
