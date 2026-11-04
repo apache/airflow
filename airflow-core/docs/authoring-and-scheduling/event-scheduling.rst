@@ -65,7 +65,7 @@ This new trigger must inherit ``BaseEventTrigger`` and ensure it properly works 
 It might inherit from the existing trigger as well if both triggers share some common code.
 
 Publishing partitioned asset events
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To publish an update for a specific asset partition, yield ``AssetTriggerEvent`` with a ``partition_key``::
 
