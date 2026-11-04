@@ -50,77 +50,41 @@ const createMockHITLDetail = (overrides?: Partial<HITLDetail>): HITLDetail =>
     ...overrides,
   }) as HITLDetail;
 
-const createDetailIn = (state: TaskInstanceState | null | undefined, startDate: string | null = null) =>
-  createMockHITLDetail({
-    created_at: "2026-10-22T12:00:05Z",
-    task_instance: {
-      dag_id: "test_dag",
-      dag_run_id: "test_run",
-      map_index: -1,
-      start_date: startDate,
-      state,
-      task_id: "test_task",
-    },
-  } as Partial<HITLDetail>);
-
 describe("isHITLPending", () => {
-  it("treats a deferred task as pending", () => {
-    expect(isHITLPending(createDetailIn("deferred"))).toBe(true);
-  });
-
-  it("treats an awaiting_input task as pending", () => {
-    expect(isHITLPending(createDetailIn("awaiting_input"))).toBe(true);
-  });
-
-  it("treats a running task as pending once its current attempt has written the request", () => {
-    expect(isHITLPending(createDetailIn("running", "2026-10-22T12:00:00Z"))).toBe(true);
-  });
-
-  it("treats a running attempt that has not written its request yet as not pending", () => {
-    expect(isHITLPending(createDetailIn("running", "2026-10-22T12:00:10Z"))).toBe(false);
-    expect(isHITLPending(createDetailIn("running"))).toBe(false);
-  });
+  it.each<TaskInstanceState>(["deferred", "awaiting_input", "running"])(
+    "treats a %s task as pending",
+    (state) => {
+      expect(isHITLPending(state)).toBe(true);
+    },
+  );
 
   it("treats a finished/cleared task as not pending", () => {
-    expect(isHITLPending(createDetailIn("success"))).toBe(false);
-    expect(isHITLPending(createDetailIn(undefined))).toBe(false);
-    expect(isHITLPending(createDetailIn(null))).toBe(false);
+    expect(isHITLPending("success")).toBe(false);
+    expect(isHITLPending(undefined)).toBe(false);
+    expect(isHITLPending(null)).toBe(false);
   });
 });
 
 describe("getHITLState", () => {
-  it("reports a 'required' state for an awaiting_input task without a response", () => {
-    const hitlDetail = createMockHITLDetail({
-      response_received: false,
-      task_instance: {
-        dag_id: "test_dag",
-        dag_run_id: "test_run",
-        map_index: -1,
-        state: "awaiting_input",
-        task_id: "test_task",
-      },
-    } as Partial<HITLDetail>);
+  it.each<TaskInstanceState>(["awaiting_input", "running"])(
+    "reports a 'required' state for a %s task without a response",
+    (state) => {
+      const hitlDetail = createMockHITLDetail({
+        response_received: false,
+        task_instance: {
+          dag_id: "test_dag",
+          dag_run_id: "test_run",
+          map_index: -1,
+          state,
+          task_id: "test_task",
+        },
+      } as Partial<HITLDetail>);
 
-    // Empty params + non-approval options -> choice task; the point is that a parked
-    // awaiting_input task is "required", not "noResponseReceived".
-    expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
-  });
-
-  it("reports a 'required' state for a running task still checking for a response", () => {
-    const hitlDetail = createMockHITLDetail({
-      response_received: false,
-      task_instance: {
-        dag_id: "test_dag",
-        dag_run_id: "test_run",
-        map_index: -1,
-        start_date: "2000-01-01T00:00:00Z",
-        state: "running",
-        task_id: "test_task",
-      },
-    } as Partial<HITLDetail>);
-
-    expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
-  });
+      // Empty params + non-approval options -> choice task; the point is that a task still
+      // waiting for its answer is "required", not "noResponseReceived".
+      expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
+    },
+  );
 
   it("reports no response received for a finished task without a response", () => {
     const hitlDetail = createMockHITLDetail({

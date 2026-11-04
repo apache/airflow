@@ -98,7 +98,9 @@ export const useRequiredActionTabs = (
 
   const hasHitlData = enabled && (hitlData?.total_entries ?? 0) > 0;
   const pendingActionsCount =
-    hitlData?.hitl_details.filter((hitl) => isHITLPending(hitl) && !hitl.response_received).length ?? 0;
+    hitlData?.hitl_details.filter(
+      (hitl) => isHITLPending(hitl.task_instance.state) && !hitl.response_received,
+    ).length ?? 0;
 
   const processedTabs = tabs
     .filter((tab) => {

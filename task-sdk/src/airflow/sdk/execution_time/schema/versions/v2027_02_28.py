@@ -15,7 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Supervisor schema version 2027-02-28."""
+"""
+Supervisor schema version 2027-02-28.
+
+New bodies in this version:
+
+- ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
+  Human-in-the-loop response.
+"""
 
 from __future__ import annotations
 

@@ -68,7 +68,6 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunState,
     DagRunType,
-    HITLDetailResponse,
     HITLUser,
     LoopDecisionPayload,
     PreviousTIResponse,
@@ -3828,7 +3827,7 @@ REQUEST_TEST_CASES = [
             "responded_by_user": {"id": "alice", "name": "Alice"},
             "responded_at": timezone.parse("2024-10-31T12:00:00Z"),
             "chosen_options": ["Approve"],
-            "params_input": {},
+            "params_input": {"reason": "ship it"},
             "type": "HITLDetailResponseResult",
         },
         client_mock=ClientMock(
@@ -3839,7 +3838,7 @@ REQUEST_TEST_CASES = [
                 responded_by_user=HITLUser(id="alice", name="Alice"),
                 responded_at=timezone.parse("2024-10-31T12:00:00Z"),
                 chosen_options=["Approve"],
-                params_input={},
+                params_input={"reason": "ship it"},
             ),
         ),
         test_id="get_hitl_detail_response",
@@ -4428,36 +4427,12 @@ class TestHandleRequest:
                 ),
             )
 
-    def test_get_hitl_detail_response_wraps_the_api_response_for_the_task(self, watched_subprocess):
-        process, _ = watched_subprocess
-        api_response = HITLDetailResponse(
-            response_received=True,
-            responded_by_user=HITLUser(id="alice", name="Alice"),
-            responded_at=timezone.parse("2024-10-31T12:00:00Z"),
-            chosen_options=["Approve"],
-            params_input={"reason": "ship it"},
-        )
-        process.client.hitl.get_detail_response.return_value = api_response
-
-        result, dump_opts = process._handle_get_hitl_detail_response(
-            GetHITLDetailResponse(ti_id=TI_ID), structlog.get_logger(), req_id=1
-        )
-
-        process.client.hitl.get_detail_response.assert_called_once_with(ti_id=TI_ID)
-        assert isinstance(result, HITLDetailResponseResult)
-        assert result.model_dump(exclude={"type"}) == api_response.model_dump()
-        assert dump_opts == {}
-
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
-    @pytest.mark.parametrize(
-        "message",
-        [
-            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]),
-        ],
-    )
-    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess, message):
+    def test_rejects_unsupported_task_messages(self, send_msg, watched_subprocess):
         process, _ = watched_subprocess
-        process._handle_request(message, structlog.get_logger(), req_id=42)
+        process._handle_request(
+            UpdateHITLDetail(ti_id=TI_ID, chosen_options=["approved"]), structlog.get_logger(), req_id=42
+        )
 
         send_msg.assert_called_once_with(
             process,

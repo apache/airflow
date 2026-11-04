@@ -235,15 +235,6 @@ def update_hitl_detail(
             "The Human-in-the-loop request was replaced after it was loaded. Reload it and answer "
             "the request that is waiting now.",
         )
-    if locked_ti.state == TaskInstanceState.RUNNING and not hitl_detail_model.is_awaited_by_running_task(
-        locked_ti
-    ):
-        # Running, but not checking for this answer: a new attempt that has not written its request
-        # yet, or a resumed run (e.g. a timeout without defaults) that has stopped waiting.
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "The Task Instance is running but is not waiting for a response to this request.",
-        )
 
     user_id = user.get_id()
     user_name = user.get_name()
@@ -276,7 +267,7 @@ def update_hitl_detail(
             "Multiple options chosen but this Human-in-the-loop task accepts only a single option.",
         )
 
-    if locked_ti.state not in (TaskInstanceState.AWAITING_INPUT, TaskInstanceState.DEFERRED):
+    if not hitl_detail_model.is_awaited_by(locked_ti):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "The Task Instance is no longer waiting for a response, so this Human-in-the-loop response "
@@ -288,6 +279,10 @@ def update_hitl_detail(
     hitl_detail_model.chosen_options = update_hitl_detail_payload.chosen_options
     hitl_detail_model.params_input = dict(update_hitl_detail_payload.params_input)
     session.add(hitl_detail_model)
+
+    if locked_ti.state == TaskInstanceState.RUNNING:
+        # The running task reads the answer itself; if it parks first, the park transition resumes it.
+        return HITLDetailResponse.model_validate(hitl_detail_model)
 
     # Event-driven resume: transition the parked task directly, without a trigger.
     # handle_event_submit packs the response into next_kwargs["event"], sets state=SCHEDULED +

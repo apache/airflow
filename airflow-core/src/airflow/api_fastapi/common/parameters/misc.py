@@ -37,7 +37,7 @@ from airflow.api_fastapi.common.parameters.search import (
 from airflow.models.connection import Connection
 from airflow.models.dag import DagModel
 from airflow.models.errors import ParseImportError
-from airflow.models.hitl import HITLDetail
+from airflow.models.hitl import HITLDetail, awaiting_response_clause
 from airflow.models.pool import Pool
 from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.taskinstance import TaskInstance
@@ -54,9 +54,6 @@ class _PendingActionsFilter(BaseParam[bool]):
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
-
-        from airflow.models.hitl import HITLDetail, awaiting_response_clause
-        from airflow.models.taskinstance import TaskInstance
 
         # Join with HITLDetail and TaskInstance to find Dags
         pending_actions_count_subquery = (

@@ -38,6 +38,9 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
 
+# A task parks for its answer in ``deferred`` before Airflow 3.3 and in ``awaiting_input`` from 3.3.
+HITL_PARKED_STATES = (TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)
+
 
 class JSONExtract(FunctionElement):
     """
@@ -210,35 +213,37 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
             "timedout": timedout,
         }
 
-    def is_awaited_by_running_task(self, ti: TaskInstance) -> bool:
+    def is_awaited_by(self, ti: TaskInstance) -> bool:
         """
-        Whether the running task instance ``ti`` is still checking for the answer to this request.
+        Whether ``ti`` is waiting for the answer to this request.
 
-        A Human-in-the-loop operator can keep running for a while after writing its request, checking
-        for the answer before it parks. That only holds for the attempt that wrote the request, before
-        it is resumed: a resumed run (``next_method`` set) has stopped waiting, and an attempt that
-        started after the request was written has not asked yet. :func:`awaiting_response_clause` is
-        the SQL form of the same condition.
+        A parked task is. A running task is while it checks for the answer before parking: on its
+        first run (``next_method`` unset), or on a resumed run that asked again after the server
+        resumed it (``scheduled_dttm``). A run resumed after a timeout without an answer is not.
+        Every attempt gets a new task instance id, so the request is always ``ti``'s own.
+        :func:`awaiting_response_clause` is the SQL form.
         """
-        return ti.next_method is None and ti.start_date is not None and self.created_at >= ti.start_date
+        if ti.state in HITL_PARKED_STATES:
+            return True
+        if ti.state != TaskInstanceState.RUNNING:
+            return False
+        return ti.next_method is None or (
+            ti.scheduled_dttm is not None and self.created_at >= ti.scheduled_dttm
+        )
 
 
 def awaiting_response_clause() -> ColumnElement[bool]:
-    """
-    Return the SQL condition for a task instance waiting for its Human-in-the-loop answer.
-
-    The task is parked (``deferred`` before Airflow 3.3, ``awaiting_input`` from 3.3), or still
-    running and checking for the answer, per :meth:`HITLDetail.is_awaited_by_running_task`. Join
-    ``hitl_detail`` to ``task_instance`` before applying it.
-    """
+    """Return the SQL form of :meth:`HITLDetail.is_awaited_by`; join ``task_instance`` first."""
     # Circular import: airflow.models.taskinstance imports this module at load time.
     from airflow.models.taskinstance import TaskInstance
 
     return sa.or_(
-        TaskInstance.state.in_((TaskInstanceState.DEFERRED, TaskInstanceState.AWAITING_INPUT)),
+        TaskInstance.state.in_(HITL_PARKED_STATES),
         sa.and_(
             TaskInstance.state == TaskInstanceState.RUNNING,
-            TaskInstance.next_method.is_(None),
-            HITLDetail.created_at >= TaskInstance.start_date,
+            sa.or_(
+                TaskInstance.next_method.is_(None),
+                HITLDetail.created_at >= TaskInstance.scheduled_dttm,
+            ),
         ),
     )

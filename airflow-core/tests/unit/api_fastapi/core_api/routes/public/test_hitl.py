@@ -608,23 +608,25 @@ class TestUpdateHITLDetailEndpoint:
         assert "event" in (refreshed.next_kwargs or {})
 
     @pytest.mark.parametrize(
-        ("start_date_offset", "next_method", "expected_status"),
+        ("next_method", "resumed_offset", "expected_status"),
         [
-            pytest.param(timedelta(seconds=-5), None, 200, id="checking-for-this-answer"),
-            pytest.param(timedelta(seconds=5), None, 409, id="new-attempt-has-not-asked-yet"),
-            pytest.param(timedelta(seconds=-5), "execute_complete", 409, id="resumed-run"),
+            pytest.param(None, None, 200, id="first-run"),
+            pytest.param(
+                "resume_after_tool_approval", timedelta(minutes=-5), 200, id="resumed-run-asked-again"
+            ),
+            pytest.param("execute_complete", timedelta(minutes=5), 409, id="resumed-after-a-timeout"),
         ],
     )
     @pytest.mark.usefixtures("sample_hitl_detail")
-    def test_response_to_a_running_task_needs_the_attempt_waiting_for_it(
+    def test_response_to_a_running_task_is_stored_while_it_waits(
         self,
         test_client: TestClient,
         sample_ti_url_identifier: str,
         sample_update_payload: dict[str, Any],
         sample_ti: TaskInstance,
         session: Session,
-        start_date_offset: timedelta,
         next_method: str | None,
+        resumed_offset: timedelta | None,
         expected_status: int,
     ) -> None:
         detail = session.scalar(select(HITLDetail).where(HITLDetail.ti_id == sample_ti.id))
@@ -632,8 +634,11 @@ class TestUpdateHITLDetailEndpoint:
         assert detail is not None
         assert ti is not None
         ti.state = TaskInstanceState.RUNNING
-        ti.start_date = detail.created_at + start_date_offset
         ti.next_method = next_method
+        # start_date comes from the worker's clock, which can run ahead of the API server's.
+        ti.start_date = detail.created_at + timedelta(seconds=2)
+        # The server stamps scheduled_dttm when it resumes a task.
+        ti.scheduled_dttm = None if resumed_offset is None else detail.created_at + resumed_offset
         session.commit()
 
         response = test_client.patch(f"{sample_ti_url_identifier}/hitlDetails", json=sample_update_payload)

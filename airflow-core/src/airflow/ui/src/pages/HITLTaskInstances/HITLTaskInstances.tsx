@@ -316,7 +316,7 @@ export const HITLTaskInstances = ({
       refetchInterval: (query) => {
         const hasPendingWithoutResponse = Boolean(
           query.state.data?.hitl_details.some(
-            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail),
+            (detail: HITLDetail) => detail.responded_at === null && isHITLPending(detail.task_instance.state),
           ),
         );
 
