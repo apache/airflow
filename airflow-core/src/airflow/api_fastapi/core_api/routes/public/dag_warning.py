@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import joinedload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -38,9 +38,26 @@ from airflow.api_fastapi.common.parameters import (
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.dag_warning import (
     DAGWarningCollectionResponse,
+    DAGWarningResponse,
 )
-from airflow.api_fastapi.core_api.security import ReadableDagWarningsFilterDep, requires_access_dag
-from airflow.models.dagwarning import DagWarning, DagWarningTypeValue
+from airflow.api_fastapi.core_api.security import (
+    REDACTED_FILE_CONTENT,
+    ReadableDagWarningsFilterDep,
+    requires_access_dag,
+)
+from airflow.models.dag import DagModel
+from airflow.models.dagwarning import DagWarning, DagWarningType, DagWarningTypeValue
+
+# Every other type, including importer-defined ones, is computed for the whole source file and
+# stored on each Dag the file defines, so its message can describe any of them.
+PER_DAG_WARNING_TYPES = frozenset(
+    {
+        DagWarningType.ASSET_CONFLICT.value,
+        DagWarningType.DUPLICATE_DAG_ID.value,
+        DagWarningType.NONEXISTENT_POOL.value,
+        DagWarningType.TASK_GROUP_CYCLE.value,
+    }
+)
 
 dag_warning_router = AirflowRouter(tags=["DagWarning"])
 
@@ -73,9 +90,43 @@ def list_dag_warnings(
         limit=limit,
         session=session,
     )
-    dag_warnings = session.scalars(dag_warnings_select)
+    dag_warnings = session.scalars(dag_warnings_select).all()
+
+    # Being able to read the Dag a file-level warning is attached to does not mean being able to
+    # read every Dag of that file, so its message is redacted like the source of that file.
+    file_level_warnings = [
+        dag_warning
+        for dag_warning in dag_warnings
+        if dag_warning.warning_type not in PER_DAG_WARNING_TYPES and dag_warning.dag_model.relative_fileloc
+    ]
+    redacted_warnings: set[DagWarning] = set()
+    if file_level_warnings:
+        files_with_unreadable_dags = set(
+            session.execute(
+                select(DagModel.bundle_name, DagModel.relative_fileloc)
+                .where(
+                    tuple_(DagModel.bundle_name, DagModel.relative_fileloc).in_(
+                        {(w.dag_model.bundle_name, w.dag_model.relative_fileloc) for w in file_level_warnings}
+                    ),
+                    DagModel.dag_id.not_in(readable_dag_warning_filter.value or set()),
+                )
+                .distinct()
+            ).tuples()
+        )
+        redacted_warnings = {
+            w
+            for w in file_level_warnings
+            if (w.dag_model.bundle_name, w.dag_model.relative_fileloc) in files_with_unreadable_dags
+        }
+
+    response_warnings = []
+    for dag_warning in dag_warnings:
+        response_warning = DAGWarningResponse.model_validate(dag_warning)
+        if dag_warning in redacted_warnings:
+            response_warning.message = REDACTED_FILE_CONTENT
+        response_warnings.append(response_warning)
 
     return DAGWarningCollectionResponse(
-        dag_warnings=dag_warnings,
+        dag_warnings=response_warnings,
         total_entries=total_entries,
     )

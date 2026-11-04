@@ -120,6 +120,10 @@ MAP_BULK_ACTION_TO_AUTH_METHOD: dict[BulkAction, ResourceMethod] = {
     BulkAction.UPDATE: "PUT",
 }
 
+# Returned in place of content produced for a whole source file when the caller cannot read every
+# Dag the file defines.
+REDACTED_FILE_CONTENT = "REDACTED - you do not have read permission on all Dags in the file"
+
 
 async def resolve_user_from_token(token_str: str | None) -> BaseUser:
     if not token_str:
