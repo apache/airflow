@@ -10502,10 +10502,18 @@ export const $TriggerAssetWatcherReferenceResponse = {
         watcher_name: {
             type: 'string',
             title: 'Watcher Name'
+        },
+        scheduled_dag_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Scheduled Dag Ids',
+            description: "The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read."
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'scheduled_dag_ids'],
     title: 'TriggerAssetWatcherReferenceResponse',
     description: 'An asset watcher a trigger serves.'
 } as const;

@@ -35,7 +35,7 @@ type ListPopoverProps = {
   readonly noun: string;
 };
 
-const ListPopover = ({ items, noun }: ListPopoverProps) => {
+export const ListPopover = ({ items, noun }: ListPopoverProps) => {
   const { i18n } = useTranslation();
 
   return (

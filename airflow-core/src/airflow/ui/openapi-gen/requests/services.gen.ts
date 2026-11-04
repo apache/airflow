@@ -4999,6 +4999,7 @@ export class TriggerService {
      * @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
      * @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
      * @param data.assetId Return only the triggers of this asset's watchers.
+     * @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
      * @param data.teams Return only the triggers of these teams.
      * @returns TriggerCollectionResponse Successful Response
      * @throws ApiError
@@ -5016,6 +5017,7 @@ export class TriggerService {
                 triggerer_hostname: data.triggererHostname,
                 dag_id: data.dagId,
                 asset_id: data.assetId,
+                scheduled_dag_id: data.scheduledDagId,
                 teams: data.teams
             },
             errors: {

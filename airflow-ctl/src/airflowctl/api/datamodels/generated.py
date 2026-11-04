@@ -1629,6 +1629,13 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: Annotated[str, Field(title="Asset Name")]
     asset_uri: Annotated[str, Field(title="Asset Uri")]
     watcher_name: Annotated[str, Field(title="Watcher Name")]
+    scheduled_dag_ids: Annotated[
+        list[str],
+        Field(
+            description="The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.",
+            title="Scheduled Dag Ids",
+        ),
+    ]
 
 
 class TriggerCallbackReferenceResponse(BaseModel):

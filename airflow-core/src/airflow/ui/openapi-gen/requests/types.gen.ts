@@ -2656,6 +2656,10 @@ export type TriggerAssetWatcherReferenceResponse = {
     asset_name: string;
     asset_uri: string;
     watcher_name: string;
+    /**
+     * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
+     */
+    scheduled_dag_ids: Array<(string)>;
 };
 
 /**
@@ -5723,6 +5727,10 @@ export type GetTriggersData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
      */
     orderBy?: Array<(string)>;
+    /**
+     * Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+     */
+    scheduledDagId?: string | null;
     /**
      * Return only triggers with one of these statuses.
      */

@@ -19,16 +19,58 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, Query
-from sqlalchemy import select as sql_select
+from sqlalchemy import select as sql_select, union_all
 
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters.base import BaseParam
 from airflow.api_fastapi.common.parameters.filter import FilterOptionEnum, FilterParam, filter_param_factory
+from airflow.api_fastapi.core_api.security import ReadableTriggersFilterDep
 from airflow.jobs.job import Job
-from airflow.models.asset import AssetWatcherModel
+from airflow.models.asset import (
+    AssetModel,
+    AssetWatcherModel,
+    DagScheduleAssetNameReference,
+    DagScheduleAssetReference,
+    DagScheduleAssetUriReference,
+)
 from airflow.models.trigger import Trigger, TriggerKind, TriggerStatus
 
 if TYPE_CHECKING:
-    from sqlalchemy.sql import Select
+    from collections.abc import Collection
+
+    from sqlalchemy.sql import CompoundSelect, Select
+
+
+def select_scheduled_dag_ids(*, asset_ids: Collection[int], dag_ids: Collection[str]) -> CompoundSelect:
+    """
+    Select ``(asset_id, dag_id)`` for each of the Dags scheduled on each of the assets.
+
+    As an event of the asset queues them: scheduled on the asset itself, or on ``Asset.ref(name=...)`` /
+    ``Asset.ref(uri=...)`` of it.
+    """
+    by_ref = [
+        sql_select(AssetModel.id, ref.dag_id)
+        .join(AssetModel, getattr(AssetModel, column) == getattr(ref, column))
+        .where(AssetModel.id.in_(asset_ids), ref.dag_id.in_(dag_ids))
+        for ref, column in ((DagScheduleAssetNameReference, "name"), (DagScheduleAssetUriReference, "uri"))
+    ]
+    direct = sql_select(DagScheduleAssetReference.asset_id, DagScheduleAssetReference.dag_id).where(
+        DagScheduleAssetReference.asset_id.in_(asset_ids),
+        DagScheduleAssetReference.dag_id.in_(dag_ids),
+    )
+    return union_all(direct, *by_ref)
+
+
+def select_scheduled_asset_ids(*, dag_id: str) -> CompoundSelect:
+    """Select the assets a Dag is scheduled on: directly, or on ``Asset.ref(name=...)`` / ``Asset.ref(uri=...)``."""
+    by_ref = [
+        sql_select(AssetModel.id)
+        .join(ref, getattr(AssetModel, column) == getattr(ref, column))
+        .where(ref.dag_id == dag_id)
+        for ref, column in ((DagScheduleAssetNameReference, "name"), (DagScheduleAssetUriReference, "uri"))
+    ]
+    direct = sql_select(DagScheduleAssetReference.asset_id).where(DagScheduleAssetReference.dag_id == dag_id)
+    return union_all(direct, *by_ref)
 
 
 class _TriggerStatusFilter(BaseParam[list[TriggerStatus]]):
@@ -71,6 +113,41 @@ class _TriggerAssetIdFilter(BaseParam[int]):
         return cls().set_value(asset_id)
 
 
+class _TriggerScheduledDagIdFilter(BaseParam[str]):
+    """Filter asset watchers' triggers on a Dag scheduled on a watched asset, as the watchers' scheduled_dag_ids."""
+
+    def __init__(self, asset_ids: set[int] | None = None) -> None:
+        super().__init__()
+        self.asset_ids = asset_ids or set()
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None:
+            return select
+        return select.where(
+            Trigger.id.in_(
+                sql_select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(self.asset_ids))
+            )
+        )
+
+    @classmethod
+    def depends(
+        cls,
+        readable: ReadableTriggersFilterDep,
+        session: SessionDep,
+        scheduled_dag_id: str | None = Query(
+            default=None,
+            description="Return only the triggers of watchers on assets this Dag is scheduled on, directly or "
+            "by an asset name or URI reference.",
+        ),
+    ) -> _TriggerScheduledDagIdFilter:
+        asset_ids: set[int] = set()
+        # Only a Dag and assets the caller can read, as scheduled_dag_ids names them: none for any other Dag.
+        if scheduled_dag_id is not None and scheduled_dag_id in readable.dag_ids:
+            scheduled = set(session.scalars(select_scheduled_asset_ids(dag_id=scheduled_dag_id)))
+            asset_ids = scheduled & readable.asset_ids
+        return cls(asset_ids).set_value(scheduled_dag_id)
+
+
 class _TriggerTeamsFilter(BaseParam[list[str]]):
     """Filter triggers by the team they run for."""
 
@@ -95,6 +172,9 @@ class _TriggerTeamsFilter(BaseParam[list[str]]):
 
 QueryTriggerStatusFilter = Annotated[_TriggerStatusFilter, Depends(_TriggerStatusFilter.depends)]
 QueryTriggerAssetIdFilter = Annotated[_TriggerAssetIdFilter, Depends(_TriggerAssetIdFilter.depends)]
+QueryTriggerScheduledDagIdFilter = Annotated[
+    _TriggerScheduledDagIdFilter, Depends(_TriggerScheduledDagIdFilter.depends)
+]
 QueryTriggerTeamsFilter = Annotated[_TriggerTeamsFilter, Depends(_TriggerTeamsFilter.depends)]
 QueryTriggerKindFilter = Annotated[
     FilterParam[list[TriggerKind]],

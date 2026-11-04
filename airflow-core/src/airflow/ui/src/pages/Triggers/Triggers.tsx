@@ -27,6 +27,7 @@ import type { TriggerDetailResponse, TriggerKind, TriggerStatus } from "openapi/
 
 import { RouterLink, Tooltip } from "src/system-components";
 
+import { ListPopover } from "src/components/Assets/ListPopover";
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -49,6 +50,7 @@ import {
 
 import { TriggerOwner } from "./TriggerOwner";
 import { TriggersForbidden } from "./TriggersForbidden";
+import { getScheduledDagIds } from "./getScheduledDagIds";
 import { getTriggerClassName } from "./getTriggerClassName";
 
 type TriggerRow = { row: { original: TriggerDetailResponse } };
@@ -95,6 +97,29 @@ const createColumns = (
     enableSorting: false,
     header: translate("triggers.columns.owner"),
     id: "owner",
+  },
+  {
+    cell: ({ row: { original } }: TriggerRow) => {
+      if (original.kind !== "asset_watcher") {
+        return "-";
+      }
+      const dagIds = getScheduledDagIds(original.asset_watchers);
+
+      return dagIds.length === 0 ? (
+        0
+      ) : (
+        <ListPopover
+          items={dagIds.map((dagId) => ({
+            key: dagId,
+            label: <RouterLink to={`/dags/${dagId}`}>{dagId}</RouterLink>,
+          }))}
+          noun={translate("common:dag", { count: dagIds.length })}
+        />
+      );
+    },
+    enableSorting: false,
+    header: translate("triggers.columns.dagsAffected"),
+    id: "dags_affected",
   },
   ...(multiTeam
     ? [

@@ -78,6 +78,7 @@ export const triggers: Array<TriggerDetailResponse> = [
         asset_id: 1,
         asset_name: "asset_with_dependencies",
         asset_uri: "s3://bucket/asset",
+        scheduled_dag_ids: ["consumer_dag"],
         watcher_name: "my_watcher",
       },
     ],

@@ -1038,17 +1038,18 @@ export const UseTaskServiceGetTaskKeyFn = ({ dagId, taskId, versionNumber }: {
 export type TriggerServiceGetTriggersDefaultResponse = Awaited<ReturnType<typeof TriggerService.getTriggers>>;
 export type TriggerServiceGetTriggersQueryResult<TData = TriggerServiceGetTriggersDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTriggerServiceGetTriggersKey = "TriggerServiceGetTriggers";
-export const UseTriggerServiceGetTriggersKeyFn = ({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const UseTriggerServiceGetTriggersKeyFn = ({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggersKey, ...(queryKey ?? [{ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }])];
+} = {}, queryKey?: Array<unknown>) => [useTriggerServiceGetTriggersKey, ...(queryKey ?? [{ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }])];
 export type TriggerServiceGetTriggerDefaultResponse = Awaited<ReturnType<typeof TriggerService.getTrigger>>;
 export type TriggerServiceGetTriggerQueryResult<TData = TriggerServiceGetTriggerDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useTriggerServiceGetTriggerKey = "TriggerServiceGetTrigger";

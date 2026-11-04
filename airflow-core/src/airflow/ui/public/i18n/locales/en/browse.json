@@ -62,6 +62,7 @@
   },
   "triggers": {
     "columns": {
+      "dagsAffected": "Dags Affected",
       "failures": "Failures",
       "kind": "Kind",
       "lastError": "Last Error",
