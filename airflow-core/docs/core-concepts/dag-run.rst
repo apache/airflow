@@ -346,6 +346,12 @@ Example of a parameterized Dag:
 
 **Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
 
+.. note::
+
+   ``dag_run.conf`` is meant for small metadata, such as a path, a table name or an ID. The whole value is stored in
+   the metadata database and sent to every task when it starts, so avoid putting large payloads in it. Pass a
+   reference instead, and have the task read the actual data from external storage.
+
 Wait for a Dag Run
 ------------------
 
