@@ -21,8 +21,8 @@
   "asset_other": "Zasoby",
   "assetEvent_few": "Zdarzenia zasobów",
   "assetEvent_many": "Zdarzeń zasobów",
-  "assetEvent_one": "Zdarzenie Zasobu",
-  "assetEvent_other": "Zdarzenia Zasobów",
+  "assetEvent_one": "Zdarzenie zasobu",
+  "assetEvent_other": "Zdarzenia zasobów",
   "assetInactive": {
     "tooltip": "Zasób nadrzędny został deaktywowany; harmonogram wstrzymuje ocenę partycji do czasu jego ponownej aktywacji."
   },
@@ -56,6 +56,7 @@
   "dagBundle_other": "Paczki Dagów",
   "dagDetails": {
     "activeRuns": "Aktywne wykonania",
+    "bundleVersion": "Wersja paczki",
     "catchup": "Nadrabianie zaległości",
     "dagRunTimeout": "Limit czasu wykonania",
     "defaultArgs": "Domyślne argumenty",
@@ -71,7 +72,7 @@
     "maxActiveRuns": "Maksymalna liczba aktywnych wykonań",
     "maxActiveTasks": "Maksymalna liczba aktywnych zadań",
     "maxConsecutiveFailedDagRuns": "Maksymalna liczba kolejnych nieudanych wykonań Daga",
-    "nextRun": "Następne Wykonanie",
+    "nextRun": "Następne wykonanie",
     "owner": "Właściciel",
     "params": "Parametry",
     "schedule": "Harmonogram",
@@ -88,7 +89,7 @@
       "mean": "Średnia",
       "mode": "Dominanta"
     },
-    "expectedDuration": "Oczekiwany Czas Trwania",
+    "expectedDuration": "Oczekiwany czas trwania",
     "lastSchedulingDecision": "Ostatnia decyzja harmonogramu",
     "mappedPartitionKey": "Zmapowany klucz partycji",
     "partitionDate": "Data partycji",
@@ -97,8 +98,8 @@
     "runAfter": "Wykonaj po",
     "runType": "Typ wykonania",
     "sourceAssetEvent": "Zdarzenie źródłowego zasobu",
-    "triggeredBy": "Uruchomiony jako",
-    "triggeringUser": "Użytkownik który uruchomił"
+    "triggeredBy": "Uruchomione przez",
+    "triggeringUser": "Użytkownik, który uruchomił"
   },
   "dagRun_few": "Wykonania",
   "dagRun_many": "Wykonań",
@@ -147,25 +148,32 @@
     "collapse": "Zwiń",
     "expand": "Rozwiń",
     "hotkey": "e",
-    "tooltip": "Wybierz {{hotkey}} aby przełączyć rozwijanie"
+    "tooltip": "Naciśnij {{hotkey}}, aby przełączyć rozwijanie"
   },
   "expandAllExtra": "Rozwiń wszystkie dodatkowe dane JSON",
   "expression": {
     "all": "Wszystkie",
     "and": "ORAZ",
     "any": "Dowolne",
+    "hiddenAsset": "Ukryty zasób",
     "or": "LUB"
   },
   "filter": "Filtr",
   "filters": {
     "addFilter": "Dodaj filtr",
+    "allIterations": "Wszystkie",
     "completedAt": "Zakończono o",
     "date": "Data",
     "durationFrom": "Czas trwania od",
     "durationTo": "Czas trwania do",
     "endTime": "Czas zakończenia",
+    "iteration": "Iteracja",
     "logicalDateFrom": "Data logiczna od",
     "logicalDateTo": "Data logiczna do",
+    "loop": "Pętla",
+    "loopAllIterations": "{{loop}}: wszystkie",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Wybierz pętlę",
     "maxActiveRunsFrom": "Maksymalna liczba aktywnych wykonań od",
     "maxActiveRunsTo": "Maksymalna liczba aktywnych wykonań do",
     "removeFilter": "Usuń filtr",
@@ -175,6 +183,7 @@
     "selectDateRange": "Wybierz zakres dat",
     "selectDateTime": "Wybierz datę i godzinę",
     "startTime": "Czas rozpoczęcia",
+    "switchIteration": "Przełącz iterację",
     "time": "Godzina"
   },
   "fullscreen": {
@@ -199,7 +208,7 @@
     "confirm": "Potwierdź",
     "delete": {
       "button": "Usuń",
-      "confirmation": "Jesteś pewien, że chcesz usunąć {{resourceName}}? Ta operacja nie może być cofnięta."
+      "confirmation": "Czy na pewno chcesz usunąć {{resourceName}}? Tej operacji nie można cofnąć."
     },
     "save": "Zapisz"
   },
@@ -216,7 +225,7 @@
     "security": "Dostęp"
   },
   "no": "Nie",
-  "noItemsFound": "Nie znaleziono modelu {{modelName}}",
+  "noItemsFound": "Nie znaleziono: {{modelName}}",
   "note": {
     "add": "Dodaj notatkę",
     "dagRun": "Notatki wykonania",
@@ -432,11 +441,12 @@
     "no_status": "Brak stanu",
     "none": "Brak stanu",
     "open": "Otwarte",
+    "pending": "Oczekujące",
     "planned": "Zaplanowane",
     "queued": "W kolejce",
     "removed": "Usunięte",
     "restarting": "Restartowanie",
-    "running": "Wykonane",
+    "running": "Wykonywane",
     "scheduled": "Zaplanowane",
     "skipped": "Pominięte",
     "success": "Sukces",
@@ -446,10 +456,11 @@
   },
   "switchDag": "Przełącz $t(dag_one)",
   "switchDagRun": "Przełącz wykonanie",
+  "switchMapIndex": "Przełącz indeks mapowania",
   "table": {
     "completedAt": "Zakończono o",
     "createdAt": "Utworzono o",
-    "filterByTag": "Filtruj Dagi według tagu",
+    "filterByTag": "Filtruj Dagi według etykiety",
     "filterColumns": "Filtruj kolumny tabeli",
     "filterReset_few": "Resetuj filtry",
     "filterReset_many": "Resetuj filtry",
@@ -489,7 +500,7 @@
   "taskGroup_many": "Grup zadań",
   "taskGroup_one": "Grupa zadań",
   "taskGroup_other": "Grupy zadań",
-  "taskId": "Identyfikator Zadania",
+  "taskId": "Identyfikator zadania",
   "taskInstance": {
     "additionalAttributes": "Dodatkowe atrybuty instancji zadania",
     "dagVersion": "Wersja Daga",
@@ -497,6 +508,9 @@
     "executorConfig": "Konfiguracja wykonawcy",
     "hostname": "Nazwa hosta",
     "id": "ID",
+    "iteration": "Iteracja",
+    "loopDecision": "Decyzja",
+    "loopIterations": "Wykonane iteracje",
     "maxTries": "Maksymalna liczba prób",
     "pid": "PID",
     "pool": "Pula",
@@ -505,6 +519,7 @@
     "queue": "Kolejka",
     "queuedWhen": "Zakolejkowano o",
     "renderedMapIndex": "Wyrenderowany indeks mapowania",
+    "retryAt": "Ponowna próba o",
     "scheduledWhen": "Zaplanowano o",
     "stateReason": "Przyczyna stanu",
     "stateReasonSummary": {
@@ -523,10 +538,10 @@
     },
     "unixname": "Nazwa użytkownika systemu Unix"
   },
-  "taskInstance_few": "Instancje Zadań",
-  "taskInstance_many": "Instancji Zadań",
-  "taskInstance_one": "Instancja Zadania",
-  "taskInstance_other": "Instancje Zadań",
+  "taskInstance_few": "Instancje zadań",
+  "taskInstance_many": "Instancji zadań",
+  "taskInstance_one": "Instancja zadania",
+  "taskInstance_other": "Instancje zadań",
   "teams": {
     "more_few": "i jeszcze {{count, number}}",
     "more_many": "i jeszcze {{count, number}}",
@@ -556,7 +571,7 @@
     "current-timezone": "Obecny czas w",
     "placeholder": "Wybierz strefę czasową",
     "title": "Wybierz strefę czasową",
-    "utc": "UTC (Uniwersalny Czas Koordynowany)"
+    "utc": "UTC (uniwersalny czas koordynowany)"
   },
   "toaster": {
     "bulkClear": {
@@ -633,7 +648,7 @@
   "value": "Wartość",
   "wrap": {
     "hotkey": "w",
-    "tooltip": "Wybierz {{hotkey}} aby przełączyć zawijanie",
+    "tooltip": "Naciśnij {{hotkey}}, aby przełączyć zawijanie",
     "unwrap": "Wyłącz zawijanie",
     "wrap": "Włącz zawijanie"
   },

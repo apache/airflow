@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Wszystkie indeksy mapowania",
   "allRuns": "Wszystkie wykonania",
   "blockingDeps": {
     "dependency": "Zależność",
@@ -35,6 +36,23 @@
       "wednesday": "Śr"
     }
   },
+  "callbacks": {
+    "callback_few": "Wywołania zwrotne",
+    "callback_many": "Wywołań zwrotnych",
+    "callback_one": "Wywołanie zwrotne",
+    "callback_other": "Wywołania zwrotne",
+    "columns": {
+      "alertName": "Alert terminu",
+      "callback": "Wywołanie zwrotne",
+      "deadlineTime": "Czas terminu",
+      "missedBy": "Przekroczono o",
+      "type": "Typ"
+    },
+    "types": {
+      "executor": "Synchroniczne",
+      "triggerer": "Asynchroniczne"
+    }
+  },
   "code": {
     "bundleUrl": "Adres URL paczki Dagów",
     "noCode": "Nie znaleziono kodu",
@@ -62,17 +80,17 @@
     "label": "Termin",
     "met": "Dotrzymany",
     "missed": "Niedotrzymany",
-    "missedCount_few": "{{count, number}} Niedotrzymane terminy",
-    "missedCount_many": "{{count, number}} Niedotrzymanych terminów",
-    "missedCount_one": "{{count, number}} Niedotrzymany termin",
-    "missedCount_other": "{{count, number}} Niedotrzymanych terminów",
+    "missedCount_few": "{{count, number}} niedotrzymane terminy",
+    "missedCount_many": "{{count, number}} niedotrzymanych terminów",
+    "missedCount_one": "{{count, number}} niedotrzymany termin",
+    "missedCount_other": "{{count, number}} niedotrzymanych terminów",
     "mixedCount": "Niedotrzymane: {{missedCount, number}}, Nadchodzące: {{upcomingCount, number}}",
     "stillRunning": "Nadal w trakcie",
     "upcoming": "Nadchodzący",
-    "upcomingCount_few": "{{count, number}} Nadchodzące terminy",
-    "upcomingCount_many": "{{count, number}} Nadchodzących terminów",
-    "upcomingCount_one": "{{count, number}} Nadchodzący termin",
-    "upcomingCount_other": "{{count, number}} Nadchodzących terminów"
+    "upcomingCount_few": "{{count, number}} nadchodzące terminy",
+    "upcomingCount_many": "{{count, number}} nadchodzących terminów",
+    "upcomingCount_one": "{{count, number}} nadchodzący termin",
+    "upcomingCount_other": "{{count, number}} nadchodzących terminów"
   },
   "extraLinks": "Dodatkowe linki",
   "grid": {
@@ -114,6 +132,37 @@
     "waitingToRetry": "Próba {{tryNumber}} czeka na ponowienie.",
     "warning": "WARNING"
   },
+  "loop": {
+    "history": {
+      "capLabel": "Limit: {{max}}",
+      "iterationsAxis": "Iteracje",
+      "stats": {
+        "capHits": "Osiągnięto limit",
+        "medianIterations": "Mediana iteracji"
+      },
+      "title": "Iteracje na wykonanie"
+    },
+    "iterationLabel": "Iteracja {{index}}",
+    "iterations": "Iteracje",
+    "outcome": "Wynik",
+    "reason": {
+      "cap_reached": "Osiągnięto limit iteracji ({{max}})",
+      "failed": "Niepowodzenie w iteracji {{index}}",
+      "iteration_failed": "Iteracja {{index}} nie powiodła się w {{taskId}}",
+      "ran_to_cap": "Wykonano wszystkie dozwolone iteracje ({{max}})",
+      "removed": "Usunięte",
+      "running": "Wykonywane",
+      "skipped": "Pominięte",
+      "stopped_early": "Zatrzymano wcześniej w iteracji {{index}}"
+    },
+    "rules": {
+      "behaviour": "Zachowanie",
+      "boundedFor": "Wykonuje stałą liczbę iteracji",
+      "exitCriteria": "Kryteria wyjścia",
+      "maxIterations": "Maksymalna liczba iteracji",
+      "whileUntil": "Powtarza, dopóki nie zostanie spełniony warunek: {{criteria}}"
+    }
+  },
   "notFound": {
     "back": "Wróć",
     "backToDags": "Powrót do Dagów",
@@ -147,7 +196,7 @@
     },
     "failedLogs": {
       "hideLogs": "Ukryj logi",
-      "showLogs": "🐌 🐌 Pokaż logi",
+      "showLogs": "Pokaż logi",
       "title": "Ostatnie logi nieudanych zadań",
       "viewFullLogs": "Zobacz pełne logi"
     }
@@ -174,7 +223,7 @@
       "durationGteHint": "Dla zmapowanych zadań mierzy łączny czas wszystkich instancji",
       "mapIndex": "Min. indeks mapowania",
       "mapIndexHint": "Pokazuje zmapowane zadania rozszerzone co najmniej do tego indeksu",
-      "selectStatus": "Wybierz status",
+      "selectStatus": "Wybierz stan",
       "selectTaskGroup": "Wybierz grupę zadań",
       "title": "Filtry zadań"
     },
@@ -183,7 +232,7 @@
       "options": {
         "hideAll": "Ukryj wszystkie",
         "showAll": "Pokaż wszystkie",
-        "showBundleVersion": "Pokaż wersję pakietu",
+        "showBundleVersion": "Pokaż wersję paczki",
         "showDagVersion": "Pokaż wersję Daga"
       }
     },
@@ -195,7 +244,7 @@
       "direction": "Kierunek",
       "label": "Filtr",
       "mode": "Tryb",
-      "modeTooltip": "Tryb statyczny zachowuje bieżący widok podczas nawigacji między zadaniami, podczas gdy tryb przechodzenia automatycznie aktualizuje aktywny filtr do klikniętego zadania, ułatwiając przechodzenie przez Dag.",
+      "modeTooltip": "Tryb statyczny zachowuje bieżący widok podczas nawigacji między zadaniami, podczas gdy tryb przechodzenia automatycznie aktualizuje aktywny filtr do klikniętego zadania, ułatwiając przechodzenie przez Daga.",
       "modes": {
         "static": "Statyczny",
         "traverse": "Przechodzenia"
@@ -212,7 +261,7 @@
   "parse": {
     "toaster": {
       "error": {
-        "description": "Nie udało się przetworzyć żądania prztworzenia Daga. Mogą istnieć oczekujące żądania przetworznia Dagów.",
+        "description": "Nie udało się przetworzyć żądania przetworzenia Daga. Mogą istnieć oczekujące żądania przetworzenia Dagów.",
         "title": "Nie udało się ponownie przetworzyć Daga"
       },
       "success": {
@@ -226,6 +275,7 @@
     "auditLog": "Log audytu",
     "backfills": "Wypełnienia wsteczne",
     "calendar": "Kalendarz",
+    "callbacks": "Wywołania zwrotne",
     "code": "Kod",
     "details": "Szczegóły",
     "logs": "Logi",
@@ -303,6 +353,11 @@
       "provenance": "Pochodzenie",
       "unknown": "Nieznany"
     },
+    "limitReached": {
+      "description": "Zmian jest więcej, niż pozwala limit maksymalnej liczby zmian. Zwiększ limit, aby zobaczyć pozostałe.",
+      "descriptionDefault": "Zmian jest więcej, niż pozwala domyślny limit. Ustaw wyższą maksymalną liczbę zmian, aby zobaczyć pozostałe.",
+      "title": "Wyświetlono tylko pierwsze zmiany ({{limit, number}})"
+    },
     "maxChanges": "Maksymalna liczba zmian",
     "maxChangesDefault": "Domyślna",
     "noChanges": "Te wersje mają ten sam stan.",
@@ -311,15 +366,28 @@
       "changed": "Zmieniono",
       "removed": "Usunięto"
     },
+    "pathOccurrences_few": "{{count, number}} zmiany dotyczą tej ścieżki",
+    "pathOccurrences_many": "{{count, number}} zmian dotyczy tej ścieżki",
+    "pathOccurrences_one": "{{count, number}} zmiana dotyczy tej ścieżki",
+    "pathOccurrences_other": "{{count, number}} zmiany dotyczą tej ścieżki",
+    "pathOccurrencesAtLeast_few": "Co najmniej {{count, number}} zmiany dotyczą tej ścieżki",
+    "pathOccurrencesAtLeast_many": "Co najmniej {{count, number}} zmian dotyczy tej ścieżki",
+    "pathOccurrencesAtLeast_one": "Co najmniej {{count, number}} zmiana dotyczy tej ścieżki",
+    "pathOccurrencesAtLeast_other": "Co najmniej {{count, number}} zmiany dotyczą tej ścieżki",
     "record_few": "Rekordy",
     "record_many": "Rekordów",
     "record_one": "Rekord",
     "record_other": "Rekordy",
+    "schemaChange": "Schemat serializacji {{baseSchema}} → {{targetSchema}}",
     "selectPrompt": "Wybierz dwie wersje, aby zobaczyć, co się między nimi zmieniło.",
     "summary_few": "{{count, number}} zmiany",
     "summary_many": "{{count, number}} zmian",
     "summary_one": "{{count, number}} zmiana",
     "summary_other": "{{count, number}} zmiany",
+    "summaryAtLeast_few": "Co najmniej {{count, number}} zmiany",
+    "summaryAtLeast_many": "Co najmniej {{count, number}} zmian",
+    "summaryAtLeast_one": "Co najmniej {{count, number}} zmiana",
+    "summaryAtLeast_other": "Co najmniej {{count, number}} zmiany",
     "target": "Porównaj z",
     "unavailable": {
       "description": "Nie udało się porównać tych wersji. Przyczyna:",
