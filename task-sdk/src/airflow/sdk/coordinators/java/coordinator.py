@@ -96,13 +96,13 @@ def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
     yield from children
 
 
-def _get_classpath_alias_dir() -> pathlib.Path:
+def _get_classpath_link_dir() -> pathlib.Path:
     """
-    Return this user's directory of classpath aliases, creating it if needed.
+    Return this user's directory of classpath links, creating it if needed.
 
     :raises ValueError: when the directory's path holds ``os.pathsep``.
     :raises PermissionError: when the directory is not a real directory owned by this user, or
-        others can write to it. Anyone who can write there could point an alias at their own JARs.
+        others can write to it. Anyone who can write there could point a link at their own JARs.
     """
     uid = os.getuid()
     path = pathlib.Path(tempfile.gettempdir(), f"airflow-java-classpath-{uid}")
@@ -122,14 +122,14 @@ def _get_classpath_alias_dir() -> pathlib.Path:
     return path
 
 
-def _remove_dangling_aliases(alias_dir: pathlib.Path) -> None:
-    for entry in alias_dir.iterdir():
+def _remove_dangling_links(link_dir: pathlib.Path) -> None:
+    for entry in link_dir.iterdir():
         if entry.is_symlink() and not entry.exists():
             with contextlib.suppress(FileNotFoundError):
                 entry.unlink()
 
 
-def _get_classpath_alias(root: pathlib.Path) -> pathlib.Path:
+def _get_classpath_link(root: pathlib.Path) -> pathlib.Path:
     """
     Return a symlink to *root* whose own path holds no ``os.pathsep``.
 
@@ -138,20 +138,20 @@ def _get_classpath_alias(root: pathlib.Path) -> pathlib.Path:
     atomically, and a link whose target is gone is removed when a new one is created.
     """
     target = os.fspath(root.absolute())
-    alias_dir = _get_classpath_alias_dir()
-    link = alias_dir / hashlib.sha256(os.fsencode(target)).hexdigest()[:16]
+    link_dir = _get_classpath_link_dir()
+    link = link_dir / hashlib.sha256(os.fsencode(target)).hexdigest()[:16]
     with contextlib.suppress(OSError):
         if os.readlink(link) == target:
             return link
-    _remove_dangling_aliases(alias_dir)
-    staging = alias_dir / f"{link.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    _remove_dangling_links(link_dir)
+    staging = link_dir / f"{link.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
     os.symlink(target, staging, target_is_directory=True)
     try:
         os.replace(staging, link)
     except BaseException:
         staging.unlink(missing_ok=True)
         raise
-    log.debug("Linked a bundle path that holds the classpath separator", root=target, link=link)
+    log.debug("Linked a bundle path that holds the classpath separator", bundle_path=target, link=link)
     return link
 
 
@@ -164,10 +164,11 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
     Return the classpath of every JAR under *roots*. *primary*, when given, goes first.
 
     A root whose path holds ``os.pathsep``, such as a bundle version directory named after a
-    timestamp, is reached through a symlink from :func:`_get_classpath_alias`, which this creates
+    timestamp, is reached through a symlink from :func:`_get_classpath_link`, which this creates
     if needed.
 
-    :raises ValueError: when a JAR's path below its root still holds ``os.pathsep``.
+    :raises ValueError: when a JAR's path below its root still holds ``os.pathsep``, or when the
+        temporary directory's path holds it.
     """
     jars = sorted(_find_jars(roots), key=lambda p: p.as_posix())
     if primary is not None:
@@ -179,13 +180,11 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
             f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "
             f"entries: {', '.join(map(os.fspath, bad))}. Rename or move them."
         )
-    linked = {r for _, r in placed if r is not None and os.pathsep in os.fspath(r)}
-    aliases = {r: _get_classpath_alias(r) for r in linked}
-    for root, alias in aliases.items():
-        log.info("Bundle reached by classpath through a link", bundle_path=root, link=alias)
-    return os.pathsep.join(
-        (aliases[r] / p.relative_to(r) if r in aliases else p).as_posix() for p, r in placed
-    )
+    linked_roots = {r for _, r in placed if r is not None and os.pathsep in os.fspath(r)}
+    links = {r: _get_classpath_link(r) for r in linked_roots}
+    for root, link in links.items():
+        log.info("Bundle reached by classpath through a link", bundle_path=root, link=link)
+    return os.pathsep.join((links[r] / p.relative_to(r) if r in links else p).as_posix() for p, r in placed)
 
 
 @attrs.define

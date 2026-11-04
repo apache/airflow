@@ -39,7 +39,7 @@ from airflow.sdk.coordinators._subprocess import _PopenActivitySubprocess
 from airflow.sdk.coordinators.java.coordinator import (
     JavaCoordinator,
     _calculate_classpath,
-    _get_classpath_alias,
+    _get_classpath_link,
     _JarInfo,
     _JarMetadata,
     _walk_jars,
@@ -175,8 +175,8 @@ TIMESTAMPED_VERSION = f"2026-11-02T15{os.pathsep}52{os.pathsep}20Z"
 
 
 @pytest.fixture
-def alias_dir(tmp_path):
-    """Point the coordinator's temporary directory into *tmp_path* and return where its aliases go."""
+def link_dir(tmp_path):
+    """Point the coordinator's temporary directory into *tmp_path* and return where its links go."""
     tmp = tmp_path / "tmp"
     tmp.mkdir()
     with patch(
@@ -195,24 +195,24 @@ def _make_timestamped_bundle(parent: pathlib.Path, name: str = TIMESTAMPED_VERSI
     return root
 
 
-class TestClasspathAlias:
-    def test_root_without_separator_is_not_linked(self, tmp_path, alias_dir):
+class TestClasspathLink:
+    def test_root_without_separator_is_not_linked(self, tmp_path, link_dir):
         jar = _make_jar(tmp_path / "app.jar")
 
         assert _calculate_classpath([tmp_path]) == jar.as_posix()
-        assert not alias_dir.exists()
+        assert not link_dir.exists()
 
-    def test_root_with_separator_is_reached_through_a_link(self, tmp_path, alias_dir):
+    def test_root_with_separator_is_reached_through_a_link(self, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
 
         result = _calculate_classpath([root], primary=root / "libs" / "dep.jar")
 
-        [link] = alias_dir.iterdir()
+        [link] = link_dir.iterdir()
         assert result.split(os.pathsep) == [f"{link.as_posix()}/libs/dep.jar", f"{link.as_posix()}/app.jar"]
         assert os.readlink(link) == os.fspath(root)
-        assert stat.S_IMODE(alias_dir.stat().st_mode) == 0o700
+        assert stat.S_IMODE(link_dir.stat().st_mode) == 0o700
 
-    def test_mixed_roots_link_only_the_root_with_separator(self, tmp_path, alias_dir):
+    def test_mixed_roots_link_only_the_root_with_separator(self, tmp_path, link_dir):
         plain = tmp_path / "plain"
         plain.mkdir()
         lib = _make_jar(plain / "lib.jar", main_class=None)
@@ -220,7 +220,7 @@ class TestClasspathAlias:
 
         result = _calculate_classpath([plain, root])
 
-        [link] = alias_dir.iterdir()
+        [link] = link_dir.iterdir()
         assert os.readlink(link) == os.fspath(root)
         assert result.split(os.pathsep) == [
             f"{link.as_posix()}/app.jar",
@@ -232,7 +232,7 @@ class TestClasspathAlias:
         ("inner_first", "link_count"),
         [pytest.param(False, 1, id="outer-first"), pytest.param(True, 2, id="inner-first")],
     )
-    def test_nested_roots(self, tmp_path, alias_dir, inner_first, link_count):
+    def test_nested_roots(self, tmp_path, link_dir, inner_first, link_count):
         root = _make_timestamped_bundle(tmp_path)
         roots = [root / "libs", root] if inner_first else [root, root / "libs"]
 
@@ -241,14 +241,14 @@ class TestClasspathAlias:
         assert sorted(pathlib.Path(e).resolve() for e in entries) == sorted(
             [(root / "app.jar").resolve(), (root / "libs" / "dep.jar").resolve()]
         )
-        assert len(list(alias_dir.iterdir())) == link_count
+        assert len(list(link_dir.iterdir())) == link_count
 
-    def test_link_is_reused(self, tmp_path, alias_dir):
+    def test_link_is_reused(self, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
-        link = _get_classpath_alias(root)
+        link = _get_classpath_link(root)
         inode = link.lstat().st_ino
 
-        assert _get_classpath_alias(root) == link
+        assert _get_classpath_link(root) == link
         assert link.lstat().st_ino == inode
 
     @patch(
@@ -256,54 +256,54 @@ class TestClasspathAlias:
         autospec=True,
         side_effect=OSError("replace failed"),
     )
-    def test_staging_link_is_removed_when_replacing_fails(self, mock_replace, tmp_path, alias_dir):
+    def test_staging_link_is_removed_when_replacing_fails(self, mock_replace, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
 
         with pytest.raises(OSError, match="replace failed"):
-            _get_classpath_alias(root)
+            _get_classpath_link(root)
 
-        assert list(alias_dir.iterdir()) == []
+        assert list(link_dir.iterdir()) == []
 
-    def test_link_to_another_target_is_replaced(self, tmp_path, alias_dir):
+    def test_link_to_another_target_is_replaced(self, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
-        link = _get_classpath_alias(root)
+        link = _get_classpath_link(root)
         link.unlink()
         link.symlink_to(tmp_path)
 
-        assert _get_classpath_alias(root) == link
+        assert _get_classpath_link(root) == link
         assert os.readlink(link) == os.fspath(root)
 
-    def test_dangling_links_are_removed_when_a_link_is_created(self, tmp_path, alias_dir):
-        old = _get_classpath_alias(_make_timestamped_bundle(tmp_path / "old"))
-        kept = _get_classpath_alias(_make_timestamped_bundle(tmp_path / "kept"))
+    def test_dangling_links_are_removed_when_a_link_is_created(self, tmp_path, link_dir):
+        old = _get_classpath_link(_make_timestamped_bundle(tmp_path / "old"))
+        kept = _get_classpath_link(_make_timestamped_bundle(tmp_path / "kept"))
         shutil.rmtree(tmp_path / "old")
 
-        new = _get_classpath_alias(_make_timestamped_bundle(tmp_path / "new"))
+        new = _get_classpath_link(_make_timestamped_bundle(tmp_path / "new"))
 
-        assert sorted(alias_dir.iterdir()) == sorted([kept, new])
+        assert sorted(link_dir.iterdir()) == sorted([kept, new])
         assert not old.is_symlink()
 
-    def test_concurrent_callers_share_one_link(self, tmp_path, alias_dir):
+    def test_concurrent_callers_share_one_link(self, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=16) as pool:
-            links = set(pool.map(lambda _: _get_classpath_alias(root), range(64)))
+            links = set(pool.map(lambda _: _get_classpath_link(root), range(64)))
 
         assert len(links) == 1
-        assert list(alias_dir.iterdir()) == [*links]
+        assert list(link_dir.iterdir()) == [*links]
 
     @pytest.mark.parametrize("unsafe", ["writable-by-others", "symlink", "file", "other-owner"])
-    def test_rejects_an_unsafe_alias_dir(self, tmp_path, alias_dir, unsafe):
+    def test_rejects_an_unsafe_link_dir(self, tmp_path, link_dir, unsafe):
         root = _make_timestamped_bundle(tmp_path)
         uid = os.getuid()
         if unsafe == "writable-by-others":
-            alias_dir.mkdir(mode=0o700)
-            alias_dir.chmod(0o777)
+            link_dir.mkdir(mode=0o700)
+            link_dir.chmod(0o777)
         elif unsafe == "symlink":
             (tmp_path / "elsewhere").mkdir(mode=0o700)
-            alias_dir.symlink_to(tmp_path / "elsewhere")
+            link_dir.symlink_to(tmp_path / "elsewhere")
         elif unsafe == "file":
-            alias_dir.write_bytes(b"")
+            link_dir.write_bytes(b"")
         else:
             uid += 1
 
@@ -311,9 +311,9 @@ class TestClasspathAlias:
             patch("airflow.sdk.coordinators.java.coordinator.os.getuid", autospec=True, return_value=uid),
             pytest.raises(PermissionError, match="Cannot keep Java classpath links"),
         ):
-            _get_classpath_alias(root)
+            _get_classpath_link(root)
 
-    def test_rejects_an_alias_dir_holding_the_separator(self, tmp_path):
+    def test_rejects_a_link_dir_holding_the_separator(self, tmp_path):
         root = _make_timestamped_bundle(tmp_path)
         tmp = tmp_path / f"tmp{os.pathsep}dir"
         tmp.mkdir()
@@ -330,7 +330,7 @@ class TestClasspathAlias:
 
         assert list(tmp.iterdir()) == []
 
-    def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, alias_dir):
+    def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, link_dir):
         root = _make_timestamped_bundle(tmp_path)
         nested = root / f"a{os.pathsep}b"
         nested.mkdir()
@@ -340,10 +340,10 @@ class TestClasspathAlias:
             _calculate_classpath([root])
 
         assert os.fspath(jar) in str(ctx.value)
-        assert not alias_dir.exists()
+        assert not link_dir.exists()
 
     @pytest.mark.skipif(shutil.which("java") is None or shutil.which("javac") is None, reason="needs a JDK")
-    def test_jvm_loads_jars_through_the_link(self, tmp_path, alias_dir):
+    def test_jvm_loads_jars_through_the_link(self, tmp_path, link_dir):
         src = tmp_path / "src"
         src.mkdir()
         (src / "Dep.java").write_text('public class Dep { public static String hi() { return "loaded"; } }')
@@ -607,7 +607,7 @@ class TestJavaCoordinatorExecuteTask:
         classpath = cmd[cp_idx + 1]
         assert jars_dir.joinpath("app.jar").as_posix() in classpath
 
-    def test_timestamped_bundle_path_is_linked(self, tmp_path, alias_dir, mock_client):
+    def test_timestamped_bundle_path_is_linked(self, tmp_path, link_dir, mock_client):
         root = _make_timestamped_bundle(tmp_path)
         bundle = {
             "name": "java-task-handlers",
@@ -617,7 +617,7 @@ class TestJavaCoordinatorExecuteTask:
         with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps([bundle])}):
             cmd = self._captured_popen_cmd(bundle["name"], mock_client)
 
-        [link] = alias_dir.iterdir()
+        [link] = link_dir.iterdir()
         classpath = cmd[cmd.index("-classpath") + 1]
         assert classpath.split(os.pathsep) == [
             f"{link.as_posix()}/app.jar",
@@ -928,7 +928,7 @@ class TestBuildParseDagCommand:
     @patch("airflow.sdk.coordinators._subprocess.signal.signal", autospec=True)
     @patch("airflow.sdk.coordinators._subprocess.os.execvpe", autospec=True, side_effect=OSError("exec"))
     def test_parse_dag_links_a_timestamped_bundle_path(
-        self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path, alias_dir
+        self, mock_execvpe, mock_signal, mock_close_on_exec, tmp_path, link_dir
     ):
         root = _make_timestamped_bundle(tmp_path)
 
@@ -941,7 +941,7 @@ class TestBuildParseDagCommand:
                 report_schema_version=lambda _: None,
             )
 
-        [link] = alias_dir.iterdir()
+        [link] = link_dir.iterdir()
         classpath = mock_execvpe.call_args.args[1][2]
         assert classpath.split(os.pathsep) == [
             f"{link.as_posix()}/app.jar",

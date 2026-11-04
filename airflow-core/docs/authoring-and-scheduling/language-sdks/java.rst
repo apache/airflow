@@ -1103,13 +1103,13 @@ timestamp. The coordinator tries to handle this automatically by reading such a 
 created in a temporary directory. A file or directory *inside* the Dag bundle still cannot contain the colon
 separator.
 
-This approach should generally works. On the off chance it does not, however, all such links are located in
+This approach should generally work. On the off chance it does not, however, all such links are located in
 ``airflow-java-classpath-<uid>`` under the temporary directory (``$TMPDIR`` on Linux, usually ``/tmp``).
 Airflow logs should also report which link corresponds to which bundle.
 
 Each link is named after the first 16 hexadecimal digits of the SHA-256 hash of the bundle version's absolute
-path, so the same path always gets the same link. Links are not removed immediately when the process exits, so
-some dead ones are expected. They are harmless. Airflow does delayed cleanups, so they should not grow
+path, so the same path always gets the same link. Links are not removed immediately when they are not needed,
+so some dead ones are expected. They are harmless. Airflow does delayed cleanups, so they should not grow
 unbounded. You can also safely delete them *when Airflow is not running*; Airflow will recreate them
 automatically the next time they are needed.
 
