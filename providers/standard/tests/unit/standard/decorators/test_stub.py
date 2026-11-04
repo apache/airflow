@@ -301,8 +301,8 @@ class TestStubTaskflowArgs:
             **expected,
         }
 
-    def test_expand_builds_mapped_stub_without_parse_time_bindings(self):
-        """A mapped stub captures per-parameter metadata instead of a spec: values resolve per map index."""
+    def test_expand_builds_mapped_stub_with_param_bindings(self):
+        """A mapped stub's bindings are all ``param`` entries: values resolve per map index."""
         with DAG(dag_id="d") as dag:
             result = stub(fn_transform).expand(country=["uk", "fr"], extracted=[{}, {}])
         # op_kwargs_expand_input/partial_kwargs (not is_mapped) so the assertions also
@@ -313,13 +313,15 @@ class TestStubTaskflowArgs:
         }
         assert "_arg_bindings" not in result.operator.partial_kwargs
 
-        # The wrapping MappedOperator carries the is_stub marker too, but has no op_args/op_kwargs
-        # to bind against, so it serializes cleanly with no materialized spec of its own.
         round_tripped = _round_trip(dag).task_dict["fn_transform"]
         assert round_tripped.is_stub is True
-        assert round_tripped.arg_bindings is None
+        assert [(binding["name"], binding["kind"]) for binding in round_tripped.arg_bindings] == [
+            ("country", "param"),
+            ("extracted", "param"),
+            ("retries_num", "param"),
+        ]
 
-    def test_stub_with_args_inside_mapped_task_group_captures_params(self):
+    def test_stub_with_args_inside_mapped_task_group_captures_bindings(self):
         @task_group
         def group(n):
             stub(fn_transform)("uk", {})
@@ -328,11 +330,10 @@ class TestStubTaskflowArgs:
             group.expand(n=[1, 2])
 
         encoded = _to_dict(dag)["dag"]["tasks"][0]["__var"]
-        assert "_arg_bindings" not in encoded
-        assert [param["__var"]["name"] for param in encoded["_mapped_arg_binding_params"]] == [
-            "country",
-            "extracted",
-            "retries_num",
+        assert [(binding["name"], binding["kind"]) for binding in encoded["_arg_bindings"]] == [
+            ("country", "literal"),
+            ("extracted", "literal"),
+            ("retries_num", "literal"),
         ]
 
     def test_argless_stub_inside_mapped_task_group_allowed(self):

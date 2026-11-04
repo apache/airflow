@@ -70,7 +70,6 @@ class SerializedBaseOperator(DAGNode):
     _is_empty: bool
     _arg_bindings: list[dict[str, Any]] | None = None
     _external_clear_target: dict[str, Any] | None = None
-    _mapped_arg_binding_params: list[dict[str, Any]] | None = None
     _needs_expansion: bool
     _task_display_name: str | None = None
     _weight_rule: str | PriorityWeightStrategy = "downstream"
@@ -312,11 +311,6 @@ class SerializedBaseOperator(DAGNode):
     def external_clear_target(self) -> dict[str, Any] | None:
         """The cross-Dag clear target the operator declared at parse time, as written by the Dag processor."""
         return self._external_clear_target
-
-    @property
-    def mapped_arg_binding_params(self) -> list[dict[str, Any]] | None:
-        """Per-parameter metadata of a stub task whose arguments differ per map index, or None otherwise."""
-        return self._mapped_arg_binding_params
 
     @property
     def operator_name(self) -> str:

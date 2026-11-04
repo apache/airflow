@@ -111,9 +111,6 @@ class SerializedMappedOperator(DAGNode):
     _external_clear_target: dict[str, Any] | None = attrs.field(
         alias="external_clear_target", init=False, default=None
     )
-    _mapped_arg_binding_params: list[dict[str, Any]] | None = attrs.field(
-        alias="mapped_arg_binding_params", init=False, default=None
-    )
     _task_module: str
     task_type: str
     _operator_name: str
@@ -205,11 +202,6 @@ class SerializedMappedOperator(DAGNode):
     def external_clear_target(self) -> dict[str, Any] | None:
         """Always ``None``: a mapped operator's clear target is resolved per run, on a worker."""
         return self._external_clear_target
-
-    @property
-    def mapped_arg_binding_params(self) -> list[dict[str, Any]] | None:
-        """Per-parameter metadata of a stub task whose arguments differ per map index, or None otherwise."""
-        return self._mapped_arg_binding_params
 
     @property
     def owner(self) -> str:
