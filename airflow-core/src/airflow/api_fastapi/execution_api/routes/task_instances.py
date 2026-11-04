@@ -1554,7 +1554,7 @@ def _find_superseded_ids(
 
 
 async def _find_superseded_ids_async(
-    session: AsyncSession, dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag
+    dag_id: str, tasks: Collection[tuple[str, str]], dag_bag: DBDagBag, *, session: AsyncSession
 ) -> set[UUID]:
     """Find the live rows of ``tasks`` that a later loop pass supersedes, using an async session."""
     if not tasks:
@@ -1620,7 +1620,7 @@ async def get_task_instance_count(
             select(TI.run_id, TI.task_id).where(*conditions, TI.region_id != SENTINEL_REGION_ID).distinct()
         )
     ).tuples()
-    if superseded := await _find_superseded_ids_async(session, dag_id, set(regional_tasks), dag_bag):
+    if superseded := await _find_superseded_ids_async(dag_id, set(regional_tasks), dag_bag, session=session):
         conditions.append(TI.id.not_in(superseded))
 
     if states:
@@ -1822,7 +1822,6 @@ async def get_task_instance_states(
         results.extend((await session.execute(group_query)).all())
 
     superseded = await _find_superseded_ids_async(
-        session,
         dag_id,
         {
             (run_id, task_id)
@@ -1830,6 +1829,7 @@ async def get_task_instance_states(
             if region_id != SENTINEL_REGION_ID
         },
         dag_bag,
+        session=session,
     )
     for ti_id, run_id, task_id, state, _, public_index in results:
         if ti_id in superseded:
@@ -1895,7 +1895,7 @@ async def _get_group_tasks(
     map_index: int | None = None,
 ) -> Sequence[UUID]:
     # Get all tasks in the task group
-    dag = await get_latest_version_of_dag_async(dag_bag, dag_id, session, include_reason=True)
+    dag = await get_latest_version_of_dag_async(dag_bag, dag_id, session=session, include_reason=True)
     task_group = dag.task_group_dict.get(task_group_id)
     if not task_group:
         raise HTTPException(

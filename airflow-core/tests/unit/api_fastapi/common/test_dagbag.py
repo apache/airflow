@@ -44,7 +44,7 @@ async def test_get_latest_version_of_dag_async():
     dag = mock.MagicMock(spec=SerializedDAG)
     dag_bag.get_latest_version_of_dag_async.return_value = dag
 
-    assert await get_latest_version_of_dag_async(dag_bag, "test_dag", session) is dag
+    assert await get_latest_version_of_dag_async(dag_bag, "test_dag", session=session) is dag
     dag_bag.get_latest_version_of_dag_async.assert_awaited_once_with("test_dag", session=session)
 
 
@@ -56,7 +56,9 @@ async def test_get_latest_version_of_dag_async_not_found(include_reason):
     dag_bag.get_latest_version_of_dag_async.return_value = None
 
     with pytest.raises(HTTPException) as exc:
-        await get_latest_version_of_dag_async(dag_bag, "missing", session, include_reason=include_reason)
+        await get_latest_version_of_dag_async(
+            dag_bag, "missing", session=session, include_reason=include_reason
+        )
 
     assert exc.value.status_code == 404
     message = "The Dag with ID: `missing` was not found"
