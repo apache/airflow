@@ -332,20 +332,26 @@ class BaseOperations:
         total_entries = first_pass.total_entries
         # An older server that omits total_entries leaves it None; treat that as "no more
         # pages" rather than raising on the comparison below.
-        if total_entries is None or total_entries < limit:
+        if total_entries is None:
             return first_pass
         found_key = None
         for key, value in first_pass.model_dump().items():
             if key != "total_entries" and isinstance(value, list):
                 found_key = key
                 break
+        if found_key is None:
+            return first_pass
         entry_list = getattr(first_pass, found_key)
-        offset = offset + limit
-        while offset < total_entries:
+        # The server may cap ``limit`` (``api.maximum_page_limit``), so advance by the number of
+        # entries received rather than by the requested limit, or the capped-off entries are skipped.
+        page_size = len(entry_list)
+        offset = offset + page_size
+        while page_size and offset < total_entries:
             self.response = self.client.get(path, params={**shared_params, "offset": offset})
-            entry = validate_response(self.response.content, data_model)
-            offset = offset + limit
-            entry_list.extend(getattr(entry, found_key))
+            page_entries = getattr(validate_response(self.response.content, data_model), found_key)
+            entry_list.extend(page_entries)
+            page_size = len(page_entries)
+            offset = offset + page_size
         return data_model(**{found_key: entry_list, "total_entries": total_entries})
 
 

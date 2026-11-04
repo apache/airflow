@@ -28,6 +28,9 @@ import { AppWrapper } from "src/utils/AppWrapper";
 const ITEM_HEIGHT = 20;
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", {
+    value: ITEM_HEIGHT,
+  });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
     value: ITEM_HEIGHT,
   });
