@@ -6474,6 +6474,20 @@ class TestMakeBufferedSocketReader:
             r.close()
             w.close()
 
+    def test_unterminated_line_sent_once_when_eof_is_seen_twice(self):
+        received: list[bytes] = []
+        r, w = socket.socketpair()
+        try:
+            cb, _ = make_buffered_socket_reader(
+                self._collecting_gen(received), data=b"partial", on_close=lambda sock: None
+            )
+            w.close()
+            assert cb(r) is False
+            assert cb(r) is False
+            assert received == [b"partial"]
+        finally:
+            r.close()
+
 
 class TestLengthPrefixedFrameReader:
     def test_recovers_from_short_read_on_header(self):

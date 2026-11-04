@@ -1159,7 +1159,10 @@ class WatchedSubprocess:
         else:
             err_resp = self._serialize_response(error) if error else None
             frame = _ResponseFrame(id=request_id, error=err_resp)
-        self.stdin.sendall(frame.as_bytes())
+        self._send_frame(frame.as_bytes())
+
+    def _send_frame(self, data: bytes | bytearray) -> None:
+        self.stdin.sendall(data)
 
     def _deserialize_request(self, body: dict[str, Any] | None) -> dict[str, Any] | None:
         if self._subprocess_schema_version is None or body is None:
@@ -1451,6 +1454,8 @@ class WatchedSubprocess:
             # to EOF case
             try:
                 need_more = socket_handler(key.fileobj)
+            except BlockingIOError:
+                need_more = True
             except (BrokenPipeError, ConnectionResetError):
                 need_more = False
 
@@ -2842,6 +2847,8 @@ def make_buffered_socket_reader(
             if len(buffer):
                 with suppress(StopIteration):
                     gen.send(buffer)
+                # EOF can be seen again (e.g. by a select taken before the socket was drained).
+                buffer = bytearray()
             return False
 
         buffer.extend(read_buffer[:n_received])
