@@ -2379,10 +2379,9 @@ class DagRun(Base, LoggingMixin):
                     )
                 except NotFullyPopulated:
                     # Not all upstreams finished, so the count isn't known yet. Keep the expanded
-                    # instances: _revise_map_indexes_if_mapped never brings back a removed index, but
-                    # trims or extends pending ones once the upstreams finish.
-                    if ti.region_index >= 0:
-                        continue
+                    # instances and restore removed ones below; _revise_map_indexes_if_mapped trims
+                    # or extends them once the upstreams finish, but never restores a removed index.
+                    pass
                 else:
                     # Upstreams finished, check there aren't any extras
                     if ti.region_index >= total_length:

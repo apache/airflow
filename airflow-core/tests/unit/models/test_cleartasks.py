@@ -1616,6 +1616,45 @@ class TestClearTasks:
         schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
         assert schedulable == list(range(new_length))
 
+    @pytest.mark.parametrize(("new_length", "expected_schedulable"), [(1, []), (3, [1, 2])])
+    def test_clear_latest_producer_restores_removed_mapped_tis(
+        self, dag_maker, session, new_length, expected_schedulable
+    ):
+        with dag_maker("test_clear_latest_restore", bundle_version="v1", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2, 3], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        # As left by an earlier producer re-run that shrank the mapping to one.
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.REMOVED if ti.map_index > 0 else TaskInstanceState.SUCCESS
+        session.flush()
+
+        with dag_maker("test_clear_latest_restore", bundle_version="v2", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        clear_task_instances(
+            [dr.get_task_instance("size", session=session)], session, run_on_latest_version=True
+        )
+
+        mapped_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"
+        }
+        assert mapped_states == {0: TaskInstanceState.SUCCESS, 1: None, 2: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
+        assert schedulable == expected_schedulable
+
     def test_complete_restart_uses_latest_version_for_unpinned_run(self, dag_maker, session):
         with dag_maker("test_restart_unpinned", session=session):
             EmptyOperator(task_id="work")

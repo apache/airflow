@@ -6420,7 +6420,16 @@ class TestSchedulerJob:
         assert downstream_ti.state == State.SCHEDULED
         assert downstream_ti.dag_version_id == latest_version_id
 
-    def test_verify_integrity_keeps_mapped_tis_while_cleared_producer_reruns(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("new_length", "expected_states"),
+        [
+            (1, {0: TaskInstanceState.SCHEDULED, 1: TaskInstanceState.REMOVED}),
+            (3, dict.fromkeys(range(3), TaskInstanceState.SCHEDULED)),
+        ],
+    )
+    def test_verify_integrity_keeps_mapped_tis_while_cleared_producer_reruns(
+        self, dag_maker, session, new_length, expected_states
+    ):
         with dag_maker("test_cleared_mapped_producer", session=session):
             size = EmptyOperator(task_id="size")
             MockOperator.partial(task_id="mapped").expand(arg1=size.output)
@@ -6446,6 +6455,15 @@ class TestSchedulerJob:
         tis = dr.get_task_instances(session=session)
         assert "added" in {ti.task_id for ti in tis}
         assert {ti.map_index: ti.state for ti in tis if ti.task_id == "mapped"} == {0: None, 1: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        self.job_runner._schedule_dag_run(dr, session)
+        session.expire_all()
+
+        tis = dr.get_task_instances(session=session)
+        assert {ti.map_index: ti.state for ti in tis if ti.task_id == "mapped"} == expected_states
 
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
