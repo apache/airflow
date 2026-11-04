@@ -125,7 +125,6 @@ def _get_classpath_alias_dir() -> pathlib.Path:
 def _remove_dangling_aliases(alias_dir: pathlib.Path) -> None:
     for entry in alias_dir.iterdir():
         if entry.is_symlink() and not entry.exists():
-            # Another process may remove the same link first.
             with contextlib.suppress(FileNotFoundError):
                 entry.unlink()
 
