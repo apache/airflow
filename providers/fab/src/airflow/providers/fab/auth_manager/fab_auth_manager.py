@@ -29,7 +29,7 @@ from cachetools import TTLCache, cachedmethod
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
-from flask_appbuilder.const import AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import NoResultFound, SQLAlchemyError
 from sqlalchemy.orm import Session, joinedload
@@ -415,27 +415,32 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Create a new token from a payload.
 
-        By default, it uses basic authentication (username and password).
+        By default, it uses basic authentication (username and password), checked against the
+        configured ``AUTH_TYPE``. Tokens are only issued for ``AUTH_DB`` and ``AUTH_LDAP``.
         Override this method to use a different authentication method (e.g. oauth).
 
         :param headers: request headers
         :param body: request body
         """
-        if not body.get("username") or not body.get("password"):
+        username = body.get("username")
+        password = body.get("password")
+        # Treat a password made only of NUL bytes as empty, as Flask-AppBuilder's login API does.
+        if (
+            not isinstance(username, str)
+            or not isinstance(password, str)
+            or not username
+            or not password.strip("\x00")
+        ):
             raise ValueError("Username and password must be provided")
 
-        user: User | None = None
-
-        if self.security_manager.auth_type == AUTH_LDAP:
-            user = self.security_manager.auth_user_ldap(
-                body["username"], body["password"], rotate_session_id=False
-            )
-        if user is None:
-            user = self.security_manager.auth_user_db(
-                body["username"], body["password"], rotate_session_id=False
-            )
-
-        return user
+        # Only check the password against the configured authentication type. Other types (OAuth,
+        # remote user, ...) do not authenticate with a username and password, so no token is issued.
+        auth_type = self.security_manager.auth_type
+        if auth_type == AUTH_LDAP:
+            return self.security_manager.auth_user_ldap(username, password, rotate_session_id=False)
+        if auth_type == AUTH_DB:
+            return self.security_manager.auth_user_db(username, password, rotate_session_id=False)
+        return None
 
     def is_authorized_configuration(
         self,
