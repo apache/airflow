@@ -208,3 +208,48 @@ class TestBaseStoreBackend:
             b.deserialize_asset_state_store_from_ref("s3://bucket/assets/my_asset/watermark")
             == "resolved:s3://bucket/assets/my_asset/watermark"
         )
+
+
+class _StoredValueBackend(BaseStoreBackend):
+    """Backend whose ``get`` and ``aget`` return one fixed stored string."""
+
+    def __init__(self, stored: str | None):
+        self.stored = stored
+
+    def get(self, scope, key, *, session=None):
+        return self.stored
+
+    def set(self, scope, key, value, *, expires_at=None, session=None): ...
+    def delete(self, scope, key, *, session=None): ...
+    def clear(self, scope, *, all_map_indices=False, session=None): ...
+
+    async def aget(self, scope, key, *, session=None):
+        return self.stored
+
+    async def aset(self, scope, key, value, *, expires_at=None, session=None): ...
+    async def adelete(self, scope, key, *, session=None): ...
+    async def aclear(self, scope, *, all_map_indices=False, session=None): ...
+
+
+_GET_VALUE_CASES = [
+    pytest.param(None, None, id="missing"),
+    pytest.param("null", None, id="stored-null"),
+    pytest.param('"x"', "x", id="string"),
+    pytest.param("0", 0, id="falsy-number"),
+    pytest.param('{"a": [1]}', {"a": [1]}, id="object"),
+]
+
+
+class TestBaseStoreBackendGetValue:
+    @pytest.mark.parametrize(("stored", "expected"), _GET_VALUE_CASES)
+    def test_get_value(self, stored, expected):
+        backend = _StoredValueBackend(stored)
+
+        assert backend.get_value(TaskScope("dag", "run", "task"), "key") == expected
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("stored", "expected"), _GET_VALUE_CASES)
+    async def test_aget_value(self, stored, expected):
+        backend = _StoredValueBackend(stored)
+
+        assert await backend.aget_value(AssetScope(name="asset"), "key") == expected
