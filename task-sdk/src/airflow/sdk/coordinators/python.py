@@ -159,15 +159,31 @@ class PythonCoordinator(BaseCoordinator):
         Python task handlers are registered in the current process, so an
         in-process import and inspection is enough. The returned declaration
         carries the ordered parameters for validation.
-        """
-        from airflow.sdk.task_handlers import TaskHandlerDeclaration
 
-        if (handler := self.resolve_handler(dag_id=dag_id, task_id=task_id, bundle=bundle)) is None:
+        If a handler that cannot be loaded, this returns *None* to defer
+        validation to run time rather than fail the parse.
+
+        :raises TaskHandlerSignatureError: A resolved handler's signature
+            violates the stub contract.
+        """
+        from airflow.sdk.task_handlers.declaration import TaskHandlerDeclaration, TaskHandlerSignatureError
+
+        try:
+            handler = self.resolve_handler(dag_id=dag_id, task_id=task_id, bundle=bundle)
+        except Exception:
+            log.warning(
+                "Could not resolve task handler; deferring validation to run time",
+                dag_id=dag_id,
+                task_id=task_id,
+                exc_info=True,
+            )
+            return None
+        if handler is None:
             return None
         try:
             return TaskHandlerDeclaration.from_handler(handler)
-        except ValueError as e:
-            raise ValueError(f"task handler {task_id!r} {e}") from e
+        except TaskHandlerSignatureError as e:
+            raise TaskHandlerSignatureError(f"task handler {task_id!r} {e}") from e
 
     def resolve_handler(
         self,

@@ -27,6 +27,7 @@ from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 from airflow.sdk.task_handlers import TaskHandlerDeclaration, TaskHandlerParam, loader as loader_mod
+from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
 from airflow.sdk.task_handlers.registry import _REGISTRY
 
 HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2026-10-30.json"
@@ -111,8 +112,17 @@ def _patch_raising_coordinator(monkeypatch, exc):
     monkeypatch.setattr("airflow.sdk.execution_time.coordinator.get_coordinator_manager", lambda: manager)
 
 
-def test_handler_resolution_failure_skips_and_builds(mock_bundle, monkeypatch):
-    _patch_raising_coordinator(monkeypatch, RuntimeError("bundle fetch failed"))
+def test_malformed_handler_surfaces_at_parse_time(mock_bundle, monkeypatch):
+    _patch_raising_coordinator(
+        monkeypatch, TaskHandlerSignatureError("task handler 't' may not use variadic *args or **kwargs")
+    )
+    result = _build(mock_bundle, "- {id: t, run: {region: eu}}")
+    assert not result.dags
+    assert any("may not use variadic" in e.message for e in result.errors)
+
+
+def test_unexpected_coordinator_error_skips_and_builds(mock_bundle, monkeypatch):
+    _patch_raising_coordinator(monkeypatch, RuntimeError("coordinator blew up"))
     result = _build(mock_bundle, "- {id: t, run: {region: eu}}")
     assert result.success, result.errors
     assert getattr(result.dags[0].get_task("t"), "is_stub", False) is True
@@ -167,3 +177,20 @@ def test_colocated_handler_is_validated(mock_bundle):
     result = _build(mock_bundle, "- {id: t, run: {region: eu, bogus: 1}}")
     assert not result.dags
     assert any("run argument(s) ['bogus'] are not parameters" in e.message for e in result.errors)
+
+
+def test_colocated_variadic_handler_is_rejected(mock_bundle):
+    (mock_bundle.path / "handlers.py").write_text(
+        textwrap.dedent(
+            """
+            from airflow.sdk import task_handler
+
+            @task_handler("d", "t")
+            def t(**kwargs):
+                return kwargs
+            """
+        )
+    )
+    result = _build(mock_bundle, "- {id: t, run: {region: eu}}")
+    assert not result.dags
+    assert any("may not use variadic" in e.message for e in result.errors)

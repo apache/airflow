@@ -29,6 +29,7 @@ from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.coordinators.python import PythonCoordinator
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, CoordinatorManager
 from airflow.sdk.task_handlers import loader as loader_mod
+from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
 from airflow.sdk.task_handlers.registry import _REGISTRY
 
 
@@ -82,6 +83,14 @@ class TestParseTaskHandler:
         coordinator = PythonCoordinator(task_handler_bundle_name=None)
         assert coordinator.parse_task_handler(dag_id="d", task_id="x", bundle=_bundle(tmp_path)) is None
 
+    def test_availability_failure_defers_to_none(self, tmp_path, monkeypatch):
+        def boom(self, **kwargs):
+            raise ValueError("Requested bundle 'missing' is not configured.")
+
+        monkeypatch.setattr(PythonCoordinator, "resolve_handler", boom)
+        coordinator = PythonCoordinator(task_handler_bundle_name="missing")
+        assert coordinator.parse_task_handler(dag_id="d", task_id="t", bundle=_bundle(tmp_path)) is None
+
     def test_base_coordinator_default_returns_none(self, tmp_path):
         # The default (foreign / not-adopted) coordinator declares nothing; validation defers.
         base = BaseCoordinator()
@@ -101,7 +110,8 @@ class TestParseTaskHandler:
         # from_handler raises a bare signature error; parse_task_handler adds the task identity.
         coordinator = PythonCoordinator(task_handler_bundle_name=None)
         with pytest.raises(
-            ValueError, match=re.escape("task handler 't' may not use variadic *args or **kwargs")
+            TaskHandlerSignatureError,
+            match=re.escape("task handler 't' may not use variadic *args or **kwargs"),
         ):
             coordinator.parse_task_handler(dag_id="d", task_id="t", bundle=_bundle(tmp_path))
 

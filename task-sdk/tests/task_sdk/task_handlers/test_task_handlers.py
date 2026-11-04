@@ -30,6 +30,7 @@ from airflow.sdk.task_handlers import (
     call_handler,
     get_handler,
 )
+from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
 from airflow.sdk.task_handlers.registry import _REGISTRY
 
 
@@ -107,19 +108,28 @@ class TestDeclaration:
     def test_varargs_rejected(self):
         def f(*args): ...
 
-        with pytest.raises(ValueError, match=re.escape("may not use variadic *args or **kwargs")):
+        with pytest.raises(
+            TaskHandlerSignatureError,
+            match=re.escape("may not use variadic *args or **kwargs"),
+        ):
             TaskHandlerDeclaration.from_handler(f)
 
     def test_positional_only_rejected(self):
         def f(region, /): ...
 
-        with pytest.raises(ValueError, match=re.escape("may not use positional-only parameter 'region'")):
+        with pytest.raises(
+            TaskHandlerSignatureError,
+            match=re.escape("may not use positional-only parameter 'region'"),
+        ):
             TaskHandlerDeclaration.from_handler(f)
 
     def test_context_key_rejected(self):
         def f(ti, region: str): ...
 
-        with pytest.raises(ValueError, match=re.escape("argument 'ti' is a reserved context key")):
+        with pytest.raises(
+            TaskHandlerSignatureError,
+            match=re.escape("argument 'ti' is a reserved context key"),
+        ):
             TaskHandlerDeclaration.from_handler(f)
 
 

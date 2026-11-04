@@ -33,7 +33,11 @@ from airflow.sdk.definitions.context import KNOWN_CONTEXT_KEYS
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-__all__ = ["TaskHandlerParam", "TaskHandlerDeclaration"]
+__all__ = ["TaskHandlerSignatureError", "TaskHandlerParam", "TaskHandlerDeclaration"]
+
+
+class TaskHandlerSignatureError(ValueError):
+    """A task handler's signature violates the stub contract."""
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -50,11 +54,11 @@ class TaskHandlerParam:
     @classmethod
     def from_parameter(cls, parameter: Parameter) -> TaskHandlerParam:
         if parameter.kind in (Parameter.VAR_POSITIONAL, Parameter.VAR_KEYWORD):
-            raise ValueError("may not use variadic *args or **kwargs")
+            raise TaskHandlerSignatureError("may not use variadic *args or **kwargs")
         if parameter.kind is Parameter.POSITIONAL_ONLY:
-            raise ValueError(f"may not use positional-only parameter {parameter.name!r}")
+            raise TaskHandlerSignatureError(f"may not use positional-only parameter {parameter.name!r}")
         if (name := parameter.name) in KNOWN_CONTEXT_KEYS:
-            raise ValueError(f"argument {name!r} is a reserved context key")
+            raise TaskHandlerSignatureError(f"argument {name!r} is a reserved context key")
         return cls(name=name, required=parameter.default is Parameter.empty)
 
 

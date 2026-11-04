@@ -138,6 +138,7 @@ class DagBuilder:
 
     def _iter_stub_handler_collect_problems(self, doc: DagDocument, stub_tasks: list[Task]) -> Iterator[str]:
         from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+        from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
 
         manager = get_coordinator_manager()
         for task in stub_tasks:
@@ -148,9 +149,12 @@ class DagBuilder:
                     task_id=task.id_,
                     bundle=self._bundle,
                 )
+            except TaskHandlerSignatureError as e:
+                yield str(e)
+                continue
             except Exception:
                 log.warning(
-                    "Could not resolve task handler; skipping parse-time validation",
+                    "Could not validate task handler; skipping parse-time validation",
                     dag_id=doc.dag_id,
                     task_id=task.id_,
                     exc_info=True,

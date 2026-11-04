@@ -141,8 +141,11 @@ class BaseCoordinator:
         configured.
 
         If this coordinator has no handler for the *dag_id* and *task_id*
-        combination, *None* is returned and validation is deferred to run time.
-        This hook is for validation only and never resolves a callable to run.
+        combination, or the handler cannot be loaded at parse time (an
+        availability failure), *None* is returned and validation is deferred to
+        run time. An error is raised only when a resolved handler definitively
+        violates the contract. This hook is for validation only and never
+        resolves a callable to run.
 
         The default implementation returns *None* to indicate this coordinator
         declares nothing.
