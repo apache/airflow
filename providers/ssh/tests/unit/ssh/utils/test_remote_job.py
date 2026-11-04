@@ -326,6 +326,10 @@ class TestLogTailCommands:
         decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
         assert "Seek(100" in decoded_script
         assert "1024" in decoded_script
+        # Printed as a string, the chunk would be re-encoded in the SSH session's console code
+        # page, which the trigger's strict UTF-8 decoding rejects; write the bytes instead.
+        assert "[Console]::OpenStandardOutput()" in decoded_script
+        assert "$out.Write($bytes, 0, $bytes.Length)" in decoded_script
 
 
 class TestFileSizeCommands:
@@ -693,6 +697,22 @@ class TestWindowsPathQuoting:
         assert len(re.findall(env_prefix, script)) == len(re.findall(env_prefix, paths.job_dir))
         assert "$launch = 'powershell.exe" in script
         assert "+ $q +" in script
+
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
+    def test_launch_command_evaluates_to_the_job_dir(self, base_dir):
+        """$launch quotes the resolved $d at runtime; emulate that step and read the result back."""
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
+        resolved = self._resolved(paths.job_dir)
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        pattern = re.search(r"\$q = \"'\" \+ \(\$d -replace \"(.+?)\", '\$1\$1'\) \+ \"'\"", script)
+        assert pattern
+        q = "'" + re.sub(pattern.group(1), r"\1\1", resolved) + "'"
+        head, tail = script.split("$launch = ", 1)[1].split("\n", 1)[0].split(" + $q + ")
+        launch = _read_ps_single_quoted(head)[0] + q + _read_ps_single_quoted(tail)[0]
+        assert _read_ps_single_quoted(launch.split("$b = ", 1)[1])[0] == resolved
+        assert launch.endswith("ReadAllText($b + '\\job.ps1')))\"")
 
     @pytest.mark.parametrize("builder", BUILDERS)
     def test_paths_are_never_globbed(self, builder):

@@ -204,8 +204,9 @@ Windows reports a crashed process, is recorded as its unsigned value (``-1`` bec
 so use that value in ``skip_on_exit_code``.
 
 The command travels through ``cmd.exe``, the default OpenSSH shell, whose command line limit leaves
-room for an inline command of roughly 1,000 characters. For anything longer, put it in a script on
-the host and call that.
+room for an inline command of roughly 1,000 characters. Environment values, a long base directory and
+long Dag, task and run ids use the same budget, and a single quote counts twice. For anything longer,
+put it in a script on the host and call that.
 
 Job Directory Structure
 -----------------------
