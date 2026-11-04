@@ -53,13 +53,6 @@ class DeadlineResponse(BaseModel):
     )
 
 
-class DeadlineCollectionResponse(BaseModel):
-    """Deadline Collection serializer for responses."""
-
-    deadlines: list[DeadlineResponse]
-    total_entries: int
-
-
 class DeadlineAlertResponse(BaseModel):
     """DeadlineAlert serializer for responses."""
 
@@ -95,6 +88,17 @@ class DeadlineAlertResponse(BaseModel):
             if isinstance(data, (int, float)):
                 return float(data)
         return None
+
+
+class DeadlineCollectionResponse(BaseModel):
+    """Deadline Collection serializer for responses."""
+
+    deadlines: list[DeadlineResponse]
+    total_entries: int
+    deadline_alerts: list[DeadlineAlertResponse] | None = Field(
+        default=None,
+        exclude_if=lambda alerts: alerts is None,
+    )
 
 
 class DeadlineAlertCollectionResponse(BaseModel):
