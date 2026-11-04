@@ -1,7 +1,7 @@
 Dag bundles have their own read permission
 
-The Dag Bundles page and ``GET /api/v2/dagBundles`` used to show a bundle to anyone who could read a
-Dag in it. They now need the new Dag bundles permission, because they show every file and count in
+The Dag Bundles page and the Dag bundle APIs used to show a bundle to anyone who could read a Dag in
+it. They now need the new Dag bundles permission, because they show every file and count in
 a bundle. Users who can read Dags but lack it get a 403. By default it is held by:
 
 * Simple auth manager: ``op`` and ``admin``.
@@ -10,4 +10,6 @@ a bundle. Users who can read Dags but lack it get a 403. By default it is held b
   ``menu access`` on ``Dag Bundles``.
 * Keycloak auth manager: every role. In multi-team mode, ``SuperAdmin`` only. Multi-team
   deployments must upgrade ``apache-airflow-providers-keycloak`` together with Airflow, since older
-  releases let every team role read it.
+  releases let every team role read it. When upgrading from Airflow 3.4.0, also re-run
+  ``airflow keycloak-auth-manager create-team`` for each team, which removes the Dag bundles menu
+  entry that team roles can no longer open.
