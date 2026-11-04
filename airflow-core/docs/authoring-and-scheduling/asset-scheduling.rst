@@ -470,6 +470,12 @@ raise an error. Single-asset schedules and ``|`` expressions support either mode
 Pending partitioned runs created while batching was disabled are not merged when you
 enable batching, so let them finish before changing the setting.
 
+The scheduler checks pending partitioned runs in bounded batches, rotating checked
+rows behind those that have waited longer for evaluation. An unsatisfied partition
+remains pending and is checked again on a later pass, so it can still run when
+missing assets arrive without blocking ready partitions in the same or other Dags.
+The evaluation order is stored in the database and survives scheduler restarts.
+
 For non-partitioned Dags, per-event run creation respects ``max_active_runs`` and the scheduler's
 :ref:`config:scheduler__max_dagruns_to_create_per_loop` budget. Events left over
 remain queued for subsequent scheduler passes.

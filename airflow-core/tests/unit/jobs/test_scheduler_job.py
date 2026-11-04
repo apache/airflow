@@ -15646,7 +15646,7 @@ def test_pending_apdr_select_locks_rows_for_skip_locked_claim(session: Session):
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_pending_apdr_select_breaks_tie_on_id(session: Session):
     """
-    Two APDRs sharing a ``created_at`` (possible under bulk asset-event ingestion)
+    Two APDRs sharing a ``next_evaluation_at`` (possible after a scheduler pass)
     must be ordered by ``id`` ascending so concurrent HA scheduler ticks pick the
     same LIMIT slice — otherwise replicas can disagree on which APDRs the LIMIT
     selects even when the row lock would otherwise prevent the duplicate fire.
@@ -15659,10 +15659,11 @@ def test_pending_apdr_select_breaks_tie_on_id(session: Session):
     session.add(second_inserted)
     session.flush()
 
+    assert first_inserted.next_evaluation_at == second_inserted.next_evaluation_at == shared_ts
     fetched = session.scalars(
         select(AssetPartitionDagRun)
         .where(AssetPartitionDagRun.created_dag_run_id.is_(None))
-        .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+        .order_by(AssetPartitionDagRun.next_evaluation_at, AssetPartitionDagRun.id)
     ).all()
 
     assert first_inserted.id < second_inserted.id
@@ -16139,12 +16140,11 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
         session=session,
         dag_maker=dag_maker,
     )
-    # Pin created_at so FIFO ordering is stable across fast in-memory runs —
-    # otherwise three APDRs created in the same microsecond tie under
-    # ``ORDER BY created_at`` and "which two fire" becomes nondeterministic.
+    # Pin the initial evaluation order independently of insertion speed.
     base = timezone.utcnow()
     for i, apdr in enumerate(apdrs):
         apdr.created_at = base + timedelta(seconds=i)
+        apdr.next_evaluation_at = apdr.created_at
     session.commit()
 
     runner = SchedulerJobRunner(
@@ -16160,6 +16160,113 @@ def test_partition_cap_at_n_minus_one_leaves_one_pending(dag_maker: DagMaker, se
     assert apdrs[1].created_dag_run_id is not None
     assert apdrs[2].created_dag_run_id is None
     assert partition_dags == {"cap-consumer-n-minus-one"}
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize(
+    ("same_dag", "missing_serialized_dag"), [(False, False), (True, False), (False, True)]
+)
+@conf_vars({("scheduler", "batch_asset_events"): "True"})
+def test_partition_pending_rows_do_not_starve_ready_partitions(
+    dag_maker: DagMaker, session: Session, same_dag: bool, missing_serialized_dag: bool
+):
+    asset_a = Asset(name="fairness-a")
+    asset_b = Asset(name="fairness-b")
+    with time_machine.travel("2026-01-01", tick=False) as clock:
+        with dag_maker(
+            dag_id="blocked-consumer",
+            schedule=PartitionedAssetTimetable(assets=asset_a & asset_b),
+            session=session,
+        ):
+            EmptyOperator(task_id="task")
+        session.commit()
+        blocked = [
+            _produce_and_register_asset_event(
+                dag_id=f"blocked-producer-{i}",
+                asset=asset_a,
+                partition_key=f"blocked-{i}",
+                session=session,
+                dag_maker=dag_maker,
+            )
+            for i in range(2)
+        ]
+
+        clock.shift(timedelta(seconds=1))
+        ready_dag_id = "blocked-consumer" if same_dag else "ready-consumer"
+        ready_asset = asset_a if same_dag else Asset(name="fairness-ready")
+        if not same_dag:
+            with dag_maker(
+                dag_id=ready_dag_id,
+                schedule=PartitionedAssetTimetable(assets=ready_asset),
+                session=session,
+            ):
+                EmptyOperator(task_id="task")
+            session.commit()
+        ready = _produce_and_register_asset_event(
+            dag_id="ready-producer",
+            asset=ready_asset,
+            partition_key="ready",
+            session=session,
+            dag_maker=dag_maker,
+        )
+        if same_dag:
+            _produce_and_register_asset_event(
+                dag_id="ready-producer-b",
+                asset=asset_b,
+                partition_key="ready",
+                session=session,
+                dag_maker=dag_maker,
+            )
+        if missing_serialized_dag:
+            session.execute(delete(SerializedDagModel).where(SerializedDagModel.dag_id == "blocked-consumer"))
+            session.commit()
+
+        clock.shift(timedelta(seconds=1))
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        runner._max_partition_dag_runs_per_loop = 2
+        with assert_queries_count(4):
+            assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
+            session.flush()
+        session.commit()
+        session.refresh(ready)
+        assert ready.created_dag_run_id is None
+
+        clock.shift(timedelta(seconds=1))
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        runner._max_partition_dag_runs_per_loop = 2
+        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {ready_dag_id}
+        session.commit()
+        session.refresh(ready)
+        assert ready.created_dag_run_id is not None
+        for apdr in blocked:
+            session.refresh(apdr)
+            assert apdr.created_dag_run_id is None
+
+        if not missing_serialized_dag:
+            clock.shift(timedelta(seconds=1))
+            _produce_and_register_asset_event(
+                dag_id="late-producer-b",
+                asset=asset_b,
+                partition_key="blocked-0",
+                session=session,
+                dag_maker=dag_maker,
+            )
+            clock.shift(timedelta(seconds=1))
+            newer = _produce_and_register_asset_event(
+                dag_id="newer-producer-a",
+                asset=asset_a,
+                partition_key="newer",
+                session=session,
+                dag_maker=dag_maker,
+            )
+            clock.shift(timedelta(seconds=1))
+            assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {"blocked-consumer"}
+            session.commit()
+            session.refresh(blocked[0])
+            session.refresh(newer)
+            assert blocked[0].created_dag_run_id is not None
+            assert newer.created_dag_run_id is None
 
 
 def _set_asset_active(*, name: str, uri: str, session: Session, active: bool) -> None:
