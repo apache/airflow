@@ -56,6 +56,7 @@ pytestmark = pytest.mark.db_test
 NOW = timezone.datetime(2026, 10, 21, 12, 0, 0)
 SECRET_KWARG = "kwargs-secret-7f3a9c"
 SIMPLE_AUTH = "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
+BASE_AUTH = "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager"
 
 
 async def notify(**kwargs):
@@ -410,8 +411,8 @@ class TestGetTriggers:
             pytest.param(set(), set(), set(), id="nothing"),
         ],
     )
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets")
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_shows_a_trigger_to_whoever_can_see_its_owner(
         self, mock_dag_ids, mock_assets, test_client, triggers, dag_ids, asset_ids, expected
     ):
@@ -471,8 +472,8 @@ class TestGetTriggers:
 
         assert body == {"triggers": [], "total_entries": 0}
 
-    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_asset", return_value=False)
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets")
+    @mock.patch(f"{SIMPLE_AUTH}.is_authorized_asset", autospec=True, return_value=False)
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
     def test_assets_listed_without_asset_read_show_no_watchers(self, mock_assets, _, test_client, triggers):
         # The FAB auth manager lists every asset id and leaves the asset read check to the route, as GET /assets does.
         mock_assets.return_value = {triggers["failing_asset"].id, triggers["pending_asset"].id}
@@ -488,8 +489,8 @@ class TestGetTriggers:
             pytest.param({"failing", "shared"}, ["failing_watcher", "shared_watcher"], id="both"),
         ],
     )
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets")
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_a_shared_trigger_lists_only_the_watchers_the_caller_can_read(
         self, mock_dag_ids, mock_assets, test_client, session, triggers, readable, expected
     ):
@@ -509,8 +510,8 @@ class TestGetTriggers:
         assert [w["watcher_name"] for w in listed[0]["asset_watchers"]] == expected
         assert [w["watcher_name"] for w in one["asset_watchers"]] == expected
 
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets")
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_filter_by_an_asset_the_caller_cannot_read_finds_nothing(
         self, mock_dag_ids, mock_assets, test_client, session, triggers
     ):
@@ -523,9 +524,9 @@ class TestGetTriggers:
 
         assert response.json() == {"triggers": [], "total_entries": 0}
 
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_teams", return_value={"team_x"})
-    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", return_value=set())
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_teams", autospec=True, return_value={"team_x"})
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True, return_value=set())
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_a_user_who_can_read_a_dag_sees_its_triggers_whatever_their_team(
         self, mock_dag_ids, _assets, _teams, test_client, session, triggers
     ):
@@ -568,7 +569,7 @@ class TestGetTriggers:
         assert sorted(_name(t) for t in response.json()["triggers"]) == expected
         assert response.json()["total_entries"] == len(expected)
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_filter_by_teams_shows_only_what_the_caller_can_see(
         self, mock_dag_ids, test_client, session, triggers
     ):
@@ -646,7 +647,7 @@ class TestGetTrigger:
         assert (body["kind"], body["status"], body["triggerer_hostname"]) == ("task", "running", "trig-a")
         assert body["task_instance"]["state"] == "deferred"
 
-    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_a_trigger_the_caller_cannot_see_is_not_found(self, mock_dag_ids, test_client, triggers):
         mock_dag_ids.return_value = {"dag_sensor"}
 
