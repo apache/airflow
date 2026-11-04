@@ -27,7 +27,7 @@ The coordinator can also be configured explicitly in ``[sdk] coordinators`` and
 ``[sdk] queue_to_coordinator`` to carry ``task_handler_bundle_name``. This is
 useful for YAML Dags, where ``run:`` tasks can point to a task handler defined
 in Python. The value is read by the parse and execution paths to import handler
-modules; see :func:`~airflow.sdk.task_handlers.task_handler`.
+modules; see :func:`~airflow.sdk.task_handler`.
 """
 
 from __future__ import annotations
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.task_handlers import TaskHandlerDeclaration
+    from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration
 
 log: FilteringBoundLogger = structlog.get_logger(logger_name="coordinators.python")
 
@@ -166,7 +166,7 @@ class PythonCoordinator(BaseCoordinator):
         :raises TaskHandlerSignatureError: A resolved handler's signature
             violates the stub contract.
         """
-        from airflow.sdk.task_handlers.declaration import TaskHandlerDeclaration, TaskHandlerSignatureError
+        from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration, TaskHandlerSignatureError
 
         try:
             handler = self.resolve_handler(dag_id=dag_id, task_id=task_id, bundle=bundle)
@@ -200,7 +200,11 @@ class PythonCoordinator(BaseCoordinator):
 
         :meta private:
         """
-        from airflow.sdk.task_handlers import get_handler, import_handler_modules, resolve_handler_bundle
+        from airflow.sdk.definitions.task_handlers import (
+            get_handler,
+            import_handler_modules,
+            resolve_handler_bundle,
+        )
 
         if self.task_handler_bundle_name is not None:
             bundle = resolve_handler_bundle(self.task_handler_bundle_name)

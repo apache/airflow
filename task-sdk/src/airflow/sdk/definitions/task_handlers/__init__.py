@@ -23,20 +23,19 @@ a stub task.
 
 from __future__ import annotations
 
-from airflow.sdk.task_handlers.binding import call_handler
-from airflow.sdk.task_handlers.declaration import (
+from airflow.sdk.definitions.task_handlers.binding import call_handler
+from airflow.sdk.definitions.task_handlers.declaration import (
     TaskHandlerDeclaration,
-    TaskHandlerParam,
+    TaskHandlerSignatureError,
 )
-from airflow.sdk.task_handlers.loader import import_handler_modules, resolve_handler_bundle
-from airflow.sdk.task_handlers.registry import get_handler, task_handler
+from airflow.sdk.definitions.task_handlers.loader import import_handler_modules, resolve_handler_bundle
+from airflow.sdk.definitions.task_handlers.registry import get_handler
 
 __all__ = [
-    "import_handler_modules",
-    "resolve_handler_bundle",
     "TaskHandlerDeclaration",
-    "TaskHandlerParam",
+    "TaskHandlerSignatureError",
     "call_handler",
     "get_handler",
-    "task_handler",
+    "import_handler_modules",
+    "resolve_handler_bundle",
 ]

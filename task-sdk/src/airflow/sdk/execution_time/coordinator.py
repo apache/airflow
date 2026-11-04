@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.api.client import Client
     from airflow.sdk.api.datamodels._generated import TaskInstance
-    from airflow.sdk.task_handlers import TaskHandlerDeclaration
+    from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration
 
 __all__ = [
     "BaseCoordinator",

@@ -27,10 +27,10 @@ import pytest
 
 from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.coordinators.python import PythonCoordinator
+from airflow.sdk.definitions.task_handlers import loader as loader_mod
+from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerSignatureError
+from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, CoordinatorManager
-from airflow.sdk.task_handlers import loader as loader_mod
-from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
-from airflow.sdk.task_handlers.registry import _REGISTRY
 
 
 def _purge_handler_modules():

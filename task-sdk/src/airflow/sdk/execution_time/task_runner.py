@@ -2439,8 +2439,8 @@ class _TaskRunner:
         """Run a stub task's registered Python task handler."""
         from airflow.sdk.coordinators.python import PythonCoordinator
         from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
+        from airflow.sdk.definitions.task_handlers import call_handler
         from airflow.sdk.execution_time.coordinator import get_coordinator_manager
-        from airflow.sdk.task_handlers import call_handler
 
         coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
         if not isinstance(coordinator, PythonCoordinator):

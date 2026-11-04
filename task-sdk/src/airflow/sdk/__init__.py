@@ -210,6 +210,7 @@ if TYPE_CHECKING:
         RetryPolicy,
         RetryRule,
     )
+    from airflow.sdk.definitions.task_handlers.registry import task_handler
     from airflow.sdk.definitions.taskgroup import TaskGroup
     from airflow.sdk.definitions.template import literal
     from airflow.sdk.definitions.timetables.assets import (
@@ -235,7 +236,6 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time import macros
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
-    from airflow.sdk.task_handlers import task_handler
     from airflow.sdk.types import TaskInstance
 
     conf: AirflowSDKConfigParser
@@ -344,7 +344,7 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "setup": (".definitions.decorators", "setup"),
     "task": (".definitions.decorators", "task"),
     "task_group": (".definitions.decorators", "task_group"),
-    "task_handler": (".task_handlers", "task_handler"),
+    "task_handler": (".definitions.task_handlers.registry", "task_handler"),
     "teardown": (".definitions.decorators", "teardown"),
 }
 

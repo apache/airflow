@@ -24,11 +24,11 @@ from types import SimpleNamespace
 import pytest
 
 from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
+from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration, loader as loader_mod
+from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerParam, TaskHandlerSignatureError
+from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
-from airflow.sdk.task_handlers import TaskHandlerDeclaration, TaskHandlerParam, loader as loader_mod
-from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
-from airflow.sdk.task_handlers.registry import _REGISTRY
 
 HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2026-10-30.json"
 

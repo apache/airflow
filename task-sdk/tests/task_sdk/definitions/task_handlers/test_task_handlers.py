@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Unit tests for airflow.sdk.task_handlers (registry, declaration, runtime binder)."""
+"""Unit tests for airflow.sdk.definitions.task_handlers (registry, declaration, runtime binder)."""
 
 from __future__ import annotations
 
@@ -25,13 +25,9 @@ import pytest
 
 from airflow.sdk import task_handler
 from airflow.sdk.api.datamodels._generated import LiteralArgBinding, TaskArgBinding, XComArgBinding
-from airflow.sdk.task_handlers import (
-    TaskHandlerDeclaration,
-    call_handler,
-    get_handler,
-)
-from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
-from airflow.sdk.task_handlers.registry import _REGISTRY
+from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration, call_handler, get_handler
+from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerSignatureError
+from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 
 
 @pytest.fixture(autouse=True)

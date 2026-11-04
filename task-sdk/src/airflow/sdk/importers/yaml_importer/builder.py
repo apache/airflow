@@ -137,8 +137,8 @@ class DagBuilder:
             raise YamlDagBuildError(problems)
 
     def _iter_stub_handler_collect_problems(self, doc: DagDocument, stub_tasks: list[Task]) -> Iterator[str]:
+        from airflow.sdk.definitions.task_handlers import TaskHandlerSignatureError
         from airflow.sdk.execution_time.coordinator import get_coordinator_manager
-        from airflow.sdk.task_handlers.declaration import TaskHandlerSignatureError
 
         manager = get_coordinator_manager()
         for task in stub_tasks:
