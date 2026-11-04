@@ -204,16 +204,16 @@ source code so it stays up to date as endpoints are added or changed.
      - ``PUT``
    * - ``GET``
      - ``/api/v2/dagBundles``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagBundles/{bundle_name}``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagBundles/{bundle_name}/files``
-     - ``DAG``
-     - ``GET``
+     - ``View.DAG_BUNDLES``
+     - ``DAG_BUNDLES``
    * - ``GET``
      - ``/api/v2/dagSources/{dag_id}``
      - ``DAG.CODE``

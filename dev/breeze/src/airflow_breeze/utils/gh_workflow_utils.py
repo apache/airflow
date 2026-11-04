@@ -315,12 +315,16 @@ def check_can_dispatch_workflows(repo: str, hint: str) -> None:
         sys.exit(1)
 
 
-def mirror_hardened_base_images(repo: str, hint: str = "", trigger_upgrade_check: bool = True) -> None:
+def mirror_hardened_base_images(
+    repo: str, hint: str = "", trigger_upgrade_check: bool = True, build_os_deps_images: bool = True
+) -> None:
     """
     Mirror the latest hardened base images by running the mirror workflow on main, and wait for it.
 
     :param trigger_upgrade_check: whether the mirror runs the main upgrade check when a tag moves past
         its pin - off when the caller is that upgrade, which would otherwise run twice.
+    :param build_os_deps_images: whether the run also builds the OS-dependencies images - off for the
+        upgrade check, which pins the ones the daily build published instead of waiting for new ones.
     """
     check_can_dispatch_workflows(repo, hint)
     console_print("[blue]Mirroring the latest hardened base images[/blue]")
@@ -330,5 +334,5 @@ def mirror_hardened_base_images(repo: str, hint: str = "", trigger_upgrade_check
         workflow_name=HARDENED_BASE_IMAGES_MIRROR_WORKFLOW,
         repo=repo,
         branch="main",
-        **{"trigger-upgrade-check": trigger_upgrade_check},
+        **{"trigger-upgrade-check": trigger_upgrade_check, "build-os-deps-images": build_os_deps_images},
     )

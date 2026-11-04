@@ -56,6 +56,7 @@ from airflow_breeze.commands.common_image_options import (
     option_snapshot_file_to_load,
     option_snapshot_file_to_save,
     option_tag_as,
+    option_use_pinned_os_deps_images,
     option_verify,
     option_wait_for_image,
 )
@@ -275,6 +276,7 @@ option_ci_image_file_to_load = click.option(
 @option_skip_cleanup
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
+@option_use_pinned_os_deps_images
 @option_use_uv
 @option_verbose
 @option_version_suffix
@@ -313,6 +315,7 @@ def build(
     skip_cleanup: bool,
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
+    use_pinned_os_deps_images: bool,
     use_uv: bool,
     version_suffix: str,
 ):
@@ -359,6 +362,7 @@ def build(
         python_image=python_image,
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        use_pinned_os_deps_images=use_pinned_os_deps_images,
         use_uv=use_uv,
         version_suffix=version_suffix,
     )

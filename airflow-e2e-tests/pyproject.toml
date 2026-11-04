@@ -17,7 +17,7 @@
 
 [build-system]
 requires = [
-    "hatchling==1.32.4",
+    "hatchling==1.33.0",
     "packaging==26.3",
     "pathspec==1.1.1",
     "pluggy==1.7.0",
@@ -45,7 +45,7 @@ dependencies = [
     "apache-airflow-core",
     "apache-airflow-devel-common",
     "testcontainers>=4.12.0",
-    "boto3>=1.43.2",
+    "boto3>=1.43.4",
 ]
 
 [tool.pytest]

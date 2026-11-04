@@ -53,11 +53,7 @@ describe("DagImportErrorModal", () => {
     { shown: false, totalEntries: 1 },
     { shown: true, totalEntries: 2 },
   ])("shows the bundle name only with several bundles ($totalEntries)", async ({ shown, totalEntries }) => {
-    server.use(
-      http.get("/api/v2/dagBundles", () =>
-        HttpResponse.json({ dag_bundles: [], total_entries: totalEntries }),
-      ),
-    );
+    server.use(http.get("/ui/dagBundles/count", () => HttpResponse.json({ total_entries: totalEntries })));
 
     render(<DagImportErrorModal importError={importError} onClose={vi.fn()} open />, { wrapper: Wrapper });
 

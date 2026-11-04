@@ -67,6 +67,8 @@ Task Decorators:
 
 .. autoapifunction:: airflow.sdk.task_group
 
+.. autoapifunction:: airflow.sdk.task_handler
+
 .. autoapifunction:: airflow.sdk.setup
 
 .. autoapifunction:: airflow.sdk.teardown
@@ -111,6 +113,10 @@ Callbacks
 .. autoclass:: airflow.sdk.AsyncCallback
 
 .. autoclass:: airflow.sdk.SyncCallback
+
+.. autoclass:: airflow.sdk.CallbackSource
+
+.. autoclass:: airflow.sdk.CallbackMeta
 
 Deadline Alerts
 ---------------
