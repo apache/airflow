@@ -1,0 +1,1 @@
+airflow-core/src/airflow/api_fastapi/auth/managers/base_auth_manager.py::BaseAuthManager.get_user_from_token
