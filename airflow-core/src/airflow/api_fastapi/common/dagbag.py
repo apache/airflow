@@ -76,7 +76,7 @@ def get_latest_version_of_dag(
 
 
 async def get_latest_version_of_dag_async(
-    dag_bag: DBDagBag, dag_id: str, session: AsyncSession, include_reason: bool = False
+    dag_bag: DBDagBag, dag_id: str, *, session: AsyncSession, include_reason: bool = False
 ) -> SerializedDAG:
     dag = await dag_bag.get_latest_version_of_dag_async(dag_id, session=session)
     if not dag:
