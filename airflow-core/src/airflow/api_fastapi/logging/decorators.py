@@ -27,6 +27,7 @@ import pendulum
 from fastapi import Request
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -320,7 +321,9 @@ def action_logging(event: str | None = None):
             scope.update(masked_body_json)
         dag_id = scope.get("dag_id")
         try:
-            task_instance_id = _find_addressed_attempt(request.path_params, params, session=session)
+            task_instance_id = await run_in_threadpool(
+                _find_addressed_attempt, request.path_params, params, session=session
+            )
         except (TypeError, ValueError):
             # Malformed coordinates are the route's to reject; the access is still logged.
             task_instance_id = None
@@ -336,7 +339,7 @@ def action_logging(event: str | None = None):
             task_id=scope.get("task_id"),
             dag_id=dag_id,
             run_id=scope.get("run_id") or scope.get("dag_run_id"),
-            team_name=_resolve_team_name(params, dag_id=dag_id, session=session),
+            team_name=await run_in_threadpool(_resolve_team_name, params, dag_id=dag_id, session=session),
         )
 
         if "logical_date" in request.query_params:
@@ -357,6 +360,6 @@ def action_logging(event: str | None = None):
         session.add(log)
         # Explicit commit to persist the access log independently if the path operation fails or not.
         # Also it cannot be deferred to a 'function' scoped dependency because of the `request` parameter.
-        session.commit()
+        await run_in_threadpool(session.commit)
 
     return log_action

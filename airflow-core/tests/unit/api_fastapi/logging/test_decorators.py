@@ -440,6 +440,13 @@ class TestActionLoggingResourceTeamName:
 
         assert self._log_action(session, {"pool_name": "team_pool"}).team_name is None
 
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_the_resource_is_read_off_the_event_loop(self, session, event_loop_queries):
+        self._create_resources_owned_by_a_team(session)
+
+        assert self._log_action(session, {"pool_name": "team_pool"}).team_name == "payments"
+        assert event_loop_queries == []
+
     def test_the_resource_is_not_read_when_multi_team_is_off(self, session):
         self._create_resources_owned_by_a_team(session)
 
@@ -700,6 +707,12 @@ class TestActionLoggingAddressedAttempt:
 
         assert logged.task_instance_id == target.id
         assert logged.map_index == addressed[1]
+
+    def test_the_attempt_is_looked_up_off_the_event_loop(self, session, task_instances, event_loop_queries):
+        logged = self._log_action(session, {"task_id": "plain"})
+
+        assert logged.task_instance_id == task_instances[("plain", -1)].id
+        assert event_loop_queries == []
 
     @pytest.mark.parametrize(
         "path_params",
