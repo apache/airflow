@@ -29,8 +29,8 @@
     "lastUpdatedByWatcher": "Watcher",
     "title": "Magazyn stanu zasobu"
   },
-  "consumingDags": "Zabierające Dagi",
-  "consumingTasks": "Zabierające zadania",
+  "consumingDags": "Dagi konsumujące",
+  "consumingTasks": "Zadania konsumujące",
   "createEvent": {
     "button": "Utwórz zdarzenie",
     "manual": {
