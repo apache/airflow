@@ -182,6 +182,8 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
         )
     linked = {r for _, r in placed if r is not None and os.pathsep in os.fspath(r)}
     aliases = {r: _get_classpath_alias(r) for r in linked}
+    for root, alias in aliases.items():
+        log.info("Bundle reached by classpath through a link", bundle_path=root, link=alias)
     return os.pathsep.join(
         (aliases[r] / p.relative_to(r) if r in aliases else p).as_posix() for p, r in placed
     )
