@@ -159,6 +159,14 @@ class _MarkerRef(BaseModel):
         """Why this node can't cross a run: handler binding, or None; overridden by $t/$x."""
         return None
 
+    def build_marker_flags(self) -> _MarkerFlags:
+        """Whether this node needs rendering and whether it carries a marker."""
+        raise NotImplementedError
+
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+        """Turn this node into an operator argument."""
+        raise NotImplementedError
+
 
 class XComRef(_MarkerRef):
     """An upstream task's XCom output."""
