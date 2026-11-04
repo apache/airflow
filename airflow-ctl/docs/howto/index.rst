@@ -114,6 +114,7 @@ This parameter is useful when you want to manage multiple Airflow environments.
 Useful when there's no keyring available in the system where airflowctl is running.
 Set ``AIRFLOW_CLI_TOKEN`` or use the ``--api-token`` flag for next commands.
 Any token stored in the keyring for the environment by an earlier login is removed.
+If the keyring cannot remove it, for example because it is locked, airflowctl logs a warning and continues.
 
 More Usage and Help Pictures
 ''''''''''''''''''''''''''''

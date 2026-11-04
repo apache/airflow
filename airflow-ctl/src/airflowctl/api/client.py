@@ -243,22 +243,30 @@ class Credentials:
         only the config file with the API URL is created.
 
         The token already stored in keyring for the environment is removed first,
-        so a failure later on cannot leave it paired with the new API URL.
+        so a failure later on cannot leave it paired with the new API URL. With
+        skip_keyring or in debug mode, a keyring that cannot remove it only logs
+        a warning, because those logins do not need a working keyring.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
         debug_mode = os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
-        if not debug_mode:
-            try:
-                keyring.delete_password("airflowctl", self.token_key_for_environment(self.api_environment))
-            except (PasswordDeleteError, NoKeyringError):
-                pass
-            except KeyringError as e:
+        try:
+            keyring.delete_password("airflowctl", self.token_key_for_environment(self.api_environment))
+        except (PasswordDeleteError, NoKeyringError):
+            pass
+        except KeyringError as e:
+            if not (skip_keyring or debug_mode):
                 raise AirflowCtlKeyringException(
                     f"Could not remove the keyring token of environment {self.api_environment}: {e}. "
                     "The API URL was not changed."
                 ) from e
+            log.warning(
+                "Could not remove the keyring token of environment %s: %s. "
+                "Commands without AIRFLOW_CLI_TOKEN or --api-token may still send it to the new API URL.",
+                self.api_environment,
+                e,
+            )
         with open(config_path, "w") as f:
             json.dump({"api_url": self.api_url}, f)
 

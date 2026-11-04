@@ -436,14 +436,15 @@ class TestCredentials:
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
-    def test_save_in_debug_mode_leaves_keyring_alone(self, keyring_store, monkeypatch):
+    def test_save_in_debug_mode_removes_token_of_earlier_login(self, keyring_store, monkeypatch):
+        """A command run after debug mode is turned off must not send the old token to the new URL."""
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+        monkeypatch.delenv("AIRFLOW_CLI_DEBUG_MODE")
 
-        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
-            skip_keyring=True
-        )
-
-        keyring_store.delete_password.assert_not_called()
+        credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+        assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
     @pytest.mark.parametrize(
         "error",
@@ -463,9 +464,7 @@ class TestCredentials:
         assert json.loads((tmp_path / "prod.json").read_text()) == {"api_url": "http://new:8080"}
 
     @patch("airflowctl.api.client.keyring", autospec=True)
-    def test_save_skip_keyring_keeps_old_url_when_token_cannot_be_removed(
-        self, mock_keyring, monkeypatch, tmp_path
-    ):
+    def test_save_keeps_old_url_when_token_cannot_be_removed(self, mock_keyring, monkeypatch, tmp_path):
         monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
         (tmp_path / "prod.json").write_text(json.dumps({"api_url": "http://old:8080"}))
         mock_keyring.delete_password.side_effect = KeyringLocked("locked")
@@ -476,9 +475,39 @@ class TestCredentials:
                 "Could not remove the keyring token of environment prod: locked. The API URL was not changed."
             ),
         ):
-            Credentials(api_url="http://new:8080", api_environment="prod").save(skip_keyring=True)
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
 
         assert json.loads((tmp_path / "prod.json").read_text()) == {"api_url": "http://old:8080"}
+        mock_keyring.set_password.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("skip_keyring", "debug_mode"),
+        [
+            pytest.param(True, "false", id="skip-keyring"),
+            pytest.param(False, "true", id="debug-mode"),
+        ],
+    )
+    @patch("airflowctl.api.client.keyring", autospec=True)
+    def test_save_without_keyring_need_warns_when_token_cannot_be_removed(
+        self, mock_keyring, skip_keyring, debug_mode, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", debug_mode)
+        mock_keyring.delete_password.side_effect = KeyringLocked("locked")
+
+        with structlog.testing.capture_logs() as captured_logs:
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
+                skip_keyring=skip_keyring
+            )
+
+        assert json.loads((tmp_path / "prod.json").read_text()) == {"api_url": "http://new:8080"}
+        assert [(entry["log_level"], entry["event"]) for entry in captured_logs] == [
+            (
+                "warning",
+                "Could not remove the keyring token of environment prod: locked. "
+                "Commands without AIRFLOW_CLI_TOKEN or --api-token may still send it to the new API URL.",
+            )
+        ]
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
