@@ -102,10 +102,6 @@ const createColumns = (
           })}
         </Button>
       ) : (
-        // The count stays visible, since bundle access covers knowing a file is broken; only the
-        // control that would open an error the caller cannot read is dropped.
-        // Subtle rather than solid, as StatusChip marks a status that opens nothing, and the
-        // button's height so the rows line up.
         <Tooltip content={translate("browse:dagBundles.files.importErrorForbidden")}>
           <Badge colorPalette="failed" h={8} variant="subtle">
             <LuFileWarning />
