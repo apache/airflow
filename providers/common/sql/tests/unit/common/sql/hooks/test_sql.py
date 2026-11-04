@@ -67,6 +67,16 @@ def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
 
 
+def _async_cursor_cm(cur):
+    """Return a ``conn.cursor`` replacement that yields ``cur`` from an async context manager."""
+
+    @asynccontextmanager
+    async def _cursor():
+        yield cur
+
+    return _cursor
+
+
 def _make_async_cursor(descriptions_per_call, fetchall_results):
     """Cursor mock whose description advances on each async execute call."""
     cur = MagicMock()
@@ -351,80 +361,11 @@ class TestDbApiHook:
             assert isinstance(df, expected_type)
 
     @pytest.mark.db_test
-    def test_build_conn_kwargs_basic_mapping(self):
-        hook = mock_db_hook(DbApiHook)
-        db = Connection(
-            conn_id="c",
-            conn_type="test",
-            host="dbhost",
-            login="user",
-            password="secret",
-            schema="mydb",
-            port=5432,
-        )
-        result = hook._build_conn_kwargs_from_airflow_connection(db)
-        assert result["host"] == "dbhost"
-        assert result["port"] == 5432
-        assert result["username"] == "user"
-        assert result["password"] == "secret"
-        assert result["schema"] == "mydb"
-        assert result["raw_connection"] is db
-
-    @pytest.mark.db_test
-    def test_build_conn_kwargs_none_values_become_empty(self):
-        hook = mock_db_hook(DbApiHook)
-        db = Connection(conn_id="c", conn_type="test")
-        result = hook._build_conn_kwargs_from_airflow_connection(db)
-        assert result["host"] == ""
-        assert result["username"] == ""
-        assert result["schema"] == ""
-        assert result["port"] is None
-
-    @pytest.mark.db_test
-    def test_build_conn_kwargs_uses_extra_database(self):
-        hook = mock_db_hook(DbApiHook)
-        db = Connection(conn_id="c", conn_type="test", extra='{"database": "myschema"}')
-        assert hook._build_conn_kwargs_from_airflow_connection(db)["database"] == "myschema"
-
-    @pytest.mark.db_test
-    def test_build_conn_kwargs_falls_back_to_dbname(self):
-        hook = mock_db_hook(DbApiHook)
-        db = Connection(conn_id="c", conn_type="test", extra='{"dbname": "altdb"}')
-        assert hook._build_conn_kwargs_from_airflow_connection(db)["database"] == "altdb"
-
-    @pytest.mark.db_test
     @pytest.mark.asyncio
-    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
-    async def test_aget_conn_success(self, mock_get_async_connection):
+    async def test_aget_conn_not_implemented_by_default(self):
         hook = mock_db_hook(DbApiHook)
-        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
-        mock_db_conn = MagicMock()
-        hook.connector = AsyncMock()
-        hook.connector.connect.return_value = mock_db_conn
-        assert await hook.aget_conn() is mock_db_conn
-        hook.connector.connect.assert_awaited_once()
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
-    async def test_aget_conn_raises_without_connector(self, mock_get_async_connection):
-        hook = mock_db_hook(DbApiHook)
-        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
-        hook.connector = None
-        with pytest.raises(RuntimeError, match="didn't have `self.connector` set"):
+        with pytest.raises(NotImplementedError, match="does not implement aget_conn"):
             await hook.aget_conn()
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    @patch("airflow.providers.common.sql.hooks.sql.get_async_connection", new_callable=AsyncMock)
-    async def test_aget_conn_caches_airflow_connection(self, mock_get_async_connection):
-        hook = mock_db_hook(DbApiHook)
-        mock_get_async_connection.return_value = Connection(conn_id="c", conn_type="test")
-        hook.connector = AsyncMock()
-        hook.connector.connect.return_value = MagicMock()
-        await hook.aget_conn()
-        await hook.aget_conn()
-        mock_get_async_connection.assert_awaited_once()
 
     @pytest.mark.db_test
     def test_supports_async_execution_false_by_default(self):
@@ -523,74 +464,6 @@ class TestDbApiHook:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
-    async def test_aget_cursor_raises_without_cursor_method(self):
-        hook = mock_db_hook(DbApiHook)
-        with pytest.raises(TypeError, match="has no cursor\\(\\) method"):
-            async with hook._aget_cursor(MagicMock(spec=[])):
-                pass
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    async def test_aget_cursor_uses_async_context_manager(self):
-        hook = mock_db_hook(DbApiHook)
-        mock_cur = MagicMock()
-        cursor_cm = AsyncMock()
-        cursor_cm.__aenter__ = AsyncMock(return_value=mock_cur)
-        cursor_cm.__aexit__ = AsyncMock(return_value=False)
-        conn = MagicMock()
-        conn.cursor.return_value = cursor_cm
-        async with hook._aget_cursor(conn) as cur:
-            assert cur is mock_cur
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    async def test_aget_cursor_awaits_cursor_then_uses_async_cm(self):
-        hook = mock_db_hook(DbApiHook)
-        mock_cur = MagicMock()
-        cursor_cm = AsyncMock()
-        cursor_cm.__aenter__ = AsyncMock(return_value=mock_cur)
-        cursor_cm.__aexit__ = AsyncMock(return_value=False)
-
-        async def async_cursor():
-            return cursor_cm
-
-        conn = MagicMock()
-        conn.cursor = async_cursor
-        async with hook._aget_cursor(conn) as cur:
-            assert cur is mock_cur
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    async def test_aget_cursor_yields_cursor_with_async_execute(self):
-        hook = mock_db_hook(DbApiHook)
-        mock_cur = MagicMock()
-        mock_cur.execute = AsyncMock()
-        mock_cur.close = MagicMock()
-        del mock_cur.__aenter__
-        del mock_cur.__aexit__
-        del mock_cur.aclose
-        conn = MagicMock()
-        conn.cursor.return_value = mock_cur
-        async with hook._aget_cursor(conn) as cur:
-            assert cur is mock_cur
-        mock_cur.close.assert_called_once()
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    async def test_aget_cursor_raises_for_unsupported_type(self):
-        hook = mock_db_hook(DbApiHook)
-        mock_cur = MagicMock()
-        mock_cur.execute = MagicMock()
-        del mock_cur.__aenter__
-        del mock_cur.__aexit__
-        conn = MagicMock()
-        conn.cursor.return_value = mock_cur
-        with pytest.raises(RuntimeError, match="Unsupported cursor type"):
-            async with hook._aget_cursor(conn) as _:
-                pass
-
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
     async def test_arun_command_no_params(self):
         hook = mock_db_hook(DbApiHook)
         cur = AsyncMock()
@@ -641,14 +514,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield AsyncMock()
+        mock_conn.cursor = _async_cursor_cm(AsyncMock())
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             with pytest.raises(ValueError, match="List of SQL statements is empty"):
                 await hook.arun(sql=empty_sql)
 
@@ -666,14 +534,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield cur
+        mock_conn.cursor = _async_cursor_cm(cur)
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             assert await hook.arun(sql="INSERT INTO t VALUES (1)") is None
 
     @pytest.mark.db_test
@@ -812,14 +675,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield cur
+        mock_conn.cursor = _async_cursor_cm(cur)
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             results = await hook.arun(
                 sql=sql,
                 handler=fetch_all_handler,
@@ -845,14 +703,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield cur
+        mock_conn.cursor = _async_cursor_cm(cur)
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             await hook.arun(sql="INSERT INTO t VALUES (1)")
 
         mock_conn.commit.assert_called_once()
@@ -871,14 +724,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield cur
+        mock_conn.cursor = _async_cursor_cm(cur)
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             with pytest.raises(RuntimeError, match="DB error"):
                 await hook.arun(sql="SELECT fail")
 
@@ -903,14 +751,9 @@ class TestDbApiHook:
         async def _conn_cm(autocommit=False):
             yield mock_conn
 
-        @asynccontextmanager
-        async def _cursor_cm(conn):
-            yield cur
+        mock_conn.cursor = _async_cursor_cm(cur)
 
-        with (
-            patch.object(hook, "_acreate_autocommit_connection", _conn_cm),
-            patch.object(hook, "_aget_cursor", _cursor_cm),
-        ):
+        with patch.object(hook, "_acreate_autocommit_connection", _conn_cm):
             result = await hook.arun(sql="SELECT 1", handler=async_handler)
 
         assert result == rows

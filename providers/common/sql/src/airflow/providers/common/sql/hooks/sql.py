@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import inspect
 import warnings
@@ -55,7 +54,6 @@ except ImportError:
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -831,8 +829,7 @@ class DbApiHook(BaseHook):
             with closing(conn.cursor()) as cur:
                 results = []
                 for sql_statement in sql_list:
-                    sql_to_run = self._translate_sql(sql_statement)
-                    self._run_command(cur, sql_to_run, parameters)
+                    self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
                         result = self._make_common_data_structure(handler(cur))
@@ -1154,52 +1151,17 @@ class DbApiHook(BaseHook):
         :param conn: Connection object
         """
 
-    def _translate_sql(self, sql: str) -> str:
-        """
-        Translate SQL to driver-specific paramstyle.
-
-        DB-specific hooks may override this to translate from a canonical style
-        to their driver's paramstyle if you want a unified SQL authoring style.
-        """
-        return sql
-
-    def _prepare_parameters(self, parameters: Iterable | Mapping[str, Any] | None):
-        """DB hooks may override to adapt parameter style."""
-        return parameters
-
-    def _build_conn_kwargs_from_airflow_connection(self, db) -> dict:
-        """Build a DB-agnostic kwargs dict."""
-        extra = {}
-        extra_dejson = getattr(db, "extra_dejson", None)
-        if isinstance(extra_dejson, dict):
-            extra = extra_dejson
-        try:
-            port = int(db.port) if db.port else None
-        except (TypeError, ValueError):
-            port = None
-        return {
-            "host": db.host or "",
-            "port": port,
-            "username": db.login or "",
-            "password": db.password or "",
-            "database": extra.get("database") or extra.get("dbname") or "",
-            "schema": db.schema or "",
-            "conn_type": db.conn_type,
-            "extra": extra,
-            "raw_connection": db,
-        }
-
     async def aget_conn(self) -> Any:
-        if not hasattr(self, "_conn_lock"):
-            self._conn_lock = asyncio.Lock()
-        async with self._conn_lock:
-            if not self._connection:
-                self._connection = await get_async_connection(self.get_conn_id())
-            db = self._connection
-            if self.connector is None:
-                raise RuntimeError(f"{type(self).__name__} didn't have `self.connector` set!")
-            conn_kwargs = self._build_conn_kwargs_from_airflow_connection(db)
-            return await self.connector.connect(**conn_kwargs)
+        """
+        Open an async connection to the database.
+
+        DB-specific hooks backed by a real async driver override this method. Whether it is
+        overridden is what :meth:`supports_async_execution` reports.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement aget_conn. Override it to support "
+            "deferrable execution with a native async driver."
+        )
 
     async def _call(self, func: Callable, *args, **kwargs) -> Any:
         if inspect.iscoroutinefunction(func):
@@ -1221,38 +1183,6 @@ class DbApiHook(BaseHook):
             close = getattr(conn, "aclose", None) or getattr(conn, "close", None)
             if close:
                 await self._call(close)
-
-    @asynccontextmanager
-    async def _aget_cursor(self, conn):
-        cursor = getattr(conn, "cursor", None)
-        if cursor is None:
-            raise TypeError(
-                f"{type(conn).__name__} has no cursor() method. "
-                "Override _aget_cursor in the DB-specific hook."
-            )
-        cur_or_cm = cursor()
-        if inspect.isawaitable(cur_or_cm):
-            cur_or_cm = await cur_or_cm
-        if hasattr(cur_or_cm, "__aenter__") and hasattr(cur_or_cm, "__aexit__"):
-            async with cur_or_cm as cur:
-                yield cur
-            return
-        execute = getattr(cur_or_cm, "execute", None)
-        if execute and inspect.iscoroutinefunction(execute):
-            try:
-                yield cur_or_cm
-            finally:
-                close = getattr(cur_or_cm, "aclose", None) or getattr(cur_or_cm, "close", None)
-                if close:
-                    if inspect.iscoroutinefunction(close):
-                        await close()
-                    else:
-                        close()
-            return
-        raise RuntimeError(
-            f"Unsupported cursor type returned by {type(conn).__name__}. "
-            "Override _aget_cursor in the DB-specific hook."
-        )
 
     def supports_async_execution(self) -> bool:
         """Whether the DB-specific hook overrides :meth:`aget_conn` for a real async driver."""
@@ -1279,9 +1209,8 @@ class DbApiHook(BaseHook):
         """Run a statement using an already open cursor."""
         if self.log_sql:
             self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-        prepared_params = await self._call(self._prepare_parameters, parameters)
-        if prepared_params:
-            await cur.execute(sql_statement, prepared_params)
+        if parameters:
+            await cur.execute(sql_statement, parameters)
         else:
             await cur.execute(sql_statement)
         if cur.rowcount >= 0:
@@ -1339,11 +1268,10 @@ class DbApiHook(BaseHook):
             try:
                 if read_only:
                     await self._aenter_read_only(conn)
-                async with self._aget_cursor(conn) as cur:
+                async with conn.cursor() as cur:
                     results = []
                     for sql_statement in sql_list:
-                        sql_to_run = await self._call(self._translate_sql, sql_statement)
-                        await self._arun_command(cur, sql_to_run, parameters)
+                        await self._arun_command(cur, sql_statement, parameters)
                         if handler is not None:
                             handled = handler(cur)
                             if inspect.isawaitable(handled):
