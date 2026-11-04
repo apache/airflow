@@ -117,8 +117,10 @@
     "noTryNumber": "No hay número de intento",
     "search": {
       "matchCount": "{{current, number}} de {{total, number}}",
+      "nextMatch": "Coincidencia siguiente",
       "noMatches": "Sin coincidencias",
-      "placeholder": "Buscar en logs..."
+      "placeholder": "Buscar en logs...",
+      "previousMatch": "Coincidencia anterior"
     },
     "settings": "Configuración de Logs",
     "tryNotStarted": "Este intento aún no ha comenzado.",
