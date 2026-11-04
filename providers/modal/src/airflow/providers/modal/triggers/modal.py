@@ -33,12 +33,12 @@ class ModalSandboxTrigger(BaseTrigger):
     """
     Wait for a ``@task.modal`` sandbox to exit, writing its output to the task log.
 
-    The trigger follows the function's output (the sandbox's stderr) until it ends, which
-    happens when the sandbox exits for any reason, logging each line, and then fires one
-    event with the exit code. The operator reads the return value in ``execute_complete``.
+    The trigger logs the function's output (the sandbox's stderr) line by line, waits for the
+    sandbox to exit, and then fires one event with the exit code. The operator reads the return
+    value in ``execute_complete``. Losing the output stream only stops the logging.
 
-    If the triggerer restarts, the trigger that takes over reads the output again from the start,
-    so the task log repeats the lines logged before the restart.
+    If the triggerer restarts, the trigger that takes over reads the output again from the
+    oldest part Modal still holds, so the task log can repeat lines logged before the restart.
 
     :param sandbox_id: The ``sb-...`` id of the sandbox to wait for.
     :param modal_conn_id: :ref:`Modal connection id <howto/connection:modal>` the sandbox was
@@ -63,8 +63,9 @@ class ModalSandboxTrigger(BaseTrigger):
             await await_exit(sandbox)
         except Exception:
             # The task fails with this error and a retry starts a new sandbox, so stop this one.
-            # Cancellation (triggerer shutdown or reassignment) is not an Exception and passes
-            # through, leaving the sandbox to the triggerer that takes over.
+            # Cancellation is not an Exception and passes through. On triggerer shutdown or
+            # reassignment another triggerer takes the sandbox over; on the trigger's timeout,
+            # the sandbox's Modal timeout, never longer than execution_timeout, stops it.
             await self._terminate()
             raise
         yield TriggerEvent({"sandbox_id": self.sandbox_id, "returncode": sandbox.returncode})
@@ -74,8 +75,8 @@ class ModalSandboxTrigger(BaseTrigger):
             async for line in sandbox.stderr:
                 self.log.info("%s", line.rstrip("\n"))
         except Exception as e:
-            # Modal's reader gives up on a stream after a fixed number of retries over its whole
-            # life. Losing the output is no reason to stop a function that is still running.
+            # Modal's reader raises once its retries for stream errors run out. Losing the
+            # output is no reason to stop a function that is still running.
             self.log.warning(
                 "Lost the output of Modal sandbox %s (%s); waiting for it to exit.", self.sandbox_id, e
             )

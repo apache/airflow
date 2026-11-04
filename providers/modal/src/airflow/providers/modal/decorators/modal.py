@@ -117,7 +117,9 @@ class _ModalSandboxOperator(BaseOperator):
 
     def _sandbox_timeout(self) -> int | None:
         """
-        Modal's timeout for the sandbox: ``timeout``, capped at the task's ``execution_timeout``.
+        Modal's timeout for the sandbox: the shorter of ``timeout`` and ``execution_timeout``.
+
+        Either one alone is used as is; with neither, Modal's 300-second default applies.
 
         The cap is what stops a deferred task's sandbox when ``execution_timeout`` runs out: the
         triggerer gives up on the trigger without calling ``on_kill``, so only Modal can stop it.
@@ -176,8 +178,8 @@ class _ModalSandboxOperator(BaseOperator):
             for line in sandbox.stderr:
                 self.log.info("%s", line.rstrip("\n"))
         except Exception as e:
-            # Modal's reader gives up on a stream after a fixed number of retries over its whole
-            # life. Losing the output is no reason to stop a function that is still running.
+            # Modal's reader raises once its retries for stream errors run out. Losing the
+            # output is no reason to stop a function that is still running.
             self.log.warning(
                 "Lost the output of Modal sandbox %s (%s); waiting for it to exit.", sandbox.object_id, e
             )
@@ -197,8 +199,8 @@ class _ModalSandboxOperator(BaseOperator):
             limit = f"{timeout}s" if timeout is not None else "300s, Modal's default"
             message = (
                 f"Modal sandbox {sandbox_id} reached its timeout ({limit}) before the function "
-                "returned. Raise the decorator's timeout, and the task's execution_timeout, which "
-                "caps it."
+                "returned. Raise the decorator's timeout, or the task's execution_timeout if that "
+                "is shorter."
             )
         elif returncode == TERMINATED_RETURNCODE:
             message = (
@@ -277,7 +279,8 @@ def modal_task(
     :param cpu: CPU cores to reserve, or a ``(reservation, limit)`` pair to also cap usage.
     :param memory: Memory to reserve in MiB, or a ``(reservation, limit)`` pair to also cap it.
     :param timeout: Seconds the sandbox may run before Modal stops it. Modal's default is 300.
-        The task's ``execution_timeout``, when set, caps it.
+        When both this and the task's ``execution_timeout`` are set, the shorter wins; when only
+        ``execution_timeout`` is set, the sandbox gets that.
     :param secrets: Modal secrets whose keys become environment variables inside the sandbox,
         as a name, or a list of names or ``modal.Secret`` objects. Names are looked up when the
         task runs, in the connection's environment.

@@ -102,6 +102,24 @@ class TestBootstrap:
         assert '    raise ValueError("boom")' in lines, "traceback should quote the function's source"
         assert sandbox.stdout.read() == ""
 
+    def test_classes_defined_in_the_function_work(self, tmp_path):
+        source = """
+        def records(rows):
+            from dataclasses import asdict, dataclass
+
+            @dataclass
+            class Row:
+                id: int
+                name: str
+
+            return [asdict(Row(**row)) for row in rows]
+        """
+
+        sandbox = _run(tmp_path, source, "records", [{"id": 1, "name": "ada"}])
+
+        assert sandbox.returncode == 0, sandbox.stderr.read()
+        assert decode_result(sandbox.stdout.read()) == [{"id": 1, "name": "ada"}]
+
     def test_arguments_larger_than_the_stdin_buffer_arrive_whole(self, tmp_path):
         big = "x" * (STDIN_BUFFER_BYTES + 1)
 
@@ -134,9 +152,12 @@ class TestDecodeResult:
         with pytest.raises(ValueError, match="wrote no return value"):
             decode_result("")
 
-    def test_a_value_modal_kept_only_the_end_of_raises_a_clear_error(self, tmp_path):
-        sandbox = _run(tmp_path, "def big():\n    return 'x' * 100_000\n", "big")
+    @pytest.mark.parametrize("dropped", [1, 2, 3, 4, 5, 6, 7, 1000, 1001, 1002, 1003])
+    def test_a_value_modal_kept_only_the_end_of_raises_a_clear_error(self, tmp_path, dropped):
+        # Modal drops the start of output it cannot keep. Cuts at every base64 alignment and
+        # inside the length header must all be caught, not decoded into a wrong value.
+        sandbox = _run(tmp_path, "def big():\n    return list(range(5000))\n", "big")
         whole = sandbox.stdout.read()
 
         with pytest.raises(ValueError, match="too large for Modal to keep"):
-            decode_result(whole[len(whole) // 2 :])
+            decode_result(whole[dropped:])

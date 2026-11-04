@@ -21,8 +21,9 @@ The sandbox's command is a short bootstrap program (:data:`BOOTSTRAP`) run with 
 It reads one JSON payload from stdin holding the function's source and its pickled arguments,
 defines the function and calls it. Everything the function prints, including what its
 subprocesses write and any traceback, goes to the sandbox's stderr, in order; the task log
-follows that stream. Stdout carries only the base64-pickled return value, written once the
-function has returned, so a function that raises leaves stdout empty and exits nonzero.
+follows that stream. Stdout carries only the return value, pickled, base64-encoded and
+prefixed with its length (``<length>:<base64>``), written once the function has returned, so a
+function that raises leaves stdout empty and exits nonzero.
 
 The bootstrap needs only the Python standard library, so the image needs neither Airflow nor
 the Modal client. The shared virtualenv script template is deliberately not used: it
@@ -37,7 +38,6 @@ trigger, on the triggerer, use this module.
 from __future__ import annotations
 
 import base64
-import binascii
 import contextlib
 import json
 import pickle
@@ -47,7 +47,7 @@ from typing import Any
 import modal
 
 BOOTSTRAP = r"""
-import __future__, base64, json, os, pickle, sys, tempfile
+import __future__, base64, json, os, pickle, sys, tempfile, types
 
 # Keep the real stdout for the result, and point fd 1 at stderr so everything else the
 # function prints, from Python or from a subprocess, lands on stderr.
@@ -58,16 +58,20 @@ payload = json.loads(sys.stdin.read())
 path = os.path.join(tempfile.mkdtemp(prefix="airflow-modal-task-"), payload["function_name"] + ".py")
 with open(path, "w") as f:
     f.write(payload["source"])
-namespace = {"__name__": "__airflow_modal_task__"}
+# A real, registered module: dataclasses and other tools look a class's module up in sys.modules.
+module = types.ModuleType("__airflow_modal_task__")
+sys.modules[module.__name__] = module
 # Postponed annotations, as in a Dag file with `from __future__ import annotations`: the
 # function's annotations may name types that only the Dag file imported.
 code = compile(
     payload["source"], path, "exec", flags=__future__.annotations.compiler_flag, dont_inherit=True
 )
-exec(code, namespace)
+exec(code, module.__dict__)
 arguments = pickle.loads(base64.b64decode(payload["arguments"]))
-value = namespace[payload["function_name"]](*arguments["args"], **arguments["kwargs"])
-result.write(base64.b64encode(pickle.dumps(value)))
+value = getattr(module, payload["function_name"])(*arguments["args"], **arguments["kwargs"])
+# Length-prefixed, so a value Modal kept only the end of is detected instead of misread.
+encoded = base64.b64encode(pickle.dumps(value))
+result.write(b"%d:" % len(encoded) + encoded)
 result.close()
 """
 
@@ -140,11 +144,13 @@ def decode_result(stdout: str) -> Any:
     """
     if not stdout:
         raise ValueError("The sandbox exited cleanly but wrote no return value.")
-    try:
-        return pickle.loads(base64.b64decode(stdout, validate=True))
-    except (binascii.Error, pickle.UnpicklingError, EOFError) as e:
+    # Modal drops the start of output it cannot keep, which takes the length header with it
+    # or leaves a header that no longer matches.
+    header, separator, encoded = stdout.partition(":")
+    if not separator or not header.isdigit() or int(header) != len(encoded):
         raise ValueError(
             f"The return value ({len(stdout)} characters read back) is incomplete, most likely "
             "because it was too large for Modal to keep. Write large results to a Modal volume "
             "and return their path instead."
-        ) from e
+        )
+    return pickle.loads(base64.b64decode(encoded))

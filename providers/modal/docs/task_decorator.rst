@@ -95,8 +95,9 @@ unset gets Modal's default; :func:`~airflow.providers.modal.decorators.modal.mod
 lists every argument. Before a long or memory-heavy run:
 
 * Set ``timeout`` for anything that runs longer than five minutes. Modal stops a sandbox after
-  300 seconds by default. The task's ``execution_timeout``, when set, caps it, so a sandbox
-  never outlives its task.
+  300 seconds by default. When only the task's ``execution_timeout`` is set, the sandbox gets
+  that instead; when both are set, the shorter wins. Either way a sandbox stops no later than
+  ``execution_timeout`` after it starts.
 * A single ``cpu`` or ``memory`` number is a reservation, which the sandbox can exceed. To cap
   it, pass a ``(reservation, limit)`` pair; a function that goes over a memory limit is
   stopped.
@@ -161,7 +162,7 @@ happened and where:
 * The sandbox ran past ``timeout`` (exit code 124). Modal interrupts the function, so the task
   log shows a ``KeyboardInterrupt`` traceback from wherever it was, followed by ``Modal sandbox
   sb-... reached its timeout (10s) before the function returned. Raise the decorator's
-  timeout, and the task's execution_timeout, which caps it.``
+  timeout, or the task's execution_timeout if that is shorter.``
 * The sandbox was stopped from outside (exit code 137), for example by going over a ``memory``
   limit: ``Modal sandbox sb-... was terminated before the function returned, for example
   because it ran out of memory under a memory limit, or from the Modal dashboard.``

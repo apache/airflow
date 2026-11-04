@@ -415,7 +415,8 @@ def async_client_cls():
 def _async_lookup(*, returns=None, raises=None):
     """Stand-in for ``get_async_connection``, as the hook module imports it."""
 
-    async def get_async_connection(conn_id, hook=None):
+    # The signature at the provider's floor, common-compat 1.12.0, which has no ``hook=``.
+    async def get_async_connection(conn_id):
         if raises is not None:
             raise raises
         return returns
