@@ -569,7 +569,7 @@ class TestListEnvs:
         assert expected in env["status"]
 
     @patch("airflowctl.ctl.commands.auth_command.AirflowConsole", autospec=True)
-    @patch("keyring.get_password", return_value="OLD_TOKEN")
+    @patch("keyring.get_password", autospec=True, return_value="OLD_TOKEN")
     def test_list_envs_skips_keyring_when_token_is_not_in_keyring(
         self, mock_get_password, mock_console, monkeypatch, tmp_path
     ):

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -36,7 +35,7 @@ import structlog.testing
 import tenacity
 import time_machine
 from httpx import URL
-from keyring.errors import KeyringLocked, NoKeyringError, PasswordDeleteError
+from keyring.errors import KeyringLocked
 from tenacity import stop_after_attempt, wait_none
 
 from airflowctl.api.client import (
@@ -402,21 +401,15 @@ class TestCredentials:
     def keyring_store(self, monkeypatch, tmp_path):
         monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
         stored: dict[tuple[str, str], str] = {}
-
-        def delete_password(service, username):
-            if stored.pop((service, username), None) is None:
-                raise PasswordDeleteError("Password not found")
-
         mock_keyring = create_autospec(keyring)
         mock_keyring.set_password.side_effect = lambda service, username, token: stored.update(
             {(service, username): token}
         )
         mock_keyring.get_password.side_effect = lambda service, username: stored.get((service, username))
-        mock_keyring.delete_password.side_effect = delete_password
         monkeypatch.setattr("airflowctl.api.client.keyring", mock_keyring)
         return mock_keyring
 
-    def test_save_skip_keyring_removes_token_of_earlier_login(self, keyring_store):
+    def test_save_skip_keyring_does_not_reuse_token_of_earlier_login(self, keyring_store):
         """Pointing an environment at a new URL with --skip-keyring must not send the old token there."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
@@ -426,18 +419,7 @@ class TestCredentials:
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
-    def test_save_failing_to_store_token_does_not_keep_token_of_earlier_login(self, keyring_store):
-        """A failed login to a new URL must not leave the old token to be sent there."""
-        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
-        keyring_store.set_password.side_effect = ValueError("Incorrect Password")
-
-        with pytest.raises(ValueError, match="Incorrect Password"):
-            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
-
-        credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
-        assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
-
-    def test_save_in_debug_mode_removes_token_of_earlier_login(self, keyring_store, monkeypatch):
+    def test_save_in_debug_mode_does_not_reuse_token_of_earlier_login(self, keyring_store, monkeypatch):
         """A command run after debug mode is turned off must not send the old token to the new URL."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
@@ -450,66 +432,20 @@ class TestCredentials:
     @pytest.mark.parametrize(
         "error",
         [
-            pytest.param(PasswordDeleteError("Password not found"), id="no-stored-token"),
-            pytest.param(NoKeyringError("no backend"), id="no-keyring-backend"),
+            pytest.param(ValueError("Incorrect Password"), id="wrong-keyring-password"),
+            pytest.param(KeyringLocked("Can't store password on keychain"), id="locked-keychain"),
         ],
     )
-    @patch("airflowctl.api.client.keyring", autospec=True)
-    def test_save_skip_keyring_without_stored_token(self, mock_keyring, error, monkeypatch, tmp_path):
-        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
-        mock_keyring.delete_password.side_effect = error
-
-        Credentials(api_url="http://new:8080", api_environment="prod").save(skip_keyring=True)
-
-        mock_keyring.delete_password.assert_called_once_with("airflowctl", "api_token_prod")
-        assert json.loads((tmp_path / "prod.json").read_text()) == {
-            "api_url": "http://new:8080",
-            "token_in_keyring": False,
-        }
-
-    @patch("airflowctl.api.client.keyring", autospec=True)
-    def test_save_keeps_old_url_when_token_cannot_be_removed(self, mock_keyring, monkeypatch, tmp_path):
-        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
-        (tmp_path / "prod.json").write_text(json.dumps({"api_url": "http://old:8080"}))
-        mock_keyring.delete_password.side_effect = KeyringLocked("locked")
-
-        with pytest.raises(
-            AirflowCtlKeyringException,
-            match=re.escape(
-                "Could not remove the keyring token of environment prod: locked. The API URL was not changed."
-            ),
-        ):
-            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
-
-        assert json.loads((tmp_path / "prod.json").read_text()) == {"api_url": "http://old:8080"}
-        mock_keyring.set_password.assert_not_called()
-
-    @pytest.mark.parametrize(
-        ("skip_keyring", "debug_mode"),
-        [
-            pytest.param(True, "false", id="skip-keyring"),
-            pytest.param(False, "true", id="debug-mode"),
-        ],
-    )
-    def test_save_without_keyring_need_ignores_token_that_cannot_be_removed(
-        self, keyring_store, skip_keyring, debug_mode, monkeypatch
-    ):
-        """A token left in a locked keyring must not be read once the keyring unlocks."""
+    def test_save_failing_to_store_token_does_not_reuse_token_of_earlier_login(self, keyring_store, error):
+        """A failed login to a new URL must not leave the old token to be sent there."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
-        keyring_store.delete_password.side_effect = KeyringLocked("locked")
-        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", debug_mode)
+        keyring_store.set_password.side_effect = error
 
-        with structlog.testing.capture_logs() as captured_logs:
-            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
-                skip_keyring=skip_keyring
-            )
-        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "false")
+        with pytest.raises((ValueError, KeyringLocked)):
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
 
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
-        assert [(entry["log_level"], entry["event"]) for entry in captured_logs] == [
-            ("warning", "Could not remove the keyring token of environment prod: locked")
-        ]
 
     @patch.dict(os.environ, {"AIRFLOW_CLI_ENVIRONMENT": "TEST_LOAD"})
     @patch.dict(os.environ, {"AIRFLOW_CLI_TOKEN": "TEST_TOKEN"})
