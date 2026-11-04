@@ -1382,10 +1382,11 @@ build and publish - the OS-dependencies jobs have concurrency groups of their ow
 mirror runs.
 
 The script records what it installed with in the image, and a build on it installs nothing when nothing
-differs. When a PR changes the script or the variables it installs with (such as the Go or Node.js
-versions), the installation runs again on top of the pinned
-image, so the change is still exercised. Builds with another base image, Debian version or apt
-dependencies do not use the pinned images at all and install from the apt repositories.
+differs. When a PR changes the variables the script installs with (such as the Go or Node.js versions),
+the installation runs again on top of the pinned image, so the change is still exercised; a PR that
+changes the script, the client scripts or the keys builds from ``BASE_IMAGE`` in CI instead. Builds with
+another base image, Debian version or apt dependencies do not use the pinned images at all and install
+from the apt repositories.
 
 
 Publish the OS-dependencies images
