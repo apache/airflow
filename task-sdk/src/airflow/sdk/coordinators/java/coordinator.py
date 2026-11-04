@@ -100,11 +100,17 @@ def _get_classpath_alias_dir() -> pathlib.Path:
     """
     Return this user's directory of classpath aliases, creating it if needed.
 
+    :raises ValueError: when the directory's path holds ``os.pathsep``.
     :raises PermissionError: when the directory is not a real directory owned by this user, or
         others can write to it. Anyone who can write there could point an alias at their own JARs.
     """
     uid = os.getuid()
     path = pathlib.Path(tempfile.gettempdir(), f"airflow-java-classpath-{uid}")
+    if os.pathsep in os.fspath(path):
+        raise ValueError(
+            f"Cannot keep Java classpath links in {path}, because its path holds {os.pathsep!r}. "
+            "Point TMPDIR to a directory whose path does not."
+        )
     with contextlib.suppress(FileExistsError):
         path.mkdir(mode=0o700)
     st = path.lstat()

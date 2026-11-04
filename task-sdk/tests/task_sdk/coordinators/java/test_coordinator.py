@@ -282,6 +282,23 @@ class TestClasspathAlias:
         ):
             _get_classpath_alias(root)
 
+    def test_rejects_an_alias_dir_holding_the_separator(self, tmp_path):
+        root = _make_timestamped_bundle(tmp_path)
+        tmp = tmp_path / f"tmp{os.pathsep}dir"
+        tmp.mkdir()
+
+        with (
+            patch(
+                "airflow.sdk.coordinators.java.coordinator.tempfile.gettempdir",
+                autospec=True,
+                return_value=os.fspath(tmp),
+            ),
+            pytest.raises(ValueError, match="Cannot keep Java classpath links"),
+        ):
+            _calculate_classpath([root])
+
+        assert list(tmp.iterdir()) == []
+
     def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, alias_dir):
         root = _make_timestamped_bundle(tmp_path)
         nested = root / f"a{os.pathsep}b"
