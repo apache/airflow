@@ -18,7 +18,6 @@
         "rogalmic.bash-debug",
         "ms-azuretools.vscode-docker",
         "dbaeumer.vscode-eslint",
-        "oxc.oxc-vscode",
         "ecmel.vscode-html-css",
         "timonwong.shellcheck",
         "redhat.vscode-yaml",
