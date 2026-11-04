@@ -32,9 +32,20 @@ from airflow_e2e_tests.openlineage_tests.task_logs import find_log_paths, print_
 
 def _print_failure_logs(runner: OpenLineageE2ERunner, logs_folder: Path, failed: dict[str, str]) -> None:
     """Print the relevant task logs for each failed DAG, so CI output doesn't require the log artifact."""
+    import_errors: dict[str, str] = {}
+    if "missing" in failed.values():
+        try:
+            import_errors = runner.get_import_errors()
+        except requests.exceptions.RequestException as exc:
+            console.print(f"[yellow]Could not fetch the Dag import errors: {exc}[/]")
     for dag_id, state in failed.items():
         if state == "missing":
-            console.print(f"[yellow]{dag_id} never loaded — check the dag-processor logs, not task logs.[/]")
+            if trace := import_errors.get(f"example_{dag_id}.py"):
+                console.print(f"[yellow]{dag_id} never loaded, its file failed to import:[/]\n{trace}")
+            else:
+                console.print(
+                    f"[yellow]{dag_id} never loaded — check the dag-processor logs, not task logs.[/]"
+                )
             continue
         run_id = runner.retry_run_id if dag_id in runner.retried_dag_ids else runner.run_id
         try:
