@@ -41,7 +41,7 @@ Proposed.
 
 1. **Expansion stays in the scheduler for every language.** Map length, instance creation, regions, `REMOVED` handling and trigger rules are core's, not an SDK's.
    An SDK emits an expand input and consumes one value per map index; it never decides how many instances exist.
-2. **The expand input keeps Python's `{__type, __var}` encoding**, so there is no duplicated format for describing a mapped task.
+2. **The expand input keeps Python's `{__type, __var}` encoding.** An SDK emits the same form the Dag processor already writes for a Python mapped task, so core parses one format and no SDK invents a second.
 3. **Map length is computed once in the supervisor, instead of being re-implemented in each SDK.** The server tells the producer's supervisor whether the length is needed; the supervisor measures the return value and rejects one that is absent or unsized.
    The API server loads no extra Dag, and Python's own copy is deleted so the two cannot drift.
 4. **Every Python mapping primitive is in scope, and the server resolves all of them.** A primitive an SDK has not implemented yet is a capability flag, not a core limit.
@@ -60,9 +60,9 @@ SDK that copied that split would re-implement the scheduler's half in its own la
 would diverge.
 
 An SDK owns *what to expand over* and *what to do with one element*, and core owns *how many* and
-*which*. Regions carry that split into task loops at no extra cost — each expansion is scoped to
-its enclosing iteration — so an SDK that implements this ADR gets per-iteration mapping for free
-and loops need no mapping story of their own.
+*which*. The same split holds inside a task loop: a region scopes one expansion to one iteration,
+so a mapped task in a loop expands once per iteration with no extra work in the SDK. Task loops
+therefore need no mapping design of their own.
 
 ## Who runs what
 
@@ -78,7 +78,7 @@ The coordinator is the supervisor of a Lang-SDK task, so the two names mean one 
 
 ## Authoring interface
 
-- `expand` takes the arguments that vary per instance; `partial` takes the ones that do not.
+- `expand` takes the arguments that vary per instance; `partial` takes the arguments that stay the same at every instance.
 - A mapped task returns the same reference type as any other task, so an edge or a later `expand` treats it identically.
 - `zip`, `concat` and `map` are methods on a reference, not free functions, so they chain in declaration order.
 - A reduce consumer receives a sequence of the element type, not the element type.
@@ -145,35 +145,50 @@ the real Dag, so no binding carries a callable or a reference to one.
 ### Stub-task parameter metadata
 
 Serialization drops `python_callable`, so a stub task's signature is lost, and a stub runtime never
-parses the Dag file. The server rebuilds bindings from that signature, so the Dag processor records
-it as `_mapped_arg_binding_params`: one entry per parameter, in declaration order, each
-BaseSerialization-encoded.
+parses the Dag file. Two task fields carry what the server needs instead, and a stub task has at
+most one of them.
+
+| Field | Present on | Holds |
+|---|---|---|
+| `_arg_bindings` | an unmapped stub outside any mapped task group | the finished bindings, resolved at parse time |
+| `_mapped_arg_binding_params` | a stub that is mapped, or unmapped inside a mapped task group | one entry per parameter, in declaration order, from which the server derives the bindings at `ti_run` |
+
+`_mapped_arg_binding_params` is the signature, not the call. It lists every parameter, including
+ones the call never passes, and holds no mapped value: those stay in the fields Python already
+writes — `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
+`partial_kwargs.op_kwargs` — and the server reads this index's element out of them.
 
 ```jsonc
-// @task.stub def transform(region: str, row: str) -> int: ...
+// @task.stub def transform(region: str, row: str, scale: int = 2) -> int: ...
+// transform.partial(region="eu").expand(row=rows)
 "_mapped_arg_binding_params": [
-  {"__type": "dict", "__var": {"name": "region", "value_schema": {"type": "string"}}},
-  {"__type": "dict", "__var": {"name": "row", "value_schema": {"type": "string"}}}
+  {"__type": "dict", "__var": {"name": "region",
+    "value_schema": {"__type": "dict", "__var": {"type": "string"}}}},
+  {"__type": "dict", "__var": {"name": "row",
+    "value_schema": {"__type": "dict", "__var": {"type": "string"}}}},
+  {"__type": "dict", "__var": {"name": "scale", "default": 2,
+    "value_schema": {"__type": "dict", "__var": {"type": "integer", "format": "int64"}}}}
 ]
 ```
 
 | Key | Means |
 |---|---|
 | `name` | The parameter. Required, and the list order is the declaration order. |
-| `value_schema` | The JSON Schema derived from the annotation. |
-| `default` | The signature default, used when the call omits the parameter. |
-| `value` | A member of a mapped task group only: a literal or an XCom reference. |
+| `value_schema` | The JSON Schema derived from the annotation, for a runtime that decodes into machine types. |
+| `default` | The signature default, used when nothing else binds the parameter. |
+| `value` | A member of a mapped task group only: the call argument, a literal or an XCom reference. |
 | `group_arg` | A member of a mapped task group only: `{group_id, key}`, an expand argument of the enclosing group. |
 
-The field is present only on a stub task that has parameters and is either mapped or unmapped
-inside a mapped task group. Absent, the task keeps its older behaviour of ignoring call arguments.
-Core reads it as `mapped_arg_binding_params`, beside `arg_bindings`.
+Each of the first three is something the serialized Dag cannot otherwise supply. Order is all an
+SDK that binds by position, as Go does, has to go on. `default` covers a parameter no call argument
+reaches — `scale` above. `value_schema` is the annotation a typed runtime decodes against.
 
-Declaration order is load-bearing: an SDK that binds by position, as Go does, has nothing else to
-go on. Otherwise a mapped stub's call arguments still come from `partial_kwargs.op_kwargs` and
-`expand_input`, and this field adds signature data only. A member of a mapped task group is the
-exception and carries its call arguments here, because an unmapped task's `op_kwargs` serializes as
-display strings the server cannot resolve.
+`value` and `group_arg` are the one place this field carries call arguments, and only a mapped task
+group's member needs them: an unmapped task's `op_kwargs` serializes an XCom reference as a Jinja
+string and an expand argument as a repr, neither of which the server can resolve.
+
+Core reads the field as `mapped_arg_binding_params`, beside `arg_bindings`. Absent, a stub task
+keeps its older behaviour of ignoring call arguments.
 
 ## What the Execution API sends
 
