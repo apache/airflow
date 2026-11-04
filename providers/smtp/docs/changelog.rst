@@ -33,7 +33,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix async SmtpHook connections failing when STARTTLS is enabled (#75529)``
+* ``Fix async SmtpHook connections failing when STARTTLS is enabled, and raise aiosmtplib minimum to 5.1.0 (#75529)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

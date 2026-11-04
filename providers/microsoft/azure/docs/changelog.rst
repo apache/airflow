@@ -41,10 +41,14 @@ Bug Fixes
 
 * ``Verify S3 TLS certificates by default in S3ToAzureBlobStorageOperator (#76222)``
 
+Misc
+~~~~
+
+* ``Raise azure-batch minimum to 15.1.0 and azure-mgmt-compute minimum to 38.0.0 (#75270)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``[main] Upgrade important CI environment (#76278)``
-   * ``[main] Upgrade important CI environment (#75270)``
    * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
 
 15.3.0

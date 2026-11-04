@@ -35,10 +35,13 @@ Changelog
     section and no longer falls back to the global one. Set ``cluster_name`` for each team, and
     ``region_name`` and ``conn_id`` too if the team needs them.
 
+    ``AwsEksExecutor`` now requires ``apache-airflow-providers-cncf-kubernetes>=11.0.0``, in single-team
+    deployments too.
+
 Features
 ~~~~~~~~
 
-* ``Add on_kill support to SageMakerTrainingOperator (#76033)``
+* ``Add stop_training_job_on_kill to SageMakerTrainingOperator to stop the job when the task is killed (#76033)``
 * ``Let the ECS executor start tasks in parallel (#75907)``
 * ``Page SqlToS3Operator like GenericTransfer (#75730)``
 * ``Let the EKS executor run per team and next to KubernetesExecutor (#75449)``
@@ -59,6 +62,7 @@ Misc
 ~~~~
 
 * ``Log the AWS identity used by AwsDuckDBHook (#75997)``
+* ``Raise boto3 and botocore minimum to 1.43.4 (#75270, #76278)``
 * ``Report AwsEksExecutor as the caller in its AWS user agent (#75698)``
 * ``Stop importing airflow.utils.email in the Amazon SES hook (#75711)``
 * ``Deprecate deferrable overriding wait_for_completion in AWS operators (#75360)``
@@ -74,8 +78,6 @@ Doc-only
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Enable DMS task logging in example_dms system test (#76336)``
-   * ``[main] Upgrade important CI environment (#76278)``
-   * ``[main] Upgrade important CI environment (#75270)``
    * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
    * ``Remove unused S3 bundle test upload helper (#75888)``
    * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``

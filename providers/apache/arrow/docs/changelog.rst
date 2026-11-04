@@ -38,7 +38,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Use bulk ingest in AdbcHook.insert_rows when fast_executemany is set (#76363)``
+* ``Make AdbcHook.insert_rows use the driver's bulk ingest by default (#76363)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

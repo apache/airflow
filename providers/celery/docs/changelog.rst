@@ -36,7 +36,7 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Remove deprecated cleanup_stuck_queued_tasks from Celery and Kubernetes executors (#76129)``
+* ``Remove deprecated cleanup_stuck_queued_tasks from CeleryExecutor and CeleryKubernetesExecutor (#76129)``
 
 Misc
 ~~~~

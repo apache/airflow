@@ -31,7 +31,7 @@ Changelog
 Bug Fixes
 ~~~~~~~~~
 
-* ``Surface errors from OpenLineage database info lookups without losing lineage (#74805)``
+* ``Log errors from OpenLineage database info lookups in the fallback SQL facets helper (#74805)``
 
 Misc
 ~~~~

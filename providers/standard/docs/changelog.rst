@@ -59,7 +59,7 @@ Features
 ~~~~~~~~
 
 * ``Add AssetEventSensor to standard provider (#70225)``
-* ``Allow asking for human input from inside a Python task (#75358)``
+* ``Allow asking for human input from inside a Python task on Airflow 3.4+ (#75358)``
 
 Bug Fixes
 ~~~~~~~~~

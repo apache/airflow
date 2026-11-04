@@ -47,7 +47,7 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``Remove deprecated cleanup_stuck_queued_tasks from Celery and Kubernetes executors (#76129)``
+* ``Remove deprecated cleanup_stuck_queued_tasks from KubernetesExecutor and LocalKubernetesExecutor (#76129)``
 
 Features
 ~~~~~~~~
@@ -66,13 +66,13 @@ Bug Fixes
 Misc
 ~~~~
 
+* ``Bump the default XCom sidecar image to alpine:3.24.3 (#75270)``
 * ``Remove unused Spark pod try number helper (#75787)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Remove unused Spark application expectation helper (#75877)``
    * ``[main] Upgrade important CI environment (#76278)``
-   * ``[main] Upgrade important CI environment (#75270)``
    * ``Parametrize Spark sensor waiting-state tests (#75879)``
 
 10.25.0

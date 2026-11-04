@@ -43,7 +43,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Switch the default async MySQL driver to asyncmy (#75218)``
+* ``Install asyncmy for the async metadata database engine and add an aiomysql extra (#75218)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

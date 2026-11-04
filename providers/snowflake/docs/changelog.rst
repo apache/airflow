@@ -39,13 +39,8 @@ Bug Fixes
 ~~~~~~~~~
 
 * ``Fix stale cursor descriptions between SnowflakeHook runs (#76163)``
-* ``Fix lost transaction in SnowflakeHook when 'session_parameters' is set (#75425)``
+* ``Fix lost transaction in SnowflakeHook when 'session_parameters' is set with 'snowflake-connector-python' < 5 (#75425, #75457)``
 * ``Fix Snowflake connections ignoring region with 'snowflake-connector-python' 5 (#75334)``
-
-Misc
-~~~~
-
-* ``Clarify which Snowflake connectors need the session_parameters copy (#75457)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

@@ -40,7 +40,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Give Dag bundles their own read permission (#76329)``
+* ``Restrict the Dag bundles view to SuperAdmin in multi-team mode (#76329)``
 
 Bug Fixes
 ~~~~~~~~~
