@@ -143,7 +143,7 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         errorMessage={<ErrorAlert error={error} />}
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="browse:dagBundles.files.file"
+        modelName="browse:dagBundles.files.parsedFile"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
