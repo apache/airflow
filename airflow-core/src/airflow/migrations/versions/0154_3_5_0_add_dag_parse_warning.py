@@ -43,11 +43,13 @@ def upgrade():
         batch_op.drop_constraint("dcw_dag_id_fkey", type_="foreignkey")
         batch_op.add_column(sa.Column("bundle_name", StringID(), nullable=True))
         batch_op.add_column(sa.Column("filename", sa.String(length=1024), nullable=True))
+        batch_op.create_index("idx_dag_warning_bundle_filename", ["bundle_name", "filename"], unique=False)
 
 
 def downgrade():
     op.execute("DELETE FROM dag_warning WHERE dag_id NOT IN (SELECT dag_id FROM dag)")
     with op.batch_alter_table("dag_warning") as batch_op:
+        batch_op.drop_index("idx_dag_warning_bundle_filename")
         batch_op.drop_column("filename")
         batch_op.drop_column("bundle_name")
         batch_op.create_foreign_key("dcw_dag_id_fkey", "dag", ["dag_id"], ["dag_id"], ondelete="CASCADE")

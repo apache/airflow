@@ -18,17 +18,19 @@ from __future__ import annotations
 
 import re
 
-from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
+from airflow.sdk.definitions.parse_warning_record import (
+    PARSE_FAILURE_WARNING_TYPE,
+    DagParseWarningRecord,
+)
 
 _PARSE_WARNING_TYPE_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$", re.ASCII)
-_DEFAULT_WARNING_TYPE = "user:dynamic_dag_failure"
 
 
 def emit_dag_warning(
     dag_id: str,
     message: str,
     *,
-    warning_type: str = _DEFAULT_WARNING_TYPE,
+    warning_type: str = PARSE_FAILURE_WARNING_TYPE,
     stacktrace: str | None = None,
 ) -> None:
     """Record a parse-time warning for a Dag id that could not be loaded (#29275)."""

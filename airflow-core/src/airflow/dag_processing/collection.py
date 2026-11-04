@@ -406,6 +406,7 @@ def build_dag_parse_failure_warnings(
 def _update_file_scoped_parse_failure_warnings(
     files_parsed: set[tuple[str, str]],
     parse_failure_warnings: Iterable[DagWarning],
+    *,
     session: Session,
 ) -> None:
     if files_parsed:
@@ -778,7 +779,7 @@ def update_dag_parsing_results_in_db(
         _update_file_scoped_parse_failure_warnings(
             files_parsed if files_parsed is not None else set(),
             parse_failure_warnings or (),
-            session,
+            session=session,
         )
     except Exception:
         log.exception("Error logging Dag parse failure warnings.")

@@ -63,7 +63,10 @@ class DagWarning(Base):
     )
 
     __tablename__ = "dag_warning"
-    __table_args__ = (Index("idx_dag_warning_dag_id", "dag_id"),)
+    __table_args__ = (
+        Index("idx_dag_warning_dag_id", "dag_id"),
+        Index("idx_dag_warning_bundle_filename", "bundle_name", "filename"),
+    )
 
     def __init__(
         self,

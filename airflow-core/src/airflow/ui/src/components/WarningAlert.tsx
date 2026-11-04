@@ -22,7 +22,7 @@ import type { DAGWarningResponse } from "openapi/requests/types.gen";
 
 import { StatusMessage } from "src/components/StatusMessage";
 
-const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
+export const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
 
 type Props = {
   readonly warning?: DAGWarningResponse;

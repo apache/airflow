@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure"
+
 
 @dataclass
 class DagParseWarningRecord:
@@ -26,4 +28,4 @@ class DagParseWarningRecord:
 
     dag_id: str
     message: str
-    warning_type: str = "user:dynamic_dag_failure"
+    warning_type: str = PARSE_FAILURE_WARNING_TYPE

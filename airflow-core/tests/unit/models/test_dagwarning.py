@@ -181,9 +181,9 @@ class TestDagWarning:
             bundle_name="testing",
             filename="dynamic.py",
         )
-        _update_file_scoped_parse_failure_warnings(files, [warning], session)
+        _update_file_scoped_parse_failure_warnings(files, [warning], session=session)
         session.commit()
         assert len(session.scalars(select(DagWarning)).all()) == 1
-        _update_file_scoped_parse_failure_warnings(files, [], session)
+        _update_file_scoped_parse_failure_warnings(files, [], session=session)
         session.commit()
         assert session.scalars(select(DagWarning)).all() == []

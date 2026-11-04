@@ -25,10 +25,9 @@ import { useDagWarningServiceListDagWarnings } from "openapi/queries";
 import { DAGWarningsModal } from "src/components/DAGWarningsModal";
 import type { ExpandedApiError } from "src/components/ErrorAlert";
 import { StatsCard } from "src/components/StatsCard";
+import { PARSE_FAILURE_WARNING_TYPE } from "src/components/WarningAlert";
 
 import { useAutoRefresh } from "src/utils";
-
-const PARSE_FAILURE_WARNING_TYPE = "user:dynamic_dag_failure";
 
 export const ParseFailureWarnings = () => {
   const { onClose, onOpen, open } = useDisclosure();
