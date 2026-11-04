@@ -291,8 +291,8 @@ importers:
         specifier: ^17.13.0
         version: 17.13.0
       happy-dom:
-        specifier: ^20.14.6
-        version: 20.14.6
+        specifier: ^21.0.4
+        version: 21.0.4
       jsonc-eslint-parser:
         specifier: ^3.3.0
         version: 3.3.0
@@ -322,7 +322,7 @@ importers:
         version: 5.0.3(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
       vitest:
         specifier: ^5.0.5
-        version: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.6)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+        version: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
       web-worker:
         specifier: ^1.5.0
         version: 1.5.0
@@ -2828,8 +2828,8 @@ packages:
     engines: {node: '>=0.4.7'}
     hasBin: true
 
-  happy-dom@20.14.6:
-    resolution: {integrity: sha512-5DDsf4QmEIlRL6NkCv/fxSjYHHkZceL/IaYQdJc2h3G7DRTEai++VTjbfL0LB9geW2VrA3+vrjF3Efx+OTtX0Q==}
+  happy-dom@21.0.4:
+    resolution: {integrity: sha512-tFm+GaLBgo6o0awHnvHaNoraVo27qJ+2tZEtZ+cIa08hXbeitrxAJajLI05hsUy/2/YTKcUjQYzHe5mCcraLBw==}
     engines: {node: '>=20.0.0'}
 
   has-bigints@1.1.0:
@@ -5496,7 +5496,7 @@ snapshots:
       picocolors: 1.1.1
       redent: 3.0.0
     optionalDependencies:
-      vitest: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.6)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+      vitest: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
 
   '@testing-library/react@16.3.3(@testing-library/dom@10.4.0)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
@@ -5940,7 +5940,7 @@ snapshots:
       obug: 3.0.0
       std-env: 4.3.0
       tinyrainbow: 3.2.0
-      vitest: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.6)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+      vitest: 5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
 
   '@vitest/istanbul-lib-coverage@1.0.2': {}
 
@@ -7776,7 +7776,7 @@ snapshots:
     optionalDependencies:
       uglify-js: 3.19.3
 
-  happy-dom@20.14.6:
+  happy-dom@21.0.4:
     dependencies:
       '@types/node': 26.6.6
       '@types/whatwg-mimetype': 3.0.2
@@ -9761,7 +9761,7 @@ snapshots:
       jiti: 1.21.7
       yaml: 2.9.1
 
-  vitest@5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@20.14.6)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)):
+  vitest@5.0.5(@types/node@26.6.6)(@vitest/coverage-v8@5.0.5)(happy-dom@21.0.4)(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)):
     dependencies:
       '@types/chai': 5.2.3
       '@vitest/mocker': 5.0.5(msw@3.0.3(@types/node@26.6.6)(graphql@16.14.2)(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(vite@8.3.5(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
@@ -9780,7 +9780,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 26.6.6
       '@vitest/coverage-v8': 5.0.5(vitest@5.0.5)
-      happy-dom: 20.14.6
+      happy-dom: 21.0.4
     transitivePeerDependencies:
       - msw
 
