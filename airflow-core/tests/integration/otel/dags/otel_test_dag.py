@@ -34,7 +34,15 @@ args = {
 }
 
 
-@task
+def on_execute(context):
+    logger.info("on_execute_callback fired")
+
+
+def on_success(context):
+    logger.info("on_success_callback fired")
+
+
+@task(on_execute_callback=on_execute, on_success_callback=on_success)
 def task1():
     logger.info("starting task1")
 
