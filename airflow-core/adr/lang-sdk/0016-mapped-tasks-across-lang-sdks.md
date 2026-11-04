@@ -145,11 +145,10 @@ the real Dag, so no binding carries a callable or a reference to one.
 ### Stub-task arg bindings
 
 Serialization drops `python_callable`, so a stub task's signature is lost, and a stub runtime never
-parses the Dag file. One task field carries what the server needs instead: `_arg_bindings`, with one
-plain-JSON entry per parameter, in declaration order.
-
-An entry's `kind` says how far parse time got. Four kinds leave the server unchanged. `param` is the
-one the server resolves at `ti_run`, because that parameter's value differs per map index.
+parses the Dag file. `_arg_bindings` carries what the server needs instead: one plain-JSON entry per
+parameter, in declaration order, whose `kind` says how far parse time got. Four kinds leave the
+server unchanged; `param` is the one it resolves at `ti_run`, because that parameter's value differs
+per map index.
 
 | `kind` | Means | Other keys |
 |---|---|---|
@@ -170,35 +169,29 @@ one the server resolves at `ti_run`, because that parameter's value differs per 
 ]
 ```
 
-`name` and `value_schema` are on every kind. `name` is the parameter's name and the list order is
-the declaration order, so a runtime binds by either; an SDK that binds by position, as Go does, has
-nothing but the order to go on. `value_schema` is the JSON Schema of the annotation, for a runtime
-that decodes into machine types.
+Every kind carries `name` and `value_schema`: the parameter's name, and the JSON Schema of its
+annotation for a runtime that decodes into machine types. Declaration order is load-bearing — an SDK
+that binds by position, as Go does, has nothing else to go on.
 
-A `param` entry is the signature, not the call. It holds no mapped value: those stay in the fields
-Python already writes — `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
-`partial_kwargs.op_kwargs` — and at `ti_run` the server matches by `name` and reads this index's
-element out of them. `default` is the fallback when nothing else binds the parameter, which only
-`expand_kwargs()` can leave open until run time. `group_arg` is `{group_id, key}` instead, when the
-value is an expand argument of an enclosing mapped task group.
+A `param` entry is the signature, not the call. The mapped values stay in the fields Python already
+writes: `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
+`partial_kwargs.op_kwargs`. At `ti_run` the server resolves the entry from `group_arg` first —
+`{group_id, key}`, naming an expand argument of an enclosing mapped task group — then from those
+fields by `name`, then from `default`. Only `expand_kwargs()` can leave a parameter unbound until
+run time, so only it needs that fallback.
 
-Parse time emits `param` only where it genuinely cannot decide: a mapped stub's parameters, and a
-mapped task group member's argument that names the group. A member's other arguments are ordinary
-`literal`, `xcom`, `sequence` or `local` entries, and its unbound parameters resolve to their
-defaults at parse time, because that fallback does not vary by index. An argument naming a task in
-the same mapped group is `sequence`, since that producer is itself expanded, and the server narrows
-it to this index's row at `ti_run` — the kind in the Dag is not always the kind on the wire. With no
-`_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
+Parse time emits `param` just twice: for a mapped stub's parameters, and for a group member's
+argument that names its group. A member's other arguments are ordinary `literal`, `xcom`, `sequence`
+or `local` entries, and its unbound parameters take their defaults at parse time, because that
+fallback does not vary by index.
 
-The field stays plain JSON, with no `{__type, __var}` encoding, because nothing in it needs more. An
-XCom reference is `kind` plus `task_id`: a stub argument may only name an upstream task's
-`return_value`, so there is no key to record, and a `map()`, `zip()` or `concat()` argument is
-`local`, which carries no payload. Every `value` and `default` is checked JSON-serializable when it
-is written, so it crosses the language boundary as it stands.
+Two kinds appear on one side only. `param` never reaches the runtime, the server having resolved it.
+`tuple`, the `zip()` element below, is never in the Dag, since only the server knows which rows meet
+at this index. Nor is the kind in the Dag always the kind on the wire: an argument naming a task in
+the same mapped group is `sequence`, that producer being expanded itself, and the server narrows it
+to this index's row.
 
-Two kinds do not appear on both sides. `param` never reaches the runtime, since the server has
-resolved it by then; `tuple`, the `zip()` element below, never appears in the Dag, since only the
-server knows which rows meet at this index.
+With no `_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
 
 ## What the Execution API sends
 
@@ -423,3 +416,20 @@ What every SDK implements, in order. Nothing here is language-specific.
 
 - **`map()` over a Python callable costs a Dag-file import per consuming task instance.** Only tasks that consume a `map()` pay it; every other stub TaskHandler keeps the no-parse path bindings were built to give it. The helper executes Dag-file Python on the worker for a task whose body is not Python — the same trust boundary as any Python task there, but a new one for a stub TaskHandler.
 - **`map()` callables are serialized as source text for display only.** Core deliberately does not deserialize them ([`SchedulerMapXComArg`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/serialization/definitions/xcom_arg.py#L105-L115)), so an SDK emits its own source the same way and no language has to read another's.
+
+## Rejected alternatives
+
+**A second field beside `_arg_bindings` for the entries the server resolves.** Splitting one list by
+whether parse time could finish it gives a reader two shapes to learn, duplicates `name` and
+`value_schema` across both, and leaves `value` meaning the delivered value in one and the unresolved
+call argument in the other. A `param` kind says the same thing in one field, and the server already
+has the discriminator it needs in `is_mapped` and `get_closest_mapped_task_group`. The cost is
+widening `arg_binding.kind` on a field that already ships, which the serialized-Dag versioning work
+covers.
+
+**`{__type, __var}` encoding for those entries.** Nothing in a binding needs it. An XCom reference is
+`kind` plus `task_id`, because a stub argument may only name an upstream task's `return_value`, so
+there is no key to record. A `map()`, `zip()` or `concat()` argument is `local`, which carries no
+payload. Every `value` and `default` is checked JSON-serializable when it is written, so it crosses
+the language boundary as it stands. Plain JSON also keeps the stored Dag readable, where the encoded
+form wrapped every `value_schema` and every dict-valued `default` in a second object.
