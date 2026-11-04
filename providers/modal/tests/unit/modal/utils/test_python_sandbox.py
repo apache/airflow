@@ -37,8 +37,9 @@ def _run(tmp_path, source: str, function_name: str, *args, timeout: int | None =
     payload = build_payload(
         source=textwrap.dedent(source), function_name=function_name, args=args, kwargs=kwargs
     )
-    # LocalSandbox stands in for modal.Sandbox with the same stdin surface.
+    # LocalSandbox stands in for modal.Sandbox with the same surface.
     send_payload(sandbox, payload)  # type: ignore[arg-type]
+    wait_for_exit(sandbox)  # type: ignore[arg-type]
     return sandbox
 
 
@@ -122,13 +123,20 @@ class TestBootstrap:
 
 
 def test_wait_for_exit_turns_a_timeout_into_its_exit_code(tmp_path):
+    # Modal's wait raises SandboxTimeoutError here even with raise_on_termination=False.
     sandbox = _run(tmp_path, "def nap():\n    import time\n    time.sleep(30)\n", "nap", timeout=1)
-
-    wait_for_exit(sandbox)  # type: ignore[arg-type]
 
     assert sandbox.returncode == TIMEOUT_RETURNCODE
 
 
-def test_decode_result_of_empty_stdout_raises():
-    with pytest.raises(ValueError, match="wrote no return value"):
-        decode_result("")
+class TestDecodeResult:
+    def test_empty_stdout_raises(self):
+        with pytest.raises(ValueError, match="wrote no return value"):
+            decode_result("")
+
+    def test_a_value_modal_kept_only_the_end_of_raises_a_clear_error(self, tmp_path):
+        sandbox = _run(tmp_path, "def big():\n    return 'x' * 100_000\n", "big")
+        whole = sandbox.stdout.read()
+
+        with pytest.raises(ValueError, match="too large for Modal to keep"):
+            decode_result(whole[len(whole) // 2 :])

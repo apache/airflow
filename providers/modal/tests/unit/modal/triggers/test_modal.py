@@ -16,15 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from unittest import mock
 
+import modal
 import pytest
 
 from airflow.providers.modal.hooks.modal import ModalHook
 from airflow.providers.modal.triggers.modal import ModalSandboxTrigger
 from airflow.triggers.base import TriggerEvent
-
-modal = pytest.importorskip("modal")
 
 
 async def _lines(*lines: str):
@@ -123,15 +123,28 @@ async def test_timeout_fires_an_event_with_exit_code_124():
     assert sandbox.terminate.calls == []
 
 
-async def _broken_stream():
+async def _stream_ending_with(error: BaseException):
     yield "epoch 1\n"
-    raise modal.exception.ConnectionError("stream reset")
+    raise error
 
 
 @pytest.mark.asyncio
-async def test_losing_the_output_stream_terminates_the_sandbox_and_fails():
+async def test_losing_the_output_stream_keeps_waiting_for_the_sandbox():
+    sandbox = _AsyncSandbox(stderr_lines=[], returncode=0)
+    sandbox.stderr = _stream_ending_with(modal.exception.ConnectionError("stream reset"))
+    trigger = ModalSandboxTrigger(sandbox_id="sb-1")
+
+    with mock.patch.object(ModalHook, "aget_sandbox", autospec=True, return_value=sandbox):
+        events = [event async for event in trigger.run()]
+
+    assert events == [TriggerEvent({"sandbox_id": "sb-1", "returncode": 0})]
+    assert sandbox.terminate.calls == []
+
+
+@pytest.mark.asyncio
+async def test_losing_track_of_the_sandbox_terminates_it_and_fails():
     sandbox = _AsyncSandbox(stderr_lines=[], returncode=None)
-    sandbox.stderr = _broken_stream()
+    sandbox.wait = _AioMethod(raises=modal.exception.ConnectionError("connection lost"))
     trigger = ModalSandboxTrigger(sandbox_id="sb-1")
 
     with (
@@ -141,3 +154,18 @@ async def test_losing_the_output_stream_terminates_the_sandbox_and_fails():
         [event async for event in trigger.run()]
 
     assert sandbox.terminate.calls == [((), {})]
+
+
+@pytest.mark.asyncio
+async def test_cancellation_leaves_the_sandbox_to_the_next_triggerer():
+    sandbox = _AsyncSandbox(stderr_lines=[], returncode=None)
+    sandbox.stderr = _stream_ending_with(asyncio.CancelledError())
+    trigger = ModalSandboxTrigger(sandbox_id="sb-1")
+
+    with (
+        mock.patch.object(ModalHook, "aget_sandbox", autospec=True, return_value=sandbox),
+        pytest.raises(asyncio.CancelledError),
+    ):
+        [event async for event in trigger.run()]
+
+    assert sandbox.terminate.calls == []

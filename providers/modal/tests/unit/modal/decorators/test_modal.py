@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest import mock
 
+import modal
 import pytest
 
 from airflow.providers.modal.decorators.modal import _ModalDecoratedOperator
@@ -30,8 +32,6 @@ from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.execution_time.comms import DeferTask
 
 from unit.modal.local_sandbox import LocalSandbox
-
-modal = pytest.importorskip("modal")
 
 
 @pytest.fixture
@@ -229,6 +229,48 @@ class TestModalTask:
         assert sandbox.create_kwargs["app_name"] == "airflow"
         assert sandbox.create_kwargs["image"] is debian_slim.return_value
 
+    def test_a_single_secret_name_is_one_secret(self, run_task, sandboxes):
+        secret = modal.Secret.from_dict({"HF_TOKEN": "x"})
+        with DAG(dag_id="modal_dag"):
+
+            @task.modal(secrets="huggingface")
+            def infer():
+                return None
+
+            operator = _operator(infer())
+
+        with mock.patch.object(ModalHook, "get_secret", autospec=True, return_value=secret) as get_secret:
+            run_task(operator)
+
+        (sandbox,) = sandboxes
+        assert sandbox.create_kwargs["secrets"] == [secret]
+        assert get_secret.call_args.args[1:] == ("huggingface",)
+
+    @pytest.mark.parametrize(
+        ("timeout", "execution_timeout", "sandbox_timeout"),
+        [
+            pytest.param(3600, timedelta(seconds=30), 30, id="execution-timeout-caps-timeout"),
+            pytest.param(None, timedelta(seconds=30.5), 31, id="execution-timeout-alone"),
+            pytest.param(10, timedelta(seconds=30), 10, id="shorter-timeout-wins"),
+            pytest.param(10, None, 10, id="timeout-alone"),
+        ],
+    )
+    def test_execution_timeout_caps_the_sandbox_timeout(
+        self, run_task, sandboxes, timeout, execution_timeout, sandbox_timeout
+    ):
+        with DAG(dag_id="modal_dag"):
+
+            @task.modal(timeout=timeout, execution_timeout=execution_timeout)
+            def noop():
+                return None
+
+            operator = _operator(noop())
+
+        run_task(operator)
+
+        (sandbox,) = sandboxes
+        assert sandbox.create_kwargs["timeout"] == sandbox_timeout
+
 
 class TestFailures:
     def test_timeout_fails_the_task_with_exit_code_124(self, run_task, sandboxes):
@@ -247,13 +289,33 @@ class TestFailures:
         assert run_task.state == TaskInstanceState.FAILED
         assert isinstance(run_task.error, ModalSandboxError)
         assert run_task.error.returncode == 124
-        assert "reached its timeout" in str(run_task.error)
+        assert "reached its timeout (1s)" in str(run_task.error)
 
-    def test_losing_the_output_stream_terminates_the_sandbox(self, run_task, sandboxes, monkeypatch):
+    def test_losing_the_output_stream_keeps_waiting_for_the_result(self, run_task, sandboxes, monkeypatch):
         def broken_stream(self):
             raise modal.exception.ConnectionError("stream reset")
 
         monkeypatch.setattr(LocalSandbox, "stderr", property(broken_stream))
+        with DAG(dag_id="modal_dag"):
+
+            @task.modal
+            def train():
+                return {"loss": 0.1}
+
+            operator = _operator(train())
+
+        run_task(operator)
+
+        assert run_task.state == TaskInstanceState.SUCCESS, run_task.error
+        assert run_task.xcom.get(key="return_value") == {"loss": 0.1}
+        (sandbox,) = sandboxes
+        assert not sandbox.terminated
+
+    def test_losing_track_of_the_sandbox_terminates_it(self, run_task, sandboxes, monkeypatch):
+        def lost(self, raise_on_termination=True):
+            raise modal.exception.ConnectionError("connection lost")
+
+        monkeypatch.setattr(LocalSandbox, "wait", lost)
         with DAG(dag_id="modal_dag"):
 
             @task.modal
@@ -274,7 +336,7 @@ class TestDeferrable:
     def test_defers_to_a_trigger_for_the_started_sandbox(self, run_task, sandboxes):
         with DAG(dag_id="modal_dag"):
 
-            @task.modal(deferrable=True, modal_conn_id="modal_gpu")
+            @task.modal(deferrable=True, modal_conn_id="modal_gpu", execution_timeout=timedelta(hours=2))
             def train():
                 return {"loss": 0.1}
 
@@ -288,10 +350,11 @@ class TestDeferrable:
         assert run_task.msg.classpath == classpath
         assert run_task.msg.trigger_kwargs == kwargs
         assert run_task.msg.next_method == "execute_complete"
+        assert run_task.msg.trigger_timeout == timedelta(hours=2)
         (sandbox,) = sandboxes
         assert not sandbox.terminated, "deferring must leave the sandbox running for the trigger"
 
-    def test_execute_complete_reads_the_return_value_from_the_sandbox(self, sandboxes, tmp_path):
+    def test_execute_complete_reads_the_return_value_from_the_sandbox(self, sandboxes):
         with DAG(dag_id="modal_dag"):
 
             @task.modal(deferrable=True)
@@ -309,7 +372,7 @@ class TestDeferrable:
     @pytest.mark.parametrize(
         ("returncode", "message"),
         [
-            pytest.param(124, "reached its timeout", id="timeout"),
+            pytest.param(124, r"reached its timeout \(300s, Modal's default\)", id="timeout"),
             pytest.param(137, "was terminated", id="terminated"),
             pytest.param(1, "failed in Modal sandbox sb-1 with exit code 1", id="function-error"),
         ],
@@ -329,17 +392,37 @@ class TestDeferrable:
         assert exc_info.value.returncode == returncode
 
 
-def test_on_kill_terminates_the_running_sandbox(tmp_path):
-    with DAG(dag_id="modal_dag"):
+class TestOnKill:
+    def test_terminates_the_running_sandbox(self, tmp_path):
+        with DAG(dag_id="modal_dag"):
 
-        @task.modal
-        def train():
-            return None
+            @task.modal
+            def train():
+                return None
 
-        operator = _operator(train())
-    sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path)
-    operator._sandbox = sandbox
+            operator = _operator(train())
+        sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path)
+        operator._sandbox = sandbox
 
-    operator.on_kill()
+        operator.on_kill()
 
-    assert sandbox.terminated
+        assert sandbox.terminated
+
+    def test_a_failed_terminate_is_logged_not_raised(self, tmp_path, monkeypatch):
+        def gone(self):
+            raise modal.exception.NotFoundError("sandbox gone")
+
+        monkeypatch.setattr(LocalSandbox, "terminate", gone)
+        with DAG(dag_id="modal_dag"):
+
+            @task.modal
+            def train():
+                return None
+
+            operator = _operator(train())
+        operator._sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path)
+
+        with mock.patch.object(type(operator), "log", new_callable=mock.PropertyMock) as log:
+            operator.on_kill()
+
+        assert "Failed to terminate" in log.return_value.warning.call_args.args[0]

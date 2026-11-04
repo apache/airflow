@@ -496,3 +496,28 @@ class TestGetAsyncClient:
 
         assert len({id(client) for client in clients}) == 1
         assert constructor.calls == [(TOKEN_ID, TOKEN_SECRET)]
+
+    async def test_aget_sandbox_reattaches_through_the_async_client(self, async_client_cls):
+        connection = Connection(
+            conn_id="modal_full", conn_type="modal", login=TOKEN_ID, password=TOKEN_SECRET
+        )
+        reattached: list[tuple[str, object]] = []
+
+        class _FromId:
+            async def aio(self, sandbox_id, *, client):
+                reattached.append((sandbox_id, client))
+                return mock.sentinel.sandbox
+
+        class _SandboxClass:
+            from_id = _FromId()
+
+        with (
+            _async_lookup(returns=connection),
+            mock.patch("airflow.providers.modal.hooks.modal.modal.Sandbox", new=_SandboxClass),
+        ):
+            hook = ModalHook(modal_conn_id="modal_full")
+            sandbox = await hook.aget_sandbox("sb-1")
+            client = await hook.get_async_client()
+
+        assert sandbox is mock.sentinel.sandbox
+        assert reattached == [("sb-1", client)]

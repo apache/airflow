@@ -184,7 +184,7 @@ class ModalHook(BaseHook):
         connection: Connection | None = None
         if self.modal_conn_id is not None:
             try:
-                connection = await get_async_connection(self.modal_conn_id, hook=self)
+                connection = await get_async_connection(self.modal_conn_id)
             except AirflowNotFoundException as e:
                 self._fall_back_to_ambient(e)
         credentials = self._credentials_from(connection)

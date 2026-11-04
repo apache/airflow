@@ -27,7 +27,8 @@ import modal
 
 from airflow.providers.modal.utils.python_sandbox import TIMEOUT_RETURNCODE
 
-# Modal 1.6.3's stdin buffer for a sandbox entrypoint (``modal.io_streams.MAX_BUFFER_SIZE``).
+# Modal's stdin buffer for a sandbox entrypoint, ``MAX_BUFFER_SIZE`` in ``modal/io_streams.py``
+# (not in the package's type stubs, so not imported).
 STDIN_BUFFER_BYTES = 2 * 1024 * 1024
 
 
@@ -72,9 +73,10 @@ class LocalSandbox:
 
     Behaves like the parts of ``modal.Sandbox`` that ``@task.modal`` uses: stdin holds at most
     2 MiB between drains and reaches the command once it is closed and drained, ``stdout`` and
-    ``stderr`` are separate streams read line by line or whole, ``returncode`` is set once the
-    command has exited, and a command that outlives ``timeout`` gets exit code 124 and makes
-    ``wait`` raise ``SandboxTimeoutError`` whatever ``raise_on_termination`` says. ``python`` in
+    ``stderr`` are separate streams read line by line or whole, ``returncode`` stays ``None``
+    until ``wait`` has seen the command exit, and a command that outlives ``timeout`` gets exit
+    code 124 and makes ``wait`` raise ``SandboxTimeoutError`` whatever ``raise_on_termination``
+    says. ``python`` in
     the command is replaced by the interpreter running the tests, and ``TMPDIR`` points into the
     test's temporary directory.
     """
@@ -90,6 +92,7 @@ class LocalSandbox:
         self.terminated = False
         self._stdin_closed = False
         self._stdout = self._stderr = ""
+        self._exit_code: int | None = None
 
     def _run(self, stdin: bytes) -> None:
         program, *args = self.entrypoint
@@ -106,11 +109,11 @@ class LocalSandbox:
         except subprocess.TimeoutExpired as e:
             self._stdout = (e.stdout or b"").decode()
             self._stderr = (e.stderr or b"").decode()
-            self.returncode = TIMEOUT_RETURNCODE
+            self._exit_code = TIMEOUT_RETURNCODE
             return
         self._stdout = completed.stdout.decode()
         self._stderr = completed.stderr.decode()
-        self.returncode = completed.returncode
+        self._exit_code = completed.returncode
 
     @property
     def stdout(self) -> _Stream:
@@ -121,6 +124,7 @@ class LocalSandbox:
         return _Stream(self._stderr)
 
     def wait(self, raise_on_termination: bool = True) -> None:
+        self.returncode = self._exit_code
         if self.returncode == TIMEOUT_RETURNCODE:
             raise modal.exception.SandboxTimeoutError()
 

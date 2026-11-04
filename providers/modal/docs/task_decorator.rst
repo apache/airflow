@@ -79,7 +79,11 @@ The function's source is sent to the sandbox on its own, as with ``@task.docker`
 * Arguments and the return value are pickled. They must load on the other side, so pass
   plain Python values, not objects from packages that only the worker or only the image has.
   The image needs Python 3.8 or later, and its minor version does not have to match the
-  worker's.
+  worker's. Dates that come from another task's XCom arrive as ``pendulum`` objects, which
+  need ``pendulum`` in the image; pass ``.isoformat()`` strings instead to avoid that.
+* Keep the return value small. It comes back through the sandbox's output, and Modal keeps a
+  limited amount of that; the task fails with a clear error when the value was cut short.
+  Write large results to a volume and return their path.
 * Pass credentials as Modal secrets, not as arguments: arguments are rendered in the Airflow UI.
 
 Choosing resources
@@ -91,7 +95,8 @@ unset gets Modal's default; :func:`~airflow.providers.modal.decorators.modal.mod
 lists every argument. Before a long or memory-heavy run:
 
 * Set ``timeout`` for anything that runs longer than five minutes. Modal stops a sandbox after
-  300 seconds by default.
+  300 seconds by default. The task's ``execution_timeout``, when set, caps it, so a sandbox
+  never outlives its task.
 * A single ``cpu`` or ``memory`` number is a reservation, which the sandbox can exceed. To cap
   it, pass a ``(reservation, limit)`` pair; a function that goes over a memory limit is
   stopped.
@@ -136,9 +141,13 @@ and when the sandbox exits the task resumes on a worker to read the return value
 
 On a T4 the task pushes ``"Tesla T4, 15360 MiB"`` to XCom.
 
+The triggerer talks to Modal through the same ``modal_conn_id``. If you rely on ambient
+credentials (``MODAL_TOKEN_ID`` and ``MODAL_TOKEN_SECRET``, or ``~/.modal.toml``) rather than
+a connection, the triggerer needs them as well as the workers.
+
 If the triggerer restarts while it waits, the trigger that takes over reads the output again
-from the start, so the task log repeats the lines logged before the restart.
-``[operators] default_deferrable`` sets the default for ``deferrable``.
+from the oldest part Modal still holds, so the task log can repeat lines logged before the
+restart. ``[operators] default_deferrable`` sets the default for ``deferrable``.
 
 When the function fails
 -----------------------
@@ -151,15 +160,15 @@ happened and where:
   above.``
 * The sandbox ran past ``timeout`` (exit code 124). Modal interrupts the function, so the task
   log shows a ``KeyboardInterrupt`` traceback from wherever it was, followed by ``Modal sandbox
-  sb-... reached its timeout before the function returned. Raise the decorator's timeout
-  (Modal's default is 300 seconds).``
+  sb-... reached its timeout (10s) before the function returned. Raise the decorator's
+  timeout, and the task's execution_timeout, which caps it.``
 * The sandbox was stopped from outside (exit code 137), for example by going over a ``memory``
   limit: ``Modal sandbox sb-... was terminated before the function returned, for example
   because it ran out of memory under a memory limit, or from the Modal dashboard.``
 
-If the task fails for any other reason after starting the sandbox, such as losing the
-connection to Modal while following its output, it terminates the sandbox before failing, so
-a retry does not run beside the earlier attempt.
+If the task loses the function's output stream, it logs a warning and keeps waiting for the
+sandbox to exit. If it loses track of the sandbox itself, it tries to terminate the sandbox
+before failing, so a retry does not run beside the earlier attempt.
 
 A retry starts a new sandbox and runs the function from the beginning. Marking a running task
 failed or success, or clearing it, terminates its sandbox. A worker that dies without running

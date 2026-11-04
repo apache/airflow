@@ -19,11 +19,14 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.modal.hooks.modal import ModalHook
 from airflow.providers.modal.utils.python_sandbox import await_exit
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+
+if TYPE_CHECKING:
+    import modal
 
 
 class ModalSandboxTrigger(BaseTrigger):
@@ -56,8 +59,7 @@ class ModalSandboxTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             sandbox = await ModalHook(modal_conn_id=self.modal_conn_id).aget_sandbox(self.sandbox_id)
-            async for line in sandbox.stderr:
-                self.log.info("%s", line.rstrip("\n"))
+            await self._log_output(sandbox)
             await await_exit(sandbox)
         except Exception:
             # The task fails with this error and a retry starts a new sandbox, so stop this one.
@@ -66,6 +68,17 @@ class ModalSandboxTrigger(BaseTrigger):
             await self._terminate()
             raise
         yield TriggerEvent({"sandbox_id": self.sandbox_id, "returncode": sandbox.returncode})
+
+    async def _log_output(self, sandbox: modal.Sandbox) -> None:
+        try:
+            async for line in sandbox.stderr:
+                self.log.info("%s", line.rstrip("\n"))
+        except Exception as e:
+            # Modal's reader gives up on a stream after a fixed number of retries over its whole
+            # life. Losing the output is no reason to stop a function that is still running.
+            self.log.warning(
+                "Lost the output of Modal sandbox %s (%s); waiting for it to exit.", self.sandbox_id, e
+            )
 
     async def on_kill(self) -> None:
         """

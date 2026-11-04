@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -65,7 +66,7 @@ class _ModalSandboxOperator(BaseOperator):
         cpu: float | tuple[float, float] | None = None,
         memory: int | tuple[int, int] | None = None,
         timeout: int | None = None,
-        secrets: Sequence[modal.Secret | str] | None = None,
+        secrets: Sequence[modal.Secret | str] | str | None = None,
         volumes: dict[str, modal.Volume | str] | None = None,
         modal_conn_id: str | None = ModalHook.default_conn_name,
         app_name: str = "airflow",
@@ -94,24 +95,37 @@ class _ModalSandboxOperator(BaseOperator):
             "gpu": self.gpu,
             "cpu": self.cpu,
             "memory": self.memory,
-            "timeout": self.timeout,
+            "timeout": self._sandbox_timeout(),
         }
         options = {key: value for key, value in options.items() if value is not None}
         # Names resolve here, through the hook, so they use the connection's credentials and
         # environment, and a Dag file that names them makes no Modal call when it is parsed.
         if self.secrets is not None:
+            secrets = [self.secrets] if isinstance(self.secrets, str) else self.secrets
             options["secrets"] = [
-                hook.get_secret(secret) if isinstance(secret, str) else secret for secret in self.secrets
+                hook.get_secret(secret) if isinstance(secret, str) else secret for secret in secrets
             ]
         if self.volumes is not None:
             options["volumes"] = {
                 path: hook.get_volume(volume) if isinstance(volume, str) else volume
                 for path, volume in self.volumes.items()
             }
-        # Resolved at run time rather than as a parameter default: debian_slim() pins the Python
-        # version of the process that builds it, and that must be the worker's.
+        # Built when the task runs, so debian_slim() takes the Python version of the worker,
+        # not of whichever process imported this module.
         options["image"] = self.image or modal.Image.debian_slim()
         return options
+
+    def _sandbox_timeout(self) -> int | None:
+        """
+        Modal's timeout for the sandbox: ``timeout``, capped at the task's ``execution_timeout``.
+
+        The cap is what stops a deferred task's sandbox when ``execution_timeout`` runs out: the
+        triggerer gives up on the trigger without calling ``on_kill``, so only Modal can stop it.
+        """
+        if self.execution_timeout is None:
+            return self.timeout
+        cap = math.ceil(self.execution_timeout.total_seconds())
+        return cap if self.timeout is None else min(self.timeout, cap)
 
     def _sandbox_tags(self, context: Context) -> dict[str, str]:
         """Tags that find the sandbox from a task instance in the Modal dashboard, and back."""
@@ -147,15 +161,26 @@ class _ModalSandboxOperator(BaseOperator):
                         sandbox_id=sandbox.object_id, modal_conn_id=self.modal_conn_id
                     ),
                     method_name="execute_complete",
+                    timeout=self.execution_timeout,
                 )
-            for line in sandbox.stderr:
-                self.log.info("%s", line.rstrip("\n"))
+            self._log_output(sandbox)
             wait_for_exit(sandbox)
         except Exception:
             self.on_kill()
             raise
         self._raise_for_returncode(sandbox.object_id, sandbox.returncode)
         return decode_result(sandbox.stdout.read())
+
+    def _log_output(self, sandbox: modal.Sandbox) -> None:
+        try:
+            for line in sandbox.stderr:
+                self.log.info("%s", line.rstrip("\n"))
+        except Exception as e:
+            # Modal's reader gives up on a stream after a fixed number of retries over its whole
+            # life. Losing the output is no reason to stop a function that is still running.
+            self.log.warning(
+                "Lost the output of Modal sandbox %s (%s); waiting for it to exit.", sandbox.object_id, e
+            )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """Read the return value once the trigger reports that the sandbox exited."""
@@ -168,9 +193,12 @@ class _ModalSandboxOperator(BaseOperator):
         if returncode == 0:
             return
         if returncode == TIMEOUT_RETURNCODE:
+            timeout = self._sandbox_timeout()
+            limit = f"{timeout}s" if timeout is not None else "300s, Modal's default"
             message = (
-                f"Modal sandbox {sandbox_id} reached its timeout before the function returned. "
-                "Raise the decorator's timeout (Modal's default is 300 seconds)."
+                f"Modal sandbox {sandbox_id} reached its timeout ({limit}) before the function "
+                "returned. Raise the decorator's timeout, and the task's execution_timeout, which "
+                "caps it."
             )
         elif returncode == TERMINATED_RETURNCODE:
             message = (
@@ -228,9 +256,6 @@ class _ModalDecoratedOperator(DecoratedOperator, _ModalSandboxOperator):
             kwargs=dict(self.op_kwargs),
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
-        return self._handle_output(super().execute_complete(context, event))
-
 
 def modal_task(
     python_callable: Callable | None = None,
@@ -244,7 +269,7 @@ def modal_task(
 
     :param python_callable: Function to decorate.
     :param multiple_outputs: If set, a returned dict is unrolled to multiple XCom values, one
-        per key. Defaults to False.
+        per key. When unset, it is inferred from the function's return annotation.
     :param image: The ``modal.Image`` to run in. Defaults to ``modal.Image.debian_slim()`` built
         for the worker's Python version. Any image with Python 3.8 or later on its ``PATH`` as
         ``python`` works; the function's dependencies go here, not on the worker.
@@ -252,9 +277,10 @@ def modal_task(
     :param cpu: CPU cores to reserve, or a ``(reservation, limit)`` pair to also cap usage.
     :param memory: Memory to reserve in MiB, or a ``(reservation, limit)`` pair to also cap it.
     :param timeout: Seconds the sandbox may run before Modal stops it. Modal's default is 300.
+        The task's ``execution_timeout``, when set, caps it.
     :param secrets: Modal secrets whose keys become environment variables inside the sandbox,
-        as names or ``modal.Secret`` objects. Names are looked up when the task runs, in the
-        connection's environment.
+        as a name, or a list of names or ``modal.Secret`` objects. Names are looked up when the
+        task runs, in the connection's environment.
     :param volumes: Mount points mapped to Modal volumes, as names or ``modal.Volume`` objects.
         Names are looked up when the task runs, in the connection's environment.
     :param modal_conn_id: :ref:`Modal connection id <howto/connection:modal>`.

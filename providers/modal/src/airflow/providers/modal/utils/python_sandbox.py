@@ -30,13 +30,14 @@ reconnects to an Airflow supervisor when it finds Airflow installed, and a sandb
 
 Both streams outlive the sandbox and can be read through a new handle from
 ``Sandbox.from_id``, which is what lets the deferrable path follow the output on the triggerer
-and collect the return value back on a worker. This module is shared by the decorator, on a
-worker, and the trigger, on the triggerer, so it imports nothing from Airflow.
+and collect the return value back on a worker. Both the decorator, on a worker, and the
+trigger, on the triggerer, use this module.
 """
 
 from __future__ import annotations
 
 import base64
+import binascii
 import contextlib
 import json
 import pickle
@@ -134,8 +135,16 @@ def decode_result(stdout: str) -> Any:
     """
     Return the function's return value from the sandbox's stdout.
 
-    :raises ValueError: When stdout is empty, which happens when the function did not return.
+    :raises ValueError: When stdout is empty, which happens when the function did not return,
+        or does not hold a whole value, which happens when Modal kept only the end of a large one.
     """
     if not stdout:
         raise ValueError("The sandbox exited cleanly but wrote no return value.")
-    return pickle.loads(base64.b64decode(stdout))
+    try:
+        return pickle.loads(base64.b64decode(stdout, validate=True))
+    except (binascii.Error, pickle.UnpicklingError, EOFError) as e:
+        raise ValueError(
+            f"The return value ({len(stdout)} characters read back) is incomplete, most likely "
+            "because it was too large for Modal to keep. Write large results to a Modal volume "
+            "and return their path instead."
+        ) from e
