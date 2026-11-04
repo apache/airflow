@@ -36,6 +36,7 @@ from airflow.api_fastapi.execution_api import security
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken, TokenScope
 from airflow.api_fastapi.execution_api.security import (
+    ASSET_WATCHER_ID,
     ExecutionAPIRoute,
     _jwt_bearer,
     get_team_name_dep,
@@ -358,9 +359,10 @@ class TestAttemptLiveness:
             assert client.delete(path).status_code == 410
             assert client.get(path).status_code == 410
 
-    def test_unknown_execution_identity_cannot_write_xcom(self, client, caller, session):
+    @pytest.mark.parametrize("identity", ["unknown", "asset-watcher"])
+    def test_non_ti_identity_cannot_write_xcom(self, client, caller, session, identity):
         ti, token = caller
-        token.id = uuid4()
+        token.id = ASSET_WATCHER_ID if identity == "asset-watcher" else uuid4()
         path = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/result"
 
         assert client.post(path, json="unowned").status_code == 404
