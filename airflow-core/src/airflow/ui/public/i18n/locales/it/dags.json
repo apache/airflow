@@ -22,7 +22,6 @@
     },
     "favoriteState": "Stato preferito",
     "favoriteStatePlaceholder": "Seleziona lo stato preferito…",
-    "hasImportErrors": "Ha errori di importazione",
     "noTimetableTypesFound": "Nessun tipo di programmazione trovato",
     "paused": {
       "active": "Attivo",

@@ -132,7 +132,6 @@
     "home": "Home",
     "invalidUrl": "Pagina non trovata. Controlla l'URL e riprova.",
     "notFound": "Pagina non trovata",
-    "reload": "Ricarica la pagina",
     "title": "Errore"
   },
   "errors": {
@@ -238,10 +237,6 @@
     "write": "Scrivi"
   },
   "overallStatus": "Stato generale",
-  "pagination": {
-    "nextPage": "Pagina successiva",
-    "previousPage": "Pagina precedente"
-  },
   "partition_many": "Partizioni",
   "partition_one": "Partizione",
   "partition_other": "Partizioni",
@@ -294,8 +289,7 @@
   "search": {
     "advanced": {
       "description": "Corrispondenza in qualsiasi punto del valore (ricerca per sottostringa). Più lenta nelle installazioni grandi perché non può usare l'indice B-tree predefinito. Vedi la sezione della documentazione sugli indici personalizzati dei metadati.",
-      "title": "Corrispondenza ovunque",
-      "toggleLabel": "Attiva o disattiva la ricerca in qualsiasi punto"
+      "title": "Corrispondenza ovunque"
     }
   },
   "security": {
@@ -409,12 +403,10 @@
       "scrollBottom": "Vai in fondo",
       "scrollTop": "Vai in cima",
       "searchDags": "Cercare $t(dag_other)",
-      "selectGridCellRange": "Seleziona un intervallo di $t(taskInstance_other) o $t(taskGroup_other)",
       "showHelp": "Mostra $t(shortcuts.title)",
       "toggleExpand": "Espandi o comprimi tutti i gruppi",
       "toggleFullscreen": "Attiva o disattiva la schermata intera",
       "toggleGraphGrid": "Passa da grafico a griglia",
-      "toggleGridCellSelection": "Aggiungi o togli una $t(taskInstance_one) o un $t(taskGroup_one) dalla selezione",
       "toggleLogLevel": "Attiva o disattiva i livelli di Log",
       "toggleSource": "Attiva o disattiva la sorgente",
       "toggleTaskGroup": "Espandi o comprimi $t(taskGroup_one)",

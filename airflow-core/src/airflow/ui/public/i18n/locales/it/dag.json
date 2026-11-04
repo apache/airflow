@@ -121,10 +121,8 @@
     "noTryNumber": "Nessun numero di tentativo",
     "search": {
       "matchCount": "{{current, number}} di {{total, number}}",
-      "nextMatch": "Corrispondenza successiva",
       "noMatches": "Nessuna corrispondenza",
-      "placeholder": "Cercare nei Log...",
-      "previousMatch": "Corrispondenza precedente"
+      "placeholder": "Cercare nei Log..."
     },
     "settings": "Impostazioni Log",
     "tryNotStarted": "Questo tentativo non è ancora iniziato.",

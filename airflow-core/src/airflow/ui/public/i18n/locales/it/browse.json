@@ -32,7 +32,6 @@
       "file_one": "File",
       "file_other": "File",
       "file_zero": "Nessun file",
-      "importErrorForbidden": "Non hai il permesso di leggere questo errore di importazione.",
       "importErrorGone": "Questo errore di importazione non è più registrato. Probabilmente è stato corretto da una nuova analisi.",
       "neverParsed": "Mai",
       "showImportError_many": "Vedi {{count, number}} di errori",

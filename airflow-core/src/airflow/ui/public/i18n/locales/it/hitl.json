@@ -25,7 +25,6 @@
     "received": "Risposta ricevuta il ",
     "respond": "Rispondi",
     "responded_by_user_name": "Risposto da (Nome utente)",
-    "selectAtLeastOne": "Seleziona almeno un'opzione",
     "success": "Risposta di {{taskId}} riuscita",
     "title": "Istanza di Task Umana - {{taskId}}"
   },

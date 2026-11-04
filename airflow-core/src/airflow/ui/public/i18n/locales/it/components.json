@@ -7,7 +7,6 @@
     "affectedNone": "Nessun run corrispondente ai criteri selezionati.",
     "allRuns": "Tutti i Run",
     "backwards": "Run all'indietro",
-    "completed": "Completato",
     "dateRange": "Intervallo di Date",
     "errorStartDateBeforeEndDate": "La Data di Inizio deve essere precedente alla Data di Fine",
     "exceptionReason": {
@@ -29,12 +28,10 @@
     "permissionDenied": "Dry run fallito: l'utente non ha il permesso di creare backfill.",
     "reprocessBehavior": "Comportamento di Reprocesso",
     "run": "Correre Backfill",
-    "running": "In esecuzione",
     "scheduleNotBackfillable": "La programmazione di questo Dag non supporta i backfill",
     "schedulerPriorityHint": "In ogni ciclo dello scheduler i run di backfill del Dag vengono ordinati dopo quelli che non sono backfill. I run di backfill possono restare in coda più a lungo se sono presenti altri run.",
     "selectDescription": "Esegui questo Dag per un intervallo di date",
     "selectLabel": "Backfill",
-    "status": "Stato",
     "title": "Correre Backfill",
     "toaster": {
       "success": {
@@ -111,7 +108,6 @@
     "placeholderArray": "Inserisci ogni stringa su una nuova riga",
     "placeholderExamples": "Inizia a digitare per vedere le opzioni",
     "placeholderMulti": "Seleziona uno o più valori",
-    "validationErrorArrayElement": "Valori {{type}} non validi: {{values}}",
     "validationErrorArrayNotArray": "Il valore deve essere un array.",
     "validationErrorArrayNotNumbers": "Tutti gli elementi dell'array devono essere numeri.",
     "validationErrorArrayNotObject": "Tutti gli elementi dell'array devono essere oggetti.",
