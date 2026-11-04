@@ -255,6 +255,33 @@ User information is derived from the ``BaseUser`` instance.
 It is important that the user object contains all the fields required to refresh the token. An example user class could be:
 `KeycloakAuthManagerUser(BaseUser) <https://github.com/apache/airflow/blob/3.1.5/providers/keycloak/src/airflow/providers/keycloak/auth_manager/user.pys>`_.
 
+Redirect-based login flows
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An auth manager does not have to render a login form. ``get_url_login`` can return the first hop of a redirect
+chain, for example to an identity provider, which eventually redirects back to a callback in the auth manager.
+The callback authenticates the user, sets the ``_token`` cookie, and redirects to the UI.
+
+The response that sends the browser back to the UI must already carry the ``_token`` cookie. Otherwise the UI
+loads unauthenticated, its first API request returns ``401 Unauthorized``, and the UI starts the login flow again
+instead of showing the authenticated page. Build the ``RedirectResponse`` and set the cookie on it, as described
+in `JWT token management by auth managers`_.
+
+If the login flow also keeps state in a server-side session, commit the session before returning that response.
+Flask writes a session only when it is marked as modified, so a Flask-based auth manager that authenticates the
+user in a callback needs to set ``session.modified = True`` there:
+
+.. code-block:: python
+
+    class CustomAuthOAuthView(AuthOAuthView):
+        def oauth_authorized(self, provider):
+            response = super().oauth_authorized(provider)
+            session.modified = True
+            return response
+
+The FAB auth manager uses this pattern in its own ``CustomAuthOAuthView`` (see
+`#61287 <https://github.com/apache/airflow/pull/61287>`_).
+
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
