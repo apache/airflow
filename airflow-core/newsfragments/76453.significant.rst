@@ -1,0 +1,19 @@
+Testing a connection uses either the stored connection or the one in the request, never a mix of both
+
+``POST /api/v2/connections/test`` with the ``connection_id`` of an existing connection used to fill in the stored password and ``extra`` for the fields the request left out or sent back masked. The request now takes one of two forms:
+
+- only ``connection_id``: the stored connection is tested as it is, or the response is a 404 when it does not exist or cannot be read.
+- a complete connection, with every field present (``null`` when unset): it is tested exactly as sent, and nothing is read from a stored connection with the same ``connection_id``.
+
+A partial request, or one that contains masked values (``***``), is rejected with a 422. ``conn_type`` is no longer required in this request. Testing a saved connection from the UI and ``airflowctl connections test`` are updated accordingly.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [x] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

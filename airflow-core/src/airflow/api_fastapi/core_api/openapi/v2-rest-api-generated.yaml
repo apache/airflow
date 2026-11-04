@@ -2019,6 +2019,12 @@ paths:
       description: 'Test an API connection.
 
 
+        Send only ``connection_id`` to test the stored connection as it is, or a complete
+        connection to
+
+        test it exactly as given.
+
+
         This method first creates an in-memory transient conn_id & exports that to
         an env var,
 
@@ -2031,7 +2037,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ConnectionBody'
+              $ref: '#/components/schemas/ConnectionTestBody'
         required: true
       responses:
         '200':
@@ -2052,8 +2058,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-        '400':
-          description: Bad Request
+        '404':
+          description: Not Found
           content:
             application/json:
               schema:
@@ -14541,6 +14547,73 @@ components:
       - team_name
       title: ConnectionResponse
       description: Connection serializer for responses.
+    ConnectionTestBody:
+      properties:
+        connection_id:
+          type: string
+          maxLength: 200
+          pattern: ^[\w.-]+$
+          title: Connection Id
+        conn_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Conn Type
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        host:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Host
+        login:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Login
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Schema
+        port:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Port
+        password:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Password
+        extra:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Extra
+        team_name:
+          anyOf:
+          - type: string
+            maxLength: 50
+          - type: 'null'
+          title: Team Name
+      additionalProperties: false
+      type: object
+      required:
+      - connection_id
+      title: ConnectionTestBody
+      description: 'Connection to test.
+
+
+        Either only ``connection_id``, to test the stored connection as it is, or
+        a complete
+
+        connection, tested exactly as given. A stored connection''s secrets are never
+
+        combined with a connection supplied in the request.'
     ConnectionTestQueuedResponse:
       properties:
         token:

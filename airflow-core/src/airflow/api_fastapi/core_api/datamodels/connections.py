@@ -288,6 +288,58 @@ class ConnectionBody(StrictBaseModel):
 ConnectionBodyPartial = make_partial_model(ConnectionBody)
 
 
+def _contains_mask(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(_contains_mask(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_mask(item) for item in value)
+    return value == _MASK
+
+
+class ConnectionTestBody(ConnectionBody):
+    """
+    Connection to test.
+
+    Either only ``connection_id``, to test the stored connection as it is, or a complete
+    connection, tested exactly as given. A stored connection's secrets are never
+    combined with a connection supplied in the request.
+    """
+
+    conn_type: str | None = None  # type: ignore[assignment]
+
+    def is_stored_connection(self) -> bool:
+        """Return True when the request only names the stored connection to test."""
+        return self.model_fields_set == {"connection_id"}
+
+    @model_validator(mode="after")
+    def validate_complete_connection(self) -> ConnectionTestBody:
+        if self.is_stored_connection():
+            return self
+        missing = {
+            "conn_type",
+            "host",
+            "login",
+            "schema_",
+            "port",
+            "password",
+            "extra",
+        } - self.model_fields_set
+        if missing:
+            names = sorted(name.rstrip("_") for name in missing)
+            raise ValueError(
+                "Send only `connection_id` to test the stored connection, or every field of the "
+                f"connection to test (null if unset). Missing: {', '.join(names)}."
+            )
+        if self.conn_type is None:
+            raise ValueError("`conn_type` is required to test the connection in the request.")
+        if self.password == _MASK or (self.extra and _contains_mask(json.loads(self.extra))):
+            raise ValueError(
+                f"The connection to test contains masked values (`{_MASK}`). Send only `connection_id` "
+                "to test the stored connection, or include the credentials to test."
+            )
+        return self
+
+
 class ConnectionTestRequestBody(ConnectionBody):
     """
     Request body for enqueueing a connection test on a worker.

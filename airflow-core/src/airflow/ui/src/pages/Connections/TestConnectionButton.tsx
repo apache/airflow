@@ -21,7 +21,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { FiActivity, FiWifi, FiWifiOff } from "react-icons/fi";
 
-import type { ConnectionResponse, ConnectionBody } from "openapi/requests/types.gen";
+import type { ConnectionResponse } from "openapi/requests/types.gen";
 
 import { IconButton } from "src/system-components";
 
@@ -51,18 +51,6 @@ const TestConnectionButton = ({ connection }: Props) => {
     option = "Disabled";
   }
 
-  const connectionBody: ConnectionBody = {
-    conn_type: connection.conn_type,
-    connection_id: connection.connection_id,
-    description: connection.description ?? "",
-    extra: connection.extra === "" || connection.extra === null ? "{}" : connection.extra,
-    host: connection.host ?? "",
-    login: connection.login ?? "",
-    password: connection.password ?? "",
-    port: Number(connection.port),
-    schema: connection.schema ?? "",
-  };
-
   const { isPending, mutate } = useTestConnection((result) => {
     if (result === undefined) {
       setIcon(defaultIcon);
@@ -82,7 +70,8 @@ const TestConnectionButton = ({ connection }: Props) => {
       label={label}
       loading={isPending}
       onClick={() => {
-        mutate({ requestBody: connectionBody });
+        // Only the id: the server tests the stored connection, secrets included.
+        mutate({ requestBody: { connection_id: connection.connection_id } });
       }}
     >
       {icon}

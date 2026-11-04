@@ -22,7 +22,7 @@ from importlib.metadata import PackageNotFoundError, metadata
 from unittest import mock
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -68,6 +68,21 @@ TEST_CONN_LOGIN_2 = "some_login_b"
 
 TEST_CONN_ID_3 = "test_connection_id_3"
 TEST_CONN_TYPE_3 = "test_type_3"
+
+
+def _build_test_body(**fields) -> dict:
+    """Return a complete ``POST /connections/test`` body: every connection field, null unless given."""
+    return {
+        "connection_id": TEST_CONN_ID,
+        "conn_type": "sqlite",
+        "host": None,
+        "login": None,
+        "schema": None,
+        "port": None,
+        "password": None,
+        "extra": None,
+        **fields,
+    }
 
 
 @provide_session
@@ -1151,11 +1166,8 @@ class TestConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
         ("body", "message"),
         [
-            ({"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}, "Connection successfully tested"),
-            (
-                {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "/"}'},
-                "Path / is existing.",
-            ),
+            (_build_test_body(), "Connection successfully tested"),
+            (_build_test_body(conn_type="fs", extra='{"path": "/"}'), "Path / is existing."),
         ],
     )
     def test_should_respond_200(self, test_client, body, message):
@@ -1167,23 +1179,19 @@ class TestConnection(TestConnectionEndpoint):
         }
 
     def test_should_respond_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.post(
-            "/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
-        )
+        response = unauthenticated_test_client.post("/connections/test", json=_build_test_body())
         assert response.status_code == 401
 
     def test_should_respond_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.post(
-            "/connections/test", json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"}
-        )
+        response = unauthorized_test_client.post("/connections/test", json=_build_test_body())
         assert response.status_code == 403
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_unreadable_existing_connection_indistinguishable_from_missing(self, test_client):
         """Route-level POST authorization is not enough on its own — when the
         request references an existing connection_id, the caller must also be
-        authorized to read that specific connection before its hidden fields
-        are merged into the test object. A caller lacking read access must
+        authorized to read that specific connection before it is tested.
+        A caller lacking read access must
         get the same response shape as for a non-existent connection_id, so
         the route cannot be used to enumerate protected connection ids."""
         self.create_connection()
@@ -1198,19 +1206,14 @@ class TestConnection(TestConnectionEndpoint):
             return real_method(self, method=method, details=details, user=user)
 
         with mock.patch.object(SimpleAuthManager, "is_authorized_connection", gated_authz):
-            existing_response = test_client.post(
-                "/connections/test",
-                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            )
+            existing_response = test_client.post("/connections/test", json={"connection_id": TEST_CONN_ID})
             missing_response = test_client.post(
-                "/connections/test",
-                json={"connection_id": "this_connection_does_not_exist", "conn_type": "sqlite"},
+                "/connections/test", json={"connection_id": "this_connection_does_not_exist"}
             )
 
-        # Both calls reach the body-only test path (the unreadable existing
-        # connection is treated as if it did not exist), so status + body
-        # shape must be identical — no existence oracle for protected ids.
-        assert existing_response.status_code == missing_response.status_code
+        # The unreadable existing connection is treated as if it did not exist, so
+        # status + body shape must be identical — no existence oracle for protected ids.
+        assert existing_response.status_code == missing_response.status_code == 404
         assert set(existing_response.json().keys()) == set(missing_response.json().keys())
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
@@ -1241,12 +1244,9 @@ class TestConnection(TestConnectionEndpoint):
                 wraps=Connection.get_connection_from_secrets,
             ) as spy_secrets,
         ):
-            response = test_client.post(
-                "/connections/test",
-                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            )
+            response = test_client.post("/connections/test", json={"connection_id": TEST_CONN_ID})
 
-        assert response.status_code == 200
+        assert response.status_code == 404
         spy_secrets.assert_not_called()
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
@@ -1268,7 +1268,7 @@ class TestConnection(TestConnectionEndpoint):
         ) as spy_secrets:
             response = test_client.post(
                 "/connections/test",
-                json={"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
+                json={"connection_id": TEST_CONN_ID},
             )
 
         assert response.status_code == 200
@@ -1276,42 +1276,27 @@ class TestConnection(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @conf_vars({("core", "multi_team"): "true"})
-    def test_secrets_only_team_connection_uses_body_team_scope(self, test_client, testing_team):
-        """When the connection exists only in a team-aware secrets backend
-        (no metadata-DB row), ``Connection.get_team_name`` returns None.
-        The route must then fall back to the body's validated ``team_name``
-        so the GET authorization and the subsequent secrets lookup both
-        run in the right team scope — otherwise a team-scoped existing
-        connection would be authorized and looked up as global, losing
-        the multi-team isolation guarantee in deployments that keep
-        connections in Vault / Kubernetes / Akeyless rather than the DB."""
-        # No ``self.create_connection()`` — TEST_CONN_ID lives only in a
-        # secrets backend in this scenario.
+    def test_team_name_does_not_select_the_stored_connection(self, test_client, testing_team):
+        """Only ``connection_id`` asks for the stored connection; its team comes from the
+        metadata DB, never from the request, so adding ``team_name`` makes the body partial."""
+        self.create_connection(team_name=testing_team.name)
 
-        with mock.patch.object(
-            Connection,
-            "get_connection_from_secrets",
-            wraps=Connection.get_connection_from_secrets,
-        ) as spy_secrets:
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
             response = test_client.post(
                 "/connections/test",
-                json={
-                    "connection_id": TEST_CONN_ID,
-                    "conn_type": "sqlite",
-                    "team_name": testing_team.name,
-                },
+                json={"connection_id": TEST_CONN_ID, "team_name": testing_team.name},
             )
 
-        assert response.status_code == 200
-        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+        assert response.status_code == 422
+        mock_test.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @pytest.mark.parametrize(
         "body",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+            _build_test_body(),
+            _build_test_body(conn_type="ftp"),
         ],
     )
     def test_connection_env_is_cleaned_after_run(self, test_client, body):
@@ -1321,8 +1306,8 @@ class TestConnection(TestConnectionEndpoint):
     @pytest.mark.parametrize(
         "body",
         [
-            {"connection_id": TEST_CONN_ID, "conn_type": "sqlite"},
-            {"connection_id": TEST_CONN_ID, "conn_type": "ftp"},
+            _build_test_body(),
+            _build_test_body(conn_type="ftp"),
         ],
     )
     def test_should_respond_403_by_default(self, test_client, body):
@@ -1333,232 +1318,49 @@ class TestConnection(TestConnectionEndpoint):
             "Contact your deployment admin to enable it."
         }
 
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_merge_password_with_existing_connection(self, test_client, session):
-        connection = Connection(
-            conn_id=TEST_CONN_ID,
-            conn_type="sqlite",
-            password="existing_password",
-        )
-        session.add(connection)
-        session.commit()
-        initial_count = session.scalar(select(func.count()).select_from(Connection))
-
-        captured_value = {}
-
-        def mock_test_connection(self):
-            captured_value["password"] = self.password
-            captured_value["conn_type"] = self.conn_type
-            return True, "mocked"
-
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "new_sqlite",
-            "password": "***",
-        }
-
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert response.json()["status"] is True
-        # Verify that the existing password was used, not "***"
-        assert captured_value["password"] == "existing_password"
-        # Verify that payload info were used for other fields
-        assert captured_value["conn_type"] == "new_sqlite"
-
-        # Verify DB was not mutated
-        session.expire_all()
-        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
-        assert db_conn.password == "existing_password"
-        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_merge_extra_with_existing_connection(self, test_client, session):
-        connection = Connection(
-            conn_id=TEST_CONN_ID,
-            conn_type="fs",
-            extra='{"path": "/", "existing_key": "existing_value"}',
-        )
-        session.add(connection)
-        session.commit()
-        initial_count = session.scalar(select(func.count()).select_from(Connection))
-
-        captured_extra = {}
-
-        def mock_test_connection(self):
-            captured_extra["value"] = self.extra
-            return True, "mocked"
-
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "fs",
-            "extra": '{"path": "/", "new_key": "new_value"}',
-        }
-
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert response.json()["status"] is True
-        # Verify that new_key is reflected in the merged extra
-        merged_extra = json.loads(captured_extra["value"])
-        assert merged_extra["new_key"] == "new_value"
-        assert merged_extra["path"] == "/"
-
-        # Verify DB was not mutated
-        session.expire_all()
-        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
-        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
-        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
-
-    @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
-        autospec=True,
-        return_value=frozenset({"path", "extra__fs__path"}),
-    )
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_reuse_masked_provider_sensitive_extra_of_existing_connection(
-        self, _, test_client, session
-    ):
-        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
-        session.commit()
-        captured_extra = {}
-
-        def mock_test_connection(self):
-            captured_extra["value"] = self.extra
-            return True, "mocked"
-
-        body = {"connection_id": TEST_CONN_ID, "conn_type": "fs", "extra": '{"path": "***"}'}
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert json.loads(captured_extra["value"]) == {"path": "/secret"}
-
-    @mock.patch(
-        "airflow.api_fastapi.core_api.datamodels.connections._sensitive_extra_keys",
-        autospec=True,
-        return_value=frozenset({"path", "extra__fs__path"}),
-    )
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_not_reuse_provider_sensitive_extra_for_another_type(self, _, test_client, session):
-        session.add(Connection(conn_id=TEST_CONN_ID, conn_type="fs", extra='{"path": "/secret"}'))
-        session.commit()
-        captured_extra = {}
-
-        def mock_test_connection(self):
-            captured_extra["value"] = self.extra
-            return True, "mocked"
-
-        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", "extra": '{"path": "***"}'}
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert json.loads(captured_extra["value"]) == {"path": "***"}
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_merge_both_password_and_extra(self, test_client, session):
-        connection = Connection(
-            conn_id=TEST_CONN_ID,
-            conn_type="fs",
-            password="existing_password",
-            extra='{"path": "/", "existing_key": "existing_value"}',
-        )
-        session.add(connection)
-        session.commit()
-        initial_count = session.scalar(select(func.count()).select_from(Connection))
-
-        captured_values = {}
-
-        def mock_test_connection(self):
-            captured_values["password"] = self.password
-            captured_values["extra"] = self.extra
-            return True, "mocked"
-
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "fs",
-            "password": "***",
-            "extra": '{"path": "/", "new_key": "new_value"}',
-        }
-
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert response.json()["status"] is True
-        # Verify that the existing password was used, not "***"
-        assert captured_values["password"] == "existing_password"
-        # Verify that new_key is reflected in the merged extra
-        merged_extra = json.loads(captured_values["extra"])
-        assert merged_extra["new_key"] == "new_value"
-        assert merged_extra["path"] == "/"
-
-        # Verify DB was not mutated
-        session.expire_all()
-        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
-        assert db_conn.password == "existing_password"
-        assert json.loads(db_conn.extra) == {"path": "/", "existing_key": "existing_value"}
-        assert session.scalar(select(func.count()).select_from(Connection)) == initial_count
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    @pytest.mark.parametrize(
-        "override",
-        [
-            pytest.param({"host": "other_host"}, id="host-changed"),
-            pytest.param({"host": "stored_host", "port": 9999}, id="port-changed"),
-        ],
-    )
-    def test_should_reject_test_when_target_overridden_without_credentials(
-        self, test_client, session, override
-    ):
+    @staticmethod
+    def _add_stored_connection(session):
         session.add(
             Connection(
                 conn_id=TEST_CONN_ID,
-                conn_type="sqlite",
+                conn_type="fs",
                 host="stored_host",
                 port=1234,
+                login="stored_login",
                 password="existing_password",
+                extra=json.dumps({"api_key": "existing_key", "path": "/secret"}),
             )
         )
         session.commit()
 
-        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", **override}
-        response = test_client.post("/connections/test", json=body)
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
+    def test_should_test_the_stored_connection_when_only_its_id_is_sent(self, test_client, session):
+        self._add_stored_connection(session)
 
-        assert response.status_code == 400
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
+            mock_test.return_value = (True, "mocked")
+            response = test_client.post("/connections/test", json={"connection_id": TEST_CONN_ID})
+
+        assert response.status_code == 200
+        tested_connection = mock_test.call_args.args[0]
+        assert tested_connection.host == "stored_host"
+        assert tested_connection.password == "existing_password"
+        assert tested_connection.extra_dejson == {"api_key": "existing_key", "path": "/secret"}
+
+        session.expire_all()
+        db_conn = session.scalar(select(Connection).filter_by(conn_id=TEST_CONN_ID))
+        assert db_conn.password == "existing_password"
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    @pytest.mark.parametrize(
-        ("override", "expected_password"),
-        [
-            pytest.param(
-                {"host": "stored_host", "port": 1234}, "existing_password", id="same-target-reuses-stored"
-            ),
-            pytest.param(
-                {"host": "other_host", "password": "supplied_password"},
-                "supplied_password",
-                id="overridden-target-uses-supplied-creds",
-            ),
-        ],
-    )
-    def test_stored_secret_reused_only_for_same_target(
-        self, test_client, session, override, expected_password
-    ):
-        session.add(
-            Connection(
-                conn_id=TEST_CONN_ID,
-                conn_type="sqlite",
-                host="stored_host",
-                port=1234,
-                password="existing_password",
-            )
+    def test_should_test_exactly_the_complete_connection_sent(self, test_client, session):
+        self._add_stored_connection(session)
+        body = _build_test_body(
+            conn_type="fs",
+            host="other_host",
+            login="other_login",
+            password="supplied_password",
+            extra=json.dumps({"path": "/supplied"}),
         )
-        session.commit()
-
-        body = {"connection_id": TEST_CONN_ID, "conn_type": "sqlite", **override}
 
         with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
             mock_test.return_value = (True, "mocked")
@@ -1566,108 +1368,52 @@ class TestConnection(TestConnectionEndpoint):
 
         assert response.status_code == 200
         tested_connection = mock_test.call_args.args[0]
-        assert tested_connection.password == expected_password
+        assert tested_connection.host == "other_host"
+        assert tested_connection.port is None
+        assert tested_connection.login == "other_login"
+        assert tested_connection.password == "supplied_password"
+        assert tested_connection.extra_dejson == {"path": "/supplied"}
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_reuse_stored_extra_when_host_and_port_are_blank(self, test_client, session):
-        """Hidden unused host/port (None vs "") must not skip restoring masked extra."""
-        stored_path = "/real.pem"
-        session.add(
-            Connection(
-                conn_id=TEST_CONN_ID,
-                conn_type="snowflake",
-                host=None,
-                port=None,
-                extra=json.dumps({"private_key_file": stored_path, "account": "acct"}),
-            )
-        )
-        session.commit()
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param({"connection_id": TEST_CONN_ID, "conn_type": "fs"}, id="conn-type-only"),
+            pytest.param({"connection_id": TEST_CONN_ID, "host": "other_host"}, id="host-only"),
+            pytest.param(
+                {"connection_id": TEST_CONN_ID, "conn_type": "http", "schema": "http://other_host:8080/path"},
+                id="schema-only",
+            ),
+            pytest.param(
+                {k: v for k, v in _build_test_body(conn_type="fs").items() if k != "password"},
+                id="password-left-out",
+            ),
+            pytest.param(_build_test_body(conn_type=None), id="null-conn-type"),
+            pytest.param(_build_test_body(conn_type="fs", password="***"), id="masked-password"),
+            pytest.param(
+                _build_test_body(conn_type="fs", password="pw", extra=json.dumps({"api_key": "***"})),
+                id="masked-extra",
+            ),
+            pytest.param(
+                _build_test_body(conn_type="fs", password="pw", extra=json.dumps({"auth": {"token": "***"}})),
+                id="masked-nested-extra",
+            ),
+        ],
+    )
+    def test_should_reject_a_partial_or_masked_connection(self, test_client, session, body):
+        self._add_stored_connection(session)
 
-        captured = {}
-
-        def mock_test_connection(self):
-            captured["extra"] = self.extra
-            return True, "mocked"
-
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "snowflake",
-            "host": "",
-            "password": "***",
-            "extra": json.dumps({"private_key_file": "***", "account": "acct"}),
-        }
-
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200
-        assert json.loads(captured["extra"])["private_key_file"] == stored_path
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_reuse_stored_credentials_when_the_ui_sends_port_zero(self, test_client, session):
-        """The UI builds its body with ``Number(port)``, so a stored NULL port arrives as 0."""
-        session.add(
-            Connection(
-                conn_id=TEST_CONN_ID,
-                conn_type="sqlite",
-                host=None,
-                port=None,
-                password="stored_password",
-            )
-        )
-        session.commit()
-
-        def mock_test_connection(self):
-            return True, "mocked"
-
-        # Exactly what TestConnectionButton.tsx sends for a connection with no host or port.
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "sqlite",
-            "host": "",
-            "port": 0,
-            "password": "***",
-        }
-
-        with mock.patch.object(Connection, "test_connection", mock_test_connection):
-            response = test_client.post("/connections/test", json=body)
-
-        assert response.status_code == 200, response.json()
-
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_should_reject_overridden_target_when_password_is_masked(self, test_client, session):
-        """A masked password is not caller-supplied credentials for a new destination."""
-        session.add(
-            Connection(
-                conn_id=TEST_CONN_ID,
-                conn_type="sqlite",
-                host="stored_host",
-                port=1234,
-                password="existing_password",
-            )
-        )
-        session.commit()
-
-        body = {
-            "connection_id": TEST_CONN_ID,
-            "conn_type": "sqlite",
-            "host": "other_host",
-            "password": "***",
-        }
         with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
-            mock_test.return_value = (True, "mocked")
             response = test_client.post("/connections/test", json=body)
 
-        assert response.status_code == 400
+        assert response.status_code == 422
         mock_test.assert_not_called()
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_should_test_new_connection_without_existing(self, test_client):
-        body = {
-            "connection_id": "non_existent_conn",
-            "conn_type": "sqlite",
-        }
-        response = test_client.post("/connections/test", json=body)
+        response = test_client.post(
+            "/connections/test", json=_build_test_body(connection_id="non_existent_conn")
+        )
         assert response.status_code == 200
         assert response.json()["status"] is True
 
