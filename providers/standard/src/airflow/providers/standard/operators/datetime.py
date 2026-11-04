@@ -102,6 +102,7 @@ def target_times_as_dates(
         return lower, upper
 
     lower_is_time = isinstance(lower, datetime.time)
+    upper_is_time = isinstance(upper, datetime.time)
     if lower is not None and isinstance(lower, datetime.time):
         lower = datetime.datetime.combine(base_date, lower)
     if upper is not None and isinstance(upper, datetime.time):
@@ -114,6 +115,6 @@ def target_times_as_dates(
         # Past midnight, the window that contains base_date started the previous day
         if lower_is_time and base_date.time() <= upper.time():
             lower -= datetime.timedelta(days=1)
-        else:
+        elif upper_is_time:
             upper += datetime.timedelta(days=1)
     return lower, upper
