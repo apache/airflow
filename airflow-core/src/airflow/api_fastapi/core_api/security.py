@@ -53,7 +53,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -85,6 +85,7 @@ from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -627,13 +628,15 @@ def requires_access_backfill(
 
 def requires_access_event_log(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
+) -> Callable[[Request, BaseUser, AsyncSession], Coroutine[Any, Any, None]]:
     """Wrap ``requires_access_dag`` and extract the dag_id from the event_log_id."""
 
     async def inner(
         request: Request,
         user: GetUserDep,
-        session: SessionDep,
+        # Not the route's sync ``SessionDep``: this dependency runs on the event loop, where a sync
+        # pool checkout blocks the requests holding the pooled connections from releasing them.
+        session: AsyncSessionDep,
     ) -> None:
         dag_id = None
 
@@ -648,7 +651,9 @@ def requires_access_event_log(
                 )
             # Select the id alongside dag_id: a NULL dag_id and a missing row both come back
             # as None from a bare ``Log.dag_id`` scalar, and they authorize differently.
-            row = session.execute(select(Log.id, Log.dag_id).where(Log.id == event_log_id)).one_or_none()
+            row = (
+                await session.execute(select(Log.id, Log.dag_id).where(Log.id == event_log_id))
+            ).one_or_none()
             if row is not None and row.dag_id is None:
                 # The row records an operation that is not tied to a Dag, so there is no
                 # per-Dag key to authorize on: gate it on ``AccessView.AUDIT_LOGS_ALL``,

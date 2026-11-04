@@ -630,7 +630,9 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = "team1"
 
         session = Mock()
-        session.execute.return_value.one_or_none.return_value = Mock(id=42, dag_id="event_log_dag_id")
+        session.execute = AsyncMock(
+            return_value=Mock(one_or_none=Mock(return_value=Mock(id=42, dag_id="event_log_dag_id")))
+        )
 
         request = Mock()
         request.path_params = {"event_log_id": "42"}
@@ -658,7 +660,9 @@ class TestFastApiSecurity:
         mock_get_team_name.return_value = None
 
         session = Mock()
-        session.execute.return_value.one_or_none.return_value = Mock(id=1, dag_id="unauthorized_dag")
+        session.execute = AsyncMock(
+            return_value=Mock(one_or_none=Mock(return_value=Mock(id=1, dag_id="unauthorized_dag")))
+        )
 
         request = Mock()
         request.path_params = {"event_log_id": "1"}
@@ -686,7 +690,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         session = Mock()
-        session.execute.return_value.one_or_none.return_value = None
+        session.execute = AsyncMock(return_value=Mock(one_or_none=Mock(return_value=None)))
 
         request = Mock()
         request.path_params = {"event_log_id": "999"}
@@ -722,7 +726,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         session = Mock()
-        session.execute.return_value.one_or_none.return_value = Mock(id=7, dag_id=None)
+        session.execute = AsyncMock(return_value=Mock(one_or_none=Mock(return_value=Mock(id=7, dag_id=None))))
 
         request = Mock()
         request.path_params = {"event_log_id": "7"}
@@ -745,7 +749,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
 
         session = Mock()
-        session.execute.return_value.one_or_none.return_value = Mock(id=7, dag_id=None)
+        session.execute = AsyncMock(return_value=Mock(one_or_none=Mock(return_value=Mock(id=7, dag_id=None))))
 
         request = Mock()
         request.path_params = {"event_log_id": "7"}
@@ -764,7 +768,7 @@ class TestFastApiSecurity:
         request = Mock()
         request.path_params = {"event_log_id": bad_event_log_id}
         user = Mock()
-        session = Mock()
+        session = AsyncMock()
 
         with pytest.raises(HTTPException) as exc_info:
             await requires_access_event_log("GET")(request, user, session)
