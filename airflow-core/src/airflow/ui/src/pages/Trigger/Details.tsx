@@ -93,15 +93,16 @@ export const Details = () => {
         <Row label={translate("triggers.columns.triggerer")}>{trigger.triggerer_hostname}</Row>
         <Row label={translate("triggers.columns.failures")}>{trigger.consecutive_failures}</Row>
         {unrecovered ? (
-          <>
-            <Row label={translate("triggers.detail.firstFailedAt")}>
-              <Time datetime={trigger.first_failed_at} />
-            </Row>
-            <Row label={translate("triggers.detail.lastFailedAt")}>
-              <Time datetime={trigger.last_failed_at} />
-            </Row>
-          </>
+          <Row label={translate("triggers.detail.firstFailedAt")}>
+            <Time datetime={trigger.first_failed_at} />
+          </Row>
         ) : undefined}
+        {/* Kept after a recovery, with the last error, so an old error reads as old. */}
+        {trigger.last_failed_at === null ? undefined : (
+          <Row label={translate("triggers.detail.lastFailedAt")}>
+            <Time datetime={trigger.last_failed_at} />
+          </Row>
+        )}
         {trigger.last_error === null ? undefined : (
           <Row label={translate("triggers.columns.lastError")}>
             <Text

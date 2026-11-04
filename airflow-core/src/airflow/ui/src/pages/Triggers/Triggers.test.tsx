@@ -22,7 +22,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { TimezoneProvider } from "src/context/timezone";
 import { triggers } from "src/mocks/handlers/triggers";
@@ -143,6 +143,16 @@ describe("Triggers list", () => {
       "/dags/consumer_dag",
     );
     expect(screen.getByRole("link", { name: "report_dag" })).toHaveAttribute("href", "/dags/report_dag");
+  });
+
+  it("says how long ago a trigger last failed under its last error", async () => {
+    vi.useFakeTimers({ now: new Date("2026-10-01T03:04:00Z"), toFake: ["Date"] });
+    renderAt("/triggers");
+
+    expect(await screen.findByTestId("trigger-last-failed", undefined, { timeout: 5000 })).toHaveTextContent(
+      "3 hours ago",
+    );
+    vi.useRealTimers();
   });
 
   it("sends the kind and status filters in the URL to the API", async () => {

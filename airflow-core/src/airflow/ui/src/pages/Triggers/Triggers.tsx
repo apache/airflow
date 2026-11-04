@@ -41,9 +41,11 @@ import { TruncatedText } from "src/components/TruncatedText";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
 import {
+  type DurationFormat,
   getErrorStatus,
   useAutoRefresh,
   useDocumentTitle,
+  useDurationFormat,
   useFiltersHandler,
   type FilterableSearchParamsKeys,
 } from "src/utils";
@@ -57,6 +59,7 @@ type TriggerRow = { row: { original: TriggerDetailResponse } };
 
 const createColumns = (
   translate: TFunction,
+  formatRelative: DurationFormat["formatRelative"],
   multiTeam: boolean,
 ): Array<ColumnDef<DataTableFeatures, TriggerDetailResponse>> => [
   {
@@ -148,11 +151,16 @@ const createColumns = (
     accessorKey: "last_error",
     cell: ({ row: { original } }: TriggerRow) =>
       original.last_error === null ? undefined : (
-        // Kept after a recovery, so it is only an error colour until the trigger recovers.
-        <TruncatedText
-          color={original.consecutive_failures > 0 ? "fg.error" : "fg.muted"}
-          text={original.last_error}
-        />
+        // Kept after a recovery, so it is only an error colour until the trigger recovers, and says when.
+        <Box>
+          <TruncatedText
+            color={original.consecutive_failures > 0 ? "fg.error" : "fg.muted"}
+            text={original.last_error}
+          />
+          <Text color="fg.muted" data-testid="trigger-last-failed" fontSize="xs">
+            {formatRelative(original.last_failed_at)}
+          </Text>
+        </Box>
       ),
     enableSorting: false,
     header: translate("triggers.columns.lastError"),
@@ -186,7 +194,8 @@ export const Triggers = () => {
   const [searchParams] = useSearchParams();
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(triggersFilterKeys);
 
-  const columns = createColumns(translate, multiTeamEnabled);
+  const { formatRelative } = useDurationFormat();
+  const columns = createColumns(translate, formatRelative, multiTeamEnabled);
 
   const { pagination, sorting } = tableURLState;
   const [sort] = sorting;
