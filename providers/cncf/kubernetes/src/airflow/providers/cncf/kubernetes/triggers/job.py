@@ -16,15 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 import warnings
 from collections.abc import AsyncIterator
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import AsyncPodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -135,8 +134,7 @@ class KubernetesJobTrigger(BaseTrigger):
                     container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
                 )
                 self.log.info("Extracting result from xcom sidecar container.")
-                loop = asyncio.get_running_loop()
-                xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
+                xcom_result = await self.pod_manager.extract_xcom(pod)
                 xcom_results.append(xcom_result)
         job: V1Job = await self.hook.wait_until_job_complete(
             name=self.job_name, namespace=self.job_namespace, poll_interval=self.poll_interval
@@ -168,14 +166,8 @@ class KubernetesJobTrigger(BaseTrigger):
         )
 
     @cached_property
-    def pod_manager(self) -> PodManager:
-        sync_hook = KubernetesHook(
-            conn_id=self.kubernetes_conn_id,
-            in_cluster=self.in_cluster,
-            config_file=self.config_file,
-            cluster_context=self.cluster_context,
-        )
-        return PodManager(kube_client=sync_hook.core_v1_client)
+    def pod_manager(self) -> AsyncPodManager:
+        return AsyncPodManager(async_hook=self.hook)
 
     async def cleanup(self) -> None:
         """Release the hook's cached API client when the trigger exits."""
