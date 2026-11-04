@@ -76,8 +76,10 @@ class Templater:
         # for most of the functionalities. It is imported by get_template_env()
         # though, so we don't need to put this after the 'if dag' check.
 
-        if dag:
+        if dag and hasattr(dag, "get_template_env"):
             return dag.get_template_env(force_sandboxed=False)
+        # A serialized Dag has no ``get_template_env``; the fallback environment
+        # also lacks any Dag-level ``user_defined_macros``/filters.
         return SandboxedEnvironment(cache_size=0)
 
     def prepare_template(self) -> None:
