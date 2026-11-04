@@ -164,6 +164,7 @@
     "empty": "Aucune instance de tâche terminée dans cette période",
     "title": "Instances de tâche les plus lentes"
   },
+  "sort": "trier",
   "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
@@ -181,6 +182,12 @@
   "toggleTableView": "Afficher en mode tableau",
   "triggerDag": {
     "button": "Déclencher",
+    "dagStartEndDate": {
+      "both": "Date de début du Dag : {{startDate}}, date de fin : {{endDate}}",
+      "end": "Date de fin du Dag : {{endDate}}",
+      "noTaskWillRun": "Aucune tâche ne sera exécutée.",
+      "start": "Date de début du Dag : {{startDate}}"
+    },
     "dataInterval": "Intervalle de données",
     "dataIntervalAuto": "Déduit de la date logique et du calendrier",
     "dataIntervalManual": "Spécifier manuellement",
@@ -191,6 +198,8 @@
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "manualRunDenied": "Les exécutions manuelles ne sont pas autorisées pour ce Dag",
     "partitionKeyHelp": "Optionnel - s'applique uniquement aux Dags partitionnés",
+    "recentConfig": "Configurations récentes",
+    "recentConfigPlaceholder": "Sélectionner une configuration récente",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
     "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",
