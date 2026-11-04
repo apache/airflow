@@ -58,6 +58,25 @@ class TestImportHandlerModules:
 
         assert get_handler("events", "transform") is not None
 
+    def test_handler_may_import_a_sibling_module(self, tmp_path):
+        (tmp_path / "common.py").write_text("def helper():\n    return 42\n")
+        (tmp_path / "handlers.py").write_text(
+            textwrap.dedent(
+                """
+                from airflow.sdk import task_handler
+                from common import helper
+
+                @task_handler("d", "t")
+                def t(region):
+                    return helper()
+                """
+            )
+        )
+
+        import_handler_modules(_materialized("b", tmp_path))
+
+        assert get_handler("d", "t") is not None
+
     def test_handler_module_can_use_dataclass_with_future_annotations(self, tmp_path):
         (tmp_path / "handlers.py").write_text(
             textwrap.dedent(

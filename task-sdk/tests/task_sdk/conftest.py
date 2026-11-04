@@ -41,6 +41,13 @@ def clean_task_handlers():
         for name in [n for n in sys.modules if n.startswith(UNUSUAL_MODULE_PREFIX)]:
             del sys.modules[name]
 
+    saved_path = list(sys.path)
     _reset()
     yield
+    added = [p for p in sys.path if p not in saved_path]
+    for name, module in list(sys.modules.items()):
+        file = getattr(module, "__file__", None)
+        if file and any(file.startswith(p) for p in added):
+            del sys.modules[name]
+    sys.path[:] = saved_path
     _reset()

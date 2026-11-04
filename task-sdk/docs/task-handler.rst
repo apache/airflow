@@ -118,6 +118,8 @@ Notes
 * For the Python SDK, a handler bundle is imported fresh in each Dag parse and
   task run; every non-ignored ``.py`` file in it is imported to discover
   handlers (``.airflowignore`` is honored).
+* A handler bundle's directory is added to ``sys.path`` while its handlers are
+  imported, so a handler may import sibling modules from the same bundle.
 * A stub's arguments must satisfy cross-language requirements. An argument must
   be either JSON-compatible, or reference an upstream task's return value XCom.
 * A stub's arguments are validated against the handler's signature when the Dag

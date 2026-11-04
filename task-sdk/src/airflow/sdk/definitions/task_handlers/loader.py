@@ -78,12 +78,16 @@ def import_handler_modules(bundle: BaseDagBundle) -> None:
     Import *bundle*'s handler modules so ``@task_handler`` decorators register.
 
     Imports every non-ignored Python file in *bundle*. The bundle must already
-    be materialized. Importing is idempotent per process by bundle name.
+    be materialized. Its directory is placed on ``sys.path`` so a handler can
+    import sibling modules from its own bundle. Importing is idempotent per
+    process by bundle name.
     """
     from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 
     if bundle.name in _imported_bundles:
         return
+    if (bundle_path := str(bundle.path)) not in sys.path:
+        sys.path.append(bundle_path)
     with BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version):
         _import_python_files(bundle.path)
     _imported_bundles.add(bundle.name)
