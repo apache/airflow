@@ -188,8 +188,9 @@ from tests_common.test_utils.db import (
     clear_db_triggers,
     set_default_pool_slots,
 )
+from tests_common.test_utils.mapping import push_mapped_length
 from tests_common.test_utils.mock_executor import MockExecutor
-from tests_common.test_utils.mock_operators import CustomOperator
+from tests_common.test_utils.mock_operators import CustomOperator, MockOperator
 from tests_common.test_utils.taskinstance import create_task_instance, run_task_instance
 from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
@@ -6418,6 +6419,33 @@ class TestSchedulerJob:
         session.refresh(downstream_ti)
         assert downstream_ti.state == State.SCHEDULED
         assert downstream_ti.dag_version_id == latest_version_id
+
+    def test_verify_integrity_keeps_mapped_tis_while_cleared_producer_reruns(self, dag_maker, session):
+        with dag_maker("test_cleared_mapped_producer", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        assert dr.bundle_version is None
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+        clear_task_instances(dr.get_task_instances(session=session), session)
+
+        with dag_maker("test_cleared_mapped_producer", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner._schedule_dag_run(dr, session)
+
+        tis = dr.get_task_instances(session=session)
+        assert "added" in {ti.task_id for ti in tis}
+        assert {ti.map_index: ti.state for ti in tis if ti.task_id == "mapped"} == {0: None, 1: None}
 
     def test_verify_integrity_not_called_for_versioned_bundles(self, dag_maker, session):
         with dag_maker("test_verify_integrity_if_dag_not_changed") as dag:
