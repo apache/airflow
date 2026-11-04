@@ -18,8 +18,11 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { assetWithDependencies } from "src/mocks/handlers/assets";
+import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
 beforeAll(() => preloadAppRoutes(["/assets/1"]));
@@ -42,6 +45,27 @@ describe("Asset header", () => {
 
     expect(await screen.findByRole("link", { name: "my_watcher" })).toHaveAttribute("href", "/triggers/5");
     expect(screen.getByTestId("trigger-status-badge")).toHaveTextContent("states.running");
+  });
+
+  it.each([
+    { button: "2 watcherFailing", statuses: ["failing", "orphaned", "failing", "running"] },
+    { button: "1 watcherOrphaned", statuses: ["orphaned", "running"] },
+  ])("says on the watchers button that $button", async ({ button, statuses }) => {
+    const watchers = statuses.map((status, index) => ({
+      created_date: "2025-01-01T00:00:00Z",
+      name: `watcher_${index}`,
+      status,
+      trigger_id: index,
+    }));
+
+    server.use(
+      http.get("/api/v2/assets/:assetId", () => HttpResponse.json({ ...assetWithDependencies, watchers })),
+    );
+    render(<AppWrapper initialEntries={["/assets/1"]} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: button }));
+
+    expect(await screen.findAllByTestId("trigger-status-badge")).toHaveLength(statuses.length);
   });
 
   it("omits the aliases and watchers stats for an asset that has none", async () => {

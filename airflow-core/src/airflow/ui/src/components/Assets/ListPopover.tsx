@@ -31,19 +31,22 @@ import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 import { formatNumber } from "src/utils";
 
 type ListPopoverProps = {
+  readonly colorPalette?: string;
+  /** What the button counts, if not every item. */
+  readonly count?: number;
   readonly items: Array<{ key: string; label: ReactNode }>;
   readonly noun: string;
 };
 
-export const ListPopover = ({ items, noun }: ListPopoverProps) => {
+export const ListPopover = ({ colorPalette, count, items, noun }: ListPopoverProps) => {
   const { i18n } = useTranslation();
 
   return (
     // eslint-disable-next-line jsx-a11y/no-autofocus
     <Popover.Root autoFocus={false} lazyMount unmountOnExit>
       <Popover.Trigger asChild disabled={items.length === 0}>
-        <Button variant="outline">
-          {formatNumber(items.length, i18n.language)} {noun}
+        <Button colorPalette={colorPalette} variant="outline">
+          {formatNumber(count ?? items.length, i18n.language)} {noun}
         </Button>
       </Popover.Trigger>
       <Popover.Content css={{ "--popover-bg": "colors.bg.emphasized" }} width="fit-content">
@@ -73,9 +76,23 @@ export const AliasesPopover = ({ aliases }: { readonly aliases: Array<AssetAlias
 
 export const WatchersPopover = ({ watchers }: { readonly watchers: Array<AssetWatcherResponse> }) => {
   const { t: translate } = useTranslation("assets");
+  const failing = watchers.filter(({ status }) => status === "failing").length;
+  const orphaned = watchers.filter(({ status }) => status === "orphaned").length;
+  // The button says what is wrong without opening the list: failing first, then orphaned.
+  const summary =
+    failing > 0
+      ? { colorPalette: "failed", count: failing, noun: translate("watcherFailing", { count: failing }) }
+      : orphaned > 0
+        ? {
+            colorPalette: "warning",
+            count: orphaned,
+            noun: translate("watcherOrphaned", { count: orphaned }),
+          }
+        : { noun: translate("watcher", { count: watchers.length }) };
 
   return (
     <ListPopover
+      {...summary}
       items={watchers.map((watcher) => ({
         // Watchers with the same trigger class and arguments share one trigger.
         key: `${watcher.trigger_id}-${watcher.name}`,
@@ -87,7 +104,6 @@ export const WatchersPopover = ({ watchers }: { readonly watchers: Array<AssetWa
           </HStack>
         ),
       }))}
-      noun={translate("watcher", { count: watchers.length })}
     />
   );
 };

@@ -18,7 +18,7 @@
  */
 import { http, HttpResponse, type HttpHandler } from "msw";
 
-const assetWithDependencies = {
+export const assetWithDependencies = {
   aliases: [{ group: "alias_group", id: 1, name: "my_alias" }],
   consuming_tasks: [{ created_at: "2025-01-01T00:00:00Z", dag_id: "consumer_dag", task_id: "consumer_task" }],
   created_at: "2025-01-01T00:00:00Z",
