@@ -25,16 +25,19 @@ import logging
 import math
 import re
 import time
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import AsyncIterator, Callable, Generator, Iterable
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Literal, cast
 
 import pendulum
+from aiohttp import ClientError, WSMsgType
 from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
+from kubernetes_asyncio.client.exceptions import ApiException as AsyncApiException
+from kubernetes_asyncio.stream.ws_client import STDERR_CHANNEL, STDIN_CHANNEL, STDOUT_CHANNEL
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError, TimeoutError
@@ -57,6 +60,7 @@ from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
+    from aiohttp import ClientWebSocketResponse
     from kubernetes.client.models.core_v1_event import CoreV1Event
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
     from kubernetes.client.models.v1_container_state import V1ContainerState
@@ -75,6 +79,19 @@ Sentinel for no xcom result.
 
 :meta private:
 """
+
+_XCOM_JSON_COMMAND = (
+    f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
+    f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
+    f"else echo {EMPTY_XCOM_RESULT}; fi"
+)
+_XCOM_KILL_COMMAND = "kill -2 $(pgrep -u $(id -u) -f 'sh')"
+# fallback command for containers that don't support pgrep -u
+_XCOM_KILL_FALLBACK_COMMAND = (
+    "for f in /proc/[0-9]*/comm; do "
+    '[ -O $f ] && read c < $f && [ "$c" = "sh" ] && pid=${f%/comm} && kill -2 ${pid##*/}; '
+    "done"
+)
 
 _POD_LOG_LEVEL_PATTERN = re.compile(
     r"^\s*(?:\[)?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL|FATAL)(?:\])?\s*[:\-]?\s*",
@@ -1027,11 +1044,7 @@ class PodManager(LoggingMixin):
     @generic_api_retry
     def extract_xcom_json(self, pod: V1Pod) -> str:
         """Retrieve XCom value and also check if xcom json is valid."""
-        command = (
-            f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
-            f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
-            f"else echo {EMPTY_XCOM_RESULT}; fi"
-        )
+        command = _XCOM_JSON_COMMAND
         result = None
         with closing(
             kubernetes_stream(
@@ -1083,18 +1096,11 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            xcom_kill_command = "kill -2 $(pgrep -u $(id -u) -f 'sh')"
-            # fallback command for containers that don't support pgrep -u
-            fallback_xcom_kill_command = (
-                "for f in /proc/[0-9]*/comm; do "
-                '[ -O $f ] && read c < $f && [ "$c" = "sh" ] && pid=${f%/comm} && kill -2 ${pid##*/}; '
-                "done"
-            )
             try:
-                self._exec_pod_command(resp, xcom_kill_command)
+                self._exec_pod_command(resp, _XCOM_KILL_COMMAND)
             except PodCommandException:
                 self.log.info("Primary kill command failed, trying fallback command")
-                self._exec_pod_command(resp, fallback_xcom_kill_command)
+                self._exec_pod_command(resp, _XCOM_KILL_FALLBACK_COMMAND)
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""
@@ -1315,3 +1321,101 @@ class AsyncPodManager(LoggingMixin):
                 else:
                     level = _parse_log_level(message_to_log)
                     self.log.log(level, "[%s] %s", container_name, message_to_log)
+
+    async def extract_xcom(self, pod: V1Pod, *, ignore_kill_failure: bool = True) -> str:
+        """
+        Retrieve XCom value and kill xcom sidecar container.
+
+        Async version of :meth:`PodManager.extract_xcom`.
+
+        :param pod: the pod to read the XCom result from.
+        :param ignore_kill_failure: when True (the default), a failure to kill the sidecar
+            container is logged as a warning and the successfully read XCom value is still
+            returned. Set it to False when the caller cannot tolerate a sidecar that keeps
+            running.
+        """
+        remote_pod = await self.read_pod(pod)
+        if not container_is_running(remote_pod, PodDefaults.SIDECAR_CONTAINER_NAME):
+            raise XComRetrievalError(
+                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! Not possible to read xcom from pod: {pod.metadata.name}"
+            )
+
+        try:
+            return await self.extract_xcom_json(pod)
+        finally:
+            try:
+                await self.extract_xcom_kill(pod)
+            except (PodCommandException, AsyncApiException, ClientError) as e:
+                if not ignore_kill_failure:
+                    raise
+                self.log.warning(
+                    "Failed to kill xcom sidecar container in pod %s, leaving it running: %s",
+                    pod.metadata.name,
+                    e,
+                )
+
+    @generic_api_retry
+    async def extract_xcom_json(self, pod: V1Pod) -> str:
+        """Retrieve XCom value and also check if xcom json is valid."""
+        self.log.info("Running command... %s", _XCOM_JSON_COMMAND)
+        stdout = stderr = ""
+        async with self._hook.open_pod_exec(
+            pod.metadata.name,
+            pod.metadata.namespace,
+            PodDefaults.SIDECAR_CONTAINER_NAME,
+            ["/bin/sh", "-c", _XCOM_JSON_COMMAND],
+        ) as ws:
+            async for channel, data in _read_exec_output(ws):
+                if channel == STDOUT_CHANNEL:
+                    stdout += data
+                else:
+                    stderr += data
+        if stderr:
+            self.log.error("stderr from command: %s", stderr)
+        if stdout and stdout.rstrip() != EMPTY_XCOM_RESULT:
+            # Note: result string is parsed to check if its valid json.
+            # This function still returns a string which is converted into json in the calling method.
+            json.loads(stdout)
+        return stdout
+
+    @generic_api_retry
+    async def extract_xcom_kill(self, pod: V1Pod) -> None:
+        """Kill xcom sidecar container."""
+        try:
+            await self._exec_sidecar_shell_command(pod, _XCOM_KILL_COMMAND)
+        except PodCommandException:
+            self.log.info("Primary kill command failed, trying fallback command")
+            await self._exec_sidecar_shell_command(pod, _XCOM_KILL_FALLBACK_COMMAND)
+
+    async def _exec_sidecar_shell_command(self, pod: V1Pod, command: str) -> str | None:
+        """Write a command to a shell opened in the xcom sidecar container, and return its first output."""
+        # A new shell per command: a failed command can write more to stderr after its first error
+        async with self._hook.open_pod_exec(
+            pod.metadata.name,
+            pod.metadata.namespace,
+            PodDefaults.SIDECAR_CONTAINER_NAME,
+            ["/bin/sh"],
+            stdin=True,
+        ) as ws:
+            self.log.info("Running command... %s", command)
+            await ws.send_bytes(bytes([STDIN_CHANNEL]) + f"{command}\n".encode())
+            async for channel, data in _read_exec_output(ws):
+                if channel == STDERR_CHANNEL:
+                    self.log.warning("stderr from command: %s", data)
+                    raise PodCommandException(f"Command failed with stderr: {data}")
+                return data
+        return None
+
+
+async def _read_exec_output(ws: ClientWebSocketResponse) -> AsyncIterator[tuple[int, str]]:
+    """Yield the channel and data of each stdout and stderr message of an exec websocket."""
+    async for message in ws:
+        # aiohttp reports a failed connection, such as a missing heartbeat PONG, as an ERROR
+        # message and then ends the iteration as if the command had completed
+        if message.type == WSMsgType.ERROR:
+            raise message.data
+        if message.type != WSMsgType.BINARY or len(message.data) < 2:
+            continue
+        channel = message.data[0]
+        if channel in (STDOUT_CHANNEL, STDERR_CHANNEL):
+            yield channel, message.data[1:].decode("utf-8", errors="backslashreplace")
