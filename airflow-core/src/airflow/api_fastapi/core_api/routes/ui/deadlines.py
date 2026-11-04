@@ -119,7 +119,9 @@ def get_deadlines(
     Get deadlines for a Dag run.
 
     This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
-    Dags and Dag runs. For a specific run, `include_alerts` also returns its creation-version alert
+    Dags and Dag runs.
+
+    For a specific run, `include_alerts` also returns its creation-version alert
     definitions, independently of the deadline filters and pagination.
     """
     if include_alerts and (dag_id == "~" or dag_run_id == "~"):
