@@ -155,7 +155,7 @@ per map index.
 | `literal` | the value itself | `value`, `from_default` |
 | `xcom` | an upstream task's output | `task_id` |
 | `sequence` | a mapped upstream's whole output, read as a lazy sequence | `task_id` |
-| `local` | the server cannot finish it, so the coordinator's helper does | — |
+| `unresolved` | the server could not finish it; the coordinator's Python helper does | — |
 | `param` | the server derives it per map index | `default`, `group_arg` |
 
 ```jsonc
@@ -182,7 +182,7 @@ run time, so only it needs that fallback.
 
 Parse time emits `param` just twice: for a mapped stub's parameters, and for a group member's
 argument that names its group. A member's other arguments are ordinary `literal`, `xcom`, `sequence`
-or `local` entries, and its unbound parameters take their defaults at parse time, because that
+or `unresolved` entries, and its unbound parameters take their defaults at parse time, because that
 fallback does not vary by index.
 
 Two kinds appear on one side only. `param` never reaches the runtime, the server having resolved it.
@@ -210,11 +210,16 @@ class XComSequenceArgBinding(_ArgBindingBase):
     are live and in what order; the runtime asks only for offsets."""
 
 
-class LocalArgBinding(_ArgBindingBase):
-    """An argument the server cannot finish: its ``map()`` callables are Python, so the
-    coordinator's helper resolves it and replaces this with a ``LiteralArgBinding``."""
+class UnresolvedArgBinding(_ArgBindingBase):
+    """
+    An argument the server could not finish, because its ``map()`` callables are Python or its
+    nesting fits no single binding.
 
-    kind: Literal["local"]
+    The coordinator's Python helper resolves it against the Dag file and replaces it with a
+    ``LiteralArgBinding``, so no SDK runtime ever receives this kind.
+    """
+
+    kind: Literal["unresolved"]
 
 
 class TupleArgBinding(_ArgBindingBase):
@@ -230,7 +235,7 @@ class TupleArgBinding(_ArgBindingBase):
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
     Annotated[
-        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding,
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding,
         Field(discriminator="kind", title="TaskArgBinding"),
     ],
 )
@@ -308,7 +313,7 @@ What the server puts in each binding, per authoring form.
 | `.expandKwargs(…)` | one binding per parameter of this index's mapping | use each |
 | `.zip(a, b)` | `tuple`, `parts` — one binding per zipped argument | pull each part, assemble |
 | `.concat(a, b)` | `xcom` for whichever argument owns this index | GET that row |
-| `.map(f)` | the wrapped form's binding, or `local` | see below |
+| `.map(f)` | the wrapped form's binding, or `unresolved` | see below |
 | Mapped task group | the member's binding, taken through the innermost common mapped ancestor | use it |
 | Reduce, in a downstream task | `sequence`, `task_id` | build a lazy handle, fetch nothing yet |
 
@@ -371,9 +376,9 @@ export async function transform({ region, row }: { region: string; row: string }
 ```
 
 ```
-   ti_run  ──▶  LocalArgBinding{ name: "row" }    no value, no coordinate: Python has to run
+   ti_run  ──▶  UnresolvedArgBinding{ name: "row" }    no value, no coordinate: Python has to run
                      │
-   COORDINATOR       ├─ _prepare_ti_context sees a "local" binding and starts the helper
+   COORDINATOR       ├─ _prepare_ti_context sees an "unresolved" binding and starts the helper
                      │
    map() HELPER      ├─ import the Dag file from the pinned bundle
    (Python)          ├─ find the consumer's expand input for "row"
@@ -387,7 +392,7 @@ export async function transform({ region, row }: { region: string; row: string }
 
 Either way the handler receives a finished value. The runtime finds its own closures by the
 binding's parameter name, so no callable crosses the wire. The helper starts only for a task with
-at least one `local` binding, and imports the Dag file once however many there are.
+at least one `unresolved` binding, and imports the Dag file once however many there are.
 
 ### Reduce
 
@@ -429,7 +434,7 @@ covers.
 
 **`{__type, __var}` encoding for those entries.** Nothing in a binding needs it. An XCom reference is
 `kind` plus `task_id`, because a stub argument may only name an upstream task's `return_value`, so
-there is no key to record. A `map()`, `zip()` or `concat()` argument is `local`, which carries no
+there is no key to record. A `map()`, `zip()` or `concat()` argument is `unresolved`, which carries no
 payload. Every `value` and `default` is checked JSON-serializable when it is written, so it crosses
 the language boundary as it stands. Plain JSON also keeps the stored Dag readable, where the encoded
 form wrapped every `value_schema` and every dict-valued `default` in a second object.
