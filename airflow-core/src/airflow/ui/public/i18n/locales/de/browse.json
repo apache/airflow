@@ -32,6 +32,7 @@
       "neverParsed": "Nie",
       "parsedFile_one": "Geparste Datei",
       "parsedFile_other": "Geparste Dateien",
+      "parsedFilesNote": "Es werden nur Dateien aufgeführt, die einen Dag definieren oder deren Import fehlgeschlagen ist.",
       "showImportError_one": "{{count, number}} Importfehler ansehen",
       "showImportError_other": "{{count, number}} Importfehler ansehen"
     },

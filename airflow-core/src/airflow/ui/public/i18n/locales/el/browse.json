@@ -32,6 +32,7 @@
       "neverParsed": "Ποτέ",
       "parsedFile_one": "Αναλυμένο Αρχείο",
       "parsedFile_other": "Αναλυμένα Αρχεία",
+      "parsedFilesNote": "Εμφανίζονται μόνο αρχεία που ορίζουν ένα Dag ή των οποίων η εισαγωγή απέτυχε.",
       "showImportError_one": "Προβολή σφάλματος",
       "showImportError_other": "Προβολή {{count, number}} σφαλμάτων"
     },

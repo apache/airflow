@@ -33,6 +33,7 @@
       "neverParsed": "從未",
       "parsedFile_one": "已解析檔案",
       "parsedFile_other": "已解析檔案",
+      "parsedFilesNote": "僅列出定義了 Dag 或匯入失敗的檔案。",
       "showImportError_one": "檢視錯誤",
       "showImportError_other": "檢視 {{count, number}} 個錯誤"
     },

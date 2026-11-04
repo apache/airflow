@@ -33,6 +33,7 @@
       "parsedFile_many": "Fichiers analysés",
       "parsedFile_one": "Fichier analysé",
       "parsedFile_other": "Fichiers analysés",
+      "parsedFilesNote": "Seuls les fichiers qui définissent un Dag ou dont l'import a échoué sont listés.",
       "showImportError_many": "Voir {{count, number}} erreurs",
       "showImportError_one": "Voir {{count, number}} erreur",
       "showImportError_other": "Voir {{count, number}} erreurs"

@@ -34,6 +34,7 @@
       "parsedFile_many": "Przeanalizowanych plików",
       "parsedFile_one": "Przeanalizowany plik",
       "parsedFile_other": "Przeanalizowane pliki",
+      "parsedFilesNote": "Wyświetlane są tylko pliki, które definiują Dag lub których import się nie powiódł.",
       "showImportError_few": "Zobacz {{count, number}} błędy",
       "showImportError_many": "Zobacz {{count, number}} błędów",
       "showImportError_one": "Zobacz błąd",

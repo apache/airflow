@@ -32,6 +32,7 @@
       "neverParsed": "कभी नहीं",
       "parsedFile_one": "पार्स की गई फ़ाइल",
       "parsedFile_other": "पार्स की गई फ़ाइलें",
+      "parsedFilesNote": "केवल वे फ़ाइलें दिखाई जाती हैं जो कोई डैग परिभाषित करती हैं या जिनका इम्पोर्ट विफल हुआ।",
       "showImportError_one": "त्रुटि देखें",
       "showImportError_other": "{{count, number}} त्रुटियां देखें"
     },

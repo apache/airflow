@@ -33,6 +33,7 @@
       "neverParsed": "Never",
       "parsedFile_one": "Parsed File",
       "parsedFile_other": "Parsed Files",
+      "parsedFilesNote": "Only files that define a Dag or failed to import are listed.",
       "showImportError_one": "View error",
       "showImportError_other": "View {{count, number}} errors"
     },

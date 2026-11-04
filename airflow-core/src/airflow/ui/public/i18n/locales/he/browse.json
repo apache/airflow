@@ -33,6 +33,7 @@
       "parsedFile_one": "קובץ שנותח",
       "parsedFile_other": "קבצים שנותחו",
       "parsedFile_two": "קבצים שנותחו",
+      "parsedFilesNote": "מוצגים רק קבצים שמגדירים Dag או שהייבוא שלהם נכשל.",
       "showImportError_one": "הצג שגיאה",
       "showImportError_other": "הצגת {{count, number}} שגיאות",
       "showImportError_two": "הצגת {{count, number}} שגיאות"

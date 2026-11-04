@@ -32,6 +32,7 @@
       "neverParsed": "파싱된 적 없음",
       "parsedFile_one": "파싱된 파일",
       "parsedFile_other": "파싱된 파일",
+      "parsedFilesNote": "Dag를 정의하거나 가져오기에 실패한 파일만 표시됩니다.",
       "showImportError_one": "오류 보기",
       "showImportError_other": "오류 {{count, number}}개 보기"
     },

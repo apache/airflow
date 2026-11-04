@@ -32,6 +32,7 @@
       "neverParsed": "Mai",
       "parsedFile_one": "Fitxer analitzat",
       "parsedFile_other": "Fitxers analitzats",
+      "parsedFilesNote": "Només es mostren els fitxers que defineixen un Dag o que no s'han pogut importar.",
       "showImportError_one": "Veure error",
       "showImportError_other": "Veure {{count, number}} errors"
     },

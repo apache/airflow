@@ -36,6 +36,7 @@
       "parsedFile_other": "ملفات محللة",
       "parsedFile_two": "ملفان محللان",
       "parsedFile_zero": "لا يوجد أي ملف محلل",
+      "parsedFilesNote": "تُعرض فقط الملفات التي تعرّف Dag أو فشل استيرادها.",
       "showImportError_few": "عرض {{count, number}} أخطاء",
       "showImportError_many": "عرض {{count, number}} خطأً",
       "showImportError_one": "عرض الخطأ",
