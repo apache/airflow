@@ -198,6 +198,10 @@ def _read_api_url(path: str) -> str:
     return api_url
 
 
+def _is_token_in_keyring(path: str) -> bool:
+    return _read_cli_config(path).get("token_in_keyring") is not False
+
+
 # Credentials for the API
 class Credentials:
     """Credentials for the API."""
@@ -244,8 +248,8 @@ class Credentials:
 
         The token already stored in keyring for the environment is removed first,
         so a failure later on cannot leave it paired with the new API URL. With
-        skip_keyring or in debug mode, a keyring that cannot remove it only logs
-        a warning, because those logins do not need a working keyring.
+        skip_keyring or in debug mode, the config file also records that the token
+        is not in keyring, so load() does not read a token that could not be removed.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
@@ -261,14 +265,12 @@ class Credentials:
                     f"Could not remove the keyring token of environment {self.api_environment}: {e}. "
                     "The API URL was not changed."
                 ) from e
-            log.warning(
-                "Could not remove the keyring token of environment %s: %s. "
-                "Commands without AIRFLOW_CLI_TOKEN or --api-token may still send it to the new API URL.",
-                self.api_environment,
-                e,
-            )
+            log.warning("Could not remove the keyring token of environment %s: %s", self.api_environment, e)
+        config: dict[str, Any] = {"api_url": self.api_url}
+        if skip_keyring or debug_mode:
+            config["token_in_keyring"] = False
         with open(config_path, "w") as f:
-            json.dump({"api_url": self.api_url}, f)
+            json.dump(config, f)
 
         try:
             if debug_mode:
@@ -332,7 +334,7 @@ class Credentials:
                             "Set AIRFLOW_CLI_DEBUG_MODE=false or log in with debug mode enabled first."
                         ) from e
                     self.api_token = None
-            else:
+            elif _is_token_in_keyring(config_path):
                 try:
                     self.api_token = keyring.get_password(
                         "airflowctl", self.token_key_for_environment(self.api_environment)
