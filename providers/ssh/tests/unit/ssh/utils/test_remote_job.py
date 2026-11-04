@@ -63,7 +63,7 @@ def _read_ps_single_quoted(text: str) -> tuple[str, str]:
     while i < len(text):
         if text[i] in _PS_QUOTES:
             if i + 1 < len(text) and text[i + 1] in _PS_QUOTES:
-                value.append(text[i])
+                value.append(text[i + 1])
                 i += 2
                 continue
             return "".join(value), text[i + 1 :]
@@ -226,7 +226,7 @@ class TestBuildWindowsWrapperCommand:
         script = _decode(build_windows_wrapper_command("hostname", paths))
 
         assert "-File" not in script
-        assert "[scriptblock]::Create([System.IO.File]::ReadAllText(" in script
+        assert "[scriptblock]::Create([IO.File]::ReadAllText(" in script
 
     def test_log_stays_readable_and_gets_every_stream(self):
         """Add-Content locks the log until the command ends, and 2>&1 alone drops Write-Host."""
@@ -234,10 +234,23 @@ class TestBuildWindowsWrapperCommand:
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
 
-        assert "[System.IO.FileStream]::new($env:LOG_FILE, 'Append', 'Write', 'ReadWrite')" in script
+        assert "[System.IO.FileStream]::new($logPath, 'Append', 'Write', 'ReadWrite')" in script
         assert "$log.AutoFlush = $true" in script
         assert "Add-Content" not in script
-        assert '& "$b\\cmd.ps1" *>&1 |' in script
+        pipeline = script.split('& "$b\\cmd.ps1" *>&1 |', 1)[1].split("$ec = ", 1)[0]
+        assert '[System.Management.Automation.ErrorRecord]) { "$_" }' in pipeline
+        assert (
+            pipeline.index("ErrorRecord") < pipeline.index("Out-String -Stream") < pipeline.index("WriteLine")
+        )
+
+    def test_environment_cannot_redirect_the_log(self):
+        """The writer opens a local path, so an environment entry named LOG_FILE changes nothing."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths, environment={"LOG_FILE": "C:\\x"}))
+
+        assert script.index('$logPath = "$b\\stdout.log"') < script.index("$env:LOG_FILE = 'C:\\x'")
+        assert "FileStream]::new($logPath," in script
 
     def test_exit_code_is_written_however_the_command_ends(self):
         """exit, throw and parse errors all reach finally; a negative code is recorded unsigned."""
@@ -245,12 +258,25 @@ class TestBuildWindowsWrapperCommand:
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
 
-        finally_block = script.split("} finally {", 1)[1]
+        before_try, rest = script.split("\ntry {\n", 1)
+        try_block, rest = rest.split("\n} catch {\n", 1)
+        catch_block, finally_block = rest.split("\n} finally {\n", 1)
+        # Fails unless the command reaches its own assignment, so a throw cannot pass as 0.
+        assert before_try.rstrip().endswith("$ec = 1")
+        assert '& "$b\\cmd.ps1"' in try_block
+        assert "$ec = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }" in try_block
+        assert "$log.WriteLine" in catch_block
         assert finally_block.index("if ($ec -lt 0) { $ec += 4294967296 }") < finally_block.index("exit_code")
 
-    def test_environment_value_is_literal(self):
-        """Values are single-quoted, including PowerShell's typographic quotes, so nothing expands."""
-        value = "it\u2019s $HOME and $(hostname)"
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("it\u2019s $HOME and $(hostname)", id="quotes-and-expansions"),
+            pytest.param("a\n'@\nb\n\u2019@", id="here-string-terminators"),
+        ],
+    )
+    def test_environment_value_is_literal(self, value):
+        """Values are single-quoted, typographic quotes included, so nothing expands or ends the script."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
 
         script = _decode(build_windows_wrapper_command("hostname", paths, environment={"MY_VAR": value}))
@@ -258,6 +284,8 @@ class TestBuildWindowsWrapperCommand:
         parsed, rest = _read_ps_single_quoted(script.split("$env:MY_VAR = ", 1)[1])
         assert parsed == value
         assert rest.startswith(";")
+        job_script = script.split("@'\n", 1)[1]
+        assert re.findall(f"^[{_PS_QUOTES}]@", job_script, re.M) == ["'@"]
 
     def test_job_starts_in_the_ssh_session_directory(self):
         """Without a working directory, Win32_Process.Create starts the job in System32."""
@@ -655,15 +683,16 @@ class TestWindowsPathQuoting:
         assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == self._resolved(path)
 
     @pytest.mark.parametrize("base_dir", BASE_DIRS)
-    def test_launch_command_evaluates_to_the_job_dir(self, base_dir):
-        """The job dir is quoted twice: once in the -Command text, once for the wrapper itself."""
+    def test_wrapper_expands_env_prefix_once(self, base_dir):
+        """The job's process gets the resolved $d, so it never re-expands $env:NAME itself."""
         paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
-        launch, _ = _read_ps_single_quoted(script.split(".Create(", 1)[1])
 
-        expr = launch.split("$b = ", 1)[1]
-        assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == self._resolved(paths.job_dir)
+        env_prefix = r"(?i)\$env:TEMP"
+        assert len(re.findall(env_prefix, script)) == len(re.findall(env_prefix, paths.job_dir))
+        assert "$launch = 'powershell.exe" in script
+        assert "+ $q +" in script
 
     @pytest.mark.parametrize("builder", BUILDERS)
     def test_paths_are_never_globbed(self, builder):

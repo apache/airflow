@@ -193,9 +193,19 @@ For Windows, ensure:
 * OpenSSH Server is installed and running
 * PowerShell is available (default on modern Windows)
 * SSH connection allows command execution
-* No Group Policy restricts PowerShell to signed scripts. Your command runs as a script with
-  ``-ExecutionPolicy Bypass``, which a Group Policy setting overrides; under such a policy the job
-  fails with the policy error in its log.
+* No Group Policy restricts PowerShell to signed scripts or turns scripts off. Your command runs as
+  a script with ``-ExecutionPolicy Bypass``, which a Group Policy setting overrides; under such a
+  policy the job fails with the policy error in its log.
+
+On Windows the exit code is the one passed to ``exit``, or else that of the last native program the
+command ran, or 0. A cmdlet error that does not stop the command does not fail the task; set
+``$ErrorActionPreference = 'Stop'`` or ``exit 1`` when it should. A negative exit code, which is how
+Windows reports a crashed process, is recorded as its unsigned value (``-1`` becomes ``4294967295``),
+so use that value in ``skip_on_exit_code``.
+
+The command travels through ``cmd.exe``, the default OpenSSH shell, whose command line limit leaves
+room for an inline command of roughly 1,000 characters. For anything longer, put it in a script on
+the host and call that.
 
 Job Directory Structure
 -----------------------

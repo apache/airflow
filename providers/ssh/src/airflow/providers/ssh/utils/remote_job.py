@@ -312,12 +312,14 @@ def build_windows_wrapper_command(
     # Out-String formats objects the way a console would. The log writer shares the file for
     # reading and flushes every line, so the trigger can tail it while the job runs.
     # Windows reports a crashed process as a negative exit code; record it unsigned, since
-    # the trigger only accepts digits.
+    # the trigger only accepts digits. The writer opens $logPath, not $env:LOG_FILE, so an
+    # environment entry of that name cannot redirect the job's log.
     child_script = f"""$ErrorActionPreference = "Continue"
-$env:LOG_FILE = "$b{sep}stdout.log"
+$logPath = "$b{sep}stdout.log"
+$env:LOG_FILE = $logPath
 $env:STATUS_FILE = "$b{sep}status"
 {env_setup}
-$log = [System.IO.StreamWriter]::new([System.IO.FileStream]::new($env:LOG_FILE, 'Append', 'Write', 'ReadWrite'), [System.Text.UTF8Encoding]::new($false))
+$log = [System.IO.StreamWriter]::new([System.IO.FileStream]::new($logPath, 'Append', 'Write', 'ReadWrite'), [System.Text.UTF8Encoding]::new($false))
 $log.AutoFlush = $true
 $ec = 1
 try {{
@@ -338,13 +340,9 @@ try {{
 
     # Launch as Win32_Process so that it doesn't die when SSH exits. job.ps1 is read and run
     # as a script block rather than with -File, so execution policy never blocks the job's
-    # own bookkeeping, only the user's cmd.ps1. Create reports failure in ReturnValue
-    # instead of throwing.
-    launch = (
-        "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
-        f'"$b = {_ps_path(paths.job_dir)}; '
-        f". ([scriptblock]::Create([System.IO.File]::ReadAllText($b + '{sep}job.ps1')))\""
-    )
+    # own bookkeeping, only the user's cmd.ps1. The launch quotes the already-resolved $d, so
+    # the child does not re-expand $env:NAME in its own environment. Create reports failure
+    # in ReturnValue instead of throwing.
     wrapper = f"""$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 trap {{ [Console]::Error.WriteLine("$_"); exit 1 }}
@@ -355,7 +353,9 @@ New-Item -ItemType Directory -Force -Path $d | Out-Null
 {child_script}'@ | Set-Content -LiteralPath "$d{sep}job.ps1" -Encoding UTF8
 New-Item -ItemType File -Force -Path "$d{sep}stdout.log" | Out-Null
 
-$p = ([wmiclass]'Win32_Process').Create({_ps_quote(launch)}, $PWD.ProviderPath, $null)
+$q = "'" + ($d -replace "{_PS_SINGLE_QUOTES.pattern}", '$1$1') + "'"
+$launch = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$b = ' + $q + '; . ([scriptblock]::Create([IO.File]::ReadAllText($b + ''{sep}job.ps1'')))"'
+$p = ([wmiclass]'Win32_Process').Create($launch, $PWD.ProviderPath, $null)
 if ($p.ReturnValue -ne 0) {{
   [Console]::Error.WriteLine("Win32_Process.Create failed with return value $($p.ReturnValue)")
   exit 1
@@ -387,6 +387,10 @@ def build_windows_log_tail_command(log_file: str, offset: int, max_bytes: int) -
     """
     Build a PowerShell command to read log bytes from offset.
 
+    The chunk is written to stdout as UTF-8 bytes. Printing it as a PowerShell string would
+    re-encode it in the SSH session's console code page, which the trigger's strict UTF-8
+    decoding rejects for any non-ASCII character.
+
     :param log_file: Path to the log file
     :param offset: Byte offset to start reading from
     :param max_bytes: Maximum bytes to read
@@ -401,7 +405,10 @@ if (Test-Path -LiteralPath $path) {{
     $n = $fs.Read($buf, 0, $buf.Length)
     $fs.Close()
     if ($n -gt 0) {{
-      [System.Text.Encoding]::UTF8.GetString($buf, 0, $n)
+      $bytes = [System.Text.Encoding]::UTF8.GetBytes([System.Text.Encoding]::UTF8.GetString($buf, 0, $n))
+      $out = [Console]::OpenStandardOutput()
+      $out.Write($bytes, 0, $bytes.Length)
+      $out.Flush()
     }}
   }} catch {{}}
 }}"""
