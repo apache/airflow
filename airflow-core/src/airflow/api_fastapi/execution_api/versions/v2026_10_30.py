@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 from cadwyn import (
     ResponseInfo,
     VersionChange,
@@ -72,9 +74,14 @@ class AddStoppedTaskReport(VersionChange):
 
 
 class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
-    """Reject mutations from an archived attempt with 410, except Variable writes; older clients keep each endpoint's own response."""
+    """
+    Reject mutations from an archived attempt with 410.
 
-    description = __doc__
+    Variable writes and asset-watcher writes to asset state are exempt. Older
+    clients keep each endpoint's own response.
+    """
+
+    description = inspect.cleandoc(__doc__)
     instructions_to_migrate_to_previous_version = ()
 
 

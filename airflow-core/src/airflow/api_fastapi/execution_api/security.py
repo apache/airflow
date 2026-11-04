@@ -145,11 +145,18 @@ _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
 _IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
-_ALLOW_NON_TI_WRITER = "allow_non_ti_writer"
+_LIVENESS_EXEMPTION = "liveness_exemption"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
 JOB_UNCHECKED_SCOPE = "job:unchecked"
+
+# A triggerer that reaches the Execution API over HTTP authenticates watchers
+# with an execution token setting 'sub' to this value. Routes marked with
+# allow_asset_watcher exempt it from the attempt-liveness check, so such a
+# token can write and clear the state of any asset. The in-process Execution
+# API also falls back to this ID for every caller that has no task identity.
+ASSET_WATCHER_ID = UUID(int=0)
 
 
 def skip_auto_ti_attempt_live(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
@@ -158,10 +165,28 @@ def skip_auto_ti_attempt_live(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
     return endpoint
 
 
+def _mark_liveness_exemption(
+    endpoint: Callable[_P, _R], accepts: Callable[[ExecutionToken], bool]
+) -> Callable[_P, _R]:
+    """Let tokens accepted by ``accepts`` skip ``require_auth``'s automatic liveness check on this route."""
+    setattr(endpoint, _LIVENESS_EXEMPTION, accepts)
+    return endpoint
+
+
 def allow_non_ti_writer(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
     """Mark a route whose data no task attempt owns, so ``require_auth`` skips its automatic check."""
-    setattr(endpoint, _ALLOW_NON_TI_WRITER, True)
-    return endpoint
+    return _mark_liveness_exemption(endpoint, lambda _: True)
+
+
+def allow_asset_watcher(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
+    """
+    Mark a route that accepts mutations from an asset watcher token in place of a live attempt.
+
+    Unlike ``allow_non_ti_writer``, other tokens without a live attempt are still rejected. The asset
+    state store's delete and clear handlers never read the token, so they would let any such token
+    wipe an asset's state.
+    """
+    return _mark_liveness_exemption(endpoint, lambda token: token.id == ASSET_WATCHER_ID)
 
 
 class JWTBearer(HTTPBearer):
@@ -288,6 +313,7 @@ async def require_auth(
                 detail="Token subject does not match callback ID",
             )
 
+    liveness_exemption = getattr(route, _LIVENESS_EXEMPTION, None)
     if (
         request.method not in {"GET", "HEAD", "OPTIONS"}
         and token_scope in {"execution", "workload"}
@@ -295,7 +321,7 @@ async def require_auth(
         and not request.scope.get(_IN_PROCESS_NON_TI_CALLER)
         and not request.scope.get(_REQUEST_SCOPE_LIVE_ATTEMPT_KEY)
         and not getattr(route, _SKIP_AUTO_TI_ATTEMPT_LIVE, False)
-        and not getattr(route, _ALLOW_NON_TI_WRITER, False)
+        and not (liveness_exemption and liveness_exemption(token))
     ):
         # The versions package imports routes, which depend on this module.
         from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
@@ -485,14 +511,14 @@ class ExecutionAPIRoute(APIRoute):
 
     allowed_token_types: frozenset[str]
     skip_auto_ti_attempt_live: bool
-    allow_non_ti_writer: bool
+    liveness_exemption: Callable[[ExecutionToken], bool] | None
 
     requires_open_job: bool
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.skip_auto_ti_attempt_live = bool(getattr(self.endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, False))
-        self.allow_non_ti_writer = bool(getattr(self.endpoint, _ALLOW_NON_TI_WRITER, False))
+        self.liveness_exemption = getattr(self.endpoint, _LIVENESS_EXEMPTION, None)
 
         all_scopes: set[str] = set()
         for dep in self.dependencies:
