@@ -20,12 +20,9 @@
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
 import { coreRules } from "./rules/core.js";
-import { i18nRules } from "./rules/i18n.js";
 import { i18nextRules } from "./rules/i18next.js";
-import { jsoncRules } from "./rules/jsonc.js";
 import { perfectionistRules } from "./rules/perfectionist.js";
 import { reactRules } from "./rules/react.js";
-import { remRules } from "./rules/rem.js";
 import { stylisticRules } from "./rules/stylistic.js";
 import { typescriptRules } from "./rules/typescript.js";
 import { unicornRules } from "./rules/unicorn.js";
@@ -44,9 +41,6 @@ export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} *
   perfectionistRules,
   reactRules,
   stylisticRules,
-  remRules,
   unicornRules,
   i18nextRules,
-  i18nRules,
-  jsoncRules,
 ]);
