@@ -2378,12 +2378,10 @@ class DagRun(Base, LoggingMixin):
                         producer_contexts=coordinates.producer_contexts(ti),
                     )
                 except NotFullyPopulated:
-                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
+                    # Not all upstreams finished, so the count isn't known yet. Keep the expanded
+                    # instances: _revise_map_indexes_if_mapped never brings back a removed index, but
+                    # trims or extends pending ones once the upstreams finish.
                     if ti.region_index >= 0:
-                        self.log.debug(
-                            "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
-                        )
-                        ti.state = TaskInstanceState.REMOVED
                         continue
                 else:
                     # Upstreams finished, check there aren't any extras
