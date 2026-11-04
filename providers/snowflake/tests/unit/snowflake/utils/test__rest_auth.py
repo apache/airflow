@@ -202,11 +202,16 @@ class TestSnowflakeRestTokenProvider:
         assert provider.get_token().token == "WIF.OIDC.token"
         assert loader.call_count == 2
 
+    @pytest.mark.parametrize("authenticator", ["WORKLOAD_IDENTITY", "workload_identity"])
     @pytest.mark.parametrize("provider_name", ["GCP", "AZURE", "AWS", "gcp"])
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
-    def test_get_token_workload_identity(self, mock_conn_params, provider_name):
+    def test_get_token_workload_identity(self, mock_conn_params, provider_name, authenticator):
         credential = _make_jwt(exp=int(time.time()) + 3600)
-        mock_conn_params.return_value = {**CONN_PARAMS_WIF, "workload_identity_provider": provider_name}
+        mock_conn_params.return_value = {
+            **CONN_PARAMS_WIF,
+            "authenticator": authenticator,
+            "workload_identity_provider": provider_name,
+        }
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: None)
 
@@ -520,7 +525,11 @@ class TestFetchIdentityTokens:
                         "WebIdentityToken": "aws-jwt",
                         "Expiration": datetime(2024, 1, 1, tzinfo=UTC),
                     },
-                    {"Audience": ["snowflakecomputing.com"], "SigningAlgorithm": "ES384"},
+                    {
+                        "Audience": ["snowflakecomputing.com"],
+                        "SigningAlgorithm": "ES384",
+                        "DurationSeconds": 3600,
+                    },
                 )
                 stubber.activate()
                 return client

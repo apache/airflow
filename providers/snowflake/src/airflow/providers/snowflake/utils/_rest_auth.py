@@ -59,6 +59,9 @@ WIF_TOKEN_EXPIRY_BUFFER = 30
 # application for Azure.
 WIF_AUDIENCE = "snowflakecomputing.com"
 WIF_AZURE_RESOURCE = "api://fd3f753b-eed3-462c-b6a7-a4b5bb650aad"
+# Lifetime to request for an AWS GetWebIdentityToken JWT. STS defaults to 300 seconds and allows up
+# to 3600; the longer lifetime keeps refreshes rare on the deferred SQL API trigger's event loop.
+WIF_AWS_TOKEN_DURATION_SECONDS = 3600
 
 
 @dataclass(frozen=True)
@@ -295,7 +298,11 @@ def _fetch_aws_identity_token() -> str:
             "Workload Identity Federation with the AWS provider requires a boto3 version that "
             "supports sts:GetWebIdentityToken (botocore>=1.41.0). Upgrade boto3."
         )
-    response = sts.get_web_identity_token(Audience=[WIF_AUDIENCE], SigningAlgorithm="ES384")
+    response = sts.get_web_identity_token(
+        Audience=[WIF_AUDIENCE],
+        SigningAlgorithm="ES384",
+        DurationSeconds=WIF_AWS_TOKEN_DURATION_SECONDS,
+    )
     return response["WebIdentityToken"]
 
 
