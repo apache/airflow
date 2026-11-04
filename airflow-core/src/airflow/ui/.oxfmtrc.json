@@ -1,0 +1,50 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "endOfLine": "lf",
+  "printWidth": 110,
+  "singleQuote": false,
+  "jsxSingleQuote": false,
+  "tabWidth": 2,
+  "trailingComma": "all",
+  "useTabs": false,
+  "sortPackageJson": false,
+  "sortImports": {
+    "groups": [
+      "react",
+      ["builtin", "external"],
+      "openapi",
+      "system-components",
+      "layouts",
+      "pages",
+      "components",
+      "app",
+      ["parent", "sibling", "index"]
+    ],
+    "customGroups": [
+      { "groupName": "react", "elementNamePattern": ["react"] },
+      { "groupName": "openapi", "elementNamePattern": ["openapi/**"] },
+      {
+        "groupName": "system-components",
+        "elementNamePattern": ["src/system-components", "src/system-components/**"]
+      },
+      { "groupName": "layouts", "elementNamePattern": ["src/layouts/**"] },
+      { "groupName": "pages", "elementNamePattern": ["src/pages/**"] },
+      { "groupName": "components", "elementNamePattern": ["src/components/**"] },
+      { "groupName": "app", "elementNamePattern": ["src/**", "tests/**"] }
+    ],
+    "newlinesBetween": true,
+    "ignoreCase": false,
+    "sortSideEffects": false
+  },
+  "ignorePatterns": [
+    ".mypy_cache/",
+    "templates/**/*.html",
+    "dist/",
+    "*.md",
+    "*.yaml",
+    "coverage/*",
+    ".pnpm-store",
+    "public/i18n/locales/*",
+    "openapi-gen/"
+  ]
+}

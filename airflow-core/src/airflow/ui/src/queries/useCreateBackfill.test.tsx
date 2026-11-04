@@ -75,7 +75,8 @@ describe("useCreateBackfill", () => {
     renderHook(() => useCreateBackfill({ onSuccessConfirm: vi.fn() }), { wrapper: Wrapper });
 
     const onSuccess = vi.mocked(useBackfillServiceCreateBackfill).mock.calls.at(-1)?.[0]?.onSuccess as
-      ((backfill: BackfillResponse, variables: CreateBackfillData) => Promise<void>) | undefined;
+      | ((backfill: BackfillResponse, variables: CreateBackfillData) => Promise<void>)
+      | undefined;
 
     expect(onSuccess).toBeTypeOf("function");
     await onSuccess?.({ dag_id: DAG_ID } as BackfillResponse, buildRequest(drainDag));
