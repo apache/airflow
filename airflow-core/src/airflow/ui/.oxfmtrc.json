@@ -21,6 +21,7 @@
       ["parent", "sibling", "index"]
     ],
     "customGroups": [
+      // Exact match: "react*" would also pull react-dom and react-router-dom into this group.
       { "groupName": "react", "elementNamePattern": ["react"] },
       { "groupName": "openapi", "elementNamePattern": ["openapi/**"] },
       {
