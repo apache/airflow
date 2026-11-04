@@ -1105,9 +1105,10 @@ class TestAttemptLiveness:
             assert client.delete(path).status_code == 410
             assert client.get(path).status_code == 410
 
-    def test_unknown_execution_identity_cannot_write_xcom(self, client, caller, session):
+    @pytest.mark.parametrize("identity", ["unknown", "asset-watcher"])
+    def test_non_ti_identity_cannot_write_xcom(self, client, caller, session, identity):
         ti, token = caller
-        token.id = uuid4()
+        token.id = ASSET_WATCHER_ID if identity == "asset-watcher" else uuid4()
         path = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/result"
 
         assert client.post(path, json="unowned").status_code == 404
@@ -1130,14 +1131,6 @@ class TestAttemptLiveness:
                 Variable.get(key)
         finally:
             Variable.delete(key)
-
-    def test_asset_watcher_identity_only_writes_asset_state(self, client, caller, session):
-        ti, token = caller
-        token.id = ASSET_WATCHER_ID
-        path = f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/result"
-
-        assert client.post(path, json="watcher").status_code == 404
-        assert session.scalar(select(XComModel).where(XComModel.dag_id == ti.dag_id)) is None
 
     def test_archived_attempt_writes_variable_to_its_team(self, client, caller, session):
         ti, _ = caller
