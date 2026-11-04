@@ -2312,7 +2312,9 @@ export const prefetchUseDashboardServiceDagStats = (queryClient: QueryClient) =>
 * Get deadlines for a Dag run.
 *
 * This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
-* Dags and Dag runs. For a specific run, `include_alerts` also returns its creation-version alert
+* Dags and Dag runs.
+*
+* For a specific run, `include_alerts` also returns its creation-version alert
 * definitions, independently of the deadline filters and pagination.
 * @param data The data for the request.
 * @param data.dagId

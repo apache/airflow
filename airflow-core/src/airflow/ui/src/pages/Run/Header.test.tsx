@@ -86,7 +86,7 @@ const baseDagRun = {
   triggering_user_name: null,
 } satisfies Partial<DAGRunResponse> as unknown as DAGRunResponse;
 
-const alert = (filter: Array<string> | null, id = "alert"): DeadlineAlertResponse => ({
+const buildAlert = (filter: Array<string> | null, id = "alert"): DeadlineAlertResponse => ({
   created_at: "2025-01-01T00:00:00Z",
   id,
   interval: 25,
@@ -94,7 +94,7 @@ const alert = (filter: Array<string> | null, id = "alert"): DeadlineAlertRespons
   run_type_filter: filter,
 });
 
-const deadline = (alertId = "alert"): DeadlineResponse => ({
+const buildDeadline = (alertId = "alert"): DeadlineResponse => ({
   alert_id: alertId,
   callback_id: "callback",
   callback_type: "triggerer",
@@ -138,7 +138,7 @@ describe("Header", () => {
     ({ filters, runType, visible }) => {
       mockDeadlineData({
         deadline_alerts: filters.map((filter, index) =>
-          alert(filter === null ? null : [...filter], String(index)),
+          buildAlert(filter === null ? null : [...filter], String(index)),
         ),
       });
       render(<Header dagRun={{ ...baseDagRun, run_type: runType }} />, { wrapper: Wrapper });
@@ -154,7 +154,11 @@ describe("Header", () => {
   it.each([{ filter: ["scheduled"] }, { filter: ["backfill"] }, { filter: null }])(
     "shows stored deadlines for backfill with $filter",
     ({ filter }) => {
-      mockDeadlineData({ deadline_alerts: [alert(filter)], deadlines: [deadline()], total_entries: 1 });
+      mockDeadlineData({
+        deadline_alerts: [buildAlert(filter)],
+        deadlines: [buildDeadline()],
+        total_entries: 1,
+      });
       render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
       expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
     },
@@ -162,8 +166,8 @@ describe("Header", () => {
 
   it.each(["excluded", "included"])("shows stored %s history with mixed filters", (storedAlert) => {
     mockDeadlineData({
-      deadline_alerts: [alert(["scheduled"], "excluded"), alert(null, "included")],
-      deadlines: [deadline(storedAlert)],
+      deadline_alerts: [buildAlert(["scheduled"], "excluded"), buildAlert(null, "included")],
+      deadlines: [buildDeadline(storedAlert)],
       total_entries: 1,
     });
     render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
@@ -172,7 +176,7 @@ describe("Header", () => {
   });
 
   it("shows stored deadlines when creation-version definitions are unavailable", () => {
-    mockDeadlineData({ deadline_alerts: [], deadlines: [deadline("old")], total_entries: 1 });
+    mockDeadlineData({ deadline_alerts: [], deadlines: [buildDeadline("old")], total_entries: 1 });
     render(<Header dagRun={{ ...baseDagRun, run_type: "backfill" }} />, { wrapper: Wrapper });
     expect(screen.getByText(i18n.t("dag:deadlineStatus.missed"))).toBeInTheDocument();
   });
@@ -180,8 +184,8 @@ describe("Header", () => {
   it("shares one service request between the header and deadline status", async () => {
     const actual = await vi.importActual<typeof OpenapiQueries>("openapi/queries");
     const request = vi.spyOn(DeadlinesService, "getDeadlines").mockResolvedValue({
-      deadline_alerts: [alert(["scheduled"])],
-      deadlines: [deadline()],
+      deadline_alerts: [buildAlert(["scheduled"])],
+      deadlines: [buildDeadline()],
       total_entries: 1,
     });
 
@@ -194,15 +198,15 @@ describe("Header", () => {
   });
 
   it("keeps alert metadata on every modal page without requesting it again", async () => {
-    const alerts = [alert(["scheduled"], "excluded"), alert(["backfill"], "included")];
+    const alerts = [buildAlert(["scheduled"], "excluded"), buildAlert(["backfill"], "included")];
     const records = [
       ...Array.from({ length: 12 }, (_, index) => ({
-        ...deadline("excluded"),
+        ...buildDeadline("excluded"),
         alert_name: "excluded_history",
         id: `excluded_${index}`,
       })),
       ...Array.from({ length: 11 }, (_, index) => ({
-        ...deadline("included"),
+        ...buildDeadline("included"),
         alert_name: `included_${index}`,
         id: `included_${index}`,
         missed: false,
