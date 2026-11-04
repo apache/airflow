@@ -23,7 +23,7 @@ import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 import { FiAlertTriangle, FiCheck, FiClock } from "react-icons/fi";
 
-import { useDeadlinesServiceGetDagDeadlineAlerts, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+import { useDeadlinesServiceGetDeadlines } from "openapi/queries";
 import type { DAGRunResponse, DeadlineAlertResponse } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
@@ -47,29 +47,24 @@ export const DeadlineStatus = ({ dagId, dagRunId, endDate, runType }: DeadlineSt
   const { locale, renderDuration } = useDurationFormat();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data: alertData, isLoading: isLoadingAlerts } = useDeadlinesServiceGetDagDeadlineAlerts({
-    dagId,
-    dagRunId,
-    limit: 100,
-  });
-
-  const applicableAlerts = (alertData?.deadline_alerts ?? []).filter((deadlineAlert) =>
-    isDeadlineAlertApplicable(deadlineAlert, runType),
-  );
   const { data: deadlineData, isLoading: isLoadingDeadlines } = useDeadlinesServiceGetDeadlines({
     dagId,
     dagRunId,
+    includeAlerts: true,
     limit: 10,
     orderBy: ["deadline_time"],
   });
+  const applicableAlerts = (deadlineData?.deadline_alerts ?? []).filter((deadlineAlert) =>
+    isDeadlineAlertApplicable(deadlineAlert, runType),
+  );
 
   const alertMap = new Map<string, DeadlineAlertResponse>();
 
-  for (const deadlineAlert of alertData?.deadline_alerts ?? []) {
+  for (const deadlineAlert of deadlineData?.deadline_alerts ?? []) {
     alertMap.set(deadlineAlert.id, deadlineAlert);
   }
 
-  if (isLoadingDeadlines || isLoadingAlerts) {
+  if (isLoadingDeadlines) {
     return undefined;
   }
 

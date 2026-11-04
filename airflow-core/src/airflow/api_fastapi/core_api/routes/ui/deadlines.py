@@ -20,7 +20,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import contains_eager, noload
@@ -47,6 +47,7 @@ from airflow.api_fastapi.common.types import Mimetype
 from airflow.api_fastapi.core_api.datamodels.log import TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
     DeadlineAlertCollectionResponse,
+    DeadlineAlertResponse,
     DeadlineCollectionResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
@@ -54,7 +55,7 @@ from airflow.api_fastapi.core_api.routes.public.log import (
     _buffered_ndjson_stream,
     ndjson_example_response_for_get_log,
 )
-from airflow.api_fastapi.core_api.security import GetUserDep, ReadableDagRunsFilterDep, requires_access_dag
+from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.callback import Callback, CallbackType
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
@@ -64,11 +65,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.log.path_log_reader import read_logs_at_path, validate_log_path_component
 
 deadlines_router = AirflowRouter(prefix="/dags/{dag_id}", tags=["Deadlines"])
-
-
-def requires_access_deadline_alerts(request: Request, user: GetUserDep) -> None:
-    access_entity = DagAccessEntity.RUN if "dag_run_id" in request.query_params else None
-    requires_access_dag(method="GET", access_entity=access_entity)(request, user)
 
 
 @deadlines_router.get(
@@ -117,13 +113,18 @@ def get_deadlines(
         RangeFilter, Depends(datetime_range_filter_factory("last_updated_at", Deadline))
     ],
     teams: Annotated[_DagIdTeamsFilter, Depends(teams_filter_factory(DagRun.dag_id))],
+    include_alerts: bool = False,
 ) -> DeadlineCollectionResponse:
     """
     Get deadlines for a Dag run.
 
     This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve Deadlines for all
-    Dags and Dag runs.
+    Dags and Dag runs. For a specific run, `include_alerts` also returns its creation-version alert
+    definitions, independently of the deadline filters and pagination.
     """
+    if include_alerts and (dag_id == "~" or dag_run_id == "~"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "include_alerts requires a specific Dag and run")
+
     query = (
         select(Deadline)
         .join(Deadline.dagrun)
@@ -167,18 +168,32 @@ def get_deadlines(
                 f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
 
-    return DeadlineCollectionResponse(deadlines=list(deadlines), total_entries=total_entries)
+    alerts = None
+    if include_alerts:
+        alerts = [
+            DeadlineAlertResponse.model_validate(alert)
+            for alert in session.scalars(
+                select(DeadlineAlert)
+                .join(SerializedDagModel, DeadlineAlert.serialized_dag_id == SerializedDagModel.id)
+                .join(DagRun, DagRun.created_dag_version_id == SerializedDagModel.dag_version_id)
+                .where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+                .order_by(DeadlineAlert.created_at, DeadlineAlert.id)
+            )
+        ]
+
+    return DeadlineCollectionResponse(
+        deadlines=list(deadlines), total_entries=total_entries, deadline_alerts=alerts
+    )
 
 
 @deadlines_router.get(
     "/deadlineAlerts",
     responses=create_openapi_http_exception_doc(
         [
-            status.HTTP_400_BAD_REQUEST,
             status.HTTP_404_NOT_FOUND,
         ]
     ),
-    dependencies=[Depends(requires_access_deadline_alerts)],
+    dependencies=[Depends(requires_access_dag(method="GET"))],
 )
 def get_dag_deadline_alerts(
     dag_id: str,
@@ -199,43 +214,22 @@ def get_dag_deadline_alerts(
         ),
     ],
     version_number: int | None = None,
-    dag_run_id: str | None = None,
 ) -> DeadlineAlertCollectionResponse:
-    """Get alerts from the latest Dag, a specified version, or a run's creation version."""
-    if dag_run_id is not None and version_number is not None:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "dag_run_id and version_number are mutually exclusive"
-        )
-
-    if dag_run_id is not None:
-        run = session.execute(
-            select(DagRun.id, SerializedDagModel.id.label("serialized_dag_id"))
-            .outerjoin(SerializedDagModel, SerializedDagModel.dag_version_id == DagRun.created_dag_version_id)
-            .where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-        ).one_or_none()
-        if run is None:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND,
-                f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
-            )
-        serialized_dag_id = run.serialized_dag_id
-        if serialized_dag_id is None:
-            return DeadlineAlertCollectionResponse(deadline_alerts=[], total_entries=0)
+    """Get deadline alerts defined on a Dag, optionally filtered by name pattern and version."""
+    serialized_dag_select = (
+        select(SerializedDagModel.id)
+        .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
+        .where(SerializedDagModel.dag_id == dag_id)
+    )
+    if version_number is None:
+        serialized_dag_select = serialized_dag_select.order_by(DagVersion.version_number.desc()).limit(1)
+        not_found_detail = f"Dag with id {dag_id} was not found"
     else:
-        serialized_dag_select = (
-            select(SerializedDagModel.id)
-            .join(DagVersion, SerializedDagModel.dag_version_id == DagVersion.id)
-            .where(SerializedDagModel.dag_id == dag_id)
-        )
-        if version_number is None:
-            serialized_dag_select = serialized_dag_select.order_by(DagVersion.version_number.desc()).limit(1)
-            not_found_detail = f"Dag with id {dag_id} was not found"
-        else:
-            serialized_dag_select = serialized_dag_select.where(DagVersion.version_number == version_number)
-            not_found_detail = f"Dag with id {dag_id} and version number {version_number} was not found"
-        serialized_dag_id = session.scalar(serialized_dag_select)
-        if serialized_dag_id is None:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, not_found_detail)
+        serialized_dag_select = serialized_dag_select.where(DagVersion.version_number == version_number)
+        not_found_detail = f"Dag with id {dag_id} and version number {version_number} was not found"
+    serialized_dag_id = session.scalar(serialized_dag_select)
+    if serialized_dag_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, not_found_detail)
 
     query = select(DeadlineAlert).where(
         DeadlineAlert.serialized_dag_id == serialized_dag_id,

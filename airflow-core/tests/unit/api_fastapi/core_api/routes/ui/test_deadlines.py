@@ -24,15 +24,11 @@ from unittest import mock
 from unittest.mock import Mock
 
 import pytest
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from sqlalchemy import delete, select, update
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-from airflow.api_fastapi.core_api.routes.ui.deadlines import (
-    get_dag_deadline_alerts,
-    requires_access_deadline_alerts,
-)
+from airflow.api_fastapi.core_api.routes.ui.deadlines import get_dag_deadline_alerts
 from airflow.logging.remote import RemoteLogStreamIO
 from airflow.models.callback import Callback, CallbackType
 from airflow.models.dag_version import DagVersion
@@ -46,7 +42,7 @@ from airflow.sdk.definitions.deadline import DeadlineReference, VariableInterval
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
-from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.asserts import assert_queries_count, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_dag_bundles,
@@ -271,6 +267,63 @@ def setup(dag_maker, session):
 class TestGetDagRunDeadlines:
     """Tests for GET /dags/{dag_id}/dagRuns/{dag_run_id}/deadlines."""
 
+    @pytest.mark.parametrize("run_id", [RUN_ALERT, RUN_EMPTY, RUN_MULTI])
+    def test_include_alerts_adds_one_query(self, test_client, run_id):
+        url = f"/dags/{DAG_ID}/dagRuns/{run_id}/deadlines"
+        test_client.get(url)
+        with count_queries() as baseline:
+            response = test_client.get(url)
+        with count_queries() as combined:
+            included = test_client.get(url, params={"include_alerts": True})
+
+        assert response.status_code == included.status_code == 200
+        assert "deadline_alerts" not in response.json()
+        assert included.json()["deadlines"] == response.json()["deadlines"]
+        assert included.json()["total_entries"] == response.json()["total_entries"]
+        assert len(included.json()["deadline_alerts"]) == 2
+        assert sum(combined.values()) == sum(baseline.values()) + 1
+
+    @pytest.mark.parametrize("extra_alerts", [0, 101])
+    def test_included_alerts_are_independent_of_deadline_pagination(self, test_client, session, extra_alerts):
+        original = session.scalar(select(DeadlineAlert).where(DeadlineAlert.name == ALERT_NAME))
+        for index in range(extra_alerts):
+            session.add(
+                DeadlineAlert(
+                    serialized_dag_id=original.serialized_dag_id,
+                    name=f"alert_{index}",
+                    reference=original.reference,
+                    interval=original.interval,
+                    callback_def=original.callback_def,
+                    run_type_filter=["manual"],
+                )
+            )
+        session.commit()
+
+        url = f"/dags/{DAG_ID}/dagRuns/{RUN_MULTI}/deadlines"
+        test_client.get(url)
+        with count_queries() as baseline:
+            test_client.get(url, params={"limit": 1})
+        responses = []
+        for offset in (0, 1, 3):
+            with count_queries() as combined:
+                responses.append(
+                    test_client.get(url, params={"include_alerts": True, "limit": 1, "offset": offset})
+                )
+            assert sum(combined.values()) == sum(baseline.values()) + 1
+        assert all(response.status_code == 200 for response in responses)
+        first = responses[0].json()
+        assert len(first["deadline_alerts"]) == 2 + extra_alerts
+        assert all(response.json()["deadline_alerts"] == first["deadline_alerts"] for response in responses)
+        assert [len(response.json()["deadlines"]) for response in responses] == [1, 1, 0]
+        assert all(response.json()["total_entries"] == 3 for response in responses)
+
+    @pytest.mark.parametrize(("dag_id", "run_id"), [("~", "~"), (DAG_ID, "~"), ("~", RUN_EMPTY)])
+    def test_include_alerts_requires_specific_run(self, test_client, dag_id, run_id):
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/{run_id}/deadlines", params={"include_alerts": True}
+        )
+        assert response.status_code == 400
+
     def test_no_deadlines_returns_empty_list(self, test_client):
         response = test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
         assert response.status_code == 200
@@ -362,12 +415,18 @@ class TestGetDagRunDeadlines:
         response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}/deadlines")
         assert response.status_code == 404
 
-    def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
+    @pytest.mark.parametrize("include_alerts", [False, True])
+    def test_should_response_401(self, unauthenticated_test_client, include_alerts):
+        response = unauthenticated_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines", params={"include_alerts": include_alerts}
+        )
         assert response.status_code == 401
 
-    def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get(f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines")
+    @pytest.mark.parametrize("include_alerts", [False, True])
+    def test_should_response_403(self, unauthorized_test_client, include_alerts):
+        response = unauthorized_test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines", params={"include_alerts": include_alerts}
+        )
         assert response.status_code == 403
 
 
@@ -571,18 +630,6 @@ class TestGetDeadlines:
 class TestGetDagDeadlineAlerts:
     """Tests for GET /dags/{dag_id}/deadlineAlerts."""
 
-    @pytest.mark.parametrize(
-        ("query_string", "access_entity"), [("", None), ("dag_run_id=run_empty", DagAccessEntity.RUN)]
-    )
-    @mock.patch("airflow.api_fastapi.core_api.routes.ui.deadlines.requires_access_dag", autospec=True)
-    def test_run_scoped_access(self, requires_access, query_string, access_entity):
-        request = Request({"type": "http", "query_string": query_string.encode()})
-
-        requires_access_deadline_alerts(request, mock.sentinel.user)
-
-        requires_access.assert_called_once_with(method="GET", access_entity=access_entity)
-        requires_access.return_value.assert_called_once_with(request, mock.sentinel.user)
-
     def test_limits_serialized_dag_lookup(self):
         session = Mock()
         session.scalar.return_value = None
@@ -776,7 +823,9 @@ class TestGetDagDeadlineAlerts:
         session.add(run)
         session.commit()
 
-        response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params={"dag_run_id": RUN_EMPTY})
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/{RUN_EMPTY}/deadlines", params={"include_alerts": True}
+        )
 
         assert response.status_code == 200
         assert [
@@ -802,28 +851,24 @@ class TestGetDagDeadlineAlerts:
             run.created_dag_version_id = None
         session.commit()
 
-        response = test_client.get(f"/dags/{DAG_ID}/deadlineAlerts", params={"dag_run_id": RUN_EMPTY})
+        response = test_client.get(
+            f"/dags/{DAG_ID}/dagRuns/{RUN_EMPTY}/deadlines", params={"include_alerts": True}
+        )
 
         assert response.status_code == 200
-        assert response.json() == {"deadline_alerts": [], "total_entries": 0}
+        assert response.json() == {"deadlines": [], "deadline_alerts": [], "total_entries": 0}
 
     @pytest.mark.parametrize("dag_id", [DAG_ID, DAG_ID_2])
     def test_unknown_run_returns_404(self, test_client, dag_id):
         run_id = "missing" if dag_id == DAG_ID else RUN_EMPTY
-        response = test_client.get(f"/dags/{dag_id}/deadlineAlerts", params={"dag_run_id": run_id})
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns/{run_id}/deadlines", params={"include_alerts": True}
+        )
 
         assert response.status_code == 404
         assert response.json()["detail"] == (
             f"DagRun with dag_id: `{dag_id}` and run_id: `{run_id}` was not found"
         )
-
-    def test_run_and_version_are_mutually_exclusive(self, test_client):
-        response = test_client.get(
-            f"/dags/{DAG_ID}/deadlineAlerts", params={"dag_run_id": RUN_EMPTY, "version_number": 1}
-        )
-
-        assert response.status_code == 400
-        assert response.json()["detail"] == "dag_run_id and version_number are mutually exclusive"
 
     @pytest.mark.parametrize("order_by", ["interval", "-interval"])
     def test_order_by_interval_is_rejected(self, test_client, order_by):

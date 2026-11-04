@@ -1319,7 +1319,10 @@ paths:
         This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
         Deadlines for all
 
-        Dags and Dag runs.'
+        Dags and Dag runs. For a specific run, `include_alerts` also returns its creation-version
+        alert
+
+        definitions, independently of the deadline filters and pagination.'
       operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
@@ -1337,6 +1340,13 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: include_alerts
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Alerts
       - name: limit
         in: query
         required: false
@@ -1489,8 +1499,8 @@ paths:
       tags:
       - Deadlines
       summary: Get Dag Deadline Alerts
-      description: Get alerts from the latest Dag, a specified version, or a run's
-        creation version.
+      description: Get deadline alerts defined on a Dag, optionally filtered by name
+        pattern and version.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -1510,14 +1520,6 @@ paths:
           - type: integer
           - type: 'null'
           title: Version Number
-      - name: dag_run_id
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Dag Run Id
       - name: limit
         in: query
         required: false
@@ -1570,12 +1572,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DeadlineAlertCollectionResponse'
-        '400':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Bad Request
         '404':
           content:
             application/json:
@@ -4301,6 +4297,13 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+        deadline_alerts:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline Alerts
       type: object
       required:
       - deadlines
