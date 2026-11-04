@@ -19,9 +19,13 @@
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import os
 import pathlib
+import secrets
 import stat
+import tempfile
 import zipfile
 import zlib
 from typing import TYPE_CHECKING, Final
@@ -92,13 +96,88 @@ def _iter_dir(directory: pathlib.Path) -> Iterator[pathlib.Path]:
     yield from children
 
 
+def _get_classpath_alias_dir() -> pathlib.Path:
+    """
+    Return this user's directory of classpath aliases, creating it if needed.
+
+    :raises PermissionError: when the directory is not a real directory owned by this user, or
+        others can write to it. Anyone who can write there could point an alias at their own JARs.
+    """
+    uid = os.getuid()
+    path = pathlib.Path(tempfile.gettempdir(), f"airflow-java-classpath-{uid}")
+    with contextlib.suppress(FileExistsError):
+        path.mkdir(mode=0o700)
+    st = path.lstat()
+    if not stat.S_ISDIR(st.st_mode) or st.st_uid != uid or st.st_mode & 0o022:
+        raise PermissionError(
+            f"Cannot keep Java classpath links in {path}: it must be a directory owned by "
+            "the current user that no other user can write to."
+        )
+    return path
+
+
+def _remove_dangling_aliases(alias_dir: pathlib.Path) -> None:
+    for entry in alias_dir.iterdir():
+        if entry.is_symlink() and not entry.exists():
+            # Another process may remove the same link first.
+            with contextlib.suppress(FileNotFoundError):
+                entry.unlink()
+
+
+def _get_classpath_alias(root: pathlib.Path) -> pathlib.Path:
+    """
+    Return a symlink to *root* whose own path holds no ``os.pathsep``.
+
+    The JVM splits a classpath on ``os.pathsep`` and has no way to escape it. The link name is a
+    hash of *root*, so every process of this user shares one link per root. It is replaced
+    atomically, and a link whose target is gone is removed when a new one is created.
+    """
+    target = os.fspath(root.absolute())
+    alias_dir = _get_classpath_alias_dir()
+    link = alias_dir / hashlib.sha256(os.fsencode(target)).hexdigest()[:16]
+    with contextlib.suppress(OSError):
+        if os.readlink(link) == target:
+            return link
+    _remove_dangling_aliases(alias_dir)
+    staging = alias_dir / f"{link.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp"
+    os.symlink(target, staging, target_is_directory=True)
+    try:
+        os.replace(staging, link)
+    except BaseException:
+        staging.unlink(missing_ok=True)
+        raise
+    log.debug("Linked a bundle path that holds the classpath separator", root=target, link=link)
+    return link
+
+
+def _get_aliased_path(path: pathlib.Path, aliases: dict[pathlib.Path, pathlib.Path]) -> pathlib.Path:
+    for root, alias in aliases.items():
+        if path.is_relative_to(root):
+            return alias / path.relative_to(root)
+    return path
+
+
 def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path | None = None) -> str:
-    """Return the classpath of every JAR under *roots*. *primary*, when given, goes first."""
+    """
+    Return the classpath of every JAR under *roots*. *primary*, when given, goes first.
+
+    A root whose path holds ``os.pathsep``, such as a bundle version directory named after a
+    timestamp, is reached through a symlink from :func:`_get_classpath_alias`.
+
+    :raises ValueError: when a JAR's path below its root still holds ``os.pathsep``.
+    """
     jars = sorted(_find_jars(roots), key=lambda p: p.as_posix())
     if primary is not None:
         target = primary.resolve()
         jars = [primary, *(p for p in jars if p.resolve() != target)]
-    return os.pathsep.join(p.as_posix() for p in jars)
+    aliases = {root: _get_classpath_alias(root) for root in roots if os.pathsep in os.fspath(root)}
+    entries = [_get_aliased_path(p, aliases).as_posix() for p in jars]
+    if bad := [e for e in entries if os.pathsep in e]:
+        raise ValueError(
+            f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "
+            f"entries: {', '.join(bad)}. Rename them, or the directories in the bundle holding them."
+        )
+    return os.pathsep.join(entries)
 
 
 @attrs.define
@@ -261,6 +340,12 @@ class JavaCoordinator(SubprocessCoordinator):
     JARs of every Dag bundle. With several, ``[sdk] dag_bundle_to_coordinator``
     picks the one that parses a bundle. A JAR whose Main-Class another JAR in the
     bundle also sets is rejected.
+
+    The JVM cannot load a JAR whose path holds the classpath separator (``:`` on
+    POSIX). When the bundle's own path holds it, such as a version directory
+    named after a timestamp, the classpath reaches the JARs through a symlink in
+    the temporary directory instead. A file or directory name inside the bundle
+    must still not hold it.
 
     The default *task_startup_timeout* should plenty long enough since a task-
     containing JAR is not supposed to consume significant time to perform setup
