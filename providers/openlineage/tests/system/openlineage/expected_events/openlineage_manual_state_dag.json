@@ -24,7 +24,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_mapped"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1, "map_index": 0}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
@@ -70,7 +70,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.sleep_plain"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
@@ -108,7 +108,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger.wait_deferred"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_dag_run_failed__notrigger"}
@@ -163,7 +163,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_mapped"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1, "map_index": 0}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
@@ -212,7 +212,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.sleep_plain"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
@@ -253,7 +253,7 @@
         "job": {"name": "openlineage_manual_state_dag_dag_run_success__notrigger.wait_deferred"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
@@ -293,7 +293,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_downstream_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success"}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -394,7 +394,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.after_upstream_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed"}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -425,7 +425,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_failed_to_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -505,7 +505,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.finish_success_to_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -541,7 +541,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.group_failed.after_in_group"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed"}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -555,7 +555,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.group_failed.sleep_in_group"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -592,7 +592,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_downstream_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -628,7 +628,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -694,7 +694,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1, "map_index": 0}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -768,7 +768,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_mapped_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1, "map_index": 0}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -872,7 +872,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_skipped"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "skipped", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -908,7 +908,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -944,7 +944,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.sleep_upstream_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -982,7 +982,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_awaiting_input_failed"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -1019,7 +1019,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_deferred_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}
@@ -1054,7 +1054,7 @@
         "job": {"name": "openlineage_manual_state_dag_tasks__notrigger.wait_rescheduled_success"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_manual_state_dag_tasks__notrigger"}

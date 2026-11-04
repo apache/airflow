@@ -1089,7 +1089,7 @@
         "job": {"name": "openlineage_task_loop_state_dag_dag_run_failed__notrigger.body.work"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1, "loop": {"index": 1, "trajectory": 1}}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
@@ -1154,7 +1154,7 @@
         "job": {"name": "openlineage_task_loop_state_dag_dag_run_success__notrigger.body.work"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1, "loop": {"index": 1, "trajectory": 1}}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
@@ -2146,7 +2146,7 @@
         "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger.body.work"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "failed", "try_number": 1, "loop": {"index": 1, "trajectory": 1}}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {"name": "openlineage_task_loop_state_dag_task_failed__notrigger"}
@@ -2383,7 +2383,7 @@
         "job": {"name": "openlineage_task_loop_state_dag_task_success__notrigger.body.work"},
         "run": {
             "runId": "{{ is_uuid(result) }}",
-            "facets": {"airflow": {"taskInstance": {"state": "success", "try_number": 1, "loop": {"index": 1, "trajectory": 1}}},
+            "facets": {"airflow": null,
                 "parent": {
                     "run": {"runId": "{{ is_uuid(result) }}"},
                     "job": {
