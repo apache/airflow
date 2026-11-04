@@ -102,7 +102,7 @@ from airflow.timetables.simple import (
     OnceTimetable,
 )
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, create_session_async
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -3557,6 +3557,37 @@ class TestDagModel:
         # After clearing the cache the fresh (now team-less) value is returned.
         clear_team_name_cache()
         assert DagModel.get_team_name(dag_id, session=session) is None
+
+    @pytest.mark.asyncio
+    async def test_get_team_name_async_shares_the_cache_of_get_team_name(self, testing_team):
+        session = settings.Session()
+        team_bundle = DagBundleModel(name="async-team-bundle")
+        team_bundle.teams.append(testing_team)
+        no_team_bundle = DagBundleModel(name="async-no-team-bundle")
+        session.add_all([team_bundle, no_team_bundle])
+        session.flush()
+        dag_id = "test_get_team_name_async"
+        orm_dag = DagModel(dag_id=dag_id, bundle_name="async-team-bundle", is_stale=False)
+        session.add(orm_dag)
+        # The async lookup reads on its own connection, so it only sees committed rows.
+        session.commit()
+
+        clear_team_name_cache()
+        async with create_session_async() as async_session:
+            assert await DagModel.get_team_name_async(dag_id, session=async_session) == "testing"
+
+        # The sync lookup is served from the entry the async one cached.
+        orm_dag.bundle_name = "async-no-team-bundle"
+        session.commit()
+        assert DagModel.get_team_name(dag_id, session=session) == "testing"
+
+        # A cached None is served too, rather than taken for a miss.
+        clear_team_name_cache()
+        assert DagModel.get_team_name(dag_id, session=session) is None
+        orm_dag.bundle_name = "async-team-bundle"
+        session.commit()
+        async with create_session_async() as async_session:
+            assert await DagModel.get_team_name_async(dag_id, session=async_session) is None
 
     def test_get_dag_id_to_team_name_mapping(self, testing_team):
         session = settings.Session()
