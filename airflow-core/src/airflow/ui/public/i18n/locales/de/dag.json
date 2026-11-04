@@ -113,8 +113,10 @@
     "noTryNumber": "Keine Versuchsnummer",
     "search": {
       "matchCount": "{{current, number}} von {{total, number}}",
+      "nextMatch": "Nächster Treffer",
       "noMatches": "Keine Treffer",
-      "placeholder": "Protokolle durchsuchen..."
+      "placeholder": "Protokolle durchsuchen...",
+      "previousMatch": "Voriger Treffer"
     },
     "settings": "Protokoll-Ansicht",
     "tryNotStarted": "Dieser Versuch ist nicht gestartet.",
@@ -346,6 +348,10 @@
       "changed": "Geändert",
       "removed": "Entfernt"
     },
+    "pathOccurrences_one": "{{count, number}} Änderung in diesem Pfad",
+    "pathOccurrences_other": "{{count, number}} Änderungen in diesem Pfad",
+    "pathOccurrencesAtLeast_one": "Mindestens {{count, number}} Änderungen in diesem Pfad",
+    "pathOccurrencesAtLeast_other": "Mindestens {{count, number}} Änderungen in diesem Pfad",
     "record_one": "Datensatz",
     "record_other": "Datensätze",
     "schemaChange": "Serialisierte Struktur {{baseSchema}} → {{targetSchema}}",

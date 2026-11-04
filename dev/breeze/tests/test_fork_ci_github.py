@@ -40,6 +40,7 @@ def test_retries_on_rate_limit(mock_run, mock_sleep):
 
     assert client.graphql("query { ok }") == {"ok": True}
     assert client.calls["graphql"] == 2
+    assert client.rate_limited == 1
     mock_sleep.assert_called_once_with(30)
 
 
@@ -48,9 +49,76 @@ def test_retries_on_rate_limit(mock_run, mock_sleep):
 def test_gives_up_after_the_last_attempt_without_waiting(mock_run, mock_sleep):
     mock_run.return_value = _completed(1, stderr="API rate limit exceeded")
 
+    client = GitHubClient()
+
     with pytest.raises(GitHubError, match="still rate limited after 4 attempts"):
-        GitHubClient().graphql("query { ok }")
+        client.graphql("query { ok }")
     assert [c.args[0] for c in mock_sleep.call_args_list] == [30, 60, 120]
+    assert client.rate_limited == 4
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        "gh: HTTP 504",
+        "gh: Server Error (HTTP 502)",
+        'Post "https://api.github.com/graphql": read tcp 10.1.0.4:51234->140.82.112.6:443: read: connection reset by peer',
+        'Post "https://api.github.com/graphql": unexpected EOF',
+        'Post "https://api.github.com/graphql": net/http: TLS handshake timeout',
+        'Post "https://api.github.com/graphql": dial tcp 140.82.112.6:443: i/o timeout',
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_retries_on_server_errors(mock_run, mock_sleep, stderr):
+    mock_run.side_effect = [
+        _completed(1, stderr=stderr),
+        _completed(1, stderr=stderr),
+        _completed(0, stdout=json.dumps({"data": {"ok": True}})),
+    ]
+    client = GitHubClient()
+
+    assert client.graphql("query { ok }") == {"ok": True}
+    assert client.calls["graphql"] == 3
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [10, 20]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_gives_up_on_a_lasting_server_error(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr="gh: HTTP 504")
+
+    with pytest.raises(GitHubError, match="still failing after 4 attempts: gh: HTTP 504"):
+        GitHubClient().rest_get("repos/x/y")
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [10, 20, 40]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_does_not_repeat_creating_a_comment_after_a_server_error(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr="gh: Server Error (HTTP 502)")
+
+    with pytest.raises(GitHubError, match="502"):
+        GitHubClient().create_comment(10, "body")
+    mock_run.assert_called_once()
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "stderr",
+    [
+        'Post "https://api.github.com/repos/x/y/issues/10/comments": net/http: TLS handshake timeout',
+        'Post "https://api.github.com/repos/x/y/issues/10/comments": dial tcp: lookup api.github.com: no such host',
+    ],
+)
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_repeats_creating_a_comment_that_did_not_connect(mock_run, mock_sleep, stderr):
+    mock_run.side_effect = [_completed(1, stderr=stderr), _completed(0, stdout="{}")]
+
+    GitHubClient().create_comment(10, "body")
+    assert mock_run.call_count == 2
+    mock_sleep.assert_called_once_with(10)
 
 
 @mock.patch(
@@ -170,3 +238,72 @@ def test_set_status_context(mock_run, kwargs, context):
     GitHubClient().set_status(1, "abc", "success", "https://x", "desc", **kwargs)
 
     assert json.loads(mock_run.call_args.kwargs["input"])["context"] == context
+
+
+def _jobs_page(*names: str) -> str:
+    return json.dumps([{"total_count": len(names), "jobs": [{"name": name} for name in names]}])
+
+
+def _jobs_path(page_size: int) -> str:
+    return f"repos/someone/airflow/actions/runs/7/jobs?filter=latest&per_page={page_size}"
+
+
+BAD_GATEWAY = "gh: Server Error (HTTP 502)"
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_lists_run_jobs_in_smaller_pages_while_github_fails_to_list_them(mock_run, mock_sleep):
+    mock_run.side_effect = [
+        *[_completed(1, stderr=BAD_GATEWAY)] * 4,
+        _completed(0, stdout=_jobs_page("Tests", "Docs")),
+    ]
+
+    jobs = GitHubClient().get_run_jobs("someone/airflow", 7)
+
+    assert jobs == [{"name": "Tests"}, {"name": "Docs"}]
+    assert [c.args[0][2] for c in mock_run.call_args_list] == [
+        _jobs_path(100),
+        _jobs_path(100),
+        _jobs_path(30),
+        _jobs_path(30),
+        _jobs_path(15),
+    ]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_gives_up_listing_run_jobs_when_the_smallest_pages_keep_failing(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr=BAD_GATEWAY)
+
+    with pytest.raises(GitHubError, match=r"per_page=5 --paginate --slurp still failing after 4 attempts"):
+        GitHubClient().get_run_jobs("someone/airflow", 7)
+    assert [c.args[0][2] for c in mock_run.call_args_list] == [
+        *[_jobs_path(100)] * 2,
+        *[_jobs_path(30)] * 2,
+        *[_jobs_path(15)] * 2,
+        *[_jobs_path(5)] * 4,
+    ]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_listing_run_jobs_retries_a_rate_limit_as_often_as_any_call(mock_run, mock_sleep):
+    mock_run.side_effect = [
+        *[_completed(1, stderr="API rate limit exceeded")] * 3,
+        _completed(0, stdout=_jobs_page("Tests")),
+    ]
+
+    assert GitHubClient().get_run_jobs("someone/airflow", 7) == [{"name": "Tests"}]
+    assert [c.args[0][2] for c in mock_run.call_args_list] == [_jobs_path(100)] * 4
+    assert [c.args[0] for c in mock_sleep.call_args_list] == [30, 60, 120]
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_github.time.sleep", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_github.subprocess.run", autospec=True)
+def test_does_not_shrink_run_job_pages_for_errors_other_than_server_errors(mock_run, mock_sleep):
+    mock_run.return_value = _completed(1, stderr="gh: Not Found (HTTP 404)")
+
+    with pytest.raises(GitHubError, match="HTTP 404"):
+        GitHubClient().get_run_jobs("someone/airflow", 7)
+    mock_run.assert_called_once()

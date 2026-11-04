@@ -150,6 +150,14 @@ option_docker_cache = click.option(
     type=BetterChoice(ALLOWED_BUILD_CACHE),
     envvar="DOCKER_CACHE",
 )
+option_use_pinned_os_deps_images = click.option(
+    "--use-pinned-os-deps-images/--no-use-pinned-os-deps-images",
+    help="Start the build from the pinned OS-dependencies images (hardened flavor, default base image and "
+    "apt dependencies) instead of installing the OS dependencies from the apt repositories.",
+    default=True,
+    show_default=True,
+    envvar="USE_PINNED_OS_DEPS_IMAGES",
+)
 option_install_mysql_client_type = click.option(
     "--install-mysql-client-type",
     help="Which client to choose when installing.",
@@ -215,6 +223,18 @@ option_skip_image_file_deletion = click.option(
     help="Skip image deletion after loading.",
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
+)
+option_snapshot_file_to_load = click.option(
+    "--snapshot-file",
+    help="Restore the image from this Docker data-root snapshot instead of an image file. Exits with "
+    "the snapshot script's code when the snapshot does not fit this daemon.",
+    type=click.Path(dir_okay=False, path_type=Path),
+)
+option_snapshot_file_to_save = click.option(
+    "--snapshot-file",
+    help="Save a Docker data-root snapshot holding only the CI image to this file instead of an image "
+    "file. It removes every other image and the build cache first.",
+    type=click.Path(dir_okay=False, path_type=Path),
 )
 option_tag_as = click.option(
     "--tag-as",

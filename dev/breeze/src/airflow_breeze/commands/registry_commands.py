@@ -98,6 +98,27 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
         extra_args=(),
     )
 
+    # extract_metadata.py runs on the host: it needs no providers installed, and its
+    # release filter reads the providers-* git tags, which the container cannot see
+    # because .git is not mounted there. It writes providers.json into dev/registry/,
+    # where the container scripts below read it. --allow-unreleased only applies here.
+    metadata_cmd = [
+        "uv",
+        "run",
+        "--project",
+        str(DEV_REGISTRY_DIR),
+        "python",
+        str(DEV_REGISTRY_DIR / "extract_metadata.py"),
+    ]
+    if provider:
+        metadata_cmd.extend(["--provider", provider])
+    if allow_unreleased:
+        metadata_cmd.append("--allow-unreleased")
+    with ci_group("Extracting registry metadata"):
+        metadata_result = run_command(metadata_cmd, check=False, cwd=str(AIRFLOW_ROOT_PATH))
+    if metadata_result.returncode:
+        sys.exit(metadata_result.returncode)
+
     build_ci_image_if_needed(command_params=shell_params)
 
     # Install suspended providers that aren't in the CI image so runtime
@@ -106,13 +127,8 @@ def extract_data(python: str, provider: str | None, allow_unreleased: bool):
     install_cmd = f"pip install --quiet {' '.join(suspended_packages)} && " if suspended_packages else ""
 
     provider_flag = f" --provider '{provider}'" if provider else ""
-    # --allow-unreleased only applies to extract_metadata.py (which owns the
-    # version filter). The other two scripts read from providers.json and
-    # don't need it.
-    metadata_extra = " --allow-unreleased" if allow_unreleased else ""
     command = (
         f"{install_cmd}"
-        f"python dev/registry/extract_metadata.py{provider_flag}{metadata_extra} && "
         f"python dev/registry/extract_parameters.py{provider_flag} && "
         f"python dev/registry/extract_connections.py{provider_flag}"
     )

@@ -91,7 +91,6 @@
   "dagRun_other": "Execuções do Dag",
   "dagRun_zero": "Nenhuma execução do Dag",
   "dagRunId": "ID da Execução do Dag",
-  "dagWarnings": "Avisos/Erros do Dag",
   "defaultToGraphView": "Padrão para visualização gráfica",
   "defaultToGridView": "Padrão para visualização em grade",
   "delete": "Excluir",
@@ -124,7 +123,7 @@
   "expand": {
     "collapse": "Recolher",
     "expand": "Expandir",
-    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
+    "hotkey": "e",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção"
   },
   "expandAllExtra": "Expandir todos os extra json",
@@ -217,7 +216,7 @@
   "signedInAs": "Sessão iniciada como",
   "source": {
     "hide": "Ocultar",
-    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "hotkey": "s",
     "show": "Mostrar"
   },
   "sourceAssetEvent_many": "Eventos de Asset de Origem",
@@ -309,7 +308,7 @@
   },
   "timestamp": {
     "hide": "Ocultar",
-    "hotkey": "Pressione {{hotkey}} para ocultar/mostrar",
+    "hotkey": "t",
     "show": "Mostrar"
   },
   "timezone": "Fuso Horário",
@@ -361,7 +360,7 @@
   "tryNumber": "Número de Tentativas",
   "user": "Usuário",
   "wrap": {
-    "hotkey": "Pressione {{hotkey}} para expandir ou recolher",
+    "hotkey": "w",
     "tooltip": "Pressione {{hotkey}} para expandir ou recolher a secção",
     "unwrap": "Expandir",
     "wrap": "Recolher"

@@ -58,7 +58,7 @@ def generate_mprocs_config() -> str:
 
     procs["scheduler"] = {
         "shell": scheduler_cmd,
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 
@@ -84,7 +84,7 @@ def generate_mprocs_config() -> str:
             api_cmd = (
                 f"airflow api-server {api_host_arg} -d" if dev_mode else f"airflow api-server {api_host_arg}"
             )
-        procs["api_server"] = {"shell": api_cmd, "restart": "always", "scrollback": 100000}
+        procs["api_server"] = {"shell": api_cmd, "autorestart": True, "scrollback": 100000}
     else:
         # Webserver (Airflow 2.x)
         if get_env_bool("BREEZE_DEBUG_WEBSERVER"):
@@ -96,7 +96,7 @@ def generate_mprocs_config() -> str:
 
         procs["webserver"] = {
             "shell": web_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
@@ -108,7 +108,7 @@ def generate_mprocs_config() -> str:
 
     procs["triggerer"] = {
         "shell": triggerer_cmd,
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 
@@ -122,7 +122,7 @@ def generate_mprocs_config() -> str:
 
         procs["celery_worker"] = {
             "shell": celery_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
@@ -136,7 +136,7 @@ def generate_mprocs_config() -> str:
 
         procs["flower"] = {
             "shell": flower_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
@@ -159,7 +159,7 @@ def generate_mprocs_config() -> str:
             ]
             edge_cmd = " && ".join(edge_cmd_parts)
 
-        procs["edge_worker"] = {"shell": edge_cmd, "restart": "always", "scrollback": 100000}
+        procs["edge_worker"] = {"shell": edge_cmd, "autorestart": True, "scrollback": 100000}
 
     # Dag Processor (conditional)
     if get_env_bool("STANDALONE_DAG_PROCESSOR"):
@@ -171,13 +171,13 @@ def generate_mprocs_config() -> str:
 
         procs["dag_processor"] = {
             "shell": dag_proc_cmd,
-            "restart": "always",
+            "autorestart": True,
             "scrollback": 100000,
         }
 
     procs["shell"] = {
         "shell": "bash",
-        "restart": "always",
+        "autorestart": True,
         "scrollback": 100000,
     }
 

@@ -289,10 +289,6 @@ class TestHttpHook:
         assert requests_mock.last_request.url == "http://test.com:1234/v1/test?test%20params"
         assert requests_mock.last_request.method == "GET"
 
-    def test_hook_uses_provided_header(self):
-        conn = self.get_hook.get_conn(headers={"bearer": "newT0k3n"})
-        assert conn.headers.get("bearer") == "newT0k3n"
-
     def test_hook_has_no_header_from_extra(self):
         self.get_hook.http_conn_id = "http_conn_without_bearer"
         conn = self.get_hook.get_conn()

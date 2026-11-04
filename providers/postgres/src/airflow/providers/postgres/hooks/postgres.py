@@ -290,12 +290,6 @@ class PostgresHook(DbApiHook):
 
         return ppg2_connect(**conn_args)
 
-    def _generate_cursor_name(self):
-        """Generate a unique name for server-side cursor."""
-        import uuid
-
-        return f"airflow_cursor_{uuid.uuid4().hex}"
-
     def get_conn(self) -> CompatConnection:
         """Establish a connection to a postgres database."""
         conn = deepcopy(self.connection)

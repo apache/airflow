@@ -99,7 +99,6 @@
   "dagRun_other": "Exécutions de Dag",
   "dagRunId": "ID d'exécution du Dag",
   "dagRunState": "État de l'exécution du Dag",
-  "dagWarnings": "Avertissements/erreurs du Dag",
   "delete": "Supprimer",
   "diff": "Différences",
   "diffCompareWith": "Comparer avec",

@@ -28,10 +28,18 @@ Changelog
 ---------
 
 .. note::
+  ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields are rendered once before ``execute()`` and are no
+  longer rendered a second time.
+
+.. note::
   In multi-team mode, a team's ``KubernetesExecutor`` now reads ``in_cluster``, ``config_file``,
   ``cluster_context``, ``verify_ssl``, ``ssl_ca_cert`` and ``api_client_retry_configuration`` from the
   team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
   un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
+
+.. warning::
+  The deprecated ``KubernetesExecutor.cleanup_stuck_queued_tasks`` and ``LocalKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
 
 10.25.0
 .......

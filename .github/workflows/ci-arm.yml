@@ -20,9 +20,10 @@
 # `release-branch-ci.yml` — never on PRs. Companion to `ci-amd.yml`, which runs the
 # same pipeline on AMD for every PR. The two workflows are physical
 # copies of each other (GitHub Actions has no cross-file YAML include),
-# differing only in their trigger surface, the hardcoded `runner-type` /
-# `platform` values in `build-info`'s outputs, and the architecture-specific
-# print-platform job. Edit both files together when changing pipeline shape.
+# differing only in their trigger surface, the hardcoded `platform` value in
+# `build-info`'s outputs (and the `PLATFORM` selective checks pick the runner
+# type for), and the architecture-specific print-platform job. Edit both files
+# together when changing pipeline shape.
 name: Tests (ARM)
 on:  # yamllint disable-line rule:truthy
   schedule:
@@ -143,8 +144,9 @@ jobs:
     name: "Build info"
     needs: [check-run-needed]
     if: needs.check-run-needed.outputs.run-needed == 'true'
-    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
-    runs-on: ["ubuntu-22.04"]
+    # At build-info stage we do not yet have outputs so the runs-on is hard-coded. ubuntu-slim is enough:
+    # it only installs breeze and runs selective checks, which need neither docker nor freeing disk space.
+    runs-on: ["ubuntu-slim"]
     outputs:
       all-python-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
@@ -165,6 +167,7 @@ jobs:
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
       disable-airflow-repo-cache: ${{ steps.selective-checks.outputs.disable-airflow-repo-cache }}
       docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
+      use-pinned-os-deps-images: ${{ steps.selective-checks.outputs.use-pinned-os-deps-images }}
       docs-build: ${{ steps.selective-checks.outputs.docs-build }}
       docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
       excluded-providers-as-string: ${{ steps.selective-checks.outputs.excluded-providers-as-string }}
@@ -183,11 +186,13 @@ jobs:
       kubernetes-versions-list-as-string: >-
         ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
       kustomize-overlay-names: ${{ steps.selective-checks.outputs.kustomize-overlay-names }}
+      lang-sdk-conformance-sdks: ${{ steps.selective-checks.outputs.lang-sdk-conformance-sdks }}
       run-kustomize-overlays-tests: ${{ steps.selective-checks.outputs.run-kustomize-overlays-tests }}
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      # platform / runner-type are hardcoded per workflow file (this is the
+      newsfragment-pr-number: ${{ steps.newsfragment-pr.outputs.pr-number }}
+      # platform is hardcoded per workflow file (this is the
       # ARM copy). The matching AMD copy lives in ci-amd.yml.
       platform: "linux/arm64"
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
@@ -198,12 +203,18 @@ jobs:
         ${{ steps.selective-checks.outputs.providers-compatibility-tests-matrix }}
       providers-test-types-list-as-strings-in-json: >-
         ${{ steps.selective-checks.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-split-test-types-list-as-strings-in-json }}
+      providers-xdist-test-types-list-as-strings-in-json: >-
+        ${{ steps.selective-checks.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
       run-agent-framework-tests: ${{ steps.selective-checks.outputs.run-agent-framework-tests }}
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      run-generic-prod-image-tests: ${{ steps.selective-checks.outputs.run-generic-prod-image-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-api-codegen: ${{ steps.selective-checks.outputs.run-api-codegen }}
       run-api-tests: ${{ steps.selective-checks.outputs.run-api-tests }}
@@ -224,12 +235,14 @@ jobs:
       run-openlineage-e2e-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-tests }}
       run-openlineage-e2e-compat-tests: ${{ steps.selective-checks.outputs.run-openlineage-e2e-compat-tests }}
       run-ts-sdk-e2e-tests: ${{ steps.selective-checks.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ steps.selective-checks.outputs.run-yaml-dag-e2e-tests }}
       run-system-tests: ${{ steps.selective-checks.outputs.run-system-tests }}
       run-task-sdk-tests: ${{ steps.selective-checks.outputs.run-task-sdk-tests }}
       run-task-sdk-integration-tests: ${{ steps.selective-checks.outputs.run-task-sdk-integration-tests }}
       run-breeze-integration-tests: ${{ steps.selective-checks.outputs.run-breeze-integration-tests }}
       run-scripts-tests: ${{ steps.selective-checks.outputs.run-scripts-tests }}
-      runner-type: '["ubuntu-22.04-arm"]'
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      in-memory-runner-type: ${{ steps.selective-checks.outputs.in-memory-runner-type }}
       run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
       run-ui-e2e-tests: ${{ steps.selective-checks.outputs.run-ui-e2e-tests }}
       run-unit-tests: ${{ steps.selective-checks.outputs.run-unit-tests }}
@@ -248,9 +261,6 @@ jobs:
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
     steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -273,6 +283,8 @@ jobs:
             || echo "::warning::Could not fetch ${PUSH_BASE_COMMIT}, all tests will run"
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
         id: breeze
       - name: "Save github context to file"
         # The github context can be very large for PRs that touch many files (e.g. Dependabot
@@ -304,6 +316,32 @@ jobs:
         env:
           SKIP_BREEZE_SELF_UPGRADE_CHECK: "true"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+      # The newsfragment check of static checks fails a newsfragment of the pull request that is
+      # named after another number. A push in a fork (AIP-120) has no pull request in its event,
+      # so the open pull request of the pushed branch is looked up; without one, any number passes.
+      - name: "Find the pull request for the newsfragment check"
+        id: newsfragment-pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          number=""
+          # A pull request inside a fork has a number of the fork's, not of apache/airflow.
+          if [[ "${EVENT_NAME}" == "pull_request" && "${BASE_REF}" == "main" \
+              && "${REPOSITORY}" == "apache/airflow" ]]; then
+            number="${EVENT_PR_NUMBER}"
+          elif [[ "${EVENT_NAME}" == "push" && "${REPOSITORY}" != "apache/airflow" ]]; then
+            number=$(gh api -X GET repos/apache/airflow/pulls -f head="${OWNER}:${REF_NAME}" \
+              -f state=open -f base=main --jq '.[0].number // empty' || true)
+          fi
+          if [[ "${number}" =~ ^[0-9]+$ ]]; then
+            echo "pr-number=${number}" >> "${GITHUB_OUTPUT}"
+          fi
       - name: Selective checks
         id: selective-checks
         env:
@@ -311,6 +349,10 @@ jobs:
           COMMIT_REF: "${{ github.sha }}"
           VERBOSE: "false"
           GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          # Repository variable: "true" moves every run, pushes included, back to public runners.
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+          # Repository variable: "false" keeps docker of the RunsOn jobs on disk instead of in RAM.
+          USE_IN_MEMORY_DOCKER: "${{ vars.USE_IN_MEMORY_DOCKER }}"
           PLATFORM: "linux/arm64"
           SELECTIVE_TESTS_ON_PUSH: "true"
           PUSH_BASE_COMMIT: ${{ needs.check-run-needed.outputs.push-base-commit }}
@@ -333,6 +375,7 @@ jobs:
     needs: [build-info, check-run-needed]
     uses: ./.github/workflows/basic-tests.yml
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
@@ -343,6 +386,7 @@ jobs:
       canary-run: ${{needs.build-info.outputs.canary-run}}
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
+      run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
       use-uv: ${{needs.build-info.outputs.use-uv}}
       platform: ${{ needs.build-info.outputs.platform }}
@@ -370,6 +414,7 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      use-pinned-os-deps-images: ${{ needs.build-info.outputs.use-pinned-os-deps-images }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
     if: needs.build-info.outputs.ci-image-build == 'true'
 
@@ -418,6 +463,7 @@ jobs:
       id-token: write
       contents: read
     with:
+      newsfragment-pr-number: ${{ needs.build-info.outputs.newsfragment-pr-number }}
       runners: ${{ needs.build-info.outputs.runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
@@ -448,7 +494,7 @@ jobs:
     timeout-minutes: 45
     name: "MyPy providers checks"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-mypy-providers == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -475,6 +521,7 @@ jobs:
         with:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
+          hooks: mypy-providers
       - name: "MyPy checks for providers"
         run: prek --color always --verbose --stage manual mypy-providers --all-files
         env:
@@ -489,7 +536,7 @@ jobs:
     timeout-minutes: 20
     name: "Migration round-trip check"
     needs: [build-info, build-ci-images]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     if: needs.build-info.outputs.has-migrations == 'true'
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ needs.build-info.outputs.default-python-version }}"
@@ -516,6 +563,7 @@ jobs:
         with:
           platform: ${{ needs.build-info.outputs.platform }}
           save-cache: false
+          hooks: migration-round-trip
       - name: "Migration round-trip check"
         run: prek --color always --verbose --stage manual migration-round-trip --all-files
         env:
@@ -611,7 +659,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -640,7 +688,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "postgres"
       test-name: "Postgres"
@@ -651,7 +699,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.postgres-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-migration-tests: "true"
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
@@ -669,7 +717,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -699,7 +747,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "mysql"
       test-name: "MySQL"
@@ -710,7 +758,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.mysql-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -728,7 +776,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -759,7 +807,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: "Sqlite"
@@ -772,7 +820,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       run-migration-tests: "true"
@@ -790,7 +838,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -820,7 +868,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       backend: "sqlite"
       test-name: ""
@@ -833,7 +881,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
       test-types-as-strings-in-json: >
-        ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+        ${{ needs.build-info.outputs.providers-xdist-test-types-list-as-strings-in-json }}
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
@@ -857,11 +905,14 @@ jobs:
     with:
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       runners: ${{ needs.build-info.outputs.runner-type }}
+      in-memory-runners: ${{ needs.build-info.outputs.in-memory-runner-type }}
       platform: ${{ needs.build-info.outputs.platform }}
       core-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.core-test-types-list-as-strings-in-json }}
       providers-test-types-list-as-strings-in-json: >
         ${{ needs.build-info.outputs.providers-test-types-list-as-strings-in-json }}
+      providers-split-test-types-list-as-strings-in-json: >
+        ${{ needs.build-info.outputs.providers-split-test-types-list-as-strings-in-json }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -906,7 +957,7 @@ jobs:
     if: >
       needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.in-memory-runner-type, '8+16', '32+128') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -936,7 +987,7 @@ jobs:
       packages: read
     if: needs.build-info.outputs.run-unit-tests == 'true'
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '32+64', '128+256') }}
       platform: ${{ needs.build-info.outputs.platform }}
       test-name: "LowestDeps"
       force-lowest-dependencies: "true"
@@ -957,9 +1008,23 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
 
+  build-prod-packages:
+    name: Build PROD packages
+    needs: [build-info]
+    uses: ./.github/workflows/prod-packages-build.yml
+    permissions:
+      contents: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      upload-package-artifact: "true"
+      prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
+
   build-prod-images:
     name: Build PROD images
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images, build-prod-packages, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
       contents: read
@@ -980,8 +1045,10 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+      use-pinned-os-deps-images: ${{ needs.build-info.outputs.use-pinned-os-deps-images }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
+      packages-prebuilt: "true"
 
   additional-prod-image-tests:
     name: "Additional PROD image tests"
@@ -1011,9 +1078,11 @@ jobs:
       providers-compatibility-tests-matrix: >
         ${{ needs.build-info.outputs.providers-compatibility-tests-matrix }}
       run-ts-sdk-e2e-tests: ${{ needs.build-info.outputs.run-ts-sdk-e2e-tests }}
+      run-yaml-dag-e2e-tests: ${{ needs.build-info.outputs.run-yaml-dag-e2e-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       run-ui-e2e-tests: ${{ needs.build-info.outputs.run-ui-e2e-tests }}
       run-airflow-ctl-integration-tests: ${{ needs.build-info.outputs.run-airflow-ctl-integration-tests }}
+      run-generic-prod-image-tests: ${{ needs.build-info.outputs.run-generic-prod-image-tests }}
     if: needs.build-info.outputs.prod-image-build == 'true'
 
   tests-kubernetes:
@@ -1047,7 +1116,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1063,7 +1132,7 @@ jobs:
   tests-go-sdk:
     name: "Go SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1079,6 +1148,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       # keep this in sync with go.mod in go-sdk/
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
@@ -1104,6 +1175,19 @@ jobs:
       - name: Run Go tests with the race detector
         working-directory: ./go-sdk
         run: gotestsum --format github-actions -- -race ./...
+      # Nothing else builds for a 32-bit `int` (386, arm, mipsle), where 2^32-1 constants overflow
+      # and int64 values wrap. Vet type-checks on any host; the tests need one that runs 386.
+      - name: Vet Go SDK for a 32-bit target
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: go vet ./...
+      - name: Run Go tests on a 32-bit target
+        if: runner.arch == 'X64'
+        working-directory: ./go-sdk
+        env:
+          GOARCH: "386"
+        run: gotestsum --format github-actions ./...
       # Go modules have no central registry that pre-scans releases, so we scan our own
       # dependency graph against the Go vulnerability database. govulncheck is reachability
       # based, so it only fails on advisories that actually affect code we call. The version
@@ -1117,7 +1201,7 @@ jobs:
   tests-ts-sdk:
     name: "TypeScript SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1127,6 +1211,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
         with:
@@ -1151,7 +1237,7 @@ jobs:
   tests-java-sdk:
     name: "Java SDK tests"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
     timeout-minutes: 15
     permissions:
       contents: read
@@ -1167,6 +1253,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: Setup Java
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
         with:
@@ -1178,10 +1266,64 @@ jobs:
         working-directory: ./java-sdk
         run: ./gradlew test
 
+  tests-lang-sdk-conformance:
+    name: "Lang SDK serialization conformance (${{ matrix.sdk }})"
+    needs: [build-info]
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ${{ fromJSON(needs.build-info.outputs.lang-sdk-conformance-sdks) }}
+    if: needs.build-info.outputs.lang-sdk-conformance-sdks != '[]'
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
+      # Serializes the same Dags with Airflow, from airflow-core's sources, to compare them.
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
+        with:
+          python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      - name: Setup Go
+        if: matrix.sdk == 'go'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version-file: go-sdk/go.mod
+          cache-dependency-path: go-sdk/go.sum
+      - name: Setup Java
+        if: matrix.sdk == 'java'
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+      - name: Setup pnpm
+        if: matrix.sdk == 'ts'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        with:
+          package_json_file: ts-sdk/package.json
+          run_install: false
+      - name: Setup node
+        if: matrix.sdk == 'ts'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: "24.19.0"
+          cache: 'pnpm'
+          cache-dependency-path: ts-sdk/pnpm-lock.yaml
+      - name: "Check the ${{ matrix.sdk }} SDK serializes Dags the way Airflow does"
+        env:
+          SDK: ${{ matrix.sdk }}
+        run: python3 "scripts/ci/lang_sdk_serialization/check_${SDK}_sdk.py"
+
   build-java-sdk-docs:
     name: "Java SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1213,7 +1355,7 @@ jobs:
   build-ts-sdk-docs:
     name: "TypeScript SDK docs"
     needs: [build-info]
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -1250,7 +1392,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '4+8', '16+32') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
@@ -1271,7 +1413,7 @@ jobs:
       contents: read
       packages: read
     with:
-      runners: ${{ needs.build-info.outputs.runner-type }}
+      runners: ${{ format(needs.build-info.outputs.runner-type, '8+16', '32+64') }}
       platform: ${{ needs.build-info.outputs.platform }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       use-uv: ${{ needs.build-info.outputs.use-uv }}
@@ -1279,6 +1421,19 @@ jobs:
     # Not a dependency of finalize-tests: on a canary run the frameworks' own pins win, and a
     # breaking framework release should not stop finalize-tests from pushing the image cache.
     if: needs.build-info.outputs.run-agent-framework-tests == 'true'
+
+  dependency-upgrade-summary:
+    name: Dependency upgrade summary
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/dependency-upgrade-summary.yml
+    permissions:
+      contents: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
 
   finalize-tests:
     name: Finalize tests
@@ -1317,6 +1472,7 @@ jobs:
       - tests-go-sdk
       - tests-java-sdk
       - tests-ts-sdk
+      - tests-lang-sdk-conformance
       - build-java-sdk-docs
       - build-ts-sdk-docs
       - tests-with-lowest-direct-resolution-core
@@ -1338,6 +1494,60 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
+  check-timed-out-jobs:
+    # A job-level `if` is the only place `cancelled()` tells a cancelled run from a job cancelled by
+    # its timeout: the steps of `ci-passed` start after the cancellation. Its `needs` must match
+    # those of `ci-passed`, so a timeout in any job fails the gate.
+    name: "Check for timed-out CI jobs"
+    if: always() && !cancelled() && contains(needs.*.result, 'cancelled')
+    needs:
+      - additional-ci-image-checks
+      - additional-prod-image-tests
+      - basic-tests
+      - build-ci-images
+      - build-info
+      - build-java-sdk-docs
+      - build-prod-images
+      - build-prod-packages
+      - build-ts-sdk-docs
+      - check-run-needed
+      - ci-image-checks
+      - dependency-upgrade-summary
+      - finalize-tests
+      - generate-constraints
+      - migration-round-trip
+      - mypy-providers
+      - print-platform
+      - providers
+      - tests-agent-frameworks
+      - tests-airflow-ctl
+      - tests-go-sdk
+      - tests-helm
+      - tests-integration-system
+      - tests-java-sdk
+      - tests-kubernetes
+      - tests-kustomize-overlays
+      - tests-lang-sdk-conformance
+      - tests-mysql-core
+      - tests-mysql-providers
+      - tests-non-db-core
+      - tests-non-db-providers
+      - tests-postgres-core
+      - tests-postgres-providers
+      - tests-special
+      - tests-sqlite-core
+      - tests-sqlite-providers
+      - tests-task-sdk
+      - tests-ts-sdk
+      - tests-with-lowest-direct-resolution-core
+      - tests-with-lowest-direct-resolution-providers
+    runs-on: ["ubuntu-slim"]
+    steps:
+      - name: "Fail because a CI job was cancelled without the run being cancelled"
+        run: |
+          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
+          exit 1
+
   ci-passed:
     # A skipped build-info means project CI did not run at all: the fork CI gate (AIP-120) left the
     # pull request to CI in the contributor's fork, and every job here is skipped. Reporting
@@ -1348,8 +1558,8 @@ jobs:
     # request's base and head are force-pushed together -- reports under another name too, so it
     # never puts a failed "CI passed" next to the passing one of its twin. "CI passed" is then
     # missing for that run, which keeps the merge blocked until another run of the commit reports it.
-    # A job cancelled by its timeout gets that name too, since `name` cannot test whether the run
-    # itself was cancelled, but the job still fails.
+    # A job cancelled by its timeout, while the run is not, makes `check-timed-out-jobs` fail, and
+    # so this job fails.
     name: >-
       ${{ (!contains(needs.*.result, 'failure') && contains(needs.*.result, 'cancelled') &&
       'CI passed (run cancelled)') ||
@@ -1366,9 +1576,12 @@ jobs:
       - build-info
       - build-java-sdk-docs
       - build-prod-images
+      - build-prod-packages
       - build-ts-sdk-docs
       - check-run-needed
+      - check-timed-out-jobs
       - ci-image-checks
+      - dependency-upgrade-summary
       - finalize-tests
       - generate-constraints
       - migration-round-trip
@@ -1383,6 +1596,7 @@ jobs:
       - tests-java-sdk
       - tests-kubernetes
       - tests-kustomize-overlays
+      - tests-lang-sdk-conformance
       - tests-mysql-core
       - tests-mysql-providers
       - tests-non-db-core
@@ -1403,15 +1617,8 @@ jobs:
         run: |
           echo "At least one CI job failed."
           exit 1
-      # A job that hits its timeout is cancelled while the run is not, and must fail this check, as
-      # the scheduled canary's Slack report lists only failed jobs.
-      - name: "Fail if a CI job was cancelled without the run being cancelled"
-        if: contains(needs.*.result, 'cancelled') && !cancelled()
-        run: |
-          echo "A CI job was cancelled, likely by its timeout, while the run was not cancelled."
-          exit 1
       - name: "Report that CI jobs were cancelled"
-        if: contains(needs.*.result, 'cancelled') && cancelled()
+        if: contains(needs.*.result, 'cancelled')
         run: |
           echo "At least one CI job was cancelled, so this run does not report CI passed."
           echo 'CI jobs were cancelled: this run does not report `CI passed`.' >> "${GITHUB_STEP_SUMMARY}"
@@ -1424,7 +1631,7 @@ jobs:
     needs:
       - build-info
       - check-run-needed
-      # Waits for the gate job, which is the only failed job when a CI job timed out.
+      # Waits for the gate job, which also fails when a CI job timed out.
       - ci-passed
       - finalize-tests
       - tests-agent-frameworks
@@ -1436,37 +1643,33 @@ jobs:
       !cancelled() &&
       github.repository == 'apache/airflow' &&
       github.event_name == 'schedule' &&
-      needs.check-run-needed.outputs.run-needed != 'false' &&
-      github.run_attempt == 1
+      needs.check-run-needed.outputs.run-needed != 'false'
     runs-on: ["ubuntu-slim"]
+    permissions:
+      # The run's jobs, the previous notification state, and the annotations RunsOn puts on jobs
+      # stopped by an EC2 Spot interruption.
+      actions: read
+      checks: read
+      contents: read
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      # Skips re-runs started by maintainers, and failures that are only EC2 Spot interruptions
+      # RunsOn will re-run; those leave the notification state alone, and the re-run reports.
       - name: "Get failing jobs"
         id: get-failures
         shell: bash
-        run: |
-          FAILED_JOBS=$(gh run view "${{ github.run_id }}" \
-            --repo "${{ github.repository }}" \
-            --json jobs \
-            --jq '[.jobs[] | select(.conclusion == "failure") | .name] | sort | .[]')
-          echo "failed-jobs<<EOF" >> "${GITHUB_OUTPUT}"
-          echo "${FAILED_JOBS}" >> "${GITHUB_OUTPUT}"
-          echo "EOF" >> "${GITHUB_OUTPUT}"
-          # A literal newline would end the double-quoted YAML scalar the Slack payload
-          # interpolates job names into, and the action would reject the whole payload.
-          echo "failed-jobs-text=${FAILED_JOBS//$'\n'/\\n}" >> "${GITHUB_OUTPUT}"
-          if [[ -n "${FAILED_JOBS}" ]]; then
-            echo "has-failures=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "has-failures=false" >> "${GITHUB_OUTPUT}"
-          fi
+        run: python3 scripts/ci/spot_interruptions.py slack
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
       - name: "Determine notification action"
         id: notification
+        if: steps.get-failures.outputs.skip != 'true'
         shell: bash
         run: |
           command -v gh >/dev/null 2>&1 || { echo "::error::gh CLI is not installed"; exit 1; }
@@ -1477,6 +1680,7 @@ jobs:
           CURRENT_FAILURES: "${{ steps.get-failures.outputs.failed-jobs }}"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: "Upload notification state"
+        if: steps.get-failures.outputs.skip != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "slack-state-tests-${{ github.ref_name }}-arm"
@@ -1550,7 +1754,7 @@ jobs:
       - tests-special
       - tests-with-lowest-direct-resolution-core
       - tests-with-lowest-direct-resolution-providers
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runner-type) }}
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '4+8', '16+32') }}
     if: needs.build-info.outputs.run-unit-tests == 'true'
     steps:
       - name: "Cleanup repo"
@@ -1560,6 +1764,8 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "RunsOn cost summary"
+        uses: ./.github/actions/runs-on-cost-summary
       - name: "Free up disk space"
         shell: bash
         run: ./scripts/tools/free_up_disk_space.sh

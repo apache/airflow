@@ -75,6 +75,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param project_id: Google Cloud Project where the job is running
+    :param cancel_on_kill: Flag which indicates whether cancel the hook's job or not, when on_kill is called
     """
 
     template_fields: Sequence[str] = (
@@ -101,6 +102,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         encryption_configuration: dict | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -117,6 +119,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.hook: BigQueryHook | None = None
         self._job_conf: dict = {}
         self.project_id = project_id
+        self.cancel_on_kill = cancel_on_kill
+        self.job_id: str | None = None
 
     def _prepare_job_configuration(self):
         self.source_project_dataset_tables = (
@@ -177,8 +181,18 @@ class BigQueryToBigQueryOperator(BaseOperator):
             self.project_id = self.hook.project_id
 
         configuration = self._prepare_job_configuration()
+        # The ID is set before submitting so on_kill can cancel the job while insert_job waits for it.
+        self.job_id = self.hook.generate_job_id(
+            job_id=None,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=None,
+            configuration=configuration,
+            run_after=self.hook.get_run_after_or_logical_date(context),
+            force_rerun=True,
+        )
         self._job_conf = self.hook.insert_job(
-            configuration=configuration, project_id=self.project_id
+            configuration=configuration, job_id=self.job_id, project_id=self.project_id
         ).to_api_repr()
 
         dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
@@ -188,6 +202,12 @@ class BigQueryToBigQueryOperator(BaseOperator):
             project_id=dest_table_info["projectId"],
             table_id=dest_table_info["tableId"],
         )
+
+    def on_kill(self) -> None:
+        if self.hook and self.job_id and self.cancel_on_kill:
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+        else:
+            self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will include final BQ job id."""
