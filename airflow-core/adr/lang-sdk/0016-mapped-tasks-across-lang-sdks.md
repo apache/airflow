@@ -184,9 +184,11 @@ value is an expand argument of an enclosing mapped task group.
 
 Parse time emits `param` only where it genuinely cannot decide: a mapped stub's parameters, and a
 mapped task group member's argument that names the group. A member's other arguments are ordinary
-`literal` and `xcom` entries, and its unbound parameters resolve to their defaults at parse time,
-because that fallback does not vary by index. With no `_arg_bindings` at all, a stub task keeps its
-older behaviour of ignoring call arguments.
+`literal`, `xcom`, `sequence` or `local` entries, and its unbound parameters resolve to their
+defaults at parse time, because that fallback does not vary by index. An argument naming a task in
+the same mapped group is `sequence`, since that producer is itself expanded, and the server narrows
+it to this index's row at `ti_run` — the kind in the Dag is not always the kind on the wire. With no
+`_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
 
 The field stays plain JSON, with no `{__type, __var}` encoding, because nothing in it needs more. An
 XCom reference is `kind` plus `task_id`: a stub argument may only name an upstream task's
