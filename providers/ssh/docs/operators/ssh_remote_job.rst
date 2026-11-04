@@ -62,7 +62,7 @@ How It Works
 1. **Job Submission**: The operator connects via SSH and submits a wrapper script that:
 
    * Creates a unique job directory on the remote host
-   * Starts your command as a detached process (``nohup`` on POSIX, ``Start-Process`` on Windows)
+   * Starts your command as a detached process (``nohup`` on POSIX, ``Win32_Process.Create`` on Windows)
    * Redirects output to a log file
    * Writes exit code to a file when complete
 
@@ -157,6 +157,9 @@ Parameters
   * POSIX: ``/tmp/airflow-ssh-jobs``
   * Windows: ``$env:TEMP\\airflow-ssh-jobs``
 
+  On Windows a leading ``$env:NAME`` is expanded on the remote host; the rest of the path is
+  used literally, so ``$``, quotes and brackets later in the path are part of the directory name.
+
 * ``poll_interval`` (int, optional): How often to check job status in seconds. Default: 5
 * ``log_chunk_size`` (int, optional): Maximum bytes to read from log per poll. Default: 65536
 * ``timeout`` (int, optional): Hard timeout for the entire task in seconds. Default: None (no timeout)
@@ -228,7 +231,7 @@ the initial job submission must succeed. The connection used for submission is r
 (``conn_retry_attempts``); if every attempt fails, the task fails immediately. The trigger also
 reconnects automatically if the monitoring connection drops mid-job.
 
-**Remote Process Management**: Jobs are detached using ``nohup`` (POSIX) or ``Start-Process`` (Windows).
+**Remote Process Management**: Jobs are detached using ``nohup`` (POSIX) or ``Win32_Process.Create`` (Windows).
 If the remote host reboots during job execution, the job will be lost.
 
 **Log Size**: Large log outputs may impact performance. The ``log_chunk_size`` parameter controls
