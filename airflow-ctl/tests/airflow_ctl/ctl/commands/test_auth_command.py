@@ -583,6 +583,7 @@ class TestListEnvs:
         assert mock_console.return_value.print_as.call_args.kwargs["data"] == [
             {"environment": "production", "api_url": "http://new:8080", "status": "not authenticated"}
         ]
+        mock_get_password.assert_not_called()
 
     def test_list_envs_debug_mode(self, monkeypatch):
         """Test list-envs in debug mode."""

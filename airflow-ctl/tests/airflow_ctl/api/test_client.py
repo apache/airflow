@@ -410,7 +410,6 @@ class TestCredentials:
         return mock_keyring
 
     def test_save_skip_keyring_does_not_reuse_token_of_earlier_login(self, keyring_store):
-        """Pointing an environment at a new URL with --skip-keyring must not send the old token there."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
             skip_keyring=True
@@ -420,7 +419,6 @@ class TestCredentials:
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
     def test_save_in_debug_mode_does_not_reuse_token_of_earlier_login(self, keyring_store, monkeypatch):
-        """A command run after debug mode is turned off must not send the old token to the new URL."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
         Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
@@ -428,6 +426,21 @@ class TestCredentials:
 
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
+
+    @pytest.mark.parametrize("skip_keyring", [False, True])
+    def test_save_outside_debug_mode_does_not_reuse_debug_token_of_earlier_login(
+        self, keyring_store, skip_keyring, monkeypatch
+    ):
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+        monkeypatch.delenv("AIRFLOW_CLI_DEBUG_MODE")
+        Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save(
+            skip_keyring=skip_keyring
+        )
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="Debug credentials file not found"):
+            Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
 
     @pytest.mark.parametrize(
         "error",
@@ -437,11 +450,10 @@ class TestCredentials:
         ],
     )
     def test_save_failing_to_store_token_does_not_reuse_token_of_earlier_login(self, keyring_store, error):
-        """A failed login to a new URL must not leave the old token to be sent there."""
         Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
         keyring_store.set_password.side_effect = error
 
-        with pytest.raises((ValueError, KeyringLocked)):
+        with pytest.raises(type(error)):
             Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
 
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()

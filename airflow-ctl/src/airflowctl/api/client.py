@@ -247,20 +247,25 @@ class Credentials:
         only the config file with the API URL is created.
 
         The config file records that the token is not in keyring until
-        keyring.set_password succeeds, so a login that stores no new token
-        there never leaves an earlier token paired with the new API URL.
+        keyring.set_password succeeds, and a login outside debug mode removes
+        the debug credentials file, so a login never leaves an earlier token
+        paired with the new API URL.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
         config_path = _safe_path_under_airflow_home(default_config_dir, self.input_cli_config_file)
+        debug_mode = os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true"
+        debug_path = _safe_path_under_airflow_home(
+            default_config_dir, f"debug_creds_{self.input_cli_config_file}"
+        )
+        if not debug_mode:
+            with contextlib.suppress(FileNotFoundError):
+                os.remove(debug_path)
         with open(config_path, "w") as f:
             json.dump({"api_url": self.api_url, "token_in_keyring": False}, f)
 
         try:
-            if os.getenv("AIRFLOW_CLI_DEBUG_MODE") == "true":
-                debug_path = _safe_path_under_airflow_home(
-                    default_config_dir, f"debug_creds_{self.input_cli_config_file}"
-                )
+            if debug_mode:
                 with open(debug_path, "w") as f:
                     json.dump({self.token_key_for_environment(self.api_environment): self.api_token}, f)
             else:
