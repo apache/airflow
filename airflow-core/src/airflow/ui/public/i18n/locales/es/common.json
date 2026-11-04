@@ -15,18 +15,22 @@
     "lightMode": "Modo Claro",
     "systemMode": "Seguir Configuración del Sistema"
   },
+  "asset_many": "Assets",
   "asset_one": "Asset",
   "asset_other": "Assets",
+  "assetEvent_many": "Eventos de Asset",
   "assetEvent_one": "Evento de Asset",
   "assetEvent_other": "Eventos de Asset",
   "assetInactive": {
     "tooltip": "El Asset upstream ha sido desactivado; el programador retiene la evaluación de particiones hasta que se reactive."
   },
+  "backfill_many": "Backfills",
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
   "breadcrumb": "Ruta de navegación",
   "browse": {
     "auditLog": "Log de Auditoría",
+    "dagBundles": "Dag Bundles",
     "deadlines": "Plazos",
     "jobs": "Jobs",
     "requiredActions": "Acciones Requeridas",
@@ -35,12 +39,18 @@
   "collapseAllExtra": "Colapsar todos los extra json",
   "collapseDetailsPanel": "Colapsar Detalles del Panel",
   "consumingAsset": "Asset Consumidor",
+  "createdAssetEvent_many": "Eventos de Asset Creados",
   "createdAssetEvent_one": "Evento de Asset Creado",
   "createdAssetEvent_other": "Eventos de Asset Creados",
+  "dag_many": "Dags",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_many": "Dag Bundles",
+  "dagBundle_one": "Dag Bundle",
+  "dagBundle_other": "Dag Bundles",
   "dagDetails": {
     "activeRuns": "Ejecuciones Activas",
+    "bundleVersion": "Versión del Bundle",
     "catchup": "Catchup",
     "dagRunTimeout": "Tiempo de Espera de la Ejecución del Dag",
     "defaultArgs": "Argumentos por Defecto",
@@ -85,6 +95,7 @@
     "triggeredBy": "Activado por",
     "triggeringUser": "Nombre del Usuario que Activa"
   },
+  "dagRun_many": "Ejecuciones del Dag",
   "dagRun_one": "Ejecución del Dag",
   "dagRun_other": "Ejecuciones del Dag",
   "dagRunId": "ID de la Ejecución del Dag",
@@ -122,6 +133,7 @@
       "title": "Acceso Denegado"
     }
   },
+  "event_many": "Eventos",
   "event_one": "Evento",
   "event_other": "Eventos",
   "expand": {
@@ -135,18 +147,25 @@
     "all": "Todos",
     "and": "Y",
     "any": "Cualquiera",
+    "hiddenAsset": "Asset oculto",
     "or": "O"
   },
   "filter": "Filtro",
   "filters": {
     "addFilter": "Agregar Filtro",
+    "allIterations": "Todas",
     "completedAt": "Completado en",
     "date": "Fecha",
     "durationFrom": "Duración Desde",
     "durationTo": "Duración Hasta",
     "endTime": "Hora de Fin",
+    "iteration": "Iteración",
     "logicalDateFrom": "Fecha Lógica Desde",
     "logicalDateTo": "Fecha Lógica Hasta",
+    "loop": "Bucle",
+    "loopAllIterations": "{{loop}} todas",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Seleccionar un bucle",
     "maxActiveRunsFrom": "Máximo de Ejecuciones Activas Desde",
     "maxActiveRunsTo": "Máximo de Ejecuciones Activas Hasta",
     "removeFilter": "Eliminar Filtro",
@@ -156,6 +175,7 @@
     "selectDateRange": "Seleccionar Rango de Fechas",
     "selectDateTime": "Seleccionar Fecha y Hora",
     "startTime": "Hora de Inicio",
+    "switchIteration": "Cambiar de iteración",
     "time": "Hora"
   },
   "fullscreen": {
@@ -164,6 +184,12 @@
   "generateToken": "Generar Token",
   "includedIn": "Incluido en",
   "key": "Clave",
+  "loading": "Cargando…",
+  "logLevel": {
+    "hide": "Ocultar Niveles de Log",
+    "hotkey": "l",
+    "show": "Mostrar Niveles de Log"
+  },
   "logicalDate": "Fecha Lógica",
   "logout": "Cerrar Sesión",
   "logoutConfirmation": "Estás a punto de cerrar sesión de la aplicación.",
@@ -190,6 +216,7 @@
     "plugins": "Plugins",
     "security": "Seguridad"
   },
+  "no": "No",
   "noItemsFound": "No se encontraron {{modelName}}",
   "note": {
     "add": "Agregar una nota",
@@ -202,14 +229,17 @@
     "write": "Escribir"
   },
   "overallStatus": "Estado General",
+  "partition_many": "Particiones",
   "partition_one": "Partición",
   "partition_other": "Particiones",
+  "partitionedDagRun_many": "Ejecuciones del Dag Particionadas",
   "partitionedDagRun_one": "Ejecución del Dag Particionada",
   "partitionedDagRun_other": "Ejecuciones del Dag Particionadas",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Eventos de Asset Recibidos"
   },
   "pause": "Pausar",
+  "pendingDagRun_many": "{{count, number}} de Ejecuciones del Dag Pendientes",
   "pendingDagRun_one": "{{count, number}} Ejecución del Dag Pendiente",
   "pendingDagRun_other": "{{count, number}} Ejecuciones del Dag Pendientes",
   "presetFilters": {
@@ -262,6 +292,10 @@
   "selected": "Seleccionado",
   "settings": {
     "clearing": {
+      "keepTaskState": {
+        "helper": "Conservar por defecto las entradas del almacenamiento de estado de tarea al limpiar instancias de tarea, en lugar de descartarlas.",
+        "label": "Conservar el estado de tarea al limpiar"
+      },
       "preventRunningTask": {
         "helper": "Omitir las tareas que están en ejecución al limpiar instancias de tarea.",
         "label": "Evitar limpiar tareas en ejecución"
@@ -275,6 +309,13 @@
         "label": "Selección predeterminada al limpiar tareas"
       },
       "title": "Limpieza"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Mostrar los estados recientes de las tareas de cada Dag en la lista de Dags. Desactívalo para omitir su carga, lo que puede ayudar en despliegues con muchos Dags.",
+        "label": "Mostrar tareas recientes"
+      },
+      "title": "Lista de Dags"
     },
     "description": "Estas preferencias se guardan solo en este navegador y se aplican en toda la aplicación.",
     "general": {
@@ -293,6 +334,10 @@
         "helper": "Dirección de disposición para los gráficos de Dag y de Asset que no hayas configurado individualmente.",
         "label": "Dirección predeterminada del gráfico"
       },
+      "taskGroupsExpanded": {
+        "helper": "Expandir los grupos de tareas en los Dags donde no hayas guardado una selección de grupos. Las selecciones existentes se conservan.",
+        "label": "Expandir grupos de tareas por defecto"
+      },
       "title": "Gráfico"
     },
     "marking": {
@@ -301,6 +346,13 @@
         "label": "Selección predeterminada al marcar"
       },
       "title": "Marcado"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Las elecciones de cada barra de búsqueda y los enlaces compartidos siguen teniendo prioridad.",
+        "label": "Coincidir en cualquier parte por defecto"
+      },
+      "title": "Búsqueda"
     },
     "taskInstance": {
       "defaultTab": {
@@ -340,10 +392,13 @@
       "scrollBottom": "Desplazarse hacia abajo",
       "scrollTop": "Desplazarse hacia arriba",
       "searchDags": "Buscar $t(dag_other)",
+      "selectGridCellRange": "Seleccionar un rango de $t(taskInstance_other) o $t(taskGroup_other) (no tareas de bucle)",
       "showHelp": "Mostrar $t(shortcuts.title)",
       "toggleExpand": "Expandir o colapsar todos los grupos",
       "toggleFullscreen": "Alternar pantalla completa",
       "toggleGraphGrid": "Alternar vista de gráfico / cuadrícula",
+      "toggleGridCellSelection": "Agregar o quitar una $t(taskInstance_one) o un $t(taskGroup_one) de la selección (no tareas de bucle)",
+      "toggleLogLevel": "Alternar niveles de log",
       "toggleSource": "Alternar fuente",
       "toggleTaskGroup": "Expandir o colapsar $t(taskGroup_one)",
       "toggleTimestamp": "Alternar marcas de tiempo",
@@ -355,6 +410,7 @@
   "showDetailsPanel": "Mostrar Panel de Detalles",
   "signedInAs": "Sesión iniciada como",
   "slot": "Slot",
+  "slot_many": "Slots",
   "slot_one": "Slot",
   "slot_other": "Slots",
   "source": {
@@ -362,6 +418,7 @@
     "hotkey": "s",
     "show": "Mostrar Fuente"
   },
+  "sourceAssetEvent_many": "Eventos de Asset Fuente",
   "sourceAssetEvent_one": "Evento de Asset Fuente",
   "sourceAssetEvent_other": "Eventos de Asset Fuente",
   "startDate": "Fecha Inicial",
@@ -373,6 +430,7 @@
     "no_status": "Sin Estado",
     "none": "Sin Estado",
     "open": "Abierto",
+    "pending": "Pendiente",
     "planned": "Planificado",
     "queued": "En Cola",
     "removed": "Removido",
@@ -386,11 +444,14 @@
     "upstream_failed": "Fallido en Upstream"
   },
   "switchDag": "Cambiar de $t(dag_one)",
+  "switchDagRun": "Cambiar de $t(dagRun_one)",
+  "switchMapIndex": "Cambiar de $t(mapIndex)",
   "table": {
     "completedAt": "Completado en",
     "createdAt": "Creado en",
     "filterByTag": "Filtrar Dags por etiqueta",
     "filterColumns": "Filtrar columnas de la tabla",
+    "filterReset_many": "Restablecer filtros",
     "filterReset_one": "Restablecer filtro",
     "filterReset_other": "Restablecer filtros",
     "from": "Desde",
@@ -416,11 +477,13 @@
     "triggerRule": "Regla de Activación",
     "waitForDownstream": "Esperar Downstream"
   },
+  "task_many": "Tareas",
   "task_one": "Tarea",
   "task_other": "Tareas",
   "taskGroup": {
     "documentation": "Documentación del Grupo de Tareas"
   },
+  "taskGroup_many": "Grupos de Tareas",
   "taskGroup_one": "Grupo de Tareas",
   "taskGroup_other": "Grupos de Tareas",
   "taskId": "ID de la Tarea",
@@ -431,6 +494,9 @@
     "executorConfig": "Configuración del Executor",
     "hostname": "Nombre de Host",
     "id": "ID",
+    "iteration": "Iteración",
+    "loopDecision": "Decisión",
+    "loopIterations": "Iteraciones Ejecutadas",
     "maxTries": "Máximo de Intentos",
     "pid": "PID",
     "pool": "Pool",
@@ -439,7 +505,13 @@
     "queue": "Cola",
     "queuedWhen": "En Cola en",
     "renderedMapIndex": "Map Index Renderizado",
+    "retryAt": "Reintentar en",
     "scheduledWhen": "Programado en",
+    "stateReason": "Motivo del Estado",
+    "stateReasonSummary": {
+      "failed": "Detenido en el intento {{tryNumber}} de {{totalTries}}",
+      "upForRetry": "Reintentando después del intento {{tryNumber}} de {{totalTries}}"
+    },
     "trigger": "Trigger",
     "triggerer": {
       "assigned": "Triggerer Asignado",
@@ -452,18 +524,25 @@
     },
     "unixname": "Nombre de Unix"
   },
+  "taskInstance_many": "Instancias de Tarea",
   "taskInstance_one": "Instancia de Tarea",
   "taskInstance_other": "Instancias de Tarea",
   "teams": {
+    "more_many": "y {{count, number}} más",
     "more_one": "y {{count, number}} más",
     "more_other": "y {{count, number}} más",
     "none": "Sin equipo",
     "title": "Equipos"
   },
   "timeRange": {
+    "anyTime": "Cualquier Momento",
+    "in": "en",
+    "last7Days": "Últimos 7 Días",
     "last12Hours": "Últimas 12 Horas",
     "last24Hours": "Últimas 24 Horas",
+    "last30Days": "Últimos 30 Días",
     "lastHour": "Última Hora",
+    "latestRun": "Última Ejecución",
     "pastWeek": "Semana Pasada"
   },
   "timestamp": {
@@ -556,5 +635,6 @@
     "tooltip": "Presiona {{hotkey}} para alternar el 'envolver'",
     "unwrap": "Desenvolver",
     "wrap": "Envolver"
-  }
+  },
+  "yes": "Sí"
 }
