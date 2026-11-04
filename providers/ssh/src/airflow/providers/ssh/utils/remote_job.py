@@ -33,7 +33,7 @@ WINDOWS_DEFAULT_BASE_DIR = "$env:TEMP\\airflow-ssh-jobs"
 # PowerShell ends a single-quoted string at any of these, not only the ASCII
 # apostrophe; a doubled one stands for itself.
 _PS_SINGLE_QUOTES = re.compile("(['\u2018\u2019\u201a\u201b])")
-_PS_ENV_PREFIX = re.compile(r"\$env:([A-Za-z_][A-Za-z0-9_]*)")
+_PS_ENV_PREFIX = re.compile(r"\$env:([A-Za-z_][A-Za-z0-9_]*)", re.IGNORECASE)
 
 
 def _ps_quote(value: str) -> str:
@@ -277,13 +277,19 @@ def build_windows_wrapper_command(
 
     The wrapper:
 
-    - Creates the job directory and writes the job script into it
+    - Creates the job directory and writes the command into it as ``cmd.ps1``, next to
+      the job script that runs it
     - Starts the job script as a separate process that outlives the SSH session, in the
       SSH session's working directory
-    - Appends the output of every statement in the command to the log file, as UTF-8
-    - Writes the exit code atomically on completion
-    - Writes the PID for potential cancellation, and fails the submission if the
-      process could not be started
+    - Appends everything the command writes, on every stream, to the log file as UTF-8
+    - Writes the exit code on completion, including when the command calls ``exit``,
+      throws, or fails to parse
+    - Writes the PID for potential cancellation, and fails the submission if the job
+      directory cannot be set up or the process cannot be started
+
+    The command runs as a script, so the host's execution policy applies to it with
+    ``-ExecutionPolicy Bypass`` for the process; a Group Policy that only allows signed
+    scripts fails the job with the policy error in its log.
 
     :param command: The command to execute (PowerShell script path or command)
     :param paths: RemoteJobPaths instance with all paths
@@ -298,40 +304,58 @@ def build_windows_wrapper_command(
 
     sep = paths.sep
 
-    # Use $d and $b for directories to avoid passing long paths multiple times.
-    # Write command to disk to avoid double base64 encoding. The job script travels in a
-    # verbatim here-string, so the command is inlined as written, without escaping.
-    # & { } sends the output of every statement in the command to the log, not just the last.
-    # The log writer shares the file for reading and flushes every line, so the trigger can
-    # tail it while the job runs; Add-Content would lock it until the command finished.
-    # Launch as Win32_Process so that it doesn't die when SSH exits. Create reports failure
-    # in ReturnValue instead of throwing.
+    # Use $d and $b for directories to avoid passing long paths multiple times, and write
+    # the scripts to disk to avoid double base64 encoding. job.ps1 travels in a verbatim
+    # here-string and holds nothing user-supplied but quoted environment values; the command
+    # goes to its own cmd.ps1, so `exit N` in it ends only that script, with $LASTEXITCODE N.
+    # *>&1 keeps Write-Host and warnings; error records are turned into their message before
+    # Out-String formats objects the way a console would. The log writer shares the file for
+    # reading and flushes every line, so the trigger can tail it while the job runs.
+    # Windows reports a crashed process as a negative exit code; record it unsigned, since
+    # the trigger only accepts digits.
     child_script = f"""$ErrorActionPreference = "Continue"
-$b = $PSScriptRoot
 $env:LOG_FILE = "$b{sep}stdout.log"
 $env:STATUS_FILE = "$b{sep}status"
 {env_setup}
 $log = [System.IO.StreamWriter]::new([System.IO.FileStream]::new($env:LOG_FILE, 'Append', 'Write', 'ReadWrite'), [System.Text.UTF8Encoding]::new($false))
 $log.AutoFlush = $true
-& {{
-{command}
-}} 2>&1 | ForEach-Object {{ $log.WriteLine($_) }}
-$log.Close()
-$ec = $LASTEXITCODE
-if ($null -eq $ec) {{ $ec = 0 }}
-Set-Content -NoNewline -LiteralPath "$b{sep}exit_code.tmp" -Value $ec
-Move-Item -Force -LiteralPath "$b{sep}exit_code.tmp" -Destination "$b{sep}exit_code"
+$ec = 1
+try {{
+  & "$b{sep}cmd.ps1" *>&1 |
+    ForEach-Object {{ if ($_ -is [System.Management.Automation.ErrorRecord]) {{ "$_" }} else {{ $_ }} }} |
+    Out-String -Stream |
+    ForEach-Object {{ $log.WriteLine($_) }}
+  $ec = if ($null -eq $LASTEXITCODE) {{ 0 }} else {{ $LASTEXITCODE }}
+}} catch {{
+  $log.WriteLine("$_")
+}} finally {{
+  $log.Close()
+  if ($ec -lt 0) {{ $ec += 4294967296 }}
+  Set-Content -NoNewline -LiteralPath "$b{sep}exit_code.tmp" -Value $ec
+  Move-Item -Force -LiteralPath "$b{sep}exit_code.tmp" -Destination "$b{sep}exit_code"
+}}
 """
 
-    wrapper = f"""$d = {_ps_path(paths.job_dir)}
+    # Launch as Win32_Process so that it doesn't die when SSH exits. job.ps1 is read and run
+    # as a script block rather than with -File, so execution policy never blocks the job's
+    # own bookkeeping, only the user's cmd.ps1. Create reports failure in ReturnValue
+    # instead of throwing.
+    launch = (
+        "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
+        f'"$b = {_ps_path(paths.job_dir)}; '
+        f". ([scriptblock]::Create([System.IO.File]::ReadAllText($b + '{sep}job.ps1')))\""
+    )
+    wrapper = f"""$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+trap {{ [Console]::Error.WriteLine("$_"); exit 1 }}
+$d = {_ps_path(paths.job_dir)}
 New-Item -ItemType Directory -Force -Path $d | Out-Null
-$sf = "$d{sep}job.ps1"
+[System.IO.File]::WriteAllText("$d{sep}cmd.ps1", {_ps_quote(command)}, [System.Text.UTF8Encoding]::new($true))
 @'
-{child_script}'@ | Set-Content -LiteralPath $sf -Encoding UTF8
+{child_script}'@ | Set-Content -LiteralPath "$d{sep}job.ps1" -Encoding UTF8
 New-Item -ItemType File -Force -Path "$d{sep}stdout.log" | Out-Null
 
-$cmd = "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$sf`""
-$p = ([wmiclass]'Win32_Process').Create($cmd, $PWD.ProviderPath, $null)
+$p = ([wmiclass]'Win32_Process').Create({_ps_quote(launch)}, $PWD.ProviderPath, $null)
 if ($p.ReturnValue -ne 0) {{
   [Console]::Error.WriteLine("Win32_Process.Create failed with return value $($p.ReturnValue)")
   exit 1

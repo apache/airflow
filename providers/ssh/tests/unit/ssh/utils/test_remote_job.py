@@ -193,9 +193,7 @@ class TestBuildWindowsWrapperCommand:
 
         assert "powershell.exe" in wrapper
         assert "-EncodedCommand" in wrapper
-        # Decode and verify script content
-        encoded_script = wrapper.split("-EncodedCommand ")[1]
-        decoded_script = base64.b64decode(encoded_script).decode("utf-16-le")
+        decoded_script = _decode(wrapper)
         assert "New-Item -ItemType Directory" in decoded_script
         assert "Win32_Process" in decoded_script
 
@@ -210,17 +208,28 @@ class TestBuildWindowsWrapperCommand:
         assert wrapper is not None
         assert "-EncodedCommand" in wrapper
 
-    def test_command_is_inlined_as_written_and_all_its_output_logged(self):
-        """The job script carries the command unescaped, in one block whose whole output is logged."""
-        command = 'python -c "print(1+1)"\nWrite-Output `$done; Write-Output "two words"'
+    def test_command_reaches_its_script_verbatim(self):
+        """The command is written to cmd.ps1 as a quoted literal, so no character in it is special."""
+        command = "python -c \"print(1+1)\"\n$s = @'\nline\n'@\nWrite-Output `$done \u2019q $(hostname)"
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
 
         script = _decode(build_windows_wrapper_command(command, paths))
 
-        assert f"& {{\n{command}\n}} 2>&1 | " in script
+        parsed, rest = _read_ps_single_quoted(script.split('WriteAllText("$d\\cmd.ps1", ', 1)[1])
+        assert parsed == command
+        assert rest.startswith(", ")
 
-    def test_log_stays_readable_while_the_job_runs(self):
-        """Add-Content locks the log until the command ends, so the trigger could not tail it."""
+    def test_job_script_runs_without_file_so_policy_cannot_block_it(self):
+        """-File is refused under a signed-only Group Policy; the job script is run as a script block."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        assert "-File" not in script
+        assert "[scriptblock]::Create([System.IO.File]::ReadAllText(" in script
+
+    def test_log_stays_readable_and_gets_every_stream(self):
+        """Add-Content locks the log until the command ends, and 2>&1 alone drops Write-Host."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
@@ -228,6 +237,16 @@ class TestBuildWindowsWrapperCommand:
         assert "[System.IO.FileStream]::new($env:LOG_FILE, 'Append', 'Write', 'ReadWrite')" in script
         assert "$log.AutoFlush = $true" in script
         assert "Add-Content" not in script
+        assert '& "$b\\cmd.ps1" *>&1 |' in script
+
+    def test_exit_code_is_written_however_the_command_ends(self):
+        """exit, throw and parse errors all reach finally; a negative code is recorded unsigned."""
+        paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+
+        finally_block = script.split("} finally {", 1)[1]
+        assert finally_block.index("if ($ec -lt 0) { $ec += 4294967296 }") < finally_block.index("exit_code")
 
     def test_environment_value_is_literal(self):
         """Values are single-quoted, including PowerShell's typographic quotes, so nothing expands."""
@@ -246,14 +265,16 @@ class TestBuildWindowsWrapperCommand:
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
 
-        assert "Create($cmd, $PWD.ProviderPath, $null)" in script
+        assert ", $PWD.ProviderPath, $null)" in script
 
-    def test_failed_process_start_fails_submission(self):
-        """Create reports failure in ReturnValue; the wrapper must exit before reporting a job id."""
+    def test_setup_failure_fails_submission(self):
+        """A failed setup step or Create must stop the wrapper before it reports a job id."""
         paths = RemoteJobPaths(job_id="test_job", remote_os="windows")
 
         script = _decode(build_windows_wrapper_command("hostname", paths))
 
+        assert script.startswith("$ErrorActionPreference = 'Stop'\n")
+        assert 'trap { [Console]::Error.WriteLine("$_"); exit 1 }' in script
         check = script.index("if ($p.ReturnValue -ne 0)")
         assert check < script.index("exit 1", check) < script.index("Write-Output 'test_job'")
         assert script.index("exit 1", check) < script.index('"$d\\pid"')
@@ -613,21 +634,36 @@ class TestWindowsPathQuoting:
             ),
         }
 
+    BASE_DIRS = [
+        pytest.param(None, id="default-base-dir"),
+        pytest.param("$Env:TEMP\\jobs", id="env-prefix-any-case"),
+        pytest.param("D:\\jobs [1] $x `y \u2019q 'z' $(hostname)", id="metacharacters"),
+    ]
+
+    @staticmethod
+    def _resolved(path: str) -> str:
+        return re.sub(r"(?i)^\$env:TEMP", lambda _: "C:\\Temp", path)
+
     @pytest.mark.parametrize("builder", BUILDERS)
-    @pytest.mark.parametrize(
-        "base_dir",
-        [
-            pytest.param(None, id="default-base-dir"),
-            pytest.param("D:\\jobs [1] $x `y \u2019q 'z' $(hostname)", id="metacharacters"),
-        ],
-    )
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
     def test_path_evaluates_to_itself(self, builder, base_dir):
         paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
         cmd, prefix, path = self._builders(paths)[builder]
 
         expr = _decode(cmd).split(prefix, 1)[1]
 
-        assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == path.replace("$env:TEMP", "C:\\Temp")
+        assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == self._resolved(path)
+
+    @pytest.mark.parametrize("base_dir", BASE_DIRS)
+    def test_launch_command_evaluates_to_the_job_dir(self, base_dir):
+        """The job dir is quoted twice: once in the -Command text, once for the wrapper itself."""
+        paths = RemoteJobPaths(job_id="job_123", remote_os="windows", base_dir=base_dir)
+
+        script = _decode(build_windows_wrapper_command("hostname", paths))
+        launch, _ = _read_ps_single_quoted(script.split(".Create(", 1)[1])
+
+        expr = launch.split("$b = ", 1)[1]
+        assert _eval_ps_path(expr, env={"TEMP": "C:\\Temp"}) == self._resolved(paths.job_dir)
 
     @pytest.mark.parametrize("builder", BUILDERS)
     def test_paths_are_never_globbed(self, builder):

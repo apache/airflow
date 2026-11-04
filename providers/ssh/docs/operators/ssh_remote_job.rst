@@ -193,6 +193,9 @@ For Windows, ensure:
 * OpenSSH Server is installed and running
 * PowerShell is available (default on modern Windows)
 * SSH connection allows command execution
+* No Group Policy restricts PowerShell to signed scripts. Your command runs as a script with
+  ``-ExecutionPolicy Bypass``, which a Group Policy setting overrides; under such a policy the job
+  fails with the policy error in its log.
 
 Job Directory Structure
 -----------------------
@@ -206,6 +209,8 @@ Each job creates a directory on the remote host with these files:
     ├── exit_code          # Final exit code (0 or non-zero)
     ├── pid                # Process ID (for on_kill)
     └── status             # Optional status file (for user scripts)
+
+On Windows the directory also holds ``cmd.ps1``, your command, and ``job.ps1``, which runs it.
 
 Your command can access these via environment variables:
 
