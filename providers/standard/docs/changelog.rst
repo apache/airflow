@@ -35,6 +35,9 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
 .. note::
   ``@task.bash`` now renders only the command returned by the decorated function inside
   ``execute()``. Its other template fields (``env``, ``cwd``, ``op_args``, ``op_kwargs``, ...) are
@@ -43,6 +46,27 @@ Changelog
 
 .. warning::
   The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated TimeDeltaSensorAsync (#76131)``
+
+Features
+~~~~~~~~
+
+* ``Add AssetEventSensor to standard provider (#70225)``
+* ``Allow asking for human input from inside a Python task (#75358)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Propagate OpenLineage parent and root job types to triggered Dags (#75303)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
 
 1.21.0
 ......

@@ -27,11 +27,25 @@
 Changelog
 ---------
 
+15.3.1
+......
+
 .. note::
 
     ``S3ToAzureBlobStorageOperator`` now verifies S3 TLS certificates by default: ``s3_verify`` defaults
     to ``None``, deferring to the connection and botocore default. Pass ``s3_verify=False`` to keep the
     previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Verify S3 TLS certificates by default in S3ToAzureBlobStorageOperator (#76222)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
 
 15.3.0
 ......

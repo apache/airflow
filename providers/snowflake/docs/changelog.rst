@@ -27,6 +27,33 @@
 Changelog
 ---------
 
+6.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Align Snowflake Cortex Agent hook with the Common AI managed-agent contract (#74672)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stale cursor descriptions between SnowflakeHook runs (#76163)``
+* ``Fix lost transaction in SnowflakeHook when 'session_parameters' is set (#75425)``
+* ``Fix Snowflake connections ignoring region with 'snowflake-connector-python' 5 (#75334)``
+
+Misc
+~~~~
+
+* ``Clarify which Snowflake connectors need the session_parameters copy (#75457)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Move Snowflake trigger tests to match the trigger module name (#73760)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Make common.ai hooks report misconfiguration instead of failing silently (#74451)``
+
 6.20.0
 ......
 

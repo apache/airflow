@@ -20,6 +20,9 @@
 Changelog
 ---------
 
+3.11.0
+......
+
 .. note::
     Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which ``Op`` and ``Admin``
     get by default. Upgrade this provider together with Airflow 3.4.1: older releases deny the Dag
@@ -30,6 +33,35 @@ Changelog
     ``AUTH_TYPE``: with ``AUTH_LDAP`` it no longer falls back to database passwords, and with other
     authentication types (OAuth, remote user) it no longer issues tokens for a username and
     password; use that type's own login flow instead. Passwords made only of NUL bytes are rejected.
+
+Features
+~~~~~~~~
+
+* ``Give Dag bundles their own read permission (#76329)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use only the configured auth type when creating tokens in the FAB auth manager (#76231)``
+* ``Honor next when an authenticated user reaches the FAB login page (#75665)``
+
+Misc
+~~~~
+
+* ``Bump @babel/core to 8.0.9 and webpack to 5.112.2 in the FAB UI (#75807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add CLI login discovery to auth managers (#75672)``
+* ``[AIP-94] Add airflowctl providers get (#68854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``
+   * ``Remove unused FAB test log assertion helpers (#75876)``
 
 3.10.2
 ......

@@ -25,6 +25,9 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
 .. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
@@ -33,6 +36,28 @@ Changelog
   rendered a second time. The returned prompt is still rendered as a Jinja template, and every
   argument the task is called with, positional ones included, can be referenced in it by name;
   see the ``@task.llm`` documentation for how to include text from function arguments in it.
+
+Features
+~~~~~~~~
+
+* ``Suggest common model providers in the pydanticai connection form (#76053)``
+* ``Show which skills an agent was offered and used in the AI Model tab (#76309)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rewrite the OpenAI Agents SDK guide to stand on its own (#76340)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop pydantic-ai providers that models cannot use from failing the common.ai vendor check (#76312)``
+   * ``Add screenshots and a review loop example to the task loops docs (#76435)``
+   * ``[main] Upgrade important CI environment (#76278)``
 
 1.1.0
 .....

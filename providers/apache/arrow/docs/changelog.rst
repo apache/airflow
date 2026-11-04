@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use bulk ingest in AdbcHook.insert_rows when fast_executemany is set (#76363)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 0.1.1
 .....
 

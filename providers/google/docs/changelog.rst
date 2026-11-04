@@ -27,10 +27,59 @@
 Changelog
 ---------
 
+22.9.0
+......
+
 .. warning::
     Subclasses of ``CloudLoggingRemoteLogIO`` that override ``prepare_log_filter`` must accept a
     ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
     With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
+
+Features
+~~~~~~~~
+
+* ``Convert BigQueryAsyncHook.get_records to async method (#72286)``
+* ``Add query and report inspection operators for Google Bid Manager (#71947)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Enforce execution_timeout in deferrable DataprocSubmitJobOperator (#72030)``
+* ``Normalize empty project id in credential config file branch (#73886)``
+* ``Stop BigQueryStreamingBufferEmptySensor reporting empty too early (#69118)``
+* ``Stop Google Cloud Logging handler from starting a thread on close (#75596)``
+* ``Fix BigQuery cancellation and links with inferred job locations (#75717)``
+* ``Fix BigQuery durable recovery for regional jobs (#75430)``
+* ``Cancel the BigQuery job when BigQueryToBigQueryOperator is killed (#75101)``
+* ``Prevent Dag processor crashes with Google Cloud Logging when its log directory is outside 'base_log_folder' (#74926)``
+* ``Fix Google Cloud Logging task log reads before Airflow 3.4 (#74923)``
+
+Misc
+~~~~
+
+* ``Remove types-protobuf from google provider runtime dependencies (#73775)``
+* ``Remove unused Cloud SQL settings version helper (#75789)``
+* ``Remove unused Dataproc job template helper (#75790)``
+* ``Remove unused Cloud SQL OS bitness helper (#75788)``
+* ``Remove unused Dataflow job state checker (#75784)``
+* ``Add High Obtainability (HO) mode support to Dataproc operators (#74753)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document all Google Cloud connection fields (#76160)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Parametrize GCS-to-GCS wildcard and retention tests. (#76094)``
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+   * ``Add missing tests for google.cloud.utils BigQuery helpers (#72276) (#72448)``
+   * ``Remove duplicate Calendar-to-GCS transfer test (#75895)``
+   * ``Remove duplicate GCS wildcard transfer test (#75897)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+   * ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312)``
 
 22.8.0
 ......
