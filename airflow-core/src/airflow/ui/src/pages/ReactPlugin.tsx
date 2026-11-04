@@ -36,6 +36,7 @@ import type {
 } from "openapi/requests/types.gen";
 
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
+import { loadRouteModule, reloadAfterFailedRouteModuleLoad } from "src/utils/routeModule";
 
 export type PluginProps = {
   asset?: AssetResponse;
@@ -66,8 +67,9 @@ export const loadPlugin = (
   (globalThis as Record<string, unknown>).AirflowPlugin = undefined;
 
   // We are assuming the plugin manager is trusted and the bundle_url is safe
-  return loadDependencies()
-    .then(() => importBundle(new URL(reactApp.bundle_url, document.baseURI).href))
+  return loadRouteModule(() =>
+    loadDependencies().then(() => importBundle(new URL(reactApp.bundle_url, document.baseURI).href)),
+  )
     .then(() => {
       // Store components in globalThis[reactApp.name] to avoid conflicts with the shared globalThis.AirflowPlugin
       // global variable.
@@ -87,6 +89,8 @@ export const loadPlugin = (
       return { default: pluginComponent };
     })
     .catch((error: unknown) => {
+      reloadAfterFailedRouteModuleLoad();
+
       // eslint-disable-next-line no-console
       console.error("Component failed to load:", error);
 
