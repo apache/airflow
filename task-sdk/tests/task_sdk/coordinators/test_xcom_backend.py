@@ -395,6 +395,32 @@ class TestXComBackendProcessSendCall:
 
         on_result.assert_called_once_with(XComBackendResult(error="The XCom backend process was stopped"))
 
+    def test_a_stopping_process_is_sent_exit_instead_of_a_queued_call(self, backend, on_result):
+        """A queued call would run for a task that is already over, so it fails before the wait."""
+        log = structlog.get_logger(logger_name="task")
+        backend._handle_await_call(AwaitXComBackendCall(), log, req_id=1)
+        backend.send_call(XComBackendCall(hook="load", key="first", value={}), on_result)
+        backend.send_call(XComBackendCall(hook="load", key="second", value={}), on_result)
+        backend._open_sockets[backend.stdin] = "requests"
+
+        def answer_the_running_call(**_):
+            backend._handle_result(XComBackendResult(value="first value"), log, req_id=2)
+            backend._open_sockets.clear()
+            backend._exit_code = 0
+
+        with patch.object(XComBackendProcess, "_service_subprocess", side_effect=answer_the_running_call):
+            backend.stop()
+
+        sent = [
+            msgspec.msgpack.decode(frame.args[0][4:])[1]
+            for frame in cast("MagicMock", backend.stdin).sendall.call_args_list
+        ]
+        assert [(body["hook"], body["key"]) for body in sent] == [("load", "first"), ("exit", "")]
+        assert on_result.call_args_list == [
+            call(XComBackendResult(error="The XCom backend process was stopped")),
+            call(XComBackendResult(value="first value")),
+        ]
+
     def test_a_dead_process_is_reaped_without_servicing_the_shared_selector(self, backend):
         """The selector belongs to the task, so servicing it would dispatch the task's own requests."""
         backend._exit_code = 0

@@ -701,6 +701,15 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         fails fails the request, so the runtime fails the task.
         """
 
+        def answer(resp: BaseModel | None, error: ErrorResponse | None, **dump_opts: bool) -> None:
+            try:
+                self.send_msg(resp, request_id=req_id, error=error, **dump_opts)
+            except OSError:
+                # The runtime can exit while the call runs, such as when its task is killed.
+                self.process_log.warning(
+                    "The runtime exited before its XCom request was answered", request_id=req_id
+                )
+
         def finish(result: XComBackendResult) -> None:
             try:
                 if result.error is not None:
@@ -708,9 +717,9 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 resp, dump_opts = then(result)
             except Exception as e:
                 self.process_log.exception("Failed to handle the XCom backend result", request_id=req_id)
-                self.send_msg(None, request_id=req_id, error=_build_request_error(e))
+                answer(None, _build_request_error(e))
             else:
-                self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+                answer(resp, None, **dump_opts)
 
         self._start_xcom_backend_call(call, finish)
         return ResponseSent.ALREADY_SENT

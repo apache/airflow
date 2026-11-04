@@ -1830,6 +1830,33 @@ class TestPopenActivitySubprocessXComBackend:
         assert error["error"] == ErrorType.XCOM_BACKEND_ERROR.value
         assert "purge refused" in error["detail"]["message"]
 
+    @pytest.mark.parametrize(
+        ("xcom", "msg", "api_request"),
+        [
+            pytest.param(
+                _RefXCom,
+                SetXCom(key="summary", value=1, dag_id="tutorial_dag", run_id="run_1", task_id="other"),
+                ("POST", "/xcoms/tutorial_dag/run_1/other/summary", "ref://other/None/summary"),
+                id="result",
+            ),
+            pytest.param(
+                _FailingPurgeXCom,
+                DeleteXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"),
+                ("DELETE", _XCOM_PATH, None),
+                id="error",
+            ),
+        ],
+    )
+    def test_a_runtime_that_has_exited_is_not_answered(self, make_proc, xcom, msg, api_request):
+        """The runtime can exit while its call runs, such as when its task is killed."""
+        api = _FakeApi({("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})})
+        proc = make_proc(xcom, api)
+        cast("MagicMock", proc.stdin).sendall.side_effect = OSError(9, "Bad file descriptor")
+
+        proc._handle_request(msg, log, 1)
+
+        assert api_request in api.requests
+
     @patch.object(XComBackendProcess, "start", autospec=True)
     def test_starts_one_backend_process_for_the_task(self, mock_start, make_proc):
         proc = make_proc(_RefXCom, _FakeApi())

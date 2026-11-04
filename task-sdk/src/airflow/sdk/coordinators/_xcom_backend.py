@@ -165,6 +165,7 @@ class XComBackendProcess(WatchedSubprocess):
     _call_request_id: int | None = attrs.field(default=None, init=False)
     _queued_calls: deque[_PendingCall] = attrs.field(factory=deque, init=False)
     _running_call: Callable[[XComBackendResult], None] | None = attrs.field(default=None, init=False)
+    _stopping: bool = attrs.field(default=False, init=False)
 
     @classmethod
     def start(  # type: ignore[override]
@@ -201,8 +202,16 @@ class XComBackendProcess(WatchedSubprocess):
         self._send_next_call()
 
     def _send_next_call(self) -> None:
-        """Hand the oldest waiting call to the process, if it has asked for one and runs none."""
-        if self._call_request_id is None or self._running_call is not None or not self._queued_calls:
+        """Hand the process its oldest waiting call, or ``exit`` once stopping, if it asks and runs none."""
+        if self._call_request_id is None or self._running_call is not None:
+            return
+        if self._stopping:
+            request_id, self._call_request_id = self._call_request_id, None
+            # The process may be dead already, such as when the task it serves was killed.
+            with contextlib.suppress(OSError):
+                self.send_msg(XComBackendCall(hook="exit"), request_id=request_id)
+            return
+        if not self._queued_calls:
             return
         call, self._running_call = self._queued_calls.popleft()
         request_id, self._call_request_id = self._call_request_id, None
@@ -216,21 +225,27 @@ class XComBackendProcess(WatchedSubprocess):
     def _fail_waiting_calls(self, error: str) -> None:
         """Answer every call the process has not answered with ``error``."""
         running, self._running_call = self._running_call, None
-        waiting = [running] if running is not None else []
-        waiting += [finish for _, finish in self._queued_calls]
+        if running is not None:
+            running(XComBackendResult(error=error))
+        self._fail_queued_calls(error)
+
+    def _fail_queued_calls(self, error: str) -> None:
+        """Answer every call that has not been sent to the process with ``error``."""
+        queued = [finish for _, finish in self._queued_calls]
         self._queued_calls.clear()
-        for finish in waiting:
+        for finish in queued:
             finish(XComBackendResult(error=error))
 
     def stop(self) -> None:
         """Let the helper process exit, and kill it if it does not exit in time."""
-        request_id, self._call_request_id = self._call_request_id, None
+        self._stopping = True
+        # A queued call must not run for a task that is already over. The running call can still be
+        # answered, and the process is sent exit once it is.
+        self._fail_queued_calls("The XCom backend process was stopped")
         deadline = time.monotonic() + _EXIT_TIMEOUT
         if self.can_run_a_call:
-            if self._exit_code is None and request_id is not None:
-                # The process may be dead already, such as when the task it serves was killed.
-                with contextlib.suppress(OSError):
-                    self.send_msg(XComBackendCall(hook="exit"), request_id=request_id)
+            if self._exit_code is None:
+                self._send_next_call()
             # Servicing the selector also dispatches the requests of the task it is shared with, which
             # can start another helper, so a process already known to be gone is reaped without it.
             while self._open_sockets and (now := time.monotonic()) < deadline:
