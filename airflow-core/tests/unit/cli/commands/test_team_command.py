@@ -599,6 +599,119 @@ class TestCliTeams:
 
         assert "Verification succeeded." in stdout.getvalue()
 
+    def test_team_sync_dry_run_reports_changes_without_writing(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+            {
+                "name": "bundletwo",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 300},
+                "team_name": "team2",
+            },
+        ]
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        output = stdout.getvalue()
+
+        assert "Teams to add:" in output
+        assert "team1" in output
+        assert "team2" in output
+        assert "Default team pools to add:" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+        assert Pool.get_default_team_pool_name("team2") in output
+
+        assert self.session.scalars(select(Team)).all() == []
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+            is None
+        )
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team2")))
+            is None
+        )
+
+    def test_team_sync_dry_run_reports_missing_default_pool_without_writing(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        output = stdout.getvalue()
+
+        assert "Teams to add:" not in output
+        assert "Default team pools to add:" in output
+        assert Pool.get_default_team_pool_name("team1") in output
+
+        assert self.session.scalar(select(Team).where(Team.name == "team1")) is not None
+        assert (
+            self.session.scalar(select(Pool).where(Pool.pool == Pool.get_default_team_pool_name("team1")))
+            is None
+        )
+
+    def test_team_sync_dry_run_reports_no_changes(self, stdout_capture):
+        bundle_config = [
+            {
+                "name": "bundleone",
+                "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                "kwargs": {"path": "/dev/null", "refresh_interval": 0},
+                "team_name": "team1",
+            },
+        ]
+
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        self.session.add(
+            Pool(
+                pool=Pool.get_default_team_pool_name("team1"),
+                slots=128,
+                description="Default pool",
+                include_deferred=False,
+                team_name="team1",
+            )
+        )
+        self.session.commit()
+
+        with conf_vars(
+            {
+                ("core", "multi_team"): "True",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with stdout_capture as stdout:
+                team_command.team_sync(self.parser.parse_args(["teams", "sync", "--dry-run"]))
+
+        assert "No changes to sync." in stdout.getvalue()
+
     def test_team_verify_missing_default_pool(self):
         self.session.add(Team(name="team1"))
         self.session.commit()
@@ -628,3 +741,126 @@ class TestCliTeams:
                     team_command.team_verify(self.parser.parse_args(["teams", "verify"]))
 
         assert "references unknown team 'missing-team'" in stdout.getvalue()
+
+    def test_team_inspect(self, stdout_capture):
+        """Test inspecting a team with associated resources."""
+        self.session.add_all([Team(name="team1"), Team(name="team2")])
+        self.session.commit()
+
+        self.session.add_all(
+            [
+                DagBundleModel(name="bundle1"),
+                DagBundleModel(name="bundle2"),
+            ]
+        )
+        self.session.commit()
+
+        self.session.execute(
+            dag_bundle_team_association_table.insert(),
+            [
+                {"dag_bundle_name": "bundle1", "team_name": "team1"},
+                {"dag_bundle_name": "bundle2", "team_name": "team2"},
+            ],
+        )
+
+        self.session.add_all(
+            [
+                Pool(
+                    pool=Pool.get_default_team_pool_name("team1"),
+                    slots=128,
+                    description="Default pool",
+                    include_deferred=False,
+                    team_name="team1",
+                ),
+                Connection(conn_id="conn1", conn_type="http", team_name="team1"),
+                Variable(key="var1", val="value", team_name="team1"),
+                Pool(
+                    pool="pool1",
+                    slots=5,
+                    description="Additional pool",
+                    include_deferred=False,
+                    team_name="team1",
+                ),
+                Pool(
+                    pool=Pool.get_default_team_pool_name("team2"),
+                    slots=128,
+                    description="Default pool",
+                    include_deferred=False,
+                    team_name="team2",
+                ),
+                Connection(conn_id="conn2", conn_type="http", team_name="team2"),
+                Variable(key="var2", val="value", team_name="team2"),
+                Pool(
+                    pool="pool2",
+                    slots=5,
+                    description="Additional pool",
+                    include_deferred=False,
+                    team_name="team2",
+                ),
+            ]
+        )
+        self.session.commit()
+
+        with conf_vars({("core", "multi_team"): "True"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(
+                    self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
+                )
+
+        assert json.loads(stdout.getvalue()) == [
+            {
+                "name": "team1",
+                "dag_bundles": ["bundle1"],
+                "pools": [
+                    Pool.get_default_team_pool_name("team1"),
+                    "pool1",
+                ],
+                "connections": ["conn1"],
+                "variables": ["var1"],
+            }
+        ]
+
+    def test_team_inspect_empty_team(self, stdout_capture):
+        """Test inspecting a team with no associated resources."""
+        self.session.add(Team(name="team1"))
+        self.session.commit()
+
+        self.session.add(
+            Pool(
+                pool=Pool.get_default_team_pool_name("team1"),
+                slots=128,
+                description="Default pool",
+                include_deferred=False,
+                team_name="team1",
+            )
+        )
+
+        self.session.commit()
+        with conf_vars({("core", "multi_team"): "True"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(
+                    self.parser.parse_args(["teams", "inspect", "team1", "--output", "json"])
+                )
+
+        assert json.loads(stdout.getvalue()) == [
+            {
+                "name": "team1",
+                "dag_bundles": [],
+                "pools": [Pool.get_default_team_pool_name("team1")],
+                "connections": [],
+                "variables": [],
+            }
+        ]
+
+    def test_team_inspect_nonexistent_team(self):
+        """Test inspecting a team that does not exist."""  #
+        with conf_vars({("core", "multi_team"): "True"}):
+            with pytest.raises(SystemExit, match="Team 'team1' does not exist"):
+                team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+    def test_team_inspect_multi_team_disabled(self, stdout_capture):
+        with conf_vars({("core", "multi_team"): "False"}):
+            with stdout_capture as stdout:
+                team_command.team_inspect(self.parser.parse_args(["teams", "inspect", "team1"]))
+
+        assert "Multi-team is not enabled." in stdout.getvalue()

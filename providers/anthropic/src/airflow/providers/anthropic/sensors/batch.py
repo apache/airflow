@@ -60,7 +60,10 @@ class AnthropicBatchSensor(BaseSensorOperator):
         Defaults to ``False`` (succeed and log a warning).
     """
 
-    template_fields: Sequence[str] = ("batch_id",)
+    template_fields: Sequence[str] = (
+        "batch_id",
+        "conn_id",
+    )
 
     def __init__(
         self,

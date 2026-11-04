@@ -21,11 +21,9 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
-from airflow.providers.celery.executors.celery_executor import AIRFLOW_V_3_0_PLUS, CeleryExecutor
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor  # noqa: TC001
+from airflow.providers.celery.version_compat import AIRFLOW_V_3_0_PLUS
 from airflow.providers.common.compat.sdk import conf
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
@@ -149,7 +147,7 @@ class CeleryKubernetesExecutor(BaseExecutor):
     @property
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
-        return len(self.running) + len(self.queued_tasks)
+        return self.celery_executor.slots_occupied + self.kubernetes_executor.slots_occupied
 
     def queue_command(
         self,
@@ -259,19 +257,6 @@ class CeleryKubernetesExecutor(BaseExecutor):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",  # ignoring since will get warning from the nested executors
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        celery_tis = [ti for ti in tis if ti.queue != self.kubernetes_queue]
-        kubernetes_tis = [ti for ti in tis if ti.queue == self.kubernetes_queue]
-        return [
-            *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
-            *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
-        ]
-
     def revoke_task(self, *, ti: TaskInstance):
         if ti.queue == self.kubernetes_queue:
             try:
@@ -283,7 +268,8 @@ class CeleryKubernetesExecutor(BaseExecutor):
                     "provider to enable 'stuck in queue' retries and stuck in queue "
                     "event logging."
                 )
-                for ti_repr in self.kubernetes_executor.cleanup_stuck_queued_tasks(tis=[ti]):
+                # Only cncf.kubernetes providers older than 10.0.1 have this method.
+                for ti_repr in self.kubernetes_executor.cleanup_stuck_queued_tasks(tis=[ti]):  # type: ignore[attr-defined]
                     self.log.info(
                         "task stuck in queued and will be marked failed. task_instance=%s",
                         ti_repr,

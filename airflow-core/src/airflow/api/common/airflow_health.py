@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import select
 
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import _get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -95,7 +95,7 @@ def _legacy_status(jobs: list[Job]) -> HealthStatus:
 def _triggerer_instance_health(job: Job) -> dict[str, Any]:
     return {
         **_job_instance_health(job, "latest_triggerer_heartbeat"),
-        "team_name": job.team_name,
+        "team_names": job.team_names,
     }
 
 
@@ -121,7 +121,7 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 def _configured_bundle_teams() -> dict[str, str | None]:
     """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
     try:
-        return _get_configured_bundle_team_names()
+        return get_configured_bundle_team_names()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)
@@ -168,7 +168,13 @@ def _triggerer_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
     if not expected:
         return _liveness_status(jobs)
 
-    return _coverage_status(expected, {job.team_name for job in jobs if job.is_alive()})
+    covered: set[str | None] = set()
+    for job in jobs:
+        if job.is_alive():
+            # An unscoped triggerer has no ``team_names``, it covers the team-less
+            # scope, represented by ``None`` in both ``expected`` and ``covered``.
+            covered |= set(job.team_names) or {None}
+    return _coverage_status(expected, covered)
 
 
 def get_airflow_health() -> dict[str, Any]:

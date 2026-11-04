@@ -114,6 +114,10 @@ With Environment Variables
         },
     )
 
+The job receives each value as a literal string: the remote shell does not expand ``$VAR``,
+``~`` or ``$(...)`` inside it. To build a value from the remote environment, such as extending
+``PATH``, do it in ``command``, for example ``command="PATH=$PATH:/opt/tools/bin python process_data.py"``.
+
 Windows Remote Host
 ^^^^^^^^^^^^^^^^^^^
 

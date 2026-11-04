@@ -1,34 +1,59 @@
 {
-  "assetSchedule": "{{count}} מתוך {{total}} נכסים עודכנו",
+  "assetSchedule": "{{count, number}} מתוך {{total, number}} נכסים עודכנו",
   "dagActions": {
     "delete": {
       "button": "מחק Dag",
       "warning": "זה ימחק את כל המטא-נתונים הקשורים ל-Dag, כולל ריצות ומשימות"
     }
   },
+  "draining": {
+    "badgeTooltip": "ה-Dag יושהה לאחר שההרצות הפעילות שלו יסתיימו.",
+    "label": "ממתין לסיום",
+    "tooltip": "{{dagDisplayName}} ממתין לסיום ההרצות הפעילות — יושהה לאחר מכן. לחץ כדי לחדש."
+  },
   "favoriteDag": "הוסף Dag למועדפים",
   "filters": {
     "allRunTypes": "כל סוגי הריצות",
     "allStates": "כל המצבים",
-    "anyRunState": "ריצה כלשהי",
     "favorite": {
       "all": "הכל",
       "favorite": "מועדף",
       "unfavorite": "לא מועדף"
     },
-    "lastRunState": "ריצה אחרונה",
+    "favoriteState": "מצב מועדף",
+    "favoriteStatePlaceholder": "בחר מצב מועדף…",
+    "noTimetableTypesFound": "לא נמצאו סוגי לוחות זמנים",
     "paused": {
       "active": "פעיל",
       "all": "הכל",
       "paused": "מושהה"
     },
-    "runIdPatternFilter": "חפש הרצת Dag"
+    "pausedPlaceholder": "בחר מצב השהיה…",
+    "pausedState": "מצב השהיה",
+    "requiresHitlAction": "מצריך התערבות אנושית",
+    "runIdPatternFilter": "חפש הרצת Dag",
+    "runState": "מצב הרצה",
+    "runStatePlaceholder": "בחר מצב הרצה…",
+    "timetableType": "סוג לוח זמנים"
+  },
+  "folders": {
+    "all": "כל ה-Dags",
+    "empty": "אין תיקיות",
+    "hide": "הסתר תיקיות",
+    "show": "הצג תיקיות",
+    "title": "תיקיות"
   },
   "ownerLink": "קישור בעלים ל-{{owner}}",
+  "recentTaskStateCounts": {
+    "description": "מצב המשימות מכל הרצות ה-Dag הפעילות או, אם אין הרצות פעילות, מההרצה האחרונה. ניתן לכבות זאת בהגדרות המשתמש.",
+    "label": "משימות אחרונות",
+    "loading": "טוען את מספר מצבי המשימות האחרונות",
+    "tooltip": "{{state}}: {{formattedCount}} — לחץ לסינון משימות"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "לא נמצאו משימות.",
-      "title": "משימות שהושפעו: {{count}}"
+      "title": "משימות שהושפעו: {{count, number}}"
     },
     "clear": {
       "button": "נקה {{type}}",
@@ -64,18 +89,23 @@
         "failed": "לחץ shift+f כדי לסמן ככשלון",
         "success": "לחץ shift+s כדי לסמן כהצלחה"
       },
+      "skippedInfo": "סימון מופע משימה כ'דולגו' מתעד דילוג מכוון. משימות במורד הזרם ממשיכות להיבדק לפי כללי ההפעלה שלהן: עם הכלל \"all_success\" כברירת מחדל גם הן ידולגו. אפשר לדלג רק על מופעי משימה שעדיין לא התחילו לפעול, ורק מופע המשימה הזה יושפע.",
       "title": "סמן {{type}} כ{{state}}"
     },
     "options": {
       "downstream": "במורד הזרם",
       "existingTasks": "נקה משימות קיימות",
       "future": "בעתיד",
+      "keepTaskState": "שמור את מצב המשימה והמשך",
+      "laterIterations": "איטרציות מאוחרות יותר",
       "onlyFailed": "נקה משימות שנכשלו בלבד",
       "past": "בעבר",
       "preventRunningTasks": "מנע הרצה חוזרת אם המשימה כבר רצה",
       "queueNew": "תזמן משימות חדשות",
       "runOnLatestVersion": "הרץ על גרסת החבילה האחרונה",
-      "upstream": "במעלה הזרם"
+      "runOnLatestVersionForced": "תמיד משתמש בגרסה העדכנית — אין גרסה קודמת לחזור אליה",
+      "upstream": "במעלה הזרם",
+      "wholeExpansion": "כל המופעים הממופים"
     }
   },
   "runStateCounts": {
@@ -83,9 +113,20 @@
     "loading": "טוען ספירת מצבי ריצה",
     "tooltip": "{{state}}: {{formattedCount}} — לחץ כדי לסנן ריצות"
   },
+  "schedulingActions": {
+    "cancelDrain": "בטל השהיה לאחר סיום",
+    "drain": "השהה לאחר סיום",
+    "drainPrompt": "ב-Dag הזה יש הרצות פעילות. השהיה לאחר סיום מאפשרת להן להסתיים לפני שה-Dag יושהה; השהיה כעת מפסיקה את התזמון מיד, בלי להמתין להן.",
+    "pauseNow": "השהה כעת",
+    "pauseSelected": "השהה / השהה לאחר סיום"
+  },
+  "schedulingBanner": {
+    "message": "ה-Dag ממתין לסיום ההרצות הפעילות שלו ויושהה לאחר מכן."
+  },
   "search": {
     "advanced": "חיפוש מתקדם",
     "clear": "נקה חיפוש",
+    "dagRuns": "חפש $t(common:dagRun_other)",
     "dags": "חפש Dags",
     "hotkey": "+K",
     "tasks": "חפש משימות"
@@ -98,10 +139,6 @@
     "lastRunAfter": {
       "asc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמוקדם למאוחר)",
       "desc": "מיין לפי ריצה לאחר של הריצה האחרונה (מהמאוחר למוקדם)"
-    },
-    "lastRunStartDate": {
-      "asc": "מיין לפי תאריך התחלת ריצה אחרון (מהמוקדם למאוחר)",
-      "desc": "מיין לפי תאריך התחלת ריצה אחרון (מהמאוחר למוקדם)"
     },
     "lastRunState": {
       "asc": "מיין לפי מצב ריצה אחרון (A-Z)",

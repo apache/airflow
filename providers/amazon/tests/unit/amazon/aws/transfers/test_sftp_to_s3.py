@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import warnings
+from unittest import mock
 
 import boto3
 import pytest
@@ -49,6 +50,18 @@ DEFAULT_DATE = timezone.datetime(2018, 1, 1)
 
 
 class TestSFTPToS3Operator:
+    @pytest.fixture(autouse=True)
+    def _ssh_default_allows_unknown_host(self, monkeypatch):
+        """Let the bundled ``ssh_default`` connection reach the test SSH server.
+
+        ``no_host_key_check`` now defaults to false, and ``ssh_default`` is a bare
+        ``ssh://localhost`` with no extras, so the transfer operators -- which build
+        their own ``SFTPHook`` from the conn id and cannot be handed a pre-configured
+        hook -- would be refused by host key verification. Setting the extra here is
+        exactly what a deployment relying on the old default has to do.
+        """
+        monkeypatch.setenv("AIRFLOW_CONN_SSH_DEFAULT", "ssh://localhost/?no_host_key_check=true")
+
     def setup_method(self):
         hook = SSHHook(ssh_conn_id="ssh_default")
 
@@ -215,6 +228,39 @@ class TestSFTPToS3Operator:
 
 class TestSFTPToS3OperatorInit:
     """Unit tests for SFTPToS3Operator.__init__ that do not require an SSH server."""
+
+    @mock.patch.object(SFTPToS3Operator, "_upload_to_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.sftp_to_s3.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.sftp_to_s3.S3Hook")
+    def test_execute_prefix_matches_and_replaces_only_leading_prefix(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_upload_to_s3
+    ):
+        mock_s3_hook = mock_s3_hook_class.return_value
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        sftp_client.listdir.return_value = ["pre_one.txt", "xpre_two.txt", "pre_again_pre_.txt"]
+        operator = SFTPToS3Operator(
+            task_id="test_prefix",
+            s3_bucket=BUCKET,
+            s3_key="destination/",
+            sftp_path="/source",
+            sftp_conn_id=SFTP_CONN_ID,
+            sftp_filenames="pre_",
+            s3_filenames="new_",
+        )
+
+        with mock.patch.object(operator.log, "warning") as mock_log_warning:
+            operator.execute(None)
+
+        assert mock_upload_to_s3.call_args_list == [
+            mock.call(sftp_client, mock_s3_hook, "/source/pre_one.txt", "destination/new_one.txt"),
+            mock.call(
+                sftp_client,
+                mock_s3_hook,
+                "/source/pre_again_pre_.txt",
+                "destination/new_again_pre_.txt",
+            ),
+        ]
+        mock_log_warning.assert_called_once_with(mock.ANY, 1, "pre_", ["xpre_two.txt"], "")
 
     def test_s3_conn_id_deprecated(self):
         """s3_conn_id is a deprecated alias for aws_conn_id and must raise DeprecationWarning."""

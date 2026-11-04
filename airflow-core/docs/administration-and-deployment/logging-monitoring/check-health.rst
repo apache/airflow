@@ -24,7 +24,7 @@ Airflow has two methods to check the health of components - HTTP checks and CLI 
 accessible through the CLI, but only some are accessible through HTTP due to the role of the component being checked
 and the tools being used to monitor the deployment.
 
-For example, when running on Kubernetes, use `a Liveness probes <https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>`__ (``livenessProbe`` property)
+For example, when running on Kubernetes, use `a Liveness probe <https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>`__ (``livenessProbe`` property)
 with :ref:`CLI checks <check-health/cli-checks-for-scheduler>` on the scheduler deployment to restart it when it fails.
 For the webserver, you can configure the readiness probe (``readinessProbe`` property) using :ref:`check-health/http-endpoint`.
 
@@ -64,7 +64,7 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
         {
           "hostname": "triggerer-1.example.com",
           "latest_triggerer_heartbeat": "2018-12-26T17:16:12+00:00",
-          "team_name": "team-a"
+          "team_names": ["team-a"]
         }
       ]
     },
@@ -130,7 +130,7 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
 
     * ``hostname``: host where the component is running
     * the corresponding ``latest_*_heartbeat`` for that instance
-    * ``team_name`` (triggerer only): team the triggerer is scoped to, or ``null`` when unscoped
+    * ``team_names`` (triggerer only): teams the triggerer is scoped to, empty when unscoped
     * ``bundle_names`` (Dag processor only): Dag bundles that processor is configured to parse, or ``null`` when unset
 
   * For HA deployments, prefer ``detailed_status`` and ``instances`` when you need to see every scheduler,

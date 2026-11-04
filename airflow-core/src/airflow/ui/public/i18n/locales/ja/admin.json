@@ -22,7 +22,7 @@
     "connection_other": "接続",
     "delete": {
       "deleteConnection_one": "1 件の接続を削除",
-      "deleteConnection_other": "{{count}} 件の接続を削除",
+      "deleteConnection_other": "{{count, number}} 件の接続を削除",
       "firstConfirmMessage_one": "以下の接続を削除します",
       "firstConfirmMessage_other": "以下の接続を削除します",
       "title": "接続を削除"
@@ -32,7 +32,6 @@
       "connectionIdRequired": "接続 ID は必須です",
       "connectionIdRequirement": "空白文字だけの接続 ID は認められません",
       "connectionTypeRequired": "接続タイプは必須です",
-      "extraFields": "追加項目",
       "extraFieldsJson": "追加項目 (JSON 形式)",
       "helperText": "接続タイプが見つかりませんか？対応する Airflow Providers パッケージがインストールされていることを確認してください",
       "helperTextForRedactedFields": "非表示の項目 ('***') は、編集しなければ以前の値がそのまま使われます",
@@ -120,7 +119,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 件の変数を削除",
-      "deleteVariable_other": "{{count}} 件の変数を削除",
+      "deleteVariable_other": "{{count, number}} 件の変数を削除",
       "firstConfirmMessage_one": "以下の変数を削除します",
       "firstConfirmMessage_other": "以下の変数を削除します",
       "title": "変数を削除",

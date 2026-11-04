@@ -113,41 +113,41 @@ const ClearRunDialog = ({ dagRun, onClose, open }: Props) => {
   return (
     <Modal
       footerActions={
-        <>
-          <Button
-            disabled={affectedTasks.total_entries === 0}
-            loading={isPending}
-            onClick={() => {
-              mutate({
-                dagId,
-                dagRunId,
-                requestBody: {
-                  dry_run: false,
-                  note: note === dagRun.note ? undefined : note,
-                  only_failed: onlyFailed,
-                  only_new: onlyNew,
-                  run_on_latest_version: runOnLatestVersion,
-                },
-              });
-            }}
+        <Button
+          disabled={affectedTasks.total_entries === 0}
+          loading={isPending}
+          onClick={() => {
+            mutate({
+              dagId,
+              dagRunId,
+              requestBody: {
+                dry_run: false,
+                note: note === dagRun.note ? undefined : note,
+                only_failed: onlyFailed,
+                only_new: onlyNew,
+                run_on_latest_version: runOnLatestVersion,
+              },
+            });
+          }}
+        >
+          <CgRedo /> {translate("modal.confirm")}
+        </Button>
+      }
+      footerOptions={
+        shouldShowBundleVersionOption ? (
+          <Checkbox
+            checked={runOnLatestVersionForced || runOnLatestVersion}
+            disabled={runOnLatestVersionForced}
+            onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
+            title={
+              runOnLatestVersionForced
+                ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
+                : undefined
+            }
           >
-            <CgRedo /> {translate("modal.confirm")}
-          </Button>
-          {shouldShowBundleVersionOption ? (
-            <Checkbox
-              checked={runOnLatestVersionForced || runOnLatestVersion}
-              disabled={runOnLatestVersionForced}
-              onCheckedChange={(event) => setRunOnLatestVersion(Boolean(event.checked))}
-              title={
-                runOnLatestVersionForced
-                  ? translate("dags:runAndTaskActions.options.runOnLatestVersionForced")
-                  : undefined
-              }
-            >
-              {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
-            </Checkbox>
-          ) : undefined}
-        </>
+            {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+          </Checkbox>
+        ) : undefined
       }
       lazyMount
       onOpenChange={(details) => {

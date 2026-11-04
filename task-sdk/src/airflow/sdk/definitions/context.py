@@ -18,11 +18,34 @@
 from __future__ import annotations
 
 import copy
+import enum
 import os
 from collections.abc import MutableMapping
-from typing import TYPE_CHECKING, Any, NamedTuple, TypedDict, cast
+from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
-from typing_extensions import NotRequired
+
+class CallbackSource(str, enum.Enum):
+    """Whether a callback was triggered at the Dag level or the task level."""
+
+    DAG = "dag"
+    TASK = "task"
+
+    def __str__(self) -> str:
+        return self.value
+
+
+class CallbackMeta(NamedTuple):
+    """
+    Metadata about the callback that is being executed.
+
+    Present in the callback context as ``context["callback"]``.
+
+    ``source`` tells whether the callback was defined on the Dag or on a task.
+    More fields may be added in the future without breaking existing callbacks.
+    """
+
+    source: CallbackSource
+
 
 if TYPE_CHECKING:
     import jinja2
@@ -35,6 +58,7 @@ if TYPE_CHECKING:
         InletEventsAccessors,
         TaskStateStoreAccessor,
     )
+    from airflow.sdk.execution_time.loop import LoopContextAccessor
     from airflow.sdk.types import (
         DagRunProtocol,
         Operator,
@@ -46,6 +70,7 @@ if TYPE_CHECKING:
 class Context(TypedDict, total=False):
     """Jinja2 template context for task rendering."""
 
+    callback: NotRequired[CallbackMeta]
     conn: Any
     dag: DAG
     dag_run: DagRunProtocol
@@ -59,6 +84,7 @@ class Context(TypedDict, total=False):
     inlets: list
     inlet_events: InletEventsAccessors
     logical_date: DateTime
+    loop: LoopContextAccessor
     macros: Any
     map_index_template: NotRequired[str | None]
     outlets: list
@@ -92,7 +118,7 @@ class Context(TypedDict, total=False):
     var: Any
 
 
-KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys())
+KNOWN_CONTEXT_KEYS: set[str] = set(Context.__annotations__.keys()) - {"loop"}
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:

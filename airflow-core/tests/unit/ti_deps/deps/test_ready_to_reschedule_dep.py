@@ -25,7 +25,11 @@ import time_machine
 from slugify import slugify
 
 from airflow._shared.timezones import timezone
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskreschedule import TaskReschedule
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.session import create_session
@@ -37,6 +41,30 @@ pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+
+
+def test_ordinary_loop_pass_skips_reschedule_query(dag_maker, session, mocker):
+    @task_group
+    def body():
+        EmptyOperator(task_id="ordinary")
+
+    with dag_maker(serialized=True):
+        loop = create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    region = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id, run_id=dr.run_id, node_id=loop.group_id, session=session
+    )
+    session.add(region)
+    session.flush()
+    ti = dr.task_instances[0]
+    ti.region_id, ti.region_index = region.id, 2
+    ti.task = dag_maker.serialized_dag.get_task(ti.task_id)
+    session.flush()
+    query = mocker.patch.object(TaskReschedule, "stmt_for_task_instance", autospec=True)
+
+    assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=DepContext(), session=session)
+
+    query.assert_not_called()
 
 
 @pytest.fixture

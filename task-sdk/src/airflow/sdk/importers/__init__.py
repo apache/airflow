@@ -27,13 +27,14 @@ from airflow.sdk.importers.base import (
     DagImportWarning,
     DagSourceCode,
     FileDagDefinition,
+    FilesystemDagDefinition,
     find_file_dag_definitions,
     get_file_suffix,
     get_importer_registry,
     reset_importer_registry,
 )
 from airflow.sdk.importers.python_importer import PythonDagImporter
-from airflow.sdk.importers.zip_importer import ZipFileDagDefinition, ZipImporter
+from airflow.sdk.importers.zip_importer import ZipImporter, ZipMemberDagDefinition
 
 __all__ = [
     "AbstractDagImporter",
@@ -44,9 +45,10 @@ __all__ = [
     "DagImporterRegistry",
     "DagSourceCode",
     "FileDagDefinition",
+    "FilesystemDagDefinition",
     "PythonDagImporter",
-    "ZipFileDagDefinition",
     "ZipImporter",
+    "ZipMemberDagDefinition",
     "find_file_dag_definitions",
     "get_file_suffix",
     "get_importer_registry",

@@ -34,6 +34,7 @@ export const getGroupHeaderMarker = (isExpanded: boolean): string => (isExpanded
 type GetDownloadTextOptions = {
   fetchedData: TaskInstancesLogResponse | undefined;
   logLevelFilters: Array<string>;
+  showLogLevel: boolean;
   showSource: boolean;
   showTimestamp: boolean;
   sourceFilters: Array<string>;
@@ -48,6 +49,7 @@ type GetDownloadTextOptions = {
 export const getDownloadText = ({
   fetchedData,
   logLevelFilters,
+  showLogLevel,
   showSource,
   showTimestamp,
   sourceFilters,
@@ -63,6 +65,7 @@ export const getDownloadText = ({
       logLink: "",
       logMessage: line,
       renderingMode: "text",
+      showLogLevel,
       showSource,
       showTimestamp,
       sourceFilters,
@@ -111,11 +114,8 @@ export const getHighlightColor = ({
   if (searchMatchIndices?.has(index)) {
     return "yellow.subtle";
   }
-  if (hashIndex !== undefined && index === hashIndex) {
-    return "brand.emphasized";
-  }
 
-  return "transparent";
+  return hashIndex !== undefined && index === hashIndex ? "brand.emphasized" : "transparent";
 };
 
 /**
@@ -149,11 +149,7 @@ export const splitBySearchQuery = (text: string, query: string): Array<Highlight
     segments.push({ highlight: false, text: text.slice(lastIndex) });
   }
 
-  if (segments.length === 0) {
-    return [{ highlight: false, text }];
-  }
-
-  return segments;
+  return segments.length === 0 ? [{ highlight: false, text }] : segments;
 };
 
 type VirtualizerInstance = Virtualizer<HTMLDivElement, Element>;
@@ -193,10 +189,9 @@ export const scrollToBottom = ({ element, virtualizer }: ScrollToBottomOptions):
  * Used to pause following new log lines while the user is selecting text, so
  * auto-scrolling does not move the text out from under the cursor.
  */
-export const isSelectionWithin = (selection: Selection | null, container: HTMLElement | null): boolean => {
-  if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !container) {
-    return false;
-  }
-
-  return container.contains(selection.anchorNode) || container.contains(selection.focusNode);
-};
+export const isSelectionWithin = (selection: Selection | null, container: HTMLElement | null): boolean =>
+  selection !== null &&
+  !selection.isCollapsed &&
+  selection.rangeCount !== 0 &&
+  container !== null &&
+  (container.contains(selection.anchorNode) || container.contains(selection.focusNode));

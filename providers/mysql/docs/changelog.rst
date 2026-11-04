@@ -26,6 +26,47 @@
 Changelog
 ---------
 
+.. note::
+
+   The provider now installs ``asyncmy`` for the async metadata database engine.
+   Core releases that include asyncmy selection derive ``mysql+asyncmy://`` URLs
+   when the driver is installed. Older core releases continue to use ``aiomysql``,
+   which remains installed by default for compatibility.
+
+   To explicitly select the previous driver, set ``[database] sql_alchemy_conn_async``
+   to a ``mysql+aiomysql://`` URL. The ``[aiomysql]`` extra also declares this driver
+   for installations that need it after it becomes optional.
+
+6.7.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 6.6.2
 .....
 

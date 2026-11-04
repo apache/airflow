@@ -121,6 +121,8 @@ class MongoToGCSOperator(BaseSQLToGCSOperator):
         "mongo_collection",
         "mongo_db",
         "mongo_query",
+        "mongo_conn_id",
+        "gcp_conn_id",
     )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {}

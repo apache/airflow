@@ -61,6 +61,7 @@ CONFIG_DEFAULTS = {
     "assign_public_ip": "False",
     "platform_version": "LATEST",
     "check_health_on_startup": "True",
+    "run_task_concurrency": "1",
 }
 
 
@@ -74,6 +75,7 @@ class EcsQueuedTask:
     executor_config: ExecutorConfigType
     attempt_number: int
     next_attempt_time: datetime.datetime
+    throttled_attempts: int = 0
 
 
 @dataclass
@@ -106,6 +108,7 @@ class AllEcsConfigKeys(RunTaskKwargsConfigKeys):
     CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
     MAX_RUN_TASK_ATTEMPTS = "max_run_task_attempts"
     REGION_NAME = "region_name"
+    RUN_TASK_CONCURRENCY = "run_task_concurrency"
     RUN_TASK_KWARGS = "run_task_kwargs"
 
 

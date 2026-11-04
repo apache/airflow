@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
 from airflow.providers.common.compat.sdk import TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -64,15 +65,20 @@ class TestSageMakerStartPipelineOperator:
         )
         check_status.assert_called_once()
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(SageMakerHook, "start_pipeline")
-    def test_defer(self, start_mock):
+    def test_defer(self, start_mock, wait_for_completion):
         op = SageMakerStartPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_name="my_pipeline",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
@@ -83,6 +89,7 @@ class TestSageMakerStartPipelineOperator:
         op = SageMakerStartPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_name="my_pipeline",
+            wait_for_completion=True,
             deferrable=True,
             region_name=REGION_NAME,
             verify=VERIFY,
@@ -118,16 +125,21 @@ class TestSageMakerStopPipelineOperator:
             fail_if_not_running=False,
         )
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(SageMakerHook, "stop_pipeline")
-    def test_defer(self, stop_mock: MagicMock):
+    def test_defer(self, stop_mock: MagicMock, wait_for_completion):
         stop_mock.return_value = "Stopping"
         op = SageMakerStopPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_exec_arn="my_pipeline_arn",
+            wait_for_completion=wait_for_completion,
             deferrable=True,
         )
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             op.execute({})
 
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
@@ -139,6 +151,7 @@ class TestSageMakerStopPipelineOperator:
         op = SageMakerStopPipelineOperator(
             task_id="test_sagemaker_operator",
             pipeline_exec_arn="my_pipeline_arn",
+            wait_for_completion=True,
             deferrable=True,
             region_name=REGION_NAME,
             verify=VERIFY,

@@ -61,6 +61,8 @@ if TYPE_CHECKING:
 class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
     """The base class for operators that launch Custom jobs on VertexAI."""
 
+    template_fields: Sequence[str] = ("gcp_conn_id",)
+
     def __init__(
         self,
         *,
@@ -494,7 +496,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         The default is 60 seconds.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "region",
         "command",
         "parent_model",
@@ -502,6 +504,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         "impersonation_chain",
         "display_name",
         "model_display_name",
+        "gcp_conn_id",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -516,6 +519,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         display_name: str,
         model_display_name: str | None = None,
         parent_model: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -527,6 +531,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
+            gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             dataset_id=dataset_id,
             **kwargs,
@@ -963,6 +968,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         "impersonation_chain",
         "display_name",
         "model_display_name",
+        "gcp_conn_id",
     )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
@@ -975,6 +981,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         display_name: str,
         model_display_name: str | None = None,
         parent_model: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -986,6 +993,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
+            gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             dataset_id=dataset_id,
             **kwargs,
@@ -1427,6 +1435,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         "impersonation_chain",
         "display_name",
         "model_display_name",
+        "gcp_conn_id",
     )
     operator_extra_links = (
         VertexAIModelLink(),
@@ -1442,6 +1451,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         display_name: str,
         model_display_name: str | None = None,
         parent_model: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -1453,6 +1463,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_display_name=model_display_name,
             region=region,
             parent_model=parent_model,
+            gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
             dataset_id=dataset_id,
             **kwargs,
@@ -1630,7 +1641,14 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("training_pipeline_id", "custom_job_id", "region", "project_id", "impersonation_chain")
+    template_fields = (
+        "training_pipeline_id",
+        "custom_job_id",
+        "region",
+        "project_id",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
 
     def __init__(
         self,
@@ -1738,6 +1756,7 @@ class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
         "region",
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     ]
     operator_extra_links = [
         VertexAITrainingPipelinesLink(),
@@ -1810,7 +1829,13 @@ class CreateCustomJobOperator(GoogleCloudBaseOperator):
     :param metadata: Strings which should be sent along with the request as metadata.
     """
 
-    template_fields = ("region", "project_id", "custom_job", "impersonation_chain")
+    template_fields: Sequence[str] = (
+        "region",
+        "project_id",
+        "custom_job",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
     operator_extra_links = (VertexAICustomJobLink(),)
 
     def __init__(

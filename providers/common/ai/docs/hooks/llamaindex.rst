@@ -17,8 +17,13 @@
 
 .. _howto/hook:llamaindex:
 
-``LlamaIndexHook``
-==================
+Using LlamaIndex directly: ``LlamaIndexHook``
+=============================================
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
 
 Use :class:`~airflow.providers.common.ai.hooks.llamaindex.LlamaIndexHook` to
 bridge an Airflow connection to `LlamaIndex <https://docs.llamaindex.ai/>`__
@@ -41,7 +46,8 @@ those backends: their model names (e.g. ``llama3.2``) are never in the
 OpenAI allowlist, so the call fails on the model name, not on connectivity.
 ``get_embedding_model()`` raises immediately at construction;
 ``get_llm()`` defers the error until the first call that reads
-``.metadata`` (``.chat()`` / ``.complete()``).
+``.metadata`` (``.chat()`` / ``.complete()``). Neither class has a constructor
+argument that skips the check.
 
 OpenAI by default, BYO for other vendors
 ----------------------------------------
@@ -87,7 +93,7 @@ The hook reads credentials from the Airflow connection of type ``llamaindex``:
   an OpenAI-compatible proxy that accepts OpenAI's exact model names (e.g.
   an internal gateway) -- not Ollama or vLLM (see above).
 - **extra** JSON --
-  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-4o"}`` --
+  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}`` --
   default model identifiers stored on the connection.
 
 Parameters
@@ -109,16 +115,28 @@ Parameters
    * - ``embed_model``
      - ``None`` (falls back to ``extra["embed_model"]``)
      - Embedding model name, e.g. ``text-embedding-3-small``.
+   * - ``embedding_kwargs``
+     - ``None``
+     - Additional keyword arguments passed to ``OpenAIEmbedding``, for example
+       ``{"dimensions": 128}``. Values are forwarded without filtering.
+       Connection ``api_key`` and ``api_base`` values take precedence at the top
+       level, but nested options supported by the underlying library can override
+       hook-provided request values, including credentials, the model, and the
+       input. Only pass trusted values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
-     - LLM model name, e.g. ``gpt-4o``. Required when calling ``get_llm()``.
+     - LLM model name, e.g. ``gpt-5``. Required when calling ``get_llm()``.
+
+.. seealso::
+   `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
+   for valid ``embedding_kwargs`` keys.
 
 Dependencies
 ------------
 
 Install the ``llamaindex`` extra::
 
-    pip install apache-airflow-providers-common-ai[llamaindex]
+    pip install "apache-airflow-providers-common-ai[llamaindex]"
 
 That extra installs ``llama-index-core``, ``llama-index-embeddings-openai``,
 and ``llama-index-llms-openai`` -- enough to back the hook's default

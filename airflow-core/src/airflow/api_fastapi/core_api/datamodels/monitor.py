@@ -40,7 +40,7 @@ class TriggererInstanceInfoResponse(BaseModel):
 
     hostname: str | None
     latest_triggerer_heartbeat: str | None
-    team_name: str | None
+    team_names: list[str]
 
 
 class DagProcessorInstanceInfoResponse(BaseModel):

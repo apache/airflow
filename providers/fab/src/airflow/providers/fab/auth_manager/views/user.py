@@ -204,3 +204,23 @@ class CustomUserDBModelView(MultiResourceUserMixin, UserDBModelView):
         permissions.ACTION_CAN_EDIT,
         permissions.ACTION_CAN_DELETE,
     ]
+
+    edit_template = "appbuilder/general/model/user_edit.html"
+
+    @expose("/edit/<pk>", methods=["GET", "POST"])
+    @has_access
+    def edit(self, pk):
+        pk = self._deserialize_pk_if_composite(pk)
+        widgets = self._edit(pk)
+        if not widgets:
+            return self.post_edit_redirect()
+        return self.render_template(
+            self.edit_template,
+            title=self.edit_title,
+            widgets=widgets,
+            related_views=self._related_views,
+            # Surface the same "Reset Password" action already available on the Show User view.
+            actions={"resetpasswords": self.actions.get("resetpasswords")},
+            pk=pk,
+            modelview_name=self.__class__.__name__,
+        )

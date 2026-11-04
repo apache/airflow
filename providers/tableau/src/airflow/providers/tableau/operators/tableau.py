@@ -94,6 +94,7 @@ class TableauOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "find",
         "match_with",
+        "tableau_conn_id",
     )
 
     def __init__(

@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlsplit
@@ -244,7 +244,7 @@ if __name__ == "__main__":
     print()
     with Path(__file__).resolve().with_name("quarantine_issue_header.md").open() as f:
         header = jinja2.Template(f.read(), autoescape=True, undefined=StrictUndefined).render(
-            DATE_UTC_NOW=datetime.now(tz=timezone.utc).isoformat("T", timespec="seconds")
+            DATE_UTC_NOW=datetime.now(tz=UTC).isoformat("T", timespec="seconds")
         )
     quarantined_issue.edit(
         title=None, body=f"{header}\n\n{table}", state="open" if test_results else "closed"

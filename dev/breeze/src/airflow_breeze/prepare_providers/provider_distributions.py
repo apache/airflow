@@ -251,6 +251,7 @@ def build_provider_distribution(
     build_backend = provider_info.get("build-system", "flit_core")
     build_env = {"SOURCE_DATE_EPOCH": str(get_provider_details(provider_id).source_date_epoch)}
     if build_backend == "flit_core":
+        build_env["FLIT_NO_NETWORK"] = "1"
         command: list[str] = [sys.executable, "-m", "flit", "build", "--use-vcs"]
         console_print(
             "[warning]Workaround wheel-only package bug in flit by building both and removing sdist."

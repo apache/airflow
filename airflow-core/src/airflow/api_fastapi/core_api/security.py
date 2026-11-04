@@ -19,7 +19,6 @@ from __future__ import annotations
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
-from json import JSONDecodeError
 from typing import TYPE_CHECKING, Annotated, Any, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
@@ -28,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import or_, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -67,6 +66,7 @@ from airflow.api_fastapi.core_api.datamodels.common import (
 )
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.datamodels.dag_run import BulkDAGRunBody, BulkDAGRunClearBody
+from airflow.api_fastapi.core_api.datamodels.dags import BulkDAGBody
 from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
@@ -77,9 +77,10 @@ from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
-from airflow.models.team import Team
+from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -256,7 +257,33 @@ def requires_access_dag_from_file_token(
             )
         )
         if not dag_ids:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            # A file with an import error has no registered Dag to authorize per-Dag against, so
+            # reparsing it is gated on the dedicated ``REPARSE_ALL`` permission -- admin-by-default,
+            # scoped to the file's team via its bundle -- rather than on the permission to view
+            # import errors. Reparse is an action, so it must not ride on being able to see the error.
+            # The auth check runs before the existence check so an unauthorized caller cannot tell a
+            # file with an import error apart from one Airflow has never heard of.
+            team_name = (
+                DagBundleModel.get_team_name(payload["bundle_name"], session=session)
+                if payload["bundle_name"]
+                else None
+            )
+            if not get_auth_manager().authorize_view(
+                access_view=AccessView.REPARSE_ALL, user=user, team_name=team_name
+            ):
+                raise HTTPException(
+                    status.HTTP_403_FORBIDDEN,
+                    "You do not have permission to reparse files with no registered Dag",
+                )
+            has_import_error = session.scalar(
+                select(ParseImportError.id).where(
+                    ParseImportError.bundle_name == payload["bundle_name"],
+                    ParseImportError.filename == payload["relative_fileloc"],
+                )
+            )
+            if has_import_error is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "File not found")
+            return
 
         dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(dag_ids, session=session)
         requests: list[IsAuthorizedDagRequest] = [
@@ -338,8 +365,12 @@ class PermittedTIFilter(PermittedDagFilter):
 class PermittedXComFilter(PermittedDagFilter):
     """A parameter that filters the permitted XComs for the user."""
 
+    def __init__(self, value: set[str] | None = None, *, entity=XComModel):
+        super().__init__(value)
+        self.entity = entity
+
     def to_orm(self, select: Select) -> Select:
-        return select.where(XComModel.dag_id.in_(self.value or set()))
+        return select.where(self.entity.dag_id.in_(self.value or set()))
 
 
 class PermittedTagFilter(PermittedDagFilter):
@@ -363,33 +394,28 @@ class PermittedBackfillFilter(PermittedDagFilter):
         return select.where(Backfill.dag_id.in_(self.value or set()))
 
 
-class PermittedDagBundleFilter(PermittedDagFilter):
-    """A parameter that filters Dag bundles to the ones holding a Dag the user may read."""
+class PermittedDagBundleFilter(OrmClause[set[str | None]]):
+    """
+    A parameter that filters Dag bundles to the teams the user may read them for.
 
-    def __init__(self, value: set[str] | None = None, *, permitted_dagless_bundles: set[str] | None = None):
-        super().__init__(value)
-        self.permitted_dagless_bundles = permitted_dagless_bundles or set()
+    ``value`` holds those team names, with ``None`` standing for bundles with no team. A ``None``
+    value leaves every bundle in.
+    """
 
     def to_orm(self, statement: Select) -> Select:
-        # A bundle carries no per-Dag key to authorize on, so it is scoped by the Dags inside it.
-        # Filtering in the query keeps unauthorized rows out of the count and pagination as well.
-        # A bundle whose Dags have since been removed stays visible while a stale ``DagModel`` row
-        # names it.
-        holds_a_readable_dag = DagBundleModel.name.in_(
-            select(DagModel.bundle_name).where(DagModel.dag_id.in_(self.value or set()))
-        )
-        if not self.permitted_dagless_bundles:
-            return statement.where(holds_a_readable_dag)
-        # A bundle with no registered Dag at all -- a first deploy whose only file fails to import,
-        # say -- has no Dag to authorize against, so scoping by Dags alone would hide the bundle
-        # precisely when its import-error count is the thing worth reading. Those bundles are
-        # authorized one at a time against their own team in
-        # ``readable_dag_bundles_filter_factory`` and arrive here as an explicit allow-list, so a
-        # team-aware policy decides each one rather than a single unscoped check standing in for
-        # all of them.
-        return statement.where(
-            or_(holds_a_readable_dag, DagBundleModel.name.in_(self.permitted_dagless_bundles))
-        )
+        if self.value is None:
+            return statement
+        team_bundle_names = select(dag_bundle_team_association_table.c.dag_bundle_name)
+        conditions = []
+        if team_names := {team_name for team_name in self.value if team_name is not None}:
+            conditions.append(
+                DagBundleModel.name.in_(
+                    team_bundle_names.where(dag_bundle_team_association_table.c.team_name.in_(team_names))
+                )
+            )
+        if None in self.value:
+            conditions.append(DagBundleModel.name.not_in(team_bundle_names))
+        return statement.where(or_(false(), *conditions))
 
 
 def permitted_dag_filter_factory(
@@ -434,9 +460,10 @@ def readable_dag_bundles_filter_factory() -> Callable[
     """
     Create a callable for Depends in FastAPI that returns the Dag bundle filter for the user.
 
-    Dag bundles need their own factory rather than ``permitted_dag_filter_factory``: besides the
-    readable Dag ids, the filter needs the set of bundles holding no registered Dag that this
-    caller may see, which is a separate authorization decision taken per bundle.
+    A bundle is authorized on ``AccessView.DAG_BUNDLES`` and membership of the bundle's team, not
+    on the Dags inside it: a bundle is the unit code is deployed in, so what it holds is the
+    bundle's to show. Outside multi-team mode ``requires_access_dag_bundles`` has decided it for
+    every bundle.
     """
 
     def depends_readable_dag_bundles_filter(
@@ -444,34 +471,24 @@ def readable_dag_bundles_filter_factory() -> Callable[
         auth_manager: AuthManagerDep,
         session: SessionDep,
     ) -> PermittedDagBundleFilter:
-        # A bundle with no registered Dag has nothing to authorize against, so it is gated on the
-        # admin-by-default ``IMPORT_ERRORS_ALL`` -- the same view ``GET /importErrors`` uses for a
-        # file that never registered a Dag. Resolved here, one bundle at a time against its own
-        # team, so the result can go into the query: authorizing after the fact would leave
-        # unauthorized bundles in ``total_entries`` and in the page.
-        dagless_bundles = session.scalars(
-            select(DagBundleModel.name).where(
-                DagBundleModel.name.notin_(
-                    # ``dag.bundle_name`` is non-nullable, but the guard keeps a stray NULL from
-                    # emptying the whole ``NOT IN``.
-                    select(DagModel.bundle_name).where(DagModel.bundle_name.is_not(None))
-                )
-            )
-        ).all()
-        team_name_by_bundle = (
-            DagBundleModel.get_team_names(dagless_bundles, session=session) if dagless_bundles else {}
-        )
+        if not conf.getboolean("core", "multi_team"):
+            # ``requires_access_dag_bundles`` already decided the unscoped view for the route.
+            return PermittedDagBundleFilter()
+
+        # Team membership is checked on its own because some auth managers ignore ``team_name``
+        # when authorizing a view, which would let one team read another team's bundles.
+        member_teams: set[str | None] = {
+            *auth_manager.get_authorized_teams(user=user, session=session),
+            None,
+        }
         return PermittedDagBundleFilter(
-            auth_manager.get_authorized_dag_ids(user=user, method="GET"),
-            permitted_dagless_bundles={
-                bundle_name
-                for bundle_name in dagless_bundles
+            {
+                team_name
+                for team_name in member_teams
                 if auth_manager.authorize_view(
-                    access_view=AccessView.IMPORT_ERRORS_ALL,
-                    user=user,
-                    team_name=team_name_by_bundle.get(bundle_name),
+                    access_view=AccessView.DAG_BUNDLES, user=user, team_name=team_name
                 )
-            },
+            }
         )
 
     return depends_readable_dag_bundles_filter
@@ -1074,6 +1091,39 @@ def requires_access_dag_run_bulk() -> Callable[[BulkBody[BulkDAGRunBody], BaseUs
     return inner
 
 
+def requires_access_dag_bulk() -> Callable[[BulkBody[BulkDAGBody], BaseUser], None]:
+    def inner(
+        request: BulkBody[BulkDAGBody],
+        user: GetUserDep,
+    ) -> None:
+        entity_methods: list[tuple[str, ResourceMethod]] = []
+        for action in request.actions:
+            methods = _get_resource_methods_from_bulk_request(action)
+            for entity in action.entities:
+                entity_dag_id = entity if isinstance(entity, str) else entity.dag_id
+                for method in methods:
+                    entity_methods.append((entity_dag_id, method))
+
+        if not entity_methods:
+            return
+
+        dag_id_to_team = DagModel.get_dag_id_to_team_name_mapping(
+            list({dag_id for dag_id, _ in entity_methods})
+        )
+        requests: list[IsAuthorizedDagRequest] = [
+            {"method": method, "details": DagDetails(id=dag_id, team_name=dag_id_to_team.get(dag_id))}
+            for dag_id, method in entity_methods
+        ]
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().batch_is_authorized_dag(
+                requests=requests,
+                user=user,
+            )
+        )
+
+    return inner
+
+
 def requires_access_dag_run_clear_bulk() -> Callable[[BulkDAGRunClearBody, BaseUser, str], None]:
     def inner(
         body: BulkDAGRunClearBody,
@@ -1220,6 +1270,34 @@ def requires_access_view(access_view: AccessView) -> Callable[[Request, BaseUser
     return inner
 
 
+def requires_access_dag_bundles() -> Callable[[BaseUser, BaseAuthManager, PermittedDagBundleFilter], None]:
+    """
+    Require ``AccessView.DAG_BUNDLES``.
+
+    In a multi-team deployment it is enough to hold it for one of the caller's teams or without a
+    team, the same set ``ReadableDagBundlesFilterDep`` narrows the bundles to.
+
+    Goes through ``authorize_view`` rather than ``requires_access_view`` so that an auth manager
+    that cannot map the view (raises ``KeyError``) denies it instead of failing the request.
+    """
+
+    def inner(
+        user: GetUserDep,
+        auth_manager: AuthManagerDep,
+        readable_dag_bundles_filter: ReadableDagBundlesFilterDep,
+    ) -> None:
+        if (permitted_teams := readable_dag_bundles_filter.value) is not None:
+            _requires_access(is_authorized_callback=lambda: bool(permitted_teams))
+            return
+        _requires_access(
+            is_authorized_callback=lambda: auth_manager.authorize_view(
+                access_view=AccessView.DAG_BUNDLES, user=user
+            ),
+        )
+
+    return inner
+
+
 def requires_access_asset_alias(method: ResourceMethod) -> Callable[[Request, BaseUser], None]:
     def inner(
         request: Request,
@@ -1261,14 +1339,23 @@ async def _collect_teams_to_check(
     if method != "POST":
         teams.add(get_existing_team(resource_id) if resource_id else None)
     if method in ("POST", "PUT"):
-        try:
-            body = await request.json()
-        except JSONDecodeError:
-            # Fail closed: reject unparsable bodies before any authz decision.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Request body is not valid JSON",
-            )
+        body: Any = None
+        # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
+        # and the read below is its only parse: a bodyless request there names no team and must
+        # still be served. Every other route arriving here declares a body, which FastAPI has
+        # already parsed and cached by the time this dependency runs.
+        if await request.body():
+            try:
+                body = await request.json()
+            except Exception as e:
+                # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
+                # (a number over ``int_max_str_digits``) and RecursionError, none of them
+                # JSONDecodeError. Fail closed: a body that cannot be read may carry a
+                # ``team_name``, so reject it rather than treat it as naming no team.
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Request body is not valid JSON",
+                ) from e
         raw = body.get("team_name") if isinstance(body, dict) else None
         if raw is not None and not isinstance(raw, str):
             # Fail closed: reject non-string team_name before authz / DB lookup.

@@ -50,8 +50,8 @@ This applies to both the ``@asset`` pattern and the ``@task`` pattern:
 
 
     # @asset Dags implicitly declare the asset as an outlet
-    @asset
-    def my_asset_dag(**context):
+    @asset(schedule=None)
+    def my_asset_dag(context):
         context["asset_state_store"].set("watermark", "2024-06-01")
 
 

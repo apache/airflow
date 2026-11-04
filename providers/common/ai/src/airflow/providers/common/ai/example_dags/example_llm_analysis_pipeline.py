@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from airflow.providers.common.compat.sdk import dag, task
 
 
+# [START howto_decorator_llm_pipeline]
 # Pydantic output classes must be defined at module scope so they can be
 # imported by name when downstream tasks deserialize the XCom payload.
 class TicketAnalysis(BaseModel):
@@ -34,9 +35,10 @@ class TicketAnalysis(BaseModel):
     suggested_action: str
 
 
-# [START howto_decorator_llm_pipeline]
 @dag(tags=["example"])
 def example_llm_analysis_pipeline():
+    """Triage a queue of support tickets: one model call per ticket, typed results, ready for a schedule."""
+
     @task
     def get_support_tickets():
         """Fetch unprocessed support tickets."""
@@ -67,8 +69,13 @@ def example_llm_analysis_pipeline():
         ),
         output_type=TicketAnalysis,
     )
+    # [START howto_decorator_llm_prompt_argument]
     def analyze_ticket(ticket: str):
-        return f"Analyze this support ticket:\n\n{ticket}"
+        # The returned prompt is rendered as a Jinja template. Reference the argument by name so
+        # the ticket text is inserted as it is, rather than formatting it into the template.
+        return "Analyze this support ticket:\n\n{{ ticket }}"
+
+    # [END howto_decorator_llm_prompt_argument]
 
     @task
     def store_results(analyses: list[TicketAnalysis]):

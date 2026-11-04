@@ -114,10 +114,14 @@ def _same_endpoint(requested: str | int | None, stored: str | int | None) -> boo
     The UI sends empty string for hidden unused host/port fields; the ORM stores
     those as NULL. Treat blank as unset so connection types that do not use
     host/port still reuse stored credentials.
+
+    Port arrives as ``0`` rather than blank, because the UI builds its body with
+    ``Number(connection.port)`` and ``Number(null)`` is ``0``. No connection addresses
+    port 0, so it means the same thing as blank here and is normalised with it.
     """
 
     def _norm(value: str | int | None) -> str | int | None:
-        return None if value is None or value == "" else value
+        return None if value in (None, "", 0) else value
 
     return _norm(requested) == _norm(stored)
 
@@ -324,7 +328,11 @@ def patch_connection(
     return connection
 
 
-@connections_router.post("/test", dependencies=[Depends(requires_access_connection(method="POST"))])
+@connections_router.post(
+    "/test",
+    responses=create_openapi_http_exception_doc([status.HTTP_400_BAD_REQUEST]),
+    dependencies=[Depends(requires_access_connection(method="POST"))],
+)
 def test_connection(
     test_body: ConnectionBody,
     user: GetUserDep,
@@ -444,7 +452,8 @@ def enqueue_connection_test(
     else:
         effective_team = test_body.team_name
 
-    auth_method: ResourceMethod = "PUT" if existing is not None and test_body.commit_on_success else "POST"
+    commit_allows_update = existing is not None and test_body.commit_on_success
+    auth_method: ResourceMethod = "PUT" if commit_allows_update else "POST"
     if not get_auth_manager().is_authorized_connection(
         method=auth_method,
         details=ConnectionDetails(conn_id=test_body.connection_id, team_name=effective_team),
@@ -465,6 +474,7 @@ def enqueue_connection_test(
         port=test_body.port,
         extra=test_body.extra,
         commit_on_success=test_body.commit_on_success,
+        commit_allows_update=commit_allows_update,
         executor=test_body.executor,
         queue=test_body.queue,
         team_name=effective_team,

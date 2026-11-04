@@ -84,16 +84,13 @@ module.exports = function() {
     return sum + ((p.pypi_downloads && p.pypi_downloads.monthly) || 0);
   }, 0);
 
-  // Total unique connection types across all providers
-  const allConnectionTypes = new Set();
+  // Total unique integrations (provider.yaml `integrations`) across all providers;
+  // not connection types, which many integrations share (most AWS services use `aws`)
+  const allIntegrations = new Set();
   providers.forEach(p => {
-    if (p.connection_types) {
-      p.connection_types.forEach(ct => {
-        allConnectionTypes.add(ct.conn_type || ct.connection_type);
-      });
-    }
+    (p.categories || []).forEach(category => allIntegrations.add(category.id));
   });
-  const totalConnectionTypes = allConnectionTypes.size;
+  const totalIntegrations = allIntegrations.size;
 
   // Enriched provider list with totals
   const enrichedProviders = [...providers].map(p => ({
@@ -123,7 +120,7 @@ module.exports = function() {
     totalProviders,
     totalModules,
     totalDownloads,
-    totalConnectionTypes,
+    totalIntegrations,
     lifecycleCounts,
     lifecycleStats,
     moduleTypeStats,

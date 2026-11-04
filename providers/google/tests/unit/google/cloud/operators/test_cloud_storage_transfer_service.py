@@ -25,7 +25,7 @@ import pytest
 import time_machine
 from botocore.credentials import Credentials
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import DAG, AirflowException, TaskDeferred, timezone
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
@@ -285,6 +285,29 @@ class TestGcpStorageTransferJobCreateOperator:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
     )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_storage_transfer_service.AwsBaseHook")
+    def test_templated_body_validated_at_execute_time(self, aws_hook, mock_hook):
+        with DAG(
+            dag_id="test_transfer_native_render",
+            start_date=DEFAULT_DATE,
+            schedule=None,
+            render_template_as_native_obj=True,
+        ) as dag:
+            op = CloudDataTransferServiceCreateJobOperator(body="{{ body }}", task_id=TASK_ID, dag=dag)
+
+        # Real Jinja rendering turns the "{{ body }}" expression into the dict below,
+        # proving validation runs against the rendered value, not the template.
+        op.render_template_fields(
+            context={"body": {TRANSFER_SPEC: {AWS_S3_DATA_SOURCE: {AWS_ACCESS_KEY: TEST_AWS_ACCESS_KEY}}}}
+        )
+
+        with pytest.raises(AirflowException, match="AWS credentials detected inside the body parameter"):
+            op.execute(context=mock.MagicMock())
+        mock_hook.return_value.create_transfer_job.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"
+    )
     def test_job_create_gcs(self, mock_hook):
         mock_hook.return_value.create_transfer_job.return_value = VALID_TRANSFER_JOB_GCS
         body = deepcopy(VALID_TRANSFER_JOB_GCS)
@@ -317,6 +340,7 @@ class TestGcpStorageTransferJobCreateOperator:
         )
         body = deepcopy(VALID_TRANSFER_JOB_AWS)
         del body["name"]
+        original_body = deepcopy(body)
         op = CloudDataTransferServiceCreateJobOperator(
             body=body,
             task_id=TASK_ID,
@@ -334,6 +358,7 @@ class TestGcpStorageTransferJobCreateOperator:
         mock_hook.return_value.create_transfer_job.assert_called_once_with(body=VALID_TRANSFER_JOB_AWS_RAW)
 
         assert result == VALID_TRANSFER_JOB_AWS
+        assert body == original_body
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_storage_transfer_service.CloudDataTransferServiceHook"

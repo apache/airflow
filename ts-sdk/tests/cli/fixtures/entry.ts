@@ -22,7 +22,7 @@ import { Bundle, Dag, TaskHandler } from "../../../src/index.js";
 // A mixed bundle: task handlers for a Python-owned Dag, plus a natively
 // declared one, so packing covers both paths into the manifest.
 const otherDag = new Dag("other_dag");
-otherDag.task("solo", async () => undefined);
+otherDag.task("solo", async () => undefined)();
 
 await new Bundle(
   new TaskHandler("fixture_dag", "extract", async () => "extracted"),

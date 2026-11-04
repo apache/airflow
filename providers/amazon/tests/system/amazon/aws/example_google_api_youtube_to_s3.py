@@ -73,7 +73,7 @@ except ImportError:
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
 from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
-from tests_common.test_utils.api_client_helpers import make_authenticated_rest_api_request
+from tests_common.test_utils.api_client_helpers import create_airflow_connection
 
 DAG_ID = "example_google_api_youtube_to_s3"
 
@@ -96,11 +96,9 @@ def create_connection_gcp(conn_id_name: str, secret_arn: str):
         "project": "aws-oss-airflow",
         "keyfile_dict": json_data,
     }
-    make_authenticated_rest_api_request(
-        path="/api/v2/connections",
-        method="POST",
-        body={
-            "connection_id": conn_id_name,
+    create_airflow_connection(
+        connection_id=conn_id_name,
+        connection_conf={
             "conn_type": "google_cloud_platform",
             "extra": json.dumps(conn_extra),
         },

@@ -27,6 +27,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_BUILD_CACHE,
     ALLOWED_BUILD_PROGRESS,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_IMAGE_FLAVORS,
     ALLOWED_INSTALL_MYSQL_CLIENT_TYPES,
     ALLOWED_PLATFORMS,
     DOCKER_DEFAULT_PLATFORM,
@@ -114,6 +115,15 @@ option_debian_version = click.option(
     show_default=True,
     help="Debian version used in Airflow image as base for building images.",
     envvar="DEBIAN_VERSION",
+)
+option_image_flavor = click.option(
+    "--image-flavor",
+    type=BetterChoice(ALLOWED_IMAGE_FLAVORS),
+    default=ALLOWED_IMAGE_FLAVORS[0],
+    show_default=True,
+    help="Flavor of the PROD image. 'hardened' gets Python from a Docker Hardened Image, "
+    "'legacy' compiles Python from sources on a plain Debian base image.",
+    envvar="IMAGE_FLAVOR",
 )
 option_dev_apt_command = click.option(
     "--dev-apt-command",
@@ -205,6 +215,18 @@ option_skip_image_file_deletion = click.option(
     help="Skip image deletion after loading.",
     is_flag=True,
     envvar="SKIP_IMAGE_FILE_DELETION",
+)
+option_snapshot_file_to_load = click.option(
+    "--snapshot-file",
+    help="Restore the image from this Docker data-root snapshot instead of an image file. Exits with "
+    "the snapshot script's code when the snapshot does not fit this daemon.",
+    type=click.Path(dir_okay=False, path_type=Path),
+)
+option_snapshot_file_to_save = click.option(
+    "--snapshot-file",
+    help="Save a Docker data-root snapshot holding only the CI image to this file instead of an image "
+    "file. It removes every other image and the build cache first.",
+    type=click.Path(dir_okay=False, path_type=Path),
 )
 option_tag_as = click.option(
     "--tag-as",

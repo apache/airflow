@@ -1,0 +1,1 @@
+Add ``AssetAndTimeSchedule`` timetable that schedules time-based runs gated on asset conditions.

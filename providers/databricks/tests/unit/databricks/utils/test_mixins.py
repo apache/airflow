@@ -115,13 +115,3 @@ class TestDatabricksSQLStatementsMixin:
 
         with pytest.raises(AirflowException):
             databricks_sql_statements._handle_deferrable_execution()
-
-    def test_execute_complete(self):
-        # Both the TestDatabricksSQLStatementsOperator and TestDatabricksSQLStatementsSensor tests implement
-        # a test_execute_complete_failure and test_execute_complete_success method, so we'll pass here
-        pass
-
-    def test_on_kill(self):
-        # This test is implemented in both the TestDatabricksSQLStatementsOperator and
-        # TestDatabricksSQLStatementsSensor tests, so it will not be implemented here
-        pass

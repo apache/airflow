@@ -43,7 +43,7 @@ Let's take example of triggering a Dag run with a logical date, run after and a 
 
 .. code-block:: bash
 
-  airflowctl dagrun trigger --dag-id="example_bash_operator" --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
+  airflowctl dags trigger example_bash_operator --logical-date="2025-09-06T00:00:00+00:00" --run-after="2025-09-06T00:00:00+00:00" --note="Triggered from airflowctl"
 
 
 Login
@@ -93,7 +93,7 @@ The token can be acquired from the Airflow API or generated using a username and
 Parameter Details for airflowctl auth login
 ```````````````````````````````````````````
 
-**--api-url**: This parameter is required. (e.g. ``http://localhost:8080``)
+**--api-url**: This parameter is optional. (e.g. ``http://localhost:8080``)
 The default value is ``http://localhost:8080``. Full URL of the Airflow API. Without any ``/api/*`` suffixes.
 If you are running the ``airflowctl`` in ``breeze`` container, it is optional.
 
@@ -101,7 +101,7 @@ If you are running the ``airflowctl`` in ``breeze`` container, it is optional.
 If you are setting the token via the environment variable ``AIRFLOW_CLI_TOKEN``, you can skip using this parameter.
 
 **--username**: This parameter is optional.
-If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide a username to authentication along with ``--password``.
+If you are not using ``--api-token`` or the environment variable ``AIRFLOW_CLI_TOKEN``, you must provide a username to authenticate along with ``--password``.
 
 **--password**: This parameter is optional.
 If you provide a username via ``--username`` this is the required password to authenticate.

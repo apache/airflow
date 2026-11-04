@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import sys
+import warnings
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.hooks.langchain import LangChainHook
 
 
@@ -54,6 +56,10 @@ def _conn(password: str = "", host: str = "", extra: dict | None = None) -> Magi
     return mock_conn
 
 
+def _init_embeddings(model: str, *, provider: str | None = None, **kwargs):
+    return {"model": model, "provider": provider, "kwargs": kwargs}
+
+
 class TestLangChainHookInit:
     def test_default_params(self):
         hook = LangChainHook()
@@ -61,11 +67,84 @@ class TestLangChainHookInit:
         assert hook.embed_conn_id == "langchain_default"
         assert hook.llm_model is None
         assert hook.embed_model is None
+        assert hook.embedding_kwargs == {}
 
     def test_embed_conn_falls_back_to_llm_conn(self):
         hook = LangChainHook(llm_conn_id="my_conn")
         assert hook.llm_conn_id == "my_conn"
         assert hook.embed_conn_id == "my_conn"
+
+    @pytest.mark.parametrize(
+        ("positional", "expected"),
+        [
+            pytest.param(("llm-pos",), {"llm_model": "llm-pos", "embed_model": None}, id="one"),
+            pytest.param(
+                ("llm-pos", "embed-pos"),
+                {"llm_model": "llm-pos", "embed_model": "embed-pos"},
+                id="two",
+            ),
+        ],
+    )
+    def test_positional_model_emits_deprecation_warning(self, positional, expected):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LangChainHook("c1", "c2", *positional)
+        assert len(record) == len(positional)
+        assert "Parameter `llm_model` passed positionally is deprecated" in str(record[0].message)
+        assert hook.llm_conn_id == "c1"
+        assert hook.embed_conn_id == "c2"
+        assert hook.llm_model == expected["llm_model"]
+        assert hook.embed_model == expected["embed_model"]
+
+    def test_positional_warning_stacklevel_points_to_caller(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LangChainHook("c1", "c2", "llm-pos")
+        assert record[0].filename == __file__
+
+    def test_one_warning_per_positional_argument(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            LangChainHook("c1", "c2", "llm-pos", "embed-pos")
+        messages = [str(w.message) for w in record]
+        assert len(messages) == 2
+        assert "`llm_model`" in messages[0]
+        assert "`embed_model`" in messages[1]
+
+    def test_keyword_model_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LangChainHook("c1", "c2", llm_model="llm-pos", embed_model="embed-pos")
+        assert hook.llm_model == "llm-pos"
+        assert hook.embed_model == "embed-pos"
+
+    def test_connection_positional_arguments_do_not_warn(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            hook = LangChainHook("c1", "c2")
+        assert hook.embed_model is None
+        assert hook.llm_model is None
+
+    def test_too_many_positional_arguments_raise_type_error(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            with pytest.raises(TypeError, match="positional argument"):
+                LangChainHook("c1", "c2", "llm-pos", "embed-pos", "extra")
+
+    def test_positional_and_keyword_same_parameter_raise_type_error(self):
+        with pytest.raises(TypeError, match="multiple values for argument 'llm_model'"):
+            LangChainHook("c1", "c2", "llm-pos", llm_model="other")
+
+    def test_second_positional_and_keyword_same_parameter_raise_type_error(self):
+        with (
+            pytest.warns(AirflowProviderDeprecationWarning),
+            pytest.raises(TypeError, match="multiple values for argument 'embed_model'"),
+        ):
+            LangChainHook("c1", "c2", "L", "E", embed_model="X")
+
+    def test_positional_and_keyword_different_parameters_combine(self):
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
+            hook = LangChainHook("c1", "c2", "llm-pos", embed_model="embed-pos")
+        assert len(record) == 1
+        assert hook.llm_model == "llm-pos"
+        assert hook.embed_model == "embed-pos"
 
     def test_explicit_separate_conns_and_models(self):
         hook = LangChainHook(
@@ -218,6 +297,67 @@ class TestGetEmbeddingModel:
             api_key="sk-test",
             base_url="http://localhost:11434/v1",
         )
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_dispatches_with_embedding_kwargs(self, mock_get_conn, mock_init_embeddings, caplog):
+        mock_get_conn.return_value = _conn(password="sk-test")
+
+        hook = LangChainHook(
+            embed_model="openai:Qwen/Qwen3-Embedding-0.6B",
+            embedding_kwargs={"api_key": "from-kwargs", "dimensions": 128, "timeout": 30},
+        )
+        hook.get_embedding_model()
+
+        mock_init_embeddings.assert_called_once_with(
+            "openai:Qwen/Qwen3-Embedding-0.6B",
+            api_key="sk-test",
+            dimensions=128,
+            timeout=30,
+        )
+        assert "Connection parameters override embedding_kwargs values: ['api_key']" in caplog.messages
+
+    @pytest.mark.parametrize(
+        ("embed_model", "expect_warning"),
+        [
+            ("openai:text-embedding-3-small", True),
+            ("text-embedding-3-small", False),
+        ],
+    )
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_embedding_kwargs_provider_warning(
+        self, mock_get_conn, mock_init_embeddings, caplog, embed_model, expect_warning
+    ):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
+        hook = LangChainHook(
+            embed_model=embed_model,
+            embedding_kwargs={"provider": "custom-provider"},
+        )
+
+        result = hook.get_embedding_model()
+
+        assert result["model"] == embed_model
+        assert result["provider"] == "custom-provider"
+        warning = (
+            "embedding_kwargs['provider'] takes precedence over the provider prefix in embed_model; "
+            "pass an unprefixed model name"
+        )
+        assert (warning in caplog.messages) is expect_warning
+
+    @patch("langchain.embeddings.init_embeddings")
+    @patch.object(LangChainHook, "get_connection")
+    def test_model_in_embedding_kwargs_raises(self, mock_get_conn, mock_init_embeddings):
+        mock_get_conn.return_value = _conn()
+        mock_init_embeddings.side_effect = _init_embeddings
+        hook = LangChainHook(
+            embed_model="openai:text-embedding-3-small",
+            embedding_kwargs={"model": "other-model"},
+        )
+
+        with pytest.raises(TypeError, match="multiple values.*model"):
+            hook.get_embedding_model()
 
     @patch("langchain.embeddings.init_embeddings")
     @patch.object(LangChainHook, "get_connection")

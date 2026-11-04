@@ -59,7 +59,10 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         ``timeout`` are set, the earlier deadline takes precedence.
     """
 
-    template_fields: Sequence[str] = ("connection_id",)
+    template_fields: Sequence[str] = (
+        "connection_id",
+        "airbyte_conn_id",
+    )
     ui_color = "#6C51FD"
 
     def __init__(

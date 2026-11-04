@@ -48,6 +48,7 @@ class TeradataOperator(SQLExecuteQueryOperator):
     template_fields: Sequence[str] = (
         "sql",
         "parameters",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers: ClassVar[dict] = {"sql": "sql"}
@@ -83,6 +84,7 @@ class TeradataStoredProcedureOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "procedure",
         "parameters",
+        "teradata_conn_id",
     )
     ui_color = "#ededed"
 

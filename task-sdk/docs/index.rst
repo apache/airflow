@@ -86,6 +86,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.BaseOperator`
 - :class:`airflow.sdk.BaseOperatorLink`
 - :class:`airflow.sdk.BaseSensorOperator`
+- :class:`airflow.sdk.ChainRetryPolicy`
 - :class:`airflow.sdk.Connection`
 - :class:`airflow.sdk.Context`
 - :class:`airflow.sdk.DAG`
@@ -99,6 +100,7 @@ Why use ``airflow.sdk``?
 - :class:`airflow.sdk.RetryPolicy`
 - :class:`airflow.sdk.RetryRule`
 - :class:`airflow.sdk.TaskGroup`
+- :class:`airflow.sdk.LoopDecision`
 - :class:`airflow.sdk.TaskInstanceState`
 - :class:`airflow.sdk.DagRunState`
 - :class:`airflow.sdk.WeightRule`

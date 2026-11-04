@@ -140,6 +140,7 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
         "project_id",
         "backup",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"backup": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
@@ -261,6 +262,7 @@ class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
         "project_id",
         "metadata_import",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"metadata_import": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
@@ -364,6 +366,7 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
         "project_id",
         "service",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     template_fields_renderers = {"service": "json"}
     operator_extra_links = (DataprocMetastoreLink(),)
@@ -472,6 +475,7 @@ class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -547,6 +551,7 @@ class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -623,6 +628,7 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (DataprocMetastoreLink(), StorageLink())
 
@@ -747,6 +753,7 @@ class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -828,6 +835,7 @@ class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -933,6 +941,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -1073,6 +1082,7 @@ class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "project_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 

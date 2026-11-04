@@ -29,31 +29,9 @@ class AzureServiceBusMessageQueueProvider(BaseMessageQueueProvider):
     """
     Configuration for Azure Service Bus integration with common-messaging.
 
-    [START azure_servicebus_message_queue_provider_description]
-
-    * It uses ``azure+servicebus`` as the scheme for identifying the provider.
-    * For parameter definitions, take a look at
-      :class:`~airflow.providers.microsoft.azure.triggers.message_bus.AzureServiceBusQueueTrigger`.
-
-    .. code-block:: python
-
-        from airflow.providers.common.messaging.triggers.msg_queue import MessageQueueTrigger
-        from airflow.sdk import Asset, AssetWatcher
-
-        trigger = MessageQueueTrigger(
-            scheme="azure+servicebus",
-            # AzureServiceBusQueueTrigger parameters
-            queues=["my-queue"],
-            azure_service_bus_conn_id="azure_service_bus_default",
-            poll_interval=60,
-        )
-
-        asset = Asset(
-            "asb_queue_asset",
-            watchers=[AssetWatcher(name="asb_watcher", trigger=trigger)],
-        )
-
-    [END azure_servicebus_message_queue_provider_description]
+    Dispatches ``scheme="azure+servicebus"`` to
+    :class:`~airflow.providers.microsoft.azure.triggers.message_bus.AzureServiceBusQueueTrigger`,
+    which also defines the accepted parameters.
     """
 
     scheme = "azure+servicebus"

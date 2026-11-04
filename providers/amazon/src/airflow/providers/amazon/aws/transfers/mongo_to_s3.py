@@ -58,7 +58,14 @@ class MongoToS3Operator(BaseOperator):
     :param compression: type of compression to use for output file in S3. Currently only gzip is supported.
     """
 
-    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "mongo_query", "mongo_collection")
+    template_fields: Sequence[str] = (
+        "s3_bucket",
+        "s3_key",
+        "mongo_query",
+        "mongo_collection",
+        "mongo_conn_id",
+        "aws_conn_id",
+    )
     ui_color = "#589636"
     template_fields_renderers = {"mongo_query": "json"}
 

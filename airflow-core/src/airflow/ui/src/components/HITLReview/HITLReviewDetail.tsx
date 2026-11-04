@@ -50,7 +50,13 @@ export const HITLReviewDetail = ({
     <VStack alignItems="stretch" gap={4}>
       <HITLReviewDetailSummary detail={detail} onOpenTask={onOpenTask} />
 
-      <HITLResponseForm hitlDetail={detail} key={ti.id} namespace={ti.id} onResponded={onResponded} />
+      <HITLResponseForm
+        hitlDetail={detail}
+        // A new request from the same task (it asked again) gets a fresh form.
+        key={`${ti.id}-${detail.created_at}`}
+        namespace={ti.id}
+        onResponded={onResponded}
+      />
     </VStack>
   );
 };

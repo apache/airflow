@@ -27,6 +27,43 @@
 Changelog
 ---------
 
+.. note::
+  The Kafka event producer plugin now publishes messages with ``schema_version`` 2. The ``logical_date``,
+  ``start_date`` and ``end_date`` fields of Dag run events are formatted with ``datetime.isoformat()``,
+  for example ``2026-10-30T14:40:05.123456+00:00``, instead of ``str()``, which separated the date and
+  the time with a space. A missing date is now published as ``null`` instead of an empty string. Update
+  consumers that parse these fields with a fixed pattern or check for ``""``. A JSON Schema definition
+  that accepts the new values is ``{"type": ["string", "null"], "format": "date-time"}``.
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add KafkaSharedStreamProducer and KafkaSharedStreamTrigger (#68625)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document how to use the Kafka message queue trigger (#73588)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Stop Kafka hook tests from leaving live clients behind (#74285)``
+   * ``Fix flaky Kafka trigger tests by awaiting the event instead of a fixed sleep (#74124)``
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
 2.0.0
 .....
 

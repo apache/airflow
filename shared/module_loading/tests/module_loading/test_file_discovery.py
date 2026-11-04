@@ -73,6 +73,41 @@ class TestFindPathFromDirectory:
         with pytest.raises(RuntimeError, match=error_message):
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
 
+    @pytest.mark.parametrize("ignore_file_syntax", ["glob", "regexp"])
+    def test_find_path_from_directory_skips_kubernetes_volume_internals(self, tmp_path, ignore_file_syntax):
+        """Files of a Kubernetes ConfigMap or Secret volume are found once, via their visible symlinks."""
+        # the kubelet keeps the files in a timestamped directory, linked as "..data"
+        timestamped_dir = tmp_path / "..2026_10_31_12_00_00.123456789"
+        (timestamped_dir / "subdir").mkdir(parents=True)
+        (timestamped_dir / ".airflowignore").write_text("ignored.py")
+        for name in ("plugin.py", "ignored.py", "subdir/nested.py"):
+            (timestamped_dir / name).touch()
+        (tmp_path / "..data").symlink_to(timestamped_dir.name)
+        for name in (".airflowignore", "plugin.py", "ignored.py", "subdir"):
+            (tmp_path / name).symlink_to(Path("..data", name))
+
+        found = sorted(find_path_from_directory(tmp_path, ".airflowignore", ignore_file_syntax))
+
+        assert found == [str(tmp_path / "plugin.py"), str(tmp_path / "subdir" / "nested.py")]
+
+    def test_find_path_from_directory_keeps_inherited_rules_on_symlink_switch(self, tmp_path):
+        """Ignore rules inherited by a subdirectory still apply if the Dag folder symlink is switched mid-walk."""
+        for revision in ("rev1", "rev2"):
+            (tmp_path / revision / "tests").mkdir(parents=True)
+            (tmp_path / revision / ".airflowignore").write_text("tests/")
+            (tmp_path / revision / "dag.py").touch()
+            (tmp_path / revision / "tests" / "test_dag.py").touch()
+        dags_folder = tmp_path / "dags"
+        dags_folder.symlink_to(tmp_path / "rev1")
+
+        paths = find_path_from_directory(dags_folder, ".airflowignore", "regexp")
+        found = [next(paths)]
+        (tmp_path / "replacement").symlink_to(tmp_path / "rev2")
+        os.replace(tmp_path / "replacement", dags_folder)
+        found.extend(paths)
+
+        assert found == [os.path.join(dags_folder, "dag.py")]
+
     def test_airflowignore_negation_unignore_subfolder_file_glob(self, tmp_path):
         """Ensure negation rules can unignore a subfolder and a file inside it when using glob syntax.
 

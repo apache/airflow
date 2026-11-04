@@ -63,7 +63,9 @@ class SSHRemoteJobOperator(BaseOperator):
     :param ssh_conn_id: SSH connection ID from Airflow Connections
     :param command: Command to execute on the remote host (templated)
     :param remote_host: Override the host from the connection (templated)
-    :param environment: Environment variables to set for the command (templated)
+    :param environment: Environment variables to set for the command (templated).
+        Values are passed as literal strings; the remote shell does not expand ``$VAR``
+        or ``$(...)`` in them.
     :param remote_base_dir: Base directory for job artifacts (templated).
         Defaults to /tmp/airflow-ssh-jobs on POSIX, C:\\Windows\\Temp\\airflow-ssh-jobs on Windows
     :param poll_interval: Seconds between status polls (default: 5)
@@ -96,7 +98,13 @@ class SSHRemoteJobOperator(BaseOperator):
         reaper (for example ``systemd-tmpfiles``) for jobs that are killed or time out.
     """
 
-    template_fields: Sequence[str] = ("command", "environment", "remote_host", "remote_base_dir")
+    template_fields: Sequence[str] = (
+        "command",
+        "environment",
+        "remote_host",
+        "remote_base_dir",
+        "ssh_conn_id",
+    )
     template_ext: Sequence[str] = (
         ".sh",
         ".bash",

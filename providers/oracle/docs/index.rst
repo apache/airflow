@@ -77,7 +77,7 @@ apache-airflow-providers-oracle package
 `Oracle <https://www.oracle.com/database/technologies/>`__
 
 
-Release: 4.6.3
+Release: 4.7.1
 
 Provider package
 ----------------
@@ -136,12 +136,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-oracle[numpy]
 
 
-===============  ============================================================================================================================================================================================================================================
+===============  ==================================================================================================================================================================================================
 Extra            Dependencies
-===============  ============================================================================================================================================================================================================================================
-``numpy``        ``numpy>=1.22.4; python_version<'3.11'``, ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
+===============  ==================================================================================================================================================================================================
+``numpy``        ``numpy>=1.23.2; python_version=='3.11'``, ``numpy>=1.26.0; python_version=='3.12'``, ``numpy>=2.1.0; python_version>='3.13' and python_version<'3.14'``, ``numpy>=2.4.3; python_version>='3.14'``
 ``openlineage``  ``apache-airflow-providers-openlineage``
-===============  ============================================================================================================================================================================================================================================
+===============  ==================================================================================================================================================================================================
 
 Downloading official packages
 -----------------------------
@@ -149,5 +149,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-oracle 4.6.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-oracle 4.6.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.6.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-oracle 4.7.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-oracle 4.7.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-4.7.1-py3-none-any.whl.sha512>`__)

@@ -30,7 +30,7 @@ export const useDagRunStateCounts = ({
   // need to be loaded before it knows whether to poll — avoids a chicken-and-egg.
   readonly dags: ReadonlyArray<DAGWithLatestDagRunsResponse> | undefined;
 }) => {
-  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
+  const refetchInterval = useAutoRefresh({});
   const hasPendingRun =
     dags?.some((dag) => !dag.is_paused && dag.latest_dag_runs.some((run) => isStatePending(run.state))) ??
     false;
@@ -41,7 +41,6 @@ export const useDagRunStateCounts = ({
   return useDagServiceGetDagRunStateCountsUi({ dagIds: sortedDagIds }, undefined, {
     enabled: sortedDagIds.length > 0,
     placeholderData: (prev) => prev,
-    refetchInterval:
-      refetchInterval === false ? false : hasPendingRun ? refetchInterval : refetchInterval * 10,
+    refetchInterval: refetchInterval !== false && (hasPendingRun ? refetchInterval : refetchInterval * 10),
   });
 };

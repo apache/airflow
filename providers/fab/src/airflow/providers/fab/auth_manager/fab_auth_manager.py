@@ -76,6 +76,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_PREFIX,
@@ -97,6 +98,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_WEBSITE,
     RESOURCE_XCOM,
 )
+from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
@@ -117,6 +119,7 @@ if TYPE_CHECKING:
         RESOURCE_ASSET,
         RESOURCE_ASSET_ALIAS,
     )
+    from airflow.serialization.serialized_objects import LazyDeserializedDAG
 else:
     from airflow.providers.common.compat.security.permissions import (
         RESOURCE_ASSET,
@@ -156,8 +159,8 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
 }
 
 # ``AccessView.IMPORT_ERRORS_ALL`` and ``AccessView.AUDIT_LOGS_ALL`` only exist on
-# core >= 3.4.0, and ``AccessView.REPARSE_ALL`` after it; the compat shim yields ``None``
-# on older core so this provider still imports there.
+# Airflow >= 3.4.0, and ``AccessView.REPARSE_ALL`` in a later version; the compat shim yields ``None``
+# on older Airflow versions so this provider still imports there.
 if IMPORT_ERRORS_ALL_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[IMPORT_ERRORS_ALL_ACCESS_VIEW] = RESOURCE_IMPORT_ERROR_ALL
 if AUDIT_LOGS_ALL_ACCESS_VIEW is not None:
@@ -190,13 +193,14 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
-# Dag bundle visibility rides on Dag access -- a bundle is shown to a user who can read a Dag that
-# came from it -- so the menu entry is gated the same way the Dags entry is. Without a mapping the
-# lookup below falls back to the raw enum value as a resource name, and unlike "Jobs" or "Providers"
-# (whose enum values happen to equal an existing FAB resource) no "Dag Bundles" resource exists, so
-# the entry would silently vanish for every FAB deployment.
+# The Dag bundles view and menu item first ship in Airflow 3.4.0, newer than this provider's minimum
+# Airflow. Unmapped, the view is denied to every role, and the menu lookup falls back to the raw
+# enum value as a resource name, so the entry would vanish for every FAB deployment.
+DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
+if DAG_BUNDLES_ACCESS_VIEW is not None:
+    _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
 if hasattr(MenuItem, "DAG_BUNDLES"):
-    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
 
 
 class FabAuthManager(BaseAuthManager[User]):
@@ -213,6 +217,13 @@ class FabAuthManager(BaseAuthManager[User]):
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
+
+    @staticmethod
+    def sync_dag_perms(dag: LazyDeserializedDAG, *, session: Session) -> None:
+        """Sync Dag-specific permissions without initializing the auth manager."""
+        log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+        security_manager = ApplessAirflowSecurityManager(session=session)
+        security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
 
     @cached_property
     def apiserver_endpoint(self) -> str:

@@ -46,7 +46,7 @@ Airflow resolves custom serialization in the following order:
 
 If you are looking to extend Airflow with a new serializer, it is good to know when to choose what way of serialization.
 Objects that are under the control of Airflow, i.e. residing under the namespace of ``airflow.*`` like
-``airflow.model.dag.DAG`` or under control of the developer e.g. ``my.company.Foo`` should first be examined to see
+``airflow.models.dag.DAG`` or under control of the developer e.g. ``my.company.Foo`` should first be examined to see
 whether they can be decorated with ``@attr.define`` or ``@dataclass``. If that is not possible then the ``serialize``
 and ``deserialize`` methods should be implemented. The ``serialize`` method should return a primitive or a dict.
 It does not need to serialize the values in the dict, that will be taken care of, but the keys should be of a primitive
@@ -85,7 +85,7 @@ Airflow Object
 
         @staticmethod
         def deserialize(data: dict[str, Any], version: int):
-            f = Foo(a=data["a"], v=data["b"])
+            f = Foo(a=data["a"], v=data["b"]["x"])
             return f
 
 

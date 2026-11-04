@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Index,
@@ -24,14 +25,38 @@ from sqlalchemy import (
     String,
     text,
 )
+from sqlalchemy.dialects import mysql
 from sqlalchemy.orm import Mapped
 
 from airflow.models.base import StringID
-from airflow.providers.common.compat.sdk import TaskInstanceKey, timezone
+from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.common.compat.sqlalchemy.orm import mapped_column
 from airflow.providers.edge3.models.edge_base import Base
+from airflow.providers.edge3.models.types import is_callback_job
+from airflow.providers.edge3.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.sqlalchemy import UtcDateTime
+
+if TYPE_CHECKING:
+    from airflow.models.callback import CallbackKey
+
+
+def build_job_key(
+    dag_id: str, task_id: str, run_id: str, try_number: int, map_index: int
+) -> TaskInstanceKey | CallbackKey:
+    """
+    Build the key the executor layer uses for a job row.
+
+    A row is a callback only if it has the full identity ``queue_workload()`` writes for callbacks, since
+    ``ExecuteCallback`` is a valid Dag id. A task row maps to the ``airflow.models`` ``TaskInstanceKey``,
+    not the ``airflow.sdk`` one, because ``BaseExecutor`` dispatches on it with ``isinstance``.
+    """
+    if AIRFLOW_V_3_3_PLUS and is_callback_job(dag_id, task_id, run_id, try_number, map_index):
+        from airflow.models.callback import CallbackKey
+
+        return CallbackKey(id=task_id)
+    return TaskInstanceKey(dag_id, task_id, run_id, try_number, map_index)
 
 
 class EdgeJobModel(Base, LoggingMixin):
@@ -49,9 +74,17 @@ class EdgeJobModel(Base, LoggingMixin):
         Integer, primary_key=True, nullable=False, server_default=text("-1")
     )
     try_number: Mapped[int] = mapped_column(Integer, primary_key=True, default=0)
+    task_instance_id: Mapped[str] = mapped_column(
+        String(36).with_variant(mysql.VARCHAR(36, charset="ascii", collation="ascii_bin"), "mysql"),
+        primary_key=True,
+        nullable=False,
+        default="",
+        server_default="",
+    )
     state: Mapped[str] = mapped_column(String(20))
     queue: Mapped[str] = mapped_column(String(256))
     concurrency_slots: Mapped[int] = mapped_column(Integer)
+    priority_weight: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))
     command: Mapped[str] = mapped_column(String(2048))
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime)
     edge_worker: Mapped[str | None] = mapped_column(String(64))
@@ -69,10 +102,12 @@ class EdgeJobModel(Base, LoggingMixin):
         queue: str,
         concurrency_slots: int,
         command: str,
+        priority_weight: int = 1,
         queued_dttm: datetime | None = None,
         edge_worker: str | None = None,
         last_update: datetime | None = None,
         team_name: str | None = None,
+        task_instance_id: str = "",
     ):
         self.dag_id = dag_id
         self.task_id = task_id
@@ -83,17 +118,20 @@ class EdgeJobModel(Base, LoggingMixin):
         self.queue = queue
         self.concurrency_slots = concurrency_slots
         self.command = command
+        self.priority_weight = priority_weight
         self.queued_dttm = queued_dttm or timezone.utcnow()
         self.edge_worker = edge_worker
         self.last_update = last_update
         self.team_name = team_name
+        self.task_instance_id = task_instance_id
         super().__init__()
 
-    __table_args__ = (Index("rj_order", state, queued_dttm, queue),)
+    __table_args__ = (Index("rj_order", state, priority_weight.desc(), queued_dttm, queue),)
 
     @property
-    def key(self):
-        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
+    def key(self) -> TaskInstanceKey | CallbackKey:
+        """Key of the job as the executor layer knows it."""
+        return build_job_key(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @property
     def last_update_t(self) -> float:

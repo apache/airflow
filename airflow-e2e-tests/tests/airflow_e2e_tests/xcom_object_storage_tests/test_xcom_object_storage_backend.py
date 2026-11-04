@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pprint import pprint
 from uuid import uuid4
 
@@ -41,7 +41,7 @@ class TestXComObjectStorageBackend:
             self.dag_id,
             json={
                 "dag_run_id": f"test_xcom_object_storage_backend_{uuid4()}",
-                "logical_date": datetime.now(timezone.utc).isoformat(),
+                "logical_date": datetime.now(UTC).isoformat(),
             },
         )
         dag_run_id = trigger_resp["dag_run_id"]

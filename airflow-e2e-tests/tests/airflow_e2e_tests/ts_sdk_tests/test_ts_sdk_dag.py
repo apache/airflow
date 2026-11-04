@@ -24,21 +24,25 @@ Run with::
 Two Dags mix Python tasks with ``@task.stub`` TypeScript tasks, both served by the single
 ``airflow-ts-pack`` bundle, and each is triggered once via a module-scoped fixture.
 
-``typescript_example`` covers the runtime: Variable and Connection reads, Python <-> TypeScript XCom
-round-trips, and task logs reaching the log store.
+``typescript_example`` covers the runtime: Variable reads and writes, Connection reads,
+Python <-> TypeScript XCom round-trips, task state store round-trips and clearing, and task
+logs reaching the log store.
 
 ``typescript_taskflow_example`` covers TaskFlow arguments, including an upstream output pulled before
-the handler runs, and shares a ``build_message`` task ID with ``typescript_example`` so that dispatch
-keying on the task ID alone would run the wrong handler.
+the handler runs and a ``withArgNames`` rename on its ``report`` task, and shares a ``build_message``
+task ID with ``typescript_example`` so that dispatch keying on the task ID alone would run the wrong
+handler.
 """
 
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from http import HTTPStatus
 
 import pytest
+import requests
 
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
@@ -51,6 +55,11 @@ _LOG_FETCH_TIMEOUT = 120
 
 _DAG_ID = "typescript_example"
 _TASKFLOW_DAG_ID = "typescript_taskflow_example"
+
+# Written by `write_and_delete_variable`; see ts-sdk/example/src/main.ts.
+_LAST_RUN_VARIABLE = "typescript_example_last_run"
+_LAST_RUN_DESCRIPTION = "Run id of the last typescript_example run"
+_SCRATCH_VARIABLE = "typescript_example_scratch"
 
 
 @dataclass
@@ -81,7 +90,7 @@ class _CompletedRun:
 
 def _trigger_and_wait(dag_id: str) -> _CompletedRun:
     client = AirflowClient()
-    resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(timezone.utc).isoformat()})
+    resp = client.trigger_dag(dag_id, json={"logical_date": datetime.now(UTC).isoformat()})
     run_id = resp["dag_run_id"]
     state = client.wait_for_dag_run(dag_id=dag_id, run_id=run_id, timeout=_TS_TASK_TIMEOUT)
     ti_resp = client.get_task_instances(dag_id=dag_id, run_id=run_id)
@@ -112,6 +121,9 @@ def test_task_states(completed_run: _CompletedRun):
         "python_start": "success",
         "build_message": "success",
         "read_connection": "success",
+        "write_and_delete_variable": "success",
+        "write_and_read_task_state": "success",
+        "clear_task_state": "success",
     }
     for task_id, want in expected.items():
         assert completed_run.ti_states.get(task_id) == want, (
@@ -143,6 +155,87 @@ def test_read_connection_xcom(completed_run: _CompletedRun):
     }, f"unexpected 'read_connection' return_value: {value!r}"
 
 
+def test_variable_written_by_typescript_task_is_readable(completed_run: _CompletedRun):
+    """``setVariable`` stores this run's id and the description alongside it."""
+    variable = completed_run.client.get_variable(_LAST_RUN_VARIABLE)
+    assert variable.get("value") == completed_run.run_id, (
+        f"{_LAST_RUN_VARIABLE} should hold this run's id {completed_run.run_id!r}, got {variable!r}"
+    )
+    assert variable.get("description") == _LAST_RUN_DESCRIPTION, (
+        f"{_LAST_RUN_VARIABLE} should carry the description set from TypeScript, got {variable!r}"
+    )
+
+
+def test_scratch_variable_deleted_by_typescript_task_is_gone(completed_run: _CompletedRun):
+    """A Variable written and then deleted from TypeScript no longer exists."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_variable(_SCRATCH_VARIABLE)
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"{_SCRATCH_VARIABLE} should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
+
+
+def test_task_state_store_round_trip(completed_run: _CompletedRun):
+    """``write_and_read_task_state`` writes two keys, reads them back, and deletes one."""
+    value = completed_run.xcom("write_and_read_task_state")
+    assert value["jobId"] == completed_run.run_id, (
+        f"jobId should be this run's id {completed_run.run_id!r}, got {value!r}"
+    )
+    assert value["scratchBeforeDelete"] == {"attempt": 1}, (
+        f"scratchBeforeDelete should be {{'attempt': 1}}, got {value!r}"
+    )
+    assert value["scratchAfterDelete"] is None, (
+        f"scratchAfterDelete should be None after taskStateStore.delete, got {value!r}"
+    )
+
+    body = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id, run_id=completed_run.run_id, task_id="write_and_read_task_state"
+    )
+    assert body["total_entries"] == 1, f"expected a single remaining task state store entry, got {body!r}"
+    assert {entry["key"] for entry in body["task_state_store"]} == {"typescript_example_job_id"}, (
+        f"expected only the job id key to remain, got {body!r}"
+    )
+
+    entry = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id,
+        run_id=completed_run.run_id,
+        task_id="write_and_read_task_state",
+        key="typescript_example_job_id",
+    )
+    assert entry["value"] == completed_run.run_id, (
+        f"job id entry should hold this run's id {completed_run.run_id!r}, got {entry!r}"
+    )
+    assert entry["expires_at"] is None, f"NEVER_EXPIRE should reach the database as no expiry, got {entry!r}"
+
+
+def test_task_state_store_clear(completed_run: _CompletedRun):
+    """``clear_task_state`` removes every task state store key it wrote."""
+    value = completed_run.xcom("clear_task_state")
+    assert value["afterClear"] is None, f"afterClear should be None after taskStateStore.clear, got {value!r}"
+
+    body = completed_run.client.get_task_state_store(
+        dag_id=completed_run.dag_id, run_id=completed_run.run_id, task_id="clear_task_state"
+    )
+    assert body["total_entries"] == 0, f"taskStateStore.clear should remove all entries, got {body!r}"
+    assert body["task_state_store"] == [], f"taskStateStore.clear should remove all entries, got {body!r}"
+
+
+def test_task_state_store_deleted_key_is_gone(completed_run: _CompletedRun):
+    """A key written and then deleted from TypeScript no longer exists via the REST API."""
+    with pytest.raises(requests.HTTPError) as excinfo:
+        completed_run.client.get_task_state_store(
+            dag_id=completed_run.dag_id,
+            run_id=completed_run.run_id,
+            task_id="write_and_read_task_state",
+            key="typescript_example_scratch",
+        )
+    assert excinfo.value.response.status_code == HTTPStatus.NOT_FOUND, (
+        f"typescript_example_scratch should have been deleted by the TypeScript task, "
+        f"got HTTP {excinfo.value.response.status_code}"
+    )
+
+
 def test_coordinator_logs_reach_task_log_store(completed_run: _CompletedRun):
     assert "[ts-sdk.runtime] Coordinator runtime started" in completed_run.logs("build_message")
 
@@ -153,7 +246,12 @@ def test_second_dag_from_the_same_bundle_succeeded(completed_taskflow_run: _Comp
         f"expected the run to succeed; got {completed_taskflow_run.state!r}. "
         f"task states: {completed_taskflow_run.ti_states}"
     )
-    expected = {"make_totals": "success", "summarize": "success", "build_message": "success"}
+    expected = {
+        "make_totals": "success",
+        "summarize": "success",
+        "report": "success",
+        "build_message": "success",
+    }
     for task_id, want in expected.items():
         assert completed_taskflow_run.ti_states.get(task_id) == want, (
             f"{task_id!r} expected {want!r}. all task states: {completed_taskflow_run.ti_states}"
@@ -188,6 +286,24 @@ def test_summarize_binds_its_call_arguments(completed_taskflow_run: _CompletedRu
     # Written only when `dryRun` is false, so this also proves the defaulted
     # boolean arrived as `false` rather than as `undefined`.
     assert completed_taskflow_run.xcom("summarize", key="summary_line") == "uk: 12 orders"
+
+
+def test_report_binds_an_explicitly_renamed_argument(completed_taskflow_run: _CompletedRun):
+    """``report(summary, "nightly")`` reaches a handler that renamed one argument.
+
+    Python names it ``run_label``; the handler destructures ``label``, a word
+    the ``@task.stub`` signature never uses, so folding could not connect the
+    two and the binding is stated with ``withArgNames``. The handler throws
+    unless ``label`` is exactly ``"nightly"``, so a rename that did not take
+    effect fails this task rather than returning a null.
+
+    ``summary`` is not renamed: folding already covers it, which is the point
+    that keeps ``withArgNames`` rare.
+    """
+    value = completed_taskflow_run.xcom("report")
+    assert value == {"label": "nightly", "regionCode": "uk", "healthy": True}, (
+        f"unexpected 'report' return_value: {value!r}"
+    )
 
 
 def test_same_task_id_under_two_dags_runs_its_own_handler(

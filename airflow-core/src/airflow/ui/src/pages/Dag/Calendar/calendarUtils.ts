@@ -129,6 +129,7 @@ export const buildDeadlineDateMap = (
 
 export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunCounts => {
   const counts: { [K in keyof RunCounts]: number } = {
+    backfill: 0,
     failed: 0,
     planned: 0,
     queued: 0,
@@ -142,6 +143,9 @@ export const calculateRunCounts = (runs: Array<CalendarTimeRangeResponse>): RunC
 
     if (state in counts) {
       counts[state] += count;
+    }
+    if (run.is_backfill === true) {
+      counts.backfill += count;
     }
     counts.total += count;
   });

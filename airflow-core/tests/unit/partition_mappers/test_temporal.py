@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone as dt_timezone
+from datetime import UTC, datetime
 
 import pendulum
 import pytest
@@ -400,12 +400,12 @@ class TestTemporalMapperDecodeNormalizeRoundTrip:
             # UTC mapper: UTC midnight stays at 00:00 UTC.
             (
                 StartOfDayMapper(timezone="UTC"),
-                datetime(2024, 3, 15, 0, 0, 0, tzinfo=dt_timezone.utc),
+                datetime(2024, 3, 15, 0, 0, 0, tzinfo=UTC),
             ),
             # Non-UTC mapper: NY midnight (EDT = UTC-4) → 04:00 UTC.
             (
                 StartOfDayMapper(timezone="America/New_York"),
-                datetime(2024, 3, 15, 4, 0, 0, tzinfo=dt_timezone.utc),
+                datetime(2024, 3, 15, 4, 0, 0, tzinfo=UTC),
             ),
         ],
     )
@@ -416,7 +416,7 @@ class TestTemporalMapperDecodeNormalizeRoundTrip:
         downstream_key = mapper.to_downstream(self.SAMPLE_DT.strftime(mapper.input_format))
         aware = mapper.to_partition_date(downstream_key)
         # Convert to UTC for a timezone-neutral comparison.
-        aware_utc = aware.astimezone(dt_timezone.utc)
+        aware_utc = aware.astimezone(UTC)
         assert aware_utc == expected_aware, (
             f"{type(mapper).__name__} (tz={mapper._timezone}): "
             f"to_partition_date produced {aware_utc!r}, expected {expected_aware!r}"
@@ -433,13 +433,13 @@ class TestToPartitionDateDelegation:
             (
                 RollupMapper(upstream_mapper=StartOfHourMapper(), window=HourWindow()),
                 "2024-01-01T00",
-                datetime(2024, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc),
+                datetime(2024, 1, 1, 0, 0, 0, tzinfo=UTC),
             ),
             # FanOutMapper (fan-out): downstream keys are the downstream_mapper's format → it owns them.
             (
                 FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow()),
                 "2024-01-16",
-                datetime(2024, 1, 16, 0, 0, 0, tzinfo=dt_timezone.utc),
+                datetime(2024, 1, 16, 0, 0, 0, tzinfo=UTC),
             ),
             # Non-temporal mapper → no anchor.
             (IdentityMapper(), "anything", None),

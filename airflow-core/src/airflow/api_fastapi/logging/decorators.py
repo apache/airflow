@@ -21,6 +21,7 @@ import json
 import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
+from uuid import UUID
 
 import pendulum
 from fastapi import Request
@@ -32,9 +33,13 @@ from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.security import GetUserDep
 from airflow.configuration import conf
 from airflow.models import Connection, Log, Pool, Variable
+from airflow.models.task_coordinates import build_coordinate_filters
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import find_invalid_team_names
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -152,7 +157,47 @@ def _mask_variable_entity(extra_fields):
     return result
 
 
-def _resolve_team_name(params: dict, *, session: Session) -> str | None:
+def _find_addressed_attempt(
+    path_params: Mapping[str, str], params: Mapping, *, session: Session
+) -> UUID | None:
+    """
+    Return the live attempt of the one task instance a request addresses, or None if it names no single one.
+
+    Bulk requests name task instances only in their body and are left unattributed.
+    """
+    dag_id, run_id, task_id = (path_params.get(key) for key in ("dag_id", "dag_run_id", "task_id"))
+    if not (dag_id and run_id and task_id):
+        return None
+    region_id = params.get("region_id")
+    region_index = params.get("region_index")
+    filters = build_coordinate_filters(
+        TaskInstance,
+        map_index=int(params.get("map_index", -1)),
+        region_id=UUID(str(region_id)) if region_id else None,
+        region_index=int(region_index) if region_index is not None else None,
+    )
+    attempt_ids = session.scalars(
+        select(TaskInstance.id)
+        .where(TaskInstance.dag_id == dag_id, TaskInstance.run_id == run_id, TaskInstance.task_id == task_id)
+        .where(*filters)
+        .limit(2)
+    ).all()
+    return attempt_ids[0] if len(attempt_ids) == 1 else None
+
+
+def _mask_xcom_fields(extra_fields):
+    """
+    Mask the XCom value.
+
+    The XCom create and update requests carry the value under ``value``. As with Variables, the
+    audit log records that an XCom was written, not what it holds, so the value is masked
+    regardless of its key: a task can write any payload to XCom, and the audit log is readable
+    under a different permission than the XCom itself.
+    """
+    return {k: "***" if k == "value" else v for k, v in extra_fields.items()}
+
+
+def _resolve_team_name(params: dict, *, dag_id: str | None, session: Session) -> str | None:
     """
     Return the team the audited action belongs to, for the resources that own no Dag.
 
@@ -169,7 +214,7 @@ def _resolve_team_name(params: dict, *, session: Session) -> str | None:
         # is committed before that runs, so recording it would fail the insert on a backend that
         # enforces the column width. The value stays visible in ``extra`` either way.
         return None if find_invalid_team_names([team_name]) else team_name
-    if params.get("dag_id"):
+    if dag_id:
         # Left to the insert-time hook on ``Log``, which covers every writer of an audit row rather
         # than only this one, and resolves a Dag's team through its bundle instead of a column.
         return None
@@ -246,6 +291,10 @@ def action_logging(event: str | None = None):
             extra_fields = _mask_variable_fields(request_body or extra_fields)
         elif "connection" in event_name:
             extra_fields = _mask_connection_fields(request_body or extra_fields)
+        elif "xcom" in event_name:
+            # Unlike Variables and Connections, an XCom update names its target only in the path
+            # (``xcom_key``) and query, so the body is merged into that context, not swapped for it.
+            extra_fields = _mask_xcom_fields({**extra_fields, **masked_body_json})
         elif has_json_body:
             extra_fields = {**extra_fields, **masked_body_json}
 
@@ -261,17 +310,33 @@ def action_logging(event: str | None = None):
 
         extra_fields["method"] = request.method
 
+        # The dag_id/task_id/run_id columns scope an audit row to a Dag -- rows with a dag_id are the
+        # Dag-scoped ones the per-Dag audit endpoints expose to anyone who can read that Dag. They must
+        # name the resource the route acts on: the route path, or the request body of an endpoint that
+        # takes one (a backfill names its dag_id in the body). A query parameter must never scope the
+        # row, or ``POST /connections?dag_id=x`` would file that connection write among Dag x's rows.
+        scope = {**request.path_params}
+        if has_json_body:
+            scope.update(masked_body_json)
+        dag_id = scope.get("dag_id")
+        try:
+            task_instance_id = _find_addressed_attempt(request.path_params, params, session=session)
+        except (TypeError, ValueError):
+            # Malformed coordinates are the route's to reject; the access is still logged.
+            task_instance_id = None
+
         # Create log entry
         log = Log(
             event=event_name,
             task_instance=None,
+            task_instance_id=task_instance_id,
             owner=user_name,
             owner_display_name=user_display,
             extra=json.dumps(extra_fields),
-            task_id=params.get("task_id"),
-            dag_id=params.get("dag_id"),
-            run_id=params.get("run_id") or params.get("dag_run_id"),
-            team_name=_resolve_team_name(params, session=session),
+            task_id=scope.get("task_id"),
+            dag_id=dag_id,
+            run_id=scope.get("run_id") or scope.get("dag_run_id"),
+            team_name=_resolve_team_name(params, dag_id=dag_id, session=session),
         )
 
         if "logical_date" in request.query_params:

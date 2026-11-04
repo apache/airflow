@@ -81,6 +81,9 @@ To learn how to setup your environment for development and how to develop and te
 
 * `Pull requests <05_pull_requests.rst>`__ describes how you can create pull requests. It also includes the pull request guidelines and the coding standards.
 
+* `Limit on open Pull Requests <32_open_pull_request_limit.rst>`__ explains the limit of open pull requests
+  for contributors without write access, and what to do when you reach it.
+
 * `Development environment <06_development_environments.rst>`__ describes the development environment
   used in Airflow.
 

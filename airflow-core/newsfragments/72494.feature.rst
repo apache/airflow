@@ -1,0 +1,1 @@
+Add ``--dry-run`` to ``airflow teams sync`` so deployments can preview missing teams and default team pools without writing to the metadata database.

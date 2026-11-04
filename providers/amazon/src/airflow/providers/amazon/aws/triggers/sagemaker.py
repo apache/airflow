@@ -24,9 +24,15 @@ from collections.abc import AsyncIterator
 from enum import IntEnum
 from typing import TYPE_CHECKING
 
+from asgiref.sync import sync_to_async
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterNoCredentialsError,
+    WaiterTerminalFailure,
+)
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.common.compat.sdk import AirflowException
@@ -48,6 +54,9 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
     :param region_name: The AWS region where the job is running. Used to build the hook.
     :param verify: Whether or not to verify SSL certificates. Used to build the hook.
     :param botocore_config: Configuration dictionary for the botocore client. Used to build the hook.
+    :param cancel_on_kill: If True, stop the training job when the user marks the deferred task failed,
+        clears it, or marks it succeeded. Only applies when ``job_type`` is ``Training``. Requires
+        ``apache-airflow`` with ``BaseTrigger.on_kill()`` support (3.3 and later); below that it is inert.
     :param poke_interval: (deprecated) use ``waiter_delay`` instead.
     :param max_attempts: (deprecated) use ``waiter_max_attempts`` instead.
     """
@@ -62,6 +71,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        cancel_on_kill: bool = False,
         poke_interval: int | None = None,
         max_attempts: int | None = None,
     ):
@@ -83,8 +93,13 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             waiter_max_attempts = max_attempts
         self.job_name = job_name
         self.job_type = job_type
+        self.cancel_on_kill = cancel_on_kill
         super().__init__(
-            serialized_fields={"job_name": job_name, "job_type": job_type},
+            serialized_fields={
+                "job_name": job_name,
+                "job_type": job_type,
+                "cancel_on_kill": cancel_on_kill,
+            },
             waiter_name=self._get_job_type_waiter(job_type),
             waiter_args={self._get_waiter_arg_name(job_type): job_name},
             failure_message=f"Error while waiting for {job_type} job",
@@ -107,6 +122,58 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
             verify=self.verify,
             config=self.botocore_config,
         )
+
+    async def on_kill(self) -> None:
+        """Stop the training job when the user acts on the deferred task."""
+        if not self.cancel_on_kill or self.job_type.lower() != "training":
+            return
+        self.log.info("Stopping SageMaker training job %s.", self.job_name)
+        hook: SageMakerHook = self.hook()  # type: ignore[assignment]
+        try:
+            await sync_to_async(hook.stop_training_job)(self.job_name)
+        except Exception:
+            self.log.exception(
+                "Failed to stop SageMaker training job %s. The job may still be running.",
+                self.job_name,
+            )
+
+    def _event_from_exception(self, error: AirflowException) -> TriggerEvent:
+
+        if isinstance(error, WaiterNoCredentialsError):
+            return super()._event_from_exception(error)
+
+        if isinstance(error, WaiterMaxAttemptsError):
+            return TriggerEvent(
+                {
+                    "status": "timeout",
+                    "job_name": self.job_name,
+                    "message": str(error),
+                }
+            )
+
+        if isinstance(error, WaiterTerminalFailure):
+            response = error.last_response
+            status = response.get(self._get_response_status_key(self.job_type))
+
+            if status == "Failed":
+                return TriggerEvent(
+                    {
+                        "status": "failed",
+                        "job_name": self.job_name,
+                        "message": response.get("FailureReason") or str(error),
+                    }
+                )
+
+            if status == "Stopped":
+                return TriggerEvent(
+                    {
+                        "status": "stopped",
+                        "job_name": self.job_name,
+                        "message": str(error),
+                    }
+                )
+
+        return super()._event_from_exception(error)
 
     @staticmethod
     def _get_job_type_waiter(job_type: str) -> str:

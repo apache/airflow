@@ -819,7 +819,9 @@ class S3FileTransformOperator(AwsBaseOperator[S3Hook]):
     :param replace: Replace dest S3 key if it already exists
     """
 
-    template_fields: Sequence[str] = aws_template_fields("source_s3_key", "dest_s3_key", "script_args")
+    template_fields: Sequence[str] = aws_template_fields(
+        "source_s3_key", "dest_s3_key", "script_args", "source_aws_conn_id", "dest_aws_conn_id"
+    )
     template_ext: Sequence[str] = ()
     ui_color = "#f9c915"
     aws_hook_class = S3Hook

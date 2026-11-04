@@ -25,6 +25,7 @@ import type { TaskInstanceStateCount } from "openapi/requests/types.gen";
 import { StateBadge } from "src/components/StateBadge";
 
 import { SearchParamsKeys } from "src/constants/searchParams";
+import { formatNumber } from "src/utils";
 
 const BAR_WIDTH = 100;
 const BAR_HEIGHT = 5;
@@ -73,7 +74,7 @@ export const MetricSection = ({
           <RouterLink to={`/${kind}?${searchParams.toString()}`}>
             <StateBadge fontSize="md" state={state === "no_status" ? null : state}>
               {}
-              {`${runs.toLocaleString(i18n.language)}${capped ? "+" : ""}`}
+              {`${formatNumber(runs, i18n.language)}${capped ? "+" : ""}`}
             </StateBadge>
           </RouterLink>
           <Text>{translate(`states.${state}`)}</Text>
@@ -84,6 +85,7 @@ export const MetricSection = ({
         <Box
           bg={`${state === "no_status" ? "none" : state}.solid`}
           borderLeftRadius={5}
+          borderRightRadius={remainingWidth === 0 ? 5 : 0} // When the state fills the whole bar, round the right side too since this is the only bar displayed
           height={`${BAR_HEIGHT}px`}
           minHeight={2}
           width={`${stateWidth}%`}

@@ -17,14 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from enum import Enum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
+from uuid import UUID
 
-from sqlalchemy import ForeignKey, Index, Integer, String, case, select
+from sqlalchemy import Index, Integer, String, Uuid, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Mapped, backref, foreign, mapped_column, relationship
 from sqlalchemy.orm.session import make_transient
@@ -35,6 +36,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
+from airflow.models.team import JobTeam
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
@@ -101,10 +103,11 @@ class Job(Base, LoggingMixin):
     executor_class: Mapped[str | None] = mapped_column(String(500))
     hostname: Mapped[str | None] = mapped_column(String(500))
     unixname: Mapped[str | None] = mapped_column(String(1000))
-    team_name: Mapped[str | None] = mapped_column(
-        String(50), ForeignKey("team.name", ondelete="SET NULL"), nullable=True
-    )
     bundle_names: Mapped[list[str] | None] = mapped_column(ExtendedJSON, nullable=True)
+    session_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Component session that registered this Job over the Execution API; ``None`` for Jobs written directly or replaced by a newer registration."""
+    registration_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True, unique=True)
+    """Process registration that created this Job; it creates no other Job, even after this one ends."""
 
     __table_args__ = (
         Index("job_type_heart", job_type, latest_heartbeat),
@@ -136,6 +139,21 @@ class Job(Base, LoggingMixin):
 
     Only makes sense for SchedulerJob.
     """
+
+    job_teams = relationship(
+        "JobTeam",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    @property
+    def team_names(self) -> list[str]:
+        """Names of the teams whose workloads this job serves, empty when it is not team-scoped."""
+        return sorted(job_team.team_name for job_team in self.job_teams)
+
+    @team_names.setter
+    def team_names(self, names: Iterable[str]) -> None:
+        self.job_teams = [JobTeam(team_name=name) for name in dict.fromkeys(names)]
 
     def __init__(self, heartrate=None, **kwargs):
         # Save init parameters as DB fields

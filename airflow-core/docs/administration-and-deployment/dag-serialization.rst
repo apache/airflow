@@ -53,8 +53,8 @@ You can enable the source code to be stored in the database to make the Webserve
 This is not necessary if your files are embedded in the Docker image or you can otherwise provide
 them to the Webserver. The data is stored in the :class:`~airflow.models.dagcode.DagCode` model.
 
-The last element is rendering template fields. When serialization is enabled, templates are not rendered
-to requests, but a copy of the field contents is saved before the task is executed on worker.
+The last element is rendering template fields. When serialization is enabled, templates are not re-rendered
+on request, but a copy of the field contents is saved before the task is executed on worker.
 The data is stored in the :class:`~airflow.models.renderedtifields.RenderedTaskInstanceFields` model.
 To limit the excessive growth of the database, only the most recent entries are kept and older entries
 are purged.
@@ -187,7 +187,7 @@ The system automatically fills in any missing values by walking up the hierarchy
 MappedOperator Default Handling
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-MappedOperators (dynamic task mapping) also participate in the default value system:
+MappedOperators (task mapping) also participate in the default value system:
 
 .. code-block:: python
 

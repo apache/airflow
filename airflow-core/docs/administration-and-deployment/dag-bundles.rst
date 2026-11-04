@@ -18,7 +18,7 @@
 Dag Bundles
 ===========
 
-A Dag bundle is a collection of one or more Dags, files along with their associated files, such as other
+A Dag bundle is a collection of one or more Dag files along with their associated files, such as other
 Python scripts, configuration files, or other resources. Dag bundles can source the Dags from various
 locations, such as local directories, Git repositories, or other external systems. Deployment administrators
 can also write their own Dag bundle classes to support custom sources. You can also define more than one Dag
@@ -55,6 +55,9 @@ Airflow supports multiple types of Dag Bundles, each catering to specific use ca
 
 **airflow.providers.google.cloud.bundles.gcs.GCSDagBundle**
     These bundles reference a GCS bucket containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
+
+**airflow.providers.microsoft.azure.bundles.wasb.WasbDagBundle**
+    These bundles reference an Azure Blob Storage container containing Dag files. They do not support versioning of the bundle, meaning tasks always run using the latest code.
 
 Configuring Dag bundles
 -----------------------
@@ -217,7 +220,7 @@ The url is verified for safety, and if it is not safe, the view url for the bund
 You can also override the :ref:`config:dag_processor__refresh_interval` per Dag bundle by passing it in kwargs.
 This controls how often the Dag processor refreshes, or looks for new files, in the Dag bundles.
 
-Starting Airflow 3.0.2 git is pre installed in the base image. However, if you are using versions prior 3.0.2, you would need to install git in your docker image.
+Starting with Airflow 3.0.2, git is pre-installed in the base image. However, if you are using versions prior to 3.0.2, you would need to install git in your docker image.
 
 .. code-block:: Dockerfile
 
@@ -235,14 +238,16 @@ when a Dag processor last refreshed it, its import-error count, and whether it i
 refreshes itself while open, and the same data is available at ``GET /api/v2/dagBundles`` for a
 deployment pipeline to poll.
 
-.. note::
+Bundles have their own permission rather than following Dag access, so a user who holds it sees
+every file and count in a bundle, whatever Dags they can read. By default it is held by:
 
-   Under the FAB auth manager the *Browse* entry needs a ``apache-airflow-providers-fab`` release
-   that maps the new menu item onto the ``DAGs`` resource; upgrade to the latest one if the entry is
-   missing. On an older release the lookup falls back to a FAB resource named after the menu item,
-   no such resource exists, and the entry is hidden for every role including ``Admin``. The page is
-   still reachable at ``/dag_bundles`` and the API is unaffected, so a missing *Browse* entry means
-   the provider needs upgrading, not that the feature is off.
+* Simple auth manager: ``op`` and ``admin``.
+* FAB auth manager: ``Op`` and ``Admin``. This needs an ``apache-airflow-providers-fab`` release with
+  the ``Dag Bundles`` resource; on an older release the page and the API are denied to every role,
+  including ``Admin``.
+* Keycloak auth manager: every role, ``Viewer`` included. In multi-team mode, ``SuperAdmin`` only.
+  This needs an ``apache-airflow-providers-keycloak`` release that knows the view; on an older
+  release every team role can read it.
 
 ``version`` is whatever the bundle reports; for a Git Dag bundle it is the commit SHA of the tracking
 ref. Bundles that do not support versioning, such as ``LocalDagBundle``, report ``null``.
@@ -260,17 +265,12 @@ Some caveats:
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
   so do not treat the pair as a deployment-health check. Import errors are not recorded against a
-  version, a file whose parse exceeds
+  version, and a file whose parse exceeds
   :ref:`config:dag_processor__dag_file_processor_timeout` is killed without writing an import-error
-  row at all, and the count only covers errors you are allowed to read. A count of zero therefore
-  means "nothing I can show you", not "this commit is healthy". To tie a running Dag to a commit,
-  read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
+  row at all. A count of zero therefore does not mean "this commit is healthy". To tie a running Dag
+  to a commit, read the Dag's version in ``/api/v2/dags/{dag_id}/dagVersions``.
 * With several Dag processors the row reflects whichever refreshed last, as they share one row per
   bundle.
-* A bundle is listed for users who can read at least one Dag recorded against it. A bundle holding
-  no registered Dag at all -- a first deploy whose only file fails to import, for instance -- has no
-  Dag to authorize against, so it is listed only for users who may read import errors for files with
-  no registered Dag (``Admin`` by default under the FAB auth manager).
 
 ``active`` is false when the bundle was missing from the configuration of whatever last ran a full
 sync, which also means processors that disagree about ``dag_bundle_config_list`` will deactivate
@@ -438,6 +438,8 @@ In addition to the abstract methods, you may choose to override the following me
 **initialize**
     This method is called before the bundle is first used in the Dag processor or worker. It allows you to perform expensive operations only when the bundle's content is accessed.
 
+    When a worker starts a task, Airflow sets the Dag parsing context before calling ``initialize()``. See **Parsing context** under Other Considerations.
+
 **view_url**
     This method should return a URL as a string to view the bundle on an external system (e.g., a Git repository's web interface).
 
@@ -446,7 +448,29 @@ Other Considerations
 
 - **Versioning**: If your bundle supports versioning, ensure that ``initialize``, ``get_current_version`` and ``refresh`` are implemented to handle version-specific logic.
 
-- **Concurrency**: Workers may create many bundles simultaneously, and does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
+- **Parsing context**: If expensive bundle setup can be scoped to a single Dag (for example, a sparse checkout of only the paths that Dag needs), worker task startup can do less work in ``initialize()``.
+  Call :py:func:`~airflow.sdk.get_parsing_context` inside ``initialize()`` and branch on ``dag_id``.
+
+  Airflow sets ``dag_id`` and ``task_id`` only on the worker task startup path (``startup()`` wraps ``parse()``, which calls ``initialize()``).
+  The Dag processor, CLI (for example ``airflow dags reserialize`` or ``dag report``), callbacks, and other call sites invoke ``initialize()`` without setting this parsing context, so custom bundles should prepare the full bundle on those paths.
+  ``refresh()`` is not invoked with Dag-specific parsing context either; use it to update the entire bundle, not for per-Dag preparation.
+
+  .. code-block:: python
+
+      from airflow.sdk import get_parsing_context
+
+
+      class MyBundle(BaseDagBundle):
+          def initialize(self):
+              dag_id = get_parsing_context().dag_id
+              if dag_id:
+                  # Worker task startup only: prepare just this Dag (e.g. sparse checkout)
+                  ...
+              else:
+                  # Dag processor, CLI, callbacks, and other paths: prepare the full bundle
+                  ...
+
+- **Concurrency**: Workers may create many bundles simultaneously, and Airflow does nothing to serialize calls to the bundle objects. Thus, the bundle class must handle locking if
   that is problematic for the underlying technology. For example, if you are cloning a git repo, the bundle class is responsible for locking to ensure only 1 bundle
   object is cloning at a time. There is a ``lock`` method in the base class that can be used for this purpose, if necessary.
 

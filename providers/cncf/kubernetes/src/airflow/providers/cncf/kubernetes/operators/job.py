@@ -46,6 +46,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESUL
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, conf
 from airflow.utils import yaml
+from airflow.utils.helpers import prune_dict
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.sdk import BaseOperator
@@ -238,7 +239,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
                             pod=pod, container_name=self.base_container_name
                         )
                         self.pod_manager.await_xcom_sidecar_container_start(pod=pod)
-                        xcom_result.append(self.extract_xcom(pod=pod))
+                        # `wait_until_job_complete` below polls without a timeout, and the
+                        # Job can never reach a terminal state while the xcom sidecar is
+                        # still looping. So unlike KubernetesPodOperator, this path must
+                        # fail loudly when the sidecar cannot be killed rather than hang.
+                        xcom_result.append(self.extract_xcom(pod=pod, ignore_kill_failure=False))
                 self.job = self.hook.wait_until_job_complete(
                     job_name=self.job.metadata.name,
                     namespace=self.job.metadata.namespace,
@@ -485,12 +490,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
             )
             self.process_pod_deletion(fallback_pod, reraise=False)
 
-    def build_job_request_obj(self, context: Context | None = None) -> k8s.V1Job:
+    def build_job_request_obj(self, context: Context | None = None, *, dry_run: bool = False) -> k8s.V1Job:
         """
         Return V1Job object based on job template file, full job spec, and other operator parameters.
 
         The V1Job attributes are derived (in order of precedence) from operator params, full job spec, job
         template file.
+
+        :param dry_run: if True, skip anything that requires a live Kubernetes API client
+            (e.g. determining whether the hook is running in-cluster), since dry runs must not
+            require kube credentials or config to be available.
         """
         self.log.debug("Creating job for KubernetesJobOperator task %s", self.task_id)
         if self.job_template_file:
@@ -503,7 +512,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         else:
             job_template = k8s.V1Job(metadata=k8s.V1ObjectMeta())
 
-        pod_template = super().build_pod_request_obj(context)
+        pod_template = super().build_pod_request_obj(context, dry_run=dry_run)
         pod_template_spec = k8s.V1PodTemplateSpec(
             metadata=pod_template.metadata,
             spec=pod_template.spec,
@@ -556,6 +565,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.log.info("Building job %s ", job.metadata.name)
 
         return job
+
+    def dry_run(self) -> None:
+        """
+        Print out the job definition that would be created by this operator.
+
+        Does not include labels specific to the task instance (since there isn't
+        one in a dry_run) and excludes all empty elements.
+        """
+        job = self.build_job_request_obj(dry_run=True)
+        print(yaml.dump(prune_dict(job.to_dict(), mode="strict")))
 
     @staticmethod
     def reconcile_jobs(base_job: k8s.V1Job, client_job: k8s.V1Job | None) -> k8s.V1Job:
@@ -662,6 +681,7 @@ class KubernetesDeleteJobOperator(BaseOperator):
         "name",
         "namespace",
         "cluster_context",
+        "kubernetes_conn_id",
     )
 
     def __init__(
@@ -767,6 +787,7 @@ class KubernetesPatchJobOperator(BaseOperator):
         "namespace",
         "body",
         "cluster_context",
+        "kubernetes_conn_id",
     )
 
     def __init__(

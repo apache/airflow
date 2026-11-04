@@ -23,14 +23,14 @@ from datetime import datetime
 from pydantic import AliasPath, Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
-from airflow.models.dagwarning import DagWarningType
+from airflow.models.dagwarning import DagWarningTypeValue
 
 
 class DAGWarningResponse(BaseModel):
     """Dag Warning serializer for responses."""
 
     dag_id: str
-    warning_type: DagWarningType
+    warning_type: DagWarningTypeValue
     message: str
     timestamp: datetime
     dag_display_name: str = Field(validation_alias=AliasPath("dag_model", "dag_display_name"))

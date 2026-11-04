@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { Bundle, listBundleDags, listBundleTasks } from "../../src/sdk/bundle.js";
+import { Bundle, bundleDagTaskIds } from "../../src/sdk/bundle.js";
 import { Dag } from "../../src/sdk/dag.js";
 import { getTaskHandlerFunction, TaskHandler } from "../../src/sdk/task-handler.js";
 
@@ -66,7 +66,7 @@ describe("TaskHandler", () => {
 describe("a bundle of task handlers", () => {
   it("registers Dags and task handlers in one call", () => {
     const nativeDag = new Dag("native_etl");
-    nativeDag.task("extract", async () => undefined);
+    nativeDag.task("extract", async () => undefined)();
     const transform = async () => "transformed";
 
     const bundle = new Bundle();
@@ -94,9 +94,9 @@ describe("a bundle of task handlers", () => {
     expect(bundle.getTaskHandler("etl", "unknown")).toBeUndefined();
   });
 
-  it("lists every Dag it provides for, in registration order", () => {
+  it("lists every Dag it provides for, the ones declared in TypeScript first", () => {
     const nativeDag = new Dag("native_etl");
-    nativeDag.task("extract", async () => undefined);
+    nativeDag.task("extract", async () => undefined)();
 
     const bundle = new Bundle(
       new TaskHandler("py_etl", "transform", async () => undefined),
@@ -104,16 +104,12 @@ describe("a bundle of task handlers", () => {
       new TaskHandler("py_etl", "report", async () => undefined),
     );
 
-    // A Dag registered through handlers keeps its place from the first handler
-    // that named it, so a later one does not reorder the manifest.
-    expect(listBundleDags(bundle)).toEqual([
-      { dagId: "py_etl", tasks: ["transform", "report"] },
-      { dagId: "native_etl", tasks: ["extract"] },
-    ]);
-    expect(listBundleTasks(bundle)).toEqual([
-      { dagId: "py_etl", taskId: "transform" },
-      { dagId: "py_etl", taskId: "report" },
-      { dagId: "native_etl", taskId: "extract" },
+    // Compared as entries rather than as a Map, which would ignore the order.
+    // A Dag its handlers name keeps its place from the first handler that named
+    // it, so a later one does not reorder the manifest.
+    expect([...bundleDagTaskIds(bundle)]).toEqual([
+      ["native_etl", ["extract"]],
+      ["py_etl", ["transform", "report"]],
     ]);
   });
 
@@ -122,7 +118,7 @@ describe("a bundle of task handlers", () => {
     bundle.register(new TaskHandler("py_etl", "transform", async () => undefined));
     bundle.register(new TaskHandler("py_etl", "report", async () => undefined));
 
-    expect(listBundleDags(bundle)).toEqual([{ dagId: "py_etl", tasks: ["transform", "report"] }]);
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map([["py_etl", ["transform", "report"]]]));
   });
 
   it("rejects a second handler for the same Dag and task", () => {
@@ -150,7 +146,7 @@ describe("a bundle of task handlers", () => {
         new TaskHandler("etl", "transform", async () => undefined),
       ),
     ).toThrowError(/already registered/);
-    expect(listBundleDags(bundle)).toEqual([]);
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map());
     expect(bundle.getTaskHandler("etl", "transform")).toBeUndefined();
   });
 
@@ -178,6 +174,42 @@ describe("a bundle of task handlers", () => {
     expect(() => bundle.register(new Dag("py_etl"))).toThrowError(
       /already has registered task handlers/,
     );
+  });
+
+  it("rejects a Dag whose ID the same call already gave a handler", () => {
+    // The mirror of the Dag-first case, which the validation pass has to catch
+    // too: writing the Dag entry would otherwise replace the handler map and
+    // drop the handler, leaving its task with no body at run time.
+    const dag = new Dag("py_etl");
+    dag.task("extract", async () => undefined)();
+    expect(
+      () => new Bundle(new TaskHandler("py_etl", "legacy", async () => undefined), dag),
+    ).toThrowError(/already has registered task handlers/);
+  });
+
+  it("registers neither kind when a mixed call throws", () => {
+    const bundle = new Bundle();
+    const dag = new Dag("py_etl");
+    dag.task("extract", async () => undefined)();
+    expect(() =>
+      bundle.register(new TaskHandler("py_etl", "legacy", async () => undefined), dag),
+    ).toThrowError(/already has registered task handlers/);
+
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map());
+    expect(bundle.getTaskHandler("py_etl", "legacy")).toBeUndefined();
+  });
+
+  it("keeps the handlers it already held when a later call throws", () => {
+    const bundle = new Bundle(new TaskHandler("py_etl", "transform", async () => undefined));
+    expect(() =>
+      bundle.register(
+        new TaskHandler("py_etl", "report", async () => undefined),
+        new TaskHandler("py_etl", "report", async () => undefined),
+      ),
+    ).toThrowError(/already registered/);
+
+    expect(bundleDagTaskIds(bundle)).toEqual(new Map([["py_etl", ["transform"]]]));
+    expect(bundle.getTaskHandler("py_etl", "report")).toBeUndefined();
   });
 
   it("names the duplicate-copy cause for a handler carrying the brand but not this class", () => {

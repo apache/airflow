@@ -41,7 +41,6 @@ from airflow.api_fastapi.core_api.datamodels.dag_stats import (
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import ReadableDagRunsFilterDep, requires_access_dag
 from airflow.models.dagrun import DagRun
-from airflow.typing_compat import Unpack
 from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
@@ -76,7 +75,7 @@ def get_dag_stats(
         return_total_entries=False,
     )
     # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-    query_result: Result[Unpack[tuple[str, str, str, int]]] = session.execute(dagruns_select)  # type: ignore[type-arg]
+    query_result: Result[*tuple[str, str, str, int]] = session.execute(dagruns_select)  # type: ignore[type-arg]
 
     result_dag_ids = []
     dag_display_names: dict[str, str] = {}

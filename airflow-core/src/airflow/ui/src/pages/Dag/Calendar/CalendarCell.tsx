@@ -19,7 +19,9 @@
 import { Box } from "@chakra-ui/react";
 import { FiAlertTriangle, FiClock } from "react-icons/fi";
 
-import { Tooltip } from "src/system-components";
+import { RouterLink, Tooltip } from "src/system-components";
+
+import { RunTypeIcon } from "src/components/RunTypeIcon";
 
 import { CalendarTooltip } from "./CalendarTooltip";
 import type { CalendarCellData, CalendarColorMode } from "./types";
@@ -33,6 +35,7 @@ type Props = {
         secondary: string | { _dark: string; _light: string };
       };
   readonly cellData: CalendarCellData | undefined;
+  readonly dagId: string;
   readonly index?: number;
   readonly marginRight?: string;
   readonly viewMode?: CalendarColorMode;
@@ -41,6 +44,7 @@ type Props = {
 export const CalendarCell = ({
   backgroundColor,
   cellData,
+  dagId,
   index,
   marginRight,
   viewMode = "total",
@@ -51,6 +55,8 @@ export const CalendarCell = ({
     viewMode === "failed" ? (cellData?.counts.failed ?? 0) : (cellData?.counts.total ?? 0);
   const hasData = Boolean(cellData && relevantCount > 0);
   const hasTooltip = Boolean(cellData);
+  const startDate = cellData?.runs[0]?.date;
+  const hasStartDate = Boolean(startDate);
 
   // States present in this cell, computed with the same view-mode-aware logic the
   // tooltip uses (see CalendarTooltip). Exposed as a `data-states` attribute so e2e
@@ -59,7 +65,8 @@ export const CalendarCell = ({
   const runStates = cellData
     ? Object.entries(cellData.counts)
         .filter(
-          ([key, value]) => key !== "total" && value > 0 && (viewMode === "failed" ? key === "failed" : true),
+          ([key, value]) =>
+            key !== "total" && key !== "backfill" && value > 0 && (viewMode !== "failed" || key === "failed"),
         )
         .map(([key]) => key)
     : [];
@@ -88,6 +95,27 @@ export const CalendarCell = ({
       width="100%"
     >
       <DeadlineIcon />
+    </Box>
+  ) : undefined;
+
+  const hasBackfill = (cellData?.counts.backfill ?? 0) > 0;
+  const backfillIndicator = hasBackfill ? (
+    <Box
+      alignItems="center"
+      color="white"
+      data-testid="backfill-indicator"
+      display="flex"
+      filter="drop-shadow(0 0 1px rgba(0, 0, 0, 0.7))"
+      fontSize="9px"
+      height="100%"
+      justifyContent="center"
+      left="0"
+      lineHeight={1}
+      position="absolute"
+      top="0"
+      width="100%"
+    >
+      <RunTypeIcon runType="backfill" />
     </Box>
   ) : undefined;
 
@@ -121,6 +149,7 @@ export const CalendarCell = ({
         width="100%"
       />
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   ) : (
     <Box
@@ -138,6 +167,7 @@ export const CalendarCell = ({
       width="14px"
     >
       {deadlineIndicator}
+      {backfillIndicator}
     </Box>
   );
 
@@ -160,7 +190,19 @@ export const CalendarCell = ({
       }}
       unmountOnExit
     >
-      {cellBox}
+      {hasData && hasStartDate ? (
+        <RouterLink
+          to={
+            viewMode === "failed"
+              ? `/dags/${dagId}/runs?start_date_gte=${startDate}&sort=start_date&state=failed`
+              : `/dags/${dagId}/runs?start_date_gte=${startDate}&sort=start_date`
+          }
+        >
+          {cellBox}
+        </RouterLink>
+      ) : (
+        cellBox
+      )}
     </Tooltip>
   );
 };

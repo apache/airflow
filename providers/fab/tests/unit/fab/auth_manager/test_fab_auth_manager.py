@@ -28,6 +28,7 @@ import pytest
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy.exc import OperationalError, PendingRollbackError
+from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -54,7 +55,7 @@ from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -66,6 +67,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_RUN,
     RESOURCE_DOCS,
     RESOURCE_JOB,
@@ -136,6 +138,23 @@ if AIRFLOW_V_3_1_PLUS:
 
 if TYPE_CHECKING:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+
+
+@mock.patch(
+    "airflow.providers.fab.auth_manager.fab_auth_manager.ApplessAirflowSecurityManager", autospec=True
+)
+def test_sync_dag_perms_without_auth_manager_initialization(mock_security_manager):
+    dag = Mock(spec=["dag_id", "access_control"])
+    dag.dag_id = "test"
+    dag.access_control = {"Viewer": {"can_read"}}
+    session = Mock(spec=Session)
+
+    FabAuthManager.sync_dag_perms(dag, session=session)
+
+    mock_security_manager.assert_called_once_with(session=session)
+    mock_security_manager.return_value.sync_perm_for_dag.assert_called_once_with(
+        dag.dag_id, dag.access_control
+    )
 
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
@@ -807,6 +826,15 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_DOCS)],
                 False,
             ),
+            # Dag bundles are their own resource, not a side effect of reading every Dag
+            *(
+                [
+                    (DAG_BUNDLES_ACCESS_VIEW, [(ACTION_CAN_READ, RESOURCE_DAG_BUNDLE)], True),
+                    (DAG_BUNDLES_ACCESS_VIEW, [(ACTION_CAN_READ, RESOURCE_DAG)], False),
+                ]
+                if DAG_BUNDLES_ACCESS_VIEW is not None
+                else []
+            ),
         ],
     )
     def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
@@ -886,20 +914,17 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
-            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
-            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
-            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
-            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            # The menu entry follows the bundle resource, not Dag access.
             *(
                 [
                     (
                         [MenuItem.DAG_BUNDLES],
-                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_BUNDLE)],
                         [MenuItem.DAG_BUNDLES],
                     ),
                     (
                         [MenuItem.DAG_BUNDLES],
-                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
                         [],
                     ),
                 ]
