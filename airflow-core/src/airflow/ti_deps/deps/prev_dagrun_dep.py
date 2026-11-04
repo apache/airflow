@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, or_, select
 
+from airflow._shared.timezones import timezone
 from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
@@ -173,6 +174,22 @@ class PrevDagrunDep(BaseTIDep):
         if not dr:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             yield self._passing_status(reason="This task instance does not belong to a DAG.")
+            return
+
+        # Runs with a future logical_date and depends_on_past, should wait until the future date arrives.
+        # E.g. if it doesn't wait
+        # - run2: manually triggered now with a future logical_date, runs now and succeeds
+        # - run1: scheduled at day1, fails
+        # - run3: scheduled at day3, checks against run2 which was a success
+        # The failure is ignored for run2 because run1 didn't exist and also ignored for run3
+        # because run2 was a success. As a result, the depends_on_past becomes meaningless.
+        if dr.logical_date and dr.logical_date > timezone.utcnow():
+            yield self._failing_status(
+                reason=(
+                    f"depends_on_past is true for this task, but the logical date "
+                    f"{dr.logical_date.isoformat()} is in the future, so the previous run may not exist yet."
+                )
+            )
             return
 
         # Don't depend on the previous task instance if we are the first task.
