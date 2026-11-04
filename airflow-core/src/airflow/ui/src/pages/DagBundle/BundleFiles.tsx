@@ -136,9 +136,14 @@ export const BundleFiles = ({ bundleName }: { readonly bundleName: string }) => 
         columns={createColumns(translate, i18n.language, setErrorFileloc)}
         data={data?.dag_bundle_files ?? []}
         errorMessage={<ErrorAlert error={error} />}
+        headingExtra={
+          <Text color="fg.muted" fontSize="sm">
+            {translate("browse:dagBundles.files.parsedFilesNote")}
+          </Text>
+        }
         initialState={tableURLState}
         isLoading={isLoading}
-        modelName="browse:dagBundles.files.file"
+        modelName="browse:dagBundles.files.parsedFile"
         onStateChange={setTableURLState}
         total={data?.total_entries}
       />
