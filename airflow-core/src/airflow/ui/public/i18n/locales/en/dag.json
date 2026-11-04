@@ -85,6 +85,8 @@
     "upcomingCount_other": "{{count, number}} Upcoming Deadlines"
   },
   "extraLinks": "Extra Links",
+  "failingWatchers_one": "{{count, number}} watcher failing",
+  "failingWatchers_other": "{{count, number}} watchers failing",
   "grid": {
     "buttons": {
       "newerRuns": "Newer runs",

@@ -33,6 +33,7 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import { DagStatusChip } from "src/components/DagStatusChip";
+import { DagFailingWatchersChip } from "src/components/FailingWatchersChip";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
@@ -235,6 +236,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
               and a level is too tight to hold them without crowding what it names. Highest
               severity first, and together so one glance covers every problem with the Dag. */}
             <DagStatusChip dagId={dagId} error={error} />
+            <DagFailingWatchersChip dagId={dagId} />
             <DagBreadcrumb />
           </HStack>
           <Flex gap={2}>
