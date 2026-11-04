@@ -84,7 +84,7 @@ XCOM_STATEMENT_ID_KEY = "statement_id"
 
 # Databricks splits run state across life_cycle_state and result_state, while the ResumableJobMixin
 # status interface is a single string. The durable operators encode both as "LIFE_CYCLE:RESULT" and
-# decode them with the predicates below, so all three share one view of what counts as reconnectable.
+# decode them with the predicates below, so all three share one view of which runs can be rejoined.
 RUN_NOT_FOUND_STATUS = "NOT_FOUND:"
 ACTIVE_RUN_LIFE_CYCLE_STATES = (
     "PENDING",
@@ -99,7 +99,8 @@ ACTIVE_RUN_LIFE_CYCLE_STATES = (
 def fetch_run_status(hook: DatabricksHook, run_id: JsonValue) -> str:
     """Return the encoded status of ``run_id``, or a sentinel if its run history is gone."""
     try:
-        run_info = hook.get_run(run_id)
+        # The stored external id is always a Databricks run id; the mixin types it as JsonValue.
+        run_info = hook.get_run(cast("int", run_id))
     except DatabricksApiError as e:
         # A stored run whose history expired (or was deleted) returns 404. The sentinel is neither
         # active nor succeeded, so the mixin resubmits fresh instead of failing the task.
@@ -111,7 +112,7 @@ def fetch_run_status(hook: DatabricksHook, run_id: JsonValue) -> str:
 
 
 def is_run_active(status: str) -> bool:
-    """Whether an encoded status means the run is still reconnectable."""
+    """Whether an encoded status means the run is still going and can be reconnected to."""
     return status.split(":", 1)[0] in ACTIVE_RUN_LIFE_CYCLE_STATES
 
 
