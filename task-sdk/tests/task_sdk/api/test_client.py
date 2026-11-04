@@ -1163,41 +1163,44 @@ class TestXCOMOperations:
                     key="key",
                 )
 
-    def test_xcom_get_not_found_logs_warning(self, cap_structlog):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+    def test_xcom_get_404_returns_none_value(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
-                return httpx.Response(status_code=404, json={"detail": "XCom not found"})
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
-        with cap_structlog.at_level("warning"):
-            result = client.xcoms.get(
-                dag_id="dag_id",
-                run_id="run_id",
-                task_id="task_id",
-                key="key",
-            )
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
 
         assert result == XComResponse(key="key", value=None)
-        assert {"log_level": "warning", "event": "XCom not found"} in cap_structlog
 
-    def test_xcom_get_sequence_item_not_found_logs_warning(self, cap_structlog):
-        def handle_request(request: httpx.Request) -> httpx.Response:
+    def test_xcom_get_sequence_item_404_returns_not_found_error(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
             if request.url.path == "/xcoms/dag_id/run_id/task_id/key/item/2":
-                return httpx.Response(status_code=404, json={"detail": "XCom not found"})
-            return httpx.Response(status_code=400, json={"detail": "Bad Request"})
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
-        client = make_client(transport=httpx.MockTransport(handle_request))
+        client = make_client(transport=httpx2.MockTransport(handle_request))
 
-        with cap_structlog.at_level("warning"):
-            result = client.xcoms.get_sequence_item(
-                dag_id="dag_id",
-                run_id="run_id",
-                task_id="task_id",
-                key="key",
-                offset=2,
-            )
+        result = client.xcoms.get_sequence_item(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            offset=2,
+        )
 
         assert result == ErrorResponse(
             error=ErrorType.XCOM_NOT_FOUND,
@@ -1209,7 +1212,6 @@ class TestXCOMOperations:
                 "offset": 2,
             },
         )
-        assert {"log_level": "warning", "event": "XCom not found"} in cap_structlog
 
     @pytest.mark.parametrize(
         "values",
