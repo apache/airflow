@@ -487,6 +487,10 @@ def _do_delete(
     import itertools
     import re
 
+    if skip_archive:
+        _delete_without_archive(query=query, orm_model=orm_model, session=session, batch_size=batch_size)
+        return
+
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     batch_counter = itertools.count(1)
@@ -515,12 +519,6 @@ def _do_delete(
             f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}{suffix}",
         )
         print(f"Moving data to table {target_table_name}")
-        target_table = None
-        # Lets the ``finally`` cleanup below tell the failure path (don't let a
-        # cleanup error mask the original) from the success path (a cleanup error
-        # is a real problem and must propagate).
-        error_raised = False
-
         try:
             if dialect_name == "mysql":
                 # MySQL with replication needs this split into two queries, so just do it for all MySQL
@@ -542,7 +540,7 @@ def _do_delete(
             source_table = metadata.tables[source_table_name]
             target_table = metadata.tables[target_table_name]
             logger.debug("rows moved; purging from %s", source_table.name)
-            if not skip_archive and source_table.name in {"task_instance", "dag_run"}:
+            if source_table.name in {"task_instance", "dag_run"}:
                 _archive_cascading_attempt_data(
                     source=source_table,
                     parent_archive=target_table,
@@ -594,51 +592,72 @@ def _do_delete(
                     logger.warning(
                         "%s of %s rows from %s are still referenced by another table and were "
                         "not deleted; they remain live in %s and will be retried on the next "
-                        "cleanup run.%s",
+                        "cleanup run. %s already holds an archived copy of them.",
                         archived - deleted,
                         archived,
                         source_table_name,
                         source_table_name,
-                        ""
-                        if skip_archive
-                        else f" {target_table_name} already holds an archived copy of them.",
+                        target_table_name,
                     )
 
         except BaseException:
-            error_raised = True
-            # Roll back the failed transaction so its locks are released before
-            # the archive table is dropped in the ``finally`` block below.
             # ``rollback()`` itself can raise (e.g. the connection died); suppress
             # it so it does not shadow the original error being re-raised.
             with suppress(Exception):
                 session.rollback()
             raise
-        finally:
-            if target_table is not None and skip_archive:
-                # Drop the archive table on the session's own connection. Binding
-                # the drop to ``session.get_bind()`` (the Engine) would check out a
-                # *second* pooled connection, and on MySQL its ``DROP TABLE`` blocks
-                # indefinitely on the metadata lock still held by this session's
-                # open transaction when the DELETE above failed -- the ``db clean``
-                # hang reported in #66177.
-                try:
-                    target_table.drop(bind=session.connection())
-                    session.commit()
-                except Exception:
-                    # If we are already unwinding from a delete failure, a cleanup
-                    # error here must not replace the original exception (Python
-                    # makes a ``finally``-raised error the top-level one). Log and
-                    # let the original delete error keep propagating. On the success
-                    # path (no delete error), a drop/commit failure is a real
-                    # problem, so re-raise it.
-                    if not error_raised:
-                        raise
-                    logger.warning(
-                        "Failed to drop archive table %s while cleaning up after a "
-                        "delete failure; propagating the original delete error instead.",
-                        target_table_name,
-                        exc_info=True,
-                    )
+
+    print("Finished Performing Delete")
+
+
+def _delete_without_archive(
+    *,
+    query: Select,
+    orm_model: Base,
+    session: Session,
+    batch_size: int | None,
+) -> None:
+    """
+    Delete the rows selected by ``query`` in place, without copying them anywhere first.
+
+    Each batch is a single ``DELETE ... WHERE <pk> IN (SELECT <pk> FROM (<query>))`` statement,
+    so any ``skip_if_referenced`` guard in ``query`` is evaluated in the same statement as the
+    delete. The extra derived table lets MySQL delete from a table the subquery also reads.
+    """
+    source_table_name = _format_table_name(orm_model.schema, orm_model.name)
+    source_table = reflect_tables([source_table_name], session).tables[source_table_name]
+    pk_cols = list(source_table.primary_key.columns)
+    batch_no = 0
+
+    while True:
+        limited_query = query.limit(batch_size) if batch_size else query
+        if not session.scalars(select(limited_query.exists())).one():  # nothing left to delete
+            break
+
+        batch_no += 1
+        if batch_size:
+            print(f"Performing Delete (batch {batch_no}, max {batch_size} rows)...")
+        else:
+            print("Performing Delete...")
+
+        selected = limited_query.subquery("selected")
+        delete = source_table.delete().where(
+            tuple_(*pk_cols).in_(
+                select(*(literal_column(f"selected.{col.name}") for col in pk_cols)).select_from(selected)
+            )
+        )
+        logger.debug("delete statement:\n%s", delete.compile())
+        try:
+            deleted = cast("CursorResult", session.execute(delete)).rowcount
+            session.commit()
+        except BaseException:
+            with suppress(Exception):
+                session.rollback()
+            raise
+        if not deleted:
+            # Rows the existence check saw were gone (or no longer matched) by the time the
+            # DELETE ran; stop instead of looping on a selection that deletes nothing.
+            break
 
     print("Finished Performing Delete")
 
