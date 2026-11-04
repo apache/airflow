@@ -151,11 +151,11 @@ from airflow.sdk.execution_time.comms import (
     RetryTask,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetExecutionTimeout,
     SetRenderedFields,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
-    StartExecutionTimeout,
     StartupDetails,
     SucceedTask,
     TaskRescheduleStartDate,
@@ -185,13 +185,13 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _axcom_push,
     _defer_task,
-    _execute_task,
     _find_native_dag_importer,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _TaskRunner,
     _xcom_push,
     check_xcom_backend_supports_loops,
     finalize,
@@ -2113,7 +2113,7 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
 
     with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+        _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
@@ -5980,6 +5980,40 @@ class TestTaskRunnerCallsCallbacks:
         )
         assert callback_data["duration"] >= 0, f"duration should be >= 0, got {callback_data['duration']}"
 
+    @pytest.mark.parametrize(
+        ("callback_kind", "expected_state"),
+        [
+            pytest.param("on_success_callback", TaskInstanceState.SUCCESS, id="success"),
+            pytest.param("on_failure_callback", TaskInstanceState.FAILED, id="failure"),
+        ],
+    )
+    def test_task_callback_context_has_callback_meta(self, create_runtime_ti, callback_kind, expected_state):
+        """Task-level callbacks should receive callback.source=TASK in the context."""
+        from airflow.sdk.definitions.context import CallbackSource
+
+        captured = {}
+
+        def capture_callback(context):
+            captured["callback"] = context.get("callback")
+
+        succeeds = callback_kind == "on_success_callback"
+
+        class CustomOperator(BaseOperator):
+            def execute(self, context):
+                if succeeds:
+                    return "ok"
+                raise RuntimeError("boom")
+
+        task = CustomOperator(task_id="cb_task", **{callback_kind: capture_callback})
+        runtime_ti = create_runtime_ti(dag_id="dag", task=task)
+        log = mock.MagicMock()
+        context = runtime_ti.get_template_context()
+        state, _, error = run(runtime_ti, context, log)
+        finalize(runtime_ti, state, context, log, error)
+
+        assert state == expected_state
+        assert captured["callback"].source is CallbackSource.TASK
+
     def test_task_runner_both_callbacks_have_timing_info(self, create_runtime_ti):
         """Test that both success and failure callbacks receive accurate timing information."""
         import time
@@ -6917,7 +6951,7 @@ class TestRunExecuteCallable:
             _run_execute_callable(context={}, execute=execute, task=task)
 
         task.on_kill.assert_called_once()
-        mock_supervisor_comms.send.assert_called_once_with(StartExecutionTimeout())
+        mock_supervisor_comms.send.assert_called_once_with(SetExecutionTimeout(timeout_seconds=0.01))
 
     def test_fast_fails_when_timeout_already_elapsed(self, mock_supervisor_comms):
         """A non-positive timeout fast-fails before running the callable and still calls on_kill."""

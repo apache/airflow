@@ -60,6 +60,61 @@ class TestSagemakerTrigger:
         assert args["waiter_max_attempts"] == WAITER_MAX_ATTEMPTS
         assert args["aws_conn_id"] == AWS_CONN_ID
         assert args["region_name"] == REGION_NAME
+        assert args["cancel_on_kill"] is False
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    def test_sagemaker_trigger_serializes_cancel_on_kill(self, cancel_on_kill):
+        trigger = SageMakerTrigger(
+            job_name=JOB_NAME,
+            job_type=JOB_TYPE,
+            cancel_on_kill=cancel_on_kill,
+        )
+
+        _, args = trigger.serialize()
+
+        assert args["cancel_on_kill"] is cancel_on_kill
+
+    @pytest.mark.asyncio
+    async def test_on_kill_stops_the_training_job(self):
+        trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=JOB_TYPE, cancel_on_kill=True)
+        mock_hook = mock.MagicMock(spec=SageMakerHook)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.stop_training_job.assert_called_once_with(JOB_NAME)
+
+    @pytest.mark.asyncio
+    async def test_on_kill_does_nothing_when_not_enabled(self):
+        trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=JOB_TYPE, cancel_on_kill=False)
+        mock_hook = mock.MagicMock(spec=SageMakerHook)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.stop_training_job.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("job_type", ["Transform", "Processing", "Tuning", "Endpoint"])
+    async def test_on_kill_only_stops_training_jobs(self, job_type):
+        trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=job_type, cancel_on_kill=True)
+        mock_hook = mock.MagicMock(spec=SageMakerHook)
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.stop_training_job.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_on_kill_swallows_stop_training_job_error(self):
+        trigger = SageMakerTrigger(job_name=JOB_NAME, job_type=JOB_TYPE, cancel_on_kill=True)
+        mock_hook = mock.MagicMock(spec=SageMakerHook)
+        mock_hook.stop_training_job.side_effect = RuntimeError("boom")
+
+        with mock.patch.object(trigger, "hook", return_value=mock_hook):
+            await trigger.on_kill()
+
+        mock_hook.stop_training_job.assert_called_once_with(JOB_NAME)
 
     @pytest.mark.parametrize(
         ("deprecated_kwarg", "canonical_attr", "value"),

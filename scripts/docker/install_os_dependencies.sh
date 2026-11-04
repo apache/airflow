@@ -25,6 +25,42 @@ if [[ "$#" != 1 ]]; then
     exit 1
 fi
 
+# The images built on a pinned OS-dependencies image (see "breeze release-management
+# build-os-deps-images") start from a layer this script already ran in. The marker records what it
+# ran with: this script, the database client scripts it runs with common.sh and the keys they use, the
+# installation type and every environment variable that changes what gets installed - read before the
+# defaults below are applied, as those are part of the script. The CI image's DEPENDENCIES_EPOCH_NUMBER
+# is among them, so bumping it reinstalls on a pinned image too. When nothing differs there is nothing
+# left to install. When anything does - a PR changing one of the scripts, the apt dependencies or the
+# database clients - all of the installation runs again on top, so the change is exercised.
+OS_DEPENDENCIES_SCRIPTS_DIR="$(dirname "${BASH_SOURCE[0]}")"
+OS_DEPENDENCIES_MARKER=/usr/share/airflow/os-dependencies.sha256
+OS_DEPENDENCIES_INPUTS_HASH=$(
+    {
+        echo "${1}"
+        for file in "${BASH_SOURCE[0]}" "${OS_DEPENDENCIES_SCRIPTS_DIR}/common.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" \
+                "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" "${OS_DEPENDENCIES_SCRIPTS_DIR}"/keys/*; do
+            sha256sum "${file}" | cut -d ' ' -f 1
+        done
+        for variable in AIRFLOW_IMAGE_FLAVOR AIRFLOW_PYTHON_VERSION PYTHON_HOME \
+                DEV_APT_DEPS ADDITIONAL_DEV_APT_DEPS DEV_APT_COMMAND ADDITIONAL_DEV_APT_COMMAND \
+                ADDITIONAL_DEV_APT_ENV RUNTIME_APT_DEPS ADDITIONAL_RUNTIME_APT_DEPS RUNTIME_APT_COMMAND \
+                ADDITIONAL_RUNTIME_APT_COMMAND ADDITIONAL_RUNTIME_APT_ENV GOLANG_MAJOR_MINOR_VERSION \
+                TEMURIN_VERSION NODEJS_VERSION PNPM_VERSION RUSTUP_DEFAULT_TOOLCHAIN RUSTUP_VERSION \
+                RUSTUP_HOME CARGO_HOME COSIGN_VERSION LDFLAGS EXTRA_CFLAGS DEPENDENCIES_EPOCH_NUMBER \
+                INSTALL_MYSQL_CLIENT INSTALL_MYSQL_CLIENT_TYPE INSTALL_MSSQL_CLIENT INSTALL_POSTGRES_CLIENT; do
+            printf '%s=%s\n' "${variable}" "${!variable-}"
+        done
+    } | sha256sum | cut -d ' ' -f 1
+)
+if [[ -f "${OS_DEPENDENCIES_MARKER}" && "$(cat "${OS_DEPENDENCIES_MARKER}")" == "${OS_DEPENDENCIES_INPUTS_HASH}" ]]; then
+    echo
+    echo "The base image already has the OS dependencies for these inputs (${OS_DEPENDENCIES_INPUTS_HASH}) - nothing to install."
+    echo
+    exit 0
+fi
+
 GOLANG_MAJOR_MINOR_VERSION=${GOLANG_MAJOR_MINOR_VERSION:-1.24.4}
 TEMURIN_VERSION=${TEMURIN_VERSION:-11}
 NODEJS_VERSION=${NODEJS_VERSION:-22.23.1}
@@ -237,12 +273,35 @@ function prefer_hardened_apt_repository() {
     # The priority stays below 1000 so the preference never forces a downgrade: apt still favors
     # dhi.io's build of a package it publishes, but may take a newer version from another repository
     # when a dependency requires it - for example PGDG's libpq5, which postgresql-client-18 needs at
-    # ">= 18.6" and dhi.io does not carry. Pinning the base image to a digest CI has passed on keeps
-    # dhi.io and the image consistent, so the renumbering that once needed a forced "downgrade" of the
-    # image's copy (docker-hardened-images/catalog#689) no longer arises within a build.
+    # ">= 18.6" and dhi.io does not carry. The renumbered builds that sort below the image's own copy
+    # are handled by align_image_packages_with_hardened_repository instead.
     # The preference covers every apt run - this build's and those of images extending it.
     mkdir -p /etc/apt/preferences.d
     printf 'Package: *\nPin: origin "dhi.io"\nPin-Priority: 999\n' > /etc/apt/preferences.d/airflow-prefer-dhi
+}
+
+function align_image_packages_with_hardened_repository() {
+    # The dhi.io apt repository is live, so it moves on even under a base image pinned to a digest.
+    # Docker renumbered its builds ("14.2.0-19+dhi5" became "14.2.0-19+deb13u0+dhi5", which sorts
+    # lower) and the repository dropped the old numbers, while the image still ships them. Packages
+    # depending on the exact new version (gcc-14 on gcc-14-base, libgmp-dev on libgmp10) are then
+    # uninstallable, because apt will not downgrade the image's copy at a priority below 1000
+    # (docker-hardened-images/catalog#689). Only installed versions no repository offers any more
+    # ("local" ones) are moved to dhi.io's build, so newer packages from other repositories - such as
+    # PGDG's libpq5 - are left alone.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ {print $2; exit}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y --no-install-recommends --allow-downgrades "${downgrades[@]}"
+    fi
 }
 
 function refresh_ldconfig_after_dpkg() {
@@ -301,6 +360,28 @@ function align_perl_base_with_perl() {
     fi
 }
 
+function install_apt_utils() {
+    # apt-utils depends on exactly its own apt version. The hardened images can ship an apt newer than
+    # the one dhi.io publishes, and with dhi.io preferred apt then picks an apt-utils it cannot install
+    # beside the image's apt, so ask for the version matching apt whenever a repository carries it.
+    local apt_version apt_utils_package apt_utils_log
+    apt_version=$(dpkg-query -W -f='${Version}' apt)
+    apt_utils_package="apt-utils"
+    if apt-cache madison apt-utils | awk -v version="${apt_version}" '$3 == version {found = 1} END {exit !found}'; then
+        apt_utils_package="apt-utils=${apt_version}"
+    fi
+    apt_utils_log=$(mktemp)
+    if ! apt-get install -yqq --no-install-recommends "${apt_utils_package}" > "${apt_utils_log}" 2>&1; then
+        echo
+        echo "ERROR! Installing ${apt_utils_package} failed. Output:"
+        echo
+        cat "${apt_utils_log}"
+        rm -f "${apt_utils_log}"
+        exit 1
+    fi
+    rm -f "${apt_utils_log}"
+}
+
 function install_debian_dev_dependencies() {
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         keep_image_conffiles
@@ -308,8 +389,9 @@ function install_debian_dev_dependencies() {
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install -yqq --no-install-recommends apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -604,8 +686,9 @@ function install_debian_runtime_dependencies() {
         refresh_ldconfig_after_dpkg
     fi
     apt-get update
-    apt-get install --no-install-recommends -yqq apt-utils >/dev/null 2>&1
+    install_apt_utils
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
+        align_image_packages_with_hardened_repository
         restore_debian_base_files
     fi
     apt-get install -y --no-install-recommends wget curl gnupg2 ca-certificates
@@ -715,6 +798,25 @@ function install_rustup() {
     rm -f /tmp/rustup-init
 }
 
+function install_database_clients() {
+    # Part of the OS dependencies, so the pinned OS-dependencies images carry the clients too and an
+    # image built on one does not install them from the live apt repositories. They run in the same
+    # order as before they moved here: after the rest of the OS dependencies, each cleaning up after apt.
+    if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" prod
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" prod
+        return
+    fi
+    # The CI image runs Airflow from the sources as well, so it also gets the MySQL runtime client.
+    if [[ "${INSTALLATION_TYPE}" == "CI" ]]; then
+        bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" prod
+    fi
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mysql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_mssql.sh" dev
+    bash "${OS_DEPENDENCIES_SCRIPTS_DIR}/install_postgres.sh" dev
+}
+
 function apt_clean() {
     apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
     rm -rf /var/lib/apt/lists/* /var/log/*
@@ -746,4 +848,15 @@ else
     fi
     install_docker_cli
     apt_clean
+fi
+install_database_clients
+
+mkdir -p "$(dirname "${OS_DEPENDENCIES_MARKER}")"
+echo "${OS_DEPENDENCIES_INPUTS_HASH}" > "${OS_DEPENDENCIES_MARKER}"
+# The base image the OS dependencies were first installed on. An image built on a pinned OS-dependencies
+# image records its own BASE_IMAGE, but its layers come from this one, which may be an older digest. An
+# installation on top keeps the record, as the layers underneath still come from that image.
+OS_DEPENDENCIES_BASE_IMAGE_FILE="$(dirname "${OS_DEPENDENCIES_MARKER}")/os-dependencies.base-image"
+if [[ ! -f "${OS_DEPENDENCIES_BASE_IMAGE_FILE}" ]]; then
+    echo "${BASE_IMAGE:-unknown}" > "${OS_DEPENDENCIES_BASE_IMAGE_FILE}"
 fi

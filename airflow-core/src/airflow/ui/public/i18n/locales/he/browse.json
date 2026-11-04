@@ -28,11 +28,12 @@
         "lastParsed": "נותח לאחרונה",
         "parseDuration": "משך הניתוח"
       },
-      "file_one": "קובץ",
-      "file_other": "קבצים",
-      "file_two": "קבצים",
       "importErrorGone": "שגיאת ייבוא זו אינה מתועדת עוד. כנראה שהיא תוקנה והניתוח מחדש זיהה זאת.",
       "neverParsed": "אף פעם",
+      "parsedFile_one": "קובץ שנותח",
+      "parsedFile_other": "קבצים שנותחו",
+      "parsedFile_two": "קבצים שנותחו",
+      "parsedFilesNote": "מוצגים רק קבצים שמגדירים Dag או שהייבוא שלהם נכשל.",
       "showImportError_one": "הצג שגיאה",
       "showImportError_other": "הצגת {{count, number}} שגיאות",
       "showImportError_two": "הצגת {{count, number}} שגיאות"

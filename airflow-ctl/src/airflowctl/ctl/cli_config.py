@@ -46,12 +46,7 @@ from airflowctl.api.operations import BaseOperations, ServerResponseError
 from airflowctl.ctl.console_formatting import AirflowConsole, is_data_sequence
 from airflowctl.ctl.utils.validation import split_validation_errors
 from airflowctl.ctl.utils.yaml import safe_load
-from airflowctl.exceptions import (
-    AirflowCtlConnectionException,
-    AirflowCtlCredentialNotFoundException,
-    AirflowCtlKeyringException,
-    AirflowCtlNotFoundException,
-)
+from airflowctl.exceptions import AirflowCtlException
 from airflowctl.utils.module_loading import import_string
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -98,36 +93,37 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
 
     try:
         function(args)
-    except (
-        AirflowCtlCredentialNotFoundException,
-        AirflowCtlConnectionException,
-        AirflowCtlKeyringException,
-        AirflowCtlNotFoundException,
-    ) as e:
-        rich.print(f"command failed due to {e}")
+    except AirflowCtlException as e:
+        # The base class, so a new AirflowCtl error never regresses to a raw traceback.
+        rich.print(f"command failed due to {escape(str(e))}", file=sys.stderr)
         sys.exit(1)
     except (httpx.RemoteProtocolError, httpx.ReadError, httpx.WriteError) as e:
-        rich.print(f"[red]Remote protocol error: {e}[/red]")
+        rich.print(f"[red]Remote protocol error: {escape(str(e))}[/red]", file=sys.stderr)
         if "Server disconnected without sending a response." in str(e):
             rich.print(
-                f"[red]Server response error: {e}. "
-                "Please check if the server is running and the API URL is correct.[/red]"
+                f"[red]Server response error: {escape(str(e))}. "
+                "Please check if the server is running and the API URL is correct.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except httpx.TimeoutException as e:
-        rich.print(f"[red]Request timeout error: {e}[/red]")
+        rich.print(f"[red]Request timeout error: {escape(str(e))}[/red]", file=sys.stderr)
         if "timed out" in str(e):
-            rich.print("[red]Please check if the server is running and the API ready to accept calls.[/red]")
+            rich.print(
+                "[red]Please check if the server is running and the API ready to accept calls.[/red]",
+                file=sys.stderr,
+            )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
     except ServerResponseError as e:
-        rich.print(f"Server response error: {e}")
+        rich.print(f"Server response error: {escape(str(e))}", file=sys.stderr)
         if "Client error message:" in str(e):
             rich.print(
                 "[red]Client error, [/red] "
                 "Please check the command and its parameters. "
-                "If you need help, run the command with --help."
+                "If you need help, run the command with --help.",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -135,11 +131,12 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
     # turn into a ``ServerResponseError`` -- a 3xx, or a 4xx/5xx whose body is not JSON -- reach us
     # as the bare httpx error.
     except httpx.HTTPStatusError as e:
-        rich.print(f"[red]Server response error: {e}[/red]")
+        rich.print(f"[red]Server response error: {escape(str(e))}[/red]", file=sys.stderr)
         if e.response.is_redirect:
             rich.print(
                 "[red]The server answered with a redirect, which airflowctl does not follow. "
-                "Please check that the API URL you logged in with points at the Airflow API server.[/red]"
+                "Please check that the API URL you logged in with points at the Airflow API server.[/red]",
+                file=sys.stderr,
             )
         _warn_if_write_may_have_applied(e)
         sys.exit(1)
@@ -161,7 +158,7 @@ def safe_call_command(function: Callable, args: Iterable[Arg]) -> None:
                 f"Response did not match the airflowctl model {detail}. "
                 "If the server is newer than this client, try upgrading airflowctl."
             )
-        rich.print(f"[red]{message}[/red]")
+        rich.print(f"[red]{message}[/red]", file=sys.stderr)
         sys.exit(1)
 
 
@@ -424,6 +421,20 @@ ARG_MAP_INDEX = Arg(
     help="Mapped task index",
 )
 
+# Task logs command args. Required primitive parameters stay positional per the
+# airflowctl parameter style consensus (#66768).
+ARG_TASKS_LOGS_DAG_RUN_ID = Arg(
+    flags=("dag_run_id",),
+    type=str,
+    help="The run ID of the Dag run",
+)
+ARG_TRY_NUMBER = Arg(
+    flags=("--try-number",),
+    type=int,
+    required=True,
+    help="The try number of the task instance logs to fetch",
+)
+
 ARG_ACTION_ON_EXISTING_KEY = Arg(
     flags=("-a", "--action-on-existing-key"),
     type=str,
@@ -603,10 +614,6 @@ class CommandFactory:
             "set",
             "clear",
         ]
-        # Datamodels whose generated bool flags follow the datamodel field defaults instead of
-        # defaulting to False, so the CLI keeps the API semantics (e.g. a bare ``tasks clear``
-        # must keep ``dry_run=True`` and preview instead of clearing).
-        self.field_bool_default_datamodels = ["ClearTaskInstancesBody"]
         self.exclude_operation_names = ["LoginOperations", "VersionOperations", "BaseOperations"]
         self.exclude_method_names = [
             "error",
@@ -804,11 +811,16 @@ class CommandFactory:
                 return suffix
         return None
 
-    def _get_bool_arg_default(self, parameter_type: str, field_default: Any) -> bool | None:
-        """Get default for a generated bool flag: the datamodel field default for datamodels in ``field_bool_default_datamodels``, otherwise False."""
-        if parameter_type in self.field_bool_default_datamodels and (
-            field_default is None or isinstance(field_default, bool)
-        ):
+    @staticmethod
+    def _get_bool_arg_default(field_default: Any) -> bool | None:
+        """
+        Get the default for a generated bool flag from its datamodel field default.
+
+        An omitted flag must keep the API semantics: a bare ``tasks clear`` keeps ``dry_run=True``,
+        and an optional field such as ``is_paused`` or ``include_deferred`` stays ``None`` so it is
+        not sent at all instead of overwriting the stored value with ``False``.
+        """
+        if field_default is None or isinstance(field_default, bool):
             return field_default
         return False
 
@@ -841,9 +853,7 @@ class CommandFactory:
                     arg_action=argparse.BooleanOptionalAction if annotation is bool else None,  # type: ignore
                     arg_help=f"{field} for {parameter_key} operation",
                     arg_default=(
-                        self._get_bool_arg_default(parameter_type, field_type.default)
-                        if annotation is bool
-                        else None
+                        self._get_bool_arg_default(field_type.default) if annotation is bool else None
                     ),
                     arg_required=(
                         field_type.is_required()  # no default?
@@ -911,7 +921,7 @@ class CommandFactory:
 
     def _apply_datamodel_defaults(self, datamodel: type, params: dict) -> dict:
         """
-        Apply datamodel-specific default values.
+        Apply datamodel-specific default values and checks.
 
         Centralizes special handling for different datamodels to keep
         CLI parameter processing logic clean and maintainable.
@@ -949,6 +959,16 @@ class CommandFactory:
                         )
                 else:
                     params[field] = [item.strip() for item in raw_value.split(",") if item.strip()]
+
+        # The server requires exactly one of these, so fail early instead of showing its raw validation error
+        if datamodel.__name__ == "DAGPatchBody":
+            provided = [field for field in ("is_paused", "scheduling_state") if params.get(field) is not None]
+            if len(provided) != 1:
+                raise SystemExit("Provide exactly one of --is-paused / --no-is-paused or --scheduling-state.")
+
+        # The server requires include_deferred on a pool PATCH without an update mask
+        if datamodel.__name__ == "PoolPatchBody" and params.get("include_deferred") is None:
+            raise SystemExit("Provide --include-deferred or --no-include-deferred.")
 
         return params
 
@@ -1073,6 +1093,11 @@ class CommandFactory:
                 ),
                 output=args.output,
             )
+            if (
+                isinstance(method_output, generated_datamodels.ConnectionTestResponse)
+                and not method_output.status
+            ):
+                raise SystemExit(1)
 
         for operation in self.operations:
             self.func_map[(operation.get("name"), operation.get("parent").name)] = partial(
@@ -1428,6 +1453,19 @@ TASK_COMMANDS = (
             ARG_RUN_ID,
             ARG_LOGICAL_DATE,
             ARG_OUTPUT,
+        ),
+    ),
+    ActionCommand(
+        name="logs",
+        help="Get the logs of a task instance",
+        description="Get the logs of a task instance for a given try number.",
+        func=lazy_load_command("airflowctl.ctl.commands.task_command.logs"),
+        args=(
+            ARG_DAG_ID,
+            ARG_TASKS_LOGS_DAG_RUN_ID,
+            ARG_TASK_ID,
+            ARG_MAP_INDEX,
+            ARG_TRY_NUMBER,
         ),
     ),
 )

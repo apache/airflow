@@ -625,15 +625,18 @@ def task_clear(args) -> None:
             dry_run=True,
         )
         if not tis:
+            print("Nothing to clear.")
             return
         if not ask_yesno(f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"):
             print("Cancelled, nothing was cleared.")
             return
 
-    SerializedDAG.clear_dags(
+    cleared = SerializedDAG.clear_dags(
         dags,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
     )
+    if not cleared:
+        print("Nothing to clear.")
