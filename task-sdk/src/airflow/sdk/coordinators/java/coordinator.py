@@ -150,11 +150,8 @@ def _get_classpath_alias(root: pathlib.Path) -> pathlib.Path:
     return link
 
 
-def _get_aliased_path(path: pathlib.Path, aliases: dict[pathlib.Path, pathlib.Path]) -> pathlib.Path:
-    for root, alias in aliases.items():
-        if path.is_relative_to(root):
-            return alias / path.relative_to(root)
-    return path
+def _find_root(path: pathlib.Path, roots: Sequence[pathlib.Path]) -> pathlib.Path | None:
+    return next((root for root in roots if path.is_relative_to(root)), None)
 
 
 def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path | None = None) -> str:
@@ -162,7 +159,8 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
     Return the classpath of every JAR under *roots*. *primary*, when given, goes first.
 
     A root whose path holds ``os.pathsep``, such as a bundle version directory named after a
-    timestamp, is reached through a symlink from :func:`_get_classpath_alias`.
+    timestamp, is reached through a symlink from :func:`_get_classpath_alias`, which this creates
+    if needed.
 
     :raises ValueError: when a JAR's path below its root still holds ``os.pathsep``.
     """
@@ -170,14 +168,17 @@ def _calculate_classpath(roots: Sequence[pathlib.Path], *, primary: pathlib.Path
     if primary is not None:
         target = primary.resolve()
         jars = [primary, *(p for p in jars if p.resolve() != target)]
-    aliases = {root: _get_classpath_alias(root) for root in roots if os.pathsep in os.fspath(root)}
-    entries = [_get_aliased_path(p, aliases).as_posix() for p in jars]
-    if bad := [e for e in entries if os.pathsep in e]:
+    placed = [(p, _find_root(p, roots)) for p in jars]
+    if bad := [p for p, r in placed if os.pathsep in os.fspath(p if r is None else p.relative_to(r))]:
         raise ValueError(
             f"Cannot put these JARs on a Java classpath, because {os.pathsep!r} separates its "
-            f"entries: {', '.join(bad)}. Rename them, or the directories in the bundle holding them."
+            f"entries: {', '.join(map(os.fspath, bad))}. Rename or move them."
         )
-    return os.pathsep.join(entries)
+    linked = {r for _, r in placed if r is not None and os.pathsep in os.fspath(r)}
+    aliases = {r: _get_classpath_alias(r) for r in linked}
+    return os.pathsep.join(
+        (aliases[r] / p.relative_to(r) if r in aliases else p).as_posix() for p, r in placed
+    )
 
 
 @attrs.define

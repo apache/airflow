@@ -282,13 +282,17 @@ class TestClasspathAlias:
         ):
             _get_classpath_alias(root)
 
-    def test_separator_inside_the_bundle_raises(self, tmp_path, alias_dir):
-        nested = tmp_path / f"a{os.pathsep}b"
+    def test_separator_inside_the_bundle_raises_without_linking(self, tmp_path, alias_dir):
+        root = _make_timestamped_bundle(tmp_path)
+        nested = root / f"a{os.pathsep}b"
         nested.mkdir()
-        _make_jar(nested / "app.jar")
+        jar = _make_jar(nested / "app.jar")
 
-        with pytest.raises(ValueError, match="Cannot put these JARs on a Java classpath"):
-            _calculate_classpath([tmp_path])
+        with pytest.raises(ValueError, match="Cannot put these JARs on a Java classpath") as ctx:
+            _calculate_classpath([root])
+
+        assert os.fspath(jar) in str(ctx.value)
+        assert not alias_dir.exists()
 
     @pytest.mark.skipif(shutil.which("java") is None or shutil.which("javac") is None, reason="needs a JDK")
     def test_jvm_loads_jars_through_the_link(self, tmp_path, alias_dir):
