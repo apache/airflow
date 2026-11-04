@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import sys
 import typing
 from typing import Any
 
@@ -28,8 +29,8 @@ from airflow.providers.standard.decorators.stub import stub
 from airflow.sdk import DAG, task_group
 from airflow.serialization.stub_arg_bindings import (
     _infer_value_schema,
-    build_mapped_arg_binding_params,
-    build_task_group_arg_binding_params,
+    build_arg_bindings,
+    build_mapped_arg_bindings,
 )
 
 
@@ -148,19 +149,19 @@ from airflow.serialization.stub_arg_bindings import (
     ],
 )
 def test_infer_value_schema(annotation, expected):
-    assert _infer_value_schema(annotation) == expected
+    assert _infer_value_schema(annotation, "t", "p") == expected
 
 
 def test_infer_value_schema_cache_returns_isolated_copies():
-    first = _infer_value_schema(dict)
-    second = _infer_value_schema(dict)
+    first = _infer_value_schema(dict, "t", "p")
+    second = _infer_value_schema(dict, "t", "p")
     assert first == second
     assert first is not second, "callers embed and serialize the fragment, so it must not alias the cache"
 
 
 def test_infer_value_schema_unhashable_annotation_generates_uncached():
     annotation = typing.Annotated[int, {"unhashable": True}]
-    assert _infer_value_schema(annotation) == {"type": "integer", "format": "int64"}
+    assert _infer_value_schema(annotation, "t", "p") == {"type": "integer", "format": "int64"}
 
 
 def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
@@ -176,7 +177,16 @@ def test_infer_value_schema_degrades_on_pydantic_typeerror(monkeypatch):
     # unschemable path, where a naive ``except TypeError`` retry would re-raise and crash.
     class _Unschemable: ...
 
-    assert _infer_value_schema(_Unschemable) is None
+    assert _infer_value_schema(_Unschemable, "t", "p") is None
+
+
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="pydantic reads typing.TypedDict from Python 3.12")
+def test_infer_value_schema_rejects_typing_typeddict_before_py312():
+    class Row(typing.TypedDict):
+        a: int
+
+    with pytest.raises(ValueError, match="use typing_extensions.TypedDict"):
+        _infer_value_schema(list[Row], "t", "p")
 
 
 def fn_extract(): ...
@@ -188,12 +198,12 @@ def fn_transform(country: str, extracted: dict, retries_num: int = 3): ...
 def fn_untyped(a, b): ...
 
 
-class TestMappedStubArgBindingParams:
-    """A mapped stub captures ordered per-parameter metadata for ti_run's per-map-index derivation."""
+class TestMappedStubArgBindings:
+    """A mapped stub captures ordered ``param`` bindings for ti_run's per-map-index derivation."""
 
     def get_hook_fields(self, operator):
-        params = build_mapped_arg_binding_params(operator)
-        return {} if params is None else {"_mapped_arg_binding_params": params}
+        arg_bindings = build_mapped_arg_bindings(operator)
+        return {} if arg_bindings is None else {"_arg_bindings": arg_bindings}
 
     def test_params_follow_declaration_order_with_defaults_and_schemas(self):
         with DAG(dag_id="d"):
@@ -202,11 +212,16 @@ class TestMappedStubArgBindingParams:
             result = stub(fn_transform).partial(extracted={"a": 1}).expand(country=["uk", "fr"])
 
         assert self.get_hook_fields(result.operator) == {
-            "_mapped_arg_binding_params": [
-                {"name": "country", "value_schema": {"type": "string"}},
-                {"name": "extracted", "value_schema": {"type": "object", "additionalProperties": True}},
+            "_arg_bindings": [
+                {"name": "country", "kind": "param", "value_schema": {"type": "string"}},
+                {
+                    "name": "extracted",
+                    "kind": "param",
+                    "value_schema": {"type": "object", "additionalProperties": True},
+                },
                 {
                     "name": "retries_num",
+                    "kind": "param",
                     "value_schema": {"type": "integer", "format": "int64"},
                     "default": 3,
                 },
@@ -219,15 +234,15 @@ class TestMappedStubArgBindingParams:
         with DAG(dag_id="d"):
             result = stub(fn).expand(x=["a"])
 
-        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
-        assert params[1] == {"name": "y", "default": None}
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
+        assert params[1] == {"name": "y", "kind": "param", "default": None}
 
     def test_untyped_params_omit_value_schema(self):
         with DAG(dag_id="d"):
             result = stub(fn_untyped).expand(a=[1], b=[2])
 
         assert self.get_hook_fields(result.operator) == {
-            "_mapped_arg_binding_params": [{"name": "a"}, {"name": "b"}]
+            "_arg_bindings": [{"name": "a", "kind": "param"}, {"name": "b", "kind": "param"}]
         }
 
     def test_parameterless_stub_captures_nothing(self):
@@ -249,14 +264,14 @@ class TestMappedStubArgBindingParams:
         with DAG(dag_id="d"):
             result = stub(fn_transform).expand_kwargs(mappings)
 
-        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
         assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
 
     def test_expand_kwargs_over_upstream_output_captures_params(self):
         with DAG(dag_id="d"):
             result = stub(fn_transform).expand_kwargs(stub(fn_extract)())
 
-        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
         assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
 
     def test_expand_kwargs_mapping_with_unknown_parameter_rejected(self):
@@ -290,7 +305,7 @@ class TestMappedStubArgBindingParams:
             out = stub(fn_extract)()
             result = stub(fn_transform).partial(extracted=make_value(vals, out)).expand(country=["uk"])
 
-        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
         assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
 
     def test_custom_xcom_key_inside_partial_zip_rejected(self):
@@ -309,7 +324,7 @@ class TestMappedStubArgBindingParams:
             vals = stub(fn_produce).expand(n=[1, 2])
             result = stub(fn_transform).partial(country="uk").expand(extracted=vals)
 
-        params = self.get_hook_fields(result.operator)["_mapped_arg_binding_params"]
+        params = self.get_hook_fields(result.operator)["_arg_bindings"]
         assert [p["name"] for p in params] == ["country", "extracted", "retries_num"]
 
     def test_non_json_expand_literal_rejected(self):
@@ -342,10 +357,10 @@ class TestMappedStubArgBindingParams:
                 group.expand(n=[1, 2])
 
 
-class TestTaskGroupArgBindingParams:
-    """A stub inside a mapped task group records each call argument for ti_run to resolve per map index."""
+class TestTaskGroupMemberArgBindings:
+    """A stub inside a mapped task group binds at parse time all but the group's expand arguments."""
 
-    def test_records_group_args_values_and_defaults(self):
+    def test_group_arg_is_param_and_other_args_are_bound(self):
         captured = {}
 
         @task_group
@@ -356,19 +371,26 @@ class TestTaskGroupArgBindingParams:
             extracted = stub(fn_extract)()
             group.expand(country=["uk", "fr"])
 
-        params = build_task_group_arg_binding_params(captured["op"].operator)
-        assert params == [
+        assert build_arg_bindings(captured["op"].operator) == [
             {
                 "name": "country",
-                "value_schema": {"type": "string"},
+                "kind": "param",
                 "group_arg": {"group_id": "group", "key": "country"},
+                "value_schema": {"type": "string"},
             },
             {
                 "name": "extracted",
+                "kind": "xcom",
+                "task_id": "fn_extract",
                 "value_schema": {"type": "object", "additionalProperties": True},
-                "value": extracted,
             },
-            {"name": "retries_num", "value_schema": {"type": "integer", "format": "int64"}, "default": 3},
+            {
+                "name": "retries_num",
+                "kind": "literal",
+                "value": 3,
+                "from_default": True,
+                "value_schema": {"type": "integer", "format": "int64"},
+            },
         ]
 
     def test_argless_call_captures_nothing(self):
@@ -381,4 +403,4 @@ class TestTaskGroupArgBindingParams:
         with DAG(dag_id="d"):
             group.expand(country=["uk"])
 
-        assert build_task_group_arg_binding_params(captured["op"].operator) is None
+        assert build_arg_bindings(captured["op"].operator) is None

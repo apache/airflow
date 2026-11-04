@@ -17,16 +17,15 @@
 """
 Materialize the TaskFlow arg-binding spec for lang-SDK stub tasks, at Dag-serialization time.
 
-Any non-mapped operator flagged ``is_stub`` (currently only ``@task.stub``'s ``_StubOperator``)
-gets its ordered positional-argument spec built here, from the live operator's already-bound
-``python_callable``/``op_args``/``op_kwargs`` -- called from
-``OperatorSerialization._serialize_node`` the same way ``is_stub`` itself is derived, so no
-provider needs to duplicate this against the execution API's ``TaskArgBinding`` schema.
+Any operator flagged ``is_stub`` (currently only ``@task.stub``'s ``_StubOperator``) gets its
+ordered positional-argument spec built here, from the live operator's already-bound
+``python_callable``/``op_args``/``op_kwargs`` -- called from ``OperatorSerialization`` the same way
+``is_stub`` itself is derived, so no provider needs to duplicate this against the execution API's
+``TaskArgBinding`` schema.
 
-A stub whose values differ per map index (a mapped stub, or one inside a mapped task group)
-cannot have them resolved at parse time, so it instead captures per-parameter metadata
-(declaration order, defaults, value schemas, and for a task group member its call arguments)
-that ti_run combines with the serialized Dag to derive the spec per map index.
+A value that differs per map index (any argument of a mapped stub, or a mapped task group's expand
+argument passed to a member) cannot be resolved at parse time, so it is a ``param`` entry that
+ti_run combines with the serialized Dag to derive per map index.
 """
 
 from __future__ import annotations
@@ -39,10 +38,11 @@ import typing
 from collections.abc import Mapping
 from functools import cache
 from inspect import Parameter, Signature, signature
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, NotRequired, cast
 
 from pydantic import PydanticUserError, TypeAdapter
 from pydantic.json_schema import GenerateJsonSchema
+from typing_extensions import TypedDict
 
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.sdk import XComArg
@@ -52,6 +52,52 @@ from airflow.sdk.definitions.xcom_arg import PlainXComArg
 
 if TYPE_CHECKING:
     from airflow.sdk.bases.decorator import DecoratedMappedOperator, DecoratedOperator
+
+
+class _BindingEntryBase(TypedDict):
+    name: str
+    value_schema: NotRequired[dict[str, Any]]
+
+
+class XComBindingEntry(_BindingEntryBase):
+    """An upstream task's output, read whole (``sequence``) when that task is mapped."""
+
+    kind: Literal["xcom", "sequence"]
+    task_id: str
+
+
+class LiteralBindingEntry(_BindingEntryBase):
+    """An inline JSON value from the Dag file, or the signature's default."""
+
+    kind: Literal["literal"]
+    value: Any
+    from_default: NotRequired[bool]
+
+
+class LocalBindingEntry(_BindingEntryBase):
+    """An argument only the worker can resolve, such as a ``map()``/``zip()``/``concat()`` result."""
+
+    kind: Literal["local"]
+
+
+class GroupArgEntry(TypedDict):
+    """The enclosing mapped task group whose expand argument *key* a ``param`` binding reads."""
+
+    group_id: str
+    key: str
+
+
+class ParamBindingEntry(_BindingEntryBase):
+    """A parameter the server derives per map index; it never reaches the runtime."""
+
+    kind: Literal["param"]
+    default: NotRequired[Any]
+    group_arg: NotRequired[GroupArgEntry]
+
+
+# TODO(#71364): validate_schema also runs on read, so a core that predates a kind rejects the whole Dag.
+ArgBindingEntry = XComBindingEntry | LiteralBindingEntry | LocalBindingEntry | ParamBindingEntry
+"""One serialized ``_arg_bindings`` entry, stored as plain JSON."""
 
 
 class _ValueSchemaGenerator(GenerateJsonSchema):
@@ -95,7 +141,7 @@ def _normalize_temporal_annotation(annotation: Any) -> Any:
     return annotation
 
 
-def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
+def _infer_value_schema(annotation: Any, task_id: str, name: str) -> dict[str, Any] | None:
     """
     Build the JSON-schema fragment for one stub parameter annotation, via pydantic.
 
@@ -104,6 +150,9 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
     (missing, ``Any``, bare ``None``) or pydantic cannot generate a schema for it; the
     binding then omits ``value_schema`` and the foreign runtime falls back to a
     decode-only check.
+
+    :raises ValueError: if the annotation uses ``typing.TypedDict``, which pydantic reads only on
+        Python 3.12+.
     """
     if annotation is Parameter.empty or annotation is None or annotation is Any:
         return None
@@ -112,11 +161,17 @@ def _infer_value_schema(annotation: Any) -> dict[str, Any] | None:
         # that can only ever be None constrains nothing worth shipping.
         return None
     try:
-        schema = _generate_value_schema(annotation)
-    except TypeError:
-        # Unhashable annotations cannot key the cache; generate directly. Any pydantic
-        # failure inside the body degrades to None there, so this retry never re-raises.
-        schema = _generate_value_schema.__wrapped__(annotation)
+        try:
+            schema = _generate_value_schema(annotation)
+        except TypeError:
+            # Unhashable annotations cannot key the cache; generate directly. Any other pydantic
+            # failure inside the body degrades to None there.
+            schema = _generate_value_schema.__wrapped__(annotation)
+    except PydanticUserError as e:
+        raise ValueError(
+            f"@task.stub task {task_id!r} parameter {name!r} is annotated with typing.TypedDict, "
+            "which has no value schema before Python 3.12; use typing_extensions.TypedDict instead"
+        ) from e
     # Deep-copy so callers embedding the fragment never alias the cached dict.
     return copy.deepcopy(schema) if schema else None
 
@@ -133,7 +188,9 @@ def _generate_value_schema(annotation: Any) -> dict[str, Any] | None:
     # that degrades to no schema rather than failing Dag serialization.
     try:
         return TypeAdapter(annotation).json_schema(schema_generator=_ValueSchemaGenerator)
-    except (PydanticUserError, TypeError):
+    except (PydanticUserError, TypeError) as e:
+        if isinstance(e, PydanticUserError) and e.code == "typed-dict-version":
+            raise
         normalized = _normalize_temporal_annotation(annotation)
         if normalized is annotation:
             return None
@@ -213,8 +270,8 @@ def _validate_value(value: Any, task_id: str, name: str) -> None:
         _ensure_json_literal(value, task_id, name)
 
 
-def _build_xcom_binding(value: XComArg, name: str) -> dict[str, Any]:
-    """Bind the whole output of *value*, for a stub whose arguments are the same at every map index."""
+def _build_xcom_binding(value: XComArg, name: str) -> XComBindingEntry | LocalBindingEntry:
+    """Bind the whole output of *value*; for a task with per-map-index arguments, the server re-derives it."""
     if not isinstance(value, PlainXComArg):
         # Only the worker can apply map() callables or assemble a zip()/concat() result.
         return {"name": name, "kind": "local"}
@@ -223,19 +280,25 @@ def _build_xcom_binding(value: XComArg, name: str) -> dict[str, Any]:
     return {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
 
 
-def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
+def _build_group_arg_binding(value: MappedArgument, op: DecoratedOperator, name: str) -> ParamBindingEntry:
+    group = next(g for g in op.iter_mapped_task_groups() if g._expand_input is value._input)
+    # Only the root task group has no id, and it is never mapped.
+    group_id = cast("str", group.group_id)
+    return {"name": name, "kind": "param", "group_arg": {"group_id": group_id, "key": value._key}}
+
+
+def build_arg_bindings(op: DecoratedOperator) -> list[ArgBindingEntry] | None:
     """
     Bind the TaskFlow call arguments to the stub signature and build the ordered arg spec.
 
     The caller owns the precondition: ``OperatorSerialization._serialize_node`` calls this only for
-    a non-mapped ``DecoratedOperator`` flagged ``is_stub`` outside any mapped task group, and
-    nothing here re-checks it.
+    a non-mapped ``DecoratedOperator`` flagged ``is_stub``, and nothing here re-checks it.
 
-    Each spec entry is a plain dict matching one variant of the execution API's
-    ``TaskArgBinding`` union: ``xcom`` for an unmapped upstream's output, ``sequence`` for a
-    mapped upstream's whole output, ``local`` for a ``map()``/``zip()``/``concat()`` result, and
-    ``literal`` for everything else. ``name`` is always the stub function's parameter name, so a
-    foreign runtime can bind by name in addition to the existing positional order.
+    Each entry is ``xcom`` for an unmapped upstream's output, ``sequence`` for a mapped upstream's
+    whole output, ``local`` for a ``map()``/``zip()``/``concat()`` result, ``param`` for an expand
+    argument of an enclosing mapped task group, and ``literal`` for everything else. ``name`` is
+    always the stub function's parameter name, so a foreign runtime can bind by name in addition to
+    the positional order.
 
     Returns ``None`` for argless calls: the binding contract (including the signature checks
     below) applies only once a TaskFlow call actually passes arguments, so pre-TaskFlow stub
@@ -258,17 +321,20 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
 
     annotations = _resolve_param_annotations(python_callable, op_signature)
 
-    spec: list[dict[str, Any]] = []
+    spec: list[ArgBindingEntry] = []
     for name in op_signature.parameters:
         value = bound.arguments[name]
-        if _validate_xcom_value(value, task_id, name):
+        entry: ArgBindingEntry
+        if isinstance(value, MappedArgument):
+            entry = _build_group_arg_binding(value, op, name)
+        elif _validate_xcom_value(value, task_id, name):
             entry = _build_xcom_binding(value, name)
         else:
             _ensure_json_literal(value, task_id, name)
             entry = {"name": name, "kind": "literal", "value": value}
             if name not in explicitly_bound:
                 entry["from_default"] = True
-        if (value_schema := _infer_value_schema(annotations[name])) is not None:
+        if (value_schema := _infer_value_schema(annotations[name], task_id, name)) is not None:
             # Key omission (never ``None``) is the wire contract for "unconstrained":
             # ti_run responds with ``exclude_unset``, so an absent key stays absent.
             entry["value_schema"] = value_schema
@@ -276,9 +342,9 @@ def build_arg_bindings(op: DecoratedOperator) -> list[dict[str, Any]] | None:
     return spec
 
 
-def _build_param_entry(name: str, param: Parameter, annotation: Any, task_id: str) -> dict[str, Any]:
-    entry: dict[str, Any] = {"name": name}
-    if (value_schema := _infer_value_schema(annotation)) is not None:
+def _build_param_binding(name: str, param: Parameter, annotation: Any, task_id: str) -> ParamBindingEntry:
+    entry: ParamBindingEntry = {"name": name, "kind": "param"}
+    if (value_schema := _infer_value_schema(annotation, task_id, name)) is not None:
         entry["value_schema"] = value_schema
     if param.default is not Parameter.empty:
         _ensure_json_literal(param.default, task_id, name)
@@ -286,9 +352,9 @@ def _build_param_entry(name: str, param: Parameter, annotation: Any, task_id: st
     return entry
 
 
-def build_mapped_arg_binding_params(op: DecoratedMappedOperator) -> list[dict[str, Any]] | None:
+def build_mapped_arg_bindings(op: DecoratedMappedOperator) -> list[ArgBindingEntry] | None:
     """
-    Build the ordered per-parameter metadata for a mapped (``.expand()``/``.expand_kwargs()``) stub task.
+    Build the ordered ``param`` bindings of a mapped (``.expand()``/``.expand_kwargs()``) stub task.
 
     The caller owns the precondition: ``OperatorSerialization.serialize_mapped_operator`` calls
     this only for a decorated mapped operator flagged ``is_stub``, and nothing here re-checks it.
@@ -342,43 +408,9 @@ def build_mapped_arg_binding_params(op: DecoratedMappedOperator) -> list[dict[st
             )
 
     annotations = _resolve_param_annotations(python_callable, op_signature)
-    params: list[dict[str, Any]] = []
+    spec: list[ArgBindingEntry] = []
     for name, param in op_signature.parameters.items():
         if name in call_kwargs:
             _validate_value(call_kwargs[name], task_id, name)
-        params.append(_build_param_entry(name, param, annotations[name], task_id))
-    return params
-
-
-def build_task_group_arg_binding_params(op: DecoratedOperator) -> list[dict[str, Any]] | None:
-    """
-    Build the ordered per-parameter metadata for an unmapped stub task inside a mapped task group.
-
-    Its arguments can name the group's expand arguments or outputs of tasks in the same group,
-    which resolve per map index, so each entry also records the call argument: ``value`` for a
-    literal or an upstream output, and ``group_arg`` for an expand argument of an enclosing group.
-    Returns ``None`` for argless calls, as ``build_arg_bindings`` does.
-    """
-    python_callable = op.python_callable
-    task_id = op.task_id
-    if not op.op_args and not op.op_kwargs:
-        return None
-
-    op_signature = signature(python_callable)
-    _validate_stub_signature(op_signature, task_id)
-    bound = op_signature.bind(*op.op_args, **op.op_kwargs)
-
-    annotations = _resolve_param_annotations(python_callable, op_signature)
-    params: list[dict[str, Any]] = []
-    for name, param in op_signature.parameters.items():
-        entry = _build_param_entry(name, param, annotations[name], task_id)
-        if name in bound.arguments:
-            value = bound.arguments[name]
-            if isinstance(value, MappedArgument):
-                group = next(g for g in op.iter_mapped_task_groups() if g._expand_input is value._input)
-                entry["group_arg"] = {"group_id": group.group_id, "key": value._key}
-            else:
-                _validate_value(value, task_id, name)
-                entry["value"] = value
-        params.append(entry)
-    return params
+        spec.append(_build_param_binding(name, param, annotations[name], task_id))
+    return spec

@@ -3775,11 +3775,11 @@ def test_task_is_stub_fails_closed_on_non_boolean(raw):
     assert DagSerialization.from_dict(ser_dag).task_dict["simple_task"].is_stub is False
 
 
-def test_mapped_stub_param_metadata_round_trip():
-    """The serializer collects the mapped stub's parameter metadata and it survives the round trip."""
+def test_mapped_stub_arg_bindings_round_trip():
+    """A mapped stub's ``param`` bindings serialize as plain JSON and survive the round trip."""
     from airflow.sdk import task
 
-    with DAG(dag_id="mapped_arg_binding_params_dag", schedule=None) as dag:
+    with DAG(dag_id="mapped_arg_bindings_dag", schedule=None) as dag:
 
         @task.stub
         def transform(country: str, extracted, retries_num: int = 3): ...
@@ -3793,44 +3793,27 @@ def test_mapped_stub_param_metadata_round_trip():
     ser_dag = DagSerialization.to_dict(dag)
     DagSerialization.validate_schema(ser_dag)
     encoded_tasks = {t[Encoding.VAR]["task_id"]: t[Encoding.VAR] for t in ser_dag["dag"]["tasks"]}
-    assert encoded_tasks["transform"]["_mapped_arg_binding_params"] == [
+    expected = [
+        {"name": "country", "kind": "param", "value_schema": {"type": "string"}},
+        {"name": "extracted", "kind": "param"},
         {
-            Encoding.TYPE: DagAttributeTypes.DICT,
-            Encoding.VAR: {
-                "name": "country",
-                "value_schema": {Encoding.TYPE: DagAttributeTypes.DICT, Encoding.VAR: {"type": "string"}},
-            },
+            "name": "retries_num",
+            "kind": "param",
+            "value_schema": {"type": "integer", "format": "int64"},
+            "default": 3,
         },
-        {Encoding.TYPE: DagAttributeTypes.DICT, Encoding.VAR: {"name": "extracted"}},
-        {
-            Encoding.TYPE: DagAttributeTypes.DICT,
-            Encoding.VAR: {
-                "name": "retries_num",
-                "value_schema": {
-                    Encoding.TYPE: DagAttributeTypes.DICT,
-                    Encoding.VAR: {"type": "integer", "format": "int64"},
-                },
-                "default": 3,
-            },
-        },
-    ], "metadata must serialize in declaration order"
-    assert "_mapped_arg_binding_params" not in encoded_tasks["plain"], (
-        "only tasks flagged is_stub contribute mapped parameter metadata"
-    )
+    ]
+    assert encoded_tasks["transform"]["_arg_bindings"] == expected, "bindings must follow declaration order"
+    assert "_arg_bindings" not in encoded_tasks["plain"], "only tasks flagged is_stub get bindings"
 
     round_tripped = DagSerialization.from_dict(ser_dag)
-    assert round_tripped.task_dict["transform"].mapped_arg_binding_params == [
-        {"name": "country", "value_schema": {"type": "string"}},
-        {"name": "extracted"},
-        {"name": "retries_num", "value_schema": {"type": "integer", "format": "int64"}, "default": 3},
-    ]
-    assert round_tripped.task_dict["plain"].mapped_arg_binding_params is None
+    assert round_tripped.task_dict["transform"].arg_bindings == expected
+    assert round_tripped.task_dict["plain"].arg_bindings is None
 
 
-def test_task_group_stub_param_metadata_round_trip():
-    """A stub inside a mapped task group keeps its call arguments in the metadata, not in a spec."""
+def test_task_group_stub_arg_bindings_round_trip():
+    """A stub inside a mapped task group binds its other arguments at parse time."""
     from airflow.sdk import task, task_group
-    from airflow.serialization.serialized_objects import _XComRef
 
     @task.stub
     def extract(): ...
@@ -3838,7 +3821,7 @@ def test_task_group_stub_param_metadata_round_trip():
     @task.stub
     def transform(country: str, extracted, retries_num: int = 3): ...
 
-    with DAG(dag_id="task_group_arg_binding_params_dag", schedule=None) as dag:
+    with DAG(dag_id="task_group_arg_bindings_dag", schedule=None) as dag:
         extracted = extract()
 
         @task_group
@@ -3851,27 +3834,29 @@ def test_task_group_stub_param_metadata_round_trip():
     DagSerialization.validate_schema(ser_dag)
     transform_task = DagSerialization.from_dict(ser_dag).task_dict["group.transform"]
 
-    assert transform_task.arg_bindings is None
-    country, extracted_param, retries_num = transform_task.mapped_arg_binding_params
-    assert country == {
-        "name": "country",
-        "value_schema": {"type": "string"},
-        "group_arg": {"group_id": "group", "key": "country"},
-    }
-    assert isinstance(extracted_param["value"], _XComRef)
-    assert extracted_param["value"].data == {"task_id": "extract", "key": "return_value"}
-    assert retries_num == {
-        "name": "retries_num",
-        "value_schema": {"type": "integer", "format": "int64"},
-        "default": 3,
-    }
+    assert transform_task.arg_bindings == [
+        {
+            "name": "country",
+            "kind": "param",
+            "group_arg": {"group_id": "group", "key": "country"},
+            "value_schema": {"type": "string"},
+        },
+        {"name": "extracted", "kind": "xcom", "task_id": "extract"},
+        {
+            "name": "retries_num",
+            "kind": "literal",
+            "value": 3,
+            "from_default": True,
+            "value_schema": {"type": "integer", "format": "int64"},
+        },
+    ]
 
 
 def test_mapped_stub_capture_error_fails_serialization():
     """A rejected mapped capture surfaces as a Dag serialization (import) error."""
     from airflow.sdk import task
 
-    with DAG(dag_id="mapped_arg_binding_params_invalid_dag", schedule=None) as dag:
+    with DAG(dag_id="mapped_arg_bindings_invalid_dag", schedule=None) as dag:
 
         @task.stub
         def transform(country: str): ...

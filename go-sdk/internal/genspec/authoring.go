@@ -149,7 +149,6 @@ var taskShape = authoringShape{
 		"_disallow_kwargs_override":     "a mapped-task serialization detail",
 		"_expand_input_attr":            "a mapped-task serialization detail",
 		"_arg_bindings":                 "the bindings airflow.Inputs records",
-		"_mapped_arg_binding_params":    "the per-parameter metadata of a Python stub task that is mapped",
 		"expand_input":                  "a mapped-task serialization detail",
 		"has_on_execute_callback":       "derived from whether a callback is registered",
 		"has_on_failure_callback":       "derived from whether a callback is registered",
