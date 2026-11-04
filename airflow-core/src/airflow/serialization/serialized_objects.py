@@ -1038,12 +1038,10 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # here. Imported locally for the same reason as in ``_serialize_node``: it pulls in
             # pydantic's JSON-schema machinery, which only lang-SDK workloads ever need.
             from airflow.sdk.bases.decorator import DecoratedMappedOperator
-            from airflow.serialization.stub_arg_bindings import build_mapped_arg_binding_params
+            from airflow.serialization.stub_arg_bindings import build_mapped_arg_bindings
 
-            if isinstance(op, DecoratedMappedOperator) and (
-                (params := build_mapped_arg_binding_params(op)) is not None
-            ):
-                serialized_op["_mapped_arg_binding_params"] = cls.serialize(params)
+            if isinstance(op, DecoratedMappedOperator) and (arg_bindings := build_mapped_arg_bindings(op)):
+                serialized_op["_arg_bindings"] = arg_bindings
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -1086,18 +1084,15 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
             from airflow.sdk.bases.decorator import DecoratedOperator
-            from airflow.serialization.stub_arg_bindings import (
-                build_arg_bindings,
-                build_task_group_arg_binding_params,
-            )
+            from airflow.serialization.stub_arg_bindings import build_arg_bindings
 
             serialize_op["is_stub"] = True
-            if not op.is_mapped and isinstance(op, DecoratedOperator):
-                if op.get_closest_mapped_task_group() is not None:
-                    if (params := build_task_group_arg_binding_params(op)) is not None:
-                        serialize_op["_mapped_arg_binding_params"] = cls.serialize(params)
-                elif arg_bindings := build_arg_bindings(op):
-                    serialize_op["_arg_bindings"] = arg_bindings
+            if (
+                not op.is_mapped
+                and isinstance(op, DecoratedOperator)
+                and (arg_bindings := build_arg_bindings(op))
+            ):
+                serialize_op["_arg_bindings"] = arg_bindings
 
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
@@ -1213,8 +1208,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
-            elif k in ("is_stub", "_arg_bindings", "_mapped_arg_binding_params"):
-                # All are restored below: is_stub must fail closed rather than go through generic
+            elif k in ("is_stub", "_arg_bindings"):
+                # Both are restored below: is_stub must fail closed rather than go through generic
                 # decoding, and _arg_bindings is plain JSON, not {__type, __var}.
                 continue
             elif (
@@ -1279,8 +1274,6 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # on this path, so anything that is not JSON ``true`` means "not a stub".
         setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
-        if (mapped_arg_binding_params := encoded_op.get("_mapped_arg_binding_params")) is not None:
-            setattr(op, "_mapped_arg_binding_params", cls.deserialize(mapped_arg_binding_params))
 
         start_trigger_args = None
         encoded_start_trigger_args = encoded_op.get("start_trigger_args", None)

@@ -69,7 +69,6 @@ class SerializedBaseOperator(DAGNode):
     _can_skip_downstream: bool
     _is_empty: bool
     _arg_bindings: list[dict[str, Any]] | None = None
-    _mapped_arg_binding_params: list[dict[str, Any]] | None = None
     _needs_expansion: bool
     _task_display_name: str | None = None
     _weight_rule: str | PriorityWeightStrategy = "downstream"
@@ -306,11 +305,6 @@ class SerializedBaseOperator(DAGNode):
     def arg_bindings(self) -> list[dict[str, Any]] | None:
         """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
         return self._arg_bindings
-
-    @property
-    def mapped_arg_binding_params(self) -> list[dict[str, Any]] | None:
-        """Per-parameter metadata of a stub task whose arguments differ per map index, or None otherwise."""
-        return self._mapped_arg_binding_params
 
     @property
     def operator_name(self) -> str:

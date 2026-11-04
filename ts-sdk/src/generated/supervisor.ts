@@ -264,11 +264,7 @@ export type ArgBindings = TaskArgBinding[] | null;
  * via the `definition` "TaskArgBinding".
  */
 export type TaskArgBinding =
-  | XComArgBinding
-  | LiteralArgBinding
-  | XComSequenceArgBinding
-  | TupleArgBinding
-  | LocalArgBinding;
+  XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding;
 export type Name8 = string;
 export type Kind = "xcom";
 export type TaskId1 = string;

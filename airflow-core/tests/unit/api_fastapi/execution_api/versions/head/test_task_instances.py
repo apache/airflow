@@ -1550,9 +1550,9 @@ class TestTIRunState:
         ]
 
     def test_ti_run_ignores_args_for_legacy_serialized_mapped_stub(self, client, dag_maker):
-        """A mapped stub serialized without parameter metadata keeps the ignored-args behavior."""
+        """A mapped stub serialized without bindings keeps the ignored-args behavior."""
         with mock.patch(
-            "airflow.serialization.stub_arg_bindings.build_mapped_arg_binding_params",
+            "airflow.serialization.stub_arg_bindings.build_mapped_arg_bindings",
             return_value=None,
         ):
             with dag_maker("test_mapped_stub_legacy", serialized=True):

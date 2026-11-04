@@ -20,10 +20,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
+from airflow.serialization.definitions.mappedoperator import is_mapped
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
     from airflow.models.dagbag import DBDagBag
     from airflow.serialization.serialized_objects import SerializedOperator
 
@@ -64,22 +66,22 @@ def client_supports_mapped_arg_bindings() -> bool:
 
 def get_arg_bindings(
     task: SerializedOperator, ti: Any, *, dag_bag: DBDagBag, session: Session
-) -> list[dict[str, Any]] | None:
+) -> list[TaskArgBinding] | list[dict[str, Any]] | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
     A stub whose arguments differ per map index gets its spec derived for this map index; a Dag
-    serialized before that metadata existed keeps the legacy ignored-args behavior.
+    serialized before such a stub had bindings keeps the legacy ignored-args behavior.
 
     :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
     """
-    if not task.is_stub:
+    if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
-    if (mapped_params := task.mapped_arg_binding_params) is not None:
+    if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
         if not client_supports_mapped_arg_bindings():
             return None
-        return derive_mapped_arg_bindings(task, ti, mapped_params, dag_bag=dag_bag, session=session)
-    return task.arg_bindings
+        return derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
+    return arg_bindings
 
 
 def get_execution_timeout(task: SerializedOperator) -> float | None:

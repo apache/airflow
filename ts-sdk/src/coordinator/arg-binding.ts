@@ -121,15 +121,13 @@ export async function resolveArgs(
   // waits for one round-trip rather than four.
   const resolveAll = (): Promise<[string, JsonValue][]> =>
     Promise.all(
-      bindings.map(
-        async (binding): Promise<[string, JsonValue]> => [
-          binding.name,
-          binding.kind === "xcom"
-            ? await pullXComArg(binding, deps.client)
-            : // checkBindable has already refused every kind but these two.
-              literalValue((binding as LiteralArgBinding).value),
-        ],
-      ),
+      bindings.map(async (binding): Promise<[string, JsonValue]> => [
+        binding.name,
+        binding.kind === "xcom"
+          ? await pullXComArg(binding, deps.client)
+          : // checkBindable has already refused every kind but these two.
+            literalValue((binding as LiteralArgBinding).value),
+      ]),
     );
   // Literals need no request, so only a call that pulls races the abort signal.
   const entries = pullsUpstream ? await abortable(resolveAll, deps.signal) : await resolveAll();
