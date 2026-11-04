@@ -151,7 +151,11 @@ _R = TypeVar("_R")
 
 JOB_UNCHECKED_SCOPE = "job:unchecked"
 
-# Token subject of an asset watcher, which has no task instance behind it.
+# A triggerer that reaches the Execution API over HTTP authenticates watchers
+# with an execution token setting 'sub' to this value. Routes marked with
+# allow_asset_watcher exempt it from the attempt-liveness check, so such a
+# token can write and clear the state of any asset. The in-process Execution
+# API also falls back to this ID for every caller that has no task identity.
 ASSET_WATCHER_ID = UUID(int=0)
 
 
