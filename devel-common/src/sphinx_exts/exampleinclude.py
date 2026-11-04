@@ -262,7 +262,7 @@ def doctree_read(app, doctree):
         else:
             modname = None
             module_path = filepath.resolve()
-        show_button = register_source(app, env, modname, filepath)
+        show_button = "sphinx.ext.viewcode" in app.extensions and register_source(app, env, modname, filepath)
         if show_button:
             _included_modules(env).setdefault(modname, (str(filepath), set()))[1].add(env.docname)
         onlynode = create_node(env, module_path.as_posix(), show_button)
