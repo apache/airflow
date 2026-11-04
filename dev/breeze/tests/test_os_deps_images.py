@@ -28,6 +28,7 @@ from click.testing import CliRunner
 from airflow_breeze.commands.ci_image_commands import build as ci_image_build
 from airflow_breeze.commands.production_image_commands import build as prod_image_build
 from airflow_breeze.commands.release_management_commands import (
+    OS_DEPS_DATABASE_CLIENT_SCRIPTS,
     OS_DEPS_IMAGE_PLATFORMS,
     build_os_deps_images,
     compute_os_deps_image_inputs_hash,
@@ -48,6 +49,7 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
+from airflow_breeze.utils.selective_checks import CI_FILE_GROUP_MATCHES, FileGroupForCi
 
 REPOSITORY = "ghcr.io/apache/airflow/base/os-deps"
 MIRROR = "ghcr.io/apache/airflow/base/python"
@@ -655,6 +657,30 @@ def test_marker_covers_the_database_clients():
     assert all(f"/{name}" in marker_block for name in ("common.sh", *CLIENT_SCRIPTS))
     assert "/keys/*" in marker_block
     assert all(re.search(rf"\b{variable}\b", marker_block) for variable in CLIENT_VARIABLES)
+
+
+def test_marker_files_match_the_image_tag_inputs_and_the_ci_file_group():
+    docker_scripts = AIRFLOW_ROOT_PATH / "scripts" / "docker"
+    script = (docker_scripts / "install_os_dependencies.sh").read_text()
+    file_loop = script.split("OS_DEPENDENCIES_INPUTS_HASH=$(", 1)[1].split("; do", 1)[0]
+    marker_scripts = re.findall(r'\$\{OS_DEPENDENCIES_SCRIPTS_DIR\}/([\w.]+)"', file_loop)
+
+    assert "/keys/*" in file_loop
+    assert set(marker_scripts) == set(OS_DEPS_DATABASE_CLIENT_SCRIPTS)
+
+    file_group_patterns = CI_FILE_GROUP_MATCHES[FileGroupForCi.OS_DEPENDENCIES_FILES]
+    docker_files = {
+        path.relative_to(AIRFLOW_ROOT_PATH).as_posix() for path in docker_scripts.rglob("*") if path.is_file()
+    }
+    file_group_matches = {
+        path for path in docker_files if any(re.match(pattern, path) for pattern in file_group_patterns)
+    }
+    hashed_files = {
+        *(f"scripts/docker/{name}" for name in ("install_os_dependencies.sh", *marker_scripts)),
+        *(path for path in docker_files if path.startswith("scripts/docker/keys/")),
+    }
+
+    assert file_group_matches == hashed_files
 
 
 @pytest.mark.parametrize(
