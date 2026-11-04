@@ -78,11 +78,13 @@ Why ``ExecutionAPIRoute`` is needed:
     to *relax* the outer router's default execution-only restriction, but
     ``SecurityScopes`` only accumulate additively — an outer dependency
     cannot see scopes declared by inner ones. ``ExecutionAPIRoute`` solves
-    this by inspecting the **merged** dependency list at route registration
-    time (after ``include_router`` has combined all parent and child
-    dependencies) and precomputing the full ``allowed_token_types`` set.
+    this by inspecting the route's own dependency list at route registration
+    time and precomputing the full ``allowed_token_types`` set.
     ``require_auth`` then reads this precomputed set from the matched route
-    at request time, avoiding the ordering problem entirely.
+    at request time, avoiding the ordering problem entirely. FastAPI includes
+    routers lazily, so ``token:*`` scopes must be declared on the route
+    itself: scopes on an enclosing router or ``include_router`` call are not
+    seen, and the route falls back to execution-only.
 
     Any router whose routes need non-default token type policies must use
     ``route_class=ExecutionAPIRoute``. Routers that only need the default
@@ -143,6 +145,7 @@ _REQUEST_SCOPE_JOB_KEY = "dag_processor_job_id"
 _IN_PROCESS_NON_TI_CALLER = "airflow_in_process_non_ti_caller"
 _IN_PROCESS_TRIGGERER_ID = "airflow_in_process_triggerer_id"
 _SKIP_AUTO_TI_ATTEMPT_LIVE = "skip_auto_ti_attempt_live"
+_ALLOW_NON_TI_WRITER = "allow_non_ti_writer"
 _P = ParamSpec("_P")
 _R = TypeVar("_R")
 
@@ -152,6 +155,12 @@ JOB_UNCHECKED_SCOPE = "job:unchecked"
 def skip_auto_ti_attempt_live(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
     """Mark a route that checks attempt liveness itself, so ``require_auth`` skips its automatic check."""
     setattr(endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, True)
+    return endpoint
+
+
+def allow_non_ti_writer(endpoint: Callable[_P, _R]) -> Callable[_P, _R]:
+    """Mark a route whose data no task attempt owns, so ``require_auth`` skips its automatic check."""
+    setattr(endpoint, _ALLOW_NON_TI_WRITER, True)
     return endpoint
 
 
@@ -286,6 +295,7 @@ async def require_auth(
         and not request.scope.get(_IN_PROCESS_NON_TI_CALLER)
         and not request.scope.get(_REQUEST_SCOPE_LIVE_ATTEMPT_KEY)
         and not getattr(route, _SKIP_AUTO_TI_ATTEMPT_LIVE, False)
+        and not getattr(route, _ALLOW_NON_TI_WRITER, False)
     ):
         # The versions package imports routes, which depend on this module.
         from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
@@ -475,12 +485,14 @@ class ExecutionAPIRoute(APIRoute):
 
     allowed_token_types: frozenset[str]
     skip_auto_ti_attempt_live: bool
+    allow_non_ti_writer: bool
 
     requires_open_job: bool
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.skip_auto_ti_attempt_live = bool(getattr(self.endpoint, _SKIP_AUTO_TI_ATTEMPT_LIVE, False))
+        self.allow_non_ti_writer = bool(getattr(self.endpoint, _ALLOW_NON_TI_WRITER, False))
 
         all_scopes: set[str] = set()
         for dep in self.dependencies:
@@ -535,6 +547,7 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
+        .execution_options(include_all_attempts=True)
     )
 
 

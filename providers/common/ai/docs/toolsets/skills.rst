@@ -125,6 +125,26 @@ which then read ``reference.md`` and finished the run.
 ``exclude_resources`` hides files from the resource tools only. A skill's scripts can
 still read them, which is why the example excludes ``run_skill_script`` as well.
 
+.. _agent-skills-observability:
+
+Seeing which skills a run used
+------------------------------
+
+When the toolset runs inside an Airflow task, it publishes on XCom, under the key
+``__AIRFLOW__COMMON_AI_SKILLS__``, every skill it offered the agent: its name and
+description, where it came from, and how many times the agent called ``load_skill``,
+``read_skill_resource`` and ``run_skill_script`` for it. A local skill names its path on
+the worker. A ``GitSkills`` skill names the repository, its path inside the repository,
+the ``branch`` you set and the commit that was cloned, so a run that behaves differently
+from an earlier one can be traced to a change in the skill between two commits.
+
+The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
+first, with a link to the skill's folder at that commit for a repository on GitHub or
+GitLab. The counts cover the whole conversation, so calls made before a tool-approval
+pause, a human-review regeneration or a durable retry still count. Several skills toolsets
+on one agent, each wrapped with ``prefixed()`` to keep their tool names apart, share the
+same list. Nothing is published when the task sets ``do_xcom_push=False``.
+
 Parameters
 ----------
 

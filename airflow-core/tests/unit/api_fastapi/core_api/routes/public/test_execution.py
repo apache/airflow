@@ -72,6 +72,7 @@ def test_execution_lists_live_work_and_selects_archived_tries(test_client, dag_m
         assert reader.return_value.log_handler.get_external_log_url.call_args.args[0].id == archived_id
 
 
+@pytest.mark.usefixtures("async_engine_without_pool")
 @pytest.mark.parametrize("retain_later", [False, True])
 def test_loop_repeated_selective_clears_archive_only_replaced_task_instances(
     test_client, dag_maker, session, retain_later

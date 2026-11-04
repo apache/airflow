@@ -56,7 +56,7 @@ Prerequisites
 
   .. code-block:: bash
 
-      go get github.com/apache/airflow/go-sdk
+      go get github.com/apache/airflow/go-sdk/airflow
       go get -tool github.com/apache/airflow/go-sdk/cmd/airflow-go-pack
 
 .. _go-sdk/quick-start:

@@ -25,7 +25,7 @@ from uuid import UUID
 
 import httpx2
 import pytest
-from fastapi import FastAPI, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
@@ -38,6 +38,8 @@ from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
     InProcessExecutionAPI,
     _extract_w3c_trace_context,
+    _inject_trace_context_dep,
+    _is_trace_context_dep,
     create_jwt_generator,
     create_task_execution_api_app,
 )
@@ -48,6 +50,7 @@ from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.models.xcom import XComModel
 from airflow.utils.session import create_session_async
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -397,18 +400,14 @@ class TestTraceContextPropagation:
     """Exercise ``execution_api.otel_trace_propagation`` on the real Execution API app."""
 
     @pytest.fixture(autouse=True)
-    def _restore_router_dependencies(self):
+    def _restore_route_dependencies(self):
         from airflow.api_fastapi.execution_api.routes import execution_api_router
 
-        snapshot = {
-            id(route): list(route.dependencies)
-            for route in execution_api_router.routes
-            if isinstance(route, APIRoute)
-        }
+        routes = [context.original_route for context in iter_api_routes(execution_api_router.routes)]
+        snapshot = [list(route.dependencies) for route in routes]
         yield
-        for route in execution_api_router.routes:
-            if isinstance(route, APIRoute):
-                route.dependencies[:] = snapshot[id(route)]
+        for route, dependencies in zip(routes, snapshot):
+            route.dependencies[:] = dependencies
 
     @staticmethod
     def _build_app(mode: str):
@@ -453,6 +452,16 @@ class TestTraceContextPropagation:
         assert spy.called is expect_extract
         if expect_status is not None:
             assert response.status_code == expect_status
+
+    def test_only_authenticated_detects_auth_added_by_include_router(self):
+        router = APIRouter()
+        router.add_api_route("/variables/{key}", lambda key: None)
+        parent = APIRouter()
+        parent.include_router(router, dependencies=[Depends(require_auth)])
+
+        _inject_trace_context_dep(parent.routes, "only-authenticated")
+
+        assert any(_is_trace_context_dep(d) for d in router.routes[0].dependencies)
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""

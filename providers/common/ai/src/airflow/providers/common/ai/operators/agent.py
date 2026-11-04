@@ -326,9 +326,12 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         ``agent_params`` still works, but stores each capability's repr
         in the serialized Dag, and cannot be combined with this argument (the
         task fails when it runs).
-    :param enable_tool_logging: When ``True`` (default), wraps the agent's
-        assembled function toolset in a ``LoggingToolset`` that logs tool calls
-        with timing at INFO level and arguments at DEBUG level. This includes
+    :param enable_tool_logging: When ``True`` (default), the operator appends a
+        ``ToolLoggingCapability``, whose ``get_wrapper_toolset`` wraps the agent's
+        assembled function toolset so that tool calls are logged
+        with timing at INFO level and arguments at DEBUG level. If ``capabilities``
+        already holds a ``ToolLoggingCapability``, the operator adds none and that
+        one's ``logger`` is used. Logging includes
         tools supplied through ``toolsets=``, ``agent_params["tools"]``, and
         capabilities, but not output tools, provider-native tools that run
         server-side, or tools another capability adds through its own wrapper
@@ -780,8 +783,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             rendered = copy.copy(toolset)
             self._do_render_template_fields(rendered, fields, context, jinja_env, seen_oids)
             # The rendered connection is recorded nowhere else, so this line is the audit trail
-            # of which connection this task instance's agent was given. @task.agent renders a
-            # second time, when the id no longer changes, so this logs once per task instance.
+            # of which connection this task instance's agent was given.
             if rendered.id != toolset.id:
                 self.log.info("Rendered toolset %s", rendered.id)
             return rendered

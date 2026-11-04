@@ -635,10 +635,6 @@ class CloudSqlProxyRunner(LoggingMixin):
         if self.sql_proxy_enable_iam_login:
             self.command_line_parameters.append("-enable_iam_login")
 
-    @staticmethod
-    def _is_os_64bit() -> bool:
-        return platform.machine().endswith("64")
-
     def _download_sql_proxy_if_needed(self) -> None:
         if os.path.isfile(self.sql_proxy_path):
             self.log.info("cloud-sql-proxy is already present")

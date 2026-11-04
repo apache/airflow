@@ -165,6 +165,7 @@ def get_provider_info():
                     "Heroku",
                     "Hugging Face",
                     "LiteLLM",
+                    "Meta",
                     "Mistral AI",
                     "Moonshot AI",
                     "Nebius",
@@ -195,8 +196,28 @@ def get_provider_info():
                 "conn-fields": {
                     "model": {
                         "label": "Model",
-                        "description": "Model in provider:name format (e.g. anthropic:claude-sonnet-5, openai:gpt-5)",
+                        "description": "Model as provider:name (e.g. openai:gpt-5), or bare with a Default Model Provider",
                         "schema": {"type": ["string", "null"]},
+                    },
+                    "model_provider": {
+                        "label": "Default Model Provider",
+                        "description": "Provider for model names without a provider: prefix (e.g. openai-chat). Any provider the installed pydantic-ai recognizes works.\n",
+                        "schema": {
+                            "type": ["string", "null"],
+                            "examples": [
+                                "openai-chat",
+                                "openai",
+                                "anthropic",
+                                "ollama",
+                                "litellm",
+                                "openrouter",
+                                "groq",
+                                "mistral",
+                                "deepseek",
+                                "together",
+                                "fireworks",
+                            ],
+                        },
                     },
                     "fallback_conn_ids": {
                         "label": "Fallback Connections",
@@ -341,7 +362,7 @@ def get_provider_info():
                     },
                     "vertexai": {
                         "label": "Force Vertex AI Mode",
-                        "description": "Ignored (kept for compatibility); mode is now selected via the Model field's prefix.",
+                        "description": "Deprecated and ignored; the Model field's prefix selects the mode.",
                         "schema": {"type": ["boolean", "null"]},
                     },
                     "api_key": {

@@ -70,7 +70,8 @@ Environment (Extra field)
 
 Timeout (Extra field)
     Connection init timeout in seconds for the ``stdio`` transport. Ignored
-    for ``http``/``sse``. Default: ``10``.
+    for ``http``/``sse``. Must be a non-negative finite number; ``0`` or ``null``
+    disables the timeout. Default: ``10``.
 
     Examples: ``30``
 

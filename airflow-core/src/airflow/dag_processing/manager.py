@@ -161,12 +161,6 @@ def _config_get_factory(section: str, key: str):
     return functools.partial(conf.get, section, key)
 
 
-def _resolve_path(instance: Any, attribute: attrs.Attribute, val: str | os.PathLike[str] | None):
-    if val is not None:
-        val = Path(val).resolve()
-    return val
-
-
 def utc_epoch() -> datetime:
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues
@@ -1573,8 +1567,21 @@ class DagFileProcessorManager(LoggingMixin):
             # Put callback files at the front, then sorted regular files
             self._file_queue = OrderedDict.fromkeys(callback_files + sorted_regular_files)
 
+    def _resolve_stats_by_presence_key(self) -> dict[tuple[str, Path], DagFileStat]:
+        """
+        Resolve one stat per physical file from the bundle scan's entries.
+
+        A callback pins ``bundle_version``, so its entry is separate from the scan's and does
+        not track parses of the current file: a callback-only result has no ``last_finish_time``,
+        and a timed-out callback processor is stamped although nothing parsed the current version.
+        A file with no scan entry has no stat, so it is queued.
+        """
+        return {
+            file.presence_key: stat for file, stat in self._file_stats.items() if file.bundle_version is None
+        }
+
     def _sort_by_mtime(self, files: Iterable[DagFileInfo]):
-        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         files_with_mtime: dict[DagFileInfo, float] = {}
         changed_recently = set()
         for file in files:
@@ -1624,19 +1631,19 @@ class DagFileProcessorManager(LoggingMixin):
 
         Note this method is only called when the file path queue is empty
         """
+        file_stats_by_presence_key = self._resolve_stats_by_presence_key()
         # We only emit metrics after processing all files in the queue. If `self._parsing_start_time` is None
         # when this method is called, no files have yet been added to the queue so we shouldn't emit metrics.
         if self._parsing_start_time is not None:
             emit_metrics(
                 parse_time=time.perf_counter() - self._parsing_start_time,
-                dag_file_stats=list(self._file_stats.values()),
+                dag_file_stats=list(file_stats_by_presence_key.values()),
             )
             self._parsing_start_time = None
 
         # If the file path is already being processed, or if a file was
         # processed recently, wait until the next batch
         in_progress_keys = {file.presence_key for file in self._processors}
-        file_stats_by_presence_key = {file.presence_key: stat for file, stat in self._file_stats.items()}
         now = timezone.utcnow()
 
         # Sort the file paths by the parsing order mode

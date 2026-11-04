@@ -38,17 +38,14 @@ For a quick start guide please see :ref:`here <eks_setup_guide>`.
 Requirements
 ------------
 
-The executor needs ``apache-airflow-providers-cncf-kubernetes`` version 10.24.0 or
-newer, the release that added the
-:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory`
-setting the executor is built on. The executor checks this when it is imported and raises a
-clear error if an older version is installed. Install the ``cncf.kubernetes`` extra of the
-Amazon provider together with that version:
+The executor needs a version of ``apache-airflow-providers-cncf-kubernetes`` that lets an
+executor built on the Kubernetes executor bring its own Kubernetes client. The executor checks
+this when it is imported and raises a clear error if an older version is installed. Install the
+``cncf.kubernetes`` extra of the Amazon provider, which requires that version:
 
 .. code-block:: bash
 
-    pip install 'apache-airflow-providers-amazon[cncf.kubernetes]' \
-        'apache-airflow-providers-cncf-kubernetes>=10.24.0'
+    pip install 'apache-airflow-providers-amazon[cncf.kubernetes]'
 
 The executor also relies on botocore using the regional STS endpoint by default (botocore 1.40
 and newer), and the Amazon provider already requires ``botocore>=1.42.79``, so no extra install
@@ -121,10 +118,10 @@ See :doc:`apache-airflow-providers-cncf-kubernetes:kubernetes_executor` for the 
 for how :ref:`pod templates <apache-airflow-providers-cncf-kubernetes:concepts:pod_template_file>` and
 :ref:`apache-airflow-providers-cncf-kubernetes:concepts:pod_override` work.
 
-Leave :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory` and
-:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__async_client_factory`
-unset. The executor sets both itself, and raises an error at startup if either is set to
-something else, so that a conflicting setting cannot silently send tasks to the wrong cluster.
+The executor builds its own Kubernetes clients and ignores
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__client_factory` and
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__async_client_factory`,
+which only apply to the Kubernetes executor.
 
 Set :ref:`[kubernetes_executor] pod_template_file
 <apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor__pod_template_file>`
@@ -203,14 +200,29 @@ Multi-team deployments
 ----------------------
 
 The executor supports :doc:`multi-team <apache-airflow:core-concepts/multi-team>` mode
-the same way the Kubernetes executor does. Teams share the cluster set in the global
-:ref:`[aws_eks_executor] <eks_config_options>` section, and each team gets its own
-team-scoped :ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor` settings,
-such as the namespace and pod template.
+the same way the other AWS executors do. Each team reads its own team-scoped
+:ref:`[aws_eks_executor] <eks_config_options>` and
+:ref:`apache-airflow-providers-cncf-kubernetes:config:kubernetes_executor` settings, so a
+team can use its own cluster, connection, namespace and pod template. Team-scoped settings
+don't fall back to the global ones, so set ``cluster_name`` for every team that uses the
+executor.
 
-The executor refuses to start next to a Kubernetes executor in the same team, or when both are
-global, because that Kubernetes executor would also send its pods to the EKS cluster; configure
-them for different teams instead (see `#74844 <https://github.com/apache/airflow/issues/74844>`__).
+.. code-block:: ini
+
+    [core]
+    multi_team = True
+    executor = LocalExecutor;team_a=airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor;team_b=airflow.providers.amazon.aws.executors.eks.eks_executor.AwsEksExecutor
+
+    [team_a=aws_eks_executor]
+    cluster_name = team-a-cluster
+
+    [team_b=aws_eks_executor]
+    cluster_name = team-b-cluster
+    conn_id = aws_team_b
+
+The executor can also run alongside the Kubernetes executor, in the same team or not, and each
+keeps its own cluster. Keep them on different clusters, though: two executors watching the same
+namespace of one cluster each act on the other's worker pods.
 
 Fault tolerance
 ---------------

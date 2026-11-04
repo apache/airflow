@@ -113,8 +113,10 @@
     "noTryNumber": "No try number",
     "search": {
       "matchCount": "{{current, number}} of {{total, number}}",
+      "nextMatch": "Next match",
       "noMatches": "No matches",
-      "placeholder": "Search logs..."
+      "placeholder": "Search logs...",
+      "previousMatch": "Previous match"
     },
     "settings": "Log Settings",
     "tryNotStarted": "This try hasn't started yet.",

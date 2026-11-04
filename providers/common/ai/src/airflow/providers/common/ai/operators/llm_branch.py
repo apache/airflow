@@ -37,6 +37,7 @@ from airflow.providers.common.ai.utils.decision import (
     review_reason,
     threshold_for,
 )
+from airflow.providers.common.ai.utils.prompt import describe_prompt
 from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.standard.exceptions import HITLRejectException
 from airflow.providers.standard.operators.branch import BranchMixIn
@@ -286,7 +287,7 @@ class LLMBranchOperator(LLMOperator, BranchMixIn):
             chosen = branches if isinstance(branches, str) else json.dumps(branches)
             body = (
                 f"Valid branches: {', '.join(f'`{c}`' for c in choices)}\n\n"
-                f"```\nPrompt: {self.prompt}\n\nChosen branch(es): {chosen}\n```"
+                f"```\nPrompt: {describe_prompt(self.prompt)}\n\nChosen branch(es): {chosen}\n```"
             )
             if review != "require_approval" or model_confidence.confidence:
                 body += "\n\n" + describe_confidence(model_confidence, BARE_OUTPUT_FIELD, threshold)

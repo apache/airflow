@@ -27,7 +27,7 @@ import pytest
 from kubernetes.client import Configuration, models as k8s
 from sqlalchemy import Column, MetaData, Table, text
 from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.exc import StatementError
+from sqlalchemy.exc import OperationalError, StatementError
 from sqlalchemy.schema import CreateTable
 
 from airflow import settings
@@ -43,6 +43,7 @@ from airflow.utils.sqlalchemy import (
     compact_uuid_default,
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
+    is_deadlock_error,
     prohibit_commit,
     with_row_locks,
 )
@@ -523,3 +524,60 @@ class TestCompactUUID:
         )
         ddl = str(CreateTable(table).compile(dialect=mysql.dialect()))
         assert "DEFAULT (UNHEX('0190a1b2c3d47e5f8a9b0c1d2e3f4a5b'))" in ddl
+
+
+class TestIsDeadlockError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        ("orig", "expected"),
+        [
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="40P01", args=("deadlock detected",)),
+                True,
+                id="postgres-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1213, "Deadlock found when trying to get lock")),
+                True,
+                id="mysql-deadlock",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode="55P03", args=("lock not available",)),
+                False,
+                id="postgres-nowait",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=(1205, "Lock wait timeout exceeded")),
+                False,
+                id="mysql-lock-wait-timeout",
+            ),
+            pytest.param(
+                mock.Mock(sqlstate=None, pgcode=None, args=("connection reset",)),
+                False,
+                id="other-operational",
+            ),
+        ],
+    )
+    def test_is_deadlock_error(self, orig, expected):
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("DeadlockDetected", True, id="psycopg3-deadlock"),
+            pytest.param("LockNotAvailable", False, id="psycopg3-nowait"),
+        ],
+    )
+    def test_is_deadlock_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_deadlock_error(self._make_error(orig)) is expected
+
+    def test_dbapi_error_without_orig_is_not_deadlock(self):
+        assert is_deadlock_error(OperationalError("statement", {}, None)) is False
+
+    def test_non_dbapi_error_is_not_deadlock(self):
+        assert is_deadlock_error(RuntimeError("deadlock")) is False

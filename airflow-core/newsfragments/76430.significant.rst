@@ -1,0 +1,11 @@
+The API server uses a second database connection pool
+
+API server workers now run some database work on the async engine as well as the sync one, and each engine has its own connection pool, sized by the same ``[database] sql_alchemy_pool_size`` and ``[database] sql_alchemy_max_overflow`` settings. What uses the async pool depends on the ``--apps`` option of ``airflow api-server``:
+
+- ``execution``: task heartbeats and several Execution API reads.
+- ``core``: the audit log entry recorded for each write request through the REST API or the UI.
+- ``all`` (the default): both of the above.
+
+In every mode a worker can therefore open up to twice ``sql_alchemy_pool_size + sql_alchemy_max_overflow`` connections (30 with the defaults) and keep up to twice ``sql_alchemy_pool_size`` of them idle. Account for this, per ``[api] workers``, when sizing PgBouncer or the database's ``max_connections``.
+
+The async pool is used since #67800, #73403, #73407 and #76416.
