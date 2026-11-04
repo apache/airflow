@@ -153,6 +153,14 @@ most one of them.
 | `_arg_bindings` | an unmapped stub outside any mapped task group | the finished bindings, resolved at parse time |
 | `_mapped_arg_binding_params` | a stub that is mapped, or unmapped inside a mapped task group | one entry per parameter, in declaration order, from which the server derives the bindings at `ti_run` |
 
+Two fields rather than one because they describe different things. `_arg_bindings` is the finished
+payload: `ti_run` ships it to the runtime as `arg_bindings` unchanged. `_mapped_arg_binding_params`
+is input to a derivation that runs per map index, and a binding's required `kind` cannot be filled
+in at parse time — under `expand_kwargs()` the same parameter is a `literal` at one index and an
+`xcom` row at another, and it is `local` wherever a `map()` callable is Python. `value` would
+collide too: the delivered value in one field, the unresolved call argument in the other. Only
+`name` and `value_schema` mean the same thing in both.
+
 `_mapped_arg_binding_params` is the signature, not the call. It lists every parameter, including
 ones the call never passes, and holds no mapped value: those stay in the fields Python already
 writes — `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
