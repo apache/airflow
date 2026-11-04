@@ -62,7 +62,7 @@ const GOLDEN_CODE = Buffer.from(
 // followed by a backslash. The Python reader is then validated against real encoder output.
 const GOLDEN_SOURCE = [
   "/** Handlers for the test Dag. */",
-  'import { Bundle, Dag } from "apache-airflow-ts-sdk";',
+  'import { Bundle, Dag } from "@apache-airflow/ts-sdk";',
   "",
   "const TERMINATOR = /\\*\\//;",
   'const dag = new Dag("test_dag");',
@@ -762,6 +762,37 @@ describe("runPack", () => {
     expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
       "task_handlers.sales_dag.tasks",
       ["extract_north", "load_north"],
+    );
+  });
+
+  it("packs a CommonJS dependency that requires a Node built-in", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const dependencyDir = path.join(outdir, "node_modules", "cjs-dependency");
+    mkdirSync(dependencyDir, { recursive: true });
+    writeFileSync(
+      path.join(dependencyDir, "package.json"),
+      JSON.stringify({ name: "cjs-dependency", main: "index.js" }),
+    );
+    writeFileSync(
+      path.join(dependencyDir, "index.js"),
+      'require("process");\nexports.dagId = "cjs_dag";\n',
+    );
+    const entry = path.join(outdir, "cjs-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'import { dagId } from "cjs-dependency";',
+        "const dag = new Dag(dagId);",
+        'dag.task("extract", async () => undefined)();',
+        "await new Bundle(dag).serve();",
+      ].join("\n"),
+    );
+
+    await runPack([entry, "--outdir", outdir]);
+
+    expect(JSON.parse(readEmbeddedMetadata(path.join(outdir, "bundle.min.mjs")))).toHaveProperty(
+      "dag_source_paths.cjs_dag",
     );
   });
 

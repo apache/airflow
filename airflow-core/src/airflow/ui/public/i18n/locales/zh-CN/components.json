@@ -58,6 +58,13 @@
   "dagWarnings": {
     "error_one": "1 个错误",
     "errorAndWarning": "1 个错误与 {{warningText}}",
+    "types": {
+      "asset conflict": "资源冲突",
+      "duplicate dag id": "重复的 Dag ID",
+      "non-existent pool": "资源池不存在",
+      "runtime varying value": "运行时变化的值",
+      "task group cycle": "任务分组循环"
+    },
     "warning_one": "1 个警告",
     "warning_other": "{{count, number}} 个警告"
   },

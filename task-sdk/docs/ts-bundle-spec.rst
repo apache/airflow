@@ -127,7 +127,7 @@ The ``airflowMetadata`` payload is compact UTF-8 JSON with this logical shape:
       "airflow_bundle_metadata_version": "1.0",
       "sdk": {
         "language": "typescript",
-        "version": "1.0.0-beta1",
+        "version": "1.0.0-beta2",
         "supervisor_schema_version": "2026-06-16"
       },
       "source": "main.ts",

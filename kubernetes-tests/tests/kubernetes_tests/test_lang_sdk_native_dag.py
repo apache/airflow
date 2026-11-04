@@ -19,11 +19,14 @@ End-to-end tests of Dags declared entirely in a language SDK (no Python file at 
 KubernetesExecutor.
 
 The Dag processor parses each native Dag through the coordinator its language routes to,
-from a Dag bundle holding only that language's artifact (``lang-sdk-native-java`` /
-``lang-sdk-native-ts``). The same coordinators also serve the mixed-language Dag's stub
-tasks (see ``test_lang_sdk_mixed_language.py``); a native task ignores
-``task_handler_bundle_name`` and reads its own Dag bundle instead, so one coordinator per
-language is enough -- no ``[sdk] dag_bundle_to_coordinator`` is configured.
+from a Dag bundle holding only that language's artifact (``lang-sdk-native-go`` /
+``lang-sdk-native-java`` / ``lang-sdk-native-ts``). The same coordinators also serve the
+mixed-language Dag's stub tasks (see ``test_lang_sdk_mixed_language.py``); a native task
+ignores ``task_handler_bundle_name`` and reads its own Dag bundle instead, so one coordinator
+per language is enough -- no ``[sdk] dag_bundle_to_coordinator`` is configured.
+
+The class names all start with ``TestLangSdk`` because the CI job that provisions this
+environment selects its tests with ``-k TestLangSdk``.
 
 Prerequisites are provisioned by ``breeze k8s setup-lang-sdk-test``.
 """
@@ -45,18 +48,97 @@ _skip_unless_lang_sdk = pytest.mark.skipif(
 )
 
 
-@pytest.mark.skip(
-    reason="Native Go Dag parsing is not supported yet: there is no Go Dag importer, and "
-    "ExecutableCoordinator has no parse-Dag command. Unskip once a Go bundle can answer a "
-    "Dag-parse request."
-)
-class TestNativeGoDagOnKubernetes(BaseK8STest):
+@_skip_unless_lang_sdk
+class TestLangSdkNativeGoDag(BaseK8STest):
+    """Declared entirely in Go; the same ``go-sdk/example/native`` the compose e2e packs.
+
+    Covers the path a Dag with no Python file takes: the Dag processor runs the packed
+    ``go_native_dags`` binary through the Executable coordinator to parse it, the scheduler reads
+    the serialized Dag, and each task runs in its own pod on the ``golang`` queue the Dag sets.
+    The graph has nested task groups, a fan-in, an ``If``, a ``Switch`` and a trigger-rule join, so
+    pod-per-task scheduling is exercised against branches that skip rather than a linear chain.
+    """
+
+    DAG_ID = "go_native_pipeline"
+    TASK_IDS = [
+        "seed",
+        "extract.regions.north",
+        "extract.regions.south",
+        "extract.summarize",
+        "anyRows",
+        "loadRows",
+        "pick",
+        "publishWeekly",
+        "cleanup",
+    ]
+    # The Else side of the If, and the Case the Switch does not choose.
+    SKIPPED_TASK_IDS = ["reportEmpty", "publishDaily"]
+
+    def _ensure_variable(self, key: str, value: str) -> None:
+        resp = self.session.post(f"http://{self.host}/variables", json={"key": key, "value": value})
+        assert resp.status_code in (200, 201, 409), f"Could not create variable {key}: {resp.text}"
+
+    def _ensure_connection(self) -> None:
+        """Create the ``test_http`` Connection that ``seed`` reads, as the compose e2e defines it."""
+        resp = self.session.post(
+            f"http://{self.host}/connections",
+            json={
+                "connection_id": "test_http",
+                "conn_type": "http",
+                "login": "user",
+                "password": "pass",
+                "host": "example.com",
+                "port": 1234,
+                "extra": '{"param1": "val1", "param2": "val2"}',
+            },
+        )
+        assert resp.status_code in (200, 201, 409), f"Could not create connection test_http: {resp.text}"
+
+    @pytest.mark.execution_timeout(900)
     def test_native_go_dag_succeeds(self):
-        pass
+        # The cadence names the case the Switch chooses, so `publishDaily` is the side that skips.
+        # Both regions are non-empty literals, so the If takes its Then branch and `reportEmpty`
+        # is the side that skips.
+        self._ensure_variable("go_native_greeting", "hello from the k8s test")
+        self._ensure_variable("go_native_cadence", "weekly")
+        self._ensure_connection()
+
+        dag_run_id, logical_date = self.start_job_in_kubernetes(self.DAG_ID, self.host)
+        print(f"Triggered {self.DAG_ID} run {dag_run_id} (logical_date={logical_date})")
+
+        for task_id in self.TASK_IDS:
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=self.DAG_ID,
+                task_id=task_id,
+                expected_final_state="success",
+                timeout=_TIMEOUT,
+            )
+
+        # The branch that was not taken is skipped, not failed, which is what proves the skip
+        # reached the supervisor rather than the task erroring.
+        for skipped in self.SKIPPED_TASK_IDS:
+            self.monitor_task(
+                host=self.host,
+                dag_run_id=dag_run_id,
+                dag_id=self.DAG_ID,
+                task_id=skipped,
+                expected_final_state="skipped",
+                timeout=_TIMEOUT,
+            )
+
+        self.ensure_dag_expected_state(
+            host=self.host,
+            logical_date=logical_date,
+            dag_id=self.DAG_ID,
+            expected_final_state="success",
+            timeout=_TIMEOUT,
+        )
 
 
 @_skip_unless_lang_sdk
-class TestNativeJavaDagOnKubernetes(BaseK8STest):
+class TestLangSdkNativeJavaDag(BaseK8STest):
     """Declared entirely in Java; the interface API half of ``airflow-e2e-tests/java-native-bundle``.
 
     Covers the path a Dag with no Python file takes: the Dag processor parses the
@@ -127,7 +209,7 @@ class TestNativeJavaDagOnKubernetes(BaseK8STest):
 
 
 @_skip_unless_lang_sdk
-class TestNativeTypeScriptDagOnKubernetes(BaseK8STest):
+class TestLangSdkNativeTypeScriptDag(BaseK8STest):
     """The same Dag the SDK and Airflow e2e suites run, under the Node coordinator.
 
     Covers the path a Dag with no Python file takes: the Dag processor parses the

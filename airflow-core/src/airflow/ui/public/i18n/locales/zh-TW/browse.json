@@ -30,6 +30,7 @@
       },
       "file_one": "檔案",
       "file_other": "檔案",
+      "importErrorForbidden": "您沒有檢視此匯入錯誤的權限。",
       "importErrorGone": "此匯入錯誤已不再記錄，可能已透過重新解析修復。",
       "neverParsed": "從未",
       "showImportError_one": "檢視錯誤",
@@ -69,6 +70,7 @@
     "columns": {
       "dag": "Dag",
       "key": "鍵",
+      "timestamp": "時間戳記",
       "value": "值"
     },
     "delete": {

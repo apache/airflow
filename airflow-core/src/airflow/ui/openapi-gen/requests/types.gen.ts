@@ -801,6 +801,17 @@ export type ClearTaskInstancesBody = {
 };
 
 /**
+ * Login methods the auth manager offers to command-line clients, named as in RFC 8414.
+ */
+export type CliLoginMetadataResponse = {
+    grant_types_supported: Array<(string)>;
+    code_challenge_methods_supported: Array<(string)>;
+    authorization_endpoint: string | null;
+    device_authorization_endpoint: string | null;
+    token_endpoint: string | null;
+};
+
+/**
  * List of config sections with their options.
  */
 export type Config = {
@@ -1251,7 +1262,7 @@ export type DagBundleDetailResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1259,11 +1270,11 @@ export type DagBundleDetailResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
     /**
-     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     * Number of live Dags recorded against the bundle, including Dags the caller may not read.
      */
     dag_count: number;
 };
@@ -1282,7 +1293,7 @@ export type DagBundleFileCollectionResponse = {
 export type DagBundleFileResponse = {
     relative_fileloc: string;
     /**
-     * Number of live Dags the file defines that the caller may read.
+     * Number of live Dags the file defines, including Dags the caller may not read.
      */
     dag_count: number;
     /**
@@ -1294,9 +1305,9 @@ export type DagBundleFileResponse = {
      */
     last_parse_duration: number | null;
     /**
-     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     * Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -1317,7 +1328,7 @@ export type DagBundleResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1325,9 +1336,9 @@ export type DagBundleResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -2035,11 +2046,175 @@ export type PoolResponse = {
 };
 
 /**
+ * Asset URI scheme handling provided by a provider.
+ */
+export type ProviderAssetUriInfo = {
+    schemes: Array<(string)>;
+    handler?: string | null;
+    factory?: string | null;
+    to_openlineage_converter?: string | null;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
     providers: Array<ProviderResponse>;
     total_entries: number;
+};
+
+/**
+ * Configuration option contributed by a provider.
+ */
+export type ProviderConfigOptionInfo = {
+    description?: string | null;
+    version_added?: string | null;
+    type?: string | null;
+    example?: string | number | null;
+    default?: string | number | null;
+    sensitive?: boolean | null;
+    is_template?: boolean | null;
+    see_also?: string | null;
+};
+
+/**
+ * Configuration section contributed by a provider.
+ */
+export type ProviderConfigSectionInfo = {
+    description?: string | null;
+    options?: {
+        [key: string]: ProviderConfigOptionInfo;
+    };
+};
+
+/**
+ * Custom connection field a connection type stores in ``Connection.extra``.
+ */
+export type ProviderConnectionFieldInfo = {
+    label: string;
+    description?: string | null;
+    schema: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Connection type provided by a provider.
+ */
+export type ProviderConnectionTypeInfo = {
+    connection_type: string;
+    hook_class_name: string;
+    hook_name?: string | null;
+    ui_field_behaviour?: ProviderConnectionUiFieldBehaviourInfo | null;
+    conn_fields?: {
+    [key: string]: ProviderConnectionFieldInfo;
+} | null;
+    external_services?: Array<(string)> | null;
+};
+
+/**
+ * Customizations a connection type applies to the standard connection form fields.
+ */
+export type ProviderConnectionUiFieldBehaviourInfo = {
+    hidden_fields?: Array<(string)> | null;
+    relabeling?: {
+    [key: string]: (string);
+} | null;
+    placeholders?: {
+    [key: string]: (string);
+} | null;
+};
+
+/**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: ProviderInfoResponse;
+};
+
+/**
+ * SQL dialect provided by a provider.
+ */
+export type ProviderDialectInfo = {
+    dialect_type?: string | null;
+    dialect_class_name?: string | null;
+};
+
+/**
+ * Typed provider metadata (from ``provider.yaml``) exposed by the API.
+ */
+export type ProviderInfoResponse = {
+    package_name?: string | null;
+    name?: string | null;
+    description?: string | null;
+    documentation_url?: string | null;
+    filesystems?: Array<(string)> | null;
+    integrations?: Array<ProviderIntegrationInfo> | null;
+    operators?: Array<ProviderIntegrationModulesInfo> | null;
+    sensors?: Array<ProviderIntegrationModulesInfo> | null;
+    hooks?: Array<ProviderIntegrationModulesInfo> | null;
+    triggers?: Array<ProviderIntegrationModulesInfo> | null;
+    bundles?: Array<ProviderIntegrationModulesInfo> | null;
+    asset_uris?: Array<ProviderAssetUriInfo> | null;
+    dialects?: Array<ProviderDialectInfo> | null;
+    transfers?: Array<ProviderTransferInfo> | null;
+    connection_types?: Array<ProviderConnectionTypeInfo> | null;
+    extra_links?: Array<(string)> | null;
+    secrets_backends?: Array<(string)> | null;
+    email_backends?: Array<(string)> | null;
+    logging?: Array<(string)> | null;
+    remote_logging?: Array<ProviderRemoteLoggingInfo> | null;
+    auth_backends?: Array<(string)> | null;
+    auth_managers?: Array<(string)> | null;
+    notifications?: Array<(string)> | null;
+    executors?: Array<(string)> | null;
+    db_managers?: Array<(string)> | null;
+    cli?: Array<(string)> | null;
+    config?: {
+    [key: string]: ProviderConfigSectionInfo;
+} | null;
+    task_decorators?: Array<ProviderTaskDecoratorInfo> | null;
+    plugins?: Array<ProviderPluginInfo> | null;
+    queues?: Array<(string)> | null;
+};
+
+/**
+ * Integration provided by a provider.
+ */
+export type ProviderIntegrationInfo = {
+    integration_name: string;
+    external_doc_url?: string | null;
+    how_to_guide?: Array<(string)> | null;
+    logo?: string | null;
+    tags?: Array<(string)> | null;
+};
+
+/**
+ * Python modules an integration contributes for one kind of functionality.
+ */
+export type ProviderIntegrationModulesInfo = {
+    integration_name: string;
+    python_modules: Array<(string)>;
+};
+
+/**
+ * Plugin provided by a provider.
+ */
+export type ProviderPluginInfo = {
+    name?: string | null;
+    plugin_class?: string | null;
+};
+
+/**
+ * Remote logging IO handler provided by a provider.
+ */
+export type ProviderRemoteLoggingInfo = {
+    classpath: string;
+    scheme: string;
 };
 
 /**
@@ -2050,6 +2225,24 @@ export type ProviderResponse = {
     description: string;
     version: string;
     documentation_url: string | null;
+};
+
+/**
+ * TaskFlow decorator provided by a provider.
+ */
+export type ProviderTaskDecoratorInfo = {
+    name?: string | null;
+    class_name?: string | null;
+};
+
+/**
+ * Transfer operator provided by a provider.
+ */
+export type ProviderTransferInfo = {
+    source_integration_name: string;
+    target_integration_name: string;
+    python_module: string;
+    how_to_guide?: string | null;
 };
 
 /**
@@ -2229,9 +2422,13 @@ export type TaskInstanceHistoryResponse = {
     dag_version: DagVersionResponse | null;
     note?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     * The reason this try ended, as recorded by a retry policy.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2280,9 +2477,13 @@ export type TaskInstanceResponse = {
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2901,6 +3102,13 @@ export type DAGsRunStateCountsCollectionResponse = {
 };
 
 /**
+ * Number of Dag bundles holding a Dag or an import error the caller may read.
+ */
+export type DagBundleCountResponse = {
+    total_entries: number;
+};
+
+/**
  * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
  */
 export type DagFolderCollectionResponse = {
@@ -3179,6 +3387,7 @@ export type LightGridTaskInstanceSummary = {
     loop_iterations_count?: number | null;
     latest_region_id?: string | null;
     latest_region_index?: number | null;
+    retry_at?: string | null;
 };
 
 /**
@@ -3317,9 +3526,10 @@ export type OklchColor = string;
  * Asset info within a partitioned Dag run detail.
  */
 export type PartitionedDagRunAssetResponse = {
-    asset_id: number;
-    asset_name: string;
-    asset_uri: string;
+    asset_id: number | null;
+    asset_name: string | null;
+    asset_uri: string | null;
+    hidden?: boolean;
     received: boolean;
     received_count: number;
     required_count: number;
@@ -3598,6 +3808,10 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
     assetId: number;
     before?: string | null;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -3618,6 +3832,10 @@ export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteDagAssetQueuedEventsData = {
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -3634,6 +3852,10 @@ export type DeleteDagAssetQueuedEventData = {
     assetId: number;
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -4114,6 +4336,8 @@ export type GetDagBundleFilesData = {
 };
 
 export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
+
+export type GetDagBundleCountResponse = DagBundleCountResponse;
 
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
@@ -5124,6 +5348,12 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
+
 export type ListAssetStateStoreData = {
     assetId: number;
     limit?: number;
@@ -5448,6 +5678,8 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
+export type GetCliLoginMetadataResponse = CliLoginMetadataResponse;
+
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
@@ -5519,6 +5751,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -7139,6 +7375,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dagBundles/count': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCountResponse;
             };
         };
     };
@@ -8897,6 +9143,33 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/assets/{asset_id}/state-store': {
         get: {
             req: ListAssetStateStoreData;
@@ -9730,6 +10003,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/auth/cli/metadata': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CliLoginMetadataResponse;
             };
         };
     };

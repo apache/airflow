@@ -27,6 +27,10 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``DataprocHook.client`` property has been removed. Use ``dataproc_client`` instead.
+  ``DataprocHook.client`` now returns the base Yandex Cloud SDK client, like other Yandex hooks.
+
 4.6.1
 .....
 

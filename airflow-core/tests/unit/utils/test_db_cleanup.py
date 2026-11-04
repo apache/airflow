@@ -50,6 +50,15 @@ from airflow import DAG, settings
 from airflow._shared.timezones import timezone
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel, DagRun, TaskInstance
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+    asset_alias_asset_event_association_table,
+    association_table,
+)
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
@@ -679,6 +688,97 @@ class TestDBCleanup:
                 if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_run__")
             ]
             assert len(archives) == expected_archives
+
+    @pytest.mark.parametrize(
+        ("batch_size", "clean_before_days", "expected_found_line", "expected_delete_lines"),
+        [
+            pytest.param(
+                None,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 5 rows from dag_run.",
+                ],
+                id="unbatched",
+            ),
+            pytest.param(
+                2,
+                5,
+                "Found 5 rows in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run (batch 1, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 1).",
+                    "Performing Delete from dag_run (batch 2, max 2 rows)...",
+                    "Deleted 2 rows from dag_run (batch 2).",
+                    "Performing Delete from dag_run (batch 3, max 2 rows)...",
+                    "Deleted 1 row from dag_run (batch 3).",
+                ],
+                id="batched",
+            ),
+            pytest.param(
+                None,
+                1,
+                "Found 1 row in table dag_run meeting deletion criteria.",
+                [
+                    "Performing Delete from dag_run...",
+                    "Deleted 1 row from dag_run.",
+                ],
+                id="singular",
+            ),
+        ],
+    )
+    def test_cleanup_progress_names_table(
+        self, batch_size, clean_before_days, expected_found_line, expected_delete_lines, capsys
+    ):
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone("UTC"))
+        create_tis(base_date=base_date, num_tis=10)
+
+        with create_session() as session:
+            for name in _get_archived_table_names(["dag_run"], session):
+                session.execute(text(f"DROP TABLE IF EXISTS {name}"))
+
+            capsys.readouterr()
+            _cleanup_table(
+                **config_dict["dag_run"].__dict__,
+                clean_before_timestamp=base_date.add(days=clean_before_days),
+                dry_run=False,
+                session=session,
+                table_names=["dag_run"],
+                skip_archive=False,
+                batch_size=batch_size,
+            )
+
+        output_lines = capsys.readouterr().out.splitlines()
+        assert expected_found_line in output_lines
+        for line in expected_delete_lines:
+            assert line in output_lines
+        moving_lines = [line for line in output_lines if line.startswith("Moving data")]
+        assert moving_lines
+        assert all(
+            line.startswith(f"Moving data from dag_run to table {ARCHIVE_TABLE_PREFIX}dag_run__")
+            for line in moving_lines
+        )
+        assert output_lines[-1] == "Finished Performing Delete from dag_run"
+
+    @patch("airflow.utils.db_cleanup._build_query", autospec=True)
+    def test_cleanup_progress_uses_schema_qualified_table_name(self, build_query_mock, capsys):
+        build_query_mock.return_value = select(literal(1))
+        orm_model = Table("log", MetaData(), schema="audit")
+
+        with create_session() as session:
+            _cleanup_table(
+                orm_model=orm_model,
+                recency_column=None,
+                keep_last=False,
+                keep_last_filters=None,
+                keep_last_group_by=None,
+                clean_before_timestamp=pendulum.DateTime(2022, 1, 1, tzinfo=UTC),
+                dry_run=True,
+                session=session,
+            )
+
+        assert "Found 1 row in table audit.log meeting deletion criteria." in capsys.readouterr().out
 
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
@@ -1810,6 +1910,175 @@ class TestDBCleanup:
             )
             == 1
         )
+
+
+class TestAssetEventCleanup:
+    CUTOFF = pendulum.datetime(2024, 1, 2, tz="UTC")
+
+    @pytest.fixture
+    def asset_events(self, session):
+        drop_tables_with_prefix(ARCHIVE_TABLE_PREFIX)
+        assets = [AssetModel(name=f"asset-{i}", uri=f"test://asset-{i}") for i in range(3)]
+        session.add_all(assets)
+        session.flush()
+        asset_ids = [asset.id for asset in assets]
+        events = [
+            AssetEvent(asset_id=asset_id, source_dag_id=source, timestamp=self.CUTOFF.add(days=offset))
+            for asset_id in asset_ids
+            for source in ("producer", "other", None)
+            for offset in (-1, 0, 1)
+        ]
+        session.add_all(events)
+        session.flush()
+        rows = {event.id: (event.asset_id, event.source_dag_id, event.timestamp) for event in events}
+        session.commit()
+        yield asset_ids, rows
+        drop_tables_with_prefix(ARCHIVE_TABLE_PREFIX)
+
+    @pytest.mark.parametrize(
+        ("dry_run", "skip_archive", "batch_size", "dag_ids", "exclude_dag_ids", "sources"),
+        [
+            pytest.param(False, False, None, None, None, {"producer", "other", None}, id="archive"),
+            pytest.param(False, False, 2, None, None, {"producer", "other", None}, id="batched-archive"),
+            pytest.param(False, True, 2, None, None, {"producer", "other", None}, id="batched-skip-archive"),
+            pytest.param(True, False, 2, None, None, {"producer", "other", None}, id="dry-run"),
+            pytest.param(False, True, 2, ["producer"], None, {"producer"}, id="include-dag"),
+            pytest.param(False, True, 2, None, ["other"], {"producer", None}, id="exclude-dag"),
+            pytest.param(
+                False, True, 2, ["producer", "other"], ["other"], {"producer"}, id="intersect-dag-filters"
+            ),
+        ],
+    )
+    def test_cleanup_selected_assets(
+        self,
+        asset_events,
+        session,
+        dag_maker,
+        capsys,
+        dry_run,
+        skip_archive,
+        batch_size,
+        dag_ids,
+        exclude_dag_ids,
+        sources,
+    ):
+        asset_ids, rows = asset_events
+        selected_assets = asset_ids[:2]
+        with dag_maker("asset_cleanup_consumer", session=session):
+            pass
+        dag_run = dag_maker.create_dagrun()
+        dag_run_id, dag_id = dag_run.id, dag_run.dag_id
+        alias = AssetAliasModel(name="cleanup-alias")
+        session.add(alias)
+        session.flush()
+        alias_id = alias.id
+        session.add_all(DagScheduleAssetReference(asset_id=asset_id, dag_id=dag_id) for asset_id in asset_ids)
+        session.add_all(
+            AssetDagRunQueue(asset_event_id=event_id, asset_id=row[0], target_dag_id=dag_id)
+            for event_id, row in rows.items()
+        )
+        session.execute(
+            association_table.insert(),
+            [{"dag_run_id": dag_run_id, "event_id": event_id} for event_id in rows],
+        )
+        session.execute(
+            asset_alias_asset_event_association_table.insert(),
+            [{"alias_id": alias_id, "event_id": event_id} for event_id in rows],
+        )
+        session.commit()
+        matching = {
+            event_id
+            for event_id, (asset_id, source, timestamp) in rows.items()
+            if asset_id in selected_assets and source in sources and timestamp < self.CUTOFF
+        }
+
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=selected_assets,
+            dag_ids=dag_ids,
+            exclude_dag_ids=exclude_dag_ids,
+            dry_run=dry_run,
+            skip_archive=skip_archive,
+            batch_size=batch_size,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+
+        remaining = set(rows) if dry_run else set(rows) - matching
+        assert set(session.scalars(select(AssetEvent.id))) == remaining
+        assert set(session.scalars(select(AssetDagRunQueue.asset_event_id))) == remaining
+        assert set(session.scalars(select(association_table.c.event_id))) == remaining
+        assert set(session.scalars(select(asset_alias_asset_event_association_table.c.event_id))) == remaining
+        assert set(session.scalars(select(AssetModel.id))) == set(asset_ids)
+        assert session.scalar(select(DagModel.dag_id).where(DagModel.dag_id == dag_id)) == dag_id
+        assert session.scalar(select(DagRun.id).where(DagRun.id == dag_run_id)) == dag_run_id
+        assert session.scalar(select(AssetAliasModel.id)) == alias_id
+        assert set(session.scalars(select(DagScheduleAssetReference.asset_id))) == set(asset_ids)
+
+        archives = [
+            name
+            for name in _get_archived_table_names(["asset_event"], session)
+            if name.startswith(f"{ARCHIVE_TABLE_PREFIX}asset_event__")
+        ]
+        if dry_run or skip_archive:
+            assert archives == []
+        else:
+            archived_ids = {
+                event_id
+                for name in archives
+                for event_id in session.scalars(select(sa.column("id")).select_from(sa.table(name)))
+            }
+            assert archived_ids == matching
+            assert len(archives) == (len(matching) // batch_size if batch_size else 1)
+        if dry_run:
+            output = capsys.readouterr().out
+            assert f"Restricting cleanup to asset IDs {selected_assets!r}." in output
+            assert f"Found {len(matching)} rows in table asset_event meeting deletion criteria." in output
+
+    @pytest.mark.parametrize("empty_selection", [False, True])
+    def test_asset_filter_is_request_local(self, asset_events, session, empty_selection):
+        asset_ids, rows = asset_events
+        selected = [] if empty_selection else asset_ids[:1]
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=selected,
+            skip_archive=True,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+        deleted = {
+            event_id
+            for event_id, (asset_id, _, timestamp) in rows.items()
+            if asset_id in selected and timestamp < self.CUTOFF
+        }
+        assert set(session.scalars(select(AssetEvent.id))) == set(rows) - deleted
+
+        run_cleanup(
+            clean_before_timestamp=self.CUTOFF,
+            table_names=["asset_event"],
+            asset_ids=None,
+            skip_archive=True,
+            confirm=False,
+            error_on_cleanup_failure=True,
+            session=session,
+        )
+        assert set(session.scalars(select(AssetEvent.id))) == {
+            event_id for event_id, (_, _, timestamp) in rows.items() if timestamp >= self.CUTOFF
+        }
+
+    @patch("builtins.input", autospec=True, return_value="cancel")
+    def test_confirmation_includes_asset_ids(self, mock_input, capsys):
+        with pytest.raises(SystemExit, match="User did not confirm"):
+            run_cleanup(
+                clean_before_timestamp=self.CUTOFF,
+                table_names=["asset_event"],
+                asset_ids=[1, 2],
+            )
+        assert "for asset IDs [1, 2]" in capsys.readouterr().out
 
 
 def create_tis(base_date, num_tis, run_type=DagRunType.SCHEDULED):

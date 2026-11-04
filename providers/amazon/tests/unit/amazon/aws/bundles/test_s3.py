@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from unittest.mock import MagicMock, call
 
 import boto3
@@ -174,15 +173,6 @@ class TestS3DagBundle:
         # initialize succeeds, with empty prefix
         bundle.initialize()
         assert bundle.s3_hook.region_name == AWS_CONN_ID_REGION
-
-    def _upload_fixtures(self, bucket: str, fixtures_dir: str) -> None:
-        client = boto3.client("s3")
-        fixtures_paths = [
-            os.path.join(path, filename) for path, _, files in os.walk(fixtures_dir) for filename in files
-        ]
-        for path in fixtures_paths:
-            key = os.path.relpath(path, fixtures_dir)
-            client.upload_file(Filename=path, Bucket=bucket, Key=key)
 
     def test_refresh(self, s3_bucket, s3_client):
         bundle = S3DagBundle(

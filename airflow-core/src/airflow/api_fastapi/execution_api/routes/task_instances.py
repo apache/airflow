@@ -120,7 +120,7 @@ from airflow.models.xcom import build_xcom_read_query, xcom_entity
 from airflow.serialization.definitions.assets import SerializedAsset, SerializedAssetUniqueKey
 from airflow.state import get_state_backend
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.sqlalchemy import get_dialect_name, is_deadlock_error
 from airflow.utils.state import DagRunState, IntermediateTIState, TaskInstanceState, TerminalTIState
 
 router = VersionedAPIRouter(route_class=ExecutionAPIRoute)
@@ -197,6 +197,7 @@ def ti_run(
             TI.unixname,
             TI.pid,
             TI.dag_version_id,
+            TI.is_stub,
             # This selects the raw JSON value, bypassing the deserialization -- we want that to happen on the
             # client
             column("next_kwargs", JSON),
@@ -288,8 +289,8 @@ def ti_run(
         )
         # One sample per queue wait, not per try: the scheduler refreshes queued_dttm on every
         # queueing, so a retry and a resume from deferral each waited for a slot of their own.
-        # task.scheduled_duration skips retries (emit_state_change_metric returns early while
-        # end_date is set), so the two disagree on retries by design.
+        # task.scheduled_duration is one sample per try (emit_state_change_metric returns early once
+        # the try has an end_date, as after a sensor reschedule), so the two disagree on resumes by design.
         # queued_dttm is unset only for runs that skip the scheduler's queueing, e.g. dag.test().
         emit_queued_duration = ti.queued_dttm is not None
 
@@ -302,6 +303,7 @@ def ti_run(
         state=TaskInstanceState.RUNNING,
         last_heartbeat_at=timezone.utcnow(),
         retry_delay_override=None,
+        retry_at=None,
         retry_reason=None,
     )
 
@@ -382,30 +384,38 @@ def ti_run(
         if first_task_reschedule_start_date is not None:
             context.first_task_reschedule_start_date = first_task_reschedule_start_date
 
-        serialized_task = get_task(dag_bag, ti, session=session)
+        # Only a lang-SDK (foreign-runtime) task needs its definition here: a Python task parses its
+        # Dag file itself. ti.is_stub carries the row's own copy of the serialized flag, so a Python
+        # task never loads the serialized Dag. The arg_bindings version check also covers
+        # execution_timeout, which only exists in a later API version.
+        if (
+            client_supports_arg_bindings()
+            and ti.is_stub
+            and (serialized_task := get_task(dag_bag, ti, session=session)) is not None
+        ):
+            # The route excludes unset fields, keeping responses without a captured TaskFlow arg spec lean.
+            if arg_bindings := get_arg_bindings(serialized_task):
+                try:
+                    context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
+                except ValidationError:
+                    log.exception(
+                        "Serialized arg_bindings spec failed validation",
+                        dag_id=ti.dag_id,
+                        task_id=ti.task_id,
+                        dag_version_id=ti.dag_version_id,
+                    )
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail={
+                            "reason": "invalid_arg_bindings",
+                            "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
+                        },
+                    )
 
-        # Only set for lang-SDK (foreign-runtime) tasks with a captured TaskFlow arg
-        # spec; the route excludes unset fields, keeping regular responses lean.
-        if client_supports_arg_bindings() and (arg_bindings := get_arg_bindings(serialized_task)):
-            try:
-                context.arg_bindings = get_arg_bindings_adapter().validate_python(arg_bindings)
-            except ValidationError:
-                log.exception(
-                    "Serialized arg_bindings spec failed validation",
-                    dag_id=ti.dag_id,
-                    task_id=ti.task_id,
-                    dag_version_id=ti.dag_version_id,
-                )
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail={
-                        "reason": "invalid_arg_bindings",
-                        "message": "The serialized TaskFlow arg spec for this stub task is not valid.",
-                    },
-                )
-
-        if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
-            context.execution_timeout = execution_timeout
+            # The runtime cannot read the execution_timeout set on a Python stub, so it gets it here.
+            # A Python task enforces its own and sends that to the supervisor.
+            if (execution_timeout := get_execution_timeout(serialized_task)) is not None:
+                context.execution_timeout = execution_timeout
 
         # Only set if they are non-null
         if ti.next_method:
@@ -693,8 +703,9 @@ def ti_update_state(
     except DataError:
         # Let DataErrorHandler return a 422 instead of silently marking the TI FAILED below.
         raise
-    except Exception:
-        if loop_gate is not None:
+    except Exception as e:
+        # A deadlock is transient: return a 5xx so the Task SDK client retries instead of failing the TI.
+        if loop_gate is not None or is_deadlock_error(e):
             raise
         # Set a task to failed in case any unexpected exception happened during task state update
         log.exception(
@@ -927,7 +938,8 @@ def _create_ti_state_update_query_and_update_state(
                 if "rendered_map_index" in ti_patch_payload.model_fields_set:
                     ti._rendered_map_index = ti_patch_payload.rendered_map_index
             # Store retry policy overrides so next_retry_datetime() can read them.
-            # These are cleared when the task enters RUNNING (ti_run).
+            # These are cleared on clear, when the next attempt is scheduled or deferred, and
+            # when the task enters RUNNING (ti_run).
             query = query.values(retry_delay_override=retry_delay_override, retry_reason=retry_reason)
         elif isinstance(ti_patch_payload, TISuccessStatePayload):
             if ti is not None:
@@ -958,6 +970,8 @@ def _create_ti_state_update_query_and_update_state(
             kwargs={},
             queue=ti_patch_payload.queue,
             team_name=get_team_name_for_ti(task_instance_id, session),
+            dag_id=dag_id,
+            owner_ref={"ti_id": str(task_instance_id)},
         )
         trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)

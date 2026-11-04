@@ -630,11 +630,8 @@ export const prefetchUseDagSourceServiceGetDagSource = (queryClient: QueryClient
 * Reports the version of each bundle Airflow currently holds and when a Dag processor last
 * refreshed it, so whoever deployed the code can tell whether it has been picked up yet.
 *
-* A bundle is visible to a user who can read at least one Dag recorded against it. A bundle
-* holding no registered Dag at all has nothing to authorize against, so it is listed only for a
-* user holding the admin-by-default ``AccessView.IMPORT_ERRORS_ALL`` for that bundle's team --
-* the same view, scoped the same way, that governs import errors for a file that never
-* registered a Dag.
+* Needs ``AccessView.DAG_BUNDLES``. In a multi-team deployment it is checked against each
+* bundle's team, and bundles of a team the caller cannot see are left out.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -662,10 +659,9 @@ export const prefetchUseDagBundleServiceGetDagBundle = (queryClient: QueryClient
 * Get Dag Bundle Files
 * List the files in a Dag bundle, ordered by path.
 *
-* A file is listed when the caller can read at least one Dag it defines. A file that recorded an
-* import error without registering any Dag is listed too, on the same admin-by-default terms as
-* ``GET /importErrors`` -- a file that fails before defining a Dag has no Dag to authorize on,
-* and it is the case this page most needs to show.
+* Every file the bundle holds is listed, with counts covering the whole file: the bundle is
+* authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
+* file's Dags contain, and the text of its import error, stay behind their own permissions.
 *
 * ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
 * has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
@@ -687,6 +683,19 @@ export const prefetchUseDagBundleServiceGetDagBundleFiles = (queryClient: QueryC
   limit?: number;
   offset?: number;
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDagBundleServiceGetDagBundleFilesKeyFn({ bundleName, limit, offset }), queryFn: () => DagBundleService.getDagBundleFiles({ bundleName, limit, offset }) });
+/**
+* Get Dag Bundle Count
+* Count the Dag bundles holding a Dag or an import error the caller may read.
+*
+* Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI can tell whether a
+* bundle name is worth showing next to an import error. Stale Dags count, and so do import errors
+* in files that never registered a Dag, which ``GET /importErrors`` shows to holders of
+* ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import is where the name
+* matters most.
+* @returns DagBundleCountResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseDagBundleServiceGetDagBundleCount = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseDagBundleServiceGetDagBundleCountKeyFn(), queryFn: () => DagBundleService.getDagBundleCount() });
 /**
 * Get Dag Stats
 * Get Dag statistics.
@@ -1837,6 +1846,17 @@ export const prefetchUseProviderServiceGetProviders = (queryClient: QueryClient,
   offset?: number;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProvidersKeyFn({ limit, offset }), queryFn: () => ProviderService.getProviders({ limit, offset }) });
 /**
+* Get Provider
+* Get detailed information about an installed provider.
+* @param data The data for the request.
+* @param data.providerName
+* @returns ProviderDetailsResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseProviderServiceGetProvider = (queryClient: QueryClient, { providerName }: {
+  providerName: string;
+}) => queryClient.prefetchQuery({ queryKey: Common.UseProviderServiceGetProviderKeyFn({ providerName }), queryFn: () => ProviderService.getProvider({ providerName }) });
+/**
 * List Asset State Store
 * List all state store entries for an asset.
 * @param data The data for the request.
@@ -2152,6 +2172,13 @@ export const prefetchUseLoginServiceLogin = (queryClient: QueryClient, { next }:
   next?: string;
 } = {}) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceLoginKeyFn({ next }), queryFn: () => LoginService.login({ next }) });
 /**
+* Get Cli Login Metadata
+* Return the login methods the AuthManager configured offers to command-line clients.
+* @returns CliLoginMetadataResponse Successful Response
+* @throws ApiError
+*/
+export const prefetchUseLoginServiceGetCliLoginMetadata = (queryClient: QueryClient) => queryClient.prefetchQuery({ queryKey: Common.UseLoginServiceGetCliLoginMetadataKeyFn(), queryFn: () => LoginService.getCliLoginMetadata() });
+/**
 * Logout
 * Logout the user.
 * @returns unknown Successful Response
@@ -2280,23 +2307,25 @@ export const prefetchUseDeadlinesServiceGetDeadlines = (queryClient: QueryClient
 }) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDeadlinesKeyFn({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }), queryFn: () => DeadlinesService.getDeadlines({ dagId, dagRunId, deadlineTimeGt, deadlineTimeGte, deadlineTimeLt, deadlineTimeLte, lastUpdatedAtGt, lastUpdatedAtGte, lastUpdatedAtLt, lastUpdatedAtLte, limit, missed, offset, orderBy, teams }) });
 /**
 * Get Dag Deadline Alerts
-* Get all deadline alerts defined on a Dag.
+* Get deadline alerts defined on a Dag, optionally filtered by name pattern.
 * @param data The data for the request.
 * @param data.dagId
 * @param data.versionNumber
 * @param data.limit
+* @param data.namePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
 * @returns DeadlineAlertCollectionResponse Successful Response
 * @throws ApiError
 */
-export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, offset, orderBy, versionNumber }: {
+export const prefetchUseDeadlinesServiceGetDagDeadlineAlerts = (queryClient: QueryClient, { dagId, limit, namePattern, offset, orderBy, versionNumber }: {
   dagId: string;
   limit?: number;
+  namePattern?: string;
   offset?: number;
   orderBy?: string[];
   versionNumber?: number;
-}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, offset, orderBy, versionNumber }) });
+}) => queryClient.prefetchQuery({ queryKey: Common.UseDeadlinesServiceGetDagDeadlineAlertsKeyFn({ dagId, limit, namePattern, offset, orderBy, versionNumber }), queryFn: () => DeadlinesService.getDagDeadlineAlerts({ dagId, limit, namePattern, offset, orderBy, versionNumber }) });
 /**
 * Get Callback Logs
 * Get the execution logs of a deadline callback.

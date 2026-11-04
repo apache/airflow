@@ -25,6 +25,12 @@
 Changelog
 ---------
 
+.. note::
+    Airflow 3.4.0 adds a Dag bundles view, which in multi-team mode is checked against the
+    ``AdminView`` resource, so only ``SuperAdmin`` holds it. Multi-team deployments must upgrade this
+    provider together with Airflow 3.4.0: older releases check the view against ``View``, which every
+    team role can read.
+
 0.11.2
 ......
 
