@@ -60,3 +60,10 @@ def test_lazy_imports_are_reexported_for_type_checkers() -> None:
     lazy_imports, _, type_checking_names, annotated_names = _parse_sdk_init()
     undeclared = set(lazy_imports) - (type_checking_names | annotated_names)
     assert undeclared == set(), f"lazy imports missing from the TYPE_CHECKING block: {sorted(undeclared)}"
+
+
+def test_dir_lists_lazy_imports() -> None:
+    """dir() must expose the lazy imports so REPLs, IDEs and tooling can discover the public API."""
+    lazy_imports, _, _, _ = _parse_sdk_init()
+    missing = set(lazy_imports) - set(dir(airflow.sdk))
+    assert missing == set(), f"lazy imports missing from dir(): {sorted(missing)}"
