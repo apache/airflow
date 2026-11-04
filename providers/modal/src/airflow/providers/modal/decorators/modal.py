@@ -222,7 +222,7 @@ class _ModalDecoratedOperator(DecoratedOperator, _ModalSandboxOperator):
     in the image, and there is no task context, connection or hook inside the function. Pass
     credentials in as Modal secrets.
 
-    Arguments and the return value travel as pickles, so they must unpickle on the other side:
+    Arguments and the return value travel as pickles, so they must load on the other side:
     use plain Python values, not objects from packages that only one side has installed.
 
     :param image: The ``modal.Image`` to run in. Defaults to ``modal.Image.debian_slim()``,

@@ -62,7 +62,7 @@ The function's source is sent to the sandbox on its own, as with ``@task.docker`
   functions in the Dag file do not exist in the sandbox.
 * Take every input as an argument. There is no task context, connection, variable or hook
   inside the function.
-* Arguments and the return value are pickled. They must unpickle on the other side, so pass
+* Arguments and the return value are pickled. They must load on the other side, so pass
   plain Python values, not objects from packages that only the worker or only the image has.
   The image's Python version does not have to match the worker's.
 * Pass credentials as Modal secrets, not as arguments: arguments are rendered in the Airflow UI.
