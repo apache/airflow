@@ -1962,7 +1962,7 @@ class TestEmrServerlessStartJobOperatorDurable:
         mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
         store = _FakeTaskStateStore({self.key: "existing-run"})
 
-        operator = self._operator(wait_for_completion=True, deferrable=True)
+        operator = self._operator(wait_for_completion=True, deferrable=True, cancel_on_kill=False)
         operator.defer = mock.MagicMock()
         operator.execute({"task_state_store": store})
 
