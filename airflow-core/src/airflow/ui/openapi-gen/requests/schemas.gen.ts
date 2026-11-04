@@ -13053,6 +13053,20 @@ export const $DeadlineCollectionResponse = {
         total_entries: {
             type: 'integer',
             title: 'Total Entries'
+        },
+        deadline_alerts: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/DeadlineAlertResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Deadline Alerts'
         }
     },
     type: 'object',
