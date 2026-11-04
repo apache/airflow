@@ -17,13 +17,21 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import pytest
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.testing_dags import build_dag_bundle_config_list, find_testing_dag_folders
+from tests_common.test_utils.testing_dags import (
+    build_dag_bundle_config_list,
+    find_testing_dag_folders,
+    main,
+    parse_provider_ids,
+)
 
 LOCAL_BUNDLE = "airflow.dag_processing.bundles.local.LocalDagBundle"
+HIVE_BUNDLE = "apache-airflow-providers-apache-hive-testing-dags"
+STANDARD_BUNDLE = "apache-airflow-providers-standard-testing-dags"
 
 
 @pytest.fixture
@@ -38,19 +46,55 @@ def providers_root(tmp_path):
     return tmp_path
 
 
-def test_find_testing_dag_folders(providers_root):
-    folders = find_testing_dag_folders(providers_root)
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        pytest.param("all", None, id="all"),
+        pytest.param(" all ", None, id="all-with-spaces"),
+        pytest.param("amazon", ["amazon"], id="single"),
+        pytest.param("amazon, apache.hive,", ["amazon", "apache.hive"], id="list"),
+    ],
+)
+def test_parse_provider_ids(value, expected):
+    assert parse_provider_ids(value) == expected
 
-    assert {name: folder.relative_to(providers_root).as_posix() for name, folder in folders.items()} == {
-        "apache-airflow-providers-apache-hive-testing-dags": "apache/hive/tests/testing_dags",
-        "apache-airflow-providers-standard-testing-dags": "standard/tests/testing_dags",
-    }
+
+@pytest.mark.parametrize(
+    ("provider_ids", "expected"),
+    [
+        pytest.param(
+            None,
+            {HIVE_BUNDLE: "apache/hive/tests/testing_dags", STANDARD_BUNDLE: "standard/tests/testing_dags"},
+            id="all",
+        ),
+        pytest.param(["apache.hive"], {HIVE_BUNDLE: "apache/hive/tests/testing_dags"}, id="selected"),
+        pytest.param([], {}, id="none"),
+    ],
+)
+def test_find_testing_dag_folders(providers_root, provider_ids, expected):
+    folders = find_testing_dag_folders(provider_ids, providers_root)
+
+    assert {
+        name: folder.relative_to(providers_root).as_posix() for name, folder in folders.items()
+    } == expected
 
 
 def test_find_testing_dag_folders_skips_non_provider_folders(tmp_path):
     (tmp_path / "not-a-provider" / "tests" / "testing_dags").mkdir(parents=True)
 
-    assert find_testing_dag_folders(tmp_path) == {}
+    assert find_testing_dag_folders(providers_root=tmp_path) == {}
+
+
+@pytest.mark.parametrize(
+    "provider_ids",
+    [
+        pytest.param(["amazon", "standard"], id="provider-without-testing-dags"),
+        pytest.param(["apache-hive", "standard"], id="dashed-id"),
+    ],
+)
+def test_find_testing_dag_folders_rejects_unknown_providers(providers_root, provider_ids):
+    with pytest.raises(ValueError, match=f"no tests/testing_dags folder: {provider_ids[0]}$"):
+        find_testing_dag_folders(provider_ids, providers_root)
 
 
 @pytest.mark.parametrize(
@@ -68,18 +112,41 @@ def test_find_testing_dag_folders_skips_non_provider_folders(tmp_path):
 )
 def test_build_dag_bundle_config_list_appends_testing_bundles(providers_root, configured_bundles):
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(configured_bundles)}):
-        bundle_configs = json.loads(build_dag_bundle_config_list(providers_root))
+        bundle_configs = json.loads(build_dag_bundle_config_list(["standard"], providers_root))
 
     assert bundle_configs == [
         *configured_bundles,
         {
-            "name": "apache-airflow-providers-apache-hive-testing-dags",
-            "classpath": LOCAL_BUNDLE,
-            "kwargs": {"path": str(providers_root / "apache" / "hive" / "tests" / "testing_dags")},
-        },
-        {
-            "name": "apache-airflow-providers-standard-testing-dags",
+            "name": STANDARD_BUNDLE,
             "classpath": LOCAL_BUNDLE,
             "kwargs": {"path": str(providers_root / "standard" / "tests" / "testing_dags")},
         },
     ]
+
+
+@mock.patch("tests_common.test_utils.testing_dags.build_dag_bundle_config_list", autospec=True)
+def test_main_prints_bundle_config_list(mock_build, capsys):
+    mock_build.return_value = "[]"
+
+    assert main(["amazon,apache.hive"]) == 0
+
+    mock_build.assert_called_once_with(["amazon", "apache.hive"])
+    assert capsys.readouterr().out == "[]\n"
+
+
+@mock.patch(
+    "tests_common.test_utils.testing_dags.build_dag_bundle_config_list",
+    autospec=True,
+    side_effect=ValueError("These providers have no tests/testing_dags folder: amazon"),
+)
+def test_main_reports_unknown_providers(mock_build, capsys):
+    assert main(["amazon"]) == 1
+
+    assert capsys.readouterr().err == "Error: These providers have no tests/testing_dags folder: amazon\n"
+
+
+@pytest.mark.parametrize("argv", [pytest.param([], id="missing"), pytest.param(["a", "b"], id="too-many")])
+def test_main_requires_one_argument(argv, capsys):
+    assert main(argv) == 2
+
+    assert "Usage:" in capsys.readouterr().err
