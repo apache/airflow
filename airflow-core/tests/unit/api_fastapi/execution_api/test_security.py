@@ -1130,6 +1130,23 @@ class TestAttemptLiveness:
         finally:
             Variable.delete(key)
 
+    def test_archived_attempt_writes_variable_to_its_team(self, client, caller, session):
+        ti, _ = caller
+        bundle_name = session.scalar(select(DagModel.bundle_name).where(DagModel.dag_id == ti.dag_id))
+        bundle = session.get(DagBundleModel, bundle_name)
+        bundle.teams.append(Team(name="team_a"))
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+        key = f"attempt-liveness-{uuid4()}"
+        try:
+            with conf_vars({("core", "multi_team"): "True"}):
+                response = client.put(f"/execution/variables/{key}", json={"value": "zombie"})
+            assert response.status_code == 201
+            assert session.scalar(select(Variable.team_name).where(Variable.key == key)) == "team_a"
+        finally:
+            Variable.delete(key)
+            clear_db_teams()
+
     ARCHIVED_ROUTES = [
         ("put", "/execution/store/ti/{ti_id}/key", {"value": "stale"}),
         ("delete", "/execution/store/ti/{ti_id}/key", None),
@@ -1158,8 +1175,8 @@ class TestAttemptLiveness:
 
         assert response.status_code == 410, response.text
 
-    def test_callback_execution_token_can_mutate_variable(self, client, caller, session):
-        _, token = caller
+    def test_callback_execution_token_can_write_xcom(self, client, caller, session):
+        ti, token = caller
         callback = Callback()
         callback.fetch_method = CallbackFetchMethod.IMPORT_PATH
         callback.state = CallbackState.QUEUED
@@ -1167,7 +1184,6 @@ class TestAttemptLiveness:
         session.commit()
         token.id = callback.id
         token.claims.scope = "callback"
-        key = f"attempt-liveness-{uuid4()}"
         try:
             response = client.patch(f"/execution/callbacks/{callback.id}/run")
             assert response.status_code == 204
@@ -1175,10 +1191,11 @@ class TestAttemptLiveness:
             token.id = UUID(claims["sub"])
             token.claims = TIClaims(**claims)
 
-            assert client.put(f"/execution/variables/{key}", json={"value": "callback"}).status_code == 201
-            assert Variable.get(key) == "callback"
+            response = client.post(
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/key", json="callback"
+            )
+            assert response.status_code == 201, response.text
         finally:
-            Variable.delete(key)
             session.delete(callback)
             session.commit()
 
@@ -1202,15 +1219,12 @@ class TestAttemptLiveness:
             session.delete(connection_test)
             session.commit()
 
-    def test_trusted_in_process_caller_without_ti_can_write(self):
-        key = f"attempt-liveness-{uuid4()}"
-        try:
-            with TestClient(InProcessExecutionAPI().app) as client:
-                response = client.put(f"/variables/{key}", json={"value": "watcher"})
-            assert response.status_code == 201
-            assert Variable.get(key) == "watcher"
-        finally:
-            Variable.delete(key)
+    def test_trusted_in_process_caller_without_ti_can_write(self, caller, session):
+        ti, _ = caller
+        with TestClient(InProcessExecutionAPI().app) as client:
+            response = client.post(f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/key", json="watcher")
+        assert response.status_code == 201, response.text
+        assert XComModelV2.get_for_attempt(ti.id, "key", session=session).value == "watcher"
 
     @pytest.mark.parametrize("delete_rejected", [False, True], ids=["accepted", "archived-token-rejected"])
     def test_trusted_in_process_xcom_uses_current_owner_without_attempt_token(

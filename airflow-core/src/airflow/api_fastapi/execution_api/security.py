@@ -547,6 +547,7 @@ def _team_name_for_ti_stmt(ti_id):
         .join(DagBundleModel, DagBundleModel.name == DagModel.bundle_name)
         .join(DagBundleModel.teams)
         .where(TaskInstance.id == ti_id)
+        .execution_options(include_all_attempts=True)
     )
 
 
