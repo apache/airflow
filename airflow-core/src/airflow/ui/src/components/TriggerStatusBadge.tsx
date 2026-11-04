@@ -20,6 +20,8 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceState, TriggerStatus } from "openapi/requests/types.gen";
 
+import { Tooltip } from "src/system-components";
+
 import { StateBadge, type Props as StateBadgeProps } from "src/components/StateBadge";
 
 import { triggerStatusLabelKeys } from "src/constants/stateOptions";
@@ -41,8 +43,10 @@ export const TriggerStatusBadge = ({
   const { t: translate } = useTranslation(["browse", "common"]);
 
   return (
-    <StateBadge data-testid="trigger-status-badge" state={taskStates[status]} {...rest}>
-      {translate(triggerStatusLabelKeys[status])}
-    </StateBadge>
+    <Tooltip content={translate(`browse:triggers.statusHint.${status}`)}>
+      <StateBadge data-testid="trigger-status-badge" state={taskStates[status]} {...rest}>
+        {translate(triggerStatusLabelKeys[status])}
+      </StateBadge>
+    </Tooltip>
   );
 };

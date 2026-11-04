@@ -97,6 +97,12 @@
     "status": {
       "failing": "Failing",
       "orphaned": "Orphaned"
+    },
+    "statusHint": {
+      "failing": "It has failed since it last recovered. It clears once it fires an event or stays up for 2 minutes after it was last started. The last error says why it failed.",
+      "orphaned": "Its triggerer stopped responding, so another triggerer will take it over, usually within a minute. If it stays orphaned, no running triggerer can take it: start a triggerer or raise their capacity, and check that one serves its queue and its team.",
+      "pending": "Waiting for a triggerer to pick it up. If it stays pending, no running triggerer has room for it or serves its queue and its team.",
+      "running": "Running on a live triggerer, with no failure since it last recovered."
     }
   },
   "xcom": {
