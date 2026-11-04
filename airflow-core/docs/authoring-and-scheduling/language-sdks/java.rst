@@ -1092,6 +1092,21 @@ Register every Dag bundle a coordinator names in ``[dag_processor] dag_bundle_co
 The ``[sdk]`` configuration is read at startup, so restart these components after changing it. A rebuilt JAR is
 picked up on the next task, since every task instance starts a new JVM.
 
+.. _java-sdk/bundle-path-separator:
+
+Dag bundle paths that contain a colon
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``java`` command cannot load a classpath containing paths that use the ``:`` (colon) character (on POSIX
+systems). The version directory of a Dag bundle may contain one, for example when it is named after a
+timestamp. The coordinator tries to handle this automatically by reading such a bundle through a symbolic link
+created in a temporary directory. A file or directory *inside* the Dag bundle still cannot contain the colon
+separator.
+
+This approach should generally works. On the off chance it does not, however, all such links are located in
+``airflow-java-classpath-<uid>`` under the temporary directory (``$TMPDIR`` on Linux, usually ``/tmp``).
+Airflow logs should also report which link corresponds to which bundle.
+
 .. _java-sdk/coordinator-config:
 
 :class:`~airflow.sdk.coordinators.java.JavaCoordinator` configuration

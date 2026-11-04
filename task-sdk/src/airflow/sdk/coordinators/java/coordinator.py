@@ -350,10 +350,9 @@ class JavaCoordinator(SubprocessCoordinator):
     bundle also sets is rejected.
 
     The JVM cannot load a JAR whose path holds the classpath separator (``:`` on
-    POSIX). When the bundle's own path holds it, such as a version directory
-    named after a timestamp, the classpath reaches the JARs through a symlink in
-    the temporary directory instead. A file or directory name inside the bundle
-    must still not hold it.
+    POSIX). The coordinator reaches a Dag bundle whose own path holds it through
+    a symlink in the temporary directory, but a file or directory name inside
+    the bundle must not hold it.
 
     The default *task_startup_timeout* should plenty long enough since a task-
     containing JAR is not supposed to consume significant time to perform setup
