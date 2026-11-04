@@ -118,6 +118,19 @@ class TestAnthropicBatchTrigger:
         assert mock_get_batch.call_count == 1
         mock_sleep.assert_not_awaited()
 
+    @pytest.mark.parametrize("status_code", [408, 409])
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.asyncio.sleep")
+    @mock.patch(HOOK_PATH)
+    async def test_retryable_client_status_errors_are_retried(self, mock_get_batch, mock_sleep, status_code):
+        # 408 (request timeout) and 409 (lock timeout) are retryable for the Anthropic
+        # SDK itself, so the poll loop has to keep polling instead of failing the batch.
+        mock_get_batch.side_effect = [_api_status_error(status_code), _batch("ended", succeeded=1)]
+        event = await self._trigger().run().__anext__()
+        assert event.payload["status"] == "success"
+        assert mock_get_batch.call_count == 2
+        mock_sleep.assert_awaited_once_with(self.POLL)
+
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.asyncio.sleep")
     @mock.patch(HOOK_PATH)

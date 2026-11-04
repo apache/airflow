@@ -30,10 +30,21 @@ from airflow.providers.anthropic.hooks.anthropic import (
 )
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
+#: Status codes the Anthropic SDK retries itself (``BaseClient._should_retry`` in
+#: ``anthropic/_base_client.py``): 408 request timeout, 409 lock timeout and 429 rate
+#: limit. The SDK only raises one of these once its own ``max_retries`` are exhausted,
+#: and the condition is still transient, so a poll error carrying one of these codes
+#: must be retried by the poll loop instead of failing the batch.
+_RETRYABLE_POLL_STATUS_CODES = frozenset({408, 409, 429})
+
 
 def _is_permanent_poll_error(error: Exception) -> bool:
     """Return whether an Anthropic batch polling error cannot succeed on a retry."""
-    return isinstance(error, APIStatusError) and 400 <= error.status_code < 500 and error.status_code != 429
+    return (
+        isinstance(error, APIStatusError)
+        and 400 <= error.status_code < 500
+        and error.status_code not in _RETRYABLE_POLL_STATUS_CODES
+    )
 
 
 class AnthropicBatchTrigger(BaseTrigger):
