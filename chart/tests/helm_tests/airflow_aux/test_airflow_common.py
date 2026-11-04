@@ -353,7 +353,7 @@ class TestAirflowCommon:
             "AIRFLOW__CELERY__BROKER_URL",
             "AIRFLOW_CONN_AIRFLOW_DB",
         ]
-        # Workers do not receive the metadata DB connection; they execute tasks via the API Server.
+        # Workers only keep sql_alchemy_conn, disabled here, for the default Celery result backend.
         expected_vars_in_worker = ["DUMB_INIT_SETSID"] + [
             var for var in expected_vars if var not in METADATA_DB_VARS
         ]
@@ -396,7 +396,7 @@ class TestAirflowCommon:
             component = doc["metadata"]["labels"]["component"]
             expected = expected_vars_with_jwt if component == "scheduler" else expected_vars_no_jwt
             expected_in_worker = ["DUMB_INIT_SETSID"] + [
-                var for var in expected if var not in METADATA_DB_VARS
+                var for var in expected if var != "AIRFLOW_CONN_AIRFLOW_DB"
             ]
             variables = expected_in_worker if component == "worker" else expected
             assert variables == jmespath.search("spec.template.spec.containers[0].env[*].name", doc), (
@@ -462,15 +462,152 @@ class TestAirflowCommon:
             )
             assert "AIRFLOW__API_AUTH__JWT_SECRET" not in env_names, f"Wrong vars in {component}"
 
-    def test_metadata_db_env_absent_in_workers_by_default(self):
-        """Celery workers accessing the DB via the API Server.
-
-        KEDA is the exception: its ScaledObject reads the connection from an env var on
-        this pod spec, so the variable has to stay when KEDA is doing the scaling.
-        """
+    def test_worker_keeps_sql_alchemy_conn_for_the_default_result_backend(self):
+        """Celery derives its result backend from sql_alchemy_conn when none is configured."""
         docs = render_chart(show_only=["templates/workers/worker-deployment.yaml"])
         names = set(jmespath.search("spec.template.spec.containers[].env[].name", docs[0]) or [])
+        assert names & METADATA_DB_VARS == {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"}
+
+    @pytest.mark.parametrize(
+        "values",
+        [
+            pytest.param({"data": {"resultBackendSecretName": "result-backend"}}, id="secret-name"),
+            pytest.param(
+                {
+                    "data": {
+                        "resultBackendConnection": {
+                            "protocol": "postgresql",
+                            "host": "results",
+                            "port": 5432,
+                            "user": "celery",
+                            "pass": "x",
+                            "db": "results",
+                            "sslmode": "disable",
+                        }
+                    }
+                },
+                id="connection",
+            ),
+            pytest.param({"config": {"celery": {"result_backend": "redis://r:6379/1"}}}, id="config"),
+            pytest.param({"config": {"celery": {"result_backend_cmd": "cat /backend"}}}, id="config-cmd"),
+            pytest.param({"config": {"celery": {"result_backend_secret": "backend"}}}, id="config-secret"),
+        ],
+    )
+    def test_metadata_db_env_absent_in_workers_with_a_result_backend(self, values):
+        docs = render_chart(values=values, show_only=["templates/workers/worker-deployment.yaml"])
+        names = set(jmespath.search("spec.template.spec.containers[].env[].name", docs[0]) or [])
         assert not (names & METADATA_DB_VARS)
+
+    def test_worker_keeps_sql_alchemy_conn_when_the_result_backend_secret_is_not_exposed(self):
+        docs = render_chart(
+            values={
+                "data": {"resultBackendSecretName": "result-backend"},
+                "enableBuiltInSecretEnvVars": {"AIRFLOW__CELERY__RESULT_BACKEND": False},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search("spec.template.spec.containers[?name=='worker'].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names
+
+    def test_worker_kerberos_sidecar_has_no_metadata_db_env_with_keda(self):
+        """KEDA reads the worker container's environment only."""
+        docs = render_chart(
+            values={
+                "airflowVersion": "3.4.0",
+                "workers": {"celery": {"keda": {"enabled": True}, "kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'].env[].name", docs[0]
+        )
+        assert names
+        assert not (set(names) & METADATA_DB_VARS)
+
+    @pytest.mark.parametrize(
+        ("values", "containers"),
+        [
+            pytest.param(
+                {"workers": {"celery": {"kerberosSidecar": {"enabled": True}}}},
+                {"worker-kerberos"},
+                id="default-result-backend",
+            ),
+            pytest.param(
+                {
+                    "data": {"resultBackendSecretName": "result-backend"},
+                    "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+                },
+                {"worker", "worker-kerberos"},
+                id="separate-result-backend",
+            ),
+        ],
+    )
+    def test_engine_args_cleared_in_worker_containers_without_the_connection(self, values, containers):
+        """Those containers fall back to SQLite, which rejects engine args meant for the real database."""
+        docs = render_chart(
+            values={
+                **values,
+                "airflowVersion": "3.4.0",
+                "config": {"database": {"sql_alchemy_engine_args": '{"executemany_mode": "values"}'}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        pod_spec = docs[0]["spec"]["template"]["spec"]
+        cleared = {
+            container["name"]
+            for container in pod_spec["containers"] + pod_spec["initContainers"]
+            if {"name": "AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS", "value": "{}"}
+            in container.get("env", [])
+        }
+        assert cleared == containers
+
+    @pytest.mark.parametrize(
+        ("values", "containers"),
+        [
+            pytest.param({}, {"worker-kerberos"}, id="default-result-backend"),
+            pytest.param(
+                {"data": {"resultBackendSecretName": "result-backend"}},
+                {"worker", "worker-kerberos"},
+                id="separate-result-backend",
+            ),
+        ],
+    )
+    def test_migration_check_disabled_in_worker_containers_without_the_connection(self, values, containers):
+        """CLI commands exit on the empty SQLite fallback when they check migrations."""
+        docs = render_chart(
+            values={
+                **values,
+                "airflowVersion": "3.4.0",
+                "workers": {"celery": {"kerberosSidecar": {"enabled": True}}},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        pod_spec = docs[0]["spec"]["template"]["spec"]
+        disabled = {
+            container["name"]
+            for container in pod_spec["containers"] + pod_spec["initContainers"]
+            if {"name": "AIRFLOW__DATABASE__CHECK_MIGRATIONS", "value": "False"} in container.get("env", [])
+        }
+        assert disabled == containers
+
+    def test_worker_kerberos_sidecar_keeps_sql_alchemy_conn_before_airflow_3_4(self):
+        """`airflow kerberos` opens the metadata DB at startup there."""
+        docs = render_chart(
+            values={"airflowVersion": "3.3.2", "workers": {"celery": {"kerberosSidecar": {"enabled": True}}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        names = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'].env[].name", docs[0]
+        )
+        assert set(names) & METADATA_DB_VARS == {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"}
+        assert "AIRFLOW__DATABASE__CHECK_MIGRATIONS" not in names
+
+    def test_api_server_does_not_expose_the_airflow_db_connection(self):
+        """The Execution API answers task connection lookups from the API server's environment."""
+        docs = render_chart(show_only=["templates/api-server/api-server-deployment.yaml"])
+        names = jmespath.search("spec.template.spec.[containers, initContainers][][].env[].name", docs[0])
+        assert "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN" in names
+        assert "AIRFLOW_CONN_AIRFLOW_DB" not in names
 
     def test_worker_migration_init_container_has_metadata_db_env(self):
         """The wait-for-migration init container queries the DB."""

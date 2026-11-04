@@ -236,9 +236,7 @@ spec:
               value:  {{ include "kerberos_ccache_path" . | quote }}
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
-            {{- if $keda }}
-            {{- include "metadata_db_environment" . | indent 10 }}
-            {{- end }}
+            {{- include "kerberos_sidecar_metadata_db_environment" . | indent 10 }}
         {{- end }}
         {{- if .Values.workers.celery.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
@@ -356,6 +354,10 @@ spec:
             {{- if $keda }}
             {{- include "metadata_db_environment" . | indent 10 }}
             {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer) .) | indent 10 }}
+            {{- else if not (include "celery_result_backend_configured" .) }}
+            {{- include "metadata_db_sql_alchemy_environment" . | indent 10 }}
+            {{- else }}
+            {{- include "no_metadata_db_environment" . | indent 10 }}
             {{- end }}
             {{- include "container_extra_envs" (list . .Values.workers.celery.env) | indent 10 }}
             {{- if .Values.workers.celery.kerberosSidecar.enabled }}

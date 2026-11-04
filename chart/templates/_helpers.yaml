@@ -138,8 +138,8 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/* Metadata database credentials, only needed by components that talk to the metadata DB. */}}
-{{- define "metadata_db_environment" }}
+{{/* Metadata database connection string, for components that talk to the metadata DB. */}}
+{{- define "metadata_db_sql_alchemy_environment" }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__DATABASE__SQL_ALCHEMY_CONN }}
   - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
     valueFrom:
@@ -147,12 +147,60 @@ If release name contains chart name it will be used as a full name.
         name: {{ template "airflow_metadata_secret" . }}
         key: {{ template "airflow_metadata_secret_key" . }}
   {{- end }}
+{{- end }}
+
+{{/*
+Metadata database credentials, including the `airflow_db` connection. The API server must not get
+that connection: it answers the Execution API's connection lookups, so tasks could read it from there.
+*/}}
+{{- define "metadata_db_environment" }}
+  {{- include "metadata_db_sql_alchemy_environment" . }}
   {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW_CONN_AIRFLOW_DB }}
   - name: AIRFLOW_CONN_AIRFLOW_DB
     valueFrom:
       secretKeyRef:
         name: {{ template "airflow_metadata_secret" . }}
         key: {{ template "airflow_metadata_secret_key" . }}
+  {{- end }}
+{{- end }}
+
+{{/*
+For containers without `sql_alchemy_conn`: Airflow falls back to an empty SQLite database there. CLI
+commands that check migrations exit on it, and creating the engine at import fails on engine args meant
+for the real database.
+*/}}
+{{- define "no_metadata_db_environment" }}
+  - name: AIRFLOW__DATABASE__CHECK_MIGRATIONS
+    value: "False"
+  {{- $databaseConfig := .Values.config.database | default dict }}
+  {{- if or $databaseConfig.sql_alchemy_engine_args $databaseConfig.sql_alchemy_engine_args_cmd $databaseConfig.sql_alchemy_engine_args_secret }}
+  - name: AIRFLOW__DATABASE__SQL_ALCHEMY_ENGINE_ARGS
+    value: "{}"
+  {{- end }}
+{{- end }}
+
+{{/*
+Before Airflow 3.4.0 `airflow kerberos` opens the metadata DB at startup, so the sidecar keeps the
+connection there. It does not run task code, and task containers cannot read its environment.
+*/}}
+{{- define "kerberos_sidecar_metadata_db_environment" }}
+  {{- if semverCompare "<3.4.0" .Values.airflowVersion }}
+    {{- include "metadata_db_sql_alchemy_environment" . }}
+  {{- else }}
+    {{- include "no_metadata_db_environment" . }}
+  {{- end }}
+{{- end }}
+
+{{/*
+Non-empty when Celery workers get a result backend other than the `sql_alchemy_conn` fallback. Without
+one, a worker with no `sql_alchemy_conn` writes results to a local SQLite file the scheduler never reads.
+A backend set in a way the chart cannot see counts as unset, which only leaves the connection in place.
+*/}}
+{{- define "celery_result_backend_configured" -}}
+  {{- $celeryConfig := .Values.config.celery | default dict }}
+  {{- $fromSecret := and .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__RESULT_BACKEND (or .Values.data.resultBackendSecretName .Values.data.resultBackendConnection) }}
+  {{- if or $fromSecret $celeryConfig.result_backend $celeryConfig.result_backend_cmd $celeryConfig.result_backend_secret -}}
+    true
   {{- end }}
 {{- end }}
 
