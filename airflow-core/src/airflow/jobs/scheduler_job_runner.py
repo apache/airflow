@@ -1095,7 +1095,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .where(func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks)
-            .order_by(-TI.priority_weight, DR.logical_date, TI.region_index)
+            .order_by(-TI.priority_weight, DR.run_after, TI.region_index)
         )
 
         # Starvation filters should be applied before computing the row_num based on the
@@ -1127,13 +1127,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 func.row_number()
                 .over(
                     partition_by=[TI.dag_id, TI.run_id],
-                    order_by=[-TI.priority_weight, DR.logical_date, TI.region_index],
+                    order_by=[-TI.priority_weight, DR.run_after, TI.region_index],
                 )
                 .label("row_num"),
                 DM.max_active_tasks.label("dr_max_active_tasks"),
                 # Create columns for the order_by checks here for sqlite.
                 TI.priority_weight.label("priority_weight_for_ordering"),
-                DR.logical_date.label("logical_date_for_ordering"),
+                DR.run_after.label("run_after_for_ordering"),
                 TI.region_index.label("region_index_for_ordering"),
             )
         ).subquery()
@@ -1150,7 +1150,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Add the order_by columns from the ranked query for sqlite.
             .order_by(
                 -ranked_query.c.priority_weight_for_ordering,
-                ranked_query.c.logical_date_for_ordering,
+                ranked_query.c.run_after_for_ordering,
                 ranked_query.c.region_index_for_ordering,
             )
             .options(selectinload(TI.dag_model))
@@ -3409,10 +3409,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     ),
                 )
             return callback_to_execute
-
-        if dag_run.logical_date and dag_run.logical_date > timezone.utcnow():
-            self.log.error("Logical date is in future: %s", dag_run.logical_date)
-            return callback
 
         if not dag_run.bundle_version and not self._verify_integrity_if_dag_changed(
             dag_run=dag_run, session=session
