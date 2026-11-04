@@ -307,7 +307,7 @@ Deferrable mode
 
 With ``deferrable=True``, the sensor checks once on the worker. If the condition is not met, it defers and
 the triggerer runs the query every ``poke_interval`` seconds, so the task holds no worker slot while it
-waits. ``timeout`` caps the whole wait.
+waits. ``timeout`` caps the time spent deferred.
 
 .. exampleinclude:: /../tests/system/common/sql/example_sql_sensor.py
     :language: python
