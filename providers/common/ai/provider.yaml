@@ -232,11 +232,27 @@ connection-types:
             - 'null'
       model_provider:
         label: Default Model Provider
-        description: "Provider for model names without a provider: prefix (e.g. openai-chat)"
+        description: >
+          Provider for model names without a provider: prefix (e.g. openai-chat).
+          Any provider the installed pydantic-ai recognizes works.
         schema:
           type:
             - string
             - 'null'
+          # Suggestions on a free-text input, not an enum: an enum would reject providers a newer
+          # pydantic-ai adds until the next release of this provider.
+          examples:
+            - openai-chat
+            - openai
+            - anthropic
+            - ollama
+            - litellm
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - together
+            - fireworks
       fallback_conn_ids:
         label: Fallback Connections
         description: "Connection IDs to fail over to, in order, while this provider is unavailable."
