@@ -210,23 +210,7 @@ class _ModalDecoratedOperator(DecoratedOperator, _ModalSandboxOperator):
     Arguments and the return value travel as pickles, so they must load on the other side:
     use plain Python values, not objects from packages that only one side has installed.
 
-    :param image: The ``modal.Image`` to run in. Defaults to ``modal.Image.debian_slim()``,
-        which matches the worker's Python version. Any image works as long as ``python`` is on
-        its ``PATH``; the function's dependencies go here, not on the worker.
-    :param gpu: GPU to request, for example ``"H100"`` or ``"A10G:2"``.
-    :param cpu: CPU cores to reserve, or a ``(reservation, limit)`` pair to also cap usage.
-    :param memory: Memory to reserve in MiB, or a ``(reservation, limit)`` pair to also cap it.
-    :param timeout: Seconds the sandbox may run before Modal stops it. Modal's default is 300.
-    :param secrets: Modal secrets whose keys become environment variables inside the sandbox,
-        as names or ``modal.Secret`` objects. Names are looked up when the task runs, in the
-        connection's environment.
-    :param volumes: Mount points mapped to Modal volumes, as names or ``modal.Volume`` objects.
-        Names are looked up when the task runs, in the connection's environment.
-    :param modal_conn_id: :ref:`Modal connection id <howto/connection:modal>`.
-    :param app_name: Modal app the sandboxes are created under; created on first use.
-    :param deferrable: Wait for the sandbox on the triggerer instead of holding a worker slot.
-    :param multiple_outputs: If set, a returned dict is unrolled to multiple XCom values, one
-        per key.
+    Its arguments are documented on :func:`modal_task`.
     """
 
     custom_operator_name = "@task.modal"
@@ -254,15 +238,29 @@ def modal_task(
     **kwargs: Any,
 ) -> TaskDecorator:
     """
-    Wrap a function into a task that runs its body in a Modal sandbox.
+    Wrap a function into a task that runs its body in a Modal sandbox, as ``@task.modal``.
 
-    Accepts the arguments documented on the operator behind it, ``image``, ``gpu``, ``cpu``,
-    ``memory``, ``timeout``, ``secrets``, ``volumes``, ``modal_conn_id``, ``app_name`` and
-    ``deferrable``, plus any ``BaseOperator`` argument.
+    Takes the arguments below as keywords, plus any ``BaseOperator`` argument.
 
     :param python_callable: Function to decorate.
     :param multiple_outputs: If set, a returned dict is unrolled to multiple XCom values, one
         per key. Defaults to False.
+    :param image: The ``modal.Image`` to run in. Defaults to ``modal.Image.debian_slim()`` built
+        for the worker's Python version. Any image with Python 3.8 or later on its ``PATH`` as
+        ``python`` works; the function's dependencies go here, not on the worker.
+    :param gpu: GPU to request, for example ``"H100"`` or ``"A10G:2"``.
+    :param cpu: CPU cores to reserve, or a ``(reservation, limit)`` pair to also cap usage.
+    :param memory: Memory to reserve in MiB, or a ``(reservation, limit)`` pair to also cap it.
+    :param timeout: Seconds the sandbox may run before Modal stops it. Modal's default is 300.
+    :param secrets: Modal secrets whose keys become environment variables inside the sandbox,
+        as names or ``modal.Secret`` objects. Names are looked up when the task runs, in the
+        connection's environment.
+    :param volumes: Mount points mapped to Modal volumes, as names or ``modal.Volume`` objects.
+        Names are looked up when the task runs, in the connection's environment.
+    :param modal_conn_id: :ref:`Modal connection id <howto/connection:modal>`.
+    :param app_name: Modal app the sandboxes are created under, ``airflow`` by default; created
+        on first use.
+    :param deferrable: Wait for the sandbox on the triggerer instead of holding a worker slot.
     """
     return task_decorator_factory(
         python_callable=python_callable,

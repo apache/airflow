@@ -47,8 +47,8 @@ output as it runs:
 
 .. code-block:: text
 
-    [info] Started Modal sandbox sb-01M6MBWQQ3DSHZMVF1W677BDAT in app 'airflow'.
-    [info] Validated 2 records with pydantic 1.10.27
+    Started Modal sandbox sb-01M6MBWQQ3DSHZMVF1W677BDAT in app 'airflow'.
+    Validated 2 records with pydantic 1.10.27
 
 The return value goes to XCom like any task's, here with the scores coerced to floats by
 pydantic 1:
@@ -78,40 +78,33 @@ The function's source is sent to the sandbox on its own, as with ``@task.docker`
   inside the function.
 * Arguments and the return value are pickled. They must load on the other side, so pass
   plain Python values, not objects from packages that only the worker or only the image has.
-  The image's Python version does not have to match the worker's.
+  The image needs Python 3.8 or later, and its minor version does not have to match the
+  worker's.
 * Pass credentials as Modal secrets, not as arguments: arguments are rendered in the Airflow UI.
 
 Choosing resources
 ------------------
 
-The decorator passes these arguments to ``modal.Sandbox.create``. Anything left unset gets
-Modal's default:
+``image``, ``gpu``, ``cpu``, ``memory``, ``timeout``, ``secrets`` and ``volumes`` go to
+`modal.Sandbox.create <https://modal.com/docs/reference/modal.Sandbox>`__, and anything left
+unset gets Modal's default; :func:`~airflow.providers.modal.decorators.modal.modal_task`
+lists every argument. Before a long or memory-heavy run:
 
-``image``
-    A ``modal.Image``. Defaults to ``modal.Image.debian_slim()``, which matches the worker's
-    Python version.
+* Set ``timeout`` for anything that runs longer than five minutes. Modal stops a sandbox after
+  300 seconds by default.
+* A single ``cpu`` or ``memory`` number is a reservation, which the sandbox can exceed. To cap
+  it, pass a ``(reservation, limit)`` pair; a function that goes over a memory limit is
+  stopped.
+* ``secrets`` and ``volumes`` take names as well as Modal objects. Names are looked up when the
+  task runs, through the connection, so they resolve in its ``environment`` and parsing the
+  Dag file makes no Modal call. Each secret's keys become environment variables in the
+  sandbox.
 
-``gpu``
-    For example ``"H100"`` or ``"A10G:2"``.
+The default image is ``modal.Image.debian_slim()`` built for the worker's Python version.
 
-``cpu`` and ``memory``
-    Cores and MiB. A single number is a reservation the sandbox can exceed when the host has
-    room; a ``(reservation, limit)`` pair also caps it.
-
-``timeout``
-    Seconds before Modal stops the sandbox. Modal's default is 300, so set it for anything
-    longer than five minutes.
-
-``secrets`` and ``volumes``
-    Secret names, or a list of ``modal.Secret`` objects, and a mapping from mount path to
-    volume name or ``modal.Volume``. Names are looked up when the task runs, through the
-    connection, so they resolve in its ``environment`` and parsing the Dag file makes no Modal
-    call. Each secret's keys become environment variables in the sandbox.
-
-``modal_conn_id``
-    The :ref:`Modal connection <howto/connection:modal>`; ``modal_default`` when unset.
-
-A GPU job that reads a Hugging Face token from a secret and caches weights on a volume:
+A GPU job that reads a Hugging Face token from a secret, named ``huggingface`` and holding
+``HF_TOKEN``, and caches the weights on a volume. It needs an H100, so it is a sketch rather
+than an example the docs build runs:
 
 .. code-block:: python
 
@@ -141,9 +134,11 @@ and when the sandbox exits the task resumes on a worker to read the return value
     :start-after: [START howto_decorator_modal_deferrable]
     :end-before: [END howto_decorator_modal_deferrable]
 
-If the triggerer restarts while it waits, the triggerer that takes over reads the output again
+On a T4 the task pushes ``"Tesla T4, 15360 MiB"`` to XCom.
+
+If the triggerer restarts while it waits, the trigger that takes over reads the output again
 from the start, so the task log repeats the lines logged before the restart.
-``[operators] default_deferrable`` sets the default for every task.
+``[operators] default_deferrable`` sets the default for ``deferrable``.
 
 When the function fails
 -----------------------
@@ -154,17 +149,21 @@ happened and where:
 * The function raised. Its traceback is in the task log, and the error reads
   ``The function failed in Modal sandbox sb-... with exit code 1. Its traceback is in the log
   above.``
-* The sandbox ran past ``timeout`` (exit code 124): ``Modal sandbox sb-... reached its timeout
-  before the function returned. Raise the decorator's timeout (Modal's default is 300
-  seconds).``
-* The sandbox was stopped from outside (exit code 137). Exceeding a ``memory`` limit ends
-  here, as does terminating the sandbox from the Modal dashboard.
+* The sandbox ran past ``timeout`` (exit code 124). Modal interrupts the function, so the task
+  log shows a ``KeyboardInterrupt`` traceback from wherever it was, followed by ``Modal sandbox
+  sb-... reached its timeout before the function returned. Raise the decorator's timeout
+  (Modal's default is 300 seconds).``
+* The sandbox was stopped from outside (exit code 137), for example by going over a ``memory``
+  limit: ``Modal sandbox sb-... was terminated before the function returned, for example
+  because it ran out of memory under a memory limit, or from the Modal dashboard.``
 
 If the task fails for any other reason after starting the sandbox, such as losing the
 connection to Modal while following its output, it terminates the sandbox before failing, so
 a retry does not run beside the earlier attempt.
 
 A retry starts a new sandbox and runs the function from the beginning. Marking a running task
-failed or success terminates its sandbox. For a deferred task this needs Airflow 3.3 or later;
-on older versions the sandbox runs until it exits or hits its ``timeout``. A worker that dies
-without running the task's ``on_kill`` also leaves the sandbox running until then.
+failed or success, or clearing it, terminates its sandbox. A worker that dies without running
+the task's ``on_kill`` leaves the sandbox running until it exits or hits its ``timeout``.
+
+A deferred task's sandbox is terminated on those actions from Airflow 3.3, which added
+``on_kill`` for triggers. On earlier versions it runs until it exits or hits its ``timeout``.
