@@ -300,8 +300,8 @@ class ConnectionTestBody(ConnectionBody):
     """
     Connection to test.
 
-    Either only ``connection_id`` (and ``team_name``), to test the stored connection as it is,
-    or a complete connection, tested exactly as given. A stored connection's secrets are never
+    Either only ``connection_id``, to test the stored connection as it is, or a complete
+    connection, tested exactly as given. A stored connection's secrets are never
     combined with a connection supplied in the request.
     """
 
@@ -309,7 +309,7 @@ class ConnectionTestBody(ConnectionBody):
 
     def is_stored_connection(self) -> bool:
         """Return True when the request only names the stored connection to test."""
-        return self.model_fields_set <= {"connection_id", "team_name"}
+        return self.model_fields_set == {"connection_id"}
 
     @model_validator(mode="after")
     def validate_complete_connection(self) -> ConnectionTestBody:

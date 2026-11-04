@@ -602,7 +602,7 @@ class ConnectionsOperations(BaseOperations):
         exactly this connection, so the fields left unset are sent as null.
         """
         body = connection.model_dump(mode="json", by_alias=True, exclude_none=True)
-        if body.keys() - {"connection_id", "team_name"}:
+        if body.keys() != {"connection_id"}:
             body = connection.model_dump(mode="json", by_alias=True)
         self.response = self.client.post("connections/test", json=body)
         return validate_response(self.response.content, ConnectionTestResponse)

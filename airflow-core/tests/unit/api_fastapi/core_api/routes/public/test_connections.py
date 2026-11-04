@@ -1276,30 +1276,19 @@ class TestConnection(TestConnectionEndpoint):
 
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @conf_vars({("core", "multi_team"): "true"})
-    def test_secrets_only_team_connection_uses_body_team_scope(self, test_client, testing_team):
-        """When the connection exists only in a team-aware secrets backend
-        (no metadata-DB row), ``Connection.get_team_name`` returns None.
-        The route must then fall back to the body's validated ``team_name``
-        so the GET authorization and the subsequent secrets lookup both
-        run in the right team scope — otherwise a team-scoped existing
-        connection would be authorized and looked up as global, losing
-        the multi-team isolation guarantee in deployments that keep
-        connections in Vault / Kubernetes / Akeyless rather than the DB."""
-        # No ``self.create_connection()`` — TEST_CONN_ID lives only in a
-        # secrets backend in this scenario.
+    def test_team_name_does_not_select_the_stored_connection(self, test_client, testing_team):
+        """Only ``connection_id`` asks for the stored connection; its team comes from the
+        metadata DB, never from the request, so adding ``team_name`` makes the body partial."""
+        self.create_connection(team_name=testing_team.name)
 
-        with mock.patch.object(
-            Connection,
-            "get_connection_from_secrets",
-            wraps=Connection.get_connection_from_secrets,
-        ) as spy_secrets:
+        with mock.patch.object(Connection, "test_connection", autospec=True) as mock_test:
             response = test_client.post(
                 "/connections/test",
                 json={"connection_id": TEST_CONN_ID, "team_name": testing_team.name},
             )
 
-        assert response.status_code == 404
-        spy_secrets.assert_called_once_with(TEST_CONN_ID, team_name=testing_team.name)
+        assert response.status_code == 422
+        mock_test.assert_not_called()
 
     @skip_if_force_lowest_dependencies_marker
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})

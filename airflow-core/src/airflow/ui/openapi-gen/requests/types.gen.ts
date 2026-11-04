@@ -880,8 +880,8 @@ export type ConnectionResponse = {
 /**
  * Connection to test.
  *
- * Either only ``connection_id`` (and ``team_name``), to test the stored connection as it is,
- * or a complete connection, tested exactly as given. A stored connection's secrets are never
+ * Either only ``connection_id``, to test the stored connection as it is, or a complete
+ * connection, tested exactly as given. A stored connection's secrets are never
  * combined with a connection supplied in the request.
  */
 export type ConnectionTestBody = {
