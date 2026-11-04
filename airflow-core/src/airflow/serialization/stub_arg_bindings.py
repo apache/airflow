@@ -74,10 +74,10 @@ class LiteralBindingEntry(_BindingEntryBase):
     from_default: NotRequired[bool]
 
 
-class LocalBindingEntry(_BindingEntryBase):
-    """An argument only the worker can resolve, such as a ``map()``/``zip()``/``concat()`` result."""
+class UnresolvedBindingEntry(_BindingEntryBase):
+    """An argument the server cannot finish, such as a ``map()``/``zip()``/``concat()`` result."""
 
-    kind: Literal["local"]
+    kind: Literal["unresolved"]
 
 
 class GroupArgEntry(TypedDict):
@@ -96,7 +96,7 @@ class ParamBindingEntry(_BindingEntryBase):
 
 
 # TODO(#71364): validate_schema also runs on read, so a core that predates a kind rejects the whole Dag.
-ArgBindingEntry = XComBindingEntry | LiteralBindingEntry | LocalBindingEntry | ParamBindingEntry
+ArgBindingEntry = XComBindingEntry | LiteralBindingEntry | UnresolvedBindingEntry | ParamBindingEntry
 """One serialized ``_arg_bindings`` entry, stored as plain JSON."""
 
 
@@ -270,11 +270,11 @@ def _validate_value(value: Any, task_id: str, name: str) -> None:
         _ensure_json_literal(value, task_id, name)
 
 
-def _build_xcom_binding(value: XComArg, name: str) -> XComBindingEntry | LocalBindingEntry:
+def _build_xcom_binding(value: XComArg, name: str) -> XComBindingEntry | UnresolvedBindingEntry:
     """Bind the whole output of *value*; for a task with per-map-index arguments, the server re-derives it."""
     if not isinstance(value, PlainXComArg):
         # Only the worker can apply map() callables or assemble a zip()/concat() result.
-        return {"name": name, "kind": "local"}
+        return {"name": name, "kind": "unresolved"}
     if value.operator.get_needs_expansion():
         return {"name": name, "kind": "sequence", "task_id": value.operator.task_id}
     return {"name": name, "kind": "xcom", "task_id": value.operator.task_id}
@@ -295,7 +295,7 @@ def build_arg_bindings(op: DecoratedOperator) -> list[ArgBindingEntry] | None:
     a non-mapped ``DecoratedOperator`` flagged ``is_stub``, and nothing here re-checks it.
 
     Each entry is ``xcom`` for an unmapped upstream's output, ``sequence`` for a mapped upstream's
-    whole output, ``local`` for a ``map()``/``zip()``/``concat()`` result, ``param`` for an expand
+    whole output, ``unresolved`` for a ``map()``/``zip()``/``concat()`` result, ``param`` for an expand
     argument of an enclosing mapped task group, and ``literal`` for everything else. ``name`` is
     always the stub function's parameter name, so a foreign runtime can bind by name in addition to
     the positional order.

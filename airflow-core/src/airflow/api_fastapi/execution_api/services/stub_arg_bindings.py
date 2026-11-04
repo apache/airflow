@@ -20,7 +20,7 @@ Derive the arg bindings of a stub task whose arguments differ per map index.
 That is a mapped stub, or an unmapped one inside a mapped task group. The server picks this map
 index's element of every argument, mirroring how the Python task runner resolves the same Dag,
 so no lang-SDK runtime re-implements the mapping arithmetic. An argument the server cannot finish
-(``map()`` callables, or a nesting no single binding can hold) is sent as a ``local`` binding.
+(``map()`` callables, or a nesting no single binding can hold) is sent as an ``unresolved`` binding.
 """
 
 from __future__ import annotations
@@ -35,9 +35,9 @@ from pydantic import ValidationError
 
 from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
     LiteralArgBinding,
-    LocalArgBinding,
     TaskArgBinding,
     TupleArgBinding,
+    UnresolvedArgBinding,
     XComArgBinding,
     XComSequenceArgBinding,
     get_arg_bindings_adapter,
@@ -79,7 +79,7 @@ class UndeliverableMappedArgBindingsError(ValueError):
 
 
 class _NeedsWorker(Exception):
-    """The argument is sent as a ``local`` binding for the worker to resolve."""
+    """The argument is sent as an ``unresolved`` binding for the coordinator to resolve."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -183,7 +183,7 @@ class _MappedArgBindingDeriver:
             try:
                 bindings.append(self._bind_entry(param, entry))
             except _NeedsWorker:
-                bindings.append(param.build(LocalArgBinding, kind="local"))
+                bindings.append(param.build(UnresolvedArgBinding, kind="unresolved"))
         return bindings
 
     def _bind_entry(self, param: _ArgParam, entry: dict[str, Any]) -> TaskArgBinding:
