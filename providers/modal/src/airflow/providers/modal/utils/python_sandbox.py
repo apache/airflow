@@ -19,19 +19,19 @@ How ``@task.modal`` runs a function in a Modal sandbox and gets its return value
 
 The sandbox's command is a short bootstrap program (:data:`BOOTSTRAP`) run with ``python -c``.
 It reads one JSON payload from stdin holding the function's source and its pickled arguments,
-defines the function, calls it, and prints the pickled return value as one base64 line that
-starts with :data:`RESULT_PREFIX`. Stderr is merged into stdout, so the task log keeps the
-function's output and any traceback in order. A function that raises makes the bootstrap exit
-nonzero with the traceback on stdout and no result line.
+defines the function and calls it. Everything the function prints, including what its
+subprocesses write and any traceback, goes to the sandbox's stderr, in order; the task log
+follows that stream. Stdout carries only the base64-pickled return value, written once the
+function has returned, so a function that raises leaves stdout empty and exits nonzero.
 
 The bootstrap needs only the Python standard library, so the image needs neither Airflow nor
 the Modal client. The shared virtualenv script template is deliberately not used: it
 reconnects to an Airflow supervisor when it finds Airflow installed, and a sandbox has none.
 
-Sandbox stdout outlives the sandbox and can be read through a new handle from
-``Sandbox.from_id``, which is what lets the deferrable path collect the return value in a
-different process from the one that started the sandbox. This module is shared by the
-decorator, on a worker, and the trigger, on the triggerer, so it imports nothing from Airflow.
+Both streams outlive the sandbox and can be read through a new handle from
+``Sandbox.from_id``, which is what lets the deferrable path follow the output on the triggerer
+and collect the return value back on a worker. This module is shared by the decorator, on a
+worker, and the trigger, on the triggerer, so it imports nothing from Airflow.
 """
 
 from __future__ import annotations
@@ -45,16 +45,13 @@ from typing import Any
 
 import modal
 
-RESULT_PREFIX = "__airflow_modal_task_result__:"
-
-#: Bytes written to sandbox stdin between drains: half of the Modal SDK's 2 MiB stdin buffer,
-#: which raises ``BufferError`` when a single write would overflow it.
-STDIN_CHUNK_BYTES = 1024 * 1024
-
 BOOTSTRAP = r"""
 import __future__, base64, json, os, pickle, sys, tempfile
 
-os.dup2(1, 2)
+# Keep the real stdout for the result, and point fd 1 at stderr so everything else the
+# function prints, from Python or from a subprocess, lands on stderr.
+result = os.fdopen(os.dup(1), "wb")
+os.dup2(2, 1)
 payload = json.loads(sys.stdin.read())
 # Compiling from a file, rather than a string, lets tracebacks show the function's source lines.
 path = os.path.join(tempfile.mkdtemp(prefix="airflow-modal-task-"), payload["function_name"] + ".py")
@@ -68,15 +65,22 @@ code = compile(
 )
 exec(code, namespace)
 arguments = pickle.loads(base64.b64decode(payload["arguments"]))
-result = namespace[payload["function_name"]](*arguments["args"], **arguments["kwargs"])
-pickled = pickle.dumps(result) if result is not None else b""
-sys.stdout.write("\n" + payload["result_prefix"] + base64.b64encode(pickled).decode() + "\n")
-sys.stdout.flush()
+value = namespace[payload["function_name"]](*arguments["args"], **arguments["kwargs"])
+result.write(base64.b64encode(pickle.dumps(value)))
+result.close()
 """
 
 #: The sandbox command: run :data:`BOOTSTRAP` with the image's ``python``, unbuffered so
 #: output reaches the task log as it is printed.
 ENTRYPOINT: tuple[str, ...] = ("python", "-u", "-c", BOOTSTRAP)
+
+#: Exit codes the Modal SDK reports for a sandbox that did not exit on its own.
+TIMEOUT_RETURNCODE = 124
+TERMINATED_RETURNCODE = 137
+
+#: Bytes written to sandbox stdin between drains: half of the Modal SDK's 2 MiB stdin buffer,
+#: which raises ``BufferError`` when a single write would overflow it.
+STDIN_CHUNK_BYTES = 1024 * 1024
 
 
 def build_payload(*, source: str, function_name: str, args: Iterable[Any], kwargs: dict[str, Any]) -> str:
@@ -94,9 +98,18 @@ def build_payload(*, source: str, function_name: str, args: Iterable[Any], kwarg
             "source": source,
             "function_name": function_name,
             "arguments": base64.b64encode(arguments).decode(),
-            "result_prefix": RESULT_PREFIX,
         }
     )
+
+
+def send_payload(sandbox: modal.Sandbox, payload: str) -> None:
+    """Write the payload to the sandbox's stdin in pieces that fit the SDK's buffer, then close it."""
+    data = memoryview(payload.encode())
+    for start in range(0, len(data), STDIN_CHUNK_BYTES):
+        sandbox.stdin.write(data[start : start + STDIN_CHUNK_BYTES])
+        sandbox.stdin.drain()
+    sandbox.stdin.write_eof()
+    sandbox.stdin.drain()
 
 
 def wait_for_exit(sandbox: modal.Sandbox) -> None:
@@ -117,27 +130,12 @@ async def await_exit(sandbox: modal.Sandbox) -> None:
         await sandbox.wait.aio(raise_on_termination=False)
 
 
-def is_result_line(line: str) -> bool:
-    """Whether ``line`` is the bootstrap's result line rather than output from the function."""
-    return line.startswith(RESULT_PREFIX)
-
-
-def find_result(lines: Iterable[str]) -> Any:
+def decode_result(stdout: str) -> Any:
     """
-    Return the function's return value from the sandbox's stdout lines.
+    Return the function's return value from the sandbox's stdout.
 
-    The last result line wins: the bootstrap prints it after the function has returned, so a
-    line the function itself printed with the same prefix always comes earlier.
-
-    :raises ValueError: When no line carries a result.
+    :raises ValueError: When stdout is empty, which happens when the function did not return.
     """
-    result_line = None
-    for line in lines:
-        if is_result_line(line):
-            result_line = line
-    if result_line is None:
-        raise ValueError("The sandbox exited cleanly but printed no result line.")
-    pickled = base64.b64decode(result_line[len(RESULT_PREFIX) :].strip())
-    if not pickled:
-        return None
-    return pickle.loads(pickled)
+    if not stdout:
+        raise ValueError("The sandbox exited cleanly but wrote no return value.")
+    return pickle.loads(base64.b64decode(stdout))

@@ -22,7 +22,7 @@ from collections.abc import AsyncIterator
 from typing import Any
 
 from airflow.providers.modal.hooks.modal import ModalHook
-from airflow.providers.modal.utils.python_sandbox import await_exit, is_result_line
+from airflow.providers.modal.utils.python_sandbox import await_exit
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -30,11 +30,11 @@ class ModalSandboxTrigger(BaseTrigger):
     """
     Wait for a ``@task.modal`` sandbox to exit, writing its output to the task log.
 
-    The trigger follows the sandbox's stdout until it ends, which happens when the sandbox
-    exits for any reason, logging each line except the return-value line, and then fires one
+    The trigger follows the function's output (the sandbox's stderr) until it ends, which
+    happens when the sandbox exits for any reason, logging each line, and then fires one
     event with the exit code. The operator reads the return value in ``execute_complete``.
 
-    If the triggerer restarts, the trigger that takes over reads stdout again from the start,
+    If the triggerer restarts, the trigger that takes over reads the output again from the start,
     so the task log repeats the lines logged before the restart.
 
     :param sandbox_id: The ``sb-...`` id of the sandbox to wait for.
@@ -56,9 +56,8 @@ class ModalSandboxTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         try:
             sandbox = await ModalHook(modal_conn_id=self.modal_conn_id).aget_sandbox(self.sandbox_id)
-            async for line in sandbox.stdout:
-                if not is_result_line(line):
-                    self.log.info("%s", line.rstrip("\n"))
+            async for line in sandbox.stderr:
+                self.log.info("%s", line.rstrip("\n"))
             await await_exit(sandbox)
         except Exception:
             # The task fails with this error and a retry starts a new sandbox, so stop this one.

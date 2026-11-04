@@ -43,11 +43,25 @@ the image, not on the worker:
 
 The task starts a sandbox under the Modal app ``airflow`` (``app_name`` changes it; the app is
 created on first use), sends it the function's source and arguments, and logs the function's
-output as it runs. The return value goes to XCom like any task's:
+output as it runs:
 
 .. code-block:: text
 
-    TASK_LOG_PLACEHOLDER
+    [info] Started Modal sandbox sb-01M6MBWQQ3DSHZMVF1W677BDAT in app 'airflow'.
+    [info] Validated 2 records with pydantic 1.10.27
+
+The return value goes to XCom like any task's, here with the scores coerced to floats by
+pydantic 1:
+
+.. code-block:: python
+
+    {
+        "pydantic_version": "1.10.27",
+        "records": [
+            {"id": 1, "email": "ada@example.com", "score": 0.91},
+            {"id": 2, "email": "grace@example.com", "score": 0.47},
+        ],
+    }
 
 Each sandbox carries tags with the task instance's Dag id, task id, run id, map index and try
 number, so you can find it in the Modal dashboard from the task, and the other way round.
@@ -143,8 +157,8 @@ happened and where:
 * The sandbox ran past ``timeout`` (exit code 124): ``Modal sandbox sb-... reached its timeout
   before the function returned. Raise the decorator's timeout (Modal's default is 300
   seconds).``
-* Something else stopped the sandbox (exit code 137), such as terminating it from the Modal
-  dashboard.
+* The sandbox was stopped from outside (exit code 137). Exceeding a ``memory`` limit ends
+  here, as does terminating the sandbox from the Modal dashboard.
 
 If the task fails for any other reason after starting the sandbox, such as losing the
 connection to Modal while following its output, it terminates the sandbox before failing, so

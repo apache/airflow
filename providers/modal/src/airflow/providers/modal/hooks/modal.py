@@ -111,12 +111,13 @@ class ModalHook(BaseHook):
             "MODAL_TOKEN_SECRET or ~/.modal.toml).",
             self.modal_conn_id,
         )
-        return None
 
     @cached_property
     def credentials(self) -> tuple[str, str] | None:
         """Token id and secret from the connection, or ``None`` to defer to the Modal SDK."""
-        conn = self._connection
+        return self._credentials_from(self._connection)
+
+    def _credentials_from(self, conn: Connection | None) -> tuple[str, str] | None:
         if conn is None:
             return None
         token_id, token_secret = conn.login or "", conn.password or ""
@@ -174,21 +175,19 @@ class ModalHook(BaseHook):
         ``.aio`` constructors. Use it with the ``.aio`` form of SDK calls, for example
         ``await modal.Sandbox.from_id.aio(sandbox_id, client=client)``.
 
-        Clients are shared per process and per token pair rather than built per call. The
-        triggerer is long-lived and runs many triggers, the Modal SDK has no public way to close
-        a client, and it shares its own ambient ``from_env`` client in the same way. The number
-        of clients is bounded by the number of distinct Modal tokens the connections hold.
+        Unlike :attr:`client`, which is cached per hook instance, async clients are shared per
+        process and per token pair. The triggerer is long-lived and runs many triggers, the Modal
+        SDK has no public way to close a client, and it shares its own ambient ``from_env``
+        client in the same way. The number of clients is bounded by the number of distinct Modal
+        tokens the connections hold.
         """
-        if self.modal_conn_id is not None and "_connection" not in self.__dict__:
-            connection: Connection | None
+        connection: Connection | None = None
+        if self.modal_conn_id is not None:
             try:
                 connection = await get_async_connection(self.modal_conn_id, hook=self)
             except AirflowNotFoundException as e:
                 self._fall_back_to_ambient(e)
-                connection = None
-            # Fills the cached property, so ``credentials`` reads it instead of a blocking lookup.
-            self._connection = connection
-        credentials = self.credentials
+        credentials = self._credentials_from(connection)
         if credentials is None:
             return await modal.Client.from_env.aio()
         key = (os.getpid(), *credentials)

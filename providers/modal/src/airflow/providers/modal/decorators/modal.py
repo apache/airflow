@@ -34,19 +34,16 @@ from airflow.providers.modal.hooks.modal import ModalHook
 from airflow.providers.modal.triggers.modal import ModalSandboxTrigger
 from airflow.providers.modal.utils.python_sandbox import (
     ENTRYPOINT,
-    STDIN_CHUNK_BYTES,
+    TERMINATED_RETURNCODE,
+    TIMEOUT_RETURNCODE,
     build_payload,
-    find_result,
-    is_result_line,
+    decode_result,
+    send_payload,
     wait_for_exit,
 )
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context, TaskDecorator
-
-# Exit codes the Modal SDK reports for a sandbox that did not exit on its own.
-_TIMEOUT_RETURNCODE = 124
-_TERMINATED_RETURNCODE = 137
 
 
 class _ModalSandboxOperator(BaseOperator):
@@ -143,7 +140,7 @@ class _ModalSandboxOperator(BaseOperator):
         # sandbox running for the trigger. Any other error would leave a sandbox nobody follows,
         # and a retry would start a second one beside it.
         try:
-            self._send_payload(sandbox, payload)
+            send_payload(sandbox, payload)
             if self.deferrable:
                 self.defer(
                     trigger=ModalSandboxTrigger(
@@ -151,48 +148,35 @@ class _ModalSandboxOperator(BaseOperator):
                     ),
                     method_name="execute_complete",
                 )
-            result_lines = []
-            for line in sandbox.stdout:
-                if is_result_line(line):
-                    result_lines.append(line)
-                else:
-                    self.log.info("%s", line.rstrip("\n"))
+            for line in sandbox.stderr:
+                self.log.info("%s", line.rstrip("\n"))
             wait_for_exit(sandbox)
         except Exception:
             self.on_kill()
             raise
         self._raise_for_returncode(sandbox.object_id, sandbox.returncode)
-        return find_result(result_lines)
-
-    @staticmethod
-    def _send_payload(sandbox: modal.Sandbox, payload: str) -> None:
-        """Write the payload to stdin in pieces that fit the Modal SDK's stdin buffer, then close it."""
-        data = payload.encode()
-        for start in range(0, len(data), STDIN_CHUNK_BYTES):
-            sandbox.stdin.write(data[start : start + STDIN_CHUNK_BYTES])
-            sandbox.stdin.drain()
-        sandbox.stdin.write_eof()
-        sandbox.stdin.drain()
+        return decode_result(sandbox.stdout.read())
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """Read the return value once the trigger reports that the sandbox exited."""
         sandbox_id = event["sandbox_id"]
         self._raise_for_returncode(sandbox_id, event["returncode"])
         sandbox = ModalHook(modal_conn_id=self.modal_conn_id).get_sandbox(sandbox_id)
-        return find_result(sandbox.stdout)
+        return decode_result(sandbox.stdout.read())
 
     def _raise_for_returncode(self, sandbox_id: str, returncode: int | None) -> None:
         if returncode == 0:
             return
-        if returncode == _TIMEOUT_RETURNCODE:
+        if returncode == TIMEOUT_RETURNCODE:
             message = (
                 f"Modal sandbox {sandbox_id} reached its timeout before the function returned. "
                 "Raise the decorator's timeout (Modal's default is 300 seconds)."
             )
-        elif returncode == _TERMINATED_RETURNCODE:
+        elif returncode == TERMINATED_RETURNCODE:
             message = (
                 f"Modal sandbox {sandbox_id} was terminated before the function returned, for "
-                "example from the Modal dashboard."
+                "example because it ran out of memory under a memory limit, or from the Modal "
+                "dashboard."
             )
         else:
             message = (
@@ -208,7 +192,8 @@ class _ModalSandboxOperator(BaseOperator):
         try:
             self._sandbox.terminate()
         except Exception as e:
-            # Runs while another error is propagating; that error is the one to report.
+            # execute() also calls this while another error propagates; a failed terminate must
+            # not replace that error.
             self.log.warning("Failed to terminate Modal sandbox %s: %s", self._sandbox.object_id, e)
 
 

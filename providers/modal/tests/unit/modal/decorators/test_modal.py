@@ -24,7 +24,7 @@ from airflow.providers.modal.decorators.modal import _ModalDecoratedOperator
 from airflow.providers.modal.exceptions import ModalSandboxError
 from airflow.providers.modal.hooks.modal import ModalHook
 from airflow.providers.modal.triggers.modal import ModalSandboxTrigger
-from airflow.providers.modal.utils.python_sandbox import ENTRYPOINT
+from airflow.providers.modal.utils.python_sandbox import ENTRYPOINT, send_payload
 from airflow.sdk import DAG, task
 from airflow.sdk.api.datamodels._generated import TaskInstanceState
 from airflow.sdk.execution_time.comms import DeferTask
@@ -131,8 +131,8 @@ class TestModalTask:
             run_task(operator)
 
         logged = [call.args for call in log.return_value.info.call_args_list]
-        assert ("%s", "loading the model") in logged
-        assert not any("__airflow_modal_task_result__" in str(args) for args in logged)
+        output_lines = [args for args in logged if args[0] == "%s"]
+        assert output_lines == [("%s", "loading the model")], "only the function's output is logged"
 
     def test_sandbox_gets_the_task_options_and_identifying_tags(self, run_task, sandboxes):
         image = modal.Image.debian_slim(python_version="3.12").pip_install("pydantic<2")
@@ -253,7 +253,7 @@ class TestFailures:
         def broken_stream(self):
             raise modal.exception.ConnectionError("stream reset")
 
-        monkeypatch.setattr(LocalSandbox, "stdout", property(broken_stream))
+        monkeypatch.setattr(LocalSandbox, "stderr", property(broken_stream))
         with DAG(dag_id="modal_dag"):
 
             @task.modal
@@ -300,7 +300,7 @@ class TestDeferrable:
 
             operator = _operator(train())
         sandbox = ModalHook().create_sandbox(*ENTRYPOINT, app_name="airflow")
-        operator._send_payload(sandbox, operator._build_payload())
+        send_payload(sandbox, operator._build_payload())
 
         result = operator.execute_complete(context={}, event={"sandbox_id": "sb-local", "returncode": 0})
 

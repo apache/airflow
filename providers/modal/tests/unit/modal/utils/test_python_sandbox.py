@@ -20,26 +20,25 @@ import textwrap
 
 import pytest
 
-from airflow.providers.modal.decorators.modal import _ModalSandboxOperator
 from airflow.providers.modal.utils.python_sandbox import (
     ENTRYPOINT,
-    RESULT_PREFIX,
+    TIMEOUT_RETURNCODE,
     build_payload,
-    find_result,
-    is_result_line,
+    decode_result,
+    send_payload,
     wait_for_exit,
 )
 
-from unit.modal.local_sandbox import STDIN_BUFFER_BYTES, TIMEOUT_RETURNCODE, LocalSandbox
+from unit.modal.local_sandbox import STDIN_BUFFER_BYTES, LocalSandbox
 
 
-def _run(tmp_path, source: str, function_name: str, *args, **kwargs) -> LocalSandbox:
-    sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path)
+def _run(tmp_path, source: str, function_name: str, *args, timeout: int | None = None, **kwargs):
+    sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path, timeout=timeout)
     payload = build_payload(
         source=textwrap.dedent(source), function_name=function_name, args=args, kwargs=kwargs
     )
     # LocalSandbox stands in for modal.Sandbox with the same stdin surface.
-    _ModalSandboxOperator._send_payload(sandbox, payload)  # type: ignore[arg-type]
+    send_payload(sandbox, payload)  # type: ignore[arg-type]
     return sandbox
 
 
@@ -55,41 +54,38 @@ class TestBootstrap:
         sandbox = _run(tmp_path, source, "summarize", [1, 2, 3], scale=10)
 
         assert sandbox.returncode == 0
-        assert find_result(sandbox.stdout) == {"mean": 20, "n": 3}
+        assert decode_result(sandbox.stdout.read()) == {"mean": 20, "n": 3}
 
     def test_none_return_value(self, tmp_path):
         sandbox = _run(tmp_path, "def noop():\n    pass\n", "noop")
 
         assert sandbox.returncode == 0
-        assert find_result(sandbox.stdout) is None
+        assert decode_result(sandbox.stdout.read()) is None
 
-    def test_output_without_trailing_newline_does_not_hide_the_result(self, tmp_path):
+    def test_everything_the_function_prints_goes_to_stderr_and_stdout_holds_only_the_result(self, tmp_path):
         source = """
         def chatty():
+            import subprocess
             import sys
 
+            print("from print")
+            print("from stderr", file=sys.stderr)
+            subprocess.run([sys.executable, "-c", "print('from a subprocess')"], check=True)
             sys.stdout.write("no newline at the end")
             return 42
         """
 
         sandbox = _run(tmp_path, source, "chatty")
 
-        lines = list(sandbox.stdout)
-        assert "no newline at the end\n" in lines
-        assert find_result(lines) == 42
+        assert list(sandbox.stderr) == [
+            "from print\n",
+            "from stderr\n",
+            "from a subprocess\n",
+            "no newline at the end",
+        ]
+        assert decode_result(sandbox.stdout.read()) == 42
 
-    def test_a_printed_line_that_looks_like_a_result_does_not_win(self, tmp_path):
-        source = f"""
-        def spoof():
-            print("{RESULT_PREFIX}gARLAS4=")
-            return "real"
-        """
-
-        sandbox = _run(tmp_path, source, "spoof")
-
-        assert find_result(sandbox.stdout) == "real"
-
-    def test_exception_exits_nonzero_with_traceback_in_stdout(self, tmp_path):
+    def test_exception_exits_nonzero_with_traceback_on_stderr_and_no_result(self, tmp_path):
         source = """
         def fail():
             print("before the error")
@@ -99,11 +95,11 @@ class TestBootstrap:
         sandbox = _run(tmp_path, source, "fail")
 
         assert sandbox.returncode == 1
-        lines = [line.rstrip("\n") for line in sandbox.stdout]
+        lines = [line.rstrip("\n") for line in sandbox.stderr]
         assert lines[0] == "before the error"
         assert lines[-1] == "ValueError: boom"
         assert '    raise ValueError("boom")' in lines, "traceback should quote the function's source"
-        assert not any(is_result_line(line) for line in lines)
+        assert sandbox.stdout.read() == ""
 
     def test_arguments_larger_than_the_stdin_buffer_arrive_whole(self, tmp_path):
         big = "x" * (STDIN_BUFFER_BYTES + 1)
@@ -111,7 +107,7 @@ class TestBootstrap:
         sandbox = _run(tmp_path, "def size(text):\n    return len(text)\n", "size", big)
 
         assert sandbox.returncode == 0
-        assert find_result(sandbox.stdout) == len(big)
+        assert decode_result(sandbox.stdout.read()) == len(big)
 
     def test_annotations_naming_types_the_sandbox_lacks_are_not_evaluated(self, tmp_path):
         source = """
@@ -121,22 +117,18 @@ class TestBootstrap:
 
         sandbox = _run(tmp_path, source, "identity", {"a": 1}, [])
 
-        assert sandbox.returncode == 0, "".join(sandbox.stdout)
-        assert find_result(sandbox.stdout) == {"a": 1}
+        assert sandbox.returncode == 0, sandbox.stderr.read()
+        assert decode_result(sandbox.stdout.read()) == {"a": 1}
 
 
 def test_wait_for_exit_turns_a_timeout_into_its_exit_code(tmp_path):
-    sandbox = LocalSandbox(*ENTRYPOINT, tmp_path=tmp_path, timeout=1)
-    payload = build_payload(
-        source="def nap():\n    import time\n    time.sleep(30)\n", function_name="nap", args=(), kwargs={}
-    )
-    _ModalSandboxOperator._send_payload(sandbox, payload)
+    sandbox = _run(tmp_path, "def nap():\n    import time\n    time.sleep(30)\n", "nap", timeout=1)
 
-    wait_for_exit(sandbox)
+    wait_for_exit(sandbox)  # type: ignore[arg-type]
 
     assert sandbox.returncode == TIMEOUT_RETURNCODE
 
 
-def test_find_result_without_result_line_raises():
-    with pytest.raises(ValueError, match="no result line"):
-        find_result(["just output\n"])
+def test_decode_result_of_empty_stdout_raises():
+    with pytest.raises(ValueError, match="wrote no return value"):
+        decode_result("")
