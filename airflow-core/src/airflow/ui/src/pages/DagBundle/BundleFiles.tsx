@@ -18,7 +18,7 @@
  */
 import { useState } from "react";
 
-import { Box, Button, Text } from "@chakra-ui/react";
+import { Badge, Box, Button, Text } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -26,6 +26,8 @@ import { LuFileWarning } from "react-icons/lu";
 
 import { useDagBundleServiceGetDagBundleFiles } from "openapi/queries";
 import type { DagBundleFileResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
 
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
@@ -85,7 +87,7 @@ const createColumns = (
       // status rather than a control, so the clickable form carries an icon and its own label.
       original.import_error_count === 0 ? (
         <ImportErrorCount count={original.import_error_count} />
-      ) : (
+      ) : original.can_read_import_error ? (
         <Button
           colorPalette="failed"
           onClick={() => {
@@ -99,6 +101,17 @@ const createColumns = (
             count: original.import_error_count,
           })}
         </Button>
+      ) : (
+        // The count stays visible, since bundle access covers knowing a file is broken; only the
+        // control that would open an error the caller cannot read is dropped.
+        // Subtle rather than solid, as StatusChip marks a status that opens nothing, and the
+        // button's height so the rows line up.
+        <Tooltip content={translate("browse:dagBundles.files.importErrorForbidden")}>
+          <Badge colorPalette="failed" h={8} variant="subtle">
+            <LuFileWarning />
+            {formatNumber(original.import_error_count, locale)}
+          </Badge>
+        </Tooltip>
       ),
     enableSorting: false,
     header: translate("browse:dagBundles.columns.importErrors"),

@@ -4958,10 +4958,15 @@ export const $DagBundleFileResponse = {
             type: 'integer',
             title: 'Import Error Count',
             description: 'Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.'
+        },
+        can_read_import_error: {
+            type: 'boolean',
+            title: 'Can Read Import Error',
+            description: "Whether the caller may read the file's import error through ``GET /importErrors``, possibly with its stack trace redacted. Always false when the file has no error."
         }
     },
     type: 'object',
-    required: ['relative_fileloc', 'dag_count', 'last_parsed_time', 'last_parse_duration', 'import_error_count'],
+    required: ['relative_fileloc', 'dag_count', 'last_parsed_time', 'last_parse_duration', 'import_error_count', 'can_read_import_error'],
     title: 'DagBundleFileResponse',
     description: 'A file in a Dag bundle, as the Dag processor last saw it.'
 } as const;

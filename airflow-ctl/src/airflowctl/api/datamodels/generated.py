@@ -640,6 +640,13 @@ class DagBundleFileResponse(BaseModel):
             title="Import Error Count",
         ),
     ]
+    can_read_import_error: Annotated[
+        bool,
+        Field(
+            description="Whether the caller may read the file's import error through ``GET /importErrors``, possibly with its stack trace redacted. Always false when the file has no error.",
+            title="Can Read Import Error",
+        ),
+    ]
 
 
 class DagBundleResponse(BaseModel):

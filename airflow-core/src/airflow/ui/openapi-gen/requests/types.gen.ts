@@ -1308,6 +1308,10 @@ export type DagBundleFileResponse = {
      * Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.
      */
     import_error_count: number;
+    /**
+     * Whether the caller may read the file's import error through ``GET /importErrors``, possibly with its stack trace redacted. Always false when the file has no error.
+     */
+    can_read_import_error: boolean;
 };
 
 /**
