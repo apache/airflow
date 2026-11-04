@@ -212,6 +212,37 @@ class TestClasspathAlias:
         assert os.readlink(link) == os.fspath(root)
         assert stat.S_IMODE(alias_dir.stat().st_mode) == 0o700
 
+    def test_mixed_roots_link_only_the_root_with_separator(self, tmp_path, alias_dir):
+        plain = tmp_path / "plain"
+        plain.mkdir()
+        lib = _make_jar(plain / "lib.jar", main_class=None)
+        root = _make_timestamped_bundle(tmp_path)
+
+        result = _calculate_classpath([plain, root])
+
+        [link] = alias_dir.iterdir()
+        assert os.readlink(link) == os.fspath(root)
+        assert result.split(os.pathsep) == [
+            f"{link.as_posix()}/app.jar",
+            f"{link.as_posix()}/libs/dep.jar",
+            lib.as_posix(),
+        ]
+
+    @pytest.mark.parametrize(
+        ("inner_first", "link_count"),
+        [pytest.param(False, 1, id="outer-first"), pytest.param(True, 2, id="inner-first")],
+    )
+    def test_nested_roots(self, tmp_path, alias_dir, inner_first, link_count):
+        root = _make_timestamped_bundle(tmp_path)
+        roots = [root / "libs", root] if inner_first else [root, root / "libs"]
+
+        entries = _calculate_classpath(roots).split(os.pathsep)
+
+        assert sorted(pathlib.Path(e).resolve() for e in entries) == sorted(
+            [(root / "app.jar").resolve(), (root / "libs" / "dep.jar").resolve()]
+        )
+        assert len(list(alias_dir.iterdir())) == link_count
+
     def test_link_is_reused(self, tmp_path, alias_dir):
         root = _make_timestamped_bundle(tmp_path)
         link = _get_classpath_alias(root)
