@@ -1006,9 +1006,23 @@ jobs:
       use-uv: ${{ needs.build-info.outputs.use-uv }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
 
+  build-prod-packages:
+    name: Build PROD packages
+    needs: [build-info]
+    uses: ./.github/workflows/prod-packages-build.yml
+    permissions:
+      contents: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      upload-package-artifact: "true"
+      prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
+
   build-prod-images:
     name: Build PROD images
-    needs: [build-info, build-ci-images, generate-constraints]
+    needs: [build-info, build-ci-images, build-prod-packages, generate-constraints]
     uses: ./.github/workflows/prod-image-build.yml
     permissions:
       contents: read
@@ -1031,6 +1045,7 @@ jobs:
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       disable-airflow-repo-cache: ${{ needs.build-info.outputs.disable-airflow-repo-cache }}
       prod-image-build: ${{ needs.build-info.outputs.prod-image-build }}
+      packages-prebuilt: "true"
 
   additional-prod-image-tests:
     name: "Additional PROD image tests"
@@ -1490,6 +1505,7 @@ jobs:
       - build-info
       - build-java-sdk-docs
       - build-prod-images
+      - build-prod-packages
       - build-ts-sdk-docs
       - check-run-needed
       - ci-image-checks
@@ -1557,6 +1573,7 @@ jobs:
       - build-info
       - build-java-sdk-docs
       - build-prod-images
+      - build-prod-packages
       - build-ts-sdk-docs
       - check-run-needed
       - check-timed-out-jobs
