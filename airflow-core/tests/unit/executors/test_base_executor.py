@@ -76,6 +76,11 @@ def test_invalid_slotspool():
         BaseExecutor(0)
 
 
+def test_get_health_default_value():
+    """An executor that doesn't override get_health() reports nothing, not failure."""
+    assert BaseExecutor().get_health() is None
+
+
 def test_get_task_log():
     executor = BaseExecutor()
     ti = TaskInstance(task=SerializedBaseOperator(task_id="dummy"), dag_version_id=mock.MagicMock(spec=UUID))

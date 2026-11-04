@@ -27,6 +27,7 @@ import sys
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
@@ -75,7 +76,7 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import Job, JobState, perform_heartbeat
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -404,6 +405,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
         self.executor: BaseExecutor = self.executors[0]
 
+        # Each executor's get_health() runs here, never on the scheduler loop's own thread: a check
+        # that talks to a broker or a cluster control plane can be slow or hang, and must not be able
+        # to delay task scheduling. One worker per configured executor is enough since each executor
+        # is only ever checked by one in-flight call at a time (see _check_executor_health).
+        self._executor_health_check_pool = ThreadPoolExecutor(
+            max_workers=max(1, len(self.executors)), thread_name_prefix="executor-health-check"
+        )
+        self._executor_health_check_futures: dict[str, Future] = {}
+
         if self._enable_tracemalloc:
             import tracemalloc
 
@@ -424,6 +434,74 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
+
+    def _check_executor_health(self) -> None:
+        """
+        Kick off a health check for each configured executor, in the background.
+
+        Called on its own timer (``[scheduler] executor_health_check_interval``), independent of the
+        scheduling loop and of each executor's own :meth:`~airflow.executors.base_executor.BaseExecutor.heartbeat`.
+        A new check for a given executor is skipped while its previous check is still running, so a
+        slow or hung dependency can only ever delay that executor's own health being updated, never
+        pile up work or block this (or any other) scheduler tick.
+        """
+        for executor in self.executors:
+            key = executor.name.alias if executor.name and executor.name.alias else type(executor).__name__
+            future = self._executor_health_check_futures.get(key)
+            if future is not None and not future.done():
+                self.log.debug(
+                    "Skipping health check for executor %s, the previous check hasn't finished", key
+                )
+                continue
+            self._executor_health_check_futures[key] = self._executor_health_check_pool.submit(
+                self._run_executor_health_check, executor, key
+            )
+
+    def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
+        """Run one executor's get_health() off the scheduler thread and record the result, if any."""
+        try:
+            healthy = executor.get_health()
+        except Exception:
+            self.log.exception("Health check for executor %s raised an exception", key)
+            return
+        if healthy is None:
+            # This executor doesn't implement a health check; there's nothing to record.
+            return
+        if not healthy:
+            self.log.warning("Executor %s reported itself unhealthy", key)
+            return
+        self._record_executor_heartbeat(key, executor.team_name)
+
+    @provide_session
+    def _record_executor_heartbeat(
+        self, executor_key: str, team_name: str | None, *, session: Session = NEW_SESSION
+    ) -> None:
+        """
+        Record a successful health check as a Job row, the same way every other component does.
+
+        Reuses the existing Jobs table and ``JobState`` values rather than introducing a new status
+        model: a healthy executor gets a ``RUNNING`` row with a fresh heartbeat, same as a Scheduler,
+        Triggerer, or DagProcessor instance, and ``/monitor/health`` derives HEALTHY/UNHEALTHY from
+        that heartbeat exactly as it already does for those. The executor's alias (or class name, for
+        an unaliased single-executor setup) is stored in ``hostname``, which is otherwise unused for
+        this job_type, to tell multiple configured executors' rows apart.
+        """
+        job = session.scalar(
+            select(Job).where(
+                Job.job_type == EXECUTOR_JOB_TYPE,
+                Job.hostname == executor_key,
+                Job.end_date.is_(None),
+            )
+        )
+        if job is None:
+            job = Job(job_type=EXECUTOR_JOB_TYPE)
+            job.hostname = executor_key
+            session.add(job)
+        job.state = JobState.RUNNING
+        job.latest_heartbeat = timezone.utcnow()
+        if team_name:
+            job.team_names = [team_name]
+        session.commit()
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
         try:
@@ -1912,6 +1990,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
 
+            # Don't block scheduler shutdown on a health check that's still in flight; it has no
+            # effect once nothing is left to record its result.
+            self._executor_health_check_pool.shutdown(wait=False, cancel_futures=True)
+
             # Under normal execution, this doesn't matter, but by resetting signals it lets us run more things
             # in the same process under testing without leaking global state
             reset_signals.close()
@@ -2082,6 +2164,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
+            non_fatal=True,
+        )
+
+        timers.call_regular_interval(
+            delay=conf.getfloat("scheduler", "executor_health_check_interval", fallback=30.0),
+            action=self._check_executor_health,
             non_fatal=True,
         )
 

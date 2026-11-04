@@ -57,6 +57,13 @@ class JobState(str, Enum):
         return self.value
 
 
+# Executors don't run as their own process the way SchedulerJob/TriggererJob/DagProcessorJob do, so
+# there is no ExecutorJobRunner to own this constant. The scheduler writes rows with this job_type
+# directly when it records an executor's health, reusing the Job table and JobState exactly as the
+# other components do instead of introducing a parallel status model.
+EXECUTOR_JOB_TYPE = "ExecutorJob"
+
+
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 

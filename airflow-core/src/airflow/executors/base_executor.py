@@ -506,6 +506,23 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    def get_health(self) -> bool | None:
+        """
+        Report whether this executor's backend is reachable, for the scheduler's health check.
+
+        Override this for an executor backed by something that can be independently down, such as a
+        message broker or a cluster control plane, that the executor itself can't detect from its
+        in-memory task-tracking state alone. Return ``True`` if the dependency check succeeded,
+        ``False`` if it explicitly failed, or ``None`` (the default) if this executor has nothing
+        useful to report.
+
+        This is called from a worker thread with no open database session, on its own schedule
+        independent of :meth:`heartbeat`, so it must not assume either. A call that raises, blocks, or
+        returns ``None`` records nothing; only ``True``/``False`` update this executor's entry in
+        ``/monitor/health``, and a hung call delays that update, not task scheduling.
+        """
+        return None
+
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)

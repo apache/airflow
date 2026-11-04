@@ -51,6 +51,14 @@ class DagProcessorInstanceInfoResponse(BaseModel):
     bundle_names: list[str] | None
 
 
+class ExecutorInstanceInfoResponse(BaseModel):
+    """Executor instance info serializer for responses."""
+
+    hostname: str | None
+    latest_executor_heartbeat: str | None
+    team_names: list[str]
+
+
 class SchedulerInfoResponse(BaseInfoResponse):
     """Scheduler info serializer for responses."""
 
@@ -75,6 +83,20 @@ class DagProcessorInfoResponse(BaseInfoResponse):
     instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 
+class ExecutorInfoResponse(BaseInfoResponse):
+    """
+    Executor info serializer for responses.
+
+    Only present when at least one configured executor implements a health check; an executor that
+    doesn't isn't a gap in coverage, so a deployment where nothing reports simply has no ``executor``
+    key at all, rather than one that always reads unhealthy.
+    """
+
+    latest_executor_heartbeat: str | None
+    detailed_status: DetailedHealthStatus | None
+    instances: list[ExecutorInstanceInfoResponse] | None = None
+
+
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
 
@@ -82,3 +104,4 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
+    executor: ExecutorInfoResponse | None = None
