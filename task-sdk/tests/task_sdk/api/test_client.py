@@ -1961,6 +1961,27 @@ class TestHITLOperations:
         assert result.multiple is False
         assert result.assigned_users is None
 
+    def test_add_response_retries_with_the_same_idempotency_key(self) -> None:
+        ti_id = uuid7()
+        keys: list[str] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            keys.append(request.headers["Idempotency-Key"])
+            if len(keys) == 1:
+                return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
+            return httpx2.Response(
+                status_code=201, json={"ti_id": str(ti_id), "options": ["Approve"], "subject": "Ship it?"}
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+
+        first_attempt, retry, next_request = keys
+        assert retry == first_attempt
+        assert next_request != first_attempt
+
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))
         ti_id = uuid7()

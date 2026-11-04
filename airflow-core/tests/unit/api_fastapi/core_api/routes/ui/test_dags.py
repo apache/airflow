@@ -479,12 +479,12 @@ class TestGetDagRuns(TestPublicDagEndpoint):
     def test_pending_actions_count_a_running_task_only_while_it_waits(
         self, test_client: TestClient, setup_hitl_data, session: Session
     ):
-        first_run, resumed_after_timeout, resumed_and_asked_again = (
-            detail.task_instance
-            for detail in session.scalars(
-                select(HITLDetail).where(HITLDetail.responded_at.is_(None)).order_by(HITLDetail.subject)
-            )
+        details = session.scalars(select(HITLDetail).order_by(HITLDetail.subject)).all()
+        first_run, resumed_after_timeout, resumed_and_asked_again, finished, _ = (
+            detail.task_instance for detail in details
         )
+        details[3].responded_at = None
+        finished.state = TaskInstanceState.SUCCESS
         first_run.state = TaskInstanceState.RUNNING
         # The server stamps scheduled_dttm when it resumes a task.
         resumed_after_timeout.state = TaskInstanceState.RUNNING

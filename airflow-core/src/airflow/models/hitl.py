@@ -169,6 +169,8 @@ class HITLDetail(Base, HITLDetailPropertyMixin):
     params: Mapped[dict] = mapped_column(sa.JSON(), nullable=False, default={})
     assignees: Mapped[list[dict[str, str]] | None] = mapped_column(sa.JSON(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    # Sent by the Task SDK client with the request, so a retried POST can be told from a new request.
+    idempotency_key: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Response Content Detail
     responded_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
