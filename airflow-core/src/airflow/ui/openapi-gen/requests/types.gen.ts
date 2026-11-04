@@ -878,6 +878,26 @@ export type ConnectionResponse = {
 };
 
 /**
+ * Connection to test.
+ *
+ * Either only ``connection_id`` (and ``team_name``), to test the stored connection as it is,
+ * or a complete connection, tested exactly as given. A stored connection's secrets are never
+ * combined with a connection supplied in the request.
+ */
+export type ConnectionTestBody = {
+    connection_id: string;
+    conn_type?: string | null;
+    description?: string | null;
+    host?: string | null;
+    login?: string | null;
+    schema?: string | null;
+    port?: number | null;
+    password?: string | null;
+    extra?: string | null;
+    team_name?: string | null;
+};
+
+/**
  * Response returned when a connection test has been enqueued for worker execution.
  */
 export type ConnectionTestQueuedResponse = {
@@ -4077,7 +4097,7 @@ export type BulkConnectionsData = {
 export type BulkConnectionsResponse = BulkResponse;
 
 export type TestConnectionData = {
-    requestBody: ConnectionBody;
+    requestBody: ConnectionTestBody;
 };
 
 export type TestConnectionResponse = ConnectionTestResponse;
@@ -6799,10 +6819,6 @@ export type $OpenApiTs = {
                  */
                 200: ConnectionTestResponse;
                 /**
-                 * Bad Request
-                 */
-                400: HTTPExceptionResponse;
-                /**
                  * Unauthorized
                  */
                 401: HTTPExceptionResponse;
@@ -6810,6 +6826,10 @@ export type $OpenApiTs = {
                  * Forbidden
                  */
                 403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
                 /**
                  * Validation Error
                  */

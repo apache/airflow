@@ -257,6 +257,11 @@ After enabling Test Connection, it can be used from the
 :ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page in the UI, through calling
 :doc:`Connections REST API </stable-rest-api-ref/>`, or running the ``airflow connections test`` :ref:`CLI command <cli>`.
 
+The REST API tests either a saved connection or one given in full. Send only ``connection_id`` to test the saved
+connection with its stored credentials. Otherwise, send every field of the connection (``null`` when unset),
+including its credentials: the connection is tested exactly as sent, and nothing is filled in from a saved
+connection with the same ``connection_id``.
+
 .. warning::
 
     This feature won't be available for the connections residing in external secrets backends when using the

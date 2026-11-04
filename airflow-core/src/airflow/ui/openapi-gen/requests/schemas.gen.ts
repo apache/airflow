@@ -2937,6 +2937,126 @@ export const $ConnectionResponse = {
     description: 'Connection serializer for responses.'
 } as const;
 
+export const $ConnectionTestBody = {
+    properties: {
+        connection_id: {
+            type: 'string',
+            maxLength: 200,
+            pattern: '^[\\w.-]+$',
+            title: 'Connection Id'
+        },
+        conn_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Conn Type'
+        },
+        description: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Description'
+        },
+        host: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Host'
+        },
+        login: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Login'
+        },
+        schema: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Schema'
+        },
+        port: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Port'
+        },
+        password: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Password'
+        },
+        extra: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Extra'
+        },
+        team_name: {
+            anyOf: [
+                {
+                    type: 'string',
+                    maxLength: 50
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Team Name'
+        }
+    },
+    additionalProperties: false,
+    type: 'object',
+    required: ['connection_id'],
+    title: 'ConnectionTestBody',
+    description: `Connection to test.
+
+Either only \`\`connection_id\`\` (and \`\`team_name\`\`), to test the stored connection as it is,
+or a complete connection, tested exactly as given. A stored connection's secrets are never
+combined with a connection supplied in the request.`
+} as const;
+
 export const $ConnectionTestQueuedResponse = {
     properties: {
         token: {

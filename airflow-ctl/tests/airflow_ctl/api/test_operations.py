@@ -58,6 +58,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionTestBody,
     ConnectionTestResponse,
     CreateAssetEventsBody,
     DAGCollectionResponse,
@@ -1181,19 +1182,38 @@ class TestConnectionsOperations:
             return httpx.Response(200, json=json.loads(connection_test_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))
-        response = client.connections.test(connection=self.connection)
+        response = client.connections.test(
+            connection=ConnectionTestBody(connection_id=self.connection_id, conn_type=self.conn_type)
+        )
         assert response == connection_test_response
 
-    def test_test_uses_schema_alias_in_request_body(self):
-        # The exact body matters beyond the alias: the server fills unset fields from the stored
-        # connection, keyed off ``model_fields_set``. Sending them as null makes a stored host/port
-        # read as "changed" and the request is rejected with 400; a connection without a host gets
-        # tested with its credentials wiped.
-        connection = ConnectionBody(
-            connection_id=self.connection_id,
-            conn_type=self.conn_type,
-            schema=self.schema_,
-        )
+    @pytest.mark.parametrize(
+        ("connection", "expected_body"),
+        [
+            pytest.param(
+                ConnectionTestBody(connection_id="conn_id"), {"connection_id": "conn_id"}, id="stored"
+            ),
+            pytest.param(
+                ConnectionTestBody.model_validate(
+                    {"connection_id": "conn_id", "conn_type": "http", "schema": "https"}
+                ),
+                {
+                    "connection_id": "conn_id",
+                    "conn_type": "http",
+                    "description": None,
+                    "host": None,
+                    "login": None,
+                    "schema": "https",
+                    "port": None,
+                    "password": None,
+                    "extra": None,
+                    "team_name": None,
+                },
+                id="complete-with-unset-fields-as-null",
+            ),
+        ],
+    )
+    def test_test_request_body(self, connection, expected_body):
         connection_test_response = ConnectionTestResponse(
             status=True,
             message="message",
@@ -1201,13 +1221,7 @@ class TestConnectionsOperations:
 
         def handle_request(request: httpx.Request) -> httpx.Response:
             assert request.url.path == "/api/v2/connections/test"
-            request_body = json.loads(request.content.decode())
-            assert request_body == {
-                "connection_id": self.connection_id,
-                "conn_type": self.conn_type,
-                "schema": self.schema_,
-            }
-            assert "schema_" not in request_body
+            assert json.loads(request.content.decode()) == expected_body
             return httpx.Response(200, json=json.loads(connection_test_response.model_dump_json()))
 
         client = make_api_client(transport=httpx.MockTransport(handle_request))

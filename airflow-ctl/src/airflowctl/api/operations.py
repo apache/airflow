@@ -53,6 +53,7 @@ from airflowctl.api.datamodels.generated import (
     ConnectionBody,
     ConnectionCollectionResponse,
     ConnectionResponse,
+    ConnectionTestBody,
     ConnectionTestResponse,
     CreateAssetEventsBody,
     DAGCollectionResponse,
@@ -592,13 +593,18 @@ class ConnectionsOperations(BaseOperations):
 
     def test(
         self,
-        connection: ConnectionBody,
+        connection: ConnectionTestBody,
     ) -> ConnectionTestResponse | ServerResponseError:
-        """Test a connection."""
-        self.response = self.client.post(
-            "connections/test",
-            json=connection.model_dump(mode="json", by_alias=True, exclude_none=True),
-        )
+        """
+        Test a connection.
+
+        With only ``connection_id`` set, the server tests the stored connection. Otherwise it tests
+        exactly this connection, so the fields left unset are sent as null.
+        """
+        body = connection.model_dump(mode="json", by_alias=True, exclude_none=True)
+        if body.keys() - {"connection_id", "team_name"}:
+            body = connection.model_dump(mode="json", by_alias=True)
+        self.response = self.client.post("connections/test", json=body)
         return validate_response(self.response.content, ConnectionTestResponse)
 
 

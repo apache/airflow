@@ -421,6 +421,30 @@ class ConnectionResponse(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")]
 
 
+class ConnectionTestBody(BaseModel):
+    """
+    Connection to test.
+
+    Either only ``connection_id`` (and ``team_name``), to test the stored connection as it is,
+    or a complete connection, tested exactly as given. A stored connection's secrets are never
+    combined with a connection supplied in the request.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    connection_id: Annotated[str, Field(max_length=200, pattern="^[\\w.-]+$", title="Connection Id")]
+    conn_type: Annotated[str | None, Field(title="Conn Type")] = None
+    description: Annotated[str | None, Field(title="Description")] = None
+    host: Annotated[str | None, Field(title="Host")] = None
+    login: Annotated[str | None, Field(title="Login")] = None
+    schema_: Annotated[str | None, Field(alias="schema", title="Schema")] = None
+    port: Annotated[int | None, Field(title="Port")] = None
+    password: Annotated[str | None, Field(title="Password")] = None
+    extra: Annotated[str | None, Field(title="Extra")] = None
+    team_name: Annotated[TeamName | None, Field(title="Team Name")] = None
+
+
 class ConnectionTestQueuedResponse(BaseModel):
     """
     Response returned when a connection test has been enqueued for worker execution.

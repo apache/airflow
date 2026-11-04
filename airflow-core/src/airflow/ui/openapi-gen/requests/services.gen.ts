@@ -987,6 +987,9 @@ export class ConnectionService {
      * Test Connection
      * Test an API connection.
      *
+     * Send only ``connection_id`` to test the stored connection as it is, or a complete connection to
+     * test it exactly as given.
+     *
      * This method first creates an in-memory transient conn_id & exports that to an env var,
      * as some hook classes tries to find out the `conn` from their __init__ method & errors out if not found.
      * It also deletes the conn id env connection after the test.
@@ -1002,9 +1005,9 @@ export class ConnectionService {
             body: data.requestBody,
             mediaType: 'application/json',
             errors: {
-                400: 'Bad Request',
                 401: 'Unauthorized',
                 403: 'Forbidden',
+                404: 'Not Found',
                 422: 'Validation Error'
             }
         });
