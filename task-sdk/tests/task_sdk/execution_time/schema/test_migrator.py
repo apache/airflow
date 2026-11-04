@@ -583,7 +583,7 @@ class TestRealBundleArgBindingsDowngrade:
         "binding",
         [
             pytest.param({"name": "totals", "kind": "sequence", "task_id": "transform"}, id="sequence"),
-            pytest.param({"name": "row", "kind": "local"}, id="local"),
+            pytest.param({"name": "row", "kind": "unresolved"}, id="unresolved"),
             pytest.param(
                 {"name": "row", "kind": "tuple", "parts": [{"name": "row", "kind": "literal", "value": 1}]},
                 id="tuple",

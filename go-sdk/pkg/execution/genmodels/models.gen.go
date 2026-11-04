@@ -1487,21 +1487,6 @@ type LiteralArgBinding struct {
 	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
 }
 
-// One stub-task argument the API server cannot resolve, such as one that applies
-// “map()“ callables.
-//
-// The worker resolves it from the Dag file before the runtime starts the task.
-type LocalArgBinding struct {
-	// Kind corresponds to the JSON schema field "kind".
-	Kind string `msgpack:"kind"`
-
-	// Name corresponds to the JSON schema field "name".
-	Name string `msgpack:"name"`
-
-	// ValueSchema corresponds to the JSON schema field "value_schema".
-	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
-}
-
 // A loop gate's evaluation of its “until“ callable.
 type LoopDecisionPayload struct {
 	// Reason corresponds to the JSON schema field "reason".
@@ -1991,6 +1976,24 @@ type TupleArgBinding struct {
 
 	// Parts corresponds to the JSON schema field "parts".
 	Parts []TupleArgBindingPart `msgpack:"parts"`
+
+	// ValueSchema corresponds to the JSON schema field "value_schema".
+	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`
+}
+
+// An argument the server could not finish.
+//
+// Its “map()“ callables are Python, or its nesting fits no single binding. The
+// coordinator's
+// Python helper resolves it against the Dag file and replaces it with a
+// “LiteralArgBinding“,
+// so no SDK runtime ever receives this kind.
+type UnresolvedArgBinding struct {
+	// Kind corresponds to the JSON schema field "kind".
+	Kind string `msgpack:"kind"`
+
+	// Name corresponds to the JSON schema field "name".
+	Name string `msgpack:"name"`
 
 	// ValueSchema corresponds to the JSON schema field "value_schema".
 	ValueSchema *ArgValueSchema `msgpack:"value_schema,omitempty"`

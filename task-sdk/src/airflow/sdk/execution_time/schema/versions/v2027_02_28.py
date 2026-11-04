@@ -44,7 +44,7 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
 
 class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
     """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``local`` kinds, and the XCom element fields.
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``unresolved`` kinds, and the XCom element fields.
 
     The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
     the two migrations are not confused.
@@ -67,7 +67,7 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
 
 
 def _is_mapped_binding(binding: dict[str, Any]) -> bool:
-    if binding["kind"] in ("sequence", "tuple", "local"):
+    if binding["kind"] in ("sequence", "tuple", "unresolved"):
         return True
     return binding["kind"] == "xcom" and (
         binding.get("map_index", -1) != -1

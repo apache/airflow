@@ -1489,10 +1489,10 @@ class TestTIRunState:
             pytest.param(lambda extract, lookup: extract.zip(lookup).zip(lookup), id="zip-inside-zip"),
         ],
     )
-    def test_ti_run_sends_local_binding_for_what_the_server_cannot_finish(
+    def test_ti_run_sends_unresolved_binding_for_what_the_server_cannot_finish(
         self, client, dag_maker, session, make_row
     ):
-        with dag_maker("test_mapped_stub_local", serialized=True, session=session):
+        with dag_maker("test_mapped_stub_unresolved", serialized=True, session=session):
 
             @task.stub
             def extract(): ...
@@ -1512,7 +1512,7 @@ class TestTIRunState:
         response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
-            {"name": "row", "kind": "local", "value_schema": {"type": "string"}}
+            {"name": "row", "kind": "unresolved", "value_schema": {"type": "string"}}
         ]
 
     def test_ti_run_orders_mapped_stub_spec_by_declaration_with_defaults(self, client, dag_maker):
@@ -1829,7 +1829,9 @@ class TestTIRunState:
             }
         ]
 
-    def test_ti_run_delivers_sequence_and_local_bindings_of_unmapped_stub(self, client, dag_maker, session):
+    def test_ti_run_delivers_sequence_and_unresolved_bindings_of_unmapped_stub(
+        self, client, dag_maker, session
+    ):
         with dag_maker("test_unmapped_stub_reduce", serialized=True, session=session):
 
             @task.stub
@@ -1849,7 +1851,7 @@ class TestTIRunState:
         assert response.status_code == 200
         assert response.json()["arg_bindings"] == [
             {"name": "totals", "kind": "sequence", "task_id": "transform"},
-            {"name": "cleaned", "kind": "local"},
+            {"name": "cleaned", "kind": "unresolved"},
         ]
 
     def test_arg_bindings_adapter_rejects_unknown_kind(self):

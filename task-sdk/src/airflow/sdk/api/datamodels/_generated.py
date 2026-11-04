@@ -892,18 +892,6 @@ class LiteralArgBinding(BaseModel):
     from_default: Annotated[bool | None, Field(title="From Default")] = False
 
 
-class LocalArgBinding(BaseModel):
-    """
-    One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.
-
-    The worker resolves it from the Dag file before the runtime starts the task.
-    """
-
-    name: Annotated[str, Field(title="Name")]
-    value_schema: ArgValueSchema | None = None
-    kind: Annotated[Literal["local"], Field(title="Kind")]
-
-
 class TITerminalStatePayload(BaseModel):
     """
     Report a terminal outcome other than SUCCESS, or acknowledge server-requested termination.
@@ -919,6 +907,20 @@ class TITerminalStatePayload(BaseModel):
     hostname: Annotated[str | None, Field(title="Hostname")] = None
     pid: Annotated[int | None, Field(title="Pid")] = None
     loop_decision: LoopDecisionPayload | None = None
+
+
+class UnresolvedArgBinding(BaseModel):
+    """
+    An argument the server could not finish.
+
+    Its ``map()`` callables are Python, or its nesting fits no single binding. The coordinator's
+    Python helper resolves it against the Dag file and replaces it with a ``LiteralArgBinding``,
+    so no SDK runtime ever receives this kind.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    kind: Annotated[Literal["unresolved"], Field(title="Kind")]
 
 
 class XComArgBinding(BaseModel):
@@ -1036,10 +1038,12 @@ class TupleArgBinding(BaseModel):
 
 
 class TaskArgBinding(
-    RootModel[XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding]
+    RootModel[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding
+    ]
 ):
     root: Annotated[
-        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding,
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding,
         Field(discriminator="kind", title="TaskArgBinding"),
     ]
 

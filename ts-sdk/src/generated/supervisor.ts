@@ -264,7 +264,11 @@ export type ArgBindings = TaskArgBinding[] | null;
  * via the `definition` "TaskArgBinding".
  */
 export type TaskArgBinding =
-  XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding;
+  | XComArgBinding
+  | LiteralArgBinding
+  | XComSequenceArgBinding
+  | TupleArgBinding
+  | UnresolvedArgBinding;
 export type Name8 = string;
 export type Kind = "xcom";
 export type TaskId1 = string;
@@ -286,7 +290,7 @@ export type Kind3 = "tuple";
 export type TupleArgBindingPart = XComArgBinding | LiteralArgBinding;
 export type Parts = TupleArgBindingPart[];
 export type Name12 = string;
-export type Kind4 = "local";
+export type Kind4 = "unresolved";
 /**
  * The execution_timeout in seconds set on a task a language SDK runs, from its serialized Dag. Unset when the task sets none. Zero means no timeout and a negative value has already elapsed, as for a Python task. A Python task runs its own timer in the task runner instead, and gets no value here.
  */
@@ -1179,14 +1183,16 @@ export interface TupleArgBinding {
   parts: Parts;
 }
 /**
- * One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.
+ * An argument the server could not finish.
  *
- * The worker resolves it from the Dag file before the runtime starts the task.
+ * Its ``map()`` callables are Python, or its nesting fits no single binding. The coordinator's
+ * Python helper resolves it against the Dag file and replaces it with a ``LiteralArgBinding``,
+ * so no SDK runtime ever receives this kind.
  *
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
- * via the `definition` "LocalArgBinding".
+ * via the `definition` "UnresolvedArgBinding".
  */
-export interface LocalArgBinding {
+export interface UnresolvedArgBinding {
   name: Name12;
   value_schema?: ArgValueSchema | null;
   kind: Kind4;
