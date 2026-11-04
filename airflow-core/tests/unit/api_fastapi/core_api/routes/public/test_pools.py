@@ -1212,7 +1212,7 @@ class TestBulkPools(TestPoolsEndpoint):
         # the loop would add one SELECT per pool, so the larger run would issue
         # strictly more queries than the smaller one.
 
-        EXPECTED_QUERY_COUNT = 4
+        EXPECTED_QUERY_COUNT = 3
 
         pool_names = [f"perf_pool_{pool_count}_{i}" for i in range(pool_count)]
         session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
@@ -1247,7 +1247,7 @@ class TestBulkPools(TestPoolsEndpoint):
         # the loop would add one SELECT per pool, so the larger run would issue
         # strictly more queries than the smaller one.
 
-        EXPECTED_QUERY_COUNT = 4
+        EXPECTED_QUERY_COUNT = 3
 
         pool_names = [f"perf_update_pool_{pool_count}_{i}" for i in range(pool_count)]
         session.add_all(Pool(pool=name, slots=1, include_deferred=False) for name in pool_names)
