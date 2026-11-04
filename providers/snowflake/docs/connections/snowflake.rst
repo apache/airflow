@@ -198,7 +198,9 @@ library installed:
 
 * ``AWS``: ``boto3`` with ``botocore>=1.41.0`` for ``sts:GetWebIdentityToken`` support.
   The workload's IAM role must be allowed to
-  call it, and AWS outbound identity federation must be enabled for the account. The call is not available on
+  call it, and AWS outbound identity federation must be enabled for the account. This requirement applies
+  only to the REST hooks; ``SnowflakeHook`` uses a signed ``GetCallerIdentity`` request by default and
+  does not require outbound identity federation. The call is not available on
   the global STS endpoint. Region resolution uses ``AWS_REGION``, then ``AWS_DEFAULT_REGION``,
   then EC2 instance metadata. If none resolves, authentication fails with a configuration error.
   Regional STS endpoints are used even when legacy global endpoint settings are present.

@@ -534,7 +534,11 @@ class TestSnowflakeSqlApiHook:
         self, mock_get_token, mock_conn_param, mock_private_key
     ):
         mock_get_token.return_value = "newT0k3n"
-        mock_conn_param.return_value = {**CONN_PARAMS, "workload_identity_provider": "AWS"}
+        mock_conn_param.return_value = {
+            **CONN_PARAMS,
+            "authenticator": "WORKLOAD_IDENTITY",
+            "workload_identity_provider": "AWS",
+        }
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         result = hook.get_headers()
         assert result["X-Snowflake-Authorization-Token-Type"] == "KEYPAIR_JWT"
@@ -548,6 +552,7 @@ class TestSnowflakeSqlApiHook:
         mock_conn_param.return_value = {
             **CONN_PARAMS,
             "region": "us-east-2.aws",
+            "authenticator": "WORKLOAD_IDENTITY",
             "workload_identity_provider": "GCP",
         }
         mock_fetch_token.return_value = "gcp-id-token"

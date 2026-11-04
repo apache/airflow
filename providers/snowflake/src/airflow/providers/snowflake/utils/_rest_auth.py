@@ -145,9 +145,12 @@ class SnowflakeRestTokenProvider:
                 self._private_key = self._private_key_loader()
                 self._private_key_loaded = True
             if self._private_key is None:
-                if (
-                    conn_config.get("authenticator") or ""
-                ).upper() == "WORKLOAD_IDENTITY" and conn_config.get("workload_identity_provider"):
+                if conn_config.get("workload_identity_provider"):
+                    if (conn_config.get("authenticator") or "").upper() != "WORKLOAD_IDENTITY":
+                        raise ValueError(
+                            "workload_identity_provider was set but authenticator was not set to "
+                            "WORKLOAD_IDENTITY"
+                        )
                     return self._get_workload_identity_token(conn_config)
                 raise ValueError(
                     "Snowflake REST API authentication requires an OAuth access token, a "
@@ -315,7 +318,7 @@ def _fetch_azure_identity_token() -> str:
     credential: ManagedIdentityCredential | WorkloadIdentityCredential
     if all(
         os.environ.get(name) for name in ("AZURE_CLIENT_ID", "AZURE_TENANT_ID", "AZURE_FEDERATED_TOKEN_FILE")
-    ) and os.path.exists(os.environ["AZURE_FEDERATED_TOKEN_FILE"]):
+    ):
         credential = WorkloadIdentityCredential()
     else:
         credential = ManagedIdentityCredential(client_id=os.environ.get("MANAGED_IDENTITY_CLIENT_ID"))

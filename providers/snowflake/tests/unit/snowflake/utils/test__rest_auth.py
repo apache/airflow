@@ -166,7 +166,11 @@ class TestSnowflakeRestTokenProvider:
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
     def test_get_token_workload_identity_with_private_key_uses_key_pair(self, mock_conn_params):
-        mock_conn_params.return_value = {**CONN_PARAMS_KEYPAIR, "workload_identity_provider": "AWS"}
+        mock_conn_params.return_value = {
+            **CONN_PARAMS_KEYPAIR,
+            "authenticator": "WORKLOAD_IDENTITY",
+            "workload_identity_provider": "AWS",
+        }
         key = rsa.generate_private_key(backend=default_backend(), public_exponent=65537, key_size=2048)
         hook = SnowflakeHook(snowflake_conn_id="mock_conn_id")
         provider = SnowflakeRestTokenProvider(hook, private_key_loader=lambda: key)
@@ -215,13 +219,16 @@ class TestSnowflakeRestTokenProvider:
         assert token.token_type == "WORKLOAD_IDENTITY_FEDERATION"
         fetch.assert_called_once_with()
 
-    @pytest.mark.parametrize("authenticator", [None, "snowflake", "externalbrowser"])
+    @pytest.mark.parametrize("authenticator", [None, "", "snowflake", "externalbrowser"])
     @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True)
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
     def test_provider_extra_does_not_enable_wif(self, conn_params, fetch, authenticator):
         conn_params.return_value = {**CONN_PARAMS_WIF, "authenticator": authenticator}
         provider = SnowflakeRestTokenProvider(SnowflakeHook(), private_key_loader=lambda: None)
-        with pytest.raises(ValueError, match="none is configured"):
+        with pytest.raises(
+            ValueError,
+            match="workload_identity_provider was set but authenticator was not set to WORKLOAD_IDENTITY",
+        ):
             provider.get_token()
         fetch.assert_not_called()
 
@@ -588,7 +595,7 @@ class TestFetchIdentityTokens:
             else:
                 monkeypatch.delenv(name, raising=False)
         monkeypatch.setenv("MANAGED_IDENTITY_CLIENT_ID", "mi-client-id")
-        selected, unused = (aks, managed) if workload and file_exists else (managed, aks)
+        selected, unused = (aks, managed) if workload else (managed, aks)
         selected.return_value.get_token.return_value = AccessToken("azure-token", 3600)
         if fails:
             selected.return_value.get_token.side_effect = RuntimeError("unavailable")
@@ -596,7 +603,7 @@ class TestFetchIdentityTokens:
                 _fetch_azure_identity_token()
         else:
             assert _fetch_azure_identity_token() == "azure-token"
-        if workload and file_exists:
+        if workload:
             selected.assert_called_once_with()
         else:
             selected.assert_called_once_with(client_id="mi-client-id")

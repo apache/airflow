@@ -419,6 +419,7 @@ class TestSnowflakeCortexAgentHook:
         mock_static_conn_params.return_value = STATIC_CONN_PARAMS
         mock_conn_params.return_value = {
             "account": ACCOUNT,
+            "authenticator": "WORKLOAD_IDENTITY",
             "workload_identity_provider": "GCP",
         }
         mock_fetch_token.return_value = "gcp-id-token"
