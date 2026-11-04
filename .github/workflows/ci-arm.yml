@@ -1404,6 +1404,19 @@ jobs:
     # breaking framework release should not stop finalize-tests from pushing the image cache.
     if: needs.build-info.outputs.run-agent-framework-tests == 'true'
 
+  dependency-upgrade-summary:
+    name: Dependency upgrade summary
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/dependency-upgrade-summary.yml
+    permissions:
+      contents: read
+    with:
+      runners: ${{ needs.build-info.outputs.runner-type }}
+      platform: ${{ needs.build-info.outputs.platform }}
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      use-uv: ${{ needs.build-info.outputs.use-uv }}
+
   finalize-tests:
     name: Finalize tests
     permissions:
@@ -1480,6 +1493,7 @@ jobs:
       - build-ts-sdk-docs
       - check-run-needed
       - ci-image-checks
+      - dependency-upgrade-summary
       - finalize-tests
       - generate-constraints
       - migration-round-trip
@@ -1547,6 +1561,7 @@ jobs:
       - check-run-needed
       - check-timed-out-jobs
       - ci-image-checks
+      - dependency-upgrade-summary
       - finalize-tests
       - generate-constraints
       - migration-round-trip
