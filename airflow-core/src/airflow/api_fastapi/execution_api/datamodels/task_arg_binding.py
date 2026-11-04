@@ -112,14 +112,16 @@ class TupleArgBinding(_ArgBindingBase):
     """One part per zipped argument, in zip order; a ``fillvalue`` arrives as a literal part."""
 
 
-class LocalArgBinding(_ArgBindingBase):
+class UnresolvedArgBinding(_ArgBindingBase):
     """
-    One stub-task argument the API server cannot resolve, such as one that applies ``map()`` callables.
+    An argument the server could not finish.
 
-    The worker resolves it from the Dag file before the runtime starts the task.
+    Its ``map()`` callables are Python, or its nesting fits no single binding. The coordinator's
+    Python helper resolves it against the Dag file and replaces it with a ``LiteralArgBinding``,
+    so no SDK runtime ever receives this kind.
     """
 
-    kind: Literal["local"]
+    kind: Literal["unresolved"]
 
 
 # A named alias with an explicit title so the union lands in every schema as its own
@@ -127,7 +129,7 @@ class LocalArgBinding(_ArgBindingBase):
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
     Annotated[
-        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | LocalArgBinding,
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding,
         Field(discriminator="kind", title="TaskArgBinding"),
     ],
 )
