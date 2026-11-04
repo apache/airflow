@@ -70,6 +70,7 @@ from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.utils.db import reflect_tables
 from airflow.utils.db_cleanup import (
     ARCHIVE_TABLE_PREFIX,
     CreateTableAs,
@@ -688,6 +689,129 @@ class TestDBCleanup:
                 if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag_run__")
             ]
             assert len(archives) == expected_archives
+
+    @pytest.mark.parametrize("skip_archive", [False, True])
+    @pytest.mark.parametrize("batch_size", [None, 1])
+    def test_dag_cleanup_preserves_never_started_task_instances(self, skip_archive, batch_size):
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        bundle_name = f"cleanup-{uuid4()}"
+        pinned_dag_id = f"pinned-{uuid4()}"
+        removable_dag_id = f"removable-{uuid4()}"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add_all(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name=bundle_name,
+                    last_parsed_time=base_date,
+                    is_paused=True,
+                    is_stale=True,
+                )
+                for dag_id in (pinned_dag_id, removable_dag_id)
+            )
+            session.flush()
+            versions = [
+                DagVersion(
+                    dag_id=dag_id,
+                    version_number=number,
+                    bundle_name=bundle_name,
+                    created_at=base_date.add(minutes=number),
+                    last_updated=base_date.add(minutes=number),
+                )
+                for dag_id in (pinned_dag_id, removable_dag_id)
+                for number in (1, 2)
+            ]
+            session.add_all(versions)
+            session.flush()
+            pinned_version_id = versions[0].id
+            dag_run = DagRun(pinned_dag_id, run_id="never-started", run_type=DagRunType.MANUAL)
+            dag_run.state = "queued"
+            dag_run.start_date = None
+            ti = create_task_instance(
+                PythonOperator(task_id="task", python_callable=print),
+                run_id=dag_run.run_id,
+                dag_version_id=pinned_version_id,
+            )
+            ti.dag_id = pinned_dag_id
+            ti.state = None
+            ti.start_date = None
+            session.add_all([dag_run, ti])
+            session.commit()
+            ti_id = ti.id
+
+            run_cleanup(
+                clean_before_timestamp=base_date.add(days=10),
+                table_names=["task_instance", "dag_run", "dag_version", "dag"],
+                dry_run=False,
+                confirm=False,
+                skip_archive=skip_archive,
+                batch_size=batch_size,
+                session=session,
+            )
+            session.expire_all()
+            assert set(session.scalars(select(DagModel.dag_id))) == {pinned_dag_id}
+            assert session.get(DagVersion, pinned_version_id) is not None
+            assert session.get(TaskInstance, ti_id).start_date is None
+            assert session.scalar(select(DagRun).where(DagRun.dag_id == pinned_dag_id)).state == "queued"
+            assert not session.scalars(select(DagVersion).where(DagVersion.dag_id == removable_dag_id)).all()
+            archives = [
+                name
+                for name in _get_archived_table_names(["dag"], session)
+                if name.startswith(f"{ARCHIVE_TABLE_PREFIX}dag__")
+            ]
+            assert len(archives) == (0 if skip_archive else 1)
+            if archives:
+                assert session.execute(text(f"SELECT dag_id FROM {archives[0]}")).scalars().all() == [
+                    removable_dag_id
+                ]
+
+    @patch("airflow.utils.db_cleanup.reflect_tables", autospec=True)
+    def test_dag_cleanup_rechecks_references_before_delete(self, mock_reflect):
+        base_date = pendulum.datetime(2022, 1, 1, tz="UTC")
+        bundle_name = f"cleanup-race-{uuid4()}"
+        dag_id = f"cleanup-race-{uuid4()}"
+        with create_session() as session:
+            session.add(DagBundleModel(name=bundle_name))
+            session.flush()
+            session.add(DagModel(dag_id=dag_id, bundle_name=bundle_name, last_parsed_time=base_date))
+            session.flush()
+            version = DagVersion(dag_id=dag_id, version_number=1, bundle_name=bundle_name)
+            session.add(version)
+            session.commit()
+            version_id = version.id
+            raced = False
+
+            def reflect_and_add_reference(tables, session, **kwargs):
+                nonlocal raced
+                # Reflection of both tables happens after the archive is committed, before DELETE.
+                if not raced and len(tables) == 2 and tables[0] == "dag":
+                    raced = True
+                    dag_run = DagRun(dag_id, run_id="race", run_type=DagRunType.MANUAL)
+                    ti = create_task_instance(
+                        PythonOperator(task_id="task", python_callable=print),
+                        run_id=dag_run.run_id,
+                        dag_version_id=version_id,
+                    )
+                    ti.dag_id = dag_id
+                    session.add_all([dag_run, ti])
+                    session.commit()
+                return reflect_tables(tables, session, **kwargs)
+
+            mock_reflect.side_effect = reflect_and_add_reference
+            _cleanup_table(
+                **config_dict["dag"].__dict__,
+                clean_before_timestamp=base_date.add(days=10),
+                dry_run=False,
+                skip_archive=True,
+                batch_size=1,
+                session=session,
+            )
+            session.expire_all()
+            assert raced
+            assert session.get(DagModel, dag_id) is not None
+            assert session.get(DagVersion, version_id) is not None
+            assert session.scalar(select(func.count()).select_from(TaskInstance)) == 1
 
     def test_dag_version_cleanup_skips_versions_pinned_by_task_instance(self):
         """db clean must skip dag_version rows still referenced by a task instance.
