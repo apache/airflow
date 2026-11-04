@@ -110,6 +110,7 @@ from airflow.sdk.definitions.retry_policy import (
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
+from airflow.sdk.definitions.task_handlers.registry import task_handler as task_handler
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
@@ -136,7 +137,6 @@ from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
 from airflow.sdk.execution_time.context import NEVER_EXPIRE
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
-from airflow.sdk.task_handlers import task_handler as task_handler
 
 conf: AirflowSDKConfigParser
 
