@@ -243,13 +243,12 @@ class Credentials:
         """
         Save the credentials to keyring and URL to disk as a file.
 
-        Skip saving the token to keyring if skip_keyring is True, in this case,
-        only the config file with the API URL is created.
+        Skip saving the token to keyring if skip_keyring is True.
 
-        The config file records that the token is not in keyring until
-        keyring.set_password succeeds, and a login outside debug mode removes
-        the debug credentials file, so a login never leaves an earlier token
-        paired with the new API URL.
+        The debug credentials file of an earlier login is removed first, and the
+        config file records that the token is not in keyring until
+        keyring.set_password succeeds. So a later command never reads a token
+        that this login did not store.
         """
         default_config_dir = os.environ.get("AIRFLOW_HOME", os.path.expanduser("~/airflow"))
         os.makedirs(default_config_dir, exist_ok=True)
@@ -258,9 +257,8 @@ class Credentials:
         debug_path = _safe_path_under_airflow_home(
             default_config_dir, f"debug_creds_{self.input_cli_config_file}"
         )
-        if not debug_mode:
-            with contextlib.suppress(FileNotFoundError):
-                os.remove(debug_path)
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(debug_path)
         with open(config_path, "w") as f:
             json.dump({"api_url": self.api_url, "token_in_keyring": False}, f)
 

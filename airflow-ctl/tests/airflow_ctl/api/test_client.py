@@ -427,6 +427,25 @@ class TestCredentials:
         credentials = Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
         assert (credentials.api_url, credentials.api_token) == ("http://new:8080", None)
 
+    def test_save_in_debug_mode_failing_to_write_token_does_not_reuse_debug_token_of_earlier_login(
+        self, keyring_store, monkeypatch
+    ):
+        monkeypatch.setenv("AIRFLOW_CLI_DEBUG_MODE", "true")
+        Credentials(api_url="http://old:8080", api_token="OLD_TOKEN", api_environment="prod").save()
+
+        def open_failing_for_debug_file(file, mode="r", *args, **kwargs):
+            if os.path.basename(file) == "debug_creds_prod.json" and mode == "w":
+                raise PermissionError(file)
+            return open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr("airflowctl.api.client.open", open_failing_for_debug_file, raising=False)
+        with pytest.raises(PermissionError):
+            Credentials(api_url="http://new:8080", api_token="NEW_TOKEN", api_environment="prod").save()
+        monkeypatch.delattr("airflowctl.api.client.open")
+
+        with pytest.raises(AirflowCtlCredentialNotFoundException, match="Debug credentials file not found"):
+            Credentials(client_kind=ClientKind.CLI, api_environment="prod").load()
+
     @pytest.mark.parametrize("skip_keyring", [False, True])
     def test_save_outside_debug_mode_does_not_reuse_debug_token_of_earlier_login(
         self, keyring_store, skip_keyring, monkeypatch
