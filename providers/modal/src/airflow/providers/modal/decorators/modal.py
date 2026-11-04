@@ -1,0 +1,287 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""``@task.modal``: run a Python function in a Modal sandbox, in an image without Airflow."""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any
+
+import modal
+
+from airflow.providers.common.compat.sdk import (
+    BaseOperator,
+    DecoratedOperator,
+    conf,
+    task_decorator_factory,
+)
+from airflow.providers.modal.exceptions import ModalSandboxError
+from airflow.providers.modal.hooks.modal import ModalHook
+from airflow.providers.modal.triggers.modal import ModalSandboxTrigger
+from airflow.providers.modal.utils.python_sandbox import (
+    ENTRYPOINT,
+    STDIN_CHUNK_BYTES,
+    build_payload,
+    find_result,
+    is_result_line,
+    wait_for_exit,
+)
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context, TaskDecorator
+
+# Exit codes the Modal SDK reports for a sandbox that did not exit on its own.
+_TIMEOUT_RETURNCODE = 124
+_TERMINATED_RETURNCODE = 137
+
+
+class _ModalSandboxOperator(BaseOperator):
+    """
+    Run a prepared Python payload in a Modal sandbox and return the function's return value.
+
+    The base half of ``@task.modal``. ``DecoratedOperator.execute`` hands off to the next
+    ``execute`` in the MRO, so the Modal half lives here, under it, as ``DockerOperator`` does
+    for ``@task.docker``. The subclass supplies the payload through :meth:`_build_payload`.
+    """
+
+    template_fields: Sequence[str] = ("modal_conn_id",)
+
+    def __init__(
+        self,
+        *,
+        image: modal.Image | None = None,
+        gpu: str | None = None,
+        cpu: float | tuple[float, float] | None = None,
+        memory: int | tuple[int, int] | None = None,
+        timeout: int | None = None,
+        secrets: Sequence[modal.Secret | str] | None = None,
+        volumes: dict[str, modal.Volume | str] | None = None,
+        modal_conn_id: str | None = ModalHook.default_conn_name,
+        app_name: str = "airflow",
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.image = image
+        self.gpu = gpu
+        self.cpu = cpu
+        self.memory = memory
+        self.timeout = timeout
+        self.secrets = secrets
+        self.volumes = volumes
+        self.modal_conn_id = modal_conn_id
+        self.app_name = app_name
+        self.deferrable = deferrable
+        self._sandbox: modal.Sandbox | None = None
+
+    def _build_payload(self) -> str:
+        raise NotImplementedError
+
+    def _sandbox_options(self, hook: ModalHook) -> dict[str, Any]:
+        """``Sandbox.create`` keyword arguments, leaving out the unset ones so Modal's defaults apply."""
+        options: dict[str, Any] = {
+            "gpu": self.gpu,
+            "cpu": self.cpu,
+            "memory": self.memory,
+            "timeout": self.timeout,
+        }
+        options = {key: value for key, value in options.items() if value is not None}
+        # Names resolve here, through the hook, so they use the connection's credentials and
+        # environment, and a Dag file that names them makes no Modal call when it is parsed.
+        if self.secrets is not None:
+            options["secrets"] = [
+                hook.get_secret(secret) if isinstance(secret, str) else secret for secret in self.secrets
+            ]
+        if self.volumes is not None:
+            options["volumes"] = {
+                path: hook.get_volume(volume) if isinstance(volume, str) else volume
+                for path, volume in self.volumes.items()
+            }
+        # Resolved at run time rather than as a parameter default: debian_slim() pins the Python
+        # version of the process that builds it, and that must be the worker's.
+        options["image"] = self.image or modal.Image.debian_slim()
+        return options
+
+    def _sandbox_tags(self, context: Context) -> dict[str, str]:
+        """Tags that find the sandbox from a task instance in the Modal dashboard, and back."""
+        ti = context["ti"]
+        return {
+            "airflow_dag_id": ti.dag_id,
+            "airflow_task_id": ti.task_id,
+            "airflow_run_id": ti.run_id,
+            "airflow_map_index": str(ti.map_index),
+            "airflow_try_number": str(ti.try_number),
+        }
+
+    def execute(self, context: Context) -> Any:
+        payload = self._build_payload()
+        hook = ModalHook(modal_conn_id=self.modal_conn_id)
+        sandbox = hook.create_sandbox(
+            *ENTRYPOINT,
+            app_name=self.app_name,
+            create_app_if_missing=True,
+            tags=self._sandbox_tags(context),
+            **self._sandbox_options(hook),
+        )
+        self._sandbox = sandbox
+        self.log.info("Started Modal sandbox %s in app %r.", sandbox.object_id, self.app_name)
+        # Deferring raises TaskDeferred, a BaseException, so it passes through and leaves the
+        # sandbox running for the trigger. Any other error would leave a sandbox nobody follows,
+        # and a retry would start a second one beside it.
+        try:
+            self._send_payload(sandbox, payload)
+            if self.deferrable:
+                self.defer(
+                    trigger=ModalSandboxTrigger(
+                        sandbox_id=sandbox.object_id, modal_conn_id=self.modal_conn_id
+                    ),
+                    method_name="execute_complete",
+                )
+            result_lines = []
+            for line in sandbox.stdout:
+                if is_result_line(line):
+                    result_lines.append(line)
+                else:
+                    self.log.info("%s", line.rstrip("\n"))
+            wait_for_exit(sandbox)
+        except Exception:
+            self.on_kill()
+            raise
+        self._raise_for_returncode(sandbox.object_id, sandbox.returncode)
+        return find_result(result_lines)
+
+    @staticmethod
+    def _send_payload(sandbox: modal.Sandbox, payload: str) -> None:
+        """Write the payload to stdin in pieces that fit the Modal SDK's stdin buffer, then close it."""
+        data = payload.encode()
+        for start in range(0, len(data), STDIN_CHUNK_BYTES):
+            sandbox.stdin.write(data[start : start + STDIN_CHUNK_BYTES])
+            sandbox.stdin.drain()
+        sandbox.stdin.write_eof()
+        sandbox.stdin.drain()
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """Read the return value once the trigger reports that the sandbox exited."""
+        sandbox_id = event["sandbox_id"]
+        self._raise_for_returncode(sandbox_id, event["returncode"])
+        sandbox = ModalHook(modal_conn_id=self.modal_conn_id).get_sandbox(sandbox_id)
+        return find_result(sandbox.stdout)
+
+    def _raise_for_returncode(self, sandbox_id: str, returncode: int | None) -> None:
+        if returncode == 0:
+            return
+        if returncode == _TIMEOUT_RETURNCODE:
+            message = (
+                f"Modal sandbox {sandbox_id} reached its timeout before the function returned. "
+                "Raise the decorator's timeout (Modal's default is 300 seconds)."
+            )
+        elif returncode == _TERMINATED_RETURNCODE:
+            message = (
+                f"Modal sandbox {sandbox_id} was terminated before the function returned, for "
+                "example from the Modal dashboard."
+            )
+        else:
+            message = (
+                f"The function failed in Modal sandbox {sandbox_id} with exit code {returncode}. "
+                "Its traceback is in the log above."
+            )
+        raise ModalSandboxError(message, sandbox_id=sandbox_id, returncode=returncode)
+
+    def on_kill(self) -> None:
+        if self._sandbox is None:
+            return
+        self.log.info("Terminating Modal sandbox %s.", self._sandbox.object_id)
+        try:
+            self._sandbox.terminate()
+        except Exception as e:
+            # Runs while another error is propagating; that error is the one to report.
+            self.log.warning("Failed to terminate Modal sandbox %s: %s", self._sandbox.object_id, e)
+
+
+class _ModalDecoratedOperator(DecoratedOperator, _ModalSandboxOperator):
+    """
+    Run the decorated function's body in a Modal sandbox.
+
+    The function's source is extracted and sent to the sandbox, as ``@task.docker`` and
+    ``@task.kubernetes`` do, so the body must be self-contained: import what it needs inside
+    the function, and take every input as an argument. Airflow is not needed
+    in the image, and there is no task context, connection or hook inside the function. Pass
+    credentials in as Modal secrets.
+
+    Arguments and the return value travel as pickles, so they must unpickle on the other side:
+    use plain Python values, not objects from packages that only one side has installed.
+
+    :param image: The ``modal.Image`` to run in. Defaults to ``modal.Image.debian_slim()``,
+        which matches the worker's Python version. Any image works as long as ``python`` is on
+        its ``PATH``; the function's dependencies go here, not on the worker.
+    :param gpu: GPU to request, for example ``"H100"`` or ``"A10G:2"``.
+    :param cpu: CPU cores to reserve, or a ``(reservation, limit)`` pair to also cap usage.
+    :param memory: Memory to reserve in MiB, or a ``(reservation, limit)`` pair to also cap it.
+    :param timeout: Seconds the sandbox may run before Modal stops it. Modal's default is 300.
+    :param secrets: Modal secrets whose keys become environment variables inside the sandbox,
+        as names or ``modal.Secret`` objects. Names are looked up when the task runs, in the
+        connection's environment.
+    :param volumes: Mount points mapped to Modal volumes, as names or ``modal.Volume`` objects.
+        Names are looked up when the task runs, in the connection's environment.
+    :param modal_conn_id: :ref:`Modal connection id <howto/connection:modal>`.
+    :param app_name: Modal app the sandboxes are created under; created on first use.
+    :param deferrable: Wait for the sandbox on the triggerer instead of holding a worker slot.
+    :param multiple_outputs: If set, a returned dict is unrolled to multiple XCom values, one
+        per key.
+    """
+
+    custom_operator_name = "@task.modal"
+
+    template_fields: Sequence[str] = (*DecoratedOperator.template_fields, "modal_conn_id")
+
+    # Modal objects hold SDK state that is not meant to be deep-copied, and are never mutated here.
+    shallow_copy_attrs: Sequence[str] = ("python_callable", "image", "secrets", "volumes")
+
+    def _build_payload(self) -> str:
+        return build_payload(
+            source=self.get_python_source(),
+            function_name=self.python_callable.__name__,
+            args=self.op_args,
+            kwargs=dict(self.op_kwargs),
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        return self._handle_output(super().execute_complete(context, event))
+
+
+def modal_task(
+    python_callable: Callable | None = None,
+    multiple_outputs: bool | None = None,
+    **kwargs: Any,
+) -> TaskDecorator:
+    """
+    Wrap a function into a task that runs its body in a Modal sandbox.
+
+    Accepts the arguments documented on the operator behind it, ``image``, ``gpu``, ``cpu``,
+    ``memory``, ``timeout``, ``secrets``, ``volumes``, ``modal_conn_id``, ``app_name`` and
+    ``deferrable``, plus any ``BaseOperator`` argument.
+
+    :param python_callable: Function to decorate.
+    :param multiple_outputs: If set, a returned dict is unrolled to multiple XCom values, one
+        per key. Defaults to False.
+    """
+    return task_decorator_factory(
+        python_callable=python_callable,
+        multiple_outputs=multiple_outputs,
+        decorated_operator_class=_ModalDecoratedOperator,
+        **kwargs,
+    )
