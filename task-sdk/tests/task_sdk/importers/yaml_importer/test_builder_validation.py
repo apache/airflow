@@ -17,34 +17,20 @@
 
 from __future__ import annotations
 
-import sys
 import textwrap
 from types import SimpleNamespace
 
 import pytest
 
-from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
-from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration, loader as loader_mod
+from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration
 from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerParam, TaskHandlerSignatureError
-from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 from airflow.sdk.importers.base import FilesystemDagDefinition
 from airflow.sdk.importers.yaml_importer.importer import YamlDagImporter
 
 HEAD_SCHEMA = "https://airflow.apache.org/schemas/dag/2026-10-30.json"
 
 
-@pytest.fixture(autouse=True)
-def _clean_handlers():
-    def _reset():
-        _REGISTRY.clear()
-        loader_mod._imported_bundles.clear()
-        loader_mod._resolved_bundles.clear()
-        for name in [n for n in sys.modules if n.startswith(UNUSUAL_MODULE_PREFIX)]:
-            del sys.modules[name]
-
-    _reset()
-    yield
-    _reset()
+pytestmark = pytest.mark.usefixtures("clean_task_handlers")
 
 
 @pytest.fixture

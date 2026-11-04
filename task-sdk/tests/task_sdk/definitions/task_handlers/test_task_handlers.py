@@ -27,14 +27,8 @@ from airflow.sdk import task_handler
 from airflow.sdk.api.datamodels._generated import LiteralArgBinding, TaskArgBinding, XComArgBinding
 from airflow.sdk.definitions.task_handlers import TaskHandlerDeclaration, call_handler, get_handler
 from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerSignatureError
-from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 
-
-@pytest.fixture(autouse=True)
-def _clean_registry():
-    _REGISTRY.clear()
-    yield
-    _REGISTRY.clear()
+pytestmark = pytest.mark.usefixtures("clean_task_handlers")
 
 
 def _bound(bindings, resolver=lambda *_: None):

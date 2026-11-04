@@ -19,36 +19,16 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 import textwrap
 from types import SimpleNamespace
 
 import pytest
 
-from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.coordinators.python import PythonCoordinator
-from airflow.sdk.definitions.task_handlers import loader as loader_mod
 from airflow.sdk.definitions.task_handlers.declaration import TaskHandlerSignatureError
-from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, CoordinatorManager
 
-
-def _purge_handler_modules():
-    for name in [n for n in sys.modules if n.startswith(UNUSUAL_MODULE_PREFIX)]:
-        del sys.modules[name]
-
-
-@pytest.fixture(autouse=True)
-def _clean_registry():
-    _REGISTRY.clear()
-    loader_mod._imported_bundles.clear()
-    loader_mod._resolved_bundles.clear()
-    _purge_handler_modules()
-    yield
-    _REGISTRY.clear()
-    loader_mod._imported_bundles.clear()
-    loader_mod._resolved_bundles.clear()
-    _purge_handler_modules()
+pytestmark = pytest.mark.usefixtures("clean_task_handlers")
 
 
 def _bundle(path):

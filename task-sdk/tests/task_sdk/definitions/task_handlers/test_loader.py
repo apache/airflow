@@ -17,38 +17,18 @@
 
 from __future__ import annotations
 
-import sys
 import textwrap
 from types import SimpleNamespace
 
 import pytest
 
-from airflow.sdk._shared.module_loading.dag_file import UNUSUAL_MODULE_PREFIX
 from airflow.sdk.definitions.task_handlers import (
     get_handler,
     import_handler_modules,
-    loader as task_handler_loader,
     resolve_handler_bundle,
 )
-from airflow.sdk.definitions.task_handlers.registry import _REGISTRY
 
-
-def _purge_handler_modules():
-    for name in [n for n in sys.modules if n.startswith(UNUSUAL_MODULE_PREFIX)]:
-        del sys.modules[name]
-
-
-@pytest.fixture(autouse=True)
-def _clean():
-    _REGISTRY.clear()
-    task_handler_loader._imported_bundles.clear()
-    task_handler_loader._resolved_bundles.clear()
-    _purge_handler_modules()
-    yield
-    _REGISTRY.clear()
-    task_handler_loader._imported_bundles.clear()
-    task_handler_loader._resolved_bundles.clear()
-    _purge_handler_modules()
+pytestmark = pytest.mark.usefixtures("clean_task_handlers")
 
 
 def _write_handler(path, dag_id, task_id, params="region, events"):
