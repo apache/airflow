@@ -184,8 +184,8 @@ request explains the current state. Once the run is green, a pull request the mo
 marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
 yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
 does not run for 7 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
-files that define what CI runs, such as ``.github/``, ``dev/breeze/`` or ``scripts/ci/``, a green
-fork run is not enough: a maintainer reviews the change and runs project CI for it.
+files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
+``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
 
 **Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day

@@ -21,11 +21,12 @@ import { useEffect, useState } from "react";
 
 import { createModelApi } from "src/model-api";
 import { regionOf, type TaskRegion } from "src/region";
-import type { UsageInfo } from "src/types/model";
+import type { SkillInfo, UsageInfo } from "src/types/model";
 
 interface UseModelInfoReturn {
   modelName: string | null;
   usage: UsageInfo | null;
+  skills: SkillInfo[] | null;
   loading: boolean;
   error: string | null;
 }
@@ -44,6 +45,7 @@ export function useModelInfo(
 ): UseModelInfoReturn {
   const [modelName, setModelName] = useState<string | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
+  const [skills, setSkills] = useState<SkillInfo[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,19 +65,22 @@ export function useModelInfo(
       mapIndex,
       regionOf({ region_id: regionId, region_index: regionIndex }),
     );
-    // allSettled, not all: one XCom missing or erroring must not hide a model name or usage
-    // the other call did resolve.
-    void Promise.allSettled([api.fetchModelName(), api.fetchUsage()]).then(([nameResult, usageResult]) => {
-      if (!current) return;
-      setModelName(nameResult.status === "fulfilled" ? nameResult.value : null);
-      setUsage(usageResult.status === "fulfilled" ? usageResult.value : null);
-      setError(describeFailure(nameResult) ?? describeFailure(usageResult));
-      setLoading(false);
-    });
+    // allSettled, not all: one XCom missing or erroring must not hide what the other calls
+    // did resolve.
+    void Promise.allSettled([api.fetchModelName(), api.fetchUsage(), api.fetchSkills()]).then(
+      ([nameResult, usageResult, skillsResult]) => {
+        if (!current) return;
+        setModelName(nameResult.status === "fulfilled" ? nameResult.value : null);
+        setUsage(usageResult.status === "fulfilled" ? usageResult.value : null);
+        setSkills(skillsResult.status === "fulfilled" ? skillsResult.value : null);
+        setError(describeFailure(nameResult) ?? describeFailure(usageResult) ?? describeFailure(skillsResult));
+        setLoading(false);
+      },
+    );
     return () => {
       current = false;
     };
   }, [dagId, runId, taskId, mapIndex, regionId, regionIndex]);
 
-  return { modelName, usage, loading, error };
+  return { modelName, usage, skills, loading, error };
 }

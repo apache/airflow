@@ -400,6 +400,13 @@ class TestMetastoreBackendTaskScope:
 
 
 class TestMetastoreBackendAssetScope:
+    def test_get_value_without_session(self, backend: MetastoreBackend, asset_committed: AssetModel):
+        scope = AssetScope(asset_id=asset_committed.id)
+        backend.set(scope, "watermark", '"2026-04-29"')
+
+        assert backend.get_value(scope, "watermark") == "2026-04-29"
+        assert backend.get_value(scope, "missing") is None
+
     def test_get_returns_none_for_missing_key(
         self, session: Session, backend: MetastoreBackend, asset: AssetModel
     ):

@@ -26,9 +26,9 @@ Writing Dags in YAML
 
 Airflow can build a Dag from a YAML document. One YAML document describes one
 Dag, and the YAML Dag importer turns it into the same Dag structure that Airflow
-runs like any other source. The tasks can be ordinary Airflow operators,
-or a pointer to a task handler implemented in a Language SDK. (Support for the
-Python Task SDK is planned for a future release.)
+runs like any other source. The tasks can be ordinary Airflow operators, or a
+pointer to a task handler implemented in any language with a Task SDK, including
+Python, Java, and more.
 
 A document is declarative. Everything in it is a value, and the shape of each
 value decides what it means.
@@ -423,11 +423,12 @@ which holds the code's arguments directly:
         source: {$x: extract}
         factor: 2
 
-A ``run:`` task is executed by a Task SDK runtime, so it must be routed to a
-coordinator. In practice, a ``run:`` task always needs a task-level ``queue:``
-mapped to a coordinator under ``[sdk] queue_to_coordinator``. See
-:doc:`language-sdks/index` for writing the handler and configuring the
-coordinator.
+A ``run:`` task must be accompanied by a task handler implemented by a Task SDK
+that will be executed at runtime. How the handler is implemented is not named by
+the YAML file; it follows the task-level ``queue:``, and then is mapped to the
+appropriate coordinator through ``[sdk] queue_to_coordinator``. For more on
+writing task handlers, see :doc:`task-sdk:task-handler` for Python,
+and :doc:`language-sdks/index` for other languages.
 
 Each argument in ``run:`` is either a JSON-serializable literal, or an upstream
 task's output, in the ``{$x: task}`` form, which also wires the dependency.
@@ -446,9 +447,11 @@ implemented in a future release.
   be scheduled on an asset (see `Scheduling`_).
 * **Task groups.** Tasks cannot be nested into groups (see `Reserved
   arguments`_).
-* **Dynamic task mapping.** There is no equivalent of ``.expand()``.
+* **Mapped tasks.** There is no equivalent of ``.expand()``.
 * **Arguments that must be a Python object.** This particularly affects
-  callbacks (which need a Python function).
+  callbacks (which need a Python function). Note that using ``PythonOperator``
+  is generally not needed in a YAML Dag; implement a Python task handler to use
+  with a ``run:`` task instead (see `Code tasks`_).
 
 A rejected key is reported as an error rather than silently ignored, as is any
 other argument the target operator does not accept.

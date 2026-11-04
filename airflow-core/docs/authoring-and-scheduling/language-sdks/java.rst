@@ -719,6 +719,35 @@ The ``Client``
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the stored
    value when the Variable is read back. ``setVariable`` without a description clears the existing description.
 
+The Dag run conf
+~~~~~~~~~~~~~~~~
+
+``context.dagRun.conf`` is the conf the Dag run was triggered with. It is a ``Map``, and its values have the Java
+types listed in :ref:`the XCom type mapping <java-sdk/types>`. ``context.dagRun.getConf(type)`` reads the conf into
+an instance of a class with typed fields instead:
+
+.. code-block:: java
+
+    public static class EtlConf {
+      public String targetTable;
+      public int limit = 100;
+      public LocalDate since;
+    }
+
+    public class Load implements Task {
+      @Override
+      public void execute(Context context, Client client) {
+        EtlConf etl = context.dagRun.getConf(EtlConf.class);
+      }
+    }
+
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31"}``, ``etl.targetTable`` is
+``"sales"``, ``etl.since`` is ``LocalDate.of(2024, 1, 31)``, and ``etl.limit`` stays ``100``. Keys match field
+names when case and underscores are ignored, and keys that match no field are ignored. ``getConf`` does not add
+the defaults of the Dag's params, and the conf of a scheduled run is empty. For the classes that ``getConf``
+accepts and the cases where it throws, see ``DagRun.getConf`` in the `Java SDK API reference
+<https://airflow.apache.org/docs/java-sdk/stable/>`__.
+
 .. _java-sdk/task-state-store:
 
 Task state store

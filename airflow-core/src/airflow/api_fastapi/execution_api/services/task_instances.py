@@ -54,7 +54,7 @@ def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOpera
     return dag.task_dict.get(ti.task_id)
 
 
-def get_arg_bindings(task: SerializedOperator | None) -> list | None:
+def get_arg_bindings(task: SerializedOperator) -> list | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
@@ -62,18 +62,18 @@ def get_arg_bindings(task: SerializedOperator | None) -> list | None:
     ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
     lands in a follow-up.
     """
-    if task is None or not task.is_stub:
+    if not task.is_stub:
         return None
     return task.arg_bindings
 
 
-def get_execution_timeout(task: SerializedOperator | None) -> float | None:
+def get_execution_timeout(task: SerializedOperator) -> float | None:
     """
-    Return the ``execution_timeout`` of *task* in seconds.
+    Return the ``execution_timeout`` of *task* in seconds, or ``None`` if it sets none.
 
-    Like the Python task runner, a zero timeout means no timeout, and a negative one has
-    already elapsed.
+    The value is sent as it is, so a runtime handles it the way the Python task runner does: zero
+    means no timeout, and a negative one has already elapsed.
     """
-    if task is None or not task.execution_timeout:
+    if task.execution_timeout is None:
         return None
-    return max(task.execution_timeout.total_seconds(), 0.0)
+    return task.execution_timeout.total_seconds()
