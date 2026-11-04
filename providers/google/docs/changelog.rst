@@ -38,7 +38,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Convert BigQueryAsyncHook.get_records to async method (#72286)``
+* ``Add async 'BigQueryAsyncHook.aget_records' and deprecate 'get_records' (#72286)``
 * ``Add query and report inspection operators for Google Bid Manager (#71947)``
 
 Bug Fixes

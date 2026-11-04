@@ -29,6 +29,12 @@ Changelog
 0.2.0
 .....
 
+.. note::
+  ``AdbcHook.insert_rows`` now defaults to ``fast_executemany=True`` and loads rows through the
+  driver's bulk ingest (``adbc_ingest``, e.g. ``COPY`` on PostgreSQL). Drivers without bulk
+  ingest, and ``replace=True``, still bind rows with ``executemany``. Pass
+  ``fast_executemany=False`` to keep the previous path.
+
 Features
 ~~~~~~~~
 

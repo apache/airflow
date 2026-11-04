@@ -51,12 +51,12 @@ Bug Fixes
 Doc-only
 ~~~~~~~~
 
+* ``Add screenshots and a review loop example to the task loops docs (#76435)``
 * ``Rewrite the OpenAI Agents SDK guide to stand on its own (#76340)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Stop pydantic-ai providers that models cannot use from failing the common.ai vendor check (#76312)``
-   * ``Add screenshots and a review loop example to the task loops docs (#76435)``
    * ``[main] Upgrade important CI environment (#76278)``
 
 1.1.0

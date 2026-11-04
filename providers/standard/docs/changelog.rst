@@ -46,6 +46,9 @@ Changelog
 
 .. warning::
   The deprecated ``TimeDeltaSensorAsync`` class has been removed. Use ``TimeDeltaSensor(..., deferrable=True)`` instead.
+  On Airflow 3.0.x, the bundled ``example_time_delta_sensor_async`` example Dag imports this
+  class, so it fails to import when ``[core] load_examples`` is on. Upgrade to Airflow 3.1 or turn
+  off ``load_examples``.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
