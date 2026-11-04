@@ -184,6 +184,9 @@ labelPRBasedOnFilePath:
 
   provider:hashicorp:
     - providers/hashicorp/**
+  
+  provider:huggingface:
+    - providers/huggingface/**
 
   provider:http:
     - providers/http/**
