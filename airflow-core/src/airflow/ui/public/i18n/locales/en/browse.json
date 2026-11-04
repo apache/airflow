@@ -73,7 +73,9 @@
     },
     "detail": {
       "firstFailedAt": "Failing Since",
-      "lastFailedAt": "Last Failed At"
+      "lastFailedAt": "Last Failed At",
+      "noReadableScheduledDags": "None you can read",
+      "scheduledDags": "Scheduled Dags"
     },
     "filters": {
       "triggererHostname": "Triggerer Hostname"

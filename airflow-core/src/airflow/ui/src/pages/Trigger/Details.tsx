@@ -34,6 +34,8 @@ import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 
 import { useShowTeam } from "src/hooks/useShowTeam";
 
+import { ScheduledDags } from "./ScheduledDags";
+
 const Row = ({ children, label }: PropsWithChildren<{ readonly label: string }>) => (
   <Table.Row>
     <Table.Cell whiteSpace="nowrap">{label}</Table.Cell>
@@ -83,6 +85,11 @@ export const Details = () => {
         <Row label={translate("triggers.columns.owner")}>
           <TriggerOwner trigger={trigger} />
         </Row>
+        {trigger.kind === "asset_watcher" ? (
+          <Row label={translate("triggers.detail.scheduledDags")}>
+            <ScheduledDags watchers={trigger.asset_watchers} />
+          </Row>
+        ) : undefined}
         <Row label={translate("triggers.columns.triggerer")}>{trigger.triggerer_hostname}</Row>
         <Row label={translate("triggers.columns.failures")}>{trigger.consecutive_failures}</Row>
         {unrecovered ? (

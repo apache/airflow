@@ -93,6 +93,63 @@ describe("Trigger details", () => {
     expect(screen.queryByRole("row", { name: /triggers\.detail\.lastFailedAt/u })).not.toBeInTheDocument();
   });
 
+  it("lists the Dags scheduled on a watcher's assets, once each, as the trigger lists them", async () => {
+    const watcher = triggers.find(({ id }) => id === 3);
+    const assetRequests: Array<string> = [];
+
+    server.use(
+      http.get("/api/v2/assets/:assetId", ({ request }) => {
+        assetRequests.push(request.url);
+
+        return HttpResponse.json({});
+      }),
+      http.get("/api/v2/triggers/:triggerId", () =>
+        HttpResponse.json({
+          ...watcher,
+          asset_watchers: [
+            ...(watcher?.asset_watchers ?? []),
+            {
+              asset_id: 2,
+              asset_name: "plain_asset",
+              asset_uri: "s3://bucket/plain",
+              scheduled_dag_ids: ["audit_payments", "consumer_dag", "process_payments"],
+              watcher_name: "my_watcher",
+            },
+          ],
+        }),
+      ),
+    );
+    renderAt("/triggers/3");
+
+    const row = await screen.findByRole("row", {
+      name: /triggers\.detail\.scheduledDags.*process_payments/u,
+    });
+
+    expect(row).toHaveTextContent(/audit_paymentsconsumer_dagprocess_payments$/u);
+    expect(screen.getByRole("link", { name: "process_payments" })).toHaveAttribute(
+      "href",
+      "/dags/process_payments",
+    );
+    expect(assetRequests).toEqual([]);
+  });
+
+  it("says when a watcher's assets have no Dag the user can read", async () => {
+    const watcher = triggers.find(({ id }) => id === 3);
+    const unreadable = watcher?.asset_watchers.map((entry) => ({ ...entry, scheduled_dag_ids: [] }));
+
+    server.use(
+      http.get("/api/v2/triggers/:triggerId", () =>
+        HttpResponse.json({ ...watcher, asset_watchers: unreadable }),
+      ),
+    );
+    renderAt("/triggers/3");
+
+    expect(
+      await screen.findByRole("row", { name: /triggers\.detail\.noReadableScheduledDags/u }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("row", { name: /triggers\.detail\.scheduledDags/u })).toHaveLength(1);
+  });
+
   it("explains that a trigger it cannot find has most likely finished", async () => {
     renderAt("/triggers/99");
 
