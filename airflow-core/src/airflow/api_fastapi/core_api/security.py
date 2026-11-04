@@ -53,7 +53,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -84,6 +84,7 @@ from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -198,6 +199,11 @@ def collect_request_tokens(
 GetUserDep = Annotated[BaseUser, Depends(get_user)]
 
 
+def _get_dag_id_from_request(request: Request) -> str | None:
+    dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
+    return dag_id if dag_id != "~" else None
+
+
 def requires_access_dag(
     method: ResourceMethod,
     access_entity: DagAccessEntity | None = None,
@@ -211,8 +217,7 @@ def requires_access_dag(
         # Prevent from using a nonlocal statement causing test failures.
         dag_id = param_dag_id
         if dag_id is None:
-            dag_id = request.path_params.get("dag_id") or request.query_params.get("dag_id")
-            dag_id = dag_id if dag_id != "~" else None
+            dag_id = _get_dag_id_from_request(request)
 
         team_name = DagModel.get_team_name(dag_id) if dag_id else None
 
@@ -548,14 +553,16 @@ _BACKFILL_ID_ADAPTER: TypeAdapter[NonNegativeInt] = TypeAdapter(NonNegativeInt)
 BACKFILL_NOT_FOUND = "Backfill not found"
 
 
-def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user: BaseUser) -> None:
+async def _authorize_backfill_in_path(
+    method: ResourceMethod, dag_id: str | None, user: BaseUser, *, session: AsyncSession
+) -> None:
     """Authorize a backfill named by the request path against that backfill's Dag alone."""
     # ``dag_id`` is None when the id matched no row. Answering 404 there while a backfill on a Dag
     # the caller may not read answers 403 would tell them which backfill ids exist across Dags.
     if dag_id is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
 
-    details = DagDetails(id=dag_id, team_name=DagModel.get_team_name(dag_id))
+    details = DagDetails(id=dag_id, team_name=await DagModel.get_team_name_async(dag_id, session=session))
     auth_manager = get_auth_manager()
     if auth_manager.is_authorized_dag(
         method=method, access_entity=DagAccessEntity.RUN, details=details, user=user
@@ -572,13 +579,13 @@ def _authorize_backfill_in_path(method: ResourceMethod, dag_id: str | None, user
 
 def requires_access_backfill(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser, Session], Coroutine[Any, Any, None]]:
-    """Wrap ``requires_access_dag`` and extract the dag_id from the backfill_id."""
+) -> Callable[[Request, BaseUser, AsyncSession], Coroutine[Any, Any, None]]:
+    """Authorize against the backfill's Dag, or the Dag the request names when there is no backfill_id."""
 
     async def inner(
         request: Request,
         user: GetUserDep,
-        session: SessionDep,
+        session: AsyncSessionDep,
     ) -> None:
         backfill_id_raw = request.path_params.get("backfill_id")
         try:
@@ -595,12 +602,12 @@ def requires_access_backfill(
         if backfill_id is not None:
             # The path names the backfill, so its row is the only authorization subject: what the
             # caller supplies alongside must not decide a decision the path already scoped.
-            dag_id = session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
-            _authorize_backfill_in_path(method, dag_id, user)
+            dag_id = await session.scalar(select(Backfill.dag_id).where(Backfill.id == backfill_id))
+            await _authorize_backfill_in_path(method, dag_id, user, session=session)
             return
 
         # Left: the routes naming their Dag in the body (create, dry run) or in the query string
-        # (list, read by ``requires_access_dag``), and ids the handler's own parser will reject.
+        # (list), and ids the handler's own parser will reject.
         dag_id = None
         # An unreadable body names no Dag, the same state as no body, so it falls through to the
         # authorization below. Broad because ``json.loads`` also raises UnicodeDecodeError, bare
@@ -615,10 +622,17 @@ def requires_access_backfill(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="'dag_id' must be a string",
             )
+        if dag_id is None:
+            dag_id = _get_dag_id_from_request(request)
 
-        requires_access_dag(method, DagAccessEntity.RUN, dag_id)(
-            request,
-            user,
+        team_name = await DagModel.get_team_name_async(dag_id, session=session) if dag_id else None
+        _requires_access(
+            is_authorized_callback=lambda: get_auth_manager().is_authorized_dag(
+                method=method,
+                access_entity=DagAccessEntity.RUN,
+                details=DagDetails(id=dag_id, team_name=team_name),
+                user=user,
+            )
         )
 
     return inner
