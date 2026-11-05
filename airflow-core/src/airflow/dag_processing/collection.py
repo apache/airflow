@@ -560,15 +560,19 @@ def _update_import_errors(
                 )
             except Exception:
                 log.exception("error calling listener")
-        session.execute(
-            update(DagModel)
-            .where(
-                DagModel.relative_fileloc == relative_fileloc,
-                DagModel.bundle_name == bundle_name_,
+        if mark_dags_stale:
+            session.execute(
+                update(DagModel)
+                .where(
+                    DagModel.relative_fileloc == relative_fileloc,
+                    DagModel.bundle_name == bundle_name_,
+                )
+                .values(
+                    has_import_errors=True,
+                    is_stale=True,
+                )
+                .execution_options(synchronize_session="fetch")
             )
-            .values(has_import_errors=True, **({"is_stale": True} if mark_dags_stale else {}))
-            .execution_options(synchronize_session="fetch")
-        )
 
 
 def _iter_serialized_class_names(data: Any) -> Iterator[str]:
@@ -784,9 +788,10 @@ def update_dag_parsing_results_in_db(
     :param dags_checked: The caller already dropped the Dags ``reject_unpublishable_dags`` refuses, and
         their warnings. The API server passes True: it drops them before taking its locks and marking
         missing Dags stale.
-    :param mark_errored_dags_stale: Mark the Dags at each import error's location stale. The API server
-        passes False when a processor has no result for a file, and keeps its Dags until they outlast
-        stale_dag_threshold, as DB mode does after a timeout.
+    :param mark_errored_dags_stale: Mark the Dags at each import error's location stale and as having
+        import errors. The API server passes False when a processor has no result for a file: the error
+        is still recorded, but the file's Dags keep running until they outlast stale_dag_threshold, as
+        after a DB-mode timeout.
     """
     if not dags_checked:
         accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)

@@ -50,6 +50,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
+    _reject_other_teams_plugin_classes,
     is_source_discovery_failed,
     reject_unpublishable_dags,
     update_dag_parsing_results_in_db,
@@ -169,7 +170,6 @@ def publish_parse_result(
     import_errors = {(body.bundle_name, path): error for path, error in body.import_errors.items()}
     # Deserializing every Dag is the slow part of a publication and needs none of the locks below.
     dags = reject_unpublishable_dags(body.bundle_name, dags, import_errors, session=session)
-    accepted_ids = {dag.dag_id for dag in dags}
 
     _validate_job(job_id, token, session=session)
     receipt = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
@@ -190,6 +190,10 @@ def publish_parse_result(
         bundle.parse_revision is not None and body.bundle_version != bundle.version
     ):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "source_changed"})
+    # The check before the locks may have read a team that a reassignment has since replaced. On MySQL
+    # the bundle lock waits for that reassignment to commit, so the team read here is current.
+    dags = _reject_other_teams_plugin_classes(body.bundle_name, dags, import_errors, session=session)
+    accepted_ids = {dag.dag_id for dag in dags}
     existing = session.scalars(
         select(DagModel)
         .where(DagModel.dag_id.in_(dag_ids))

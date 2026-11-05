@@ -54,6 +54,7 @@ from airflow.models.dag_processor_publication_receipt import DagProcessorPublica
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
+from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
@@ -633,13 +634,13 @@ def test_failed_container_stales_members_after_the_threshold(
 
 
 @pytest.mark.parametrize(
-    ("result_unavailable", "parsed_seconds_ago", "stale"),
-    [(True, 10, False), (True, 100, True), (False, 10, True)],
+    ("result_unavailable", "parsed_seconds_ago", "stale", "has_import_errors"),
+    [(True, 10, False, False), (True, 100, True, False), (False, 10, True, True)],
     ids=["no_result_within_threshold", "no_result_past_threshold", "import_error"],
 )
 @conf_vars({("dag_processor", "stale_dag_threshold"): "50"})
 def test_file_without_a_result_keeps_its_dags_within_the_threshold(
-    client, session, job, body, result_unavailable, parsed_seconds_ago, stale
+    client, session, job, body, result_unavailable, parsed_seconds_ago, stale, has_import_errors
 ):
     session.add(
         DagModel(
@@ -648,6 +649,8 @@ def test_file_without_a_result_keeps_its_dags_within_the_threshold(
             relative_fileloc="a.py",
             last_parsed_time=timezone.utcnow() - timedelta(seconds=parsed_seconds_ago),
             is_stale=False,
+            is_paused=False,
+            next_dagrun_create_after=timezone.utcnow() - timedelta(minutes=1),
         )
     )
     session.commit()
@@ -665,7 +668,50 @@ def test_file_without_a_result_keeps_its_dags_within_the_threshold(
     session.expire_all()
     existing = session.get(DagModel, "existing")
     assert existing.is_stale is stale
-    assert existing.has_import_errors is True
+    assert existing.has_import_errors is has_import_errors
+    scheduled = [dag.dag_id for dag in DagModel.dags_needing_dagruns(session)[0]]
+    assert scheduled == ([] if stale else ["existing"])
+    assert session.scalar(select(ParseImportError.filename)) == "a.py"
+
+
+def test_warnings_of_a_dropped_dag_are_not_stored(client, session, job, body):
+    body["serialized_dags"][0]["dag"]["tasks"] = "invalid"
+    body["warnings"] = [{"dag_id": "published", "warning_type": "non-existent pool", "message": "No pool"}]
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    assert session.get(DagModel, "published") is None
+    assert session.scalar(select(DagWarning)) is None
+
+
+def _validate_job_then_reassign_the_bundle(job_id, token, *, session, for_update=True):
+    _validate_job(job_id, token, session=session, for_update=for_update)
+    session.get(DagBundleModel, "bundle").teams = [Team(name=f"team_{uuid7().hex}")]
+    session.flush()
+
+
+@mock.patch(
+    "airflow.api_fastapi.execution_api.routes.dag_parsing._validate_job",
+    autospec=True,
+    side_effect=_validate_job_then_reassign_the_bundle,
+)
+@mock.patch("airflow.dag_processing.collection.get_scheduling_class_teams", autospec=True)
+@conf_vars({("core", "multi_team"): "True"})
+def test_plugin_team_is_checked_again_under_the_bundle_lock(
+    get_teams, validate_job, client, session, job, body
+):
+    team = Team(name=f"team_{uuid7().hex}")
+    session.get(DagBundleModel, "bundle").teams = [team]
+    session.commit()
+    get_teams.return_value = {"airflow.timetables.simple.NullTimetable": {team.name}}
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    assert session.get(DagModel, "published") is None
+    (error,) = session.scalars(select(ParseImportError)).all()
+    assert f"provided by a plugin belonging to {team.name}" in error.stacktrace
 
 
 @mock.patch(
