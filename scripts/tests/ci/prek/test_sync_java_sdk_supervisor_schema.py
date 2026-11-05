@@ -89,14 +89,28 @@ def test_a_missing_copy_is_created(repo):
     assert (repo / syncer.VENDORED_SCHEMA).read_bytes() == (repo / syncer.SOURCE_SCHEMA).read_bytes()
 
 
-def test_a_pin_older_than_the_schema_is_still_copied(repo):
-    # The pin is the version the Java SDK speaks; the vendored file is whatever the bundle carries.
-    vendored = write_schema(repo / syncer.VENDORED_SCHEMA, title="stale")
+def test_an_older_pin_keeps_its_vendored_copy(repo):
+    vendored = write_schema(repo / syncer.VENDORED_SCHEMA, api_version="2026-10-30", title="released")
 
-    exit_code, _ = syncer.refresh_from_source("2026-10-30", repo)
+    exit_code, report = syncer.refresh_from_source("2026-10-30", repo)
+
+    assert exit_code == 0
+    assert report == (
+        f"java-sdk/sdk/schema/schema.json is pinned to api_version=2026-10-30 (source is {VERSION})."
+    )
+    assert json.loads(vendored.read_text())["title"] == "released"
+
+
+def test_an_older_pin_with_a_different_vendored_version_is_reported(repo):
+    exit_code, report = syncer.refresh_from_source("2026-10-30", repo)
 
     assert exit_code == 1
-    assert vendored.read_bytes() == (repo / syncer.SOURCE_SCHEMA).read_bytes()
+    assert report == (
+        f"java-sdk/sdk/schema/schema.json is api_version='{VERSION}' but "
+        "java-sdk/gradle.properties pins '2026-10-30'.\n"
+        "Run ./gradlew -p java-sdk :sdk:syncSupervisorSchema to download the pinned schema."
+    )
+    assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
 
 
 def test_a_pin_the_bundle_does_not_define_is_reported_not_copied(repo):

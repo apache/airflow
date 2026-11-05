@@ -16,14 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Copy the Task SDK supervisor schema into the Java SDK's vendored ``schema.json``.
+Keep the Java SDK's vendored ``schema.json`` at the pinned supervisor schema version.
 
-The copy is compared by content, so any change to the source reaches it. The declared
-``airflowSupervisorSchemaVersion`` is the version the Java SDK speaks, which is checked to be one
-the schema bundle defines rather than the source's newest ``api_version``. Outside the monorepo,
-it falls back to the Gradle download.
+``airflowSupervisorSchemaVersion`` in ``java-sdk/gradle.properties`` is the version the Java SDK
+speaks and must be one the Task SDK schema bundle defines. When it is the bundle's newest version,
+the vendored copy is compared by content with the Task SDK schema and refreshed from it. When it is
+older, the vendored copy must declare that version; ``:sdk:syncSupervisorSchema`` downloads it.
 
-Exits 0 when the copy is in sync, 1 when it was refreshed or the declared version is unknown.
+Exits 0 when the copy is in sync, 1 when it was refreshed or needs attention.
 """
 
 from __future__ import annotations
@@ -77,19 +77,22 @@ def known_versions(repo_root: Path = REPO_ROOT) -> list[str]:
 def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int, str]:
     source = repo_root / SOURCE_SCHEMA
     vendored = repo_root / VENDORED_SCHEMA
-    # The pin is the version the Java SDK speaks, not the newest one the bundle carries, so it only
-    # has to be a version the bundle defines.
     if expected not in (versions := known_versions(repo_root)):
         return 1, (
             f"{GRADLE_PROPERTIES} declares airflowSupervisorSchemaVersion={expected!r}, which "
             f"{SCHEMA_VERSIONS} does not define.\n"
             f"Known versions: {', '.join(versions) or 'none'}."
         )
-    if vendored.is_file() and vendored.read_bytes() == source.read_bytes():
-        return 0, (
-            f"{VENDORED_SCHEMA} matches the schema it is vendored from "
-            f"(api_version={api_version_of(source)})."
+    source_version = api_version_of(source)
+    if expected != source_version:
+        if (vendored_version := api_version_of(vendored)) == expected:
+            return 0, f"{VENDORED_SCHEMA} is pinned to api_version={expected} (source is {source_version})."
+        return 1, (
+            f"{VENDORED_SCHEMA} is api_version={vendored_version!r} but {GRADLE_PROPERTIES} pins {expected!r}.\n"
+            "Run ./gradlew -p java-sdk :sdk:syncSupervisorSchema to download the pinned schema."
         )
+    if vendored.is_file() and vendored.read_bytes() == source.read_bytes():
+        return 0, f"{VENDORED_SCHEMA} matches the schema it is vendored from (api_version={expected})."
     vendored.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, vendored)
     return 1, (
