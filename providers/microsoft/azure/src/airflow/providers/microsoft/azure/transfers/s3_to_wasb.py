@@ -202,6 +202,9 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
         (e.g. ``lonely/``) is preserved, and a non-slash key that happens to be a
         strict prefix of another (e.g. ``abc`` of ``abcdef``) is also preserved.
         Returns ``(kept, dropped)``.
+
+        Mirrors ``airflow.providers.amazon.aws.utils.transfer.strip_overlapping_folder_markers``,
+        copied because the ``amazon`` extra has no version floor; keep the copies in sync.
         """
         if not keys:
             return [], []
