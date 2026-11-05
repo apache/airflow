@@ -283,6 +283,13 @@ class DagBuilder:
             raise YamlDagBuildError(f"cannot read $f {path!r}: {exc}") from exc
 
     def ensure_literal(self, value: _T, *, rendered: bool) -> _T | LiteralValue:
+        """
+        Wrap *value* in :class:`LiteralValue` if the enclosing field renders.
+
+        A rendered field passes every value in it through Jinja, so a value
+        that should stay literal (``$f``, ``$const``, a plain literal) must be
+        protected; otherwise it is returned as-is.
+        """
         return literal(value) if rendered else value
 
     def _stub_callable(self, param_names: tuple[str, ...]) -> Callable[..., None]:
