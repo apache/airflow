@@ -21,8 +21,10 @@ from datetime import datetime
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
+    EmrServerlessGetSessionEndpointOperator,
     EmrServerlessStartSessionOperator,
     EmrServerlessStopApplicationOperator,
+    EmrServerlessStopSessionOperator,
 )
 from airflow.providers.common.compat.sdk import DAG, TriggerRule, chain
 
@@ -66,6 +68,23 @@ with DAG(
         idle_timeout_minutes=5,
     )
     # [END howto_operator_emr_serverless_start_session]
+    session_id = "{{ ti.xcom_pull(task_ids='start_session')['session_id'] }}"
+
+    # [START howto_operator_emr_serverless_get_session_endpoint]
+    get_endpoint = EmrServerlessGetSessionEndpointOperator(
+        task_id="get_endpoint",
+        application_id=application_id,
+        session_id=session_id,
+    )
+    # [END howto_operator_emr_serverless_get_session_endpoint]
+
+    # [START howto_operator_emr_serverless_stop_session]
+    stop_session = EmrServerlessStopSessionOperator(
+        task_id="stop_session",
+        application_id=application_id,
+        session_id=session_id,
+    )
+    # [END howto_operator_emr_serverless_stop_session]
 
     stop_app = EmrServerlessStopApplicationOperator(
         task_id="stop_app",
@@ -86,6 +105,8 @@ with DAG(
         create_app,
         # TEST BODY
         start_session,
+        get_endpoint,
+        stop_session,
         # TEST TEARDOWN
         stop_app,
         delete_app,

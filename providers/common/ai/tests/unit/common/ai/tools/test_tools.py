@@ -106,7 +106,10 @@ class TestCollectTools:
 
     def test_refuses_two_tools_with_the_same_name(self):
         """Frameworks route a call by name, so one of the two would never run."""
-        with pytest.raises(ValueError, match="More than one tool is named query"):
+        with pytest.raises(
+            ValueError,
+            match="More than one tool is named query. .*tool_prefix values, where they take one, so",
+        ):
             collect_tools([_Provider(_named("query")), _Provider(_named("query"))])
 
 

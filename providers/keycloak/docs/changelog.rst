@@ -26,6 +26,30 @@ Changelog
 ---------
 
 .. note::
+    Airflow 3.4.1 adds a Dag bundles view, which in multi-team mode is checked against the
+    ``AdminView`` resource, so only ``SuperAdmin`` holds it. Multi-team deployments must upgrade this
+    provider together with Airflow 3.4.1: older releases check the view against ``View``, which every
+    team role can read.
+    Multi-team deployments upgrading from Airflow 3.4.0 must also re-run
+    ``airflow keycloak-auth-manager create-team`` for each team, which removes the Dag bundles menu
+    entry that team roles can no longer open.
+
+0.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Grant Keycloak SuperAdmin access to teamless resources (#74640)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+
+0.11.1
+......
+
+.. note::
     In multi-team mode, the views covering records that are not tied to a Dag or a team -- audit log
     entries not tied to a Dag, import errors for files with no registered Dag and reparsing such
     files -- are now checked against a new ``AdminView`` Keycloak resource instead of ``View``.
@@ -34,6 +58,26 @@ Changelog
     Run ``airflow keycloak-auth-manager create-team <team>`` again for an existing team to create the
     resource and the ``AdminViewAccess`` permission and grant it to ``SuperAdmin``. Deployments
     without ``[core] multi_team`` are not affected.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop Keycloak middleware from reissuing a JWT revoked during the request (#73695)``
+* ``Check admin-only views against a dedicated Keycloak resource in multi-team mode (#73696)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
 
 0.11.0
 ......

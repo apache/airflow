@@ -284,6 +284,12 @@ To run it:
 
    https://github.com/apache/airflow/commits/constraints-<major>-<minor>/
 
+   If the run instead fails with "moved ... while this run generated its constraints", something
+   else committed to that branch while it was working - typically the `Release constraints`
+   workflow pinning a release candidate. The run refuses to overwrite that commit with pins
+   resolved against the older baseline; run it again so it starts from the current branch.
+   Automatic `uv.lock`-push runs behave the same way.
+
 > [!NOTE]
 > Because `v3-3-test` and `v3-3-stable` can diverge while RCs are being voted on (fixes are
 > cherry-picked to `v3-3-test`), be deliberate about which `ref` you refresh from. Refresh from

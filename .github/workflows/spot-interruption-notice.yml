@@ -1,0 +1,57 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Tells pull requests when jobs of their "Tests (AMD)" run were stopped by an EC2 Spot interruption
+# of their RunsOn runner, that RunsOn re-runs them, and later how the re-run ended. It runs on a
+# schedule rather than on the runs' events, so no pull request run ever gets write access, and a
+# notice appears while the run is still going. It never checks out or runs pull request code. See
+# scripts/ci/spot_interruptions.py.
+name: "Spot interruption notice"
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+permissions:
+  # The runs and jobs of "Tests (AMD)", and the annotations RunsOn puts on jobs stopped by an EC2
+  # Spot interruption.
+  actions: read
+  checks: read
+  contents: read
+  # The notice comment on pull requests.
+  pull-requests: write
+concurrency:
+  group: spot-interruption-notice
+  cancel-in-progress: false
+jobs:
+  notice:
+    name: "Report EC2 Spot interruptions on pull requests"
+    if: github.repository == 'apache/airflow'
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    steps:
+      - name: "Checkout main"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: scripts/ci/spot_interruptions.py
+          sparse-checkout-cone-mode: false
+      - name: "Post or update the notices"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/ci/spot_interruptions.py pr-comments

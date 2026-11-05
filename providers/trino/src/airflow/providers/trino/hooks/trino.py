@@ -25,11 +25,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import quote_plus, urlencode
 
 import trino
-from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
@@ -346,14 +344,6 @@ class TrinoHook(DbApiHook):
         else:
             df = pl.DataFrame(**kwargs)
         return df
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, **kwargs)
 
     def insert_rows(
         self,

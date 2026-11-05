@@ -42,8 +42,8 @@
   },
   "deadlineAlerts": {
     "completionRule": "Moet worden voltooid binnen {{interval}} van {{reference}}",
-    "count_one": "{{count}} deadline",
-    "count_other": "{{count}} deadlines",
+    "count_one": "{{count, number}} deadline",
+    "count_other": "{{count, number}} deadlines",
     "referenceType": {
       "AverageRuntimeDeadline": "Gemiddelde uitvoertijd",
       "DagRunLogicalDateDeadline": "Logische datum",
@@ -58,13 +58,13 @@
     "label": "Deadline",
     "met": "Behaald",
     "missed": "Gemist",
-    "missedCount_one": "{{count}} Gemiste deadline",
-    "missedCount_other": "{{count}} Gemiste deadlines",
-    "mixedCount": "{{missedCount}} gemist, {{upcomingCount}} opkomend",
+    "missedCount_one": "{{count, number}} Gemiste deadline",
+    "missedCount_other": "{{count, number}} Gemiste deadlines",
+    "mixedCount": "{{missedCount, number}} gemist, {{upcomingCount, number}} opkomend",
     "stillRunning": "Nog bezig",
     "upcoming": "Opkomend",
-    "upcomingCount_one": "{{count}} opkomende deadline",
-    "upcomingCount_other": "{{count}} opkomende deadlines"
+    "upcomingCount_one": "{{count, number}} opkomende deadline",
+    "upcomingCount_other": "{{count, number}} opkomende deadlines"
   },
   "extraLinks": "Extra Links",
   "grid": {
@@ -94,7 +94,7 @@
     "info": "INFO",
     "noTryNumber": "Geen poging nummer",
     "search": {
-      "matchCount": "{{current}} van {{total}}",
+      "matchCount": "{{current, number}} van {{total, number}}",
       "noMatches": "Geen overeenkomsten",
       "placeholder": "Zoek in logs..."
     },
@@ -220,8 +220,8 @@
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
-    "mappedTaskInstances_one": "Taakinstantie [{{count}}]",
-    "mappedTaskInstances_other": "Taakinstanties [{{count}}]",
+    "mappedTaskInstances_one": "Taakinstantie [{{count, number}}]",
+    "mappedTaskInstances_other": "Taakinstanties [{{count, number}}]",
     "overview": "Overzicht",
     "renderedTemplates": "Gerenderde templates",
     "requiredActions": "Vereiste acties",

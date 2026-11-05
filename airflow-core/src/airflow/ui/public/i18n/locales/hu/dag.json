@@ -42,8 +42,8 @@
   },
   "deadlineAlerts": {
     "completionRule": "{{reference}} : ehhez képest, {{interval}} -en/án belül kell teljesíteni.",
-    "count_one": "{{count}} határidő",
-    "count_other": "{{count}} határidő",
+    "count_one": "{{count, number}} határidő",
+    "count_other": "{{count, number}} határidő",
     "referenceType": {
       "AverageRuntimeDeadline": "átlagos futási idő",
       "DagRunLogicalDateDeadline": "logikai dátum",
@@ -58,13 +58,13 @@
     "label": "Határidő",
     "met": "Teljesítve",
     "missed": "Elmulasztva",
-    "missedCount_one": "Elmulasztott határidők : {{count}}",
-    "missedCount_other": "Elmulasztott határidők : {{count}}",
-    "mixedCount": "{{missedCount}} elmulasztott, {{upcomingCount}} közelgő",
+    "missedCount_one": "Elmulasztott határidők : {{count, number}}",
+    "missedCount_other": "Elmulasztott határidők : {{count, number}}",
+    "mixedCount": "{{missedCount, number}} elmulasztott, {{upcomingCount, number}} közelgő",
     "stillRunning": "Még fut",
     "upcoming": "Közelgő",
-    "upcomingCount_one": "Közelgő határidők : {{count}}",
-    "upcomingCount_other": "Közelgő határidők : {{count}}"
+    "upcomingCount_one": "Közelgő határidők : {{count, number}}",
+    "upcomingCount_other": "Közelgő határidők : {{count, number}}"
   },
   "extraLinks": "Extra hivatkozások",
   "grid": {
@@ -98,7 +98,7 @@
     "info": "INFO",
     "noTryNumber": "Nincs próbálkozási szám",
     "search": {
-      "matchCount": "{{current}} / {{total}}",
+      "matchCount": "{{current, number}} / {{total, number}}",
       "noMatches": "Nincs találat",
       "placeholder": "Keresés a naplókban..."
     },
@@ -219,8 +219,8 @@
     "code": "Kód",
     "details": "Részletek",
     "logs": "Naplók",
-    "mappedTaskInstances_one": "Feladatpéldány [{{count}}]",
-    "mappedTaskInstances_other": "Feladatpéldányok [{{count}}]",
+    "mappedTaskInstances_one": "Feladatpéldány [{{count, number}}]",
+    "mappedTaskInstances_other": "Feladatpéldányok [{{count, number}}]",
     "overview": "Áttekintés",
     "renderedTemplates": "Renderelt sablonok",
     "requiredActions": "Szükséges műveletek",

@@ -662,7 +662,7 @@ def example_aip_progress_tracker():
         system_prompt=ANALYSIS_SYSTEM_PROMPT,
         output_type=AIPStatus,
         serialize_output=True,
-        agent_params={"model_settings": {"temperature": 0}},
+        model_settings={"temperature": 0},
     ).expand(prompt=prompts)
     # [END aip_tracker_dtm_analysis]
 
@@ -750,7 +750,7 @@ Prioritize AIPs that are close to completion or have shared dependencies.
 Use only the data below -- do not add external information.
 
 {{ ti.xcom_pull(task_ids='format_report') }}""",
-        agent_params={"model_settings": {"temperature": 0}},
+        model_settings={"temperature": 0},
         usage_limits=UsageLimits(
             request_limit=5,
             input_tokens_limit=20_000,
@@ -787,7 +787,7 @@ Flag any claims not grounded in the evidence.
             input_tokens_limit=30_000,
             output_tokens_limit=8_000,
         ),
-        agent_params={"model_settings": {"temperature": 0}},
+        model_settings={"temperature": 0},
     )
     # [END aip_tracker_validation]
     synthesize >> validate

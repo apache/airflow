@@ -27,6 +27,7 @@
 - [Building docker images from current sources](#building-docker-images-from-current-sources)
 - [Building PROD docker images from released PIP packages](#building-prod-docker-images-from-released-pip-packages)
 - [Using docker cache during builds](#using-docker-cache-during-builds)
+- [Pinned OS-dependencies images](#pinned-os-dependencies-images)
 - [Naming conventions](#naming-conventions)
 - [Customizing the CI image](#customizing-the-ci-image)
   - [CI image build arguments](#ci-image-build-arguments)
@@ -288,6 +289,49 @@ or
 export DOCKER_CACHE="disabled"
 ```
 
+# Pinned OS-dependencies images
+
+The base image is pinned to a digest, but the OS dependencies - system packages, compilers and the
+MySQL, MSSQL and Postgres clients - are installed with `apt-get` from the live `dhi.io` repository,
+which moves on and drops the package versions it replaced whenever Docker rebuilds its hardened
+images. To keep a commit building the same image every time, the CI image and the PROD images built
+by CI and the release workflows start their OS dependencies from images in which
+`install_os_dependencies.sh` already ran. The reasoning and the alternatives are in
+[ADR 21](../adr/0021-pin-os-dependencies-images.md).
+
+How it fits together:
+
+* **Stages.** `Dockerfile.ci` installs the OS dependencies in its `ci-os-deps` stage, `Dockerfile` in
+  `dev-os-deps` (the build image) and `runtime-os-deps` (the final image). The stages start from
+  `CI_OS_DEPS_IMAGE`, `DEV_OS_DEPS_IMAGE` and `RUNTIME_OS_DEPS_IMAGE`, which default to `BASE_IMAGE`,
+  so a plain `docker build` installs everything as before.
+* **Marker.** The script writes a hash of everything that decides what it installs - the scripts and
+  repository keys, the installation type, the apt dependency and database client build args and
+  `DEPENDENCIES_EPOCH_NUMBER` - to `/usr/share/airflow/os-dependencies.sha256`. On an image whose
+  marker matches it installs nothing; otherwise it installs on top, so a build never runs on OS
+  dependencies that do not match its inputs.
+* **Building and publishing.** The "Mirror hardened base images" workflow runs
+  `breeze release-management build-os-deps-images` and `publish-os-deps-images` daily, building
+  each image only when one of its inputs changed. They are published as
+  `ghcr.io/apache/airflow/base/os-deps:<type>-<X.Y.Z>-debian13-dev` (the latest image of a Python
+  patch release), and every image keeps a tag that encodes all its inputs and never moves.
+* **Pinning.** The upgrade check (`breeze ci upgrade`) pins the latest image of each Python patch
+  release in `dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json`, together
+  with the base image pins, in the PR that has to pass the full CI. Only `main` carries these pins.
+* **Using the pins.** `breeze ci-image build` and `breeze prod-image build` pass the pinned images
+  unless the build uses another base image, Debian version or flavor, custom apt dependencies or
+  custom database clients. `--no-use-pinned-os-deps-images` (`USE_PINNED_OS_DEPS_IMAGES=false`)
+  turns them off. In CI, the "disable image cache" label turns them off, and so does a PR that
+  changes the OS-dependency scripts or repository keys: installing on top of a pinned image would
+  only test additions, as a package or database client the PR drops would still be there from the
+  pinned layer. The automatic cache-disabled retry of a failed image build keeps them.
+* **Provenance.** An image records the image its OS dependencies came from in
+  `AIRFLOW_OS_DEPS_IMAGE`, and the base image they were installed on in
+  `/usr/share/airflow/os-dependencies.base-image` - which can be an older digest than `BASE_IMAGE`.
+
+To install the OS dependencies from the live repositories locally, for example to check that a
+`dhi.io` change does not break the next pinned image, build with `--no-use-pinned-os-deps-images`.
+
 # Naming conventions
 
 By default images we are using cache for images in GitHub Container
@@ -379,7 +423,7 @@ plugin installed.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="jdbc" \
   --build-arg ADDITIONAL_PYTHON_DEPS="pandas" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" \
@@ -404,7 +448,7 @@ comment](https://github.com/apache/airflow/issues/8605#issuecomment-690065621):
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_INSTALLATION_METHOD="apache-airflow" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="slack" \
   --build-arg ADDITIONAL_PYTHON_DEPS="apache-airflow-providers-odbc \
@@ -429,7 +473,8 @@ can be used for CI images:
 
 | Build argument                    | Default value               | Description                                                                                                       |
 |-----------------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------|
-| `PYTHON_BASE_IMAGE`               | `python:3.11-slim-bookworm` | Base Python image                                                                                                 |
+| `BASE_IMAGE`                      | `ghcr.io/apache/airflow/base/python:<X.Y.Z>-debian13-dev@<digest>`                  | Mirror of the hardened base image Python comes from, pinned to a digest by `breeze ci upgrade` |
+| `CI_OS_DEPS_IMAGE`                | `BASE_IMAGE`                | Image the OS dependencies are installed on; breeze passes the pinned OS-dependencies image (see [Pinned OS-dependencies images](#pinned-os-dependencies-images)) |
 | `PYTHON_MAJOR_MINOR_VERSION`      | `3.11`                      | major/minor version of Python (should match base image)                                                           |
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                         | increasing this number will reinstall all apt dependencies                                                        |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                             | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                |
@@ -450,9 +495,9 @@ can be used for CI images:
 | `DEV_APT_DEPS`                    |                             | Dev APT dependencies installed in the first part of the image (default empty means default dependencies are used) |
 | `ADDITIONAL_DEV_APT_DEPS`         |                             | Additional apt dev dependencies installed in the first part of the image                                          |
 | `ADDITIONAL_DEV_APT_ENV`          |                             | Additional env variables defined when installing dev deps                                                         |
-| `AIRFLOW_PIP_VERSION`             | `26.2.1`                    | `pip` version used.                                                                                               |
-| `AIRFLOW_UV_VERSION`              | `0.12.18`                    | `uv` version used.                                                                                                |
-| `AIRFLOW_PREK_VERSION`            | `0.5.3`                     | `prek` version used.                                                                                              |
+| `AIRFLOW_PIP_VERSION`             | `26.2.2`                    | `pip` version used.                                                                                               |
+| `AIRFLOW_UV_VERSION`              | `0.13.6`                    | `uv` version used.                                                                                                |
+| `AIRFLOW_PREK_VERSION`            | `0.5.7`                     | `prek` version used.                                                                                              |
 | `AIRFLOW_USE_UV`                  | `true`                      | Whether to use UV for installation.                                                                               |
 | `PIP_PROGRESS_BAR`                | `on`                        | Progress bar for PIP installation                                                                                 |
 
@@ -465,7 +510,7 @@ This builds the CI image in version 3.11 with default extras ("all").
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
    --pull \
-   --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" --tag my-image:0.0.1
+   --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" --tag my-image:0.0.1
 ```
 
 This builds the CI image in version 3.11 with "gcp" extra only.
@@ -473,7 +518,7 @@ This builds the CI image in version 3.11 with "gcp" extra only.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 ```
 
@@ -482,7 +527,7 @@ This builds the CI image in version 3.11 with "apache-beam" extra added.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 ```
 
@@ -492,7 +537,7 @@ added.
 ``` bash
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 ```
 
@@ -502,7 +547,7 @@ apt dev dependencies added.
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 ```
 
@@ -512,7 +557,7 @@ This builds the CI image in version 3.11 with "jdbc" extra and
 ```
 DOCKER_BUILDKIT=1 docker build . -f Dockerfile.ci \
   --pull \
-  --build-arg PYTHON_BASE_IMAGE="python:3.11-slim-bookworm" \
+  --build-arg BASE_IMAGE="ghcr.io/apache/airflow/base/python:3.11-debian13-dev" \
   --build-arg AIRFLOW_EXTRAS=jdbc \
   --tag my-image:0.0.1
 ```
@@ -569,7 +614,8 @@ percent-encoded when you access them via UI (/ = %2F)
 
 | Image                    | Name                                   | Description                                                   |
 |--------------------------|----------------------------------------|---------------------------------------------------------------|
-| Python image (DockerHub) | python:\<X.Y\>-slim-bookworm           | Base Python image used by both production and CI image.       |
+| Hardened Python base     | base/python:\<X.Y.Z\>-debian13-dev     | Mirror of the Docker Hardened Python image that the CI image and the default PROD image are built on. |
+| OS-dependencies images   | base/os-deps:\<TYPE\>-\<X.Y.Z\>-debian13-dev | The hardened base image with the OS dependencies of the `ci`, `dev` or `runtime` installation already installed; CI and release builds start from their pinned digests. |
 | CI image                 | airflow/\<BRANCH\>/ci/python\<X.Y\>    | CI image - this is the image used for most of the tests.      |
 | PROD image               | airflow/\<BRANCH\>/prod/python\<X.Y\>  | faster to build or pull. Production image optimized for size. |
 

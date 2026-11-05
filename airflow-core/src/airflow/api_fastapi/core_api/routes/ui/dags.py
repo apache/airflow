@@ -26,6 +26,8 @@ from sqlalchemy import and_, false, func, literal, select, union_all
 from sqlalchemy.orm import defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
+from airflow.api_fastapi.common.asset_expression import redact_asset_expression
+from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
@@ -75,16 +77,20 @@ from airflow.api_fastapi.core_api.datamodels.ui.dags import (
     DAGWithLatestDagRunsResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.core_api.routes.public.hitl import HITLDetailView
 from airflow.api_fastapi.core_api.security import (
     GetUserDep,
+    ReadableAssetsFilterDep,
     ReadableDagsFilterDep,
     requires_access_dag,
 )
+from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskCoordinateView
 from airflow.configuration import conf
 from airflow.models import DagModel, DagRun
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.hitl import HITLDetail
 from airflow.models.renderedtifields import load_legacy_rendered_fields
+from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
@@ -132,7 +138,7 @@ def get_dags(
         SortParam,
         Depends(
             SortParam(
-                ["dag_id", "dag_display_name", "next_dagrun", "state", "start_date"],
+                ["dag_id", "dag_display_name", "next_dagrun"],
                 DagModel,
                 {
                     "last_run_state": DagRun.state,
@@ -151,7 +157,9 @@ def get_dags(
     ],
     has_pending_actions: QueryPendingActionsFilter,
     readable_dags_filter: ReadableDagsFilterDep,
+    readable_assets_filter: ReadableAssetsFilterDep,
     session: SessionDep,
+    dag_bag: DagBagDep,
     user: GetUserDep,
     dag_runs_limit: int = 10,
 ) -> DAGWithLatestDagRunsCollectionResponse:
@@ -228,7 +236,7 @@ def get_dags(
 
     recent_dag_runs: list = []
     if dags:
-        recent_runs_branches = [
+        ranked = (
             select(
                 DagRun.id,
                 DagRun.dag_id,
@@ -238,20 +246,35 @@ def get_dags(
                 DagRun.run_after,
                 DagRun.start_date,
                 DagRun.state,
+                func.row_number()
+                .over(
+                    partition_by=DagRun.dag_id,
+                    order_by=(DagRun.run_after.desc(), DagRun.id.desc()),
+                )
+                .label("rn"),
             )
-            .where(DagRun.dag_id == dag.dag_id)
-            .order_by(DagRun.run_after.desc())
-            .limit(dag_runs_limit)
+            .where(DagRun.dag_id.in_([dag.dag_id for dag in dags]))
             .subquery()
-            for dag in dags
-        ]
-        recent_runs_union = union_all(*(select(branch) for branch in recent_runs_branches)).subquery()
+        )
         recent_dag_runs = list(
-            session.execute(select(recent_runs_union).order_by(recent_runs_union.c.run_after.desc()))
+            session.execute(
+                select(
+                    ranked.c.id,
+                    ranked.c.dag_id,
+                    ranked.c.run_id,
+                    ranked.c.end_date,
+                    ranked.c.logical_date,
+                    ranked.c.run_after,
+                    ranked.c.start_date,
+                    ranked.c.state,
+                )
+                .where(ranked.c.rn <= dag_runs_limit)
+                .order_by(ranked.c.run_after.desc())
+            )
         )
 
     # Fetch pending HITL actions for each Dag if we are not certain whether some of the Dag might contain HITL actions
-    pending_actions_by_dag_id: dict[str, list[HITLDetail]] = {dag.dag_id: [] for dag in dags}
+    pending_actions_by_dag_id: dict[str, list[HITLDetailView]] = {dag.dag_id: [] for dag in dags}
     if has_pending_actions.value:
         pending_actions_select = (
             select(
@@ -274,8 +297,11 @@ def get_dags(
         load_legacy_rendered_fields([detail.task_instance for _, detail in pending_actions], session=session)
 
         # Group pending actions by dag_id
+        resolver = TaskCoordinateResolver(dag_bag, session)
         for dag_id, hitl_detail in pending_actions:
-            pending_actions_by_dag_id[dag_id].append(hitl_detail)
+            pending_actions_by_dag_id[dag_id].append(
+                HITLDetailView(hitl_detail, TaskCoordinateView(hitl_detail.task_instance, resolver))
+            )
 
     # Fetch team names when multi-team is enabled
     team_names_by_dag_id: dict[str, str | None] = {}
@@ -288,6 +314,7 @@ def get_dags(
     # Build the dict dynamically from DAGResponse.model_fields so that new fields
     # added to DAGResponse are picked up automatically without code changes here.
     dag_runs_by_dag_id: dict[str, DAGWithLatestDagRunsResponse] = {}
+    readable_asset_ids = readable_assets_filter.value or set()
     for dag in dags:
         dag_data = {
             DAG_ALIAS_MAPPING.get(field_name, field_name): getattr(
@@ -297,7 +324,9 @@ def get_dags(
         }
         dag_data.update(
             {
-                "asset_expression": dag.asset_expression,
+                "asset_expression": redact_asset_expression(
+                    dag.asset_expression, readable_asset_ids=readable_asset_ids
+                ),
                 "latest_dag_runs": [],
                 "has_unfinished_runs": has_unfinished_runs_by_dag_id[dag.dag_id],
                 "pending_actions": pending_actions_by_dag_id[dag.dag_id],

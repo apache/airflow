@@ -48,9 +48,11 @@ The provider's extras split into a few groups:
   than these, each under its own extra name, so check the
   `pydantic-ai install docs <https://ai.pydantic.dev/install/#slim-install>`__ for the full list.
 * **Agent tooling** (``mcp``, ``skills``, ``code-mode``, ``shields``, ``modal``,
-  ``opensandbox``): MCP servers, Agent Skills, code-mode tool execution, shield
-  capabilities (input/output guards, tool guards, cost tracking), and the hosted Modal and
-  self-hosted OpenSandbox backends for :doc:`sandboxed execution <sandbox/index>`.
+  ``opensandbox``, ``openshell``, ``boat``, ``islo``): MCP servers, Agent Skills, code-mode
+  tool execution, shield capabilities (input/output guards, tool guards, cost tracking),
+  and the hosted Modal, Boat and Islo backends and the self-hosted OpenSandbox and
+  OpenShell backends for
+  :doc:`sandboxed execution <sandbox/index>`.
 * **Document loading** (``pdf``, ``docx``, ``avro``, ``parquet``): file formats for
   document pipelines.
 * **Retrieval / SQL** (``sql``, ``common.sql``, ``langchain``, ``llamaindex``): RAG and
@@ -92,6 +94,11 @@ The provider runs on Airflow 2.11, but some features need a newer Airflow versio
    * - A :doc:`structured output <structured_output>` reaching downstream tasks as the
        Pydantic model; on older Airflow versions it arrives as a ``dict``
      - Airflow 3.3
+   * - :ref:`Usage limits <agent-usage-budget>` counted across every retry of a task; on
+       older Airflow versions each attempt starts a fresh count
+     - Airflow 3.3
+   * - The :ref:`AI Model tab <howto/observability:model-tab>` on the task instance page
+     - Airflow 3.4
 
 Airflow 2.11
 ------------

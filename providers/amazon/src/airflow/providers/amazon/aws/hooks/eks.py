@@ -609,6 +609,38 @@ class EksHook(AwsBaseHook):
                     os.unlink(temp_path)
 
     @contextmanager
+    def generate_config_file_with_credentials(
+        self, eks_cluster_name: str, pod_namespace: str | None
+    ) -> Generator[tuple[str, str], None, None]:
+        """
+        Create temporary kubeconfig and credential files using this hook's AWS session.
+
+        Both files remain available until the context exits and are then removed, including
+        when the caller raises an exception. The credential file can be refreshed in place
+        while the context is active without regenerating the kubeconfig.
+
+        :param eks_cluster_name: Name of the EKS cluster.
+        :param pod_namespace: Kubernetes namespace, or ``None`` for the client default.
+        :return: Tuple of kubeconfig path and credential file path.
+        """
+        credentials = self.get_session().get_credentials()
+        if credentials is None:
+            raise RuntimeError(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        frozen_credentials = credentials.get_frozen_credentials()
+        with self._secure_credential_context(
+            frozen_credentials.access_key, frozen_credentials.secret_key, frozen_credentials.token
+        ) as credentials_file:
+            with self.generate_config_file(
+                eks_cluster_name=eks_cluster_name,
+                pod_namespace=pod_namespace,
+                credentials_file=credentials_file,
+            ) as config_file:
+                yield config_file, credentials_file
+
+    @contextmanager
     def generate_config_file(
         self,
         eks_cluster_name: str,

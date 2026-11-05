@@ -220,7 +220,7 @@ Unhealthy → "Fehlerhaft"
 
 - Match tone, style, gender agreement, and casing from existing `de/*.json` files
 - Use formal German ("Sie" form) throughout
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{hotkey}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{hotkey}}`, etc.
 - Capitalize all nouns (standard German orthography)
 - Include English terms in parentheses for Airflow-specific concepts where the existing translations do so
 - Provide all needed plural suffixes (`_one`, `_other`) for each plural key
