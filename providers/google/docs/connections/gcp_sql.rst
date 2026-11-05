@@ -84,11 +84,27 @@ Using Cloud SQL Auth Proxy v2
 By default Airflow runs Cloud SQL Auth Proxy v1. To run Cloud SQL Auth Proxy v2 instead, set
 ``"sql_proxy_major_version": 2`` in the ``extra`` field. ``sql_proxy_version`` must also be set to the v2
 release to download, as there is no "latest" download for v2, unless the ``sql_proxy_binary_path`` argument
-of the hook or operator points to an existing v2 binary.
+of the hook or operator points to an existing v2 binary. Both must be v2.2.0 or newer.
+
+Cloud SQL for MySQL 8.4 users authenticating with ``caching_sha2_password`` need v2. v1 cannot complete
+that plugin's full authentication, so connections fail with ``1045 Access denied`` after the server's
+authentication cache is emptied, for example by an instance restart.
 
 Cloud SQL Auth Proxy v2 connects only to the instance's public IP by default, while v1 falls back to the
 private IP when the instance has no public IP. Airflow passes ``--auto-ip`` to v2 to keep the v1 behavior,
-so instances with only a private IP work with both versions.
+so instances with only a private IP work with both versions. ``--auto-ip`` was added in v2.2.0, which is
+why older v2 releases exit at startup.
+
+The two versions also differ in authentication:
+
+* When the Google Cloud connection has neither ``key_path`` nor ``keyfile_dict``, v1 tries the
+  ``GOOGLE_APPLICATION_CREDENTIALS`` file, then the active ``gcloud`` account, then Application Default
+  Credentials. v2 uses Application Default Credentials only. A worker authenticated only with
+  ``gcloud auth login`` or ``gcloud auth activate-service-account`` can therefore work with v1 but fail,
+  or connect as a different identity, with v2.
+* v2 attributes its Cloud SQL Admin API calls to the quota project of its credentials. Credentials whose
+  quota project is unrelated to the instance, which is common for local Application Default Credentials,
+  make v2 fail with ``403 SERVICE_DISABLED`` naming that other project.
 
 Example "extras" field:
 
