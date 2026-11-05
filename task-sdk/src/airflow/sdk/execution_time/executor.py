@@ -38,6 +38,7 @@ from asyncio import (
 from collections.abc import AsyncIterable, Callable, Iterator
 from concurrent.futures import Executor, Future as ConcurrentFuture, ThreadPoolExecutor
 from contextlib import suppress
+from functools import partial
 from typing import Any
 
 _log = logging.getLogger(__name__)
@@ -216,57 +217,94 @@ class AsyncAwareExecutor(Executor):
         if self._shutdown:
             raise RuntimeError("cannot schedule new futures after shutdown")
 
+        yield from _UnorderedMap(
+            loop=self._loop,
+            submit=partial(self.submit, fn),
+            iterables=iterables,
+            max_workers=self._max_workers,
+            timeout=timeout,
+            stop=stop,
+        )
+
+
+class _UnorderedMap:
+    """
+    One :meth:`AsyncAwareExecutor.imap_unordered`: the zipped items it pulls, the calls it keeps in flight.
+
+    Iterated once, from the thread that drives ``loop``: every pull and every submission runs on the
+    loop, and each result is handed out while the loop is paused (see ``imap_unordered``).
+    """
+
+    def __init__(
+        self,
+        *,
+        loop: AbstractEventLoop,
+        submit: Callable[..., Future[Any]],
+        iterables: tuple[AsyncIterable[Any], ...],
+        max_workers: int,
+        timeout: float | None,
+        stop: Callable[[], bool] | None,
+    ) -> None:
+        self._loop = loop
+        self._submit = submit
+        self._iterators = [iterable.__aiter__() for iterable in iterables]
+        self._max_workers = max_workers
+        self._timeout = timeout
+        self._stop = stop
+        self._pending: set[Future[Any]] = set()
+        self._exhausted = False
+
+    def __iter__(self) -> Iterator[Any]:
         start = time.monotonic()
-        iterators = [iterable.__aiter__() for iterable in iterables]
-        pending: set[Future[Any]] = set()
-        exhausted = False
-
-        def _remaining_timeout() -> float | None:
-            if timeout is None:
-                return None
-            remaining = timeout - (time.monotonic() - start)
-            if remaining <= 0:
-                raise TimeoutError()
-            return remaining
-
-        async def _next_args() -> tuple[Any, ...] | None:
-            """Return the next argument tuple, or None once any iterable is exhausted (like ``zip``)."""
-            args = []
-            for iterator in iterators:
-                try:
-                    args.append(await iterator.__anext__())
-                except StopAsyncIteration:
-                    return None
-            return tuple(args)
-
-        async def _fill_pending() -> None:
-            """Submit calls until pending reaches max_workers or an iterable is exhausted."""
-            nonlocal exhausted
-            while not exhausted and len(pending) < self._max_workers:
-                if stop is not None and stop():
-                    exhausted = True
-                    return
-                args = await _next_args()
-                if args is None or (stop is not None and stop()):
-                    # Exhausted, or stopped while the item was pulled: an item pulled at that
-                    # moment is dropped rather than started.
-                    exhausted = True
-                    return
-                pending.add(self.submit(fn, *args))
-
         # Every pull from the iterables runs on the loop, the initial one included.
-        self._loop.run_until_complete(_fill_pending())
+        self._loop.run_until_complete(self._fill())
 
-        while pending:
+        while self._pending:
             done, _ = self._loop.run_until_complete(
-                wait(pending, timeout=_remaining_timeout(), return_when=FIRST_COMPLETED)
+                wait(self._pending, timeout=self._remaining(start), return_when=FIRST_COMPLETED)
             )
 
             if not done:
                 raise TimeoutError()
 
             for completed in done:
-                pending.discard(completed)
+                self._pending.discard(completed)
                 yield completed.result()
 
-            self._loop.run_until_complete(_fill_pending())
+            self._loop.run_until_complete(self._fill())
+
+    def _remaining(self, start: float) -> float | None:
+        """Return the seconds left of ``timeout`` since ``start``; raise once none are."""
+        if self._timeout is None:
+            return None
+        remaining = self._timeout - (time.monotonic() - start)
+        if remaining <= 0:
+            raise TimeoutError()
+        return remaining
+
+    def _stopped(self) -> bool:
+        return self._stop is not None and self._stop()
+
+    async def _next_args(self) -> tuple[Any, ...] | None:
+        """Return the next argument tuple, or None once any iterable is exhausted (like ``zip``)."""
+        args = []
+        for iterator in self._iterators:
+            try:
+                args.append(await iterator.__anext__())
+            except StopAsyncIteration:
+                return None
+        return tuple(args)
+
+    async def _fill(self) -> None:
+        """Submit calls until max_workers are in flight or an iterable is exhausted."""
+        while not self._exhausted and len(self._pending) < self._max_workers:
+            if self._stopped():
+                self._exhausted = True
+                return
+            args = await self._next_args()
+            if args is None or self._stopped():
+                # Exhausted, or stopped while the item was pulled: an item pulled at that
+                # moment is dropped rather than started.
+                self._exhausted = True
+                return
+            self._pending.add(self._submit(*args))
