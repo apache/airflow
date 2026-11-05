@@ -140,10 +140,14 @@ from an earlier one can be traced to a change in the skill between two commits.
 
 The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
 first, with a link to the skill's folder at that commit for a repository on GitHub or
-GitLab. The counts cover the whole conversation, so calls made before a tool-approval
-pause, a human-review regeneration or a durable retry still count. Several skills toolsets
-on one agent, each wrapped with ``prefixed()`` to keep their tool names apart, share the
-same list. Nothing is published when the task sets ``do_xcom_push=False``.
+GitLab, and says so when the sources held no skills. Calls made before a tool-approval
+pause or a human-review regeneration still count, and so do calls a durable retry replays.
+Only calls that completed count, not denied, failed or interrupted ones, and a
+``message_history`` seeded from another task does not add that task's calls. When a run
+resumes from a tool-approval pause, the source shows the commit the resumed run cloned.
+Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
+names apart, share the same list. Nothing is published when the task sets
+``do_xcom_push=False``.
 
 Parameters
 ----------

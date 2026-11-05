@@ -137,6 +137,16 @@ class TestResolveGitWithHook:
         assert locations[0].directory.endswith(os.sep + "skills")
         assert locations[1] == _SkillsLocation("/local/skills")
 
+    @patch("git.Repo")
+    def test_empty_repository_clones_with_no_commit(self, mock_repo):
+        mock_repo.clone_from.return_value.head.is_valid.return_value = False
+        source = GitSkills(repo_url="https://github.com/org/repo")
+
+        locations, cleanup = _materialize_skills([source])
+        cleanup()
+
+        assert locations[0].commit is None
+
     @patch("airflow.providers.git.hooks.git.GitHook")
     @patch("git.Repo")
     def test_failed_clone_removes_temp_dir(self, mock_repo, mock_githook, tmp_path):
