@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Example Dag for starting and stopping an existing Databricks SQL warehouse."""
+"""Example Dag for editing, starting and stopping an existing Databricks SQL warehouse."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from datetime import datetime
 
 from airflow.providers.common.compat.sdk import DAG
 from airflow.providers.databricks.operators.warehouse import (
+    DatabricksEditWarehouseOperator,
     DatabricksStartWarehouseOperator,
     DatabricksStopWarehouseOperator,
 )
@@ -37,6 +38,15 @@ with DAG(
     tags=["example"],
     catchup=False,
 ) as dag:
+    # [START howto_operator_databricks_edit_sql_warehouse]
+    edit_warehouse = DatabricksEditWarehouseOperator(
+        task_id="edit_warehouse",
+        databricks_conn_id="databricks_default",
+        warehouse_id=WAREHOUSE_ID,
+        json={"auto_stop_mins": 10},
+    )
+    # [END howto_operator_databricks_edit_sql_warehouse]
+
     # [START howto_operator_databricks_start_sql_warehouse]
     start_warehouse = DatabricksStartWarehouseOperator(
         task_id="start_warehouse",
@@ -56,7 +66,7 @@ with DAG(
     )
     # [END howto_operator_databricks_stop_sql_warehouse]
 
-    start_warehouse >> stop_warehouse
+    edit_warehouse >> start_warehouse >> stop_warehouse
 
     from tests_common.test_utils.watcher import watcher
 

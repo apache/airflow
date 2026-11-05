@@ -1617,6 +1617,29 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
 
 
 class TestWarehouseLifecycle:
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"name": "renamed-warehouse"},
+            {
+                "cluster_size": "Small",
+                "min_num_clusters": 1,
+                "max_num_clusters": 2,
+                "auto_stop_mins": 0,
+                "enable_photon": False,
+                "tags": {"custom_tags": [{"key": "team", "value": "data"}]},
+            },
+        ],
+    )
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_edit_warehouse_endpoint(self, mock_do_api_call, payload):
+        mock_do_api_call.return_value = {}
+        hook = DatabricksHook()
+
+        assert hook.edit_warehouse("wh-1", payload) is None
+
+        mock_do_api_call.assert_called_once_with(hook, ("POST", "2.0/sql/warehouses/wh-1/edit"), payload)
+
     @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
     def test_get_warehouse_calls_correct_endpoint(self, mock_do_api_call):
         mock_do_api_call.return_value = {"id": "wh-1", "state": "RUNNING"}
