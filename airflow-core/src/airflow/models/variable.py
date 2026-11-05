@@ -53,6 +53,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
 log = logging.getLogger(__name__)
@@ -555,6 +556,10 @@ class Variable(Base, LoggingMixin):
     def get_team_name(variable_key: str, *, session=NEW_SESSION) -> str | None:
         stmt = select(Variable.team_name).where(Variable.key == variable_key)
         return session.scalar(stmt)
+
+    @staticmethod
+    async def get_team_name_async(variable_key: str, *, session: AsyncSession) -> str | None:
+        return await session.scalar(select(Variable.team_name).where(Variable.key == variable_key))
 
     @staticmethod
     @provide_session

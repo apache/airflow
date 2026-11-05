@@ -25,6 +25,7 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
+from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -46,6 +47,12 @@ class TestTeam:
     @pytest.mark.db_test
     def test_get_name_if_exists_returns_none(self):
         assert Team.get_name_if_exists("nonexistent") is None
+
+    @pytest.mark.asyncio
+    async def test_get_name_if_exists_async(self, testing_team):
+        async with create_session_async() as session:
+            assert await Team.get_name_if_exists_async("testing", session=session) == "testing"
+            assert await Team.get_name_if_exists_async("nonexistent", session=session) is None
 
     @pytest.mark.db_test
     def test_get_all_team_names_with_teams(self, testing_team):
