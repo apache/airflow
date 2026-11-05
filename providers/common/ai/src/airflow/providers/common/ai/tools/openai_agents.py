@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import copy
 import json
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
@@ -60,6 +61,7 @@ from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from contextvars import Token
 
     from agents.tool_context import ToolContext
@@ -68,6 +70,7 @@ if TYPE_CHECKING:
     from opentelemetry.trace import Span as OtelSpan, TracerProvider
 
     from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools._from_toolset import RetryCount, ToolCallScope
 
 __all__ = ["AirflowTools", "AirflowTraceProcessor"]
 
@@ -75,6 +78,13 @@ _MCP_HINT = (
     "Pass the server to the agent's mcp_servers with one of the SDK's MCPServer classes, "
     "such as MCPServerStreamableHttp, instead."
 )
+
+# Set on a tool call's context: the count the call left in its tool's retry budget, for durable
+# execution to record with the result.
+_RETRY_COUNT = "_airflow_retry_count"
+# Set on each function tool these tools become: given the count a call the durable journal
+# replays left in the tool's retry budget, restores it.
+_REPLAY_RETRY = "_airflow_replay_retry"
 
 
 class AirflowTools(list[Tool]):
@@ -106,8 +116,9 @@ class AirflowTools(list[Tool]):
     with ``strict_json_schema=False``: the SDK's strict mode would make every argument
     required. A failure the model can correct, such as a query naming a missing column,
     reaches it as ``{"error": ...}``, counted against the tool's retry limit afresh on
-    every run of the agent. Arguments that are not a JSON object also come back as
-    ``{"error": ...}``, bounded by the run's ``max_turns`` rather than that limit. A tool
+    every run of the agent; a retry of a durable run counts the ones it replays as well.
+    Arguments that are not a JSON object also come back as ``{"error": ...}``, bounded by
+    the run's ``max_turns`` rather than that limit. A tool
     still failing once the limit is used up, or any other failure, raises
     :class:`~airflow.providers.common.ai.tools.ToolCallError` out of ``Runner.run``, so
     the task fails and Airflow retries it. Tools a toolset marks sequential, such as the
@@ -154,6 +165,32 @@ class _SameRun:
         return id(self._usage)
 
 
+class _RetryLimitReached(_FailedToolCall):
+    """
+    A tool kept failing in ways the model could correct until its retry limit ran out.
+
+    The model's answers used the limit up, not the call, so durable execution asks the model
+    again on a retry rather than replaying them into the same failure.
+    """
+
+
+@contextmanager
+def _calling_tool(
+    ctx: ToolContext[Any], tool: AirflowTool, replayed: RetryCount | None = None
+) -> Iterator[ToolCallScope]:
+    # The SDK does not identify the model turn, so calls that run at the same time count once.
+    with (
+        calling_framework("openai_agents"),
+        tool_call_scope(run=_SameRun(ctx.usage), function=tool.function, replayed=replayed) as scope,
+    ):
+        try:
+            yield scope
+        except ToolCallError as e:
+            # Already masked, and logged to the task log with its traceback by AirflowTool.call.
+            error = _RetryLimitReached if scope.limit_reached else _FailedToolCall
+            raise error(str(e)) from None
+
+
 def _to_function_tool(tool: AirflowTool) -> FunctionTool:
     async def call_airflow_tool(ctx: ToolContext[Any], arguments: str) -> str:
         # The SDK passes the model's arguments as it sent them, without parsing them first.
@@ -163,18 +200,20 @@ def _to_function_tool(tool: AirflowTool) -> FunctionTool:
             return serialize_for_llm({"error": f"The arguments are not valid JSON: {e}"})
         if not isinstance(parsed, dict):
             return serialize_for_llm({"error": "The arguments must be a JSON object."})
-        # The SDK does not identify the model turn, so calls that run at the same time count once.
-        try:
-            with calling_framework("openai_agents"), tool_call_scope(run=_SameRun(ctx.usage)):
-                result = await tool.call(parsed)
-        except ToolCallError as e:
-            # Already masked, and logged to the task log with its traceback by AirflowTool.call.
-            raise _FailedToolCall(str(e)) from None
+        with _calling_tool(ctx, tool) as scope:
+            result = await tool.call(parsed)
+        setattr(ctx, _RETRY_COUNT, scope.counted)
         if result.is_error:
             return serialize_for_llm({"error": result.content})
         return serialize_for_llm(result.content)
 
-    return FunctionTool(
+    async def replay_retry(ctx: ToolContext[Any], count: RetryCount) -> None:
+        # Not through AirflowTool.call: nothing reaches the model, and its task log lines would
+        # show a call that never ran. Only a toolset tool records a count, and it does not run.
+        with _calling_tool(ctx, tool, replayed=count):
+            await tool.function({})
+
+    function_tool = FunctionTool(
         name=tool.name,
         description=tool.description,
         # The source schema can be a toolset's module-level constant, so hand over a copy.
@@ -182,6 +221,8 @@ def _to_function_tool(tool: AirflowTool) -> FunctionTool:
         on_invoke_tool=call_airflow_tool,
         strict_json_schema=False,
     )
+    setattr(function_tool, _REPLAY_RETRY, replay_retry)
+    return function_tool
 
 
 class AirflowTraceProcessor(TracingProcessor):

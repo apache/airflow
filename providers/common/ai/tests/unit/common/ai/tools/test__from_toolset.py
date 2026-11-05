@@ -32,8 +32,12 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.tools import ToolCallError, ToolResult
-from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset, tool_call_scope
+from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
+from airflow.providers.common.ai.tools._from_toolset import (
+    RetryCount,
+    airflow_tools_from_toolset,
+    tool_call_scope,
+)
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
@@ -274,6 +278,44 @@ class TestRetryBudget:
         assert not asyncio.run(call_in("turn-1")).is_error
         with pytest.raises(ToolCallError, match="kept failing"):
             asyncio.run(call_in("turn-2"))
+
+    def test_a_count_an_earlier_attempt_recorded_does_not_replace_a_live_one(self):
+        """The earlier attempt's worker had a clock an hour ahead; the live failure still counts."""
+        step = _scripted(ModelRetry("bad"), ModelRetry("bad"), max_retries=1)
+        recorded: RetryCount = {"failures": 0, "finished": time.time() + 3600}
+
+        async def call_in(turn: str, replayed: RetryCount | None = None) -> ToolResult:
+            with tool_call_scope(run="run", turn=turn, function=step.function, replayed=replayed):
+                return await step.function({})
+
+        assert asyncio.run(call_in("turn-1")).is_error
+        asyncio.run(call_in("turn-2", replayed=recorded))
+        with pytest.raises(ToolCallError, match="kept failing"):
+            asyncio.run(call_in("turn-3"))
+
+    def test_a_later_attempts_count_outranks_an_earlier_one_from_a_clock_ahead(self):
+        """
+        The first attempt's worker had a clock an hour ahead and recorded one correction used.
+
+        The second replayed it and then succeeded live; the third must restore that success.
+        """
+        first: RetryCount = {"failures": 1, "finished": time.time() + 3600}
+
+        async def call_in(step: AirflowTool, turn: str, replayed: RetryCount | None = None):
+            with tool_call_scope(run="run", turn=turn, function=step.function, replayed=replayed) as scope:
+                result = await step.function({})
+            return result, scope.counted
+
+        second_attempt = _scripted("ok", max_retries=1)
+        asyncio.run(call_in(second_attempt, "turn-1", first))
+        _, second = asyncio.run(call_in(second_attempt, "turn-2"))
+        third_attempt = _scripted(ModelRetry("bad"), max_retries=1)
+        asyncio.run(call_in(third_attempt, "turn-1", first))
+        asyncio.run(call_in(third_attempt, "turn-2", second))
+
+        result, _ = asyncio.run(call_in(third_attempt, "turn-3"))
+
+        assert result.is_error
 
     def test_each_tool_list_starts_with_a_fresh_budget(self):
         toolset = FunctionToolset([_failing_step], max_retries=0)
