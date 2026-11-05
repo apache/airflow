@@ -64,6 +64,7 @@ except ImportError as e:
 
 from airflow.providers.common.ai.durable.fingerprint import _digest, fingerprint_tool_call
 from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current_journal
+from airflow.providers.common.ai.exceptions import UnsupportedToolDeferralError
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 from airflow.providers.common.ai.utils.masking import mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
@@ -165,6 +166,8 @@ async def run_durably(
     :raises ValueError: When ``previous_response_id``, ``conversation_id`` or
         ``auto_previous_response_id`` is passed: a replayed call never reaches the
         conversation OpenAI keeps for them.
+    :raises UnsupportedToolDeferralError: When the run stops for a tool call that needs
+        approval, which ``run_durably`` cannot resume. The task fails without retrying.
     """
     if (journal := current_journal()) is None:
         return await Runner.run(starting_agent, input, run_config=run_config, **kwargs)
@@ -184,6 +187,19 @@ async def run_durably(
     except BaseException as error:
         durable_run.fail(error, model_at_fault=isinstance(error, _MODEL_AT_FAULT))
         raise
+    if result.interruptions:
+        tools = ", ".join(sorted({f"{item.tool_name} ({item.agent.name})" for item in result.interruptions}))
+        error = UnsupportedToolDeferralError(
+            f"The agent stopped to ask for approval to call {tools}, and run_durably() cannot "
+            "resume a run that waits for approval. Remove the approval requirement (needs_approval, "
+            "or require_approval on an MCP server), or call Runner.run and handle "
+            "result.interruptions yourself."
+        )
+        # Counted against the model's last answer, so a clear asks the model again from there:
+        # what was recorded after it, such as an agent tool's answer given while it waited for
+        # approval, never replays, and the turns before it still do.
+        durable_run.fail(error, model_at_fault=True)
+        raise error
     if journal.clean_up_after_run:
         durable_run.cleanup()
     return result

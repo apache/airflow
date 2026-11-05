@@ -571,6 +571,14 @@ stands for building the agent as the task example does:
 
     publish(answer("Which customer has the highest ARR?"))
 
+``run_durably`` does not resume a run that stops for a tool call that needs approval
+(``needs_approval``, or ``require_approval`` on an MCP server). It fails the task with
+``UnsupportedToolDeferralError``, without retrying, since a retry would most likely stop at
+the same call. After you remove the approval requirement, clearing the task with its task
+state kept (``keep_task_state``, or clearing the whole Dag run) replays the turns before that
+call and asks the model again from there, so a tool call made in that same answer runs again
+if the model asks for it. A clear that discards the task state starts the agent over.
+
 What a retry replays
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -624,9 +632,10 @@ These SDK features interact with Airflow in ways the SDK documentation does not 
 
 - A ``session`` works, but under ``run_durably`` it makes every retry run live, as
   above.
-- A tool's ``needs_approval`` is not connected to Airflow's approval UI. The run stops
-  at the first call that needs approval and returns with ``final_output`` set to
-  ``None`` and the pending call in ``result.interruptions``, and nothing in Airflow
-  resumes it. To have a person approve the agent's answer, add the standard
-  provider's ``ApprovalOperator`` as the next task.
+- A tool's ``needs_approval`` is not connected to Airflow's approval UI. ``Runner.run``
+  stops at the first call that needs approval and returns with ``final_output`` set to
+  ``None`` and the pending call in ``result.interruptions``, and the task succeeds without
+  an answer unless your code handles them. ``run_durably`` fails the task instead, as
+  :ref:`howto/frameworks:openai-agents-durable` describes. To have a person approve the
+  agent's answer, add the standard provider's ``ApprovalOperator`` as the next task.
 - A streamed run (``Runner.run_streamed``) is not recorded for durable retries.

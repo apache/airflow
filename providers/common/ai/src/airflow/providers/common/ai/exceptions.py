@@ -65,12 +65,13 @@ class ToolApprovalAlreadyRequestedError(AirflowFailException):
 
 class UnsupportedToolDeferralError(AirflowFailException):
     """
-    Raised when an agent defers a tool call that ``AgentOperator`` cannot resolve.
+    Raised when an agent defers a tool call that nothing in the task can resolve.
 
-    Either the tool hands its work to an external system, or it needs approval where
-    approval is not available (before Airflow 3.3, or with ``durable``,
-    ``enable_hitl_review``, code mode or a ``SandboxToolset``). A retry would repeat
-    the same call, so the task fails without retrying.
+    In ``AgentOperator``, either the tool hands its work to an external system, or it needs
+    approval where approval is not available (before Airflow 3.3, or with ``durable``,
+    ``enable_hitl_review``, code mode or a ``SandboxToolset``). In ``run_durably`` for the
+    OpenAI Agents SDK, a tool call needs approval. A retry would repeat the same call, so the
+    task fails without retrying.
     """
 
 
