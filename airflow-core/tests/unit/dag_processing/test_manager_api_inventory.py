@@ -120,7 +120,7 @@ def test_slow_inventory_sends_yield_and_rotate_to_later_bundles(find_files, cloc
         assert bundle.refresh.call_count == (0 if already_pending else 1)
 
 
-@pytest.mark.parametrize("rejection", ["http_413", "local_size_limit"])
+@pytest.mark.parametrize("rejection", ["http_413", "local_size_limit", "listing_error"])
 @mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 1024)
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
@@ -150,11 +150,13 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
             )
             for index in range(6)
         }
-    else:
+    elif rejection == "http_413":
         response = httpx2.Response(413, request=httpx2.Request("POST", "http://api/inventory"))
         client.publish_inventory.side_effect = httpx2.HTTPStatusError(
             "Proxy body limit", request=response.request, response=response
         )
+    else:
+        find_files.side_effect = OSError("Listing failed")
     find_files.return_value = DagBundleDiscoveryResult(files=observed)
 
     manager._refresh_dag_bundles(known_files)
@@ -190,6 +192,7 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
             attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
         )
 
+    find_files.side_effect = None
     find_files.return_value = DagBundleDiscoveryResult(files={new_file})
     client.publish_inventory.side_effect = accept_inventory
     clock.monotonic.return_value = 3700.0

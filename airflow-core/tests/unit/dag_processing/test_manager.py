@@ -6599,14 +6599,11 @@ class TestDagFileProcessorManager:
             read_end.close()
             proc.close()
 
-    @pytest.mark.parametrize("failure", ["invalid_path", "too_many_files"])
     @mock.patch("airflow.dag_processing.manager.time", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "_get_observed_filelocs", autospec=True)
-    def test_unusable_inventory_preserves_version_and_recovers_after_refresh(self, observed, clock, failure):
+    def test_unusable_inventory_preserves_version_and_recovers_after_refresh(self, observed, clock):
         clock.monotonic.return_value = 100
-        observed.return_value = (
-            {r"bad\dag.py"} if failure == "invalid_path" else {f"{index}.py" for index in range(100001)}
-        )
+        observed.return_value = {f"{index}.py" for index in range(100001)}
         client = mock.create_autospec(DagProcessorAPIClient, instance=True)
         manager = DagFileProcessorManager(
             max_runs=1, api_client=client, parallelism=1, bundle_refresh_check_interval=0

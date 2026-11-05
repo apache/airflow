@@ -354,7 +354,6 @@ class DagFileProcessorManager(LoggingMixin):
     _catalog_retry_at: float = attrs.field(default=0.0, init=False)
 
     _parsing_start_time: float | None = attrs.field(default=None, init=False)
-    _started_at: datetime = attrs.field(factory=timezone.utcnow, init=False)
     _num_run: int = attrs.field(default=0, init=False)
 
     _callback_to_execute: dict[DagFileInfo, list[CallbackRequest]] = attrs.field(
@@ -1343,7 +1342,7 @@ class DagFileProcessorManager(LoggingMixin):
                     # next refresh lists it again.
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                     if self.api_client is not None:
-                        self._bundle_parse_sources.pop(bundle.name, None)
+                        self._defer_unusable_bundle_inventory(bundle.name)
                     else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
@@ -1854,17 +1853,6 @@ class DagFileProcessorManager(LoggingMixin):
         if proc.api_request_error is not None:
             # The Task SDK answers a failed request as a missing value, so the Dags may hold a fallback.
             reason = f"an Execution API request failed while parsing: {proc.api_request_error}"
-        # A restarted manager cannot see when the file's Dags were last parsed, so it waits from its start.
-        last_published = self._file_stats[file].last_finish_time or self._started_at
-        if timezone.utcnow() - last_published <= timedelta(seconds=self.stale_dag_threshold):
-            # The API deactivates a file's Dags on its import error; DB mode waits for stale_dag_threshold.
-            self.log.warning(
-                "Not reporting the failed parse of %s before it outlasts stale_dag_threshold: %s",
-                file.rel_path,
-                reason,
-            )
-            self._record_failed_publication(file, stat)
-            return
         try:
             self._pending_publications[file] = self._build_rejection_report(
                 file,
@@ -2036,6 +2024,7 @@ class DagFileProcessorManager(LoggingMixin):
                 source_codes=[],
                 dag_source_indexes={},
                 import_errors=import_errors,
+                result_unavailable=True,
             ),
             stat=attrs.evolve(stat, num_dags=0, import_errors=len(import_errors)),
             refresh_generation=refresh_generation,

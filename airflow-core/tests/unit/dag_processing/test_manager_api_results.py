@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import signal
 import time
-from datetime import timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -78,53 +77,37 @@ def test_api_result_collection_does_not_create_database_session(
 
 @pytest.mark.parametrize("outcome", ["parsed", "no_result", "timeout"])
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
-def test_parse_with_a_failed_api_request_is_reported_only_after_stale_dag_threshold(
-    clock, time_machine, outcome
-):
+def test_parse_with_a_failed_api_request_is_reported_as_an_unavailable_result(clock, time_machine, outcome):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"))
-    last_published = timezone.utcnow()
-    manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=last_published)
+    manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=timezone.utcnow())
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    processor.pid = 123
+    processor.dispatch_sequence = 1
+    processor.start_time = 89 if outcome == "timeout" else 99
+    processor.is_ready = True
+    processor.had_callbacks = False
+    processor.api_request_error = "GetVariable (HTTP 503)"
+    processor.parse_source = DagParseSource(bundle_revision=uuid7())
+    processor.parsing_result = (
+        DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "parsed" else None
+    )
+    manager._processors[file] = processor
 
-    def finish_parse():
-        processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
-        processor.id = uuid7()
-        processor.pid = 123
-        processor.dispatch_sequence = 1
-        processor.start_time = 89 if outcome == "timeout" else 99
-        processor.is_ready = True
-        processor.had_callbacks = False
-        processor.api_request_error = "GetVariable (HTTP 503)"
-        processor.parse_source = DagParseSource(bundle_revision=uuid7())
-        processor.parsing_result = (
-            DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "parsed" else None
-        )
-        manager._processors[file] = processor
-        if outcome == "timeout":
-            manager._kill_timed_out_processors()
-            processor.kill.assert_called_once_with(signal.SIGKILL)
-        else:
-            manager._collect_results()
-        processor.close.assert_called_once_with()
+    if outcome == "timeout":
+        manager._kill_timed_out_processors()
+        processor.kill.assert_called_once_with(signal.SIGKILL)
+    else:
+        manager._collect_results()
 
-    time_machine.shift(timedelta(seconds=manager.stale_dag_threshold))
-    finish_parse()
-
-    assert not manager._pending_publications
-    stat = manager._file_stats[file]
-    assert stat.num_dags == 1
-    assert stat.last_finish_time == last_published
-    assert stat.last_attempt_time == timezone.utcnow()
-    assert stat.run_count == 1
-
-    time_machine.shift(1)
-    finish_parse()
-
+    processor.close.assert_called_once_with()
     body = manager._pending_publications[file].body
     assert body.serialized_dags == []
+    assert body.result_unavailable
     assert (
         "an Execution API request failed while parsing: GetVariable (HTTP 503)" in body.import_errors["a.py"]
     )

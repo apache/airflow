@@ -284,48 +284,34 @@ def test_only_the_parsing_loop_retries_without_waiting(before_run, run_parsing_l
 
 
 @pytest.mark.parametrize("outcome", ["no_result", "timeout"])
-@pytest.mark.parametrize("published", [True, False], ids=["published", "after-restart"])
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
-def test_failed_parse_keeps_dags_until_the_failure_outlasts_stale_dag_threshold(
-    clock, time_machine, published, outcome
-):
+def test_failed_parse_is_reported_at_once_as_an_unavailable_result(clock, time_machine, outcome):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"))
-    last_published = timezone.utcnow() if published else None
-    manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=last_published)
+    manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=timezone.utcnow())
+    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
+    processor.id = uuid7()
+    processor.pid = 123
+    processor.dispatch_sequence = 1
+    processor.start_time = 89 if outcome == "timeout" else 99
+    processor.is_ready = True
+    processor.had_callbacks = False
+    processor.api_request_error = None
+    processor.parsing_result = None
+    processor.parse_source = DagParseSource()
+    manager._processors[file] = processor
 
-    def fail_parse():
-        processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
-        processor.id = uuid7()
-        processor.pid = 123
-        processor.dispatch_sequence = 1
-        processor.start_time = 89 if outcome == "timeout" else 99
-        processor.is_ready = True
-        processor.had_callbacks = False
-        processor.api_request_error = None
-        processor.parsing_result = None
-        processor.parse_source = DagParseSource()
-        manager._processors[file] = processor
-        if outcome == "timeout":
-            manager._kill_timed_out_processors()
-        else:
-            manager._collect_results()
+    if outcome == "timeout":
+        manager._kill_timed_out_processors()
+    else:
+        manager._collect_results()
 
-    time_machine.shift(manager.stale_dag_threshold)
-    fail_parse()
-
-    assert not manager._pending_publications
-    assert manager._file_stats[file].num_dags == 1
-    assert manager._file_stats[file].last_finish_time == last_published
-    assert manager._file_stats[file].last_attempt_time == timezone.utcnow()
-
-    time_machine.shift(1)
-    fail_parse()
-
-    assert manager._pending_publications[file].body.import_errors == {"a.py": mock.ANY}
+    body = manager._pending_publications[file].body
+    assert body.import_errors == {"a.py": mock.ANY}
+    assert body.result_unavailable
 
 
 def test_retired_registration_stops_publication():
