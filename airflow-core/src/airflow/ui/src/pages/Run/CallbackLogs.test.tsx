@@ -41,6 +41,7 @@ const { useDeadlinesServiceGetCallbackLogs } = await import("openapi/queries");
 const CALLBACK_ID = "0199a8e0-0000-7000-8000-000000000001";
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
 });

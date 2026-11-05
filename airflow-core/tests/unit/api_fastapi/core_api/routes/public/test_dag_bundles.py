@@ -672,3 +672,70 @@ class TestGetDagBundleFiles:
 
     def test_404_for_an_unknown_bundle(self, test_client):
         assert test_client.get("/dagBundles/no_such_bundle/files").status_code == 404
+
+    def test_an_admin_may_read_every_import_error(self, test_client):
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        } == {
+            UNREGISTERED_FILE: True,
+            REGISTERED_FILE: True,
+            SECOND_REGISTERED_FILE: True,
+        }
+
+    def test_a_file_with_no_error_has_nothing_to_read(self, test_client):
+        body = test_client.get(f"/dagBundles/{LOCAL_BUNDLE}/files").json()
+
+        assert [file["can_read_import_error"] for file in body["dag_bundle_files"]] == [False]
+
+    def test_an_op_may_not_read_the_error_of_a_file_that_registered_no_dag(self, op_headers, test_client):
+        """Such errors sit behind ``IMPORT_ERRORS_ALL``, which an op does not hold."""
+        body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files", headers=op_headers).json()
+
+        assert {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        } == {
+            UNREGISTERED_FILE: False,
+            REGISTERED_FILE: True,
+            SECOND_REGISTERED_FILE: True,
+        }
+
+    def test_follows_the_dags_the_caller_may_read(self, test_client):
+        """
+        One readable Dag is enough, even beside an unreadable one, as the error is then redacted.
+
+        ``dag_0.py`` also holds a stale Dag outside the readable set; ``second.py`` holds none
+        the caller may read.
+        """
+        with mock.patch.object(
+            test_client.app.state.auth_manager,
+            "get_authorized_dag_ids",
+            autospec=True,
+            return_value={f"dag_in_{GIT_BUNDLE}"},
+        ):
+            body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        by_path = {
+            file["relative_fileloc"]: file["can_read_import_error"] for file in body["dag_bundle_files"]
+        }
+        assert by_path[REGISTERED_FILE] is True
+        assert by_path[SECOND_REGISTERED_FILE] is False
+
+    def test_no_import_error_is_readable_without_the_import_errors_view(self, test_client):
+        auth_manager = test_client.app.state.auth_manager
+        real_is_authorized_view = auth_manager.is_authorized_view
+
+        def is_authorized_view(*, access_view, user, team_name=None):
+            if access_view is AccessView.IMPORT_ERRORS:
+                return False
+            return real_is_authorized_view(access_view=access_view, user=user, team_name=team_name)
+
+        with mock.patch.object(
+            auth_manager, "is_authorized_view", autospec=True, side_effect=is_authorized_view
+        ):
+            body = test_client.get(f"/dagBundles/{GIT_BUNDLE}/files").json()
+
+        assert [file["can_read_import_error"] for file in body["dag_bundle_files"]] == [False, False, False]
+        # The counts are the bundle's and stay put.
+        assert [file["import_error_count"] for file in body["dag_bundle_files"]] == [1, 1, 1]

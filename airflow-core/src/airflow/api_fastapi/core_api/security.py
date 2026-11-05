@@ -19,7 +19,7 @@ from __future__ import annotations
 import posixpath
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
 from urllib.parse import ParseResult, unquote, urljoin, urlparse
 
 from fastapi import Depends, HTTPException, Request, status
@@ -27,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import false, or_, select
+from sqlalchemy import and_, false, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -71,7 +71,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -81,6 +81,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
+from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -1205,6 +1206,90 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
     PermittedAssetEventByAssetFilter,
     Depends(permitted_asset_filter_factory("GET", PermittedAssetEventByAssetFilter)),
 ]
+
+
+def _select_triggers_watching(asset_ids: set[int]) -> Select:
+    # Uncorrelated, as in Trigger.owner_still_refers_expression.
+    return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
+
+
+class PermittedTriggerFilter(OrmClause[None]):
+    """
+    Keep the triggers whose owner the caller can see, each kind gated like the routes that show its owner.
+
+    A task trigger needs Task Instance read on the Dag of its task instance, a callback trigger Dag Run read on
+    the Dag of its callback (as the deadlines of a Dag run do), and an asset watcher's trigger read on an asset
+    one of its watchers watches. Team access is the auth manager's, through those Dags and assets.
+    """
+
+    def __init__(
+        self,
+        *,
+        task_dag_ids: set[str],
+        callback_dag_ids: set[str],
+        asset_ids: set[int],
+        can_read_an_owner: bool,
+    ) -> None:
+        super().__init__()
+        self.task_dag_ids = task_dag_ids
+        self.callback_dag_ids = callback_dag_ids
+        self.asset_ids = asset_ids
+        self.can_read_an_owner = can_read_an_owner
+
+    def to_orm(self, select: Select) -> Select:
+        # The kind by the owner recorded on the row, as Trigger.kind_expression decides it, but without its CASE:
+        # compared in each branch, Postgres evaluates the CASE and its watcher subquery once per branch and row.
+        ti_id = Trigger.owner_ref["ti_id"].as_string()
+        callback_id = Trigger.owner_ref["callback_id"].as_string()
+        return select.where(
+            or_(
+                and_(ti_id.is_not(None), Trigger.dag_id.in_(self.task_dag_ids)),
+                and_(ti_id.is_(None), callback_id.is_not(None), Trigger.dag_id.in_(self.callback_dag_ids)),
+                and_(
+                    ti_id.is_(None),
+                    callback_id.is_(None),
+                    Trigger.id.in_(_select_triggers_watching(self.asset_ids)),
+                ),
+            )
+        )
+
+
+def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> PermittedTriggerFilter:
+    # Checked without a Dag id, then narrowed to the readable Dags, as GET /dags/~/dagRuns/~/taskInstances does.
+    can_read_task_instances = auth_manager.is_authorized_dag(
+        method="GET", access_entity=DagAccessEntity.TASK_INSTANCE, user=user
+    )
+    can_read_runs = auth_manager.is_authorized_dag(method="GET", access_entity=DagAccessEntity.RUN, user=user)
+    # get_authorized_assets may assume this check has passed, as GET /assets checks it first: the FAB auth
+    # manager, which has no per-asset permissions, returns every asset there.
+    can_read_assets = auth_manager.is_authorized_asset(method="GET", details=AssetDetails(id=None), user=user)
+    dag_ids = (
+        auth_manager.get_authorized_dag_ids(user=user, method="GET")
+        if can_read_task_instances or can_read_runs
+        else set()
+    )
+    return PermittedTriggerFilter(
+        task_dag_ids=dag_ids if can_read_task_instances else set(),
+        callback_dag_ids=dag_ids if can_read_runs else set(),
+        asset_ids=auth_manager.get_authorized_assets(user=user, method="GET") if can_read_assets else set(),
+        can_read_an_owner=can_read_task_instances or can_read_runs or can_read_assets,
+    )
+
+
+ReadableTriggersFilterDep = Annotated[PermittedTriggerFilter, Depends(readable_triggers_filter)]
+
+
+def requires_access_trigger(method: Literal["GET"]) -> Callable[[PermittedTriggerFilter], None]:
+    """
+    Let in a caller who can read the owners of at least one kind of trigger; triggers can only be read.
+
+    It shares the request's :class:`PermittedTriggerFilter`, which keeps only the triggers they can see.
+    """
+
+    def inner(readable_triggers: ReadableTriggersFilterDep) -> None:
+        _requires_access(is_authorized_callback=lambda: readable_triggers.can_read_an_owner)
+
+    return inner
 
 
 def _build_asset_details(asset_id: str | None) -> AssetDetails:
