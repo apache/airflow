@@ -23,6 +23,7 @@ from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy.orm import selectinload
 
 from airflow.api.common import delete_dag as delete_dag_module
 from airflow.api_fastapi.common.asset_expression import redact_asset_expression
@@ -200,7 +201,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=[DAGResponse.model_validate(dag) for dag in dags],
         total_entries=total_entries,
     )
 
@@ -411,7 +412,7 @@ def patch_dags(
             raise RequestValidationError(errors=e.errors())
 
     dags_select, total_entries = paginated_select(
-        statement=select(DagModel),
+        statement=select(DagModel).options(selectinload(DagModel.tags)),
         filters=[
             exclude_stale,
             paused,
@@ -453,7 +454,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=[DAGResponse.model_validate(dag) for dag in dags],
         total_entries=total_entries,
     )
 
