@@ -468,7 +468,7 @@ classes, such as ``MCPServerStreamableHttp``. ``MCPToolset`` does not work throu
 
 .. code-block:: text
 
-    NotImplementedError: MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through the framework-neutral tools. Connect your framework's own MCP client to the server instead, such as Strands' MCPClient or ADK's McpToolset.
+    airflow.providers.common.ai.exceptions.MCPToolsetNotSupportedError: MCPToolset works in Pydantic AI agents and through the LangChain bridge, not through AirflowTools. Pass the server to the agent's mcp_servers with one of the SDK's MCPServer classes, such as MCPServerStreamableHttp, instead.
 
 Results from ``mcp_servers`` do not pass through Airflow's secret masker, and under
 ``run_durably`` their calls run again on every retry.
@@ -542,8 +542,9 @@ Each model call and function tool call is recorded in the task instance's durabl
 journal as it completes (see :doc:`../durable_execution`). On Airflow 3.3 and later the
 journal is kept in the task state store. On earlier versions, set ``[common.ai]
 durable_cache_path`` to where it is kept; without it the call raises ``ValueError:
-durable=True requires [common.ai] durable_cache_path to be set.`` Outside a task there
-is nothing to replay into, and the agent runs as ``Runner.run`` runs it.
+Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set``.
+Outside a task there is nothing to replay into, and the agent runs as ``Runner.run`` runs
+it.
 
 What was recorded is deleted when the agent's run succeeds, so clearing the task later
 starts over. That happens when ``run_durably_sync`` returns, not when the task
