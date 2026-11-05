@@ -946,18 +946,19 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
-            # The menu entry follows the bundle resource, not Dag access.
+            # The menu entry follows the bundle resource where Airflow has the bundles view, and Dag
+            # access on Airflow 3.4.0, which has only the menu item.
             *(
                 [
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_BUNDLE)],
-                        [MenuItem.DAG_BUNDLES],
+                        [MenuItem.DAG_BUNDLES] if DAG_BUNDLES_ACCESS_VIEW is not None else [],
                     ),
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
-                        [],
+                        [] if DAG_BUNDLES_ACCESS_VIEW is not None else [MenuItem.DAG_BUNDLES],
                     ),
                 ]
                 if hasattr(MenuItem, "DAG_BUNDLES")

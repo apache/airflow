@@ -3201,15 +3201,21 @@ components:
         trigger_id:
           type: integer
           title: Trigger Id
+          description: The watcher's trigger; `GET /triggers/{trigger_id}` has its
+            state.
         created_date:
           type: string
           format: date-time
           title: Created Date
+        status:
+          $ref: '#/components/schemas/TriggerStatus'
+          description: Status of the watcher's trigger, as in `GET /triggers`.
       type: object
       required:
       - name
       - trigger_id
       - created_date
+      - status
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
     AuthenticatedMeResponse:
@@ -6419,6 +6425,16 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
+    TriggerStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - failing
+      - orphaned
+      title: TriggerStatus
+      description: How a trigger is doing, worked out the same way for every kind
+        from its row and its triggerer's heartbeat.
     UIAlert:
       properties:
         text:

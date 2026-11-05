@@ -34,10 +34,12 @@ from airflow.api_fastapi.core_api.datamodels.dag_bundles import (
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.security import (
+    GetUserDep,
     PermittedDagBundleFilter,
     ReadableDagBundlesFilterDep,
     requires_access_dag_bundles,
 )
+from airflow.api_fastapi.core_api.services.public.import_errors import get_readable_import_error_files
 from airflow.configuration import conf
 from airflow.models import DagModel
 from airflow.models.dagbundle import DagBundleModel
@@ -198,6 +200,7 @@ def get_dag_bundle_files(
     offset: QueryOffset,
     readable_dag_bundles_filter: ReadableDagBundlesFilterDep,
     session: SessionDep,
+    user: GetUserDep,
 ) -> DagBundleFileCollectionResponse:
     """
     List the files in a Dag bundle, ordered by path.
@@ -205,6 +208,9 @@ def get_dag_bundle_files(
     Every file the bundle holds is listed, with counts covering the whole file: the bundle is
     authorized as a unit, so its contents are not narrowed to the Dags the caller may read. What a
     file's Dags contain, and the text of its import error, stay behind their own permissions.
+
+    ``can_read_import_error`` is per caller, unlike the counts: it says whether ``GET /importErrors``
+    would return the file's error to them.
 
     ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that fails to import
     has every Dag in it marked stale, and so does a file dropped from the bundle. A file therefore
@@ -273,7 +279,19 @@ def get_dag_bundle_files(
     # "unlimited" and return the whole list.
     end = None if limit.value is None else start + limit.value
 
+    page = ordered[start:end]
+    readable_error_files = get_readable_import_error_files(
+        bundle_name,
+        [row["relative_fileloc"] for row in page if row["import_error_count"]],
+        user=user,
+        session=session,
+    )
     return DagBundleFileCollectionResponse(
-        dag_bundle_files=[DagBundleFileResponse(**row) for row in ordered[start:end]],
+        dag_bundle_files=[
+            DagBundleFileResponse(
+                **row, can_read_import_error=row["relative_fileloc"] in readable_error_files
+            )
+            for row in page
+        ],
         total_entries=len(ordered),
     )

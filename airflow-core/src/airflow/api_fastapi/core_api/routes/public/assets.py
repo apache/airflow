@@ -97,6 +97,7 @@ from airflow.models.asset import (
 )
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.trigger import Trigger
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -323,7 +324,9 @@ def get_assets(
             *eager_load_asset_reference_teams(),
             subqueryload(AssetModel.consuming_tasks),
             subqueryload(AssetModel.aliases),
-            subqueryload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            subqueryload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 
@@ -707,7 +710,9 @@ def get_asset(
         .options(
             *eager_load_asset_reference_teams(),
             joinedload(AssetModel.consuming_tasks),
-            joinedload(AssetModel.watchers).joinedload(AssetWatcherModel.trigger),
+            joinedload(AssetModel.watchers)
+            .joinedload(AssetWatcherModel.trigger)
+            .joinedload(Trigger.triggerer_job),
         )
     )
 

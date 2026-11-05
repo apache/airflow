@@ -185,13 +185,13 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _axcom_push,
     _defer_task,
-    _execute_task,
     _find_native_dag_importer,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _TaskRunner,
     _xcom_push,
     check_xcom_backend_supports_loops,
     finalize,
@@ -2113,7 +2113,7 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
 
     with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+        _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):

@@ -193,14 +193,15 @@ if AIRFLOW_V_3_1_PLUS:
 if hasattr(MenuItem, "DEADLINES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DEADLINES] = RESOURCE_DAG_RUN
 
-# The Dag bundles view and menu item first ship in Airflow 3.4.0, newer than this provider's minimum
-# Airflow. Unmapped, the view is denied to every role, and the menu lookup falls back to the raw
-# enum value as a resource name, so the entry would vanish for every FAB deployment.
+# The Dag bundles menu item first ships in Airflow 3.4.0 and its view in 3.4.1, newer than this
+# provider's minimum Airflow. Unmapped, the view is denied to every role. Airflow 3.4.0 shows the
+# bundles to anyone who can read a Dag in them, so there the menu entry stays on Dag access.
 DAG_BUNDLES_ACCESS_VIEW: AccessView | None = getattr(AccessView, "DAG_BUNDLES", None)
 if DAG_BUNDLES_ACCESS_VIEW is not None:
     _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE[DAG_BUNDLES_ACCESS_VIEW] = RESOURCE_DAG_BUNDLE
-if hasattr(MenuItem, "DAG_BUNDLES"):
     _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG_BUNDLE
+elif hasattr(MenuItem, "DAG_BUNDLES"):
+    _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE[MenuItem.DAG_BUNDLES] = RESOURCE_DAG
 
 
 class FabAuthManager(BaseAuthManager[User]):
