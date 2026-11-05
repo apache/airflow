@@ -40,7 +40,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Restrict the Dag bundles view to SuperAdmin in multi-team mode (#76329)``
+* ``Restrict the Dag bundles view to SuperAdmin in multi-team mode on Airflow 3.4.1+ (#76329)``
 
 Bug Fixes
 ~~~~~~~~~

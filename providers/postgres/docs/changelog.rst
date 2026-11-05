@@ -30,6 +30,11 @@ Changelog
 7.1.2
 .....
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Cache the dialect on PostgresHook (#75656)``
+
 Misc
 ~~~~
 

@@ -53,6 +53,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Disable external entity resolution when parsing SAML IdP responses (#71423)``
 * ``Refresh expired AWS credentials in AwsDuckDBHook, and require duckdb 1.2.2 for the duckdb extra (#76086)``
 * ``Fix BedrockBatchInferenceSensor sharing success states across tasks (#75265)``
 * ``Skip S3 keys that map to the local sync directory (#74322)``

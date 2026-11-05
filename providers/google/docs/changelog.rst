@@ -80,6 +80,8 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Add unit tests for PrestoToGCSOperator (#75559)``
+   * ``Add unit tests for Dataproc, GKE and Translate provider links (#75694)``
    * ``Parametrize GCS-to-GCS wildcard and retention tests. (#76094)``
    * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
    * ``Add missing tests for google.cloud.utils BigQuery helpers (#72276) (#72448)``

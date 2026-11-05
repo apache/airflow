@@ -33,6 +33,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Support Workload Identity Federation in Snowflake REST API authentication (#75810)``
 * ``Align Snowflake Cortex Agent hook with the Common AI managed-agent contract (#74672)``
 
 Bug Fixes

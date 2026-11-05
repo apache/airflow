@@ -38,6 +38,7 @@ Changelog
 Features
 ~~~~~~~~
 
+* ``Build the ADBC database URI from the connection fields (#74454)``
 * ``Make AdbcHook.insert_rows use the driver's bulk ingest by default (#76363)``
 
 .. Below changes are excluded from the changelog. Move them to

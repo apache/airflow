@@ -39,7 +39,7 @@ Changelog
 Features
 ~~~~~~~~
 
-* ``Give Dag bundles their own read permission (#76329)``
+* ``Give Dag bundles their own read permission, on Airflow 3.4.1+ (#76329)``
 
 Bug Fixes
 ~~~~~~~~~

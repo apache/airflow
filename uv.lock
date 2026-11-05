@@ -5261,7 +5261,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-dbt-cloud"
-version = "4.11.1"
+version = "4.11.2"
 source = { editable = "providers/dbt/cloud" }
 dependencies = [
     { name = "aiohttp" },
@@ -6278,7 +6278,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-http"
-version = "6.3.0"
+version = "6.4.0"
 source = { editable = "providers/http" }
 dependencies = [
     { name = "aiohttp" },
@@ -6850,7 +6850,7 @@ docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "d
 
 [[package]]
 name = "apache-airflow-providers-microsoft-mssql"
-version = "4.7.2"
+version = "4.7.3"
 source = { editable = "providers/microsoft/mssql" }
 dependencies = [
     { name = "apache-airflow" },
