@@ -181,6 +181,11 @@ dependencies = [
 ]
 # The Claude Agent SDK adapter in airflow.providers.common.ai.tools.claude_agent_sdk.
 "claude-agent-sdk" = ["claude-agent-sdk>=0.2.160"]
+# The OpenAI Codex adapter in airflow.providers.common.ai.tools.openai_codex. ``mcp`` and
+# ``uvicorn`` are listed because the adapter serves its tools from an MCP server built on the
+# mcp 2.x API and runs it with uvicorn directly (the floors are mcp's own).
+# The wheel of openai-codex pulls in the ``codex`` CLI binary (119-152 MB per platform).
+"openai-codex" = ["openai-codex>=0.163.0", "mcp>=2.0.0", "uvicorn>=0.31.1"]
 
 [dependency-groups]
 dev = [
@@ -214,6 +219,9 @@ dev = [
     "grpcio>=1.78.0",
     "protobuf>=6.31.1",
     "claude-agent-sdk>=0.2.160",
+    "openai-codex>=0.163.0",
+    "mcp>=2.0.0",
+    "uvicorn>=0.31.1",
 ]
 
 # To build docs:

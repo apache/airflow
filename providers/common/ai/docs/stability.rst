@@ -275,6 +275,10 @@ Everything this provider ships that is not in the table above is experimental.
    * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
      - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
        into an error result the adapter has to work around.
+   * - The OpenAI Codex SDK adapter (:doc:`frameworks/openai_codex`)
+     - New and not yet run against a model; the SDK is pre-1.0 (0.163.0), many fields of the
+       ``codex app-server`` protocol it wraps are marked unstable, and no user-level setting
+       that removes its file-editing tool was found, so the adapter relies on a read-only sandbox.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)
