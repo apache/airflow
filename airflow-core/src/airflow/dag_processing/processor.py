@@ -44,9 +44,10 @@ from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
-from airflow.sdk.exceptions import TaskNotFound
-from airflow.sdk.execution_time import supervisor
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, TaskNotFound
+from airflow.sdk.execution_time import supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
+    CommsDecoder,
     ConnectionResult,
     DeleteVariable,
     ErrorResponse,
@@ -105,7 +106,12 @@ if TYPE_CHECKING:
     from airflow.typing_compat import Self
 
 _CALLBACK_TARGETS_MISSING_EXIT_CODE = 75
-"""Exit status of a callback process that ran no callback because none of their Dags or tasks loaded."""
+"""
+Exit status of a callback process that ran no callback because none of their Dags or tasks loaded after an
+Execution API request failed.
+
+The supervisor logs every non-zero exit as abnormal, so a Dag that was removed still exits with status 0.
+"""
 
 
 class DagFileParseRequest(BaseModel):
@@ -187,6 +193,20 @@ ToDagProcessor = Annotated[
 ]
 
 
+@attrs.define()
+class _DagParseCommsDecoder(CommsDecoder[ToDagProcessor, ToManager]):
+    api_request_failed: bool = attrs.field(default=False, init=False)
+    """Whether the Dag processor could not answer a request of this process through the Execution API."""
+
+    def send(self, msg: ToManager) -> ToDagProcessor | None:
+        try:
+            return super().send(msg)
+        except AirflowRuntimeError as error:
+            if error.error.error == ErrorType.API_SERVER_ERROR:
+                self.api_request_failed = True
+            raise
+
+
 def _pre_import_airflow_modules(file_path: str, log: FilteringBoundLogger) -> None:
     """
     Pre-import Airflow modules found in the given file.
@@ -215,12 +235,8 @@ def _parse_file_entrypoint():
 
     import structlog
 
-    from airflow.sdk.execution_time import comms, task_runner
-
     # Parse DAG file, send JSON back up!
-    comms_decoder = comms.CommsDecoder[ToDagProcessor, ToManager](
-        body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor),
-    )
+    comms_decoder = _DagParseCommsDecoder(body_decoder=TypeAdapter[ToDagProcessor](ToDagProcessor))
 
     msg = comms_decoder._get_response()
     if not isinstance(msg, DagFileParseRequest):
@@ -264,7 +280,7 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
         targets_loaded = any(_is_callback_target_loaded(bag, request) for request in msg.callback_requests)
         # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
-        if not targets_loaded:
+        if not targets_loaded and _has_api_request_failed():
             sys.exit(_CALLBACK_TARGETS_MISSING_EXIT_CODE)
         return None
 
@@ -349,6 +365,11 @@ def _get_dag_with_task(
             ) from None
 
     return dag, None
+
+
+def _has_api_request_failed() -> bool:
+    comms_decoder = getattr(task_runner, "SUPERVISOR_COMMS", None)
+    return isinstance(comms_decoder, _DagParseCommsDecoder) and comms_decoder.api_request_failed
 
 
 def _is_callback_target_loaded(dagbag: DagBag, request: CallbackRequest) -> bool:
@@ -794,7 +815,7 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
 
     @property
     def callback_targets_missing(self) -> bool:
-        """Whether the process ran no callback because none of their Dags or tasks loaded."""
+        """Whether the process ran no callback because none of their Dags or tasks loaded after an API failure."""
         return self._check_subprocess_exit() == _CALLBACK_TARGETS_MISSING_EXIT_CODE
 
     def wait(self) -> int:

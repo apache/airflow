@@ -164,87 +164,48 @@ def test_callback_queued_behind_running_callback_dispatches_and_acknowledges(
     assert not manager._file_queue
 
 
-@mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True, return_value=10)
-@mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
-@mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
-@mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
-def test_callback_whose_dag_did_not_load_after_api_failure_runs_again_under_its_claim(
-    prepare, get_logger, start, monotonic, api_manager, caplog
-):
-    manager, client, bundle = api_manager
-    prepare.return_value = bundle
-    get_logger.return_value = (mock.Mock(spec=[]), mock.Mock(spec=[]))
-    outcomes = iter([("GetVariable (HTTP 503)", True), (None, False)])
-
-    def start_process(**kwargs):
-        process = mock.create_autospec(DagFileProcessorProcess, instance=True)
-        process.id = kwargs["id"]
-        process.had_callbacks = True
-        process.api_request_error, process.callback_targets_missing = next(outcomes)
-        process.dag_file_rel_path = "a.py"
-        process.bundle_name = bundle.name
-        process.parse_source = kwargs["parse_source"]
-        process.start_time = 0
-        process.is_ready = True
-        process.parsing_result = None
-        return process
-
-    start.side_effect = start_process
-    request = DagCallbackRequest(
-        filepath="a.py", bundle_name=bundle.name, bundle_version=None, dag_id="dag", run_id="run"
-    )
-    work = _make_work(bundle.name, callback=request)
-    client.claim_work.return_value = [work]
-
-    for now in (10, 11):
-        monotonic.return_value = now
-        for callback in manager.fetch_callbacks():
-            manager._add_callback_to_queue(callback)
-        client.claim_work.return_value = []
-        manager._start_new_processes()
-        manager._collect_results()
-        get_api_work_source(manager).flush()
-        if now == 10:
-            client.acknowledge_work.assert_not_called()
-
-    assert [call.kwargs["callbacks"] for call in start.call_args_list] == [[request], [request]]
-    client.acknowledge_work.assert_called_once_with("callbacks", work)
-    assert {
-        "event": "Retrying callbacks after an Execution API request failed",
-        "file": "a.py",
-        "bundle_name": bundle.name,
-        "error": "GetVariable (HTTP 503)",
-    } in caplog
-    assert not get_api_work_source(manager).has_outstanding_work()
-
-
 @pytest.mark.parametrize(
-    ("callback_count", "api_request_error", "completion"),
+    ("api_request_error", "callback_targets_missing", "callback_count", "completion", "retried"),
     [
-        pytest.param(1, "GetVariable (HTTP 503)", "exit", id="dag-loaded-with-a-fallback"),
-        pytest.param(2, "GetVariable (HTTP 503)", "exit", id="batched"),
-        pytest.param(1, "GetXCom (HTTP 403)", "exit", id="persistent-error-in-callback"),
-        pytest.param(1, "GetVariable (HTTP 503)", "timeout", id="timed-out"),
+        pytest.param(
+            "GetVariable (HTTP 503)", True, 1, "exit", True, id="no-target-loaded-after-api-failure"
+        ),
+        pytest.param(None, True, 1, "exit", False, id="no-target-loaded-without-api-failure"),
+        pytest.param("GetVariable (HTTP 503)", False, 1, "exit", False, id="dag-loaded-with-a-fallback"),
+        pytest.param("GetVariable (HTTP 503)", False, 2, "exit", False, id="batched"),
+        pytest.param("GetXCom (HTTP 403)", False, 1, "exit", False, id="persistent-error-in-callback"),
+        pytest.param("GetVariable (HTTP 503)", False, 1, "timeout", False, id="timed-out"),
+        pytest.param(None, False, 1, "exit", False, id="callbacks-ran"),
     ],
 )
 @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True, return_value=10)
 @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "prepare_callback_bundle", autospec=True)
-def test_callbacks_that_may_have_run_are_not_retried_after_api_failure(
-    prepare, get_logger, start, monotonic, api_manager, callback_count, api_request_error, completion
+def test_callbacks_run_again_after_api_failure_only_when_none_ran(
+    prepare,
+    get_logger,
+    start,
+    monotonic,
+    api_manager,
+    caplog,
+    api_request_error,
+    callback_targets_missing,
+    callback_count,
+    completion,
+    retried,
 ):
     manager, client, bundle = api_manager
     manager.processor_timeout = 1
     prepare.return_value = bundle
     get_logger.return_value = (mock.Mock(spec=[]), mock.Mock(spec=[]))
+    outcomes = iter([(api_request_error, callback_targets_missing), (None, False)])
 
     def start_process(**kwargs):
         process = mock.create_autospec(DagFileProcessorProcess, instance=True)
         process.id = kwargs["id"]
         process.had_callbacks = True
-        process.api_request_error = api_request_error
-        process.callback_targets_missing = False
+        process.api_request_error, process.callback_targets_missing = next(outcomes)
         process.dag_file_rel_path = "a.py"
         process.bundle_name = bundle.name
         process.parse_source = kwargs["parse_source"]
@@ -262,19 +223,28 @@ def test_callbacks_that_may_have_run_are_not_retried_after_api_failure(
     ]
     work = [_make_work(bundle.name, callback=request) for request in requests]
     client.claim_work.return_value = work
+    complete = manager._collect_results if completion == "exit" else manager._kill_timed_out_processors
 
-    for callback in manager.fetch_callbacks():
-        manager._add_callback_to_queue(callback)
-    client.claim_work.return_value = []
-    manager._start_new_processes()
-    if completion == "exit":
-        manager._collect_results()
-    else:
-        manager._kill_timed_out_processors()
-    get_api_work_source(manager).flush()
+    for now in (10, 11):
+        monotonic.return_value = now
+        for callback in manager.fetch_callbacks():
+            manager._add_callback_to_queue(callback)
+        client.claim_work.return_value = []
+        manager._start_new_processes()
+        complete()
+        get_api_work_source(manager).flush()
+        if now == 10 and retried:
+            client.acknowledge_work.assert_not_called()
 
-    assert [call.kwargs["callbacks"] for call in start.call_args_list] == [requests]
+    assert [call.kwargs["callbacks"] for call in start.call_args_list] == [requests] * (2 if retried else 1)
     assert client.acknowledge_work.call_args_list == [mock.call("callbacks", item) for item in work]
+    retry_log = {
+        "event": "Retrying callbacks after an Execution API request failed",
+        "file": "a.py",
+        "bundle_name": bundle.name,
+        "error": api_request_error,
+    }
+    assert (retry_log in caplog) is retried
     assert not get_api_work_source(manager).has_outstanding_work()
 
 
