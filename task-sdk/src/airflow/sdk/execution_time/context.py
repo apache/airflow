@@ -54,8 +54,8 @@ from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
     AirflowSecretsBackendAccessDenied,
+    DeprecatedVariableNoneValueWarning,
     ErrorType,
-    RemovedInAirflow4Warning,
 )
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
@@ -563,7 +563,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         log.exception(e)
 
     if value is None:
-        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, RemovedInAirflow4Warning, stacklevel=3)
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
         value = str(value)  # Keep storing "None", as Airflow always has.
 
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
@@ -620,7 +620,7 @@ async def _async_set_variable(
         log.exception(e)
 
     if value is None:
-        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, RemovedInAirflow4Warning, stacklevel=3)
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
         value = str(value)  # Keep storing "None", as Airflow always has.
 
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))

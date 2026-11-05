@@ -26,7 +26,7 @@ import pytest
 
 from airflow.sdk import Variable
 from airflow.sdk.configuration import initialize_secrets_backends
-from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType, RemovedInAirflow4Warning
+from airflow.sdk.exceptions import AirflowRuntimeError, DeprecatedVariableNoneValueWarning, ErrorType
 from airflow.sdk.execution_time.comms import (
     DeleteVariable,
     ErrorResponse,
@@ -101,7 +101,9 @@ class TestVariables:
         )
 
     def test_var_set_none_warns_and_stores_none_string(self, mock_supervisor_comms):
-        with pytest.warns(RemovedInAirflow4Warning, match="Setting a Variable to None is deprecated"):
+        with pytest.warns(
+            DeprecatedVariableNoneValueWarning, match="Setting a Variable to None is deprecated"
+        ):
             Variable.set(key="key", value=None)
 
         mock_supervisor_comms.send.assert_called_once_with(
@@ -110,7 +112,7 @@ class TestVariables:
 
     def test_var_set_none_with_serialize_json_does_not_warn(self, mock_supervisor_comms):
         with warnings.catch_warnings():
-            warnings.simplefilter("error", RemovedInAirflow4Warning)
+            warnings.simplefilter("error", DeprecatedVariableNoneValueWarning)
             Variable.set(key="key", value=None, serialize_json=True)
 
         mock_supervisor_comms.send.assert_called_once_with(
@@ -298,7 +300,9 @@ class TestAsyncVariables:
     async def test_avar_set_none_warns_and_stores_none_string(self, mock_supervisor_comms):
         mock_supervisor_comms.asend.return_value = None
 
-        with pytest.warns(RemovedInAirflow4Warning, match="Setting a Variable to None is deprecated"):
+        with pytest.warns(
+            DeprecatedVariableNoneValueWarning, match="Setting a Variable to None is deprecated"
+        ):
             await Variable.aset(key="key", value=None)
 
         mock_supervisor_comms.asend.assert_called_once_with(
