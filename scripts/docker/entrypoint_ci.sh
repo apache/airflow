@@ -432,6 +432,11 @@ function reinstall_shared_distributions() {
 # contributing-docs/12_provider_distributions.rst.
 PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL=()
 
+# Extras check_force_lowest_dependencies leaves out of a provider's `uv sync --all-extras`, as
+# "<provider id>:<extra>", because the root pyproject.toml declares them as conflicting with
+# another extra of the same provider ([tool.uv] conflicts), and uv rejects syncing both.
+LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS=("common.ai:llamaindex")
+
 function run_pre_extras_install_if_registered() {
     local provider_id="${1}"
     local registered_provider
@@ -479,6 +484,13 @@ function check_force_lowest_dependencies() {
         fi
         cd "${AIRFLOW_SOURCES}/providers/${provider_id/.//}" || exit 1
         run_pre_extras_install_if_registered "${provider_id}"
+        local -a no_extra_flags=()
+        local excluded
+        for excluded in "${LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS[@]}"; do
+            if [[ "${excluded%%:*}" == "${provider_id}" ]]; then
+                no_extra_flags+=(--no-extra "${excluded#*:}")
+            fi
+        done
         # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
         # (binary lxml embeds its own libxml2, while xmlsec uses system one).
         # See https://bugs.launchpad.net/lxml/+bug/2110068
@@ -488,7 +500,7 @@ function check_force_lowest_dependencies() {
             echo "Attempt ${attempt} of syncing to lowest dependencies"
             set -x
             if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-                --no-python-downloads --no-managed-python; then
+                "${no_extra_flags[@]}" --no-python-downloads --no-managed-python; then
                 set +x
                 sync_successful="true"
                 break
