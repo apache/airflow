@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useState } from "react";
+
 import { HStack, Text } from "@chakra-ui/react";
 import type { ApiError } from "openapi-gen/requests/core/ApiError";
 import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
@@ -29,20 +31,33 @@ export type ExpandedApiError = {
 } & ApiError;
 
 type Props = {
+  /** Offer a close button. The alert returns on the next, different error. */
+  readonly closable?: boolean;
   readonly error?: unknown;
 };
 
-export const ErrorAlert = ({ error: err }: Props) => {
+export const ErrorAlert = ({ closable, error: err }: Props) => {
+  const [dismissedError, setDismissedError] = useState<unknown>(undefined);
+
+  // A fresh failure is new information, so it shows even where the last one was dismissed.
+  // React Query hands back a new error object per failed fetch, so identity is the signal.
+  const isDismissed = dismissedError !== undefined && dismissedError === err;
+
   const error = err as ExpandedApiError;
 
-  if (!Boolean(error)) {
+  if (!Boolean(error) || isDismissed) {
     return undefined;
   }
 
   const detailMessage = getApiErrorDetail(error);
 
   return (
-    <Alert data-testid="error-alert" status="error">
+    <Alert
+      closable={closable}
+      data-testid="error-alert"
+      onClose={() => setDismissedError(err)}
+      status="error"
+    >
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
         {error.status} {error.message}
         {detailMessage === error.message ? undefined : (

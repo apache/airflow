@@ -30,6 +30,7 @@ import { ClearTaskInstanceButton } from "src/components/Clear";
 import ClearTaskInstanceDialog from "src/components/Clear/TaskInstance/ClearTaskInstanceDialog";
 import { DagVersion } from "src/components/DagVersion";
 import { HeaderCard } from "src/components/HeaderCard";
+import type { SkeletonStat } from "src/components/HeaderCardSkeleton";
 import { LoopDecisionReason } from "src/components/LoopDecisionReason";
 import { MarkTaskInstanceAsButton } from "src/components/MarkAs";
 import { NotePreview } from "src/components/NotePreview";
@@ -47,12 +48,38 @@ import { useDurationFormat } from "src/utils";
 
 import { stateReasonDisplay } from "./stateReason";
 
-export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskInstanceHistoryResponse }) => {
+/** Widths for the loading card, mirroring the stats the live header below builds. */
+export const TASK_INSTANCE_STAT_SKELETON: ReadonlyArray<SkeletonStat> = [
+  { labelWidth: 48, valueWidth: 64 },
+  { labelWidth: 48, valueWidth: 130 },
+  { labelWidth: 44, valueWidth: 130 },
+  { labelWidth: 56, valueWidth: 56 },
+  { labelWidth: 80, valueWidth: 40 },
+];
+
+/**
+ * The card when the task instance itself could not be loaded.
+ *
+ * Nothing about the instance is in hand, so the identity comes from the URL.
+ */
+export const HeaderError = ({ error, taskId }: { readonly error?: unknown; readonly taskId: string }) => (
+  <HeaderCard error={error} icon={<MdOutlineTask />} stats={[]} title={taskId} type="taskInstance" />
+);
+
+export const HistoryHeader = ({
+  error,
+  taskInstance,
+}: {
+  readonly error?: unknown;
+  readonly taskInstance: TaskInstanceHistoryResponse;
+}) => {
   const { t: translate } = useTranslation();
 
   return (
     <Box display="flex" flexDirection="column" gap={3}>
       <HeaderCard
+        error={error}
+        errorClosable
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={[
@@ -68,7 +95,13 @@ export const HistoryHeader = ({ taskInstance }: { readonly taskInstance: TaskIns
   );
 };
 
-export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => {
+export const Header = ({
+  error,
+  taskInstance,
+}: {
+  readonly error?: unknown;
+  readonly taskInstance: TaskInstanceResponse;
+}) => {
   // The grid's bulk actions replace these while task instances are selected there.
   const hasGridSelection = useHasGridSelection();
   const { t: translate } = useTranslation();
@@ -193,6 +226,8 @@ export const Header = ({ taskInstance }: { readonly taskInstance: TaskInstanceRe
             />
           </>
         }
+        error={error}
+        errorClosable
         icon={<MdOutlineTask />}
         state={taskInstance.state}
         stats={stats}

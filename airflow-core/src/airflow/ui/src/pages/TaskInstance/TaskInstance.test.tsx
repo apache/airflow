@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -60,7 +60,7 @@ vi.mock("src/layouts/Details/DetailsLayout", () => ({
   }: PropsWithChildren<{ readonly error?: unknown; readonly tabs: Array<NavTab> }>) => (
     <>
       {children}
-      {error === null || error === undefined ? undefined : <div data-testid="layout-error" />}
+      {error === null || error === undefined ? undefined : <div data-testid="chip-error" />}
       <NavTabs tabs={tabs} />
       <Outlet />
     </>
@@ -79,14 +79,36 @@ vi.mock("src/utils", async () => {
   };
 });
 vi.mock("./Header", () => ({
-  Header: ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
-    <div data-testid="task-instance-state">
-      {taskInstance.task_id}:{taskInstance.state ?? "none"}:{taskInstance.try_number}
-    </div>
+  Header: ({
+    error,
+    taskInstance,
+  }: {
+    readonly error?: unknown;
+    readonly taskInstance: TaskInstanceResponse;
+  }) => (
+    <>
+      <div data-testid="task-instance-state">
+        {taskInstance.task_id}:{taskInstance.state ?? "none"}:{taskInstance.try_number}
+      </div>
+      {error === null || error === undefined ? undefined : <div data-testid="header-error" />}
+    </>
   ),
-  HistoryHeader: ({ taskInstance }: { readonly taskInstance: TaskInstanceResponse }) => (
-    <div>{taskInstance.id}</div>
+  HeaderError: ({ error }: { readonly error?: unknown }) => (
+    <div data-testid="header-error">{String(error)}</div>
   ),
+  HistoryHeader: ({
+    error,
+    taskInstance,
+  }: {
+    readonly error?: unknown;
+    readonly taskInstance: TaskInstanceResponse;
+  }) => (
+    <>
+      <div>{taskInstance.id}</div>
+      {error === null || error === undefined ? undefined : <div data-testid="header-error" />}
+    </>
+  ),
+  TASK_INSTANCE_STAT_SKELETON: [],
 }));
 
 const DAG_ID = "test_dag";
@@ -124,6 +146,19 @@ const createWrapper =
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </ChakraProvider>
+  );
+
+const renderTaskALogs = (queryClient: QueryClient, outside?: ReactNode) =>
+  render(
+    <MemoryRouter initialEntries={[`/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/logs`]}>
+      {outside}
+      <Routes>
+        <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId">
+          <Route element={<div />} path="*" />
+        </Route>
+      </Routes>
+    </MemoryRouter>,
+    { wrapper: createWrapper(queryClient) },
   );
 
 afterEach(() => vi.restoreAllMocks());
@@ -175,7 +210,38 @@ describe("TaskInstance", () => {
     expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
     expect(screen.getByRole("link", { name: "tabs.details" })).toBeVisible();
-    expect(screen.queryByTestId("layout-error")).not.toBeInTheDocument();
+    // The exact-try fallback reports no error, so neither the header nor the Dag chip shows one.
+    expect(screen.queryByTestId("header-error")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("chip-error")).not.toBeInTheDocument();
+  });
+  it("says why the task instance could not be loaded instead of calling it missing", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockRejectedValue({ status: 500 });
+
+    renderTaskALogs(queryClient);
+
+    expect(await screen.findByTestId("header-error")).toBeVisible();
+    expect(screen.queryByText("common:noItemsFound")).not.toBeInTheDocument();
+  });
+  it("drops the previous task instance's failure when moving to another task", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockImplementation(({ taskId }) =>
+      taskId === TASK_A
+        ? (Promise.reject({ status: 500 }) as ReturnType<typeof TaskInstanceService.getMappedTaskInstance>)
+        : (new Promise(() => undefined) as ReturnType<typeof TaskInstanceService.getMappedTaskInstance>),
+    );
+
+    renderTaskALogs(
+      queryClient,
+      <Link to={`/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_B}/logs`}>next task</Link>,
+    );
+
+    expect(await screen.findByTestId("header-error")).toBeVisible();
+    fireEvent.click(screen.getByText("next task"));
+    expect(await screen.findByTestId("header-card-skeleton")).toBeVisible();
+    expect(screen.queryByTestId("header-error")).not.toBeInTheDocument();
   });
   it("keeps the layout mounted and hides the empty heading while the task instance loads", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -196,6 +262,36 @@ describe("TaskInstance", () => {
     );
 
     expect(await screen.findByRole("link", { name: "tabs.details" })).toBeVisible();
+    expect(screen.queryByText("common:noItemsFound")).not.toBeInTheDocument();
+  });
+  // A looped pass has to be resolved into a coordinate before the instance can be asked for, so
+  // the instance query is still idle while that lookup runs. The level is loading, not empty --
+  // the not-found heading would claim an instance that nobody has asked about yet is missing.
+  it("shows the skeleton while a looped pass resolves into a coordinate", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    vi.spyOn(TaskInstanceService, "getTaskInstances").mockReturnValue(
+      new Promise(() => undefined) as ReturnType<typeof TaskInstanceService.getTaskInstances>,
+    );
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          // A map index that is not a number leaves the instance query disabled, so the
+          // coordinate lookup is the only thing in flight.
+          `/dags/${DAG_ID}/runs/${DAG_RUN_ID}/tasks/${TASK_A}/mapped/unresolved?loop_id=loop_a&iteration=1`,
+        ]}
+      >
+        <Routes>
+          <Route element={<TaskInstance />} path="/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex">
+            <Route element={<div />} path="*" />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+      { wrapper: createWrapper(queryClient) },
+    );
+
+    expect(await screen.findByTestId("header-card-skeleton")).toBeVisible();
     expect(screen.queryByText("common:noItemsFound")).not.toBeInTheDocument();
   });
   it.each(["logs", "xcom"])(

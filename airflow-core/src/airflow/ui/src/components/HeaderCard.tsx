@@ -23,25 +23,49 @@ import { useTranslation } from "react-i18next";
 
 import type { TaskInstanceState } from "openapi/requests/types.gen";
 
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
+
+export type HeaderCardType = "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
 
 type Props = {
   readonly actions?: ReactNode;
+  /** Why this object could not be loaded, shown between its name and its stats. */
+  readonly error?: unknown;
+  /**
+   * Offer to dismiss the error. Only where the card has stats of its own: on a card that could not
+   * load, the error is all it says, and closing it leaves an empty card with no reason given.
+   */
+  readonly errorClosable?: boolean;
   readonly icon: ReactNode;
   readonly state?: TaskInstanceState | null;
-  readonly stats: Array<{ key?: string; label: string; value: ReactNode | string }>;
+  readonly stats: Array<{ key?: string; label: ReactNode | string; value: ReactNode | string }>;
   /** Status for the object in view, rendered beside its name. */
   readonly statusBadge?: ReactNode;
   readonly subTitle?: ReactNode | string;
+  /** Overridden by the loading variant, so a skeleton is not mistaken for a loaded card. */
+  readonly testId?: string;
   readonly title: ReactNode | string;
-  readonly type: "asset" | "dag" | "dagBundle" | "dagRun" | "task" | "taskGroup" | "taskInstance";
+  readonly type: HeaderCardType;
 };
 
-export const HeaderCard = ({ actions, icon, state, stats, statusBadge, subTitle, title, type }: Props) => {
+export const HeaderCard = ({
+  actions,
+  error,
+  errorClosable = false,
+  icon,
+  state,
+  stats,
+  statusBadge,
+  subTitle,
+  testId = "header-card",
+  title,
+  type,
+}: Props) => {
   const { t: translate } = useTranslation();
 
   return (
-    <Box bg="bg.muted" borderRadius="md" data-testid="header-card" flexShrink={0} overflow="hidden" px={3}>
+    <Box bg="bg.muted" borderRadius="md" data-testid={testId} flexShrink={0} overflow="hidden" px={3}>
       <div>
         <Flex alignItems="center" flexWrap="wrap" justifyContent="space-between" my={2}>
           <Flex alignItems="center" flexWrap="wrap" gap={2}>
@@ -76,9 +100,16 @@ export const HeaderCard = ({ actions, icon, state, stats, statusBadge, subTitle,
           <HStack gap={1}>{actions}</HStack>
         </Flex>
 
+        {Boolean(error) ? (
+          <Box mb={3}>
+            <ErrorAlert closable={errorClosable} error={error} />
+          </Box>
+        ) : undefined}
+
         <HStack alignItems="flex-start" flexWrap="wrap" gap={6} my={3}>
-          {stats.map((stat) => (
-            <Box data-testid="stat" key={stat.key ?? stat.label}>
+          {stats.map((stat, index) => (
+            // A label is a string for every real stat; the loading variant passes a skeleton.
+            <Box data-testid="stat" key={stat.key ?? (typeof stat.label === "string" ? stat.label : index)}>
               <Box
                 color="fg.muted"
                 fontSize="xs"
