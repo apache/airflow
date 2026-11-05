@@ -1138,11 +1138,14 @@ class DagFileProcessorManager(LoggingMixin):
         self.work_source.bundle_unusable(bundle_name, active_attempts=active_attempts)
 
     def _defer_unusable_bundle_inventory(self, bundle_name: str) -> None:
+        self._discard_unusable_bundle_source(bundle_name)
+        self._delay_bundle_inventory_retry(bundle_name)
+
+    def _delay_bundle_inventory_retry(self, bundle_name: str) -> None:
         refresh_interval = next(
             (bundle.refresh_interval for bundle in self._dag_bundles if bundle.name == bundle_name),
             self.bundle_refresh_check_interval,
         )
-        self._discard_unusable_bundle_source(bundle_name)
         self._bundle_inventory_retry_times[bundle_name] = time.monotonic() + max(
             refresh_interval, self.bundle_refresh_check_interval, _compute_retry_delay(1)
         )
@@ -1416,9 +1419,11 @@ class DagFileProcessorManager(LoggingMixin):
                     # next refresh lists it again.
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                     if self.api_client is not None:
-                        self._discard_unusable_bundle_source(bundle.name)
-                        self._delay_bundle_listing_retry(bundle.name, check_started_at=now_seconds)
+                        # Unlike an inventory the API refuses, a failed listing can succeed on retry,
+                        # so the bundle keeps its claimed work while it waits.
+                        self._bundle_parse_sources.pop(bundle.name, None)
                         self._bundles_needing_refresh.add(bundle.name)
+                        self._delay_bundle_listing_retry(bundle.name, check_started_at=now_seconds)
                     else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
@@ -2260,8 +2265,21 @@ class DagFileProcessorManager(LoggingMixin):
                 ),
             )
             if processor.had_callbacks:
-                self.work_source.attempt_finished(processor.id, had_callbacks=True)
+                self._finish_callback_attempt(processor)
             processor.close()
+
+    def _finish_callback_attempt(self, processor: BaseDagFileProcessorProcess) -> None:
+        if processor.api_request_error is None:
+            self.work_source.attempt_finished(processor.id, had_callbacks=True)
+            return
+        # Acknowledging confirms delivery to user code, but the Dag may not have loaded without the API.
+        self.log.warning(
+            "Retrying callbacks after an Execution API request failed",
+            file=processor.dag_file_rel_path,
+            bundle_name=processor.bundle_name,
+            error=processor.api_request_error,
+        )
+        self.work_source.callbacks_interrupted(processor.id)
 
     def _get_log_dir(self) -> str:
         return os.path.join(self.base_log_dir, timezone.utcnow().strftime("%Y-%m-%d"))
@@ -2739,7 +2757,7 @@ class DagFileProcessorManager(LoggingMixin):
         for proc in processors_to_remove:
             processor = self._processors.pop(proc)
             if processor.had_callbacks:
-                self.work_source.attempt_finished(processor.id, had_callbacks=True)
+                self._finish_callback_attempt(processor)
             processor.close()
 
     def _add_files_to_queue(
@@ -2807,8 +2825,12 @@ class DagFileProcessorManager(LoggingMixin):
         if self.work_source.requires_acknowledgment:
             for processor in self._processors.values():
                 # The shutdown signal can also reach children through the process group, so only a clean
-                # exit shows that a callback finished; a stopped callback is delivered again.
-                if processor.had_callbacks and processor.exited_cleanly:
+                # exit without an API failure shows that a callback finished; others are delivered again.
+                if (
+                    processor.had_callbacks
+                    and processor.exited_cleanly
+                    and processor.api_request_error is None
+                ):
                     self.work_source.attempt_finished(processor.id, had_callbacks=True)
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 
