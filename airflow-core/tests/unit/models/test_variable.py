@@ -30,6 +30,7 @@ from airflow.models import Variable, crypto, variable
 from airflow.sdk import SecretCache
 from airflow.secrets import BaseSecretsBackend
 from airflow.secrets.metastore import MetastoreBackend
+from airflow.utils.session import create_session_async
 from airflow.utils.sqlalchemy import prohibit_commit
 
 from tests_common.test_utils import db
@@ -591,6 +592,15 @@ class TestVariable:
         session.flush()
 
         assert Variable.get_team_name("key", session=session) == "testing"
+
+    @pytest.mark.asyncio
+    async def test_get_team_name_async(self, testing_team: Team, session: Session):
+        session.add(Variable(key="key", val="value", team_name=testing_team.name))
+        session.commit()
+
+        async with create_session_async() as async_session:
+            assert await Variable.get_team_name_async("key", session=async_session) == "testing"
+            assert await Variable.get_team_name_async("missing", session=async_session) is None
 
     def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
         var1 = Variable(key="key1", val="value1", team_name=testing_team.name)

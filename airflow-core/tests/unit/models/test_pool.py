@@ -27,7 +27,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session, create_session_async
 from airflow.utils.state import State
 
 from tests_common.test_utils.db import (
@@ -320,6 +320,15 @@ class TestPool:
         session.flush()
 
         assert Pool.get_team_name("test", session=session) == "testing"
+
+    @pytest.mark.asyncio
+    async def test_get_team_name_async(self, testing_team: Team, session: Session):
+        session.add(Pool(pool="test", include_deferred=False, team_name=testing_team.name))
+        session.commit()
+
+        async with create_session_async() as async_session:
+            assert await Pool.get_team_name_async("test", session=async_session) == "testing"
+            assert await Pool.get_team_name_async("missing", session=async_session) is None
 
     def test_get_name_to_team_name_mapping(self, testing_team: Team, session: Session):
         pool1 = Pool(pool="pool1", include_deferred=False, team_name=testing_team.name)

@@ -29,6 +29,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
 
 # What ``airflow teams create`` and ``airflow teams sync`` accept as a team name.
@@ -108,6 +109,11 @@ class Team(Base):
     def get_name_if_exists(cls, name: str, *, session: Session = NEW_SESSION) -> str | None:
         """Return name if a Team row with that name exists, otherwise None."""
         return session.scalar(select(cls.name).where(cls.name == name))
+
+    @classmethod
+    async def get_name_if_exists_async(cls, name: str, *, session: AsyncSession) -> str | None:
+        """Return name if a Team row with that name exists, otherwise None."""
+        return await session.scalar(select(cls.name).where(cls.name == name))
 
     @classmethod
     @provide_session
