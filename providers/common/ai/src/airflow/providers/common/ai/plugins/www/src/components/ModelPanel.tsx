@@ -143,7 +143,7 @@ export const ModelPanel: FC<ModelPanelProps> = ({ dagId, runId, taskId, mapIndex
         </SimpleGrid>
       )}
 
-      {skills !== null && <SkillsSection skills={skills} />}
+      {skills && <SkillsSection skills={skills} />}
     </Box>
   );
 };
