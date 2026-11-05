@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import pytest
+from sqlalchemy import select
 
+from airflow import settings
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
 from airflow.secrets.metastore import MetastoreBackend
@@ -108,3 +110,32 @@ class TestMetastoreBackendSessionSafety:
         # Attributes should still be accessible
         assert conn.conn_id == "test_conn"
         assert conn.host == "localhost"
+
+    @pytest.mark.parametrize("exists", [True, False], ids=["found", "not_found"])
+    @pytest.mark.parametrize("lookup", ["get_connection", "get_variable"])
+    def test_lookup_without_session_does_not_commit_or_close_caller_session(self, lookup, exists):
+        """A lookup without a session must not commit or close the caller's scoped session."""
+        with create_session() as session:
+            session.add(Connection(conn_id="loaded_conn", conn_type="http"))
+        if exists:
+            with create_session() as session:
+                session.add(Connection(conn_id="target", conn_type="mysql"))
+            Variable.set(key="target", value="value")
+
+        session = settings.Session()
+        try:
+            loaded = session.scalar(select(Connection).where(Connection.conn_id == "loaded_conn"))
+            pending = Connection(conn_id="pending_conn", conn_type="http")
+            session.add(pending)
+
+            result = getattr(MetastoreBackend(), lookup)("target")
+
+            assert (result is not None) == exists
+            assert loaded in session
+            assert pending in session.new
+            session.rollback()
+        finally:
+            settings.Session.remove()
+
+        with create_session() as session:
+            assert session.scalar(select(Connection).where(Connection.conn_id == "pending_conn")) is None
