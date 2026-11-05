@@ -26,7 +26,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
-from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -111,7 +111,32 @@ def _executor_instance_health(job: Job) -> dict[str, Any]:
     return {
         **_job_instance_health(job, "latest_executor_heartbeat"),
         "team_names": job.team_names,
+        "health_check_result": job.health_check_result,
     }
+
+
+def _live_scheduler_job_ids() -> set[int]:
+    """Ids of the currently-alive SchedulerJob rows, used to age out a dead scheduler's own rows."""
+    return {job.id for job in get_jobs_health(SchedulerJobRunner.job_type) if job.is_alive()}
+
+
+def _live_executor_jobs(jobs: list[Job]) -> list[Job]:
+    """
+    Narrow executor rows down to live instances whose owning scheduler is also still alive.
+
+    A row can stay technically alive for a little while after its scheduler process has already
+    died (its heartbeat hasn't crossed the staleness threshold yet), so liveness on the row alone
+    isn't enough; cross-checking the owner avoids briefly reporting a dead scheduler's executor as
+    healthy.
+    """
+    live_scheduler_ids = _live_scheduler_job_ids()
+    return [job for job in jobs if job.is_alive() and job.owner_job_id in live_scheduler_ids]
+
+
+def _executor_legacy_status(jobs: list[Job]) -> HealthStatus:
+    """Top-level status: healthy only if some live, currently-owned row's last check passed."""
+    healthy = any(job.health_check_result == HealthCheckResult.HEALTHY for job in _live_executor_jobs(jobs))
+    return HealthStatus.HEALTHY if healthy else HealthStatus.UNHEALTHY
 
 
 # ``detailed_status`` answers "is every part of this component's work being done", which needs a
@@ -196,12 +221,28 @@ def _configured_executor_keys() -> set[str]:
 
 
 def _executor_detailed_status(jobs: list[Job]) -> DetailedHealthStatus:
-    """Status from configured-executor coverage: each configured executor is its own partition."""
+    """
+    Status from configured-executor coverage: each configured executor is its own partition.
+
+    A shared executor backend (e.g. one Celery broker) can be reachable from one scheduler and not
+    another, so coverage is decided per live, currently-owned row rather than by any single row for
+    that executor key: one scheduler finding it down is real signal, not noise an unrelated healthy
+    row should paper over.
+    """
     expected = _configured_executor_keys()
     if not expected:
         return _liveness_status(jobs)
 
-    covered = {job.hostname for job in jobs if job.is_alive() and job.hostname}
+    covered: set[str] = set()
+    unhealthy: set[str] = set()
+    for job in _live_executor_jobs(jobs):
+        if not job.hostname or job.hostname not in expected:
+            continue
+        if job.health_check_result == HealthCheckResult.HEALTHY:
+            covered.add(job.hostname)
+        else:
+            unhealthy.add(job.hostname)
+    covered -= unhealthy
     return _coverage_status(expected, covered)
 
 
@@ -296,11 +337,11 @@ def get_airflow_health() -> dict[str, Any]:
     if report_executor_health:
         try:
             executor_jobs = get_jobs_health(EXECUTOR_JOB_TYPE)
-            executor_status = _legacy_status(executor_jobs)
+            executor_status = _executor_legacy_status(executor_jobs)
             executor_detailed_status = _executor_detailed_status(executor_jobs)
             if executor_jobs and executor_jobs[0].latest_heartbeat:
                 latest_executor_heartbeat = executor_jobs[0].latest_heartbeat.isoformat()
-            if live_executor_jobs := _live_jobs(executor_jobs):
+            if live_executor_jobs := _live_executor_jobs(executor_jobs):
                 executor_instances = [_executor_instance_health(job) for job in live_executor_jobs]
         except Exception:
             metadatabase_status = HealthStatus.UNHEALTHY

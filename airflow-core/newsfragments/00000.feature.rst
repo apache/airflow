@@ -2,8 +2,12 @@ Added scaffolding for per-executor health reporting. ``BaseExecutor`` gains a ``
 (default: not implemented) that an executor can override to report whether its backend (a broker, a
 cluster control plane, etc.) is reachable. When at least one configured executor implements it, the
 scheduler checks it on its own timer (``[scheduler] executor_health_check_interval``, default 30s), off
-the scheduler's own thread so a slow or hung check can never delay task scheduling, and records the
-result on ``/monitor/health`` as a new top-level ``executor`` entry, reusing the existing Jobs table and
-``JobState`` values rather than introducing a new status model. No executor in this release overrides
-``get_health()`` yet, so this is scaffolding only: behavior is unchanged for every existing executor,
-and the ``executor`` key is omitted from the response until something implements it.
+the scheduler's own thread so a slow or hung check can never delay task scheduling, and records an
+explicit HEALTHY/UNHEALTHY/UNKNOWN result on ``/monitor/health`` as a new top-level ``executor`` entry,
+reusing the existing Jobs table rather than introducing a new status model. The row's heartbeat is kept
+moving on the scheduler's own cadence, independent of the check itself, so a healthy executor doesn't
+flicker to UNHEALTHY between checks, and each scheduler keeps its own row per executor so one
+scheduler's healthy report can never mask another's failure against the same shared backend. No
+executor in this release overrides ``get_health()`` yet, so this is scaffolding only: behavior is
+unchanged for every existing executor, and the ``executor`` key is omitted from the response until
+something implements it.

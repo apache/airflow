@@ -517,9 +517,10 @@ class BaseExecutor(LoggingMixin):
         useful to report.
 
         This is called from a worker thread with no open database session, on its own schedule
-        independent of :meth:`heartbeat`, so it must not assume either. A call that raises, blocks, or
-        returns ``None`` records nothing; only ``True``/``False`` update this executor's entry in
-        ``/monitor/health``, and a hung call delays that update, not task scheduling.
+        independent of :meth:`heartbeat`, so it must not assume either. The scheduler records an
+        explicit result either way: ``True``/``False`` become HEALTHY/UNHEALTHY, and a call that
+        raises or returns ``None`` is recorded as UNKNOWN rather than silently carrying over whatever
+        the previous result was. A hung call delays that update, not task scheduling.
         """
         return None
 

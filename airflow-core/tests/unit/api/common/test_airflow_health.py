@@ -35,7 +35,7 @@ from airflow.api.common.airflow_health import (
 )
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
-from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.utils.session import provide_session
@@ -639,17 +639,32 @@ class TestAirflowHealthFromDb:
 # -- bundle/team partition tests above patch _configured_bundle_teams.
 
 
-def _executor(*, alive: bool, team_name: str | None = None, hostname: str | None = None) -> MagicMock:
-    return _mock_job(
+def _executor(
+    *,
+    alive: bool,
+    healthy: bool = True,
+    team_name: str | None = None,
+    hostname: str | None = None,
+    owner_job_id: int = 1,
+) -> MagicMock:
+    job = _mock_job(
         hostname=hostname or f"executor-{team_name}-{'alive' if alive else 'stale'}",
         heartbeat=datetime(2024, 2, 1),
         alive=alive,
         team_names=[team_name] if team_name else [],
     )
+    job.owner_job_id = owner_job_id
+    job.health_check_result = HealthCheckResult.HEALTHY if healthy else HealthCheckResult.UNHEALTHY
+    return job
 
 
 def _patch_executor_keys(keys: set[str]):
     return patch("airflow.api.common.airflow_health._configured_executor_keys", return_value=keys)
+
+
+def _patch_live_scheduler_ids(ids: set[int]):
+    """Patch which owning-scheduler ids count as alive, standing in for a real SchedulerJob query."""
+    return patch("airflow.api.common.airflow_health._live_scheduler_job_ids", return_value=ids)
 
 
 class _HealthCheckingExecutor(BaseExecutor):
@@ -724,7 +739,7 @@ class TestExecutorDetailedStatus:
         ],
     )
     def test_coverage(self, keys, jobs, expected):
-        with _patch_executor_keys(keys):
+        with _patch_executor_keys(keys), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == expected
 
     def test_restarted_executor_leaves_the_component_healthy(self):
@@ -733,8 +748,23 @@ class TestExecutorDetailedStatus:
             _executor(alive=True, hostname="Celery"),
             _executor(alive=False, hostname="Celery"),
         ]
-        with _patch_executor_keys({"Celery"}):
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
             assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+
+    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self):
+        """Two schedulers checking the same broker: one healthy row must not hide another's failure."""
+        jobs = [
+            _executor(alive=True, healthy=True, hostname="Celery", owner_job_id=1),
+            _executor(alive=True, healthy=False, hostname="Celery", owner_job_id=2),
+        ]
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1, 2}):
+            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+
+    def test_row_left_behind_by_crashed_scheduler_is_ignored(self):
+        """A row can still look alive right after its scheduler died; it must not count as coverage."""
+        jobs = [_executor(alive=True, healthy=True, hostname="Celery", owner_job_id=2)]
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
+            assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
 
 
 class TestAirflowHealthExecutor:
@@ -755,10 +785,12 @@ class TestAirflowHealthExecutor:
         heartbeat = timezone.utcnow()
         job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, hostname="Celery")
         job.latest_heartbeat = heartbeat
+        job.owner_job_id = 1
+        job.health_check_result = HealthCheckResult.HEALTHY
         session.add(job)
         session.commit()
 
-        with _patch_executor_keys({"Celery"}):
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
             health_status = get_airflow_health()
 
         assert health_status["executor"]["status"] == HealthStatus.HEALTHY
@@ -769,8 +801,26 @@ class TestAirflowHealthExecutor:
                 "hostname": "Celery",
                 "latest_executor_heartbeat": heartbeat.isoformat(),
                 "team_names": [],
+                "health_check_result": HealthCheckResult.HEALTHY,
             }
         ]
+
+    @provide_session
+    def test_executor_key_unhealthy_when_last_check_failed_despite_live_heartbeat(self, *, session):
+        """A row can be alive (heartbeat moving) while the last real check still failed."""
+        heartbeat = timezone.utcnow()
+        job = Job(job_type=EXECUTOR_JOB_TYPE, state=JobState.RUNNING, hostname="Celery")
+        job.latest_heartbeat = heartbeat
+        job.owner_job_id = 1
+        job.health_check_result = HealthCheckResult.UNHEALTHY
+        session.add(job)
+        session.commit()
+
+        with _patch_executor_keys({"Celery"}), _patch_live_scheduler_ids({1}):
+            health_status = get_airflow_health()
+
+        assert health_status["executor"]["status"] == HealthStatus.UNHEALTHY
+        assert health_status["executor"]["detailed_status"] == DetailedHealthStatus.DOWN
 
     def test_executor_key_present_and_down_when_implemented_but_never_reported(self):
         """Implemented but never seen a healthy check: a real outage, correctly reported, not omitted."""

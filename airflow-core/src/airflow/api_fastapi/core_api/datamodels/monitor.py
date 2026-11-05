@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from airflow.api.common.airflow_health import DetailedHealthStatus, HealthStatus
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.jobs.job import HealthCheckResult
 
 
 class BaseInfoResponse(BaseModel):
@@ -57,6 +58,7 @@ class ExecutorInstanceInfoResponse(BaseModel):
     hostname: str | None
     latest_executor_heartbeat: str | None
     team_names: list[str]
+    health_check_result: HealthCheckResult | None
 
 
 class SchedulerInfoResponse(BaseInfoResponse):

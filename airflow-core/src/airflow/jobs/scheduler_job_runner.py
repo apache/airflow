@@ -76,7 +76,7 @@ from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState, perform_heartbeat
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState, perform_heartbeat
 from airflow.models import Deadline, Log
 from airflow.models.asset import (
     AssetActive,
@@ -414,6 +414,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
         self._executor_health_check_futures: dict[str, Future] = {}
 
+        # Only executors that actually override get_health() get a Job row at all: one that was never
+        # going to report anything isn't a gap in coverage (see _configured_executor_keys in
+        # airflow_health.py, which applies this same rule from the /monitor/health side).
+        from airflow.executors.base_executor import BaseExecutor as _BaseExecutor
+
+        self._executor_health_keys: dict[str, str | None] = {
+            (executor.name.alias if executor.name and executor.name.alias else type(executor).__name__): (
+                executor.team_name
+            )
+            for executor in self.executors
+            if type(executor).get_health is not _BaseExecutor.get_health
+        }
+
         if self._enable_tracemalloc:
             import tracemalloc
 
@@ -437,7 +450,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _check_executor_health(self) -> None:
         """
-        Kick off a health check for each configured executor, in the background.
+        Kick off a health check for each reporting executor, in the background.
 
         Called on its own timer (``[scheduler] executor_health_check_interval``), independent of the
         scheduling loop and of each executor's own :meth:`~airflow.executors.base_executor.BaseExecutor.heartbeat`.
@@ -447,6 +460,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         for executor in self.executors:
             key = executor.name.alias if executor.name and executor.name.alias else type(executor).__name__
+            if key not in self._executor_health_keys:
+                # Doesn't override get_health(); there's nothing to check or record.
+                continue
             future = self._executor_health_check_futures.get(key)
             if future is not None and not future.done():
                 self.log.debug(
@@ -458,49 +474,94 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
-        """Run one executor's get_health() off the scheduler thread and record the result, if any."""
+        """Run one executor's get_health() off the scheduler thread and record an explicit result."""
         try:
             healthy = executor.get_health()
         except Exception:
             self.log.exception("Health check for executor %s raised an exception", key)
+            self._record_executor_health_result(key, executor.team_name, HealthCheckResult.UNKNOWN)
             return
         if healthy is None:
-            # This executor doesn't implement a health check; there's nothing to record.
-            return
-        if not healthy:
+            result = HealthCheckResult.UNKNOWN
+        elif healthy:
+            result = HealthCheckResult.HEALTHY
+        else:
             self.log.warning("Executor %s reported itself unhealthy", key)
-            return
-        self._record_executor_heartbeat(key, executor.team_name)
+            result = HealthCheckResult.UNHEALTHY
+        self._record_executor_health_result(key, executor.team_name, result)
 
     @provide_session
-    def _record_executor_heartbeat(
-        self, executor_key: str, team_name: str | None, *, session: Session = NEW_SESSION
-    ) -> None:
+    def _touch_executor_heartbeats(self, *, session: Session = NEW_SESSION) -> None:
         """
-        Record a successful health check as a Job row, the same way every other component does.
+        Keep every reporting executor's Job row heartbeat moving on the scheduler's own cadence.
 
-        Reuses the existing Jobs table and ``JobState`` values rather than introducing a new status
-        model: a healthy executor gets a ``RUNNING`` row with a fresh heartbeat, same as a Scheduler,
-        Triggerer, or DagProcessor instance, and ``/monitor/health`` derives HEALTHY/UNHEALTHY from
-        that heartbeat exactly as it already does for those. The executor's alias (or class name, for
-        an unaliased single-executor setup) is stored in ``hostname``, which is otherwise unused for
-        this job_type, to tell multiple configured executors' rows apart.
+        ``get_health()`` itself only runs every ``executor_health_check_interval`` (default 30s), far
+        slower than a Job row can go quiet for before ``health_check_threshold`` calls it dead.
+        Updating the heartbeat only when a check finishes would make a perfectly healthy executor
+        flicker to UNHEALTHY between checks, every cycle. Keeping the heartbeat on the scheduler's own
+        short cadence instead, the same way it already does for its own Job row, means the row's
+        liveness reflects "the scheduler is still running and still intends to check this executor",
+        while ``health_check_result`` -- not this heartbeat -- carries whatever the last actual check
+        found.
+        """
+        if not self._executor_health_keys:
+            return
+        now = timezone.utcnow()
+        for key, team_name in self._executor_health_keys.items():
+            job = self._get_or_create_executor_job(key, team_name, session=session)
+            job.latest_heartbeat = now
+        session.commit()
+
+    def _get_or_create_executor_job(
+        self, executor_key: str, team_name: str | None, *, session: Session
+    ) -> Job:
+        """
+        Return this scheduler's own Job row for ``executor_key``, creating it if needed.
+
+        Keyed by ``owner_job_id`` (this scheduler's own Job id), not just ``hostname``: two schedulers
+        running the same executor against shared infrastructure (e.g. the same Celery broker) each get
+        their own row, so one scheduler's healthy report can never paper over another's failing one.
+        A restarted scheduler gets a fresh row for the same reason its own Job row is fresh -- a new
+        id -- instead of quietly taking over a row left behind by its previous instance.
         """
         job = session.scalar(
             select(Job).where(
                 Job.job_type == EXECUTOR_JOB_TYPE,
                 Job.hostname == executor_key,
+                Job.owner_job_id == self.job.id,
                 Job.end_date.is_(None),
             )
         )
         if job is None:
             job = Job(job_type=EXECUTOR_JOB_TYPE)
             job.hostname = executor_key
+            job.owner_job_id = self.job.id
+            job.health_check_result = HealthCheckResult.UNKNOWN
             session.add(job)
         job.state = JobState.RUNNING
-        job.latest_heartbeat = timezone.utcnow()
         if team_name:
             job.team_names = [team_name]
+        return job
+
+    @provide_session
+    def _record_executor_health_result(
+        self,
+        executor_key: str,
+        team_name: str | None,
+        result: HealthCheckResult,
+        *,
+        session: Session = NEW_SESSION,
+    ) -> None:
+        """
+        Record the outcome of an executor's health check as an explicit result.
+
+        Reuses the existing Jobs table rather than introducing a new status model, but the result
+        itself -- not heartbeat silence -- is what ``/monitor/health`` reads as HEALTHY/UNHEALTHY: a
+        row that is alive but has never completed a check, or whose last check raised or is still
+        hanging, stays UNKNOWN instead of looking identical to a genuine failure.
+        """
+        job = self._get_or_create_executor_job(executor_key, team_name, session=session)
+        job.health_check_result = result
         session.commit()
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
@@ -2164,6 +2225,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         timers.call_regular_interval(
             delay=conf.getfloat("connection_test", "reaper_interval", fallback=30.0),
             action=self._reap_stale_connection_tests,
+            non_fatal=True,
+        )
+
+        timers.call_regular_interval(
+            delay=self.job.heartrate,
+            action=self._touch_executor_heartbeats,
             non_fatal=True,
         )
 
