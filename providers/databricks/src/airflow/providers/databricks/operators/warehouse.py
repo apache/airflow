@@ -34,11 +34,51 @@ if TYPE_CHECKING:
 
 
 class _DatabricksWarehouseBaseOperator(BaseOperator):
-    """Share Databricks SQL warehouse connection and polling behavior."""
+    """
+    Share warehouse connection setup.
+
+    Like ``AwsBaseOperator``, keep connection setup independent of deferred execution:
+    only state-waiting operators need trigger serialization and polling parameters.
+    """
 
     template_fields: Sequence[str] = ("databricks_conn_id", "warehouse_id")
     ui_color = "#1CB1C2"
     ui_fgcolor = "#fff"
+
+    def __init__(
+        self,
+        warehouse_id: str,
+        *,
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.warehouse_id = warehouse_id
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+
+    def _validate_warehouse_id(self) -> None:
+        if not self.warehouse_id:
+            raise ValueError("warehouse_id must be provided.")
+
+    @cached_property
+    def _hook(self) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=self.__class__.__name__,
+        )
+
+
+class _DatabricksWarehouseStateOperator(_DatabricksWarehouseBaseOperator):
+    """Add state polling and deferred execution to warehouse operations that support waiting."""
 
     def __init__(
         self,
@@ -54,34 +94,22 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.warehouse_id = warehouse_id
-        self.databricks_conn_id = databricks_conn_id
+        super().__init__(
+            warehouse_id=warehouse_id,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_limit=databricks_retry_limit,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_args=databricks_retry_args,
+            **kwargs,
+        )
         self.wait_for_termination = wait_for_termination
         self.polling_period_seconds = polling_period_seconds
         self.timeout = timeout
-        self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_retry_delay = databricks_retry_delay
-        self.databricks_retry_args = databricks_retry_args
         self.deferrable = deferrable
         if self.deferrable:
             validate_deferrable_databricks_retry_args(
                 self.databricks_retry_args, owner=self.__class__.__name__
             )
-
-    def _validate_warehouse_id(self) -> None:
-        if not self.warehouse_id:
-            raise ValueError("warehouse_id must be provided.")
-
-    @cached_property
-    def _hook(self) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
-            caller=self.__class__.__name__,
-        )
 
     def _wait_for_state(self, target: str) -> None:
         deadline = time.monotonic() + self.timeout
@@ -157,7 +185,7 @@ class _DatabricksWarehouseBaseOperator(BaseOperator):
         )
 
 
-class DatabricksStartWarehouseOperator(_DatabricksWarehouseBaseOperator):
+class DatabricksStartWarehouseOperator(_DatabricksWarehouseStateOperator):
     """
     Start a Databricks SQL warehouse and optionally wait for it to run.
 
@@ -183,7 +211,7 @@ class DatabricksStartWarehouseOperator(_DatabricksWarehouseBaseOperator):
         self._wait_or_defer("RUNNING")
 
 
-class DatabricksStopWarehouseOperator(_DatabricksWarehouseBaseOperator):
+class DatabricksStopWarehouseOperator(_DatabricksWarehouseStateOperator):
     """
     Stop a Databricks SQL warehouse and optionally wait for it to stop.
 
@@ -209,7 +237,7 @@ class DatabricksStopWarehouseOperator(_DatabricksWarehouseBaseOperator):
         self._wait_or_defer("STOPPED")
 
 
-class DatabricksEditWarehouseOperator(BaseOperator):
+class DatabricksEditWarehouseOperator(_DatabricksWarehouseBaseOperator):
     """
     Update the configuration of an existing Databricks SQL warehouse.
 
@@ -239,8 +267,6 @@ class DatabricksEditWarehouseOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("databricks_conn_id", "warehouse_id", "json")
     template_fields_renderers = {"json": "json"}
-    ui_color = "#1CB1C2"
-    ui_fgcolor = "#fff"
 
     def __init__(
         self,
@@ -253,27 +279,18 @@ class DatabricksEditWarehouseOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.warehouse_id = warehouse_id
-        self.json = json
-        self.databricks_conn_id = databricks_conn_id
-        self.databricks_retry_limit = databricks_retry_limit
-        self.databricks_retry_delay = databricks_retry_delay
-        self.databricks_retry_args = databricks_retry_args
-
-    @cached_property
-    def _hook(self) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
-            caller=self.__class__.__name__,
+        super().__init__(
+            warehouse_id=warehouse_id,
+            databricks_conn_id=databricks_conn_id,
+            databricks_retry_limit=databricks_retry_limit,
+            databricks_retry_delay=databricks_retry_delay,
+            databricks_retry_args=databricks_retry_args,
+            **kwargs,
         )
+        self.json = json
 
     def execute(self, context: Context) -> None:
-        if not self.warehouse_id:
-            raise ValueError("warehouse_id must be provided.")
+        self._validate_warehouse_id()
         if not isinstance(self.json, dict):
             raise TypeError("json must be a dictionary.")
         if not self.json:
