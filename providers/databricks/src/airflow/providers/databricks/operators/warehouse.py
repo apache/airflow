@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Operators for managing Databricks SQL warehouse lifecycle state."""
+"""Operators for managing Databricks SQL warehouses."""
 
 from __future__ import annotations
 
@@ -207,3 +207,67 @@ class DatabricksStopWarehouseOperator(_DatabricksWarehouseBaseOperator):
         if state.state != "STOPPING":
             self._hook.stop_warehouse(self.warehouse_id)
         self._wait_or_defer("STOPPED")
+
+
+class DatabricksEditWarehouseOperator(BaseOperator):
+    """
+    Update the configuration of an existing Databricks SQL warehouse.
+
+    Calls the SQL Warehouses edit API and returns once the request succeeds, without
+    waiting for the warehouse to reach a particular state. Use
+    :class:`DatabricksStartWarehouseOperator` to start the warehouse and wait for ``RUNNING``.
+
+    :param warehouse_id: ID of the Databricks SQL warehouse. (templated)
+    :param json: Non-empty request body for the SQL Warehouses edit API, for example
+        ``{"cluster_size": "Small", "auto_stop_mins": 10}``. Values are sent as provided;
+        use native template rendering for numeric or boolean Jinja expressions. (templated)
+    :param databricks_conn_id: Reference to the Databricks connection.
+        Defaults to ``databricks_default``. (templated)
+    :param databricks_retry_limit: Number of attempts for retryable Databricks requests. Defaults to 3.
+    :param databricks_retry_delay: Initial wait in seconds between retryable attempts. Defaults to 1.
+    :param databricks_retry_args: Additional arguments for ``tenacity.Retrying``. Defaults to ``None``.
+    """
+
+    template_fields: Sequence[str] = ("databricks_conn_id", "warehouse_id", "json")
+    template_fields_renderers = {"json": "json"}
+    ui_color = "#1CB1C2"
+    ui_fgcolor = "#fff"
+
+    def __init__(
+        self,
+        warehouse_id: str,
+        *,
+        json: dict[str, Any],
+        databricks_conn_id: str = "databricks_default",
+        databricks_retry_limit: int = 3,
+        databricks_retry_delay: int = 1,
+        databricks_retry_args: dict[Any, Any] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.warehouse_id = warehouse_id
+        self.json = json
+        self.databricks_conn_id = databricks_conn_id
+        self.databricks_retry_limit = databricks_retry_limit
+        self.databricks_retry_delay = databricks_retry_delay
+        self.databricks_retry_args = databricks_retry_args
+
+    @cached_property
+    def _hook(self) -> DatabricksHook:
+        return DatabricksHook(
+            self.databricks_conn_id,
+            retry_limit=self.databricks_retry_limit,
+            retry_delay=self.databricks_retry_delay,
+            retry_args=self.databricks_retry_args,
+            caller=self.__class__.__name__,
+        )
+
+    def execute(self, context: Context) -> None:
+        if not self.warehouse_id:
+            raise ValueError("warehouse_id must be provided.")
+        if not isinstance(self.json, dict):
+            raise TypeError("json must be a dictionary.")
+        if not self.json:
+            raise ValueError("json must contain at least one warehouse setting.")
+        self._hook.edit_warehouse(self.warehouse_id, self.json)
+        self.log.info("Updated configuration for Databricks SQL warehouse %s.", self.warehouse_id)
