@@ -50,7 +50,7 @@ from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 if TYPE_CHECKING:
     from collections.abc import AsyncIterable, Awaitable, Callable
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 log = logging.getLogger(__name__)
 
@@ -152,7 +152,8 @@ class AirflowTools:
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()``, or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. They are served
     through an in-process MCP server; add it and :attr:`allowed_tools` to
     ``ClaudeAgentOptions``, or build them with :meth:`build_options`, and drive the SDK's
@@ -169,7 +170,7 @@ class AirflowTools:
         options = tools.build_options(model="claude-sonnet-5", max_turns=10)
         result = await tools.run(query(prompt="...", options=options))
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as an ``is_error``
     tool result. A failure the model cannot fix, such as a hook raising, makes
@@ -189,7 +190,7 @@ class AirflowTools:
         (``mcp__<server_name>__<tool name>``).
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool, server_name: str = "airflow") -> None:
+    def __init__(self, *sources: ToolSource, server_name: str = "airflow") -> None:
         self.server_name = server_name
         airflow_tools = _collect_tools(sources, mcp_hint=_MCP_HINT)
         self.allowed_tools: list[str] = [f"mcp__{server_name}__{t.name}" for t in airflow_tools]

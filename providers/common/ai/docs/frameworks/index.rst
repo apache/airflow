@@ -227,7 +227,8 @@ An adapter maps these onto the framework's own tool type and error status, and m
 sure a ``ToolCallError`` ends the run rather than reaching the model, as the Strands
 plugin does. :func:`~airflow.providers.common.ai.tools.collect_tools` turns the toolsets and
 tools an adapter is given into one list, as the Strands, ADK, Anthropic, OpenAI Agents and Claude Agent SDK
-adapters do.
+adapters do. It accepts toolsets wrapped with ``.filtered()``, ``.prefixed()`` and
+``.renamed()``, and raises ``TypeError`` for any other wrapper.
 
 Blocking hook calls, such as a SQL query, run one at a time in the task's process, so an
 agent that calls two database tools at once gets its answers one after the other.

@@ -75,6 +75,10 @@ own sandbox (:doc:`../tool_approval` lists every limit). ``.filtered()`` drops t
 from what the model is offered, as the :ref:`MCP guide <howto/toolset:mcp-filtered>`
 shows. ``.defer_loading()`` hides a toolset's tools from the model until it searches for
 them, which pays off on a toolset with many tools (see :doc:`progressive_disclosure`).
+In an agent written for another framework, which gets the toolset through
+``AirflowTools``, ``.filtered()``, ``.prefixed()`` and ``.renamed()`` carry over;
+``.approval_required()`` and ``.defer_loading()`` raise a ``TypeError`` (see
+:doc:`../frameworks/index`).
 
 :doc:`logging` and :doc:`langchain` do not reach a system of their own: one wraps a
 toolset to log its calls, the other converts a toolset for a LangChain agent.

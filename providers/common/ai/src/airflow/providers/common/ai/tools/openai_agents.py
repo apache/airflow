@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     from opentelemetry.context import Context
     from opentelemetry.trace import Span as OtelSpan, TracerProvider
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 __all__ = ["AirflowTools", "AirflowTraceProcessor"]
 
@@ -83,7 +83,8 @@ class AirflowTools(list[Tool]):
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()``, or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its runner stay plain OpenAI Agents SDK.
 
@@ -101,7 +102,7 @@ class AirflowTools(list[Tool]):
     It is a list of ``FunctionTool`` objects typed as ``Agent.tools`` is, so add your own
     tools with ``[*AirflowTools(warehouse), my_tool]``.
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. The schema is passed as it is,
     with ``strict_json_schema=False``: the SDK's strict mode would make every argument
     required. A failure the model can correct, such as a query naming a missing column,
@@ -120,7 +121,7 @@ class AirflowTools(list[Tool]):
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         super().__init__(_to_function_tool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT))
 
 

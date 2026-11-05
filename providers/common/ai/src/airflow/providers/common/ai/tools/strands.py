@@ -52,7 +52,7 @@ if TYPE_CHECKING:
         ToolUse,
     )
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 __all__ = ["AirflowTools"]
 
@@ -68,7 +68,8 @@ class AirflowTools(Plugin):
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()``, or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. The agent, its
     model and its loop stay plain Strands.
 
@@ -85,7 +86,7 @@ class AirflowTools(Plugin):
     Pass it in ``plugins=``, not ``tools=``: Strands ignores a plugin given as a tool, and
     handing over only its ``tools`` leaves out the hook that ends the run on a failure.
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a Strands result
     with ``status="error"``, counted against the tool's retry limit once per model turn
@@ -99,7 +100,7 @@ class AirflowTools(Plugin):
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         # Before Plugin.__init__, which reads every attribute, ``name`` and ``tools`` included.
         self._name = f"airflow-tools-{next(_instance_numbers)}"
         self._run = object()

@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from anthropic.types.beta import BetaMessage
     from anthropic.types.beta.parsed_beta_message import ParsedBetaMessage
 
-    from airflow.providers.common.ai.tools import ToolProvider
+    from airflow.providers.common.ai.tools import ToolSource
 
 log = logging.getLogger(__name__)
 
@@ -82,7 +82,8 @@ class AirflowTools:
 
     Pass toolsets that implement
     :class:`~airflow.providers.common.ai.tools.ToolProvider`, such as ``SQLToolset``
-    and ``HookToolset``, or individual
+    and ``HookToolset``, optionally wrapped with ``.filtered()``,
+    ``.prefixed()`` or ``.renamed()``, or individual
     :class:`~airflow.providers.common.ai.tools.AirflowTool` objects. Give :attr:`tools`
     to ``client.beta.messages.tool_runner`` and drive the runner with :meth:`run`:
 
@@ -103,7 +104,7 @@ class AirflowTools:
         )
         message = tools.run(runner)
 
-    Each tool keeps the source tool's name, description and argument schema, and every
+    Each tool keeps its source's name, description and argument schema, and every
     result passes through Airflow's secret masker first. A failure the model can
     correct, such as a query naming a missing column, reaches it as a ``tool_result``
     with ``is_error: true``, counted against the tool's retry limit once per model
@@ -123,7 +124,7 @@ class AirflowTools:
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         self.tools: list[BetaFunctionTool[Callable[..., str]]] = [
             _sync_tool(tool) for tool in _collect_tools(sources, mcp_hint=_MCP_HINT)
         ]
@@ -164,7 +165,7 @@ class AsyncAirflowTools:
     :param sources: Toolsets and tools to add, in order.
     """
 
-    def __init__(self, *sources: ToolProvider | AirflowTool) -> None:
+    def __init__(self, *sources: ToolSource) -> None:
         self.tools: list[BetaAsyncFunctionTool[Callable[..., Coroutine[Any, Any, str]]]] = [
             _async_tool(tool) for tool in _collect_tools(sources, mcp_hint=_ASYNC_MCP_HINT)
         ]

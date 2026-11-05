@@ -27,12 +27,17 @@ from collections.abc import Hashable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from pydantic import ValidationError
 from pydantic_ai import RunContext
 from pydantic_ai.exceptions import ModelRetry, ToolFailed
 from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets.approval_required import ApprovalRequiredToolset
+from pydantic_ai.toolsets.filtered import FilteredToolset
+from pydantic_ai.toolsets.prefixed import PrefixedToolset
+from pydantic_ai.toolsets.renamed import RenamedToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
@@ -88,10 +93,100 @@ def airflow_tools_from_toolset(toolset: AbstractToolset[Any], *, deps: Any = Non
     :param toolset: The pydantic-ai toolset to expose.
     :param deps: Exposed to the toolset as ``ctx.deps``.
     """
-    ctx: RunContext[Any] = RunContext(deps=deps, model=TestModel(), usage=RunUsage(), max_retries=1)
+    ctx = _inert_context(deps)
     toolset_tools = run_coroutine_sync(toolset.get_tools(ctx))
     in_order = _InOrder()
     return [_as_airflow_tool(toolset, name, tool, ctx, in_order) for name, tool in toolset_tools.items()]
+
+
+def _inert_context(deps: Any = None) -> RunContext[Any]:
+    return RunContext(deps=deps, model=TestModel(), usage=RunUsage(), max_retries=1)
+
+
+# The wrappers that only choose which tools the model is offered, and under what name.
+_NAMING_WRAPPERS = (FilteredToolset, PrefixedToolset, RenamedToolset)
+
+
+def _is_naming_wrapper(
+    toolset: object,
+) -> TypeGuard[FilteredToolset[Any] | PrefixedToolset[Any] | RenamedToolset[Any]]:
+    # Exact types: the tools reached around a wrapper skip its call_tool, which a subclass may override.
+    return type(toolset) in _NAMING_WRAPPERS
+
+
+def airflow_tools_of(source: object) -> list[AirflowTool]:
+    """
+    Return the tools of a toolset a framework adapter was given.
+
+    A source with an ``airflow_tools()`` method is asked for them. A toolset wrapped with
+    ``.filtered()``, ``.prefixed()`` or ``.renamed()``, nested in any order, gives the innermost
+    toolset's own ``airflow_tools()``, so they behave as they do without the wrappers. The
+    wrappers' own ``get_tools`` decides which of them the model is offered and under what name,
+    given the same inert ``RunContext`` :func:`airflow_tools_from_toolset` passes. A ``.filtered()``
+    function therefore runs once, when the adapter is built, rather than before every model turn
+    as in a pydantic-ai run.
+
+    :raises TypeError: when ``source`` is any other wrapper, such as ``.approval_required()``,
+        or there is no ``airflow_tools()`` method under its wrappers.
+    :raises ValueError: when a ``.renamed()`` map names a tool the toolset does not have.
+    """
+    # Looked up, not checked against ToolProvider: since Python 3.12 a Protocol check misses a
+    # method that a mock or proxy only provides through __getattr__.
+    own = getattr(source, "airflow_tools", None)
+    if callable(own):
+        return list(own())
+    if not _is_naming_wrapper(source):
+        raise TypeError(_cannot_take(source))
+    renames: list[PrefixedToolset[Any] | RenamedToolset[Any]] = []
+    inner: AbstractToolset[Any] = source
+    while _is_naming_wrapper(inner):
+        if not isinstance(inner, FilteredToolset):
+            renames.append(inner)
+        inner = inner.wrapped
+    provide = getattr(inner, "airflow_tools", None)
+    if not callable(provide):
+        raise TypeError(_cannot_take(inner))
+    by_name = {tool.name: tool for tool in provide()}
+    offered = run_coroutine_sync(source.get_tools(_inert_context()))
+    tools = []
+    for name in offered:
+        # Map the offered name back through each wrapper, as its ``call_tool`` does.
+        original = name
+        for wrapper in renames:
+            if isinstance(wrapper, PrefixedToolset):
+                original = original.removeprefix(f"{wrapper.prefix}_")
+            else:
+                original = wrapper.name_map.get(original, original)
+        if original not in by_name:
+            raise ValueError(
+                f"The tool offered as {name!r} maps back to {original!r}, which "
+                f"{type(inner).__name__} does not have. .renamed() maps each new name to the "
+                "toolset's own name, as in .renamed({'run_sql': 'query'})."
+            )
+        tools.append(replace(by_name[original], name=name))
+    return tools
+
+
+def _cannot_take(toolset: object) -> str:
+    kind = type(toolset).__name__
+    if isinstance(toolset, ApprovalRequiredToolset):
+        return (
+            "AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another "
+            "framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the "
+            "toolset without it. To have a person approve tool calls, run the agent with "
+            "AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI "
+            "Agents SDK, stops the run and nothing in Airflow resumes it."
+        )
+    if isinstance(toolset, WrapperToolset):
+        return (
+            f"AirflowTools cannot read through {kind}. Only .filtered(), .prefixed() and .renamed() "
+            "carry over to another framework's agent; pass the toolset without it."
+        )
+    return (
+        f"AirflowTools cannot take a {kind}: it has no airflow_tools() method. Pass AirflowTool "
+        "objects or an Airflow toolset such as SQLToolset, which .filtered(), .prefixed() and "
+        ".renamed() may wrap."
+    )
 
 
 class _InOrder:

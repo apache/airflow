@@ -17,11 +17,16 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import traceback
 from functools import partial
-from typing import Any
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
 
 import pytest
+from pydantic_ai.toolsets.filtered import FilteredToolset
+from pydantic_ai.toolsets.function import FunctionToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 
 from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import (
@@ -32,6 +37,13 @@ from airflow.providers.common.ai.tools import (
     collect_tools,
 )
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
+
+from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
+
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext
+    from pydantic_ai.tools import ToolDefinition
 
 
 def _tool(function) -> AirflowTool:
@@ -117,7 +129,7 @@ class TestCollectTools:
         """Frameworks route a call by name, so one of the two would never run."""
         with pytest.raises(
             ValueError,
-            match="More than one tool is named query. .*tool_prefix values, where they take one, so",
+            match="More than one tool is named query. .*where they take one, or wrap them with .prefixed\\(\\), so",
         ):
             collect_tools([_Provider(_named("query")), _Provider(_named("query"))])
 
@@ -152,6 +164,183 @@ class TestCollectTools:
 
         with pytest.raises(NotImplementedError, match="^not yet$"):
             _collect_tools([_Unfinished()], mcp_hint="Connect Acme's McpClient instead.")
+
+    def test_a_mock_toolset_is_asked_for_its_tools(self):
+        """The mock has ``airflow_tools`` only through ``__getattr__``, which a Protocol check misses on Python 3.12+."""
+        source = MagicMock(spec=["airflow_tools"])
+        source.airflow_tools.return_value = [_named("a")]
+
+        assert [tool.name for tool in collect_tools([source])] == ["a"]
+
+
+def _sql_toolset(name: str = "Ada") -> SQLToolset:
+    ts = SQLToolset("pg_default")
+    ts._hook = _make_mock_db_hook(records=[(1, name)], last_description=[("id",), ("name",)])
+    return ts
+
+
+def _names(tools: list[AirflowTool]) -> list[str]:
+    return [tool.name for tool in tools]
+
+
+def _not_query(ctx: RunContext[Any], tool: ToolDefinition) -> bool:
+    return tool.name != "query"
+
+
+async def _not_query_async(ctx: RunContext[Any], tool: ToolDefinition) -> bool:
+    return tool.name != "query"
+
+
+class TestCollectToolsThroughWrappers:
+    @pytest.mark.parametrize("keep", [_not_query, _not_query_async], ids=["sync", "async"])
+    def test_a_filter_drops_the_tools_it_rejects(self, keep):
+        tools = collect_tools([_sql_toolset().filtered(keep)])
+
+        assert _names(tools) == ["list_tables", "get_schema", "check_query"]
+
+    def test_the_filter_runs_once_with_each_tools_definition(self):
+        seen: list[tuple[RunContext[Any], ToolDefinition]] = []
+
+        def keep_all(ctx: RunContext[Any], tool: ToolDefinition) -> bool:
+            seen.append((ctx, tool))
+            return True
+
+        tools = collect_tools([_sql_toolset().filtered(keep_all)])
+        asyncio.run({tool.name: tool for tool in tools}["query"].call({"sql": "SELECT 1"}))
+
+        assert [tool.name for _, tool in seen] == ["list_tables", "get_schema", "query", "check_query"]
+        # The toolset's own definitions, not ones rebuilt from the AirflowTool.
+        assert all(tool.sequential for _, tool in seen)
+        assert all(ctx.deps is None for ctx, _ in seen)
+
+    @pytest.mark.parametrize(
+        ("wrap", "offered", "query_tool"),
+        [
+            pytest.param(
+                lambda ts: ts.prefixed("wh"),
+                ["wh_list_tables", "wh_get_schema", "wh_query", "wh_check_query"],
+                "wh_query",
+                id="prefixed",
+            ),
+            pytest.param(
+                lambda ts: ts.renamed({"run_sql": "query"}),
+                ["list_tables", "get_schema", "run_sql", "check_query"],
+                "run_sql",
+                id="renamed",
+            ),
+        ],
+    )
+    def test_a_renamed_tool_runs_the_inner_tool(self, wrap, offered, query_tool):
+        tools = {tool.name: tool for tool in collect_tools([wrap(_sql_toolset())])}
+
+        result = asyncio.run(tools[query_tool].call({"sql": "SELECT id, name FROM users"}))
+
+        assert list(tools) == offered
+        assert json.loads(result.content)["rows"] == [[1, "Ada"]]
+
+    def test_nested_wrappers_apply_from_the_inside_out(self):
+        toolset = (
+            _sql_toolset()
+            .prefixed("wh")
+            .filtered(lambda ctx, tool: tool.name != "wh_get_schema")
+            .renamed({"run_sql": "wh_query"})
+            .filtered(lambda ctx, tool: tool.name != "wh_check_query")
+        )
+
+        tools = {tool.name: tool for tool in collect_tools([toolset])}
+        result = asyncio.run(tools["run_sql"].call({"sql": "SELECT id, name FROM users"}))
+
+        assert list(tools) == ["wh_list_tables", "run_sql"]
+        assert json.loads(result.content)["rows"] == [[1, "Ada"]]
+
+    def test_two_prefixes_keep_two_toolsets_on_the_same_tools_apart(self):
+        tools = collect_tools([_sql_toolset("Ada").prefixed("a"), _sql_toolset("Grace").prefixed("b")])
+        by_name = {tool.name: tool for tool in tools}
+
+        rows = {
+            name: json.loads(asyncio.run(by_name[name].call({"sql": "SELECT id, name FROM users"})).content)[
+                "rows"
+            ]
+            for name in ("a_query", "b_query")
+        }
+
+        assert _names(tools) == [
+            *(f"a_{name}" for name in ("list_tables", "get_schema", "query", "check_query")),
+            *(f"b_{name}" for name in ("list_tables", "get_schema", "query", "check_query")),
+        ]
+        assert rows == {"a_query": [[1, "Ada"]], "b_query": [[1, "Grace"]]}
+
+    def test_a_rename_map_written_backwards_says_which_way_it_goes(self):
+        with pytest.raises(
+            ValueError,
+            match=r"The tool offered as 'query' maps back to 'run_sql'.*\.renamed\(\{'run_sql': 'query'\}\)",
+        ):
+            collect_tools([_sql_toolset().renamed({"query": "run_sql"})])
+
+    def test_a_wrapper_that_supplies_its_own_tools_is_asked_for_them(self):
+        class _OwnTools(WrapperToolset[Any]):
+            def airflow_tools(self) -> list[AirflowTool]:
+                return [_named("own")]
+
+        assert _names(collect_tools([_OwnTools(_sql_toolset())])) == ["own"]
+
+    def test_a_subclass_of_a_naming_wrapper_is_refused(self):
+        """Its call_tool could add behaviour that tools reached around it would skip."""
+
+        class _AuditedFilter(FilteredToolset[Any]):
+            pass
+
+        with pytest.raises(TypeError, match="cannot read through _AuditedFilter"):
+            collect_tools([_AuditedFilter(_sql_toolset(), lambda ctx, tool: True)])
+
+    def test_an_mcp_toolset_behind_a_filter_says_what_to_connect_instead(self):
+        with pytest.raises(MCPToolsetNotSupportedError, match="Connect Acme's McpClient instead."):
+            _collect_tools(
+                [MCPToolset("mcp_default").filtered(lambda ctx, tool: True)],
+                mcp_hint="Connect Acme's McpClient instead.",
+            )
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda ts: ts.approval_required(), id="outermost"),
+            pytest.param(lambda ts: ts.approval_required().filtered(lambda ctx, tool: True), id="nested"),
+        ],
+    )
+    def test_approval_is_refused_and_points_at_the_frameworks_own(self, wrap):
+        with pytest.raises(TypeError) as exc_info:
+            collect_tools([wrap(_sql_toolset())])
+
+        assert str(exc_info.value) == (
+            "AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another "
+            "framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the "
+            "toolset without it. To have a person approve tool calls, run the agent with "
+            "AgentOperator; a framework's own tool approval, such as needs_approval in the OpenAI "
+            "Agents SDK, stops the run and nothing in Airflow resumes it."
+        )
+
+    def test_another_wrapper_is_refused_by_name(self):
+        async def unchanged(ctx: RunContext[Any], tools: list[ToolDefinition]) -> list[ToolDefinition]:
+            return tools
+
+        with pytest.raises(TypeError) as exc_info:
+            collect_tools([_sql_toolset().prepared(unchanged)])
+
+        assert str(exc_info.value) == (
+            "AirflowTools cannot read through PreparedToolset. Only .filtered(), .prefixed() and "
+            ".renamed() carry over to another framework's agent; pass the toolset without it."
+        )
+
+    @pytest.mark.parametrize(
+        "wrap",
+        [
+            pytest.param(lambda ts: ts, id="bare"),
+            pytest.param(lambda ts: ts.filtered(lambda ctx, tool: True), id="filtered"),
+        ],
+    )
+    def test_a_toolset_without_airflow_tools_is_refused(self, wrap):
+        with pytest.raises(TypeError, match="cannot take a FunctionToolset: it has no airflow_tools"):
+            collect_tools([wrap(FunctionToolset())])
 
 
 @pytest.mark.enable_redact
