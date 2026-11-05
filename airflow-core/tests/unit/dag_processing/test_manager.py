@@ -9004,7 +9004,7 @@ def test_shutdown_acknowledges_only_callbacks_that_exited_cleanly(kill_pids):
     outcomes = {
         "finished.py": (True, None),
         "stopped.py": (False, None),
-        "interrupted.py": (True, "GetVariable (HTTP 503)"),
+        "finished_after_api_failure.py": (True, "GetVariable (HTTP 503)"),
     }
     for file in _get_file_infos(list(outcomes)):
         processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
@@ -9021,7 +9021,10 @@ def test_shutdown_acknowledges_only_callbacks_that_exited_cleanly(kill_pids):
     manager.terminate()
     manager.end()
 
-    client.acknowledge_work.assert_called_once_with("callbacks", work["finished.py"])
+    assert client.acknowledge_work.call_args_list == [
+        mock.call("callbacks", work["finished.py"]),
+        mock.call("callbacks", work["finished_after_api_failure.py"]),
+    ]
     assert get_api_work_source(manager).has_outstanding_work()
     for processor in manager._processors.values():
         processor.kill.assert_called_once_with(signal.SIGTERM, escalation_delay=5.0)

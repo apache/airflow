@@ -58,6 +58,7 @@ from airflow.dag_processing.api_client import DagProcessorAPIClient
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.manager import DagFileProcessorManager, process_parse_results
 from airflow.dag_processing.processor import (
+    _CALLBACK_TARGETS_MISSING_EXIT_CODE,
     BaseDagFileProcessorProcess,
     DagFileParseRequest,
     DagFileParsingResult,
@@ -247,6 +248,41 @@ class TestDagFileProcessor:
         assert result.import_errors != {}
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
+
+    def test_callback_process_reports_that_no_callback_target_loaded(
+        self, tmp_path: pathlib.Path, inprocess_client
+    ):
+        def dag_in_a_fn():
+            from airflow.sdk import DAG, Variable
+
+            with DAG(f"test_{Variable.get('myvar')}"):
+                ...
+
+        path = write_dag_in_a_fn_to_file(dag_in_a_fn, tmp_path)
+        proc = DagFileProcessorProcess.start(
+            id=1,
+            path=path,
+            bundle_path=tmp_path,
+            bundle_name="testing",
+            dag_file_rel_path=str(path.relative_to(tmp_path)),
+            callbacks=[
+                DagCallbackRequest(
+                    filepath=str(path.relative_to(tmp_path)),
+                    dag_id="test_abc",
+                    run_id="run",
+                    bundle_name="testing",
+                    bundle_version=None,
+                )
+            ],
+            logger=MagicMock(spec=FilteringBoundLogger),
+            logger_filehandle=MagicMock(spec=BinaryIO),
+            client=inprocess_client,
+        )
+
+        while not proc.is_ready:
+            proc._service_subprocess(0.1)
+
+        assert proc.callback_targets_missing
 
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
@@ -720,6 +756,60 @@ def test_parse_file_with_task_callbacks(spy_agency):
     )
 
     assert called is True
+
+
+@pytest.mark.parametrize("dag_loaded", [False, True], ids=["dag-not-loaded", "task-not-loaded"])
+def test_parse_file_exits_without_running_callbacks_when_no_target_loaded(spy_agency, dag_loaded):
+    called = False
+
+    def on_failure(context):
+        nonlocal called
+        called = True
+
+    with DAG(dag_id="a", on_failure_callback=on_failure) as dag:
+        BaseOperator(task_id="other", on_failure_callback=on_failure)
+
+    def fake_collect_dags(self, *args, **kwargs):
+        if dag_loaded:
+            self.dags[dag.dag_id] = dag
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+    ti_data = TIDataModel(
+        id=uuid.uuid4(),
+        dag_id="a",
+        task_id="b",
+        run_id="test_run",
+        map_index=-1,
+        try_number=1,
+        dag_version_id=uuid.uuid4(),
+    )
+    requests: list[CallbackRequest] = [
+        TaskCallbackRequest(
+            filepath="A", msg="Message", ti=ti_data, bundle_name="testing", bundle_version=None
+        )
+    ]
+    if not dag_loaded:
+        requests.append(
+            DagCallbackRequest(
+                filepath="A",
+                msg="Message",
+                dag_id="a",
+                run_id="b",
+                bundle_name="testing",
+                bundle_version=None,
+            )
+        )
+
+    with pytest.raises(SystemExit) as exit_info:
+        _parse_file(
+            DagFileParseRequest(
+                file="A", bundle_path="test", bundle_name="testing", callback_requests=requests
+            ),
+            log=structlog.get_logger(),
+        )
+
+    assert exit_info.value.code == _CALLBACK_TARGETS_MISSING_EXIT_CODE
+    assert called is False
 
 
 @conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})
