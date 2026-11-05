@@ -374,6 +374,7 @@ repos:
         files: >
           (?x)
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/versions/v\d{4}_\d{2}_\d{2}\.py$|
           ^java-sdk/gradle\.properties$|
           ^java-sdk/sdk/schema/schema\.json$|
           ^scripts/ci/prek/sync_java_sdk_supervisor_schema\.py$
