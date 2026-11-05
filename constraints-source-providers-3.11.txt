@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-05T17:45:07.161335
+# This constraints file was automatically generated on 2026-11-05T21:43:07.132088
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -129,7 +129,6 @@ azure-synapse-spark==0.7.0
 babel==2.18.0
 backports.tarfile==1.2.0
 backports.zstd==1.8.0
-banks==2.5.1
 bcrypt==5.0.0
 beartype==0.22.9
 beautifulsoup4==4.15.0
@@ -180,7 +179,6 @@ curlify==3.0.0
 darabonba-core==1.0.9
 databricks-sql-connector==4.8.0
 databricks-sqlalchemy==2.0.10
-dataclasses-json==0.6.7
 datadog==0.55.0
 datafusion==51.0.0
 db-dtypes==1.9.0
@@ -192,7 +190,6 @@ deltalake==1.6.6
 deprecation==2.1.0
 diagrams==0.25.1
 dill==0.4.1
-dirtyjson==1.0.8
 distlib==0.4.4
 distro==1.9.0
 dnspython==2.9.0
@@ -221,9 +218,7 @@ fastcore==2.2.35
 fasteners==0.20
 fastjsonschema==2.22.2
 fastmcp-slim==4.0.11
-fastuuid==0.14.0
 filelock==4.2.4
-filetype==1.2.0
 flask-appbuilder==5.2.2
 flask-babel==4.0.0
 flit==4.2.0
@@ -301,8 +296,6 @@ graphviz==0.20.3
 greenback==1.3.0
 greenlet==3.5.6
 gremlinpython==3.8.2
-griffe==2.4.1
-griffecli==2.4.1
 griffelib==2.4.1
 grpc-google-iam-v1==0.14.6
 grpc-interceptor==0.15.4
@@ -408,12 +401,6 @@ libcst==1.9.0
 librt==0.16.0
 limits==5.8.0
 linkify-it-py==2.2.0
-litellm==1.85.7
-llama-index-core==0.14.25
-llama-index-embeddings-openai==0.7.0
-llama-index-instrumentation==0.6.0
-llama-index-llms-openai==0.8.3
-llama-index-workflows==2.26.1
 lockfile==0.12.2
 logfire-api==5.4.0
 looker_sdk==26.22.0
@@ -475,12 +462,11 @@ nest-asyncio2==1.7.4
 nest-asyncio==1.6.0
 networkx==3.6.1
 nh3==0.3.7
-nltk==3.10.4
 nodeenv==1.11.0
 numpy==2.4.6
 oauthlib==4.0.0
 objsize==0.7.1
-openai==2.54.0
+openai==3.42.0
 openapi-schema-validator==0.9.0
 openapi-spec-validator==0.9.0
 opencensus-context==0.1.3
@@ -729,10 +715,8 @@ textual==8.2.8
 threadpoolctl==3.7.0
 thrift-sasl==0.4.3
 thrift==0.25.0
-tiktoken==0.14.0
 time-machine==3.6.0
 tinycss2==1.5.1
-tinytag==2.3.2
 tokenizers==0.23.3
 toml==0.10.2
 tomli==2.5.0
@@ -768,7 +752,6 @@ types-requests==2.33.0.20261006
 types-setuptools==84.0.0.20261006
 types-tabulate==0.10.0.20261006
 types-toml==0.10.8.20260518
-typing-inspect==0.9.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 tzdata==2026.6
