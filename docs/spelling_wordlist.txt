@@ -565,6 +565,7 @@ dsse
 dst
 dts
 dttm
+dtype
 dtypes
 du
 duckdb
