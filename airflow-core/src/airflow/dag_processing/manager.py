@@ -553,6 +553,7 @@ class DagFileProcessorManager(LoggingMixin):
         lookups use the API. Python parse processes replace
         ``SUPERVISOR_COMMS`` with their own channel before running any Dag code.
         """
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
         from airflow.dag_processing.api_client import DagProcessorSecretsComms
 
         # SDK cache keys do not carry the bundle identity used to authorize these requests.
@@ -1046,11 +1047,14 @@ class DagFileProcessorManager(LoggingMixin):
             )
             self._defer_unusable_bundle_inventory(bundle_name)
             return
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
+        from airflow.dag_processing.api_client import is_transient_api_error
+
         try:
             receipt = self.api_client.publish_inventory(bundle_name, pending.body)
         except httpx2.HTTPError as error:
             status_code = error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
-            if status_code is None or status_code in (408, 429) or status_code >= 500:
+            if is_transient_api_error(error):
                 pending.attempts += 1
                 pending.next_attempt_time = time.monotonic() + _compute_retry_delay(pending.attempts)
                 self.log.warning(
@@ -1097,8 +1101,13 @@ class DagFileProcessorManager(LoggingMixin):
             refresh_interval, self.bundle_refresh_check_interval, _compute_retry_delay(1)
         )
 
-    def _delay_bundle_listing_retry(self, bundle_name: str) -> None:
-        """Retry a failed listing soon, then double the wait up to the refresh interval while it fails."""
+    def _delay_bundle_listing_retry(self, bundle_name: str, *, check_started_at: float) -> None:
+        """
+        Retry a failed listing soon, then double the wait up to the refresh interval while it fails.
+
+        The wait counts from ``check_started_at``, the start of the refresh check that listed the
+        bundle, because the next periodic check is timed from there too.
+        """
         refresh_interval = next(
             (bundle.refresh_interval for bundle in self._dag_bundles if bundle.name == bundle_name),
             self.bundle_refresh_check_interval,
@@ -1111,7 +1120,7 @@ class DagFileProcessorManager(LoggingMixin):
             else min(max(refresh_interval, first_delay), previous_delay * 2)
         )
         self._bundle_listing_retry_delays[bundle_name] = delay
-        self._bundle_inventory_retry_times[bundle_name] = time.monotonic() + delay
+        self._bundle_inventory_retry_times[bundle_name] = check_started_at + delay
 
     def _publish_pending_inventories(self, known_files: dict[str, set[DagFileInfo]]) -> bool:
         deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
@@ -1360,7 +1369,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                     if self.api_client is not None:
                         self._discard_unusable_bundle_source(bundle.name)
-                        self._delay_bundle_listing_retry(bundle.name)
+                        self._delay_bundle_listing_retry(bundle.name, check_started_at=now_seconds)
                     else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
@@ -1900,7 +1909,12 @@ class DagFileProcessorManager(LoggingMixin):
         """Publish queued results until the deadline, stopping early while the API is unavailable."""
         if self.api_client is None:
             return
-        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired, get_error_reason
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
+        from airflow.dag_processing.api_client import (
+            DagProcessorRegistrationRetired,
+            get_error_reason,
+            is_transient_api_error,
+        )
 
         if deadline is None:
             deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
@@ -1932,14 +1946,8 @@ class DagFileProcessorManager(LoggingMixin):
                     self.request_bundle_refresh(file.bundle_name)
                     self._add_files_to_queue([file], mode="front")
                     return
-                retryable = isinstance(error, httpx2.RequestError) or (
-                    status_error is not None
-                    and (
-                        status_error.response.status_code in (408, 429)
-                        or status_error.response.status_code >= 500
-                    )
-                )
-                if retryable and pending.attempts < conf.getint("workers", "execution_api_retries"):
+                retries = conf.getint("workers", "execution_api_retries")
+                if is_transient_api_error(error) and pending.attempts < retries:
                     pending.next_attempt_time = time.monotonic() + _compute_retry_delay(pending.attempts)
                     self.log.warning("Unable to publish %s; retrying on a later loop", file)
                     del self._pending_publications[file]

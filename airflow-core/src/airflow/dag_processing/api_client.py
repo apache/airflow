@@ -90,6 +90,14 @@ def get_error_reason(error: httpx2.HTTPStatusError) -> str | None:
     return detail.get("reason") if isinstance(detail, dict) else None
 
 
+def is_transient_api_error(error: BaseException) -> bool:
+    """Whether resending a failed Execution API request may succeed: no response, or 408, 429 or 5xx."""
+    if isinstance(error, httpx2.HTTPStatusError):
+        status_code = error.response.status_code
+        return status_code in (408, 429) or status_code >= 500
+    return isinstance(error, httpx2.RequestError)
+
+
 def _is_retryable_at_once(error: BaseException) -> bool:
     """Whether the Task SDK would retry the failure, unless it timed out, which a resend at once would repeat."""
     if isinstance(error, httpx2.HTTPStatusError):
@@ -204,11 +212,7 @@ class DagProcessorAPIClient(Client):
             try:
                 self._exchange_parse_token(context, retry=False, timeout=self._get_bounded_timeout())
             except (httpx2.HTTPError, ValueError) as error:
-                if (
-                    isinstance(error, httpx2.HTTPStatusError)
-                    and error.response.status_code < 500
-                    and error.response.status_code not in (408, 429)
-                ):
+                if isinstance(error, httpx2.HTTPStatusError) and not is_transient_api_error(error):
                     raise
                 context.renew_at = monotonic() + 30
                 log.warning(

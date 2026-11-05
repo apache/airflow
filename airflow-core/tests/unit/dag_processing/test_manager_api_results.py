@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import signal
 import time
 from pathlib import Path
 from unittest import mock
@@ -25,9 +24,8 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.dag_processing.api_client import DagProcessorAPIClient
-from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager, DagFileStat
+from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
-from airflow.sdk import timezone
 
 
 @pytest.mark.parametrize("outcome", ["parsed", "callback", "failed", "stale", "stale_failure"])
@@ -38,7 +36,6 @@ def test_api_result_collection_does_not_create_database_session(
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client)
-    time_machine.shift(manager.stale_dag_threshold + 1)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=tmp_path)
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
     processor.id = uuid7()
@@ -73,41 +70,3 @@ def test_api_result_collection_does_not_create_database_session(
         client.publish_parse_result.assert_not_called()
     assert list(manager._file_queue) == ([file] if source_changed else [])
     assert manager._file_stats[file].run_count == (0 if outcome == "callback" or source_changed else 1)
-
-
-@pytest.mark.parametrize("outcome", ["parsed", "no_result", "timeout"])
-@mock.patch("airflow.dag_processing.manager.time", autospec=True)
-def test_parse_with_a_failed_api_request_is_reported_as_an_unavailable_result(clock, time_machine, outcome):
-    time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
-    clock.monotonic.return_value = 100.0
-    client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
-    file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"))
-    manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=timezone.utcnow())
-    processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
-    processor.id = uuid7()
-    processor.pid = 123
-    processor.dispatch_sequence = 1
-    processor.start_time = 89 if outcome == "timeout" else 99
-    processor.is_ready = True
-    processor.had_callbacks = False
-    processor.api_request_error = "GetVariable (HTTP 503)"
-    processor.parse_source = DagParseSource(bundle_revision=uuid7())
-    processor.parsing_result = (
-        DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "parsed" else None
-    )
-    manager._processors[file] = processor
-
-    if outcome == "timeout":
-        manager._kill_timed_out_processors()
-        processor.kill.assert_called_once_with(signal.SIGKILL)
-    else:
-        manager._collect_results()
-
-    processor.close.assert_called_once_with()
-    body = manager._pending_publications[file].body
-    assert body.serialized_dags == []
-    assert body.result_unavailable
-    assert (
-        "an Execution API request failed while parsing: GetVariable (HTTP 503)" in body.import_errors["a.py"]
-    )

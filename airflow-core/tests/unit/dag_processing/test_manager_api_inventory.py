@@ -226,6 +226,12 @@ def test_failed_listing_retries_with_backoff_and_resets_after_success(find_files
     known_files: dict[str, set[DagFileInfo]] = {bundle.name: set()}
     find_files.side_effect = OSError("Listing failed")
 
+    def refresh():
+        # A refresh takes time, as a git fetch would, so the listing fails after the check started.
+        clock.monotonic.return_value += 1
+
+    bundle.refresh.side_effect = refresh
+
     def refresh_at(now):
         clock.monotonic.return_value = now
         manager._refresh_dag_bundles(known_files)

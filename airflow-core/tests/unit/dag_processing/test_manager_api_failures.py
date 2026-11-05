@@ -39,7 +39,7 @@ from airflow.dag_processing.manager import (
     DagFileStat,
     PendingDagPublication,
 )
-from airflow.dag_processing.processor import DagFileProcessorProcess, DagParseSource
+from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
 from airflow.jobs.job import Job, JobState
 from airflow.models.dag import DagModel
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
@@ -217,7 +217,6 @@ def test_failed_parse_with_unrepresentable_diagnostic_does_not_stop_other_files(
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.get_bundles.return_value = []
     manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
-    time_machine.shift(manager.stale_dag_threshold + 1)
     long_file, short_file = [
         DagFileInfo(bundle_name="testing", rel_path=Path(path))
         for path in ("directory/" * 110 + "a.py", "b.py")
@@ -283,9 +282,23 @@ def test_only_the_parsing_loop_retries_without_waiting(before_run, run_parsing_l
     assert retries_at_once == [False, True, False]
 
 
-@pytest.mark.parametrize("outcome", ["no_result", "timeout"])
+_API_REQUEST_FAILURE = "an Execution API request failed while parsing: GetVariable (HTTP 503)"
+
+
+@pytest.mark.parametrize(
+    ("outcome", "api_request_error", "reason"),
+    [
+        ("no_result", None, "the parsing process exited without a result"),
+        ("timeout", None, "the parsing process exceeded its timeout of 10 seconds"),
+        ("parsed", "GetVariable (HTTP 503)", _API_REQUEST_FAILURE),
+        ("no_result", "GetVariable (HTTP 503)", _API_REQUEST_FAILURE),
+        ("timeout", "GetVariable (HTTP 503)", _API_REQUEST_FAILURE),
+    ],
+)
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
-def test_failed_parse_is_reported_at_once_as_an_unavailable_result(clock, time_machine, outcome):
+def test_failed_parse_is_reported_at_once_as_an_unavailable_result(
+    clock, time_machine, outcome, api_request_error, reason
+):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
@@ -299,18 +312,23 @@ def test_failed_parse_is_reported_at_once_as_an_unavailable_result(clock, time_m
     processor.start_time = 89 if outcome == "timeout" else 99
     processor.is_ready = True
     processor.had_callbacks = False
-    processor.api_request_error = None
-    processor.parsing_result = None
+    processor.api_request_error = api_request_error
+    processor.parsing_result = (
+        DagFileParsingResult(fileloc="a.py", serialized_dags=[]) if outcome == "parsed" else None
+    )
     processor.parse_source = DagParseSource()
     manager._processors[file] = processor
 
     if outcome == "timeout":
         manager._kill_timed_out_processors()
+        processor.kill.assert_called_once_with(signal.SIGKILL)
     else:
         manager._collect_results()
 
+    processor.close.assert_called_once_with()
     body = manager._pending_publications[file].body
-    assert body.import_errors == {"a.py": mock.ANY}
+    assert body.serialized_dags == []
+    assert body.import_errors == {"a.py": f"The parsing result was not published: {reason}."}
     assert body.result_unavailable
 
 

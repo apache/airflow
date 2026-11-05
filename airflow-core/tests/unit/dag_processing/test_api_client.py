@@ -134,6 +134,39 @@ def test_unread_non_json_error_body_is_a_plain_status_error(make_client):
         client.register_job(retry=False)
 
 
+@pytest.mark.parametrize(
+    ("status_code", "transient"),
+    [
+        (400, False),
+        (404, False),
+        (409, False),
+        (413, False),
+        (408, True),
+        (429, True),
+        (500, True),
+        (503, True),
+    ],
+)
+def test_only_408_429_and_5xx_responses_are_transient(status_code, transient):
+    request = httpx2.Request("POST", "http://api/jobs/1/parse-results")
+    error = httpx2.HTTPStatusError(
+        "Failed", request=request, response=httpx2.Response(status_code, request=request)
+    )
+    assert api_client.is_transient_api_error(error) is transient
+
+
+@pytest.mark.parametrize(
+    ("error", "transient"),
+    [
+        (httpx2.ConnectError("Refused"), True),
+        (httpx2.ReadTimeout("Timed out"), True),
+        (ValueError("Bad"), False),
+    ],
+)
+def test_request_errors_without_a_response_are_transient(error, transient):
+    assert api_client.is_transient_api_error(error) is transient
+
+
 def test_registration_identity_survives_response_loss_but_not_a_process_restart(
     make_client, make_registration_response
 ):
