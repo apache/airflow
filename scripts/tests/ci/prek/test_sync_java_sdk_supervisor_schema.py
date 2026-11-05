@@ -108,7 +108,7 @@ def test_an_older_pin_with_a_different_vendored_version_is_reported(repo):
     assert report == (
         f"java-sdk/sdk/schema/schema.json is api_version='{VERSION}' but "
         "java-sdk/gradle.properties pins '2026-10-30'.\n"
-        "Run ./gradlew -p java-sdk :sdk:syncSupervisorSchema to download the pinned schema."
+        "Restore the vendored schema for that version from git history, or move the pin."
     )
     assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
 
