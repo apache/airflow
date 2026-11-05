@@ -484,11 +484,10 @@ class AzureContainerInstancesOperator(BaseOperator):
         try:
             if self.xcom_all is not None:
                 if logs is None:
-                    context["ti"].xcom_push(key="logs", value=[])
-                elif self.xcom_all:
-                    context["ti"].xcom_push(key="logs", value=logs)
-                else:
-                    context["ti"].xcom_push(key="logs", value=logs[-1:])
+                    # The first fetch failed; fetch again so the error fails the task
+                    # instead of pushing empty logs to XCom.
+                    logs = self.hook.get_logs(self.resource_group, self.name)
+                context["ti"].xcom_push(key="logs", value=logs if self.xcom_all else logs[-1:])
 
             self.log.info("Container had exit code: %s", exit_code)
             return exit_code

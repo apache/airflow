@@ -875,7 +875,7 @@ class TestACIOperator:
         "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
         autospec=True,
     )
-    def test_execute_complete_log_fetch_failure_keeps_container_error(self, aci_mock):
+    def test_execute_complete_log_fetch_failure_keeps_container_error(self, aci_mock, caplog):
         """A failure while fetching logs does not replace the container's own error."""
         aci_mock.return_value.get_logs.side_effect = Exception("cannot read logs")
 
@@ -890,7 +890,7 @@ class TestACIOperator:
             deferrable=True,
             remove_on_error=False,
         )
-        with pytest.raises(RuntimeError, match="Container group failed"):
+        with caplog.at_level("WARNING"), pytest.raises(RuntimeError, match="Container group failed"):
             aci.execute_complete(
                 context=None,
                 event={
@@ -902,6 +902,45 @@ class TestACIOperator:
                     "name": "container-name",
                 },
             )
+
+        assert "Failed to fetch logs for container group resource-group/container-name" in caplog.text
+
+    @pytest.mark.parametrize("xcom_all", [True, False])
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
+        autospec=True,
+    )
+    def test_execute_complete_success_log_fetch_failure_fails_task_when_xcom_needs_logs(
+        self, aci_mock, xcom_all
+    ):
+        """On success, if XCom needs the logs and they cannot be read, the task fails instead of pushing []."""
+        aci_mock.return_value.get_logs.side_effect = Exception("cannot read logs")
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id="azure_default",
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            deferrable=True,
+            xcom_all=xcom_all,
+        )
+        context = Context(ti=XcomMock())
+        with pytest.raises(Exception, match="cannot read logs"):
+            aci.execute_complete(
+                context=context,
+                event={
+                    "status": "success",
+                    "exit_code": 0,
+                    "detail_status": "Completed",
+                    "resource_group": "resource-group",
+                    "name": "container-name",
+                },
+            )
+
+        assert "logs" not in context["ti"].values
 
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook",
