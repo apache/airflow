@@ -83,8 +83,8 @@ server, not from a worker:
 - ``airflow dags list-import-errors`` shows Dags the *Dag processor* failed to parse. A Dag
   that fails to parse is a Dag-processor problem, not a scheduler problem, in Airflow 3.
 - ``airflow db check`` confirms the metadata database is reachable from the host you run it on.
-  Only the scheduler, Dag processor, and API server connect to the metadata database. Workers
-  talk to the API server at
+  Only the scheduler, Dag processor, triggerer, and API server connect to the metadata database.
+  Workers talk to the API server at
   :ref:`core.execution_api_server_url <config:core__execution_api_server_url>` instead, so for a
   worker, check that it can reach that URL (for example,
   ``curl http://<api-server>:8080/execution/health`` should return ``{"status": "healthy"}``).
