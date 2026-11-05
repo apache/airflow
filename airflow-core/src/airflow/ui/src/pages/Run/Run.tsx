@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiPhoneCall } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
@@ -24,7 +23,7 @@ import { useParams } from "react-router-dom";
 
 import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
 
@@ -80,21 +79,19 @@ export const Run = () => {
   const shownError = useStickyError(error, dagRun !== undefined, `${dagId}/${runId}`);
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
-        {/* The failure is read through useStickyError: a refetch of a run that never loaded clears
-          the error and reports itself as pending again, so the raw error would drop the header
-          back to the skeleton every time anything on the page refetches this run. */}
-        {dagRun === undefined ? (
-          Boolean(shownError) ? (
-            <HeaderError error={shownError} runId={runId} />
-          ) : (
-            <HeaderCardSkeleton stats={RUN_STAT_SKELETON} type="dagRun" />
-          )
+    <DetailsPanel tabs={tabs}>
+      {/* The failure is read through useStickyError: a refetch of a run that never loaded clears
+        the error and reports itself as pending again, so the raw error would drop the header
+        back to the skeleton every time anything on the page refetches this run. */}
+      {dagRun === undefined ? (
+        Boolean(shownError) ? (
+          <HeaderError error={shownError} runId={runId} />
         ) : (
-          <Header dagRun={dagRun} error={shownError} />
-        )}
-      </DetailsLayout>
-    </ReactFlowProvider>
+          <HeaderCardSkeleton stats={RUN_STAT_SKELETON} type="dagRun" />
+        )
+      ) : (
+        <Header dagRun={dagRun} error={shownError} />
+      )}
+    </DetailsPanel>
   );
 };

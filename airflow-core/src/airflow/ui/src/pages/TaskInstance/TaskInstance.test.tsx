@@ -52,15 +52,10 @@ vi.mock("../HITLTaskInstances/HITLResponseForm", () => ({
     <div>{hitlDetail.subject}</div>
   ),
 }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({
-    children,
-    error,
-    tabs,
-  }: PropsWithChildren<{ readonly error?: unknown; readonly tabs: Array<NavTab> }>) => (
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({ children, tabs }: PropsWithChildren<{ readonly tabs: Array<NavTab> }>) => (
     <>
       {children}
-      {error === null || error === undefined ? undefined : <div data-testid="chip-error" />}
       <NavTabs tabs={tabs} />
       <Outlet />
     </>
@@ -210,9 +205,8 @@ describe("TaskInstance", () => {
     expect(screen.queryByRole("link", { name: "tabs.xcom" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "tabs.logs" })).toBeVisible();
     expect(screen.getByRole("link", { name: "tabs.details" })).toBeVisible();
-    // The exact-try fallback reports no error, so neither the header nor the Dag chip shows one.
+    // The exact-try fallback reports no error, so the header shows none.
     expect(screen.queryByTestId("header-error")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("chip-error")).not.toBeInTheDocument();
   });
   it("says why the task instance could not be loaded instead of calling it missing", async () => {
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiUser } from "react-icons/fi";
 import { LuChartColumn } from "react-icons/lu";
@@ -25,7 +24,7 @@ import { useParams } from "react-router-dom";
 
 import { useTaskServiceGetTask } from "openapi/queries";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
 
@@ -85,20 +84,18 @@ export const Task = () => {
   const shownError = useStickyError(error, task !== undefined, `${dagId}/${taskId ?? ""}`);
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout tabs={displayTabs}>
-        {/* A group has no task to fetch, so neither the skeleton nor the error applies to one.
-          The failure is tested first and read through useStickyError, because a refetch of a task
-          that never loaded clears the error and reports itself as pending again. */}
-        {groupId === undefined && task === undefined && Boolean(shownError) ? (
-          <HeaderError error={shownError} taskId={taskId ?? ""} />
-        ) : undefined}
-        {groupId === undefined && task === undefined && !Boolean(shownError) && isLoading ? (
-          <HeaderCardSkeleton stats={TASK_STAT_SKELETON} type="task" />
-        ) : undefined}
-        {task === undefined ? undefined : <Header error={shownError} task={task} />}
-        {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel tabs={displayTabs}>
+      {/* A group has no task to fetch, so neither the skeleton nor the error applies to one.
+        The failure is tested first and read through useStickyError, because a refetch of a task
+        that never loaded clears the error and reports itself as pending again. */}
+      {groupId === undefined && task === undefined && Boolean(shownError) ? (
+        <HeaderError error={shownError} taskId={taskId ?? ""} />
+      ) : undefined}
+      {groupId === undefined && task === undefined && !Boolean(shownError) && isLoading ? (
+        <HeaderCardSkeleton stats={TASK_STAT_SKELETON} type="task" />
+      ) : undefined}
+      {task === undefined ? undefined : <Header error={shownError} task={task} />}
+      {groupTask ? <GroupTaskHeader docMd={groupTask.doc_md} title={groupTask.label} /> : undefined}
+    </DetailsPanel>
   );
 };

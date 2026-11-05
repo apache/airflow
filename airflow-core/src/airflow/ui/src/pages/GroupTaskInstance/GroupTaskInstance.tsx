@@ -16,12 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { MdLoop, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { useIsLoopGroup } from "src/queries/useIsLoopGroup";
@@ -48,10 +47,8 @@ export const GroupTaskInstance = () => {
   ];
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout tabs={tabs}>
-        {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
-      </DetailsLayout>
-    </ReactFlowProvider>
+    <DetailsPanel tabs={tabs}>
+      {taskInstance === undefined ? undefined : <Header taskInstance={taskInstance} />}
+    </DetailsPanel>
   );
 };

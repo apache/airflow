@@ -48,6 +48,7 @@ const loadAssetsList = lazyRoute(() => import("src/pages/AssetsList"), "AssetsLi
 const loadConfigs = lazyRoute(() => import("src/pages/Configs"), "Configs");
 const loadConnections = lazyRoute(() => import("src/pages/Connections"), "Connections");
 const loadDag = lazyRoute(() => import("src/pages/Dag"), "Dag");
+const loadDagDetailsRoute = lazyRoute(() => import("src/layouts/Details/DagDetailsRoute"), "DagDetailsRoute");
 const loadBackfills = lazyRoute(() => import("src/pages/Dag/Backfills"), "Backfills");
 const loadCalendar = lazyRoute(() => import("src/pages/Dag/Calendar/Calendar"), "Calendar");
 const loadCode = lazyRoute(() => import("src/pages/Dag/Code"), "Code");
@@ -260,103 +261,111 @@ export const routerConfig = [
       },
       pluginRoute,
       {
+        // One mount of the Dag detail screen for every level below it: the Grid, its scroll
+        // position and the panel sizes belong to this route, so clicking from a run to a task
+        // instance swaps only what the level's own route renders into the outlet.
         children: [
-          { handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true, lazy: loadOverview },
-          { handle: { entity: TabEntity.Dag, tab: TabName.Runs }, lazy: loadDagRuns, path: "runs" },
-          { handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, lazy: loadTasks, path: "tasks" },
           {
-            handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
-            lazy: loadCalendar,
-            path: "calendar",
+            children: [
+              { handle: { entity: TabEntity.Dag, tab: TabName.Overview }, index: true, lazy: loadOverview },
+              { handle: { entity: TabEntity.Dag, tab: TabName.Runs }, lazy: loadDagRuns, path: "runs" },
+              { handle: { entity: TabEntity.Dag, tab: TabName.Tasks }, lazy: loadTasks, path: "tasks" },
+              {
+                handle: { entity: TabEntity.Dag, tab: TabName.Calendar },
+                lazy: loadCalendar,
+                path: "calendar",
+              },
+              // The Required Actions tab is now a button + modal; this keeps old /required_actions
+              // deep links alive by rendering the overview, where the route sync opens the modal.
+              { lazy: loadOverview, path: "required_actions" },
+              {
+                handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
+                lazy: loadBackfills,
+                path: "backfills",
+              },
+              { lazy: loadBackfills, path: "backfills/:backfillId" },
+              { handle: { entity: TabEntity.Dag, tab: TabName.Events }, lazy: loadEvents, path: "events" },
+              { handle: { entity: TabEntity.Dag, tab: TabName.Code }, lazy: loadCode, path: "code" },
+              {
+                handle: { entity: TabEntity.Dag, tab: TabName.Versions },
+                lazy: loadVersions,
+                path: "versions",
+              },
+              {
+                handle: { entity: TabEntity.Dag, tab: TabName.Details },
+                lazy: loadDagDetails,
+                path: "details",
+              },
+              pluginRoute,
+            ],
+            lazy: loadDag,
           },
-          // The Required Actions tab is now a button + modal; this keeps old /required_actions
-          // deep links alive by rendering the overview, where the route sync opens the modal.
-          { lazy: loadOverview, path: "required_actions" },
           {
-            handle: { entity: TabEntity.Dag, tab: TabName.Backfills },
-            lazy: loadBackfills,
-            path: "backfills",
+            children: [
+              { index: true, lazy: loadTaskInstances },
+              // The Required Actions tab is now a button + modal; this keeps old /required_actions
+              // deep links alive by rendering the task instances, where the route sync opens the modal.
+              { lazy: loadTaskInstances, path: "required_actions" },
+              { lazy: loadEvents, path: "events" },
+              { lazy: loadCode, path: "code" },
+              { lazy: loadDagRunDetails, path: "details" },
+              { lazy: loadDagRunAssetEvents, path: "asset_events" },
+              { lazy: loadDagRunCallbacks, path: "callbacks" },
+              pluginRoute,
+            ],
+            lazy: loadRun,
+            path: "runs/:runId",
           },
-          { lazy: loadBackfills, path: "backfills/:backfillId" },
-          { handle: { entity: TabEntity.Dag, tab: TabName.Events }, lazy: loadEvents, path: "events" },
-          { handle: { entity: TabEntity.Dag, tab: TabName.Code }, lazy: loadCode, path: "code" },
           {
-            handle: { entity: TabEntity.Dag, tab: TabName.Versions },
-            lazy: loadVersions,
-            path: "versions",
+            children: taskInstanceRoutes,
+            lazy: loadTaskInstance,
+            path: "runs/:runId/tasks/:taskId",
           },
           {
-            handle: { entity: TabEntity.Dag, tab: TabName.Details },
-            lazy: loadDagDetails,
-            path: "details",
+            children: [
+              { index: true, lazy: loadTaskInstances },
+              { lazy: loadMappedTaskInstanceDetails, path: "details" },
+            ],
+            lazy: loadMappedTaskInstance,
+            path: "runs/:runId/tasks/:taskId/mapped",
           },
-          pluginRoute,
+          {
+            children: [
+              { index: true, lazy: loadGroupTaskInstances },
+              { lazy: loadLoopIterations, path: "iterations" },
+            ],
+            lazy: loadGroupTaskInstance,
+            path: "runs/:runId/tasks/group/:groupId",
+          },
+          {
+            children: [
+              { index: true, lazy: loadTaskOverview },
+              { lazy: loadTaskInstances, path: "task_instances" },
+              { lazy: loadHITLTaskInstances, path: "required_actions" },
+              pluginRoute,
+            ],
+            lazy: loadTask,
+            path: "tasks/group/:groupId",
+          },
+          {
+            children: taskInstanceRoutes,
+            lazy: loadTaskInstance,
+            path: "runs/:runId/tasks/:taskId/mapped/:mapIndex",
+          },
+          {
+            children: [
+              { index: true, lazy: loadTaskOverview },
+              { lazy: loadTaskInstances, path: "task_instances" },
+              { lazy: loadHITLTaskInstances, path: "required_actions" },
+              { lazy: loadEvents, path: "events" },
+              pluginRoute,
+            ],
+            lazy: loadTask,
+            path: "tasks/:taskId",
+          },
         ],
-        lazy: loadDag,
+        lazy: loadDagDetailsRoute,
         path: "dags/:dagId",
-      },
-      {
-        children: [
-          { index: true, lazy: loadTaskInstances },
-          // The Required Actions tab is now a button + modal; this keeps old /required_actions
-          // deep links alive by rendering the task instances, where the route sync opens the modal.
-          { lazy: loadTaskInstances, path: "required_actions" },
-          { lazy: loadEvents, path: "events" },
-          { lazy: loadCode, path: "code" },
-          { lazy: loadDagRunDetails, path: "details" },
-          { lazy: loadDagRunAssetEvents, path: "asset_events" },
-          { lazy: loadDagRunCallbacks, path: "callbacks" },
-          pluginRoute,
-        ],
-        lazy: loadRun,
-        path: "dags/:dagId/runs/:runId",
-      },
-      {
-        children: taskInstanceRoutes,
-        lazy: loadTaskInstance,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId",
-      },
-      {
-        children: [
-          { index: true, lazy: loadTaskInstances },
-          { lazy: loadMappedTaskInstanceDetails, path: "details" },
-        ],
-        lazy: loadMappedTaskInstance,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped",
-      },
-      {
-        children: [
-          { index: true, lazy: loadGroupTaskInstances },
-          { lazy: loadLoopIterations, path: "iterations" },
-        ],
-        lazy: loadGroupTaskInstance,
-        path: "dags/:dagId/runs/:runId/tasks/group/:groupId",
-      },
-      {
-        children: [
-          { index: true, lazy: loadTaskOverview },
-          { lazy: loadTaskInstances, path: "task_instances" },
-          { lazy: loadHITLTaskInstances, path: "required_actions" },
-          pluginRoute,
-        ],
-        lazy: loadTask,
-        path: "dags/:dagId/tasks/group/:groupId",
-      },
-      {
-        children: taskInstanceRoutes,
-        lazy: loadTaskInstance,
-        path: "dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
-      },
-      {
-        children: [
-          { index: true, lazy: loadTaskOverview },
-          { lazy: loadTaskInstances, path: "task_instances" },
-          { lazy: loadHITLTaskInstances, path: "required_actions" },
-          { lazy: loadEvents, path: "events" },
-          pluginRoute,
-        ],
-        lazy: loadTask,
-        path: "dags/:dagId/tasks/:taskId",
       },
       {
         element: <ErrorPage />,
