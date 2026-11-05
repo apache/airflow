@@ -1,7 +1,1 @@
-Hash only the config data in the ``checksum/*`` pod annotations
-
-The annotations hashed each rendered ConfigMap and Secret in full, including its
-``metadata.labels``. Those carry ``helm.sh/chart``, which changes on every chart
-version bump, so the checksums moved and every component was restarted on an
-upgrade even when its configuration was unchanged. They now hash only ``data``
-and ``stringData``, so a restart means the configuration actually changed.
+Hash only ``data`` and ``stringData`` in the ``checksum/*`` pod annotations, instead of each rendered ConfigMap and Secret in full, so that ``helm.sh/chart`` in their labels no longer moves the checksums and restarts every component on a chart version bump whose configuration is unchanged
