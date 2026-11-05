@@ -50,28 +50,15 @@ Use :class:`~airflow.providers.databricks.operators.warehouse.DatabricksEditWare
 to change the configuration of an existing warehouse. Pass its ``warehouse_id`` and a non-empty
 ``json`` dictionary containing the request body for the
 `SQL Warehouses edit API <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
-For example, you can set ``cluster_size``, ``min_num_clusters``, ``max_num_clusters``,
-``auto_stop_mins``, or ``tags``. Databricks validates the settings and their supported combinations.
-Both ``warehouse_id`` and ``json`` are required and have no defaults. Requiring a non-empty
-dictionary is an operator validation; it is not an additional requirement documented by Databricks.
-The operator does not add defaults for fields omitted from the request body.
+For example, you can set ``cluster_size``, ``auto_stop_mins``, or ``tags``.
 
-``databricks_conn_id`` defaults to ``databricks_default``. The default retry strategy makes up to
-``databricks_retry_limit=3`` attempts, including the initial request, with exponential backoff.
-``databricks_retry_delay=1`` sets the minimum wait in seconds; the maximum is
-``2 ** databricks_retry_limit`` seconds. ``databricks_retry_args`` defaults to ``None``; a non-empty
-dictionary replaces the default stop and wait configuration with custom Tenacity settings, while
-the hook retains its retryable-error predicate and error-logging callback.
-
-The connection ID, warehouse ID, and nested ``json`` values support templating. Values are sent
-without conversion, including ``False`` and ``0``. For numeric or boolean Jinja expressions,
+The connection ID, warehouse ID, and nested ``json`` values support templating.
+For numeric or boolean Jinja expressions,
 set ``render_template_as_native_obj=True`` on the Dag.
 
-The hook discards the API's empty response object. The task returns ``None`` after the edit request
-succeeds and does not produce a ``return_value`` XCom, even with ``do_xcom_push=True``. Pass the
-warehouse ID directly to downstream tasks instead of using this task's ``output``.
-It does not wait for compute changes
-to finish or for the warehouse to reach ``RUNNING``. If the workflow needs a running warehouse,
+The task returns ``None`` without a ``return_value`` XCom, so pass the warehouse ID directly to
+downstream tasks. It completes when the edit request succeeds, without waiting for compute changes
+to finish. If the workflow needs a running warehouse,
 chain a :class:`~airflow.providers.databricks.operators.warehouse.DatabricksStartWarehouseOperator`
 after the edit task. Reaching ``RUNNING`` checks availability; it does not verify that all requested
 configuration changes have finished applying.
