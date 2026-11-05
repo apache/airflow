@@ -664,7 +664,7 @@ class SSHHookAsync(BaseHook):
             )
         if "private_key" in extra_options:
             self.private_key = extra_options["private_key"]
-        if str(extra_options.get("compress", "true")).lower() == "false":
+        if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
             self.compress = False
 
         host_key = extra_options.get("host_key")
