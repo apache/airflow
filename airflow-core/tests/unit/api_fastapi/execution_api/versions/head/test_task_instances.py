@@ -821,6 +821,49 @@ class TestTIRunState:
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
 
+    def test_ti_run_consumed_asset_events_eager_loaded(self, client, session, create_task_instance):
+        """Verify that consumed asset events and their asset and source_aliases relations are eager-loaded."""
+        ti = create_task_instance(
+            task_id="test_consumed_asset_events_eager_loaded",
+            state=State.QUEUED,
+            session=session,
+        )
+        asset = AssetModel(name="test_asset", uri="s3://bucket/test_asset", group="asset", extra={})
+        alias = AssetAliasModel(name="test_alias", group="asset")
+        session.add_all([asset, AssetActive.for_asset(asset), alias])
+        session.flush()
+
+        asset_event = AssetEvent(
+            asset_id=asset.id,
+            source_dag_id="src",
+            source_run_id="r1",
+            partition_key="2024-01-15",
+        )
+        asset_event.source_aliases.append(alias)
+        session.add(asset_event)
+        session.flush()
+
+        ti.dag_run.consumed_asset_events.append(asset_event)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/run",
+            json={
+                "state": "running",
+                "hostname": "h",
+                "unixname": "u",
+                "pid": 1,
+                "start_date": "2024-09-30T12:00:00Z",
+            },
+        )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert len(events) == 1
+        assert events[0]["asset"]["name"] == "test_asset"
+        assert events[0]["asset"]["uri"] == "s3://bucket/test_asset"
+        assert [a["name"] for a in events[0]["source_aliases"]] == ["test_alias"]
+
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
         ti = create_task_instance(
