@@ -1151,11 +1151,14 @@ def fetch_open_pull_requests(
             f"pr{index}: pullRequest(number: {number}) {{ state ...PassTwoFields }}"
             for index, number in enumerate(batch)
         )
-        result = client.graphql(
-            PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
-            {"owner": owner, "name": name},
-            allow_partial=True,
-        )["repository"]
+        result = (
+            client.graphql(
+                PULL_REQUESTS_BY_NUMBER_QUERY % {"pull_requests": pull_requests, **PASS_TWO_CONTEXTS},
+                {"owner": owner, "name": name},
+                allow_partial=True,
+            )["repository"]
+            or {}
+        )
         nodes.extend(node for node in result.values() if node and node["state"] == "OPEN")
     return nodes
 

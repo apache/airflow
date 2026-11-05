@@ -3284,6 +3284,7 @@ def _rest_get_for_pull_request_1(path, paginate=False, items_key=None):
             [], {"repository": {"pr0": {**_pr_node(1), "state": "CLOSED"}}}, [], id="closed-since-labelled"
         ),
         pytest.param([], {"repository": {"pr0": None}}, [], id="deleted-since-labelled"),
+        pytest.param([], {"repository": None}, [], id="repository-not-resolved"),
     ],
 )
 def test_run_reconcile_reconciles_pull_requests_labelled_in_the_same_run(
