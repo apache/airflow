@@ -514,6 +514,18 @@ class TestGetDeadlines:
             assert teams_by_dag == {DAG_ID: expected_team_name, DAG_ID_2: None}
 
     @conf_vars({("core", "multi_team"): "True"})
+    def test_should_not_query_on_event_loop(self, test_client, session, event_loop_queries):
+        """Nothing is queried while the response is serialized on the event loop."""
+        with attach_dag_to_team(
+            session, DAG_ID, bundle_name="team-bundle-deadline-loop", team_name="team-deadline-loop"
+        ):
+            response = test_client.get("/dags/~/dagRuns/~/deadlines")
+            assert response.status_code == 200
+            teams_by_dag = {dl["dag_id"]: dl["team_name"] for dl in response.json()["deadlines"]}
+            assert teams_by_dag == {DAG_ID: "team-deadline-loop", DAG_ID_2: None}
+        assert event_loop_queries == []
+
+    @conf_vars({("core", "multi_team"): "True"})
     def test_filter_by_team(self, test_client, session):
         with attach_dag_to_team(
             session, DAG_ID, bundle_name="team-bundle-deadline-filter", team_name="team-deadline-filter"
