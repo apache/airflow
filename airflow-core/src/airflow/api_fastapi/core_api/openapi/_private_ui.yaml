@@ -631,6 +631,39 @@ paths:
       security:
       - OAuth2PasswordBearer: []
       - HTTPBearer: []
+  /ui/dagBundles/count:
+    get:
+      tags:
+      - Dag Bundle
+      summary: Get Dag Bundle Count
+      description: 'Count the Dag bundles holding a Dag or an import error the caller
+        may read.
+
+
+        Readable by anyone who can read Dags, unlike ``GET /dagBundles``, so the UI
+        can tell whether a
+
+        bundle name is worth showing next to an import error. Stale Dags count, and
+        so do import errors
+
+        in files that never registered a Dag, which ``GET /importErrors`` shows to
+        holders of
+
+        ``AccessView.IMPORT_ERRORS_ALL``: a bundle whose files all fail to import
+        is where the name
+
+        matters most.'
+      operationId: get_dag_bundle_count
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagBundleCountResponse'
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
   /ui/dags:
     get:
       tags:
@@ -1456,7 +1489,8 @@ paths:
       tags:
       - Deadlines
       summary: Get Dag Deadline Alerts
-      description: Get all deadline alerts defined on a Dag.
+      description: Get deadline alerts defined on a Dag, optionally filtered by name
+        pattern.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -1484,6 +1518,20 @@ paths:
           minimum: 0
           default: 50
           title: Limit
+      - name: name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+            \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+            \ parameters\"."
+          title: Name Pattern
+        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          \ `name_prefix_pattern` on large tables \u2014 see \"Filtering with pattern\
+          \ parameters\"."
       - name: offset
         in: query
         required: false
@@ -3153,15 +3201,21 @@ components:
         trigger_id:
           type: integer
           title: Trigger Id
+          description: The watcher's trigger; `GET /triggers/{trigger_id}` has its
+            state.
         created_date:
           type: string
           format: date-time
           title: Created Date
+        status:
+          $ref: '#/components/schemas/TriggerStatus'
+          description: Status of the watcher's trigger, as in `GET /triggers`.
       type: object
       required:
       - name
       - trigger_id
       - created_date
+      - status
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
     AuthenticatedMeResponse:
@@ -3951,6 +4005,17 @@ components:
       - state_count_limit
       title: DAGsRunStateCountsCollectionResponse
       description: Collection of per-Dag DagRun-state counts for the Dag list page.
+    DagBundleCountResponse:
+      properties:
+        total_entries:
+          type: integer
+          title: Total Entries
+      type: object
+      required:
+      - total_entries
+      title: DagBundleCountResponse
+      description: Number of Dag bundles holding a Dag or an import error the caller
+        may read.
     DagFolderCollectionResponse:
       properties:
         folders:
@@ -5065,6 +5130,12 @@ components:
           - type: integer
           - type: 'null'
           title: Latest Region Index
+        retry_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Retry At
       type: object
       required:
       - task_id
@@ -6001,6 +6072,14 @@ components:
             recorded by a retry policy. May describe a previous attempt: a task waiting
             to be retried still carries the reason its last attempt ended. It is cleared
             when the task is cleared and when the next attempt is scheduled or deferred.'
+        retry_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Retry At
+          description: When a task instance waiting to be retried becomes due. Only
+            set in the up_for_retry state.
       type: object
       required:
       - id
@@ -6346,6 +6425,16 @@ components:
       - triggerer_id
       title: TriggerResponse
       description: Trigger serializer for responses.
+    TriggerStatus:
+      type: string
+      enum:
+      - pending
+      - running
+      - failing
+      - orphaned
+      title: TriggerStatus
+      description: How a trigger is doing, worked out the same way for every kind
+        from its row and its triggerer's heartbeat.
     UIAlert:
       properties:
         text:

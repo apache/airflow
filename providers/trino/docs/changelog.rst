@@ -26,6 +26,9 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``TrinoHook.get_pandas_df`` method has been removed. Use ``get_df(..., df_type="pandas")`` instead.
+
 6.7.1
 .....
 

@@ -116,8 +116,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.42.93``
-``botocore``                                ``>=1.42.93``
+``boto3``                                   ``>=1.43.4``
+``botocore``                                ``>=1.43.4``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
@@ -198,7 +198,7 @@ Extra                 Dependencies
 ``standard``          ``apache-airflow-providers-standard``
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
+``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``, ``duckdb>=1.2.2``
 ``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ======================================================================================================================================================================
 

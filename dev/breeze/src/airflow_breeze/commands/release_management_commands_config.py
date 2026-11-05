@@ -91,6 +91,8 @@ RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
         "verify-rc-by-pmc",
         "check-release-files",
         "mirror-base-images",
+        "build-os-deps-images",
+        "publish-os-deps-images",
     ],
 }
 
@@ -110,6 +112,27 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Mirror flags",
             "options": [
                 "--python",
+            ],
+        }
+    ],
+    "breeze release-management build-os-deps-images": [
+        {
+            "name": "Build flags",
+            "options": [
+                "--python",
+                "--image-type",
+                "--base-image-digests",
+                "--platform",
+            ],
+        }
+    ],
+    "breeze release-management publish-os-deps-images": [
+        {
+            "name": "Publish flags",
+            "options": [
+                "--python",
+                "--image-type",
+                "--base-image-digests",
             ],
         }
     ],
@@ -585,6 +608,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--stable-versions",
                 "--publish-all-docs",
                 "--skip-write-to-stable-folder",
+                "--skip-packages-metadata",
+                "--packages-metadata-only",
             ],
         }
     ],
@@ -607,6 +632,8 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--airflow-constraints-mode",
+                "--constraints-file",
+                "--save-constraints-to",
                 "--github-repository",
                 "--github-token",
             ],

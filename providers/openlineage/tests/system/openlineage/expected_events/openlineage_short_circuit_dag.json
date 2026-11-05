@@ -30,18 +30,6 @@
                     "taskGroups": {},
                     "taskTree": {},
                     "tasks": {
-                        "do_nothing_task": {
-                            "downstream_task_ids": [
-                                "skip_tasks"
-                            ],
-                            "emits_ol_events": "{{ result == true }}",
-                            "is_setup": false,
-                            "is_teardown": false,
-                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
-                            "ui_color": "#ffefeb",
-                            "ui_fgcolor": "#000",
-                            "ui_label": "do_nothing_task"
-                        },
                         "should_be_skipped": {
                             "downstream_task_ids": [
                                 "check_events"
@@ -74,25 +62,39 @@
     {
         "eventType": "START",
         "job": {
-            "name": "openlineage_short_circuit_dag.do_nothing_task"
+            "name": "openlineage_short_circuit_dag.skip_tasks"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     },
     {
         "eventType": "COMPLETE",
         "job": {
-            "name": "openlineage_short_circuit_dag.do_nothing_task"
-        }
-    },
-    {
-        "eventType": "START",
-        "job": {
             "name": "openlineage_short_circuit_dag.skip_tasks"
-        }
-    },
-    {
-        "eventType": "COMPLETE",
-        "job": {
-            "name": "openlineage_short_circuit_dag.skip_tasks"
+        },
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
         }
     }
 ]

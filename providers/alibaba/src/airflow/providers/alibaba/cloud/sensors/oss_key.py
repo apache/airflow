@@ -22,9 +22,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
-from deprecated.classic import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 
@@ -89,12 +86,6 @@ class OSSKeySensor(BaseSensorOperator):
 
         self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)
         return self.hook.object_exists(key=self.bucket_key, bucket_name=self.bucket_name)
-
-    @property
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> OSSHook:
-        """Create and return an OSSHook."""
-        return self.hook
 
     @cached_property
     def hook(self) -> OSSHook:
