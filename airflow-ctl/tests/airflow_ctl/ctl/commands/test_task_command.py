@@ -1030,3 +1030,36 @@ class TestLogs:
                 ),
                 api_client=api_client,
             )
+
+
+@pytest.mark.parametrize(
+    ("command", "argv", "api_method"),
+    [
+        pytest.param(
+            task_command.failed_deps,
+            ["tasks", "failed-deps", "my_dag", "my_task[/x]", "my_run"],
+            "get_dependencies",
+            id="failed-deps",
+        ),
+        pytest.param(
+            task_command.state,
+            ["tasks", "state", "my_dag", "my_task[/x]", "my_run"],
+            "get",
+            id="state",
+        ),
+        pytest.param(
+            task_command.logs,
+            ["tasks", "logs", "my_dag", "my_run", "my_task[/x]", "--try-number", "1"],
+            "logs",
+            id="logs",
+        ),
+    ],
+)
+def test_task_instance_not_found_prints_task_id_containing_markup(command, argv, api_method, capsys):
+    api_client = mock.MagicMock()
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(404)
+
+    with pytest.raises(SystemExit, match="1"):
+        command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
+
+    assert "'my_task[/x]'" in _normalize_rich_output(capsys.readouterr().out)
