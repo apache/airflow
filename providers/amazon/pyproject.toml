@@ -162,7 +162,9 @@ dependencies = [
 # DuckDB support is opt-in: the duckdb wheel is around 20MB and irrelevant to most users of this
 # provider, so it must never become a hard dependency here.
 "duckdb" = [
-    "apache-airflow-providers-duckdb>=0.1.0"
+    "apache-airflow-providers-duckdb>=0.1.0",
+    # AwsDuckDBHook creates its S3 secret with REFRESH 'auto', which needs DuckDB 1.2.2.
+    "duckdb>=1.2.2",
 ]
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54,!=2.1.0",
