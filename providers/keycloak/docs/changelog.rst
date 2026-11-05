@@ -45,10 +45,12 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Keep the Dag bundles menu entry for team roles on Airflow 3.4.0 (#76474)``
 * ``Make refresh_token optional in Keycloak login and token services (#75871)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Clarify Dag bundle permission upgrade notes (#76499)``
    * ``[main] Upgrade important CI environment (#76278)``
    * ``Remove duplicate Keycloak token-binding test (#75882)``
 

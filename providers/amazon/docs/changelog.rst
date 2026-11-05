@@ -53,6 +53,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Refresh expired AWS credentials in AwsDuckDBHook, and require duckdb 1.2.2 for the duckdb extra (#76086)``
 * ``Fix BedrockBatchInferenceSensor sharing success states across tasks (#75265)``
 * ``Skip S3 keys that map to the local sync directory (#74322)``
 * ``Fix SageMaker credential failures being reported as timeouts (#74867)``

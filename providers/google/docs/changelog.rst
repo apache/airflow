@@ -50,6 +50,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Fix Google Cloud connection IdP extra request parameters being ignored (#76161)``
 * ``Enforce execution_timeout in deferrable DataprocSubmitJobOperator (#72030)``
 * ``Normalize empty project id in credential config file branch (#73886)``
 * ``Stop BigQueryStreamingBufferEmptySensor reporting empty too early (#69118)``

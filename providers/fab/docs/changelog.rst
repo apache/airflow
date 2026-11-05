@@ -44,6 +44,7 @@ Features
 Bug Fixes
 ~~~~~~~~~
 
+* ``Keep the Dag bundles menu entry on Dag access on Airflow 3.4.0 (#76474)``
 * ``Use only the configured auth type when creating tokens in the FAB auth manager (#76231)``
 * ``Honor next when an authenticated user reaches the FAB login page (#75665)``
 
@@ -55,6 +56,7 @@ Misc
 Doc-only
 ~~~~~~~~
 
+* ``Document the permissions for GET /api/v2/triggers (#76260)``
 * ``Document the public GET /api/v2/auth/cli/metadata endpoint (#75672)``
 * ``Document the permission for GET /api/v2/providers/{provider_name} (#68854)``
 
