@@ -197,6 +197,11 @@ class BulkPoolService(BulkService[PoolBody]):
         )
 
         try:
+            if Pool.DEFAULT_POOL_NAME in to_delete_pool_names:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Default Pool can't be deleted",
+                )
             if action.action_on_non_existence == BulkActionNotOnExistence.FAIL and not_found_pool_names:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
