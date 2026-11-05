@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk import DAG
+    from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 
     class _SiblingResource(Protocol):
         """A readable handle to a resource, e.g. a :class:`pathlib.Path` or :class:`zipfile.Path`."""
@@ -220,6 +221,7 @@ class DagImportResult:
     errors: list[DagImportError] = field(default_factory=list)
     skipped_definitions: list[DagDefinition] = field(default_factory=list)
     warnings: list[DagImportWarning] = field(default_factory=list)
+    parse_warnings: list[DagParseWarningRecord] = field(default_factory=list)
     dependencies: list[DagDefinition] = field(default_factory=list)
 
     @property

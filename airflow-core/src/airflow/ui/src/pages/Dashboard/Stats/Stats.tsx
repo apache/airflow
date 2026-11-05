@@ -28,6 +28,7 @@ import { StatsCard } from "src/components/StatsCard";
 import { useAutoRefresh } from "src/utils";
 
 import { DagImportErrors } from "./DagImportErrors";
+import { ParseFailureWarnings } from "./ParseFailureWarnings";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -67,6 +68,8 @@ export const Stats = () => {
         />
 
         <DagImportErrors />
+
+        <ParseFailureWarnings />
 
         <PluginImportErrors />
 

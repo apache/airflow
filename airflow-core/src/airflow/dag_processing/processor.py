@@ -134,6 +134,7 @@ class DagFileParsingResult(BaseModel):
     import_errors: dict[str, str] | None = None
     parsed_definitions: list[str] = Field(default_factory=list)
     """Bundle-relative locations of the Dag definitions imported from ``fileloc``."""
+    parse_warnings: list[dict] = Field(default_factory=list)
     dag_source_codes: dict[str, DagSourceCode] = Field(default_factory=dict)
     """Source code of the parsed Dags, keyed by dag_id."""
     type: Literal["DagFileParsingResult"] = "DagFileParsingResult"
@@ -259,12 +260,24 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
     bag.import_errors.update(serialization_import_errors)
-    # Dag warnings reference the dag table, so only Dags that serialized can carry one.
+    # Pool/runtime warnings reference the dag table; parse-failure warnings are stored separately.
     serialized_dag_ids = {dag.dag_id for dag in serialized_dags}
+    parse_warnings = [
+        {
+            "bundle_name": msg.bundle_name,
+            "filename": rel_path,
+            "dag_id": w.dag_id,
+            "warning_type": w.warning_type,
+            "message": w.message,
+        }
+        for rel_path, warnings in bag.parse_warnings.items()
+        for w in warnings
+    ]
     result = DagFileParsingResult(
         fileloc=msg.file,
         serialized_dags=serialized_dags,
         import_errors=bag.import_errors,
+        parse_warnings=parse_warnings,
         warnings=[
             *stability_check_result.get_formatted_warnings(bag.dag_ids),
             *(
