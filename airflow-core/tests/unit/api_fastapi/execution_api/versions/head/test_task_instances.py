@@ -4782,6 +4782,7 @@ class TestTIUpdateState:
         assert ti1.state == State.FAILED
 
     def test_ti_update_state_to_failed_when_fail_fast_raises(self, client, session, dag_maker):
+        """Test that the TI is still marked FAILED and partial fail_fast changes are rolled back."""
         with dag_maker(dag_id="test_dag_fail_fast_raises", fail_fast=True, serialized=True):
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2")
@@ -4790,13 +4791,22 @@ class TestTIUpdateState:
         ti1 = dr.get_task_instance(task_id="task1", session=session)
         ti1.state = State.RUNNING
         ti1.start_date = DEFAULT_START_DATE
+
+        ti2 = dr.get_task_instance(task_id="task2", session=session)
+        ti2.state = State.QUEUED
         session.commit()
+
+        def skip_task2_then_raise(*, task_instance, task_teardown_map, session):
+            sibling = task_instance.dag_run.get_task_instance(task_id="task2", session=session)
+            sibling.state = State.SKIPPED
+            session.flush()
+            raise KeyError("task2")
 
         with mock.patch(
             "airflow.api_fastapi.execution_api.routes.task_instances._stop_remaining_tasks",
             autospec=True,
-            side_effect=KeyError("task2"),
-        ) as mock_stop:
+            side_effect=skip_task2_then_raise,
+        ):
             response = client.patch(
                 f"/execution/task-instances/{ti1.id}/state",
                 json={
@@ -4805,11 +4815,11 @@ class TestTIUpdateState:
                 },
             )
 
-        assert response.status_code == 204
-        assert mock_stop.call_count == 2
+            assert response.status_code == 204
+
         session.expire_all()
-        ti1 = session.get(TaskInstance, ti1.id)
-        assert ti1.state == State.FAILED
+        assert session.get(TaskInstance, ti1.id).state == State.FAILED
+        assert session.get(TaskInstance, ti2.id).state == State.QUEUED
 
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
