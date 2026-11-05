@@ -334,7 +334,7 @@ class TestCallbackHandleRequest:
             client_mock=ClientMock(
                 method_path="xcoms.get",
                 args=("test_dag", "test_run_1", "upstream_task", "return_value", None, False),
-                kwargs={"previous_iteration": False},
+                kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
                 response=XComResponse(key="return_value", value="xcom_payload"),
             ),
         ),
@@ -351,7 +351,7 @@ class TestCallbackHandleRequest:
             client_mock=ClientMock(
                 method_path="xcoms.get",
                 args=("dag_a", "run_42", "task_b", "custom_key", 3, True),
-                kwargs={"previous_iteration": False},
+                kwargs={"previous_iteration": False, "region_id": None, "region_index": None},
                 response=XComResponse(key="custom_key", value={"nested": "data"}),
             ),
         ),
