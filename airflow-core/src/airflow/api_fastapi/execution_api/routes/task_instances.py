@@ -519,14 +519,24 @@ def ti_update_state(
     loop_group = None
     loop_gate = None
     if isinstance(ti_patch_payload, (TISuccessStatePayload, TITerminalStatePayload)):
+        # A language SDK's gate carries its SDK's operator name, so a stub task in a region is checked
+        # against its pinned loop; ti_run already loaded that serialized Dag for the stub's arguments.
         gate_run = session.execute(
-            select(TI.dag_id, TI.run_id).where(
+            select(TI.dag_id, TI.run_id, TI.task_id, TI.dag_version_id, TI.operator).where(
                 TI.id == task_instance_id,
                 TI.working_set.is_(True),
-                TI.operator == LOOP_GATE_OPERATOR,
+                or_(
+                    TI.operator == LOOP_GATE_OPERATOR,
+                    and_(TI.is_stub.is_(True), TI.region_id != SENTINEL_REGION_ID),
+                ),
             )
         ).one_or_none()
-        if gate_run is not None:
+        if gate_run is not None and (
+            gate_run.operator == LOOP_GATE_OPERATOR
+            or TaskCoordinateResolver(dag_bag, session).is_loop_gate(
+                gate_run.dag_version_id, gate_run.task_id
+            )
+        ):
             session.execute(
                 select(DR).where(DR.dag_id == gate_run.dag_id, DR.run_id == gate_run.run_id).with_for_update()
             ).scalar_one()

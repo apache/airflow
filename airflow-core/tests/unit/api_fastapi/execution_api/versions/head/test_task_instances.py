@@ -2913,6 +2913,29 @@ class TestTIUpdateState:
         assert gate.state == State.RUNNING
         assert len(gate.dag_run.get_task_instances(session=session)) == 2
 
+    def test_language_sdk_gate_is_found_by_its_loop(self, client, session, running_loop_gate):
+        """A gate a language SDK emits is a stub task named after that SDK's operator."""
+        gate = running_loop_gate
+        gate.operator, gate.is_stub = "TypeScriptOperator", True
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{gate.id}/state",
+            json={"state": "success", "end_date": DEFAULT_END_DATE.isoformat(), "loop_decision": CONTINUE},
+        )
+
+        assert response.status_code == 204, response.text
+        session.expire_all()
+        assert gate.state == State.SUCCESS
+        assert sorted(
+            (ti.task_id, ti.region_index) for ti in gate.dag_run.get_task_instances(session=session)
+        ) == [
+            (gate.task_id, 1),
+            (gate.task_id, 2),
+            ("body.terminal", 1),
+            ("body.terminal", 2),
+        ]
+
     @pytest.mark.parametrize("state", ["success", "failed"])
     def test_non_loop_operator_named_loop_gate_completes_normally(
         self, client, session, create_task_instance, state

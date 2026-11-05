@@ -4876,6 +4876,30 @@ class TestHandleRequest:
             **{"retry_reason": None, "loop_decision": None, **extra},
         )
 
+    @pytest.mark.parametrize(
+        "message",
+        [
+            TaskState(state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+        ],
+        ids=["task_state", "succeed_task"],
+    )
+    def test_loop_decision_reason_is_masked_before_it_is_sent(self, watched_subprocess, mocker, message):
+        """A gate's reason is masked here, once for a runtime of every language."""
+        watched_subprocess, _ = watched_subprocess
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.redact",
+            autospec=True,
+            side_effect=lambda value: value.replace("hunter2", "***"),
+        )
+        decision = LoopDecisionPayload(stop=False, reason="password hunter2 rejected")
+
+        watched_subprocess._send_terminal_state_msg(message.model_copy(update={"loop_decision": decision}))
+
+        method = "finish" if isinstance(message, TaskState) else "succeed"
+        sent = getattr(watched_subprocess.client.task_instances, method).call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=False, reason="password *** rejected")
+
 
 @pytest.mark.parametrize(
     ("test_method", "excluded_message_types"),
