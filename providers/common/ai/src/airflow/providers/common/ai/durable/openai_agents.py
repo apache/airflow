@@ -220,7 +220,7 @@ def _get_durable_agent(agent: Agent[Any], durable_run: DurableRun, seen: dict[in
 def _get_durable_tool(tool: Tool, durable_run: DurableRun) -> Tool:
     # A tool whose approval depends on its arguments is left as it is: the SDK checks that the
     # arguments it approved are the ones the tool runs with only through its own invoker.
-    if not (isinstance(tool, FunctionTool) and not callable(tool.needs_approval)):
+    if not isinstance(tool, FunctionTool) or callable(tool.needs_approval):
         return tool
     # A shallow copy, not dataclasses.replace: the tool's schema is already prepared.
     durable_tool = copy.copy(tool)
