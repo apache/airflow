@@ -553,7 +553,9 @@ class TestCommsDecoder:
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         threading.Thread(target=self._serve, args=(w, 2), daemon=True).start()
 
-        with mock.patch.object(CommsDecoder, "_get_response", autospec=True, side_effect=EOFError("supervisor gone")):
+        with mock.patch.object(
+            CommsDecoder, "_get_response", autospec=True, side_effect=EOFError("supervisor gone")
+        ):
             with pytest.raises(EOFError):
                 decoder.send(GetVariable(key="lost"))
 
