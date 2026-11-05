@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "required": [
+    "should_create",
+    "type",
+    "rationale"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "should_create": {
+      "type": "boolean"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "bugfix",
+        "feature",
+        "improvement",
+        "doc",
+        "misc",
+        "significant"
+      ]
+    },
+    "rationale": {
+      "type": "string"
+    }
+  }
+}
