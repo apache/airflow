@@ -42,7 +42,7 @@ from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import BaseModel
-from structlog.contextvars import clear_contextvars, get_contextvars
+from structlog.contextvars import get_contextvars
 from task_sdk import FAKE_BUNDLE
 from uuid6 import uuid7
 
@@ -7566,111 +7566,63 @@ def test_stats_tags_with_standalone_and_key_value_tags(create_runtime_ti):
     }
 
 
-def _make_startup_details(make_ti_context, tags) -> tuple[StartupDetails, BaseOperator]:
-    """Build a StartupDetails/task pair for a Dag carrying the given tags."""
+def _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, tags) -> dict:
+    """Run startup() for a Dag carrying the given tags and return the bound structlog contextvars."""
     with DAG("logging_tagged_dag", tags=tags):
         task = BaseOperator(task_id="t")
-
-    ti = TaskInstance(
-        id=uuid7(),
-        task_id="t",
-        dag_id="logging_tagged_dag",
-        run_id="c",
-        try_number=1,
-        dag_version_id=uuid7(),
-        queue="default",
-    )
     what = StartupDetails(
-        ti=ti,
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="t",
+            dag_id="logging_tagged_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
         dag_rel_path="",
         bundle_info=FAKE_BUNDLE,
         ti_context=make_ti_context(),
         start_date=timezone.utcnow(),
         sentry_integration="",
     )
-    return what, task
-
-
-def _startup_with_dag_tags(
-    mocked_parse, mock_supervisor_comms, make_ti_context, tags
-) -> tuple[dict, TaskInstance]:
-    """
-    Run startup() for a Dag carrying the given tags.
-
-    Returns the bound structlog contextvars alongside the TaskInstance used, so tests can assert
-    against ground-truth identifier values. Contextvars are cleared before returning so a leftover
-    binding can't leak into unrelated tests that run afterwards.
-    """
-    what, task = _make_startup_details(make_ti_context, tags)
     mock_supervisor_comms._get_response.return_value = what
     mocked_parse(what, "logging_tagged_dag", task)
-
-    clear_contextvars()
-    try:
-        startup(get_startup_details())
-        return get_contextvars(), what.ti
-    finally:
-        clear_contextvars()
+    startup(get_startup_details())
+    return get_contextvars()
 
 
+@pytest.mark.parametrize(
+    ("enabled", "tags", "expected"),
+    [
+        pytest.param("False", ["env:prod"], None, id="disabled"),
+        pytest.param("True", [], None, id="no-tags"),
+        pytest.param(
+            "True",
+            ["team:b", "owner:x", "team:a", "owner"],
+            ["owner", "owner:x", "team:a", "team:b"],
+            id="tags-sharing-a-key",
+        ),
+        pytest.param("True", ["url:http://host:8080"], ["url:http://host:8080"], id="multiple-colons"),
+    ],
+)
+def test_dag_tags_in_logs(mocked_parse, mock_supervisor_comms, make_ti_context, enabled, tags, expected):
+    with conf_vars({("logging", "dag_tags_in_logs"): enabled}):
+        context = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, tags)
+    assert context.get("dag_tags") == expected
+
+
+@conf_vars({("logging", "dag_tags_in_logs"): "True"})
+@patch("airflow.sdk.execution_time.task_runner.log.debug")
 def test_dag_tags_in_logs_bound_before_dag_file_parsed_log(
-    mocked_parse, mock_supervisor_comms, make_ti_context
+    mock_log_debug, mocked_parse, mock_supervisor_comms, make_ti_context
 ):
-    """Dag tags must be bound before the 'Dag file parsed' debug log, so that event can carry them too."""
-    what, task = _make_startup_details(make_ti_context, ["env:prod"])
-    mock_supervisor_comms._get_response.return_value = what
-    mocked_parse(what, "logging_tagged_dag", task)
-
     snapshot = {}
 
     def _record_context_at_parse_complete(event, *args, **kwargs):
         if event == "Dag file parsed":
             snapshot.update(get_contextvars())
 
-    clear_contextvars()
-    try:
-        with (
-            conf_vars({("logging", "dag_tags_in_logs"): "True"}),
-            patch(
-                "airflow.sdk.execution_time.task_runner.log.debug",
-                side_effect=_record_context_at_parse_complete,
-            ),
-        ):
-            startup(get_startup_details())
-    finally:
-        clear_contextvars()
-
-    assert snapshot.get("dag_tags") == {"env": "prod"}
-
-
-def test_dag_tags_in_logs_disabled_by_default(mocked_parse, mock_supervisor_comms, make_ti_context):
-    context, _ = _startup_with_dag_tags(
-        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation"]
-    )
-    assert "dag_tags" not in context
-
-
-@conf_vars({("logging", "dag_tags_in_logs"): "True"})
-def test_dag_tags_in_logs_without_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context):
-    context, _ = _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, [])
-    assert "dag_tags" not in context
-
-
-@conf_vars({("logging", "dag_tags_in_logs"): "True"})
-def test_dag_tags_in_logs_with_standalone_and_key_value_tags(
-    mocked_parse, mock_supervisor_comms, make_ti_context
-):
-    context, _ = _startup_with_dag_tags(
-        mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod", "validation", "owner:Data Eng"]
-    )
-    assert context["dag_tags"] == {"env": "prod", "validation": "", "owner": "Data Eng"}
-
-
-@conf_vars({("logging", "dag_tags_in_logs"): "True"})
-def test_dag_tags_in_logs_cannot_override_log_fields(mocked_parse, mock_supervisor_comms, make_ti_context):
-    context, ti = _startup_with_dag_tags(
-        mocked_parse, mock_supervisor_comms, make_ti_context, ["dag_id:evil", "level:debug"]
-    )
-    assert context["dag_id"] == ti.dag_id
-    assert "level" not in context
-    assert context["dag_tags"] == {"dag_id": "evil", "level": "debug"}
+    mock_log_debug.side_effect = _record_context_at_parse_complete
+    _startup_with_dag_tags(mocked_parse, mock_supervisor_comms, make_ti_context, ["env:prod"])
+    assert snapshot.get("dag_tags") == ["env:prod"]

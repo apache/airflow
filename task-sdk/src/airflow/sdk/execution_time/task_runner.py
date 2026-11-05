@@ -1300,10 +1300,8 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
         ti = parse(msg, log)
 
     if conf.getboolean("logging", "dag_tags_in_logs", fallback=False) and ti.task.dag.tags:
-        # Nested under one key so free-form tags can't overwrite standard log fields.
-        bind_contextvars(
-            dag_tags={key: value for key, _, value in (tag.partition(":") for tag in ti.task.dag.tags)}
-        )
+        # dag.tags is a set; sort so every try logs the same order regardless of hash seed.
+        bind_contextvars(dag_tags=sorted(ti.task.dag.tags))
 
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 
