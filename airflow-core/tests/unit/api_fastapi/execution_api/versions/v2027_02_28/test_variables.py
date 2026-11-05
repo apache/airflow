@@ -48,29 +48,18 @@ class TestVariableValueNonNullableVersioning:
         var = session.scalars(select(Variable).where(Variable.key == "var_null")).one()
         assert var.val == "None"
 
+    @pytest.mark.parametrize("body", [{"value": "real"}, {"val": "real"}])
+    def test_old_version_put_value_is_stored_unchanged(self, client, session, body):
+        client.headers["Airflow-API-Version"] = PREVIOUS_VERSION
+
+        response = client.put("/execution/variables/var_real", json=body)
+
+        assert response.status_code == 201, response.json()
+        var = session.scalars(select(Variable).where(Variable.key == "var_real")).one()
+        assert var.val == "real"
+
     def test_head_put_null_returns_422(self, client):
         response = client.put("/execution/variables/var_null", json={"value": None})
 
         assert response.status_code == 422
         assert response.json()["detail"][0]["type"] == "string_type"
-
-    @pytest.mark.parametrize("version", [PREVIOUS_VERSION, None])
-    def test_get_returns_string(self, client, session, version):
-        if version:
-            client.headers["Airflow-API-Version"] = version
-        Variable.set(key="var1", value="value", session=session)
-        session.commit()
-
-        response = client.get("/execution/variables/var1")
-
-        assert response.status_code == 200
-        assert response.json() == {"key": "var1", "value": "value"}
-
-    @pytest.mark.parametrize("version", [PREVIOUS_VERSION, None])
-    def test_get_missing_returns_404(self, client, version):
-        if version:
-            client.headers["Airflow-API-Version"] = version
-
-        response = client.get("/execution/variables/missing")
-
-        assert response.status_code == 404

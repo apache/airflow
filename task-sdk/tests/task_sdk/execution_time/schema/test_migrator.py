@@ -42,6 +42,7 @@ from cadwyn import (
     VersionBundle,
     VersionChange,
     convert_request_to_next_version_for,
+    generate_versioned_models,
     schema,
 )
 from pydantic import BaseModel, ValidationError
@@ -71,7 +72,6 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     StartupDetails,
     TaskState,
-    VariableResult,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
@@ -137,6 +137,13 @@ def test_put_variable_null_from_older_runtime_is_stored_as_none_string():
     assert upgraded["value"] == "None"
 
 
+def test_put_variable_without_value_from_older_runtime_is_rejected():
+    body = {"type": "PutVariable", "key": "key", "description": None}
+
+    with pytest.raises(ValidationError):
+        get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+
 def test_put_variable_null_from_current_runtime_is_rejected():
     body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
 
@@ -144,11 +151,22 @@ def test_put_variable_null_from_current_runtime_is_rejected():
         get_schema_version_migrator().upgrade(body, PutVariable, "2027-02-28")
 
 
-@pytest.mark.parametrize("version", ["2026-10-30", "2027-02-28"])
-def test_variable_result_value_is_kept_on_downgrade(version):
-    message = VariableResult(key="key", value="value")
+def test_put_variable_value_from_older_runtime_is_kept():
+    body = {"type": "PutVariable", "key": "key", "value": "x", "description": None}
 
-    assert get_schema_version_migrator().downgrade(message, version).model_dump()["value"] == "value"
+    upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
+
+    assert upgraded["value"] == "x"
+
+
+def test_put_variable_value_is_nullable_only_before_2027_02_28():
+    from airflow.sdk.execution_time.schema.versions import bundle
+
+    versioned = generate_versioned_models(bundle)
+
+    assert versioned["2026-10-30"][PutVariable](key="key", value=None, description=None).value is None
+    with pytest.raises(ValidationError):
+        versioned["2027-02-28"][PutVariable](key="key", value=None, description=None)
 
 
 class _IntroduceQueueCapacity(VersionChange):

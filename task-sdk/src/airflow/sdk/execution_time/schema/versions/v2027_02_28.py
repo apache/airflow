@@ -67,5 +67,5 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
     @convert_request_to_next_version_for(PutVariable)  # type: ignore[arg-type]
     def store_null_value_as_none_string(request: RequestInfo) -> None:
         """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
-        if request.body.get("value") is None:
+        if "value" in request.body and request.body["value"] is None:
             request.body["value"] = "None"
