@@ -393,14 +393,10 @@ class Literal(RootModel):
 
     def get_run_binding_error(self, *, top_level: bool = True) -> str | None:
         # Anything inside a literal container is nested, so a bindable top-level $x cannot live here.
-        return next(
-            (
-                error
-                for child in self._iter_nested_values()
-                if (error := child.get_run_binding_error(top_level=False))
-            ),
-            None,
-        )
+        for child in self._iter_nested_values():
+            if error := child.get_run_binding_error(top_level=False):
+                return error
+        return None
 
     def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> _OperatorArgument:
         if isinstance(self.root, dict):
