@@ -195,7 +195,7 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
     async def get_user_from_token(
         self, token: str, access_token: str | None = None, refresh_token: str | None = None
-    ) -> KeycloakAuthManagerUser:
+    ):
         """
         Get the user from the Airflow and Keycloak Tokens.
 
@@ -223,10 +223,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         # the cookie path those claims are covered by the Airflow JWT signature, so they
         # need no separate subject check. A browser token does not carry them and can
         # only be completed by KeycloakJWTMiddleware from the cookies; without them
-        # there is nothing to authorize against, so the token is rejected.
-        if not user.access_token:
-            raise InvalidTokenError("No Keycloak tokens for this Airflow session")
-        return user
+        # there is nothing to authorize against. Return None rather than raise: the
+        # core JWTRefreshMiddleware resolves this token on every request without the
+        # cookies, and an exception there would end every browser session.
+        return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
         base_url = conf.get("api", "base_url", fallback="/")

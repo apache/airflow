@@ -82,6 +82,11 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 HTTPException,
             ):
                 new_token = ""
+                # The session ends here and the response clears the Airflow JWT. Hide it
+                # from the inner middlewares and the route too: resolving it again without
+                # the Keycloak tokens yields no user, which ``get_user`` would hand to the
+                # authorization checks instead of answering 401.
+                self._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
 
             if user is not None:
                 request.state.user = user
@@ -234,6 +239,20 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 max_age=0,
             )
         return response
+
+    @staticmethod
+    def _drop_cookie(request: Request, name: str) -> None:
+        """Remove a cookie from the request that the inner middlewares and the route receive."""
+        prefix = f"{name}=".encode("latin-1")
+        headers = []
+        for key, value in request.scope["headers"]:
+            if key != b"cookie":
+                headers.append((key, value))
+                continue
+            kept = b";".join(part for part in value.split(b";") if not part.lstrip().startswith(prefix))
+            if kept.strip():
+                headers.append((key, kept.strip()))
+        request.scope["headers"] = headers
 
     @staticmethod
     async def _is_jwt_still_valid(request: Request) -> bool:
