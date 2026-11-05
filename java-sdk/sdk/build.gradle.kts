@@ -18,7 +18,6 @@
  */
 
 import java.io.File
-import java.net.URI
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
@@ -38,12 +37,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.20"
 }
 
-val schemaBaseUrl = "https://airflow.apache.org/schemas/supervisor-schema"
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
-val schemaSource =
-    rootProject.layout.projectDirectory.file(
-        "../task-sdk/src/airflow/sdk/execution_time/schema/schema.json",
-    )
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
 val schemaModelsDir = layout.buildDirectory.dir("generate-resources/main/src/main/java")
@@ -168,9 +162,6 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Input
     abstract val schemaVersion: Property<String>
 
-    @get:Input
-    abstract val baseUrl: Property<String>
-
     @get:Internal
     abstract val schemaFile: RegularFileProperty
 
@@ -193,7 +184,6 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     fun sync() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
-        // Prefer the in-repo schema, compared by content: the remote only serves released versions.
         val source = sourceFile.get().asFile
         if (apiVersionOf(source) == version) {
             if (file.exists() && file.readBytes().contentEquals(source.readBytes())) {
@@ -205,32 +195,13 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
             Files.copy(source.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
             return
         }
-        if (apiVersionOf(file) == version) {
-            logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
-            return
+        val vendored = apiVersionOf(file)
+        if (vendored != version) {
+            throw GradleException(
+                "${file.name} is api_version='$vendored' but airflowSupervisorSchemaVersion is '$version'",
+            )
         }
-        val url = "${baseUrl.get()}/$version.json"
-        logger.lifecycle("Refreshing Supervisor Schema with $url")
-        file.parentFile.mkdirs()
-        val tempTarget = Files.createTempFile(file.parentFile.toPath(), "schema", ".json")
-        try {
-            val connection =
-                URI(url).toURL().openConnection().apply {
-                    // Timeout values are arbitrary.
-                    connectTimeout = 30_000
-                    readTimeout = 30_000
-                }
-            connection.getInputStream().use { input ->
-                Files.copy(input, tempTarget, StandardCopyOption.REPLACE_EXISTING)
-            }
-            val downloaded = apiVersionOf(tempTarget.toFile())
-            if (downloaded != version) {
-                throw GradleException("Schema declares api_version='$downloaded' but expected '$version' ($url)")
-            }
-            Files.move(tempTarget, file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        } finally {
-            Files.deleteIfExists(tempTarget)
-        }
+        logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
     }
 }
 
@@ -836,9 +807,8 @@ abstract class GenerateDagDslTask : DefaultTask() {
 val syncSupervisorSchema by tasks.registering(SyncSupervisorSchemaTask::class) {
     description = "Ensure the bundled Supervisor Schema is up-to-date with the Gradle property."
     schemaVersion = airflowSupervisorSchemaVersion
-    baseUrl = schemaBaseUrl
     schemaFile = schemaInput
-    sourceFile = schemaSource
+    sourceFile = layout.projectDirectory.file("../../task-sdk/src/airflow/sdk/execution_time/schema/schema.json")
 }
 
 tasks.register<GenerateDiscriminatorTask>("generateDiscriminator") {
