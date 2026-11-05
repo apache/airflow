@@ -48,6 +48,7 @@ from airflow.api_fastapi.core_api.datamodels.log import TaskInstancesLogResponse
 from airflow.api_fastapi.core_api.datamodels.ui.deadline import (
     DeadlineAlertCollectionResponse,
     DeadlineCollectionResponse,
+    DeadlineResponse,
 )
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.core_api.routes.public.log import (
@@ -162,7 +163,10 @@ def get_deadlines(
                 f"DagRun with dag_id: `{dag_id}` and run_id: `{dag_run_id}` was not found",
             )
 
-    return DeadlineCollectionResponse(deadlines=deadlines, total_entries=total_entries)
+    return DeadlineCollectionResponse(
+        deadlines=[DeadlineResponse.model_validate(deadline) for deadline in deadlines],
+        total_entries=total_entries,
+    )
 
 
 @deadlines_router.get(

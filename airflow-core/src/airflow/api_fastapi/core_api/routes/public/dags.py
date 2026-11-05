@@ -200,7 +200,7 @@ def get_dags(
     dags = session.scalars(dags_select)
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=[DAGResponse.model_validate(dag) for dag in dags],
         total_entries=total_entries,
     )
 
@@ -453,7 +453,7 @@ def patch_dags(
     )
 
     return DAGCollectionResponse(
-        dags=dags,
+        dags=[DAGResponse.model_validate(dag) for dag in dags],
         total_entries=total_entries,
     )
 

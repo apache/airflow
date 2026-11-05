@@ -51,7 +51,9 @@ class DeadlineResponse(BaseModel):
 class DeadlineCollectionResponse(BaseModel):
     """Deadline Collection serializer for responses."""
 
-    deadlines: Iterable[DeadlineResponse]
+    # Not Iterable: pydantic validates Iterable items lazily during serialization, which would
+    # load each Dag run's team on the event loop.
+    deadlines: list[DeadlineResponse]
     total_entries: int
 
 
