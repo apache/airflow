@@ -477,6 +477,7 @@ def _update_import_errors(
     session: Session,
     *,
     resolve_bundle_paths: bool = True,
+    mark_dags_stale: bool = True,
 ):
     from airflow.listeners.listener import get_listener_manager
 
@@ -565,10 +566,7 @@ def _update_import_errors(
                 DagModel.relative_fileloc == relative_fileloc,
                 DagModel.bundle_name == bundle_name_,
             )
-            .values(
-                has_import_errors=True,
-                is_stale=True,
-            )
+            .values(has_import_errors=True, **({"is_stale": True} if mark_dags_stale else {}))
             .execution_options(synchronize_session="fetch")
         )
 
@@ -712,6 +710,25 @@ def _reject_invalid_serialized_dags(
     return accepted
 
 
+def reject_unpublishable_dags(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+    *,
+    session: Session,
+) -> list[LazyDeserializedDAG]:
+    """
+    Drop the Dags a Dag processor publication cannot store, recording an import error for each.
+
+    DB mode's plugin and timetable checks run first, so a refused plugin class is never deserialized
+    and a timetable that raises on load keeps its traceback. ``validate_serialized_dag`` runs last: a
+    Dag processor can publish documents the SDK did not build.
+    """
+    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
+    return _reject_invalid_serialized_dags(bundle_name, accepted, import_errors)
+
+
 def update_dag_parsing_results_in_db(
     bundle_name: str,
     bundle_version: str | None,
@@ -733,7 +750,8 @@ def update_dag_parsing_results_in_db(
     ),
     files_parsed: set[tuple[str, str]] | None = None,
     dag_source_codes: dict[str, DagSourceCode] | None = None,
-    validate_serialized_dags: bool = False,
+    dags_checked: bool = False,
+    mark_errored_dags_stale: bool = True,
 ):
     """
     Update everything to do with DAG parsing in the DB.
@@ -763,19 +781,21 @@ def update_dag_parsing_results_in_db(
     :param resolve_bundle_paths: Construct bundles to give import error listeners absolute paths. The
         API server passes False: it does not host the processor's bundles, so listeners receive
         bundle-relative paths instead.
-    :param validate_serialized_dags: Drop Dags that could not be stored and loaded, recording an import
-        error for each. The API server passes True: a Dag processor can publish documents the SDK did
-        not build.
+    :param dags_checked: The caller already dropped the Dags ``reject_unpublishable_dags`` refuses, and
+        their warnings. The API server passes True: it drops them before taking its locks and marking
+        missing Dags stale.
+    :param mark_errored_dags_stale: Mark the Dags at each import error's location stale. The API server
+        passes False when a processor has no result for a file, and keeps its Dags until they outlast
+        stale_dag_threshold, as DB mode does after a timeout.
     """
-    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
-    accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
-    if validate_serialized_dags:
-        accepted = _reject_invalid_serialized_dags(bundle_name, accepted, import_errors)
-    if len(accepted) != len(dags):
-        # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
-        rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
-        warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
-    dags = accepted
+    if not dags_checked:
+        accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+        accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
+        if len(accepted) != len(dags):
+            # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
+            rejected_ids = {dag.dag_id for dag in dags} - {dag.dag_id for dag in accepted}
+            warnings = {warning for warning in warnings if warning.dag_id not in rejected_ids}
+        dags = accepted
 
     dag_source_codes = dag_source_codes or {}
     # Retry 'DAG.bulk_write_to_db' & 'SerializedDagModel.bulk_sync_to_db' in case
@@ -843,6 +863,7 @@ def update_dag_parsing_results_in_db(
             import_errors=import_errors,
             session=session,
             resolve_bundle_paths=resolve_bundle_paths,
+            mark_dags_stale=mark_errored_dags_stale,
         )
     except Exception:
         if atomic:

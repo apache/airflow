@@ -40,9 +40,13 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagParseResultBody,
 )
 from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorClaims, DagProcessorToken
-from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute, get_bundles
+from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute, _validate_job, get_bundles
 from airflow.api_fastapi.execution_api.security import require_auth
-from airflow.dag_processing.collection import DagModelOperation, update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    DagModelOperation,
+    reject_unpublishable_dags,
+    update_dag_parsing_results_in_db,
+)
 from airflow.jobs.job import Job, JobState
 from airflow.models.asset import DagScheduleAssetReference
 from airflow.models.dag import DagModel
@@ -332,6 +336,8 @@ def test_rejects_unauthorized_publication(client, session, job, body, failure, s
         "relative_fileloc",
         "fileloc",
         "long_path",
+        "no_result_with_dags",
+        "no_result_without_error",
     ],
 )
 def test_invalid_result_is_rejected_without_writes(client, session, job, body, failure):
@@ -348,6 +354,10 @@ def test_invalid_result_is_rejected_without_writes(client, session, job, body, f
         body["serialized_dags"].append(deepcopy(dag))
     elif failure == "long_path":
         body["parsed_definitions"] = ["a.py/" + "x" * 2000]
+    elif failure == "no_result_with_dags":
+        body.update(result_unavailable=True, import_errors={"a.py": "timed out"})
+    elif failure == "no_result_without_error":
+        body.update(result_unavailable=True, serialized_dags=[], source_codes=[], dag_source_indexes={})
     else:
         dag["dag"].pop(failure)
     response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
@@ -407,6 +417,67 @@ def test_invalid_dag_is_dropped_without_failing_its_container(
     assert error.filename == "bundle.zip/b.py"
     assert message in error.stacktrace
     assert session.scalar(select(DagProcessorPublicationReceipt)) is not None
+
+
+def test_invalid_dag_stales_the_dags_defined_beside_it(client, session, job, body):
+    invalid = DAG("invalid", schedule=None)
+    invalid.fileloc = "/worker-only/dags/a.py"
+    invalid.relative_fileloc = "a.py"
+    document = LazyDeserializedDAG.from_dag(invalid).data
+    document["dag"]["tasks"] = "invalid"
+    body["serialized_dags"].append(document)
+    body["dag_source_indexes"]["invalid"] = 0
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    # As in DB mode, the import error names the file, so every Dag defined in it goes stale.
+    sibling = session.get(DagModel, "published")
+    assert sibling.is_stale is True
+    assert sibling.has_import_errors is True
+    assert session.get(DagModel, "invalid") is None
+    (error,) = session.scalars(select(ParseImportError)).all()
+    assert error.filename == "a.py"
+
+
+@pytest.mark.parametrize("relative_fileloc", ["bundle.zip/a.py", "bundle.zip/b.py"], ids=["same", "moved"])
+def test_invalid_dag_with_a_stored_row_goes_stale(client, session, job, body, relative_fileloc):
+    body["relative_fileloc"] = "bundle.zip"
+    document = body["serialized_dags"][0]
+    document["dag"]["relative_fileloc"] = "bundle.zip/a.py"
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+    stored_hashes = session.scalars(select(SerializedDagModel.dag_hash)).all()
+
+    document["dag"]["relative_fileloc"] = relative_fileloc
+    document["dag"]["tasks"] = "invalid"
+    body.update(attempt_id=str(uuid7()), dispatch_sequence=2)
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    assert session.get(DagModel, "published").is_stale is True
+    assert session.scalars(select(SerializedDagModel.dag_hash)).all() == stored_hashes
+    (error,) = session.scalars(select(ParseImportError)).all()
+    assert error.filename == relative_fileloc
+
+
+@mock.patch(
+    "airflow.api_fastapi.execution_api.routes.dag_parsing._validate_job",
+    autospec=True,
+    side_effect=_validate_job,
+)
+@mock.patch(
+    "airflow.api_fastapi.execution_api.routes.dag_parsing.reject_unpublishable_dags",
+    autospec=True,
+    side_effect=reject_unpublishable_dags,
+)
+def test_dags_are_checked_before_the_job_is_locked(reject, validate_job, client, job, body):
+    calls = mock.Mock()
+    calls.attach_mock(reject, "reject")
+    calls.attach_mock(validate_job, "validate_job")
+
+    assert client.post(f"/execution/jobs/{job.id}/parse-results", json=body).status_code == 200
+
+    assert [name for name, *_ in calls.mock_calls] == ["reject", "validate_job"]
 
 
 @mock.patch("airflow.api_fastapi.execution_api.routes.dag_parsing.MAX_PUBLICATION_BYTES", 10)
@@ -559,6 +630,42 @@ def test_failed_container_stales_members_after_the_threshold(
     assert response.status_code == 200, response.json()
     session.expire_all()
     assert session.get(DagModel, "member").is_stale is stale
+
+
+@pytest.mark.parametrize(
+    ("result_unavailable", "parsed_seconds_ago", "stale"),
+    [(True, 10, False), (True, 100, True), (False, 10, True)],
+    ids=["no_result_within_threshold", "no_result_past_threshold", "import_error"],
+)
+@conf_vars({("dag_processor", "stale_dag_threshold"): "50"})
+def test_file_without_a_result_keeps_its_dags_within_the_threshold(
+    client, session, job, body, result_unavailable, parsed_seconds_ago, stale
+):
+    session.add(
+        DagModel(
+            dag_id="existing",
+            bundle_name="bundle",
+            relative_fileloc="a.py",
+            last_parsed_time=timezone.utcnow() - timedelta(seconds=parsed_seconds_ago),
+            is_stale=False,
+        )
+    )
+    session.commit()
+    body.update(
+        serialized_dags=[],
+        source_codes=[],
+        dag_source_indexes={},
+        import_errors={"a.py": "The parsing result was not published: timed out."},
+        result_unavailable=result_unavailable,
+    )
+
+    response = client.post(f"/execution/jobs/{job.id}/parse-results", json=body)
+
+    assert response.status_code == 200, response.json()
+    session.expire_all()
+    existing = session.get(DagModel, "existing")
+    assert existing.is_stale is stale
+    assert existing.has_import_errors is True
 
 
 @mock.patch(

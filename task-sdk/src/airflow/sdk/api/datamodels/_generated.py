@@ -963,6 +963,13 @@ class DagParseResultBody(BaseModel):
     import_errors: Annotated[dict[str, str] | None, Field(title="Import Errors")] = None
     warnings: Annotated[list[ParseWarning] | None, Field(title="Warnings")] = None
     parsed_definitions: Annotated[list[str] | None, Field(title="Parsed Definitions")] = None
+    result_unavailable: Annotated[
+        bool | None,
+        Field(
+            description="The processor has no result for the file: its parse did not finish, or the API server refused the result. The import error says why, and the file's Dags go stale only once they outlast stale_dag_threshold.",
+            title="Result Unavailable",
+        ),
+    ] = False
     source_codes: Annotated[
         list[ParseSourceCode],
         Field(

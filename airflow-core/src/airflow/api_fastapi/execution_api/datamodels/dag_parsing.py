@@ -61,6 +61,14 @@ class DagParseResultBody(DagParseTokenBody):
     import_errors: dict[str, str] = Field(default_factory=dict)
     warnings: list[ParseWarning] = Field(default_factory=list)
     parsed_definitions: list[str] = Field(default_factory=list)
+    result_unavailable: bool = Field(
+        default=False,
+        description=(
+            "The processor has no result for the file: its parse did not finish, or the API server "
+            "refused the result. The import error says why, and the file's Dags go stale only once "
+            "they outlast stale_dag_threshold."
+        ),
+    )
     source_codes: list[ParseSourceCode] = Field(
         description="Source text and language pairs, deduplicated by the processor."
     )
@@ -103,6 +111,12 @@ class DagParseResultBody(DagParseTokenBody):
                 raise ValueError("Definition or diagnostic is outside the published file or container")
         if any(len(path) > IMPORT_ERROR_FILENAME_MAX_LENGTH for path in self.import_errors):
             raise ValueError(f"Import-error location exceeds {IMPORT_ERROR_FILENAME_MAX_LENGTH} characters")
+        if self.result_unavailable and (
+            self.serialized_dags or self.relative_fileloc not in self.import_errors
+        ):
+            raise ValueError(
+                "A publication without a result must have no Dags and an import error for its file"
+            )
         if set(self.dag_source_indexes) != dag_ids:
             raise ValueError("Supply a source index for every serialized Dag")
         if set(self.dag_source_indexes.values()) != set(range(len(self.source_codes))):

@@ -40,12 +40,18 @@ from airflow.api_fastapi.execution_api.datamodels.dag_parsing import (
     DagParseResultBody,
     DagParseResultResponse,
 )
-from airflow.api_fastapi.execution_api.security import CurrentExecutionToken, ExecutionAPIRoute, require_auth
+from airflow.api_fastapi.execution_api.datamodels.token import DagProcessorToken
+from airflow.api_fastapi.execution_api.security import (
+    CurrentDagProcessorToken,
+    ExecutionAPIRoute,
+    require_auth,
+)
 from airflow.configuration import conf
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
     is_source_discovery_failed,
+    reject_unpublishable_dags,
     update_dag_parsing_results_in_db,
     validate_dag_bundle_ownership,
 )
@@ -116,7 +122,9 @@ def _compute_payload_hash(body: BaseModel) -> str:
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
-def _validate_job(job_id: int, token, *, session: Session, for_update: bool = True) -> None:
+def _validate_job(
+    job_id: int, token: DagProcessorToken, *, session: Session, for_update: bool = True
+) -> None:
     if job_id != token.claims.job_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail={"reason": "not_found"})
     query = select(Job).where(Job.id == job_id)
@@ -140,7 +148,11 @@ def _validate_job(job_id: int, token, *, session: Session, for_update: bool = Tr
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
 def publish_parse_result(
-    job_id: int, body: DagParseResultBody, *, session: SessionDep, token=CurrentExecutionToken
+    job_id: int,
+    body: DagParseResultBody,
+    *,
+    session: SessionDep,
+    token: DagProcessorToken = CurrentDagProcessorToken,
 ) -> DagParseResultResponse:
     """Atomically publish a file's results and a receipt, without reading the processor's filesystem."""
     if body.bundle_name not in token.claims.dag_bundles:
@@ -152,6 +164,12 @@ def publish_parse_result(
     source_key = hashlib.sha256(
         json.dumps(["parse", body.bundle_name, body.relative_fileloc]).encode()
     ).hexdigest()
+    dags = [LazyDeserializedDAG(data=document) for document in body.serialized_dags]
+    dag_ids = [dag.dag_id for dag in dags]
+    import_errors = {(body.bundle_name, path): error for path, error in body.import_errors.items()}
+    # Deserializing every Dag is the slow part of a publication and needs none of the locks below.
+    dags = reject_unpublishable_dags(body.bundle_name, dags, import_errors, session=session)
+    accepted_ids = {dag.dag_id for dag in dags}
 
     _validate_job(job_id, token, session=session)
     receipt = session.get(DagProcessorPublicationReceipt, (job_id, source_key))
@@ -172,8 +190,6 @@ def publish_parse_result(
         bundle.parse_revision is not None and body.bundle_version != bundle.version
     ):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "source_changed"})
-    dags = [LazyDeserializedDAG(data=document) for document in body.serialized_dags]
-    dag_ids = [dag.dag_id for dag in dags]
     existing = session.scalars(
         select(DagModel)
         .where(DagModel.dag_id.in_(dag_ids))
@@ -187,11 +203,13 @@ def publish_parse_result(
             status.HTTP_409_CONFLICT, detail={"reason": "dag_owned_by_another_bundle"}
         ) from error
 
-    # Dags missing from an accepted result go stale in the same transaction. DB mode waits
-    # stale_dag_threshold because its manager compares file and Dag parse times written separately;
-    # a publication has no such gap. A failed container cannot list its members, so they get the
-    # threshold as a grace period. _update_import_errors marks Dags stale immediately when an error
-    # names their definition.
+    # Dags missing from an accepted result, or dropped from it as invalid, go stale in the same
+    # transaction: a dropped Dag that moved within a container would otherwise keep its old row live.
+    # DB mode waits stale_dag_threshold because its manager compares file and Dag parse times written
+    # separately; a publication has no such gap. A failed container cannot list its members, so they
+    # get the threshold as a grace period. _update_import_errors marks Dags stale immediately when an
+    # error names their definition, except when the processor has no result: like a DB-mode timeout,
+    # that leaves the file's Dags to the threshold, which also covers Dags another processor published.
     cutoff = timezone.utcnow() - timedelta(seconds=conf.getint("dag_processor", "stale_dag_threshold"))
     source_filter = or_(
         DagModel.relative_fileloc == body.relative_fileloc,
@@ -199,7 +217,7 @@ def publish_parse_result(
     )
     missing = session.scalars(
         select(DagModel)
-        .where(DagModel.bundle_name == body.bundle_name, source_filter, DagModel.dag_id.not_in(dag_ids))
+        .where(DagModel.bundle_name == body.bundle_name, source_filter, DagModel.dag_id.not_in(accepted_ids))
         .order_by(DagModel.dag_id)
         .with_for_update(key_share=True)
     )
@@ -208,7 +226,6 @@ def publish_parse_result(
         if not failed or (stored_dag.last_parsed_time is not None and stored_dag.last_parsed_time < cutoff):
             stored_dag.is_stale = True
 
-    import_errors = {(body.bundle_name, path): error for path, error in body.import_errors.items()}
     files_parsed = {(body.bundle_name, path) for path in [body.relative_fileloc, *body.parsed_definitions]}
     files_parsed.update(import_errors)
     source_codes = {
@@ -222,7 +239,12 @@ def publish_parse_result(
             dags=dags,
             import_errors=import_errors,
             parse_duration=body.parse_duration,
-            warnings={DagWarning(**warning.model_dump()) for warning in body.warnings},
+            # dag_warning has a foreign key to dag, and a dropped Dag may have no row.
+            warnings={
+                DagWarning(**warning.model_dump())
+                for warning in body.warnings
+                if warning.dag_id in accepted_ids
+            },
             files_parsed=files_parsed,
             dag_source_codes={
                 dag_id: DagSourceCode(
@@ -236,7 +258,8 @@ def publish_parse_result(
             atomic=True,
             enforce_bundle_ownership=True,
             resolve_bundle_paths=False,
-            validate_serialized_dags=True,
+            dags_checked=True,
+            mark_errored_dags_stale=not body.result_unavailable,
             session=session,
         )
     except DagPublicationValidationError as error:
@@ -268,7 +291,7 @@ def publish_parse_result(
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
 def get_bundles(
-    job_id: int, *, session: SessionDep, token=CurrentExecutionToken
+    job_id: int, *, session: SessionDep, token: DagProcessorToken = CurrentDagProcessorToken
 ) -> list[DagBundleStateResponse]:
     """Read the provisioned catalog without constructing providers on the API server."""
     _validate_job(job_id, token, session=session, for_update=False)
@@ -308,7 +331,7 @@ def publish_inventory(
     body: DagBundleInventoryBody,
     *,
     session: SessionDep,
-    token=CurrentExecutionToken,
+    token: DagProcessorToken = CurrentDagProcessorToken,
 ) -> DagBundleInventoryResponse:
     """Reconcile observed sources in one bundle, preserving sources whose discovery failed."""
     if bundle_name not in token.claims.dag_bundles:
