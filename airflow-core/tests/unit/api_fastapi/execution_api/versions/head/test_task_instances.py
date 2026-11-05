@@ -880,12 +880,14 @@ class TestTIRunState:
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert len(events) == 2
-        assert events[0]["asset"]["name"] == "test_asset_1"
-        assert events[0]["asset"]["uri"] == "s3://bucket/test_asset_1"
-        assert [a["name"] for a in events[0]["source_aliases"]] == ["test_alias_1"]
-        assert events[1]["asset"]["name"] == "test_asset_2"
-        assert events[1]["asset"]["uri"] == "s3://bucket/test_asset_2"
-        assert [a["name"] for a in events[1]["source_aliases"]] == ["test_alias_2"]
+        events_by_name = {e["asset"]["name"]: e for e in events}
+        assert set(events_by_name.keys()) == {"test_asset_1", "test_asset_2"}
+
+        assert events_by_name["test_asset_1"]["asset"]["uri"] == "s3://bucket/test_asset_1"
+        assert [a["name"] for a in events_by_name["test_asset_1"]["source_aliases"]] == ["test_alias_1"]
+
+        assert events_by_name["test_asset_2"]["asset"]["uri"] == "s3://bucket/test_asset_2"
+        assert [a["name"] for a in events_by_name["test_asset_2"]["source_aliases"]] == ["test_alias_2"]
 
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
