@@ -41,6 +41,12 @@ Changelog
 .. warning::
   The deprecated ``KubernetesExecutor.cleanup_stuck_queued_tasks`` and ``LocalKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
 
+.. note::
+  Job operators and triggers now read the Job object instead of the ``jobs/status`` subresource, so they
+  need ``get`` on ``jobs`` (``batch`` API group) rather than on ``jobs/status``. If the ``ServiceAccount``
+  of your triggerer or workers was granted ``get`` on ``jobs/status`` but not on ``jobs``, grant it
+  ``get`` on ``jobs``.
+
 10.25.0
 .......
 
