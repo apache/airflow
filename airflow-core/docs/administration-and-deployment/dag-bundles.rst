@@ -276,6 +276,10 @@ Some caveats:
   files it listed before, from the refreshed source; if only recording the refresh fails, it parses
   the bundle's current files. In both cases it retries the refresh after the bundle's
   :ref:`config:dag_processor__refresh_interval`, or sooner when a reparse is requested.
+  When the Dag processor publishes its results through the Execution API, a failed listing instead
+  pauses the bundle's parsing until a listing succeeds. The processor retries after about one
+  :ref:`config:dag_processor__bundle_refresh_check_interval` and doubles the wait after each further
+  failure, up to the bundle's ``refresh_interval``. A successful listing resets the wait.
 * A new version does not mean the new Dags are running, because bundles are refreshed before their
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,

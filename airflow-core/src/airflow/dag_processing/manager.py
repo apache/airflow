@@ -350,6 +350,7 @@ class DagFileProcessorManager(LoggingMixin):
     _pending_publications: dict[DagFileInfo, PendingDagPublication] = attrs.field(factory=dict, init=False)
     _pending_inventories: dict[str, PendingBundleInventory] = attrs.field(factory=dict, init=False)
     _bundle_inventory_retry_times: dict[str, float] = attrs.field(factory=dict, init=False)
+    _bundle_listing_retry_delays: dict[str, float] = attrs.field(factory=dict, init=False)
     _bundles_missing_from_catalog: set[str] = attrs.field(factory=set, init=False)
     _catalog_retry_at: float = attrs.field(default=0.0, init=False)
 
@@ -1096,6 +1097,22 @@ class DagFileProcessorManager(LoggingMixin):
             refresh_interval, self.bundle_refresh_check_interval, _compute_retry_delay(1)
         )
 
+    def _delay_bundle_listing_retry(self, bundle_name: str) -> None:
+        """Retry a failed listing soon, then double the wait up to the refresh interval while it fails."""
+        refresh_interval = next(
+            (bundle.refresh_interval for bundle in self._dag_bundles if bundle.name == bundle_name),
+            self.bundle_refresh_check_interval,
+        )
+        first_delay = max(self.bundle_refresh_check_interval, _compute_retry_delay(1))
+        previous_delay = self._bundle_listing_retry_delays.get(bundle_name)
+        delay = (
+            first_delay
+            if previous_delay is None
+            else min(max(refresh_interval, first_delay), previous_delay * 2)
+        )
+        self._bundle_listing_retry_delays[bundle_name] = delay
+        self._bundle_inventory_retry_times[bundle_name] = time.monotonic() + delay
+
     def _publish_pending_inventories(self, known_files: dict[str, set[DagFileInfo]]) -> bool:
         deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
         attempted = False
@@ -1342,10 +1359,12 @@ class DagFileProcessorManager(LoggingMixin):
                     # next refresh lists it again.
                     self.log.exception("Error listing Dag definitions in bundle %s", bundle.name)
                     if self.api_client is not None:
-                        self._defer_unusable_bundle_inventory(bundle.name)
+                        self._discard_unusable_bundle_source(bundle.name)
+                        self._delay_bundle_listing_retry(bundle.name)
                     else:
                         self._delay_draining_refresh_retry(bundle, known_files.get(bundle.name, ()))
                     continue
+                self._bundle_listing_retry_delays.pop(bundle.name, None)
 
                 if self.api_client is not None:
                     discovery = self._filter_api_discovery_result(bundle.name, discovery)

@@ -7731,6 +7731,7 @@ def test_result_the_api_refuses_is_replaced_by_an_import_error(error, message):
     assert report.import_errors == {
         "a.py": f"The parsing result was not published: the API server rejected it ({message}).",
     }
+    assert report.result_unavailable
     assert not manager._pending_publications
     assert manager._file_stats[file].num_dags == 0
     assert manager._file_stats[file].import_errors == 1
@@ -7970,6 +7971,7 @@ def test_result_over_the_publication_limit_is_reported_without_sending_it():
     assert pending.body.import_errors == {
         "a.py": "The parsing result was not published: it exceeds the 1 MiB publication limit."
     }
+    assert pending.body.result_unavailable
     client.publish_parse_result.assert_not_called()
 
 

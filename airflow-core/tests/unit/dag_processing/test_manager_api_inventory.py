@@ -120,7 +120,7 @@ def test_slow_inventory_sends_yield_and_rotate_to_later_bundles(find_files, cloc
         assert bundle.refresh.call_count == (0 if already_pending else 1)
 
 
-@pytest.mark.parametrize("rejection", ["http_413", "local_size_limit", "listing_error"])
+@pytest.mark.parametrize("rejection", ["http_413", "local_size_limit"])
 @mock.patch("airflow.dag_processing.manager.MAX_PUBLICATION_BYTES", 1024)
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
@@ -150,13 +150,11 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
             )
             for index in range(6)
         }
-    elif rejection == "http_413":
+    else:
         response = httpx2.Response(413, request=httpx2.Request("POST", "http://api/inventory"))
         client.publish_inventory.side_effect = httpx2.HTTPStatusError(
             "Proxy body limit", request=response.request, response=response
         )
-    else:
-        find_files.side_effect = OSError("Listing failed")
     find_files.return_value = DagBundleDiscoveryResult(files=observed)
 
     manager._refresh_dag_bundles(known_files)
@@ -192,7 +190,6 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
             attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=revision
         )
 
-    find_files.side_effect = None
     find_files.return_value = DagBundleDiscoveryResult(files={new_file})
     client.publish_inventory.side_effect = accept_inventory
     clock.monotonic.return_value = 3700.0
@@ -210,6 +207,52 @@ def test_rejected_inventory_waits_before_refresh_and_recovers(find_files, clock,
     clock.monotonic.return_value = 3705.0
     manager._refresh_dag_bundles(known_files)
     assert bundle.refresh.call_count == 2
+
+
+@mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
+def test_failed_listing_retries_with_backoff_and_resets_after_success(find_files, clock, tmp_path):
+    bundle = _create_bundle(tmp_path, "testing")
+    bundle.refresh_interval = 30
+    client = _create_client([bundle])
+    client.get_bundles.return_value[0].last_refreshed = timezone.utcnow()
+    client.publish_inventory.side_effect = lambda bundle_name, body: DagBundleInventoryResponse(
+        attempt_id=body.attempt_id, accepted_at=timezone.utcnow(), revision=uuid7()
+    )
+    manager = DagFileProcessorManager(max_runs=-1, api_client=client, bundle_refresh_check_interval=5)
+    manager._dag_bundles = [bundle]
+    dag_file = DagFileInfo(bundle_name=bundle.name, rel_path=Path("dag.py"), bundle_path=tmp_path)
+    dag_file.absolute_path.touch()
+    known_files: dict[str, set[DagFileInfo]] = {bundle.name: set()}
+    find_files.side_effect = OSError("Listing failed")
+
+    def refresh_at(now):
+        clock.monotonic.return_value = now
+        manager._refresh_dag_bundles(known_files)
+
+    now = 100
+    for delay in (5, 10, 20, 30, 30):
+        listings = find_files.call_count
+        refresh_at(now)
+        assert find_files.call_count == listings + 1
+        assert manager._bundle_inventory_retry_times[bundle.name] == now + delay
+        assert bundle.name not in manager._bundle_parse_sources
+        for check in range(now + 5, now + delay, 5):
+            refresh_at(check)
+        assert find_files.call_count == listings + 1
+        now += delay
+    assert bundle.refresh.call_count == find_files.call_count
+
+    find_files.side_effect = None
+    find_files.return_value = DagBundleDiscoveryResult(files={dag_file})
+    refresh_at(now)
+    assert known_files == {bundle.name: {dag_file}}
+    assert bundle.name in manager._bundle_parse_sources
+
+    find_files.side_effect = OSError("Listing failed")
+    manager.request_bundle_refresh(bundle.name)
+    refresh_at(now + 1)
+    assert manager._bundle_inventory_retry_times[bundle.name] == now + 1 + 5
 
 
 @pytest.mark.parametrize("invalid_path", [r"bad\dag.py", "a" * 2001], ids=["backslash", "too-long"])
