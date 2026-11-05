@@ -515,7 +515,7 @@ class TestGetDeadlines:
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_should_not_query_on_event_loop(self, test_client, session, event_loop_queries):
-        """Regression for #76425: each Dag run's team must not be queried during serialization."""
+        """Nothing is queried while the response is serialized on the event loop."""
         with attach_dag_to_team(
             session, DAG_ID, bundle_name="team-bundle-deadline-loop", team_name="team-deadline-loop"
         ):

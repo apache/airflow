@@ -917,7 +917,7 @@ class TestGetDags(TestDagEndpoint):
         )
 
     def test_get_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
-        """Regression for #76425: each Dag's tags must not be queried during serialization."""
+        """Nothing is queried while the response is serialized on the event loop."""
         response = test_client.get("/dags")
         assert response.status_code == 200
         tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
@@ -1190,7 +1190,7 @@ class TestPatchDags(TestDagEndpoint):
             check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
 
     def test_patch_dags_should_not_query_tags_on_event_loop(self, test_client, event_loop_queries):
-        """Regression for #76425: each Dag's tags must not be queried during serialization."""
+        """Nothing is queried while the response is serialized on the event loop."""
         response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
         assert response.status_code == 200
         tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
