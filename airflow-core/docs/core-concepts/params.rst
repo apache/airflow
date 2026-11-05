@@ -245,7 +245,11 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date"``: Generate a date-picker
               | with calendar pop-up
             * | ``format="date-time"``: Generate a date and
-              | time-picker with calendar pop-up
+              | time-picker with calendar pop-up. Values should be
+              | RFC 3339 strings with a timezone offset, e.g.
+              | ``2024-01-01T00:00:00+00:00``. Other ISO 8601
+              | date-times are deprecated and trigger a warning.
+              | Anything else is rejected.
             * ``format="time"``: Generate a time-picker
             * | ``format="duration"``: Generate a duration
               | input field accepting ISO 8601 duration

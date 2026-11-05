@@ -1,0 +1,37 @@
+Param values with ``format="date-time"`` are validated again
+
+Airflow 2 rejected a value that was not a date-time. It accepted an ISO 8601 date-time that was not RFC 3339,
+and showed a deprecation warning. Airflow 3.0 removed this fallback. It also removed the ``rfc3339-validator``
+dependency, so a default install accepted any string. Airflow now validates these values itself, with no extra
+dependency.
+
+A value is in one of three tiers:
+
+- Valid: an RFC 3339 string with a timezone offset, for example ``2024-01-01T00:00:00+00:00`` or
+  ``2024-01-01T00:00:00Z``.
+- Deprecated: an ISO 8601 date-time that is not RFC 3339, for example ``2024-01-01T00:00:00``,
+  ``2024-01-01 00:00:00+00:00`` or ``2024-01-01T00:00Z``. Airflow accepts the value unchanged and raises
+  ``RemovedInAirflow4Warning``. A future major release plans to reject these values.
+- Not valid: any other value, for example ``2024-01-01``, ``{{ ds }}``, ``""`` or ``garbage``.
+
+A value that is not valid now has these effects:
+
+- A Dag with a schedule and a Dag-level default that is not valid fails to import. The error is
+  ``Dag '<dag_id>' is not allowed to define a Schedule``.
+- A Dag with ``schedule=None`` and a Dag-level default that is not valid still imports. A trigger with no
+  valid value is rejected.
+- A backfill of a Dag with a Dag-level default that is not valid, and no valid ``conf``, is rejected.
+- A task-level default that is not valid passes parsing. The task then fails when it starts.
+- A Dag run with a value that is not valid in its stored ``conf`` fails when its tasks start. This includes
+  queued runs, and old runs that you clear after the upgrade.
+
+**Migration:**
+
+- Use RFC 3339 values with a timezone offset for defaults of ``format="date-time"`` Params, at Dag level and
+  at task level.
+- Use RFC 3339 values with a timezone offset for these Params in ``conf`` that you send through the API, the
+  CLI or ``TriggerDagRunOperator``.
+- Use ``.isoformat()`` on a timezone-aware ``datetime`` to get a valid value. ``str(datetime)`` gives a
+  space separator, which is deprecated.
+- ``{{ ts }}`` renders a valid value if the run has a logical date. ``{{ logical_date }}`` renders a
+  deprecated value.

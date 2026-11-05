@@ -71,7 +71,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorException
+from airflow.exceptions import DagNotFound, ParamValidationError, TaskNotFound, UnknownExecutorException
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
@@ -2656,21 +2656,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                ),
-                logical_date=None,
-                data_interval=None,
-                partition_key=apdr.partition_key,
-                partition_date=partition_date,
-                run_after=run_after,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    partition_key=apdr.partition_key,
+                    partition_date=partition_date,
+                    run_after=run_after,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+            except ParamValidationError:
+                # A stored Dag can hold a default that became invalid after an upgrade, until re-parsed.
+                self.log.exception("Failed creating DagRun", dag_id=apdr.target_dag_id)
+                continue
             asset_events = session.scalars(
                 select(AssetEvent).where(
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
@@ -3097,29 +3102,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self._multi_team
                 else None
             )
-            for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
-                dag_run = dag.create_dagrun(
-                    run_id=DagRun.generate_run_id(
-                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                    ),
-                    logical_date=None,
-                    data_interval=None,
-                    run_after=run_after,
-                    run_type=DagRunType.ASSET_TRIGGERED,
-                    triggered_by=DagRunTriggeredByType.ASSET,
-                    state=DagRunState.QUEUED,
-                    creating_job_id=self.job.id,
-                    session=session,
-                )
-                remaining_runs -= 1
-                stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-                dag_run.consumed_asset_events.extend(events)
-                self.log.info(
-                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                    dag.dag_id,
-                    dag_run.run_id,
-                    len(events),
-                )
+            try:
+                for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
+                    dag_run = dag.create_dagrun(
+                        run_id=DagRun.generate_run_id(
+                            run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                        ),
+                        logical_date=None,
+                        data_interval=None,
+                        run_after=run_after,
+                        run_type=DagRunType.ASSET_TRIGGERED,
+                        triggered_by=DagRunTriggeredByType.ASSET,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
+                    )
+                    remaining_runs -= 1
+                    stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+                    dag_run.consumed_asset_events.extend(events)
+                    self.log.info(
+                        "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                        dag.dag_id,
+                        dag_run.run_id,
+                        len(events),
+                    )
+            except ParamValidationError:
+                # ADRQ rows stay queued so the run is created once the Dag is fixed.
+                self.log.exception("Failed creating DagRun", dag_id=dag.dag_id)
+                continue
             session.flush()  # Make consumed events visible to ADRQ cleanup.
             # Dequeue rows for events just consumed above and any stale ones.
             self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)

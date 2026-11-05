@@ -354,11 +354,10 @@ def _validate_backfill_params(
                 "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    if dag_run_conf is not None:
-        try:
-            dag.params.deep_merge(dag_run_conf).validate()
-        except ValueError as e:
-            raise InvalidBackfillConf(str(e)) from e
+    try:
+        dag.params.deep_merge(dag_run_conf).validate()
+    except ValueError as e:
+        raise InvalidBackfillConf(str(e)) from e
 
 
 def _do_dry_run(

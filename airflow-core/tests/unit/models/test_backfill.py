@@ -759,6 +759,29 @@ def test_backfill_rejects_invalid_conf(dag_maker, session):
     assert session.scalar(select(DagRun).where(DagRun.dag_id == dag.dag_id)) is None
 
 
+def test_backfill_without_conf_rejects_invalid_stored_default(dag_maker, session):
+    """A stored invalid default must fail validation even when no conf is given, before any row is written."""
+    from airflow.sdk import Param
+
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+        # Bypass the parse-time check: simulates a Dag serialized before the stricter validation.
+        dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+
+    with pytest.raises(InvalidBackfillConf, match="Invalid input for param d"):
+        _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=pendulum.parse("2021-01-01"),
+            to_date=pendulum.parse("2021-01-05"),
+            max_active_runs=10,
+            reverse=False,
+            triggering_user_name="pytest",
+            dag_run_conf=None,
+        )
+
+    assert session.scalar(select(Backfill).where(Backfill.dag_id == dag.dag_id)) is None
+
+
 def test_do_dry_run_rejects_invalid_conf(dag_maker, session):
     """Dry run with invalid conf should fail validation."""
     from airflow.sdk import Param
