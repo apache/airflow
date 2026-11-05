@@ -707,6 +707,31 @@ class TestPatchVariable(TestVariableEndpoint):
         assert Variable.get("deep", deserialize_json=True) == {**stored, "schedule": "0 6 * * *"}
 
     @pytest.mark.enable_redact
+    def test_patch_rejects_deleted_list_record_with_masked_secret(self, test_client):
+        key = "masked_list_delete_security"
+        original = {
+            "users": [
+                {"name": "alice", "password": "Alice-secret"},
+                {"name": "bob", "password": "Bob-secret"},
+            ]
+        }
+        Variable.set(key=key, value=original, serialize_json=True)
+
+        redacted = json.loads(test_client.get(f"/variables/{key}").json()["value"])
+        assert redacted["users"][0]["password"] == "***"
+        assert redacted["users"][1]["password"] == "***"
+
+        edited = {"users": [redacted["users"][1]]}
+
+        response = test_client.patch(
+            f"/variables/{key}",
+            json={"key": key, "value": json.dumps(edited)},
+            params={"update_mask": ["value"]},
+        )
+
+        assert response.status_code == 400
+        assert Variable.get(key, deserialize_json=True) == original
+
     def test_patch_with_update_mask_description_only(self, test_client, session):
         """PATCH with update_mask=['description'] should only update description, keeping value unchanged."""
         self.create_variables()

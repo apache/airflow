@@ -48,6 +48,11 @@ Redacted: TypeAlias = Redactable | str
 
 log = logging.getLogger(__name__)
 
+
+class UnsafeMaskedSecretMergeError(Exception):
+    """Raised when masked secrets cannot safely be restored after a list edit."""
+
+
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
         "access_key",
@@ -486,6 +491,90 @@ class SecretsMasker(logging.Filter):
                 return merged
 
             if isinstance(new_item, (list, tuple)) and type(old_item) is type(new_item):
+
+                def contains_masked_value(value, sensitive=False):
+                    if isinstance(value, dict):
+                        return any(
+                            contains_masked_value(
+                                child,
+                                sensitive or self.should_hide_value_for_key(key),
+                            )
+                            for key, child in value.items()
+                        )
+                    if isinstance(value, (list, tuple)):
+                        return any(contains_masked_value(child, sensitive) for child in value)
+                    return sensitive and isinstance(value, str) and value == replacement
+
+                def unchanged_except_masked(new_value, old_value, sensitive=False):
+                    if isinstance(new_value, dict) and isinstance(old_value, dict):
+                        if new_value.keys() != old_value.keys():
+                            return False
+                        return all(
+                            unchanged_except_masked(
+                                new_value[key],
+                                old_value[key],
+                                sensitive or self.should_hide_value_for_key(key),
+                            )
+                            for key in new_value
+                        )
+                    if isinstance(new_value, (list, tuple)) and type(new_value) is type(old_value):
+                        return len(new_value) == len(old_value) and all(
+                            unchanged_except_masked(new_child, old_child, sensitive)
+                            for new_child, old_child in zip(new_value, old_value)
+                        )
+                    if sensitive and isinstance(new_value, str) and new_value == replacement:
+                        return True
+                    return type(new_value) is type(old_value) and new_value == old_value
+
+                # Scalar secret lists support positional replacement as part of the
+                # existing merge contract. Apply structural safety checks only to
+                # lists containing records whose secrets could be reassigned.
+                def contains_records(value):
+                    if isinstance(value, dict):
+                        return True
+                    if isinstance(value, (list, tuple)):
+                        return any(contains_records(element) for element in value)
+                    return False
+
+                has_records = contains_records(old_item) or contains_records(new_item)
+                if has_records and contains_masked_value(new_item, is_sensitive):
+                    if len(new_item) < len(old_item) or not all(
+                        unchanged_except_masked(new_element, old_element, is_sensitive)
+                        for new_element, old_element in zip(new_item, old_item)
+                    ):
+                        raise UnsafeMaskedSecretMergeError(
+                            "Cannot safely restore masked secrets after nested record changes"
+                        )
+
+                if has_records and contains_masked_value(new_item, is_sensitive):
+
+                    def visible_record(value, sensitive=False):
+                        if isinstance(value, dict):
+                            return {
+                                key: visible_record(
+                                    child,
+                                    sensitive or self.should_hide_value_for_key(key),
+                                )
+                                for key, child in value.items()
+                            }
+                        if isinstance(value, (list, tuple)):
+                            return [visible_record(child, sensitive) for child in value]
+                        if sensitive:
+                            return replacement
+                        return value
+
+                    visible_records = [
+                        visible_record(element, is_sensitive)
+                        for element in old_item
+                        if isinstance(element, dict)
+                    ]
+
+                    for index, record in enumerate(visible_records):
+                        if record in visible_records[index + 1 :]:
+                            raise UnsafeMaskedSecretMergeError(
+                                "Cannot safely restore masked secrets for indistinguishable records"
+                            )
+
                 merged_list = []
                 for i in range(len(new_item)):
                     if i < len(old_item):
