@@ -39,6 +39,7 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from airflow._shared.timezones.timezone import utcnow
 from airflow.assets.manager import asset_manager
 from airflow.configuration import conf
+from airflow.dag_processing.bundles.manager import get_configured_bundle_names
 from airflow.exceptions import DeserializationError
 from airflow.models.asset import (
     AssetActive,
@@ -696,6 +697,60 @@ def _reject_dags_with_unloadable_timetables(
     return accepted
 
 
+def _reject_cross_bundle_dag_id_collisions(
+    bundle_name: str,
+    dags: Collection[LazyDeserializedDAG],
+    import_errors: dict[tuple[str, str], str],
+    *,
+    session: Session,
+) -> list[LazyDeserializedDAG]:
+    """Drop Dags whose dag_id is already registered in another active bundle, recording an import error."""
+    configured_bundles = get_configured_bundle_names()
+    if bundle_name not in configured_bundles:
+        return list(dags)
+
+    dag_ids = {dag.dag_id for dag in dags}
+    if not dag_ids:
+        return list(dags)
+
+    stmt = select(DagModel.dag_id, DagModel.bundle_name, DagModel.relative_fileloc, DagModel.fileloc).where(
+        DagModel.dag_id.in_(dag_ids),
+        DagModel.bundle_name != bundle_name,
+        DagModel.is_stale == false(),
+    )
+    conflicts = {row.dag_id: row for row in session.execute(stmt) if row.bundle_name in configured_bundles}
+    if not conflicts:
+        return list(dags)
+
+    accepted: list[LazyDeserializedDAG] = []
+    for dag in dags:
+        if dag.dag_id in conflicts:
+            existing = conflicts[dag.dag_id]
+            if (
+                existing.fileloc
+                and dag.fileloc
+                and existing.fileloc == dag.fileloc
+                and existing.relative_fileloc == dag.relative_fileloc
+            ):
+                accepted.append(dag)
+                continue
+            log.warning(
+                "Refusing Dag with colliding dag_id from another bundle",
+                dag_id=dag.dag_id,
+                incoming_bundle=bundle_name,
+                incoming_fileloc=dag.relative_fileloc,
+                existing_bundle=existing.bundle_name,
+                existing_fileloc=existing.relative_fileloc,
+            )
+            import_errors[(bundle_name, dag.relative_fileloc)] = (
+                f"DAG '{dag.dag_id}' is already registered in bundle '{existing.bundle_name}' "
+                f"({existing.relative_fileloc}). DAG IDs must be unique across all bundles."
+            )
+            continue
+        accepted.append(dag)
+    return accepted
+
+
 def _reject_invalid_serialized_dags(
     bundle_name: str,
     dags: Collection[LazyDeserializedDAG],
@@ -728,7 +783,8 @@ def reject_unpublishable_dags(
     and a timetable that raises on load keeps its traceback. ``validate_serialized_dag`` runs last: a
     Dag processor can publish documents the SDK did not build.
     """
-    accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_cross_bundle_dag_id_collisions(bundle_name, dags, import_errors, session=session)
+    accepted = _reject_other_teams_plugin_classes(bundle_name, accepted, import_errors, session=session)
     accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
     return _reject_invalid_serialized_dags(bundle_name, accepted, import_errors)
 
@@ -794,7 +850,8 @@ def update_dag_parsing_results_in_db(
         after a DB-mode timeout.
     """
     if not dags_checked:
-        accepted = _reject_other_teams_plugin_classes(bundle_name, dags, import_errors, session=session)
+        accepted = _reject_cross_bundle_dag_id_collisions(bundle_name, dags, import_errors, session=session)
+        accepted = _reject_other_teams_plugin_classes(bundle_name, accepted, import_errors, session=session)
         accepted = _reject_dags_with_unloadable_timetables(bundle_name, accepted, import_errors)
         if len(accepted) != len(dags):
             # A rejected Dag may have no ``dag`` row yet, and dag_warning has a foreign key to it.
