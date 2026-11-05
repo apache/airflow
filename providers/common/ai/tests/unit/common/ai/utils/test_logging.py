@@ -34,13 +34,11 @@ from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.toolsets.logging import LoggingToolset
 from airflow.providers.common.ai.utils.logging import (
     _log_output_debug,
     format_usage_for_xcom,
     log_run_summary,
     log_run_usage,
-    wrap_toolsets_for_logging,
 )
 
 
@@ -281,7 +279,15 @@ class TestLogRunUsage:
 
 class TestFormatUsageForXcom:
     def test_builds_expected_dict_shape(self):
-        usage = RunUsage(requests=3, tool_calls=1, input_tokens=10, output_tokens=5, cost=Decimal("0.25"))
+        usage = RunUsage(
+            requests=3,
+            tool_calls=1,
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_tokens=4,
+            cache_write_tokens=2,
+            cost=Decimal("0.25"),
+        )
 
         assert format_usage_for_xcom(usage) == {
             "requests": 3,
@@ -289,6 +295,8 @@ class TestFormatUsageForXcom:
             "output_tokens": 5,
             "total_tokens": 15,
             "tool_calls": 1,
+            "cache_read_tokens": 4,
+            "cache_write_tokens": 2,
             "cost": "0.25",
         }
 
@@ -332,18 +340,3 @@ class TestLogOutputDebug:
 
         debug_records = [r for r in caplog.records if r.levelno == logging.DEBUG]
         assert len(debug_records) == 0
-
-
-class TestWrapToolsetsForLogging:
-    def test_wraps_each_toolset(self):
-        ts_a = MagicMock()
-        ts_b = MagicMock()
-        logger = logging.getLogger("test.wrap")
-
-        wrapped = wrap_toolsets_for_logging([ts_a, ts_b], logger)
-
-        assert len(wrapped) == 2
-        assert all(isinstance(w, LoggingToolset) for w in wrapped)
-        assert wrapped[0].wrapped is ts_a
-        assert wrapped[1].wrapped is ts_b
-        assert wrapped[0].logger is logger

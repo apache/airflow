@@ -1,3 +1,4 @@
+
 .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -44,7 +45,7 @@ Login
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
     For OAuth, the OAuth Client Secret. For Programmatic Access Token (PAT) authentication, specify
-    the PAT token value.
+    the PAT token value and set ``authenticator`` to ``programmatic_access_token``.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -61,8 +62,9 @@ Extra (optional)
     * ``authenticator``: To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
       `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
       set it to ``WORKLOAD_IDENTITY`` and also set ``workload_identity_provider`` (see below). For Programmatic Access
-      Token (PAT) authentication, no special authenticator is required — simply set the PAT token as
-      the Password field. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
+      Token (PAT) authentication, set it to ``programmatic_access_token`` and put the PAT token in the
+      Password field. The same connection works for ``SnowflakeHook``, ``SnowflakeSqlApiHook``,
+      ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
     * ``workload_identity_provider``: The cloud whose workload identity is used as the Snowflake credential
       when ``authenticator`` is ``WORKLOAD_IDENTITY``. One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. With
       Workload Identity Federation no long-lived secret (password, key-pair or PAT) is stored; the workload's
@@ -77,8 +79,10 @@ Extra (optional)
       is ``OIDC``. The connector reads the token from this file, which suits projected or rotated tokens
       (for example a Kubernetes service-account token).
     * ``token_endpoint``: Specify token endpoint for external OAuth provider.
-    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``.
+    * ``grant_type``: Specify grant type for OAuth authentication. Currently supported: ``refresh_token`` (default), ``client_credentials``, ``password`` (for external IdP token_endpoint only).
     * ``scope``: Specify OAuth scope to include in the access token request for any OAuth grant type.
+    * ``oauth_username``: Specify IdP resource owner user name which is used for OAuth to include in the access token request for password OAuth grant type.
+    * ``oauth_password``: Specify IdP resource owner user password which is used for OAuth to include in the access token request for password OAuth grant type.
     * ``refresh_token``: Specify refresh_token for OAuth connection.
     * ``azure_conn_id``: Azure Connection ID to be used for retrieving the OAuth token using Azure Entra authentication. Login and Password fields aren't required when using this method. Scope for the Azure OAuth token can be set in the config option ``azure_oauth_scope`` under the section ``[snowflake]``. Requires `apache-airflow-providers-microsoft-azure>=12.8.0`.
     * ``private_key_file``: Specify the path to the private key file.
@@ -96,6 +100,12 @@ Extra (optional)
     * ``host``: Target Snowflake hostname to connect to (e.g., for local testing with LocalStack).
     * ``port``: Target Snowflake port to connect to (e.g., for local testing with LocalStack).
     * ``ocsp_fail_open``: Specify `ocsp_fail_open <https://docs.snowflake.com/en/developer-guide/python-connector/python-connector-connect#label-python-ocsp-choosing-fail-open-or-fail-close-mode>`_.
+    * ``enable_server_session_keep_alive_auto_detection``: Whether closing the connection checks for
+      async queries still running on it first. ``true`` (the default) keeps the server session open
+      while any are running, so they finish; ``false`` always logs out on close, and Snowflake may
+      cancel those queries. Takes effect with ``snowflake-connector-python>=5.0.0``; earlier connectors
+      always keep the session while async queries run. The hook sets ``true`` when the extra is
+      absent, so the connector's planned default change does not alter behaviour.
     * ``proxy_host``: Proxy hostname to use for connecting to Snowflake.
     * ``proxy_port``: Proxy port to use for connecting to Snowflake.
     * ``proxy_user``: Proxy username for authentication with the proxy server.
@@ -138,7 +148,7 @@ JSON format example with Programmatic Access Token (PAT)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To authenticate using a `Programmatic Access Token <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_,
-set the PAT token as the password with no special authenticator required:
+set the PAT token as the password and set ``authenticator`` to ``programmatic_access_token``:
 
 .. code-block:: bash
 
@@ -147,6 +157,7 @@ set the PAT token as the password with no special authenticator required:
         "login": "user",
         "password": "<programmatic_access_token>",
         "extra": {
+            "authenticator": "programmatic_access_token",
             "account": "account",
             "database": "database",
             "warehouse": "snow-warehouse",
@@ -178,3 +189,30 @@ and is granted a role with access to the target objects.
             "workload_identity_provider": "GCP"
         }
     }'
+
+``SnowflakeSqlApiHook``, ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type call
+Snowflake's REST APIs, which accept the workload's identity token directly instead of a connector session.
+The token is requested from the cloud and reused until shortly before it expires. A connection that also
+sets a private key uses key-pair authentication for these REST hooks. Each provider needs its cloud's client
+library installed:
+
+* ``AWS``: ``boto3`` with ``botocore>=1.41.0`` for ``sts:GetWebIdentityToken`` support.
+  The workload's IAM role must be allowed to
+  call it, and AWS outbound identity federation must be enabled for the account. This requirement applies
+  only to the REST hooks; ``SnowflakeHook`` uses a signed ``GetCallerIdentity`` request by default and
+  does not require outbound identity federation. ``GetWebIdentityToken`` is not available on
+  the global STS endpoint. Region resolution uses ``AWS_REGION``, then ``AWS_DEFAULT_REGION``,
+  then EC2 instance metadata. If none resolves, authentication fails with a configuration error.
+  Regional STS endpoints are used even when legacy global endpoint settings are present.
+* ``AZURE``: ``azure-identity`` (included in the provider's ``microsoft.azure`` extra).
+  On AKS with workload identity the pod's federated identity is used,
+  otherwise the managed identity. Set ``MANAGED_IDENTITY_CLIENT_ID`` for a user-assigned managed identity.
+* ``GCP``: ``google-auth``. The ID token comes from the metadata identity endpoint and is issued
+  to the workload's service account, even when ``GOOGLE_APPLICATION_CREDENTIALS`` is set.
+* ``OIDC``: nothing extra; the token comes from the ``token`` or ``token_file_path`` extra.
+
+Before fetching a WIF token or returning a cached one, REST hooks require a destination in
+``snowflakecomputing.com``, ``snowflakecomputing.cn`` or ``snowflakecomputing.mil``. Suffixes match
+DNS label boundaries. Administrators can add comma-separated trusted DNS suffixes through the process
+environment variable ``SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES`` for private deployments. Connection
+extras cannot extend this allowlist. Supply a DNS hostname without a scheme, port, path or user info.

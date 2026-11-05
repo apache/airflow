@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 
 import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import {
   buildTaskInstanceUrl,
   getDefaultTaskInstanceTabPath,
+  getInternalRouteTo,
+  getLinkTarget,
   getNextHref,
   getSafeExternalUrl,
   getTaskInstanceAdditionalPath,
@@ -30,6 +32,21 @@ import {
 } from "./links";
 
 describe("getTaskInstanceLink", () => {
+  it("links a regional task DTO by exact region without pinning its try", () => {
+    const task = {
+      dag_id: "dag",
+      dag_run_id: "run",
+      map_index: -1,
+      region_id: "11111111-1111-4111-8111-111111111111",
+      region_index: 3,
+      task_id: "body.work",
+      try_number: 2,
+    } as TaskInstanceResponse;
+
+    expect(getTaskInstanceLink(task, "logs")).toBe(
+      "/dags/dag/runs/run/tasks/body.work/logs?region_id=11111111-1111-4111-8111-111111111111&region_index=3",
+    );
+  });
   const testCases = [
     // Individual parameters tests
     {
@@ -383,5 +400,219 @@ describe("getSafeExternalUrl", () => {
     it.each(unsafeCases)("returns undefined for a %s", (_description, input) => {
       expect(getSafeExternalUrl(input)).toBeUndefined();
     });
+  });
+});
+
+describe("getLinkTarget", () => {
+  it.each([
+    ["a relative path", "/dags/etl", "_self"],
+    ["an absolute same-origin URL", `${globalThis.location.origin}/dags/etl`, "_self"],
+    ["a cross-origin URL", "https://example.com/runbook", "_blank"],
+    ["an unparsable URL", "http://[", "_blank"],
+  ])("returns %s -> %s", (_label, url, expected) => {
+    expect(getLinkTarget(url)).toBe(expected);
+  });
+});
+
+describe("getInternalRouteTo", () => {
+  it.each([
+    ["the Dags list", "/dags"],
+    ["a Dag detail page", "/dags/etl_sales"],
+    ["a Dag run", "/dags/etl_sales/runs/manual__1"],
+    ["a task instance", "/dags/etl_sales/runs/manual__1/tasks/load"],
+    ["a plugin tab", "/dags/etl_sales/plugin/my-view"],
+  ])("resolves %s to a router path", (_label, path) => {
+    expect(getInternalRouteTo(path)).toBe(path);
+  });
+
+  it("keeps the query string and hash", () => {
+    expect(getInternalRouteTo("/dags/etl_sales?tags=ml#notes")).toBe("/dags/etl_sales?tags=ml#notes");
+  });
+
+  it("accepts an absolute URL pointing back at this origin", () => {
+    expect(getInternalRouteTo(`${globalThis.location.origin}/dags/etl_sales`)).toBe("/dags/etl_sales");
+  });
+
+  // Same origin is not enough: the API and a plugin's own FastAPI pages live here too, and have
+  // to be followed as document requests rather than pushed through the router.
+  it.each([
+    ["the REST API", "/api/v2/plugins"],
+    ["a plugin's own backend page", "/plugin-api/catalog/report"],
+  ])("rejects %s, which no route owns", (_label, path) => {
+    expect(getInternalRouteTo(path)).toBeUndefined();
+  });
+
+  it("rejects a cross-origin URL", () => {
+    expect(getInternalRouteTo("https://example.com/dags/etl_sales")).toBeUndefined();
+  });
+
+  it("rejects an unparsable URL", () => {
+    expect(getInternalRouteTo("http://[")).toBeUndefined();
+  });
+
+  describe("with the current location", () => {
+    const onDagsList = { pathname: "/dags", search: "?tags=ml&paused=false" };
+
+    it("keeps the query string the user already has when the path does not change", () => {
+      expect(getInternalRouteTo("/dags?details=etl_sales", onDagsList)).toBe(
+        "/dags?tags=ml&paused=false&details=etl_sales",
+      );
+    });
+
+    it("keeps it even when the link carries no query of its own", () => {
+      expect(getInternalRouteTo("/dags", onDagsList)).toBe("/dags?tags=ml&paused=false");
+    });
+
+    it("lets the link's value win for a key the page already had", () => {
+      expect(getInternalRouteTo("/dags?tags=sales", onDagsList)).toBe("/dags?paused=false&tags=sales");
+    });
+
+    // Replacing rather than adding: otherwise a link meaning "show failed" would come out as
+    // "failed as well as whatever was already selected".
+    it("replaces every value a repeated key had", () => {
+      expect(getInternalRouteTo("/dags?tags=sales", { pathname: "/dags", search: "?tags=ml&tags=ops" })).toBe(
+        "/dags?tags=sales",
+      );
+    });
+
+    it("keeps all of the link's own values when it repeats a key", () => {
+      expect(getInternalRouteTo("/dags?tags=sales&tags=ops", onDagsList)).toBe(
+        "/dags?paused=false&tags=sales&tags=ops",
+      );
+    });
+
+    // Across pages the parameters belong to the page being left.
+    it("drops the current query when the path changes", () => {
+      expect(getInternalRouteTo("/dags/etl_sales?details=1", onDagsList)).toBe("/dags/etl_sales?details=1");
+    });
+
+    it("navigates clean to a different path with no query of its own", () => {
+      expect(getInternalRouteTo("/dags/etl_sales", onDagsList)).toBe("/dags/etl_sales");
+    });
+
+    it("leaves the path bare when nothing survives the merge", () => {
+      expect(getInternalRouteTo("/dags", { pathname: "/dags", search: "" })).toBe("/dags");
+    });
+
+    // The link's identifiers arrive percent-encoded while the router's pathname keeps them raw,
+    // so comparing the two as strings would call every run-scoped page a different page.
+    it("keeps the query string on a run page whose id encodes", () => {
+      const runId = "manual__2026-10-20T12:00:00+00:00";
+      const onRunPage = {
+        pathname: `/dags/etl_sales/runs/${runId}`,
+        search: "?state=failed",
+      };
+
+      expect(
+        getInternalRouteTo(`/dags/etl_sales/runs/${encodeURIComponent(runId)}?details=1`, onRunPage),
+      ).toBe(`/dags/etl_sales/runs/${encodeURIComponent(runId)}?state=failed&details=1`);
+    });
+
+    it("still treats a different run as a different page", () => {
+      const onRunPage = {
+        pathname: "/dags/etl_sales/runs/manual__2026-10-20T12:00:00+00:00",
+        search: "?state=failed",
+      };
+
+      expect(
+        getInternalRouteTo(
+          `/dags/etl_sales/runs/${encodeURIComponent("manual__2026-10-21T12:00:00+00:00")}?details=1`,
+          onRunPage,
+        ),
+      ).toBe(`/dags/etl_sales/runs/${encodeURIComponent("manual__2026-10-21T12:00:00+00:00")}?details=1`);
+    });
+
+    // An encoded slash is a value inside one segment, not a path boundary; splitting on the
+    // decoded string would make this look like a deeper path and never match.
+    it("treats an encoded slash as part of the segment, not a boundary", () => {
+      const runId = "manual__2026-10-20T12:00:00+00:00/retry";
+      // The router keeps the id encoded in `pathname`, so both sides carry `%2F`.
+      const onRunPage = {
+        pathname: `/dags/etl_sales/runs/${encodeURIComponent(runId)}`,
+        search: "?state=failed",
+      };
+
+      expect(
+        getInternalRouteTo(`/dags/etl_sales/runs/${encodeURIComponent(runId)}?details=1`, onRunPage),
+      ).toBe(`/dags/etl_sales/runs/${encodeURIComponent(runId)}?state=failed&details=1`);
+    });
+
+    it("keeps the current page for a query-only href", () => {
+      expect(getInternalRouteTo("?details=1", { pathname: "/dags", search: "?tags=ml" })).toBe(
+        "/dags?tags=ml&details=1",
+      );
+    });
+
+    it("keeps the current page for a hash-only href", () => {
+      expect(getInternalRouteTo("#notes", { pathname: "/dags", search: "?tags=ml" })).toBe(
+        "/dags?tags=ml#notes",
+      );
+    });
+
+    it("keeps the link's hash alongside the merged query", () => {
+      expect(getInternalRouteTo("/dags?details=etl_sales#notes", onDagsList)).toBe(
+        "/dags?tags=ml&paused=false&details=etl_sales#notes",
+      );
+    });
+  });
+});
+
+// Airflow served under `[api] base_url = http://host/airflow`. `basePath` is read from
+// `<base href>` when the module loads, so each case re-imports with the tag in place.
+const loadUnder = async (baseHref: string) => {
+  document.head.innerHTML = `<base href="${baseHref}">`;
+  vi.resetModules();
+
+  return import("./links");
+};
+
+describe("getInternalRouteTo under a base path", () => {
+  afterEach(() => {
+    document.head.innerHTML = "";
+    vi.resetModules();
+  });
+
+  // Guards the fixture itself: if `<base href>` were not picked up, basePath would be "" and
+  // every case below would pass without exercising a prefixed deployment at all.
+  it("reads the base path from the base tag", async () => {
+    await loadUnder("/airflow/");
+    const { basePath } = await import("src/basePath");
+
+    expect(basePath).toBe("/airflow");
+  });
+
+  // The form the docs now recommend: the browser resolves it against `<base>`, and so do we.
+  it("resolves a relative href under the base path", async () => {
+    const { getInternalRouteTo: resolve } = await loadUnder("/airflow/");
+
+    expect(resolve("dags/etl_sales/runs")).toBe("/dags/etl_sales/runs");
+  });
+
+  // Written without knowing the deployment's prefix. Previously this matched no route and
+  // opened `host/dags/etl_sales/runs` in a new tab, which renders a blank page.
+  it("resolves a root-absolute href under the base path", async () => {
+    const { getInternalRouteTo: resolve } = await loadUnder("/airflow/");
+
+    expect(resolve("/dags/etl_sales/runs")).toBe("/dags/etl_sales/runs");
+  });
+
+  it("accepts an href that already carries the base path", async () => {
+    const { getInternalRouteTo: resolve } = await loadUnder("/airflow/");
+
+    expect(resolve("/airflow/dags/etl_sales/runs")).toBe("/dags/etl_sales/runs");
+  });
+
+  it("still refuses a same-origin path no route owns", async () => {
+    const { getInternalRouteTo: resolve } = await loadUnder("/airflow/");
+
+    expect(resolve("/airflow/api/v2/plugins")).toBeUndefined();
+  });
+
+  it("keeps the query string of a same-page link", async () => {
+    const { getInternalRouteTo: resolve } = await loadUnder("/airflow/");
+
+    expect(resolve("/dags?details=etl_sales", { pathname: "/dags", search: "?tags=ml" })).toBe(
+      "/dags?tags=ml&details=etl_sales",
+    );
   });
 });

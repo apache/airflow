@@ -32,6 +32,23 @@ Changelog
   the Apache Airflow community. Rely only on the versions listed in this changelog, starting with
   ``0.2.0``.
 
+0.2.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document that DuckDB extension installs need a HOME directory (#74301)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.2.0
 .....
 

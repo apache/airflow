@@ -210,7 +210,7 @@ class TestExternalPythonDecorator:
             return None
 
         with dag_maker(serialized=True):
-            v = f(datetime.datetime.now(tz=datetime.timezone.utc))
+            v = f(datetime.datetime.now(tz=datetime.UTC))
 
         dr = dag_maker.create_dagrun()
         ti = dr.get_task_instances()[0]

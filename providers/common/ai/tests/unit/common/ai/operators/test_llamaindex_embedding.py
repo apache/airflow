@@ -160,7 +160,7 @@ class TestEmbeddingOperatorExecute:
         op = LlamaIndexEmbeddingOperator(
             task_id="test",
             documents=[{"text": "doc"}],
-            embed_model=12345,  # type: ignore[arg-type]
+            embed_model=12345,
         )
         with pytest.raises(TypeError, match="embed_model must be"):
             op.execute(context=MagicMock())

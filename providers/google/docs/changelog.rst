@@ -27,6 +27,122 @@
 Changelog
 ---------
 
+22.9.0
+......
+
+.. warning::
+    Subclasses of ``CloudLoggingRemoteLogIO`` that override ``prepare_log_filter`` must accept a
+    ``log_path`` keyword argument (``log_path: str | None = None``), because ``read`` now passes it.
+    With the old ``(self, ti_labels)`` signature every task log read fails with ``TypeError``.
+
+.. note::
+    ``BigQueryStreamingBufferEmptySensor`` now requires ``empty_confirmations`` consecutive empty
+    readings (default 2), which can delay success by up to one ``poke_interval``. With
+    ``mode="reschedule"`` and ``empty_confirmations > 1`` it needs a running triggerer. Set
+    ``empty_confirmations=1`` to keep the worker-only behaviour.
+
+Features
+~~~~~~~~
+
+* ``Add async 'BigQueryAsyncHook.aget_records' and deprecate 'get_records' (#72286)``
+* ``Add query and report inspection operators for Google Bid Manager, fail the report sensor and download operator on a FAILED report, and read all pages in list_queries and list_reports (#71947)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Google Cloud connection IdP extra request parameters being ignored (#76161)``
+* ``Enforce execution_timeout in deferrable DataprocSubmitJobOperator (#72030)``
+* ``Normalize empty project id in credential config file branch (#73886)``
+* ``Stop BigQueryStreamingBufferEmptySensor reporting empty too early (#69118)``
+* ``Stop Google Cloud Logging handler from starting a thread on close (#75596)``
+* ``Fix BigQueryInsertJobOperator cancellation and links with inferred job locations (#75717)``
+* ``Fix BigQuery durable recovery for regional jobs (#75430)``
+* ``Cancel the BigQuery job when BigQueryToBigQueryOperator is killed (#75101)``
+* ``Prevent Dag processor crashes with Google Cloud Logging when its log directory is outside 'base_log_folder' (#74926)``
+* ``Fix Google Cloud Logging task log reads for runs without a logical date, and for mapped tasks and print() output before Airflow 3.4 (#74923)``
+
+Misc
+~~~~
+
+* ``Raise google-cloud-bigtable minimum to 2.37.0 (#76278)``
+* ``Raise google-api-python-client minimum to 2.195.0 (#75270)``
+* ``Remove types-protobuf from google provider runtime dependencies (#73775)``
+* ``Remove unused Cloud SQL settings version helper (#75789)``
+* ``Remove unused Dataproc job template helper (#75790)``
+* ``Remove unused Cloud SQL OS bitness helper (#75788)``
+* ``Remove unused Dataflow job state checker (#75784)``
+* ``Raise google-cloud-dataproc minimum to 5.32.0 and document High Obtainability (HO) mode clusters (#74753)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document all Google Cloud connection fields (#76160)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add unit tests for PrestoToGCSOperator (#75559)``
+   * ``Add unit tests for Dataproc, GKE and Translate provider links (#75694)``
+   * ``Parametrize GCS-to-GCS wildcard and retention tests. (#76094)``
+   * ``Skip log accumulator disk spill when reading finished task logs (#70671)``
+   * ``Add missing tests for google.cloud.utils BigQuery helpers (#72276) (#72448)``
+   * ``Remove duplicate Calendar-to-GCS transfer test (#75895)``
+   * ``Remove duplicate GCS wildcard transfer test (#75897)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+   * ``Allow excluding datasets from OpenLineage events by pattern and hook (#71312)``
+
+22.8.0
+......
+
+.. note::
+
+    On Airflow 3.3 and later, killing a deferred Dataflow template, flex-template or YAML task
+    now cancels its job by default. Set ``cancel_on_kill=False`` to leave it running.
+    For flex-template and YAML operators, use ``drain_pipeline=True`` to drain a streaming
+    job instead of cancelling it.
+
+    ``BigQueryToGCSOperator`` now also cancels synchronous extract jobs when its task is killed.
+    Set ``cancel_on_kill=False`` to leave the job running. A cancelled job cannot be reattached
+    with ``force_rerun=False``; use ``force_rerun=True`` when retries should submit a new job.
+
+Features
+~~~~~~~~
+
+* ``Add retry-safe batch_id_prefix to DataprocCreateBatchOperator (#69855)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
+* ``Keep the HTTPError when a Dataprep error body is not JSON (#71702)``
+* ``Fix GKEStartPodOperator ignoring execution_timeout when deferrable (#71528)``
+* ``Check hooks before cancelling BigQuery jobs in on_kill (#74946)``
+* ``Handle remote-log reads without a task instance (#73580)``
+* ``Warn when ignore_unknown_values is a no-op in GCSToBigQueryOperator (#71675)``
+* ``Use the default Google console domain for an empty environment value (#70067)``
+* ``Allow GKE Autopilot clusters without node pools and stop GKE pod trigger reviving should_delete_pod (#69876)``
+* ``Avoid Vertex AI Feature Store imports during Dag parsing (#69823)``
+* ``Cancel the Dataflow job when a user kills the deferred task (#69586)``
+* ``Cancel the BigQuery job when BigQueryToGCSOperator is killed (#74564)``
+
+Misc
+~~~~
+
+* ``Require google-api-python-client 2.194.0, google-cloud-bigtable 2.36.0, google-cloud-dataflow-client 0.13.0, google-cloud-dlp 3.36.0, google-cloud-pubsub 2.37.0, google-cloud-spanner 3.65.0, google-cloud-texttospeech 2.36.0 and google-cloud-translate 3.26.0 or newer (#73822)``
+* ``Use the shared ResumableJobMixin compatibility fallback (#74673)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix Cloud Function invoke operator docs link (#69226)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Exempt Google Cloud link modules from provider test-file check (#74924)``
+   * ``Cover long-running jobs in the deferrable BigQuery check system test (#74356)``
+
+22.7.0
+......
+
 .. warning::
     ``GCSToSFTPOperator`` no longer writes GCS folder markers, the objects whose name ends with
     ``/``, as files. They were written as an empty file at the folder's path, so the folder's
@@ -35,6 +151,55 @@ Changelog
     bucket when ``move_object=True``. With ``create_intermediate_dirs=False``, markers are skipped
     and left in the bucket. An empty file that an earlier version wrote at a marker's path blocks
     the directory and fails the task; remove it from the SFTP server before the next run.
+
+Features
+~~~~~~~~
+
+* ``Support Table objects in BigQueryHook.create_table table_resource (#73099)``
+* ``Adapt GCP BigtableHook to run in private cloud (#73181)``
+* ``Deprecate Dataproc ClusterGenerator helper class (#71427)``
+* ``Add GKEPodExecOperator for existing Pods (#72577, #74505)``
+* ``Add a vendor-neutral managed-agent hook contract to Common AI (#73532)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Retry Data Fusion polling after transient 404 responses (#74237)``
+* ``Keep polling in the BigQuery check triggers while a job is running (#74305)``
+* ``Look up task logs by task try UUID (#74204)``
+* ``Apply impersonation_chain to deferred BigQuery existence checks (#71648)``
+* ``Fix PostgresToGCSOperator fetching one row at a time with psycopg3 (#73324)``
+* ``Fix Dataproc triggers swallowing task cancellation (#74192)``
+* ``Fix destination path validation in GCS-to-SFTP transfers (#74186)``
+* ``Fix Cloud SQL 409 operationInProgress on import/export operations (#68361)``
+* ``Pass ClientTimeout to aiohttp in Cloud Composer async hook (#74164)``
+* ``Honor download_num_attempts and upload_num_attempts in GCSTimeSpanFileTransformOperator (#72953)``
+* ``Create GCS folder markers as directories in GCSToSFTPOperator (#73880)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Fix docstring cross-references that Sphinx 9 cannot resolve (#74169)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-06 (#74429)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``Remove Google hook tests duplicated across default-project test classes (#74362)``
+   * ``Remove provider tests that restate 'template_fields' and other class constants (#74359)``
+   * ``Fix google provider system tests dag version increase issues (#72194)``
+   * ``Add datafusion handler for google cleanup script (#74234)``
+   * ``Fix google provider BQ openlineage checks (#71777)``
+   * ``Add tests for Google Go module subprocess utility (#73268)``
+   * ``Fix Non-DB test collection failure in Google Stackdriver hook test (#74066)``
+   * ``Add tests for the Google Cloud Tasks links (#72846)``
+   * ``[main] Upgrade important CI environment (#73629)``
 
 22.6.0
 ......

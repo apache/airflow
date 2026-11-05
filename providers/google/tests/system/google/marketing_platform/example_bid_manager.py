@@ -33,6 +33,10 @@ from airflow.providers.google.marketing_platform.operators.bid_manager import (
     GoogleBidManagerCreateQueryOperator,
     GoogleBidManagerDeleteQueryOperator,
     GoogleBidManagerDownloadReportOperator,
+    GoogleBidManagerGetQueryOperator,
+    GoogleBidManagerGetReportOperator,
+    GoogleBidManagerListQueriesOperator,
+    GoogleBidManagerListReportsOperator,
     GoogleBidManagerRunQueryOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.bid_manager import (
@@ -147,6 +151,14 @@ with DAG(
     query_id = cast("str", XComArg(create_query, key="query_id"))
     # [END howto_google_bid_manager_create_query_operator]
 
+    # [START howto_google_bid_manager_get_query_operator]
+    get_query = GoogleBidManagerGetQueryOperator(query_id=query_id, task_id="get_query", gcp_conn_id=CONN_ID)
+    # [END howto_google_bid_manager_get_query_operator]
+
+    # [START howto_google_bid_manager_list_queries_operator]
+    list_queries = GoogleBidManagerListQueriesOperator(task_id="list_queries", gcp_conn_id=CONN_ID)
+    # [END howto_google_bid_manager_list_queries_operator]
+
     # [START howto_google_bid_manager_run_query_report_operator]
     run_query = GoogleBidManagerRunQueryOperator(
         query_id=query_id, parameters=PARAMETERS, task_id="run_report", gcp_conn_id=CONN_ID
@@ -166,14 +178,32 @@ with DAG(
     # [END howto_google_bid_manager_wait_run_query_sensor]
 
     # [START howto_google_bid_manager_get_report_operator]
-    get_report = GoogleBidManagerDownloadReportOperator(
+    get_report = GoogleBidManagerGetReportOperator(
         query_id=query_id,
         report_id=report_id,
         task_id="get_report",
+        gcp_conn_id=CONN_ID,
+    )
+    # [END howto_google_bid_manager_get_report_operator]
+
+    # [START howto_google_bid_manager_list_reports_operator]
+    list_reports = GoogleBidManagerListReportsOperator(
+        query_id=query_id,
+        task_id="list_reports",
+        gcp_conn_id=CONN_ID,
+    )
+    # [END howto_google_bid_manager_list_reports_operator]
+
+    # [START howto_google_bid_manager_download_report_operator]
+    download_report = GoogleBidManagerDownloadReportOperator(
+        query_id=query_id,
+        report_id=report_id,
+        task_id="download_report",
         bucket_name=BUCKET_NAME,
         report_name="test1.csv",
         gcp_conn_id=CONN_ID,
     )
+    # [END howto_google_bid_manager_download_report_operator]
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket",
@@ -181,7 +211,6 @@ with DAG(
         gcp_conn_id=CONN_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_google_bid_manager_get_report_operator]
 
     # [START howto_google_bid_manager_delete_query_operator]
     delete_query = GoogleBidManagerDeleteQueryOperator(
@@ -194,9 +223,13 @@ with DAG(
         >> create_connection_display_video_task  # type: ignore
         >> create_bucket
         >> create_query
+        >> get_query
+        >> list_queries
         >> run_query
         >> wait_for_query
         >> get_report
+        >> list_reports
+        >> download_report
         >> delete_query
         >> delete_bucket
         >> delete_connection_task

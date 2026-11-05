@@ -23,12 +23,19 @@ from unittest import mock
 import pytest
 import structlog
 
-from airflow.sdk import TaskInstanceState
+from airflow.sdk import BaseOperator, TaskInstanceState, task_group
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowSkipException
-from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
+from airflow.sdk.execution_time.comms import (
+    GetXCom,
+    GetXComCount,
+    XComCountResponse,
+    XComResult,
+    XComSequenceSliceResult,
+)
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.serde import deserialize, serialize
 
@@ -416,3 +423,43 @@ class TestPlainXComArgResolveMappedGroup:
         assert resolved == "value-0"
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
+
+
+class TestPlainXComArgResolveLoopTask:
+    @pytest.fixture
+    def dag(self):
+        @task_group
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="second")
+
+        with DAG("loop_dag", schedule=None) as dag:
+            create_loop(body, max_iterations=3) >> BaseOperator(task_id="after")
+        return dag
+
+    def test_resolve_from_outside_the_loop_returns_a_sequence_of_every_iteration(
+        self, dag, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.send.return_value = XComCountResponse(len=3)
+
+        resolved = PlainXComArg(dag.get_task("body.first")).resolve({"ti": ti})
+
+        assert isinstance(resolved, LazyXComSequence)
+        mock_supervisor_comms.send.assert_not_called()
+        assert len(resolved) == 3
+        sent = mock_supervisor_comms.send.call_args.args[0]
+        assert sent == GetXComCount(
+            key="return_value", dag_id=ti.dag_id, run_id=ti.run_id, task_id="body.first"
+        )
+        assert set(sent.model_dump()) == {"type", "previous_iteration", "key", "dag_id", "run_id", "task_id"}
+
+    def test_resolve_from_inside_the_loop_pulls_the_value_of_the_same_iteration(
+        self, dag, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=dag.get_task("body.second"))
+        mock_supervisor_comms.send.return_value = XComResult(key="return_value", value="value")
+
+        resolved = PlainXComArg(dag.get_task("body.first")).resolve({"ti": ti})
+
+        assert resolved == "value"
+        assert isinstance(mock_supervisor_comms.send.call_args.args[0], GetXCom)

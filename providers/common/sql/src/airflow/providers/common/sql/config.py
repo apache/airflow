@@ -48,7 +48,16 @@ class StorageType(str, Enum):
 
     S3 = "s3"
     GCS = "gcs"
+    AZURE = "azure"
     LOCAL = "local"
+
+
+STORAGE_TYPE_SCHEMES: dict[StorageType, tuple[str, ...]] = {
+    StorageType.S3: ("s3://",),
+    StorageType.GCS: ("gs://",),
+    StorageType.AZURE: ("az://", "abfs://", "abfss://"),
+    StorageType.LOCAL: ("file://",),
+}
 
 
 @dataclass
@@ -113,10 +122,7 @@ class DataSourceConfig:
     @property
     def _extract_storage_type(self) -> StorageType | None:
         """Extract storage type."""
-        if self.uri.startswith("s3://"):
-            return StorageType.S3
-        if self.uri.startswith("gs://"):
-            return StorageType.GCS
-        if self.uri.startswith("file://"):
-            return StorageType.LOCAL
+        for storage_type, schemes in STORAGE_TYPE_SCHEMES.items():
+            if self.uri.startswith(schemes):
+                return storage_type
         raise ValueError(f"Unsupported storage type for URI: {self.uri}")

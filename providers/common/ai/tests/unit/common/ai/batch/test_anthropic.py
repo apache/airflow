@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from airflow.providers.common.ai.batch.anthropic import AnthropicBatchAdapter
 from airflow.providers.common.ai.batch.base import RawResultItem
@@ -28,6 +28,7 @@ from airflow.providers.common.ai.exceptions import LLMBatchLimitExceededError, L
 
 anthropic = pytest.importorskip("anthropic")
 
+from anthropic._utils._json import openapi_dumps  # noqa: E402
 from anthropic.types import Message, TextBlock, ToolUseBlock  # noqa: E402
 from anthropic.types.messages import MessageBatch, MessageBatchIndividualResponse  # noqa: E402
 
@@ -263,6 +264,60 @@ class TestSubmitRequestShape:
                 model="claude-sonnet-5",
                 idempotency_key=KEY,
                 output_spec=str_spec,
+            )
+
+
+def _inline_payload_bytes(client) -> int:
+    """
+    Return the bytes the SDK's own encoder produces for the whole ``batches.create`` body.
+
+    Deriving the expectation from the encoder rather than repeating ``_utf8_size``'s
+    expression keeps it independent of the code under test, and turns these tests into
+    a tripwire for an SDK that changes how it serializes a batch.
+    """
+    built = client.messages.batches.created[0]["requests"]
+    return len(openapi_dumps({"requests": built}))
+
+
+class TestPayloadSizeEstimate:
+    @pytest.mark.parametrize(
+        "prompts",
+        [
+            pytest.param(["abc", "abcdef"], id="ascii"),
+            pytest.param(["中文字", "中文字串測試"], id="cjk"),
+            pytest.param(["😀😀😀", "😀😀😀😀😀"], id="non-bmp"),
+        ],
+    )
+    def test_estimate_matches_the_inline_payload_bytes(self, adapter, client, str_spec, prompts):
+        # Two requests of unequal length: with one, the running total reads the same as an
+        # overwrite, and the comma is never charged at all -- it starts at the second request.
+        requests = [{"prompt": prompt} for prompt in prompts]
+        _submit(adapter, requests, str_spec)
+        on_the_wire = _inline_payload_bytes(client)
+
+        adapter.max_payload_bytes = on_the_wire
+        adapter.validate_requests(
+            requests, model="claude-sonnet-5", idempotency_key=KEY, output_spec=str_spec
+        )
+
+        adapter.max_payload_bytes = on_the_wire - 1
+        with pytest.raises(LLMBatchLimitExceededError):
+            adapter.validate_requests(
+                requests, model="claude-sonnet-5", idempotency_key=KEY, output_spec=str_spec
+            )
+
+    def test_reported_directive_size_is_in_utf8_bytes(self, adapter):
+        class NonAsciiSchema(BaseModel):
+            field: str = Field(description="中" * 100)
+
+        spec = build_output_spec(NonAsciiSchema)
+        directive = adapter.build_output_directive(spec)
+        expected = len(openapi_dumps(directive))
+
+        adapter.max_payload_bytes = 0
+        with pytest.raises(LLMBatchLimitExceededError, match=rf"adds ~{expected} bytes"):
+            adapter.validate_requests(
+                [{"prompt": "a"}], model="claude-sonnet-5", idempotency_key=KEY, output_spec=spec
             )
 
 

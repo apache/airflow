@@ -102,6 +102,7 @@ So we want events on a revoked pod to be ignored.
 
 
 TASK_INSTANCE_ID_ANNOTATION = "task_instance_id"
+TASK_INSTANCE_ID_LABEL = "ti_id"
 
 
 def task_instance_id_from_pod(pod: k8s.V1Pod) -> UUID | None:

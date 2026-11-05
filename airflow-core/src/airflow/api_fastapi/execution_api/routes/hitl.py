@@ -123,7 +123,10 @@ def _check_hitl_detail_exists(hitl_detail_model: HITLDetail | None) -> HITLDetai
 @router.patch(
     "/{task_instance_id}",
     responses=create_openapi_http_exception_doc(
-        [(status.HTTP_409_CONFLICT, "A response has already been received for this HITLDetail")]
+        [
+            (status.HTTP_404_NOT_FOUND, "HITLDetail not found"),
+            (status.HTTP_409_CONFLICT, "A response has already been received for this HITLDetail"),
+        ]
     ),
 )
 def update_hitl_detail(
@@ -153,6 +156,7 @@ def update_hitl_detail(
 @router.get(
     "/{task_instance_id}",
     status_code=status.HTTP_200_OK,
+    responses=create_openapi_http_exception_doc([(status.HTTP_404_NOT_FOUND, "HITLDetail not found")]),
 )
 async def get_hitl_detail(
     task_instance_id: UUID,

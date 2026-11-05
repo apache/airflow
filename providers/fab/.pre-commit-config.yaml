@@ -26,6 +26,8 @@ repos:
     hooks:
       - id: compile-fab-assets
         name: Compile FAB provider assets
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: node
         stages: ['pre-commit', 'manual']
         files: ^src/airflow/providers/fab/www/
@@ -38,12 +40,16 @@ repos:
         additional_dependencies: ['pnpm@10.25.0']
       - id: generate-openapi-spec-fab
         name: Generate the FastAPI API spec for FAB
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../../scripts/ci/prek/generate_openapi_spec_providers.py fab
         pass_filenames: false
         files: ^src/airflow/providers/fab/auth_manager/api_fastapi/.*\.py$
       - id: check-http-exception-import-from-fastapi
         name: Check HTTPException is imported from fastapi
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../../scripts/ci/prek/check_http_exception_import_from_fastapi.py
         language: python
         pass_filenames: true
@@ -53,6 +59,8 @@ repos:
           ^tests/unit/fab/auth_manager/api_fastapi/.*\.py$
       - id: update-migration-references-fab
         name: Update migration ref doc for FAB
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../../scripts/ci/prek/migration_reference.py
         args: ["--app", "fab"]
@@ -63,6 +71,8 @@ repos:
           ^(providers/fab/)?docs/migrations-ref\.rst$
       - id: check-revision-heads-map-fab
         name: Check that the REVISION_HEADS_MAP is up-to-date
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ../../scripts/ci/prek/check_revision_heads_map.py
         pass_filenames: false
@@ -72,6 +82,8 @@ repos:
           ^(providers/fab/)?src/airflow/providers/fab/auth_manager/models/db\.py$
       - id: prevent-deprecated-sqlalchemy-usage-fab
         name: Prevent deprecated sqlalchemy usage
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         entry: ../../scripts/ci/prek/prevent_deprecated_sqlalchemy_usage.py
         language: python
         files: ^.*\.py$

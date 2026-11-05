@@ -17,14 +17,15 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlencode
 
 import jwt
 import pytest
 from fastapi.testclient import TestClient
 
-from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
+from airflow.api_fastapi.common.types import CliLoginMethods
 from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.config import conf_vars
@@ -96,6 +97,50 @@ class TestGetLogin(TestAuthEndpoint):
         response = test_client.get("/auth/login", follow_redirects=False, params=params)
 
         assert response.status_code == 400
+
+
+class TestGetCliLoginMetadata:
+    @pytest.mark.parametrize(
+        ("methods", "expected"),
+        [
+            pytest.param(
+                CliLoginMethods(),
+                {
+                    "grant_types_supported": [],
+                    "code_challenge_methods_supported": [],
+                    "authorization_endpoint": None,
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": None,
+                },
+                id="no-method",
+            ),
+            pytest.param(
+                CliLoginMethods(
+                    grant_types_supported=["password", "authorization_code"],
+                    code_challenge_methods_supported=["S256"],
+                    authorization_endpoint="http://localhost:8080/auth/login/cli",
+                    token_endpoint="http://localhost:8080/auth/token/cli",
+                ),
+                {
+                    "grant_types_supported": ["password", "authorization_code"],
+                    "code_challenge_methods_supported": ["S256"],
+                    "authorization_endpoint": "http://localhost:8080/auth/login/cli",
+                    "device_authorization_endpoint": None,
+                    "token_endpoint": "http://localhost:8080/auth/token/cli",
+                },
+                id="authorization-code",
+            ),
+        ],
+    )
+    def test_should_respond_200_without_authentication(self, unauthenticated_test_client, methods, expected):
+        auth_manager_mock = MagicMock(spec=BaseAuthManager)
+        auth_manager_mock.get_cli_login_methods.return_value = methods
+        unauthenticated_test_client.app.state.auth_manager = auth_manager_mock
+
+        response = unauthenticated_test_client.get("/auth/cli/metadata")
+
+        assert response.status_code == 200
+        assert response.json() == expected
 
 
 class TestLogout(TestAuthEndpoint):
@@ -357,3 +402,46 @@ class TestLogoutTokenRevocation:
         assert response.status_code == 307
         assert response.headers["location"] == "http://external/logout"
         assert RevokedToken.is_revoked("test-jti-redirect-456") is True
+
+    def test_logout_clears_cookie_when_logout_url_redirects(self, logout_client):
+        """The local session cookie is cleared on the external-logout redirect too, not only revoked."""
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-redirect-cookie")
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
+        # The refresh middleware is stubbed out so that only the logout route can clear the cookie.
+        with (
+            patch(
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware.refresh_user",
+                new=AsyncMock(return_value=(None, None)),
+            ),
+            patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
+        ):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert response.headers["location"] == "http://external/logout"
+        cookies = response.headers.get_list("set-cookie")
+        assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)
+
+    def test_logout_clears_cookie_when_revocation_cannot_be_recorded(self, logout_client):
+        """A failed revocation write does not leave the browser session in place."""
+        from sqlalchemy.exc import SQLAlchemyError
+
+        auth_manager = logout_client.app.state.auth_manager
+        token_str = self._mint(auth_manager, "test-jti-revoke-fails")
+
+        logout_client.cookies.set(COOKIE_NAME_JWT_TOKEN, token_str)
+        with (
+            patch(
+                "airflow.api_fastapi.auth.middlewares.refresh_token.JWTRefreshMiddleware.refresh_user",
+                new=AsyncMock(return_value=(None, None)),
+            ),
+            patch.object(auth_manager, "get_url_logout", return_value="http://external/logout"),
+            patch("airflow.models.revoked_token.RevokedToken.revoke", side_effect=SQLAlchemyError("db down")),
+        ):
+            response = logout_client.get("/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        cookies = response.headers.get_list("set-cookie")
+        assert any(c.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") and "Max-Age=0" in c for c in cookies)

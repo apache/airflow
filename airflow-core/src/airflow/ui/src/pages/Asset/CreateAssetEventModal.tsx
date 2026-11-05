@@ -30,6 +30,8 @@ import {
   useAssetServiceMaterializeAsset,
   UseDagRunServiceGetDagRunsKeyFn,
   useDagServiceGetDagDetails,
+  UseDagServiceGetDagDetailsKeyFn,
+  UseDagServiceGetDagKeyFn,
   useDagServiceGetDagsUiKey,
   useDependenciesServiceGetDependencies,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -49,7 +51,9 @@ import { JsonEditor } from "src/components/JsonEditor";
 import TriggerDAGForm from "src/components/TriggerDag/TriggerDAGForm";
 import type { DagRunTriggerParams } from "src/components/TriggerDag/types";
 
-import { toNullablePartitionKey } from "src/utils";
+import { isOneOf, toNullablePartitionKey } from "src/utils";
+
+const isAssetEventType = isOneOf(["manual", "materialize"] as const);
 
 type Props = {
   readonly asset: AssetResponse;
@@ -59,7 +63,7 @@ type Props = {
 
 export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
   const { t: translate } = useTranslation(["assets", "components"]);
-  const [eventType, setEventType] = useState("manual");
+  const [eventType, setEventType] = useState<"manual" | "materialize">("manual");
   const [extraError, setExtraError] = useState<string | undefined>();
   const [extra, setExtra] = useState("{}");
   const [partitionKey, setPartitionKey] = useState<string | undefined>(undefined);
@@ -95,6 +99,8 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       queryKeys = [
         ...queryKeys,
         [useDagServiceGetDagsUiKey],
+        UseDagServiceGetDagKeyFn({ dagId }, [{ dagId }]),
+        UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
         UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
         UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
       ];
@@ -115,8 +121,15 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     await Promise.all(queryKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })));
   };
 
-  const { data: dag } = useDagServiceGetDagDetails({ dagId: upstreamDagId ?? "" }, undefined, {
+  const {
+    data: dag,
+    error: dagError,
+    isError: isDagError,
+    isFetching: isDagFetching,
+  } = useDagServiceGetDagDetails({ dagId: upstreamDagId ?? "" }, undefined, {
     enabled: Boolean(upstreamDagId),
+    // The paused state decides whether a drain is requested, so it must not come from a stale cache.
+    staleTime: 0,
   });
 
   const {
@@ -128,6 +141,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     error: materializeError,
     isPending: isMaterializePending,
     mutate: materializeAsset,
+    reset: resetMaterializeError,
   } = useAssetServiceMaterializeAsset({
     onSuccess,
   });
@@ -147,6 +161,7 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       dag_run_id: dagRunRequestBody.dagRunId === "" ? undefined : dagRunRequestBody.dagRunId,
       data_interval_end: dataIntervalEnd?.toISOString() ?? null,
       data_interval_start: dataIntervalStart?.toISOString() ?? null,
+      drain_dag: dagRunRequestBody.drainDag,
       logical_date: logicalDate?.toISOString() ?? null,
       note: dagRunRequestBody.note === "" ? undefined : dagRunRequestBody.note,
       partition_key: toNullablePartitionKey(dagRunRequestBody.partitionKey),
@@ -184,8 +199,10 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
     >
       <RadioCardRoot
         mb={6}
-        onChange={(event) => {
-          setEventType((event.target as HTMLInputElement).value);
+        onValueChange={(details) => {
+          if (isAssetEventType(details.value)) {
+            setEventType(details.value);
+          }
         }}
         value={eventType}
       >
@@ -231,13 +248,14 @@ export const CreateAssetEventModal = ({ asset, onClose, open }: Props) => {
       ) : undefined}
       {eventType === "materialize" && dag !== undefined && upstreamDagId !== undefined ? (
         <TriggerDAGForm
-          dagDisplayName={dag.dag_display_name}
           dagId={upstreamDagId}
-          error={materializeError}
+          disabled={isDagFetching || isDagError}
+          error={materializeError ?? dagError}
           hasSchedule={dag.timetable_summary !== null}
           isPartitioned={dag.timetable_partitioned}
           isPaused={dag.is_paused}
           isPending={isMaterializePending}
+          onPausedDagActionChange={Boolean(materializeError) ? resetMaterializeError : undefined}
           onSubmitTrigger={handleMaterializeSubmit}
           open={open}
         />

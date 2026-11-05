@@ -40,6 +40,8 @@ from airflow.sdk.coordinators._bundle_metadata import extract_supervisor_schema_
 if TYPE_CHECKING:
     from typing import BinaryIO
 
+BUNDLE_SUFFIX = ".min.mjs"
+
 # Format prefixes and whole-line limits must agree with the TypeScript encoder.
 _LAYOUT_COMMENT_PREFIX = b"//# airflowBundle="
 _MAX_LAYOUT_LINE_BYTES = 4096
@@ -143,17 +145,30 @@ def read_bundle_source(bundle_path: pathlib.Path, dag_id: str | None = None) -> 
     """
     if dag_id is None:
         return None
-    payloads = _read_verified_payloads(bundle_path)
+    return _read_source(_read_verified_payloads(bundle_path), dag_id)
+
+
+def read_bundle_entrypoint_source(bundle_path: pathlib.Path) -> str | None:
+    """Return the entrypoint source ``airflow-ts-pack`` embedded, or ``None`` when it embeds none."""
+    return _read_source(_read_verified_payloads(bundle_path), None)
+
+
+def _read_source(payloads: _VerifiedPayloads, dag_id: str | None) -> str | None:
     source_path = _resolve_source_path(payloads.metadata, dag_id)
     if source_path is None:
         return None
     try:
         payload = payloads.sources[source_path]
     except KeyError:
-        raise ValueError(
-            f"bundle declares no source region at path {source_path!r} for dag_id {dag_id!r}"
-        ) from None
+        owner = "the entrypoint" if dag_id is None else f"dag_id {dag_id!r}"
+        raise ValueError(f"bundle declares no source region at path {source_path!r} for {owner}") from None
     return _decode_source(payload)
+
+
+def has_bundle_layout_prefix(bundle_path: pathlib.Path) -> bool:
+    """Return whether *bundle_path* starts with the layout comment ``airflow-ts-pack`` writes."""
+    with bundle_path.open("rb") as bundle_file:
+        return bundle_file.read(len(_LAYOUT_COMMENT_PREFIX)) == _LAYOUT_COMMENT_PREFIX
 
 
 @attrs.define(frozen=True)
@@ -451,9 +466,9 @@ def _parse_bundle_metadata(payload: bytes) -> BundleMetadata:
     )
 
 
-def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:
+def _resolve_source_path(payload: bytes, dag_id: str | None) -> str | None:
     """
-    Return the embedded source path for *dag_id*, or ``None``.
+    Return the embedded source path for *dag_id*, or for the entrypoint when it is ``None``.
 
     A native TypeScript Dag maps to its own file through ``dag_source_paths``. A Dag that is not
     mapped (one constructed dynamically, so the packer could not attribute a file) falls back to
@@ -466,7 +481,7 @@ def _resolve_source_path(payload: bytes, dag_id: str) -> str | None:
     if not isinstance(metadata, dict):
         raise ValueError("embedded airflow metadata must contain a mapping")
     dag_source_paths = metadata.get("dag_source_paths")
-    if isinstance(dag_source_paths, dict):
+    if dag_id is not None and isinstance(dag_source_paths, dict):
         mapped = dag_source_paths.get(dag_id)
         if isinstance(mapped, str):
             return mapped

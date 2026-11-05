@@ -128,6 +128,8 @@ Custom backends
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
+Values are passed to :meth:`~airflow.sdk.state.BaseStoreBackend.set` and returned from :meth:`~airflow.sdk.state.BaseStoreBackend.get` as JSON encoded strings, and are never the JSON ``null``. The Execution API reads values through :meth:`~airflow.sdk.state.BaseStoreBackend.get_value` (:meth:`~airflow.sdk.state.BaseStoreBackend.aget_value` is the async equivalent); a backend that stores values natively can override them to skip decoding on reads.
+
 Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 
 .. code-block:: python
@@ -203,7 +205,9 @@ Example skeleton:
     class S3StateBackend(BaseStoreBackend):
 
         def _task_ref(self, scope: TaskScope, key: str) -> str:
-            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
+            # Two regions can hold the same task_id and map_index, so region_id must be part of the ref.
+            region = f"region={scope.region_id}/" if scope.region_id.int else ""
+            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{region}{scope.task_id}/{scope.map_index}/{key}"
 
         def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib

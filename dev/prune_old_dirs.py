@@ -25,7 +25,7 @@
 # Defaults to current directory. Without --execute it only prints the svn remove commands.
 #
 # /// script
-# requires-python = ">=3.10"
+# requires-python = ">=3.11"
 # dependencies = [
 #   "rich>=13.6.0",
 #   "packaging>=23.0",

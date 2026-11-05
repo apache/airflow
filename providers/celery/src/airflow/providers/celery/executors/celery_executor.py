@@ -35,9 +35,7 @@ from multiprocessing import cpu_count
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias
 
 from celery import states as celery_states
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors import (
     celery_executor_utils as _celery_executor_utils,  # noqa: F401 # Needed to register Celery tasks at worker startup, see #63043.
@@ -191,8 +189,8 @@ class CeleryExecutor(BaseExecutor):
                 key = self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
                 workloads_to_be_sent.append((key, workload, workload.ti.queue, self.team_name))
             elif AIRFLOW_V_3_2_PLUS and isinstance(workload, ExecuteCallback):
-                # Use default queue for callbacks, or extract from callback data if available.
-                queue = "default"
+                # Use the configured default queue for callbacks, or extract from callback data if available.
+                queue = self.conf.get_mandatory_value("operators", "default_queue")
                 if isinstance(workload.callback.data, dict) and "queue" in workload.callback.data:
                     queue = workload.callback.data["queue"]
                 workloads_to_be_sent.append((workload.callback.key, workload, queue, self.team_name))
@@ -385,23 +383,6 @@ class CeleryExecutor(BaseExecutor):
             )
 
         return not_adopted_tis
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Remove tasks stuck in queued from executor and fail them.
-
-        This method is deprecated. Use `cleanup_tasks_stuck_in_queued` instead.
-        """
-        reprs = []
-        for ti in tis:
-            reprs.append(repr(ti))
-            self.revoke_task(ti=ti)
-            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
-        return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
         key = self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key

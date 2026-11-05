@@ -173,3 +173,8 @@ def mutate_byte(bundle: pathlib.Path, offset: int) -> None:
     contents = bytearray(bundle.read_bytes())
     contents[offset] = ord("A") if contents[offset] != ord("A") else ord("B")
     bundle.write_bytes(contents)
+
+
+def mutate_section(bundle: pathlib.Path, section: str) -> None:
+    """Change the first byte of a layout section, so its digest no longer matches."""
+    mutate_byte(bundle, int(read_layout(bundle)[section]["start"], 16))  # type: ignore[index, call-overload]

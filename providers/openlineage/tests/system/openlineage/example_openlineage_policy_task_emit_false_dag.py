@@ -15,9 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-DAG exercising the OpenLineage emission policy authoring API.
+Dag exercising the OpenLineage emission policy authoring API.
 
-Per-task ``emit=False`` silences task events only.
+Per-task ``emit=False`` silences task events only, and the Dag run START event reports the task as not emitting
+in ``emits_ol_events``.
 """
 
 from __future__ import annotations
@@ -47,7 +48,9 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
+    # No authoring: START/COMPLETE are emitted.
     task_normal = PythonOperator(task_id="task_normal", python_callable=_say_hello)
+    # Authored emit=False: no task events.
     task_silenced = PythonOperator(task_id="task_silenced", python_callable=_say_hello)
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

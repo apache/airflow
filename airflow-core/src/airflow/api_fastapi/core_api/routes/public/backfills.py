@@ -26,6 +26,8 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import (
     SessionDep,
@@ -51,7 +53,7 @@ from airflow.api_fastapi.core_api.security import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import DagNotFound, DagRunTypeNotAllowed
-from airflow.models import DagRun
+from airflow.models import DagModel, DagRun
 from airflow.models.backfill import (
     AlreadyRunningBackfill,
     Backfill,
@@ -302,6 +304,18 @@ def create_backfill(
         session,
         fallback=True,
     )
+    if backfill_request.drain_dag and not get_auth_manager().is_authorized_dag(
+        method="PUT",
+        details=DagDetails(
+            id=backfill_request.dag_id,
+            team_name=DagModel.get_team_name(backfill_request.dag_id, session=session),
+        ),
+        user=user,
+    ):
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN,
+            f"Draining requires permission to edit Dag: {backfill_request.dag_id}",
+        )
     try:
         backfill_obj = _create_backfill(
             dag_id=backfill_request.dag_id,
@@ -313,6 +327,7 @@ def create_backfill(
             triggering_user_name=user.get_display_name(),
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            drain_dag=backfill_request.drain_dag,
         )
         return BackfillResponse.model_validate(backfill_obj)
     except OperationalError as e:
