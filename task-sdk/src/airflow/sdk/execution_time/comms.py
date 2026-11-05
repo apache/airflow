@@ -317,8 +317,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
     # thread was in the middle of a request. The RLock records its owner when it is taken, so no
     # moment is left where the thread holds the lock but is not yet known as its holder.
     _thread_lock: threading.RLock = attrs.field(factory=threading.RLock, repr=False)
-    # One queue per event loop: asend() can be called from several at once (a sync indexed task
-    # running asyncio.run() while the iteration's loop has calls in flight), and an asyncio.Lock binds
+    # One queue per event loop: asend() can be called from several at once (sync code running
+    # asyncio.run() on a worker thread while another loop has calls in flight), and an asyncio.Lock binds
     # to the loop that first waits on it. Each loop queues its own calls, so only one thread of its
     # default executor waits for the channel; _thread_lock orders the loops.
     _loop_queues: _LoopQueues = attrs.field(factory=_LoopQueues, repr=False)
@@ -393,7 +393,7 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         Take ``_thread_lock``, exchange one request and its response, and release it.
 
         A request whose caller gave up while this thread waited for the lock is not sent: nothing
-        reached the parent yet, and its side effects (an XCom push, a checkpoint) belong to a
+        reached the parent yet, and its side effects (an XCom push, a state update) belong to a
         coroutine that was cancelled. Once sent, its response is always read, so the next request
         never reads it as its own.
         """

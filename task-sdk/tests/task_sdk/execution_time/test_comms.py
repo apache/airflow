@@ -566,7 +566,9 @@ class TestCommsDecoder:
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         threading.Thread(target=self._serve, args=(w, 2), daemon=True).start()
 
-        with mock.patch.object(CommsDecoder, "_get_response", side_effect=EOFError("supervisor gone")):
+        with mock.patch.object(
+            CommsDecoder, "_get_response", autospec=True, side_effect=EOFError("supervisor gone")
+        ):
             with pytest.raises(EOFError):
                 decoder.send(GetVariable(key="lost"))
 
@@ -637,15 +639,15 @@ class TestCommsDecoder:
     @pytest.mark.execution_timeout(10)
     def test_asend_from_two_event_loops_at_once_each_gets_its_own_response(self, socket_pair):
         """
-        A sync indexed task that runs an event loop of its own (``asyncio.run(aget_connection())`` in
-        ``execute``) sends while the iteration's loop has an ``asend`` in flight. Each call gets its
-        own response, instead of one failing on a lock bound to the other loop.
+        Sync code on a worker thread that runs an event loop of its own (``asyncio.run(aget_connection())``)
+        sends while another loop has an ``asend`` in flight. Each call gets its own response, instead
+        of one failing on a lock bound to the other loop.
         """
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
         # Slow answers, so the second loop's call arrives while the first one's is in flight.
         threading.Thread(target=self._serve, args=(w, 4, 0.1), daemon=True).start()
-        results: dict[str, list] = {"iteration": [], "item": []}
+        results: dict[str, list] = {"first": [], "second": []}
         errors: list[BaseException] = []
 
         def run_loop(name):
@@ -666,7 +668,7 @@ class TestCommsDecoder:
             thread.join(8)
 
         assert errors == []
-        assert results == {"iteration": ["iteration 1", "iteration 2"], "item": ["item 1", "item 2"]}
+        assert results == {"first": ["first 1", "first 2"], "second": ["second 1", "second 2"]}
 
     @pytest.mark.execution_timeout(10)
     def test_asend_from_a_later_event_loop_is_served(self, socket_pair):
@@ -690,8 +692,8 @@ class TestCommsDecoder:
     def test_a_closed_loop_whose_calls_waited_for_each_other_is_not_kept(self, socket_pair):
         """
         Calls that waited for each other on one event loop leave that loop referenced by its lock. Once
-        its last call is answered the decoder lets the loop go, so a sync indexed task running
-        ``asyncio.run()`` per index does not keep every closed loop until the task ends.
+        its last call is answered the decoder lets the loop go, so sync code running
+        ``asyncio.run()`` once per call does not keep every closed loop until the task ends.
         """
         r, w = socket_pair
         decoder = CommsDecoder(socket=r, log=structlog.get_logger())
