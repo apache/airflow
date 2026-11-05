@@ -1195,8 +1195,9 @@ class TestPatchDags(TestDagEndpoint):
         assert response.status_code == 200
         tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
         assert "tag_2" in tags[DAG1_ID]
-        # The audit log is written on the event loop through the async engine, which doesn't block it.
-        assert [statement for statement in event_loop_queries if "dag_tag" in statement] == []
+        # Only the audit log is written on the event loop, through the async engine, which doesn't block it.
+        assert len(event_loop_queries) == 1
+        assert event_loop_queries[0].startswith("INSERT INTO log ")
 
     @pytest.mark.parametrize(
         ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
