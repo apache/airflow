@@ -48,7 +48,7 @@ export const DagStatusChip = ({ dagId, error }: { readonly dagId: string; readon
   const { data: importErrorData } = useImportErrorServiceGetImportErrors(
     { bundleName: dag?.bundle_name ?? undefined, filename: relativeFileloc },
     undefined,
-    { enabled: isStale && relativeFileloc.length > 0 },
+    { enabled: relativeFileloc.length > 0 },
   );
   const { data: warningData } = useDagWarningServiceListDagWarnings({ dagId }, undefined, {
     enabled: dagId !== "",

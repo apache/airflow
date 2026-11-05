@@ -22,11 +22,11 @@ import { LuPlug } from "react-icons/lu";
 
 import { usePluginServiceImportErrors } from "openapi/queries";
 
-import { ErrorAlert, type ExpandedApiError } from "src/components/ErrorAlert";
+import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
-import { formatNumber } from "src/utils";
+import { formatNumber, getErrorStatus } from "src/utils";
 
 import { PluginImportErrorsModal } from "./PluginImportErrorsModal";
 
@@ -44,12 +44,12 @@ export const PluginImportErrors = ({ iconOnly = false }: { readonly iconOnly?: b
     return <Skeleton height="9" width="225px" />;
   }
 
-  if (Boolean(error) && (error as ExpandedApiError).status === 403) {
+  if (getErrorStatus(error) === 403) {
     return undefined;
   }
 
   if (importErrorsCount === 0) {
-    return undefined;
+    return <ErrorAlert error={error} />;
   }
 
   return (

@@ -140,6 +140,18 @@ describe("DagStatusChip", () => {
     expect(screen.queryByText(deactivated())).not.toBeInTheDocument();
   });
 
+  it("shows the parse error of a live Dag whose latest parse failed", () => {
+    mockUseDagServiceGetDag.mockReturnValue(liveDagQuery);
+    mockUseImportErrorServiceGetImportErrors.mockImplementation(
+      (_params: unknown, _queryKey: unknown, options?: { enabled?: boolean }) =>
+        options?.enabled === true ? importErrorQuery : noImportErrors,
+    );
+
+    renderChip();
+
+    expect(screen.getByRole("button", { name: importErrorName() })).toBeInTheDocument();
+  });
+
   it("reports a page load failure as an error beside the warnings", async () => {
     mockUseDagServiceGetDag.mockReturnValue(liveDagQuery);
     mockUseDagWarningServiceListDagWarnings.mockReturnValue(warningsQuery);

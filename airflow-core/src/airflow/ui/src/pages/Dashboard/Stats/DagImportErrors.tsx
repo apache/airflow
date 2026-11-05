@@ -26,7 +26,7 @@ import { ErrorAlert } from "src/components/ErrorAlert";
 import { StateBadge } from "src/components/StateBadge";
 import { StatsCard } from "src/components/StatsCard";
 
-import { formatNumber } from "src/utils";
+import { formatNumber, getErrorStatus } from "src/utils";
 
 import { DagImportErrorsModal } from "./DagImportErrorsModal";
 
@@ -43,8 +43,12 @@ export const DagImportErrors = ({ iconOnly = false }: { readonly iconOnly?: bool
     return <Skeleton height="9" width="225px" />;
   }
 
-  if (importErrorsCount === 0) {
+  if (getErrorStatus(error) === 403) {
     return undefined;
+  }
+
+  if (importErrorsCount === 0) {
+    return <ErrorAlert error={error} />;
   }
 
   return (
