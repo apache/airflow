@@ -31,6 +31,7 @@ import pytest
 
 from airflow_shared.secrets_masker.secrets_masker import (
     DEFAULT_SENSITIVE_FIELDS,
+    MaskedValueMergeError,
     RedactedIO,
     SecretsMasker,
     mask_secret,
@@ -1371,6 +1372,26 @@ class TestMixedDataScenarios:
         }
 
 
+def _user(name: str, password: str) -> dict[str, str]:
+    return {"name": name, "password": password}
+
+
+def _node(host: str, password: str) -> dict[str, str]:
+    return {"host": host, "password": password}
+
+
+ALICE, BOB, CAROL = _user("alice", "A"), _user("bob", "B"), _user("carol", "C")
+ALICE_SHOWN, BOB_SHOWN, CAROL_SHOWN = _user("alice", "***"), _user("bob", "***"), _user("carol", "***")
+STORED_USERS = {"users": [ALICE, BOB, CAROL]}
+CLUSTERS = {
+    "clusters": [
+        {"name": "c1", "nodes": [_node("n1", "p1"), _node("n2", "p2")]},
+        {"name": "c2", "nodes": [_node("n3", "p3")]},
+    ]
+}
+C2_SHOWN = {"name": "c2", "nodes": [_node("n3", "***")]}
+
+
 class TestSecretsMaskerMerge:
     """Test the merge functionality for restoring original values from redacted data."""
 
@@ -1528,6 +1549,160 @@ class TestSecretsMaskerMerge:
     def test_merge_collections(self, old_data, new_data, name, expected):
         result = self.masker.merge(new_data, old_data, name)
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("stored", "submitted", "expected"),
+        [
+            pytest.param(
+                STORED_USERS, {"users": [ALICE_SHOWN, BOB_SHOWN, CAROL_SHOWN]}, STORED_USERS, id="unchanged"
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("alice2", "***"), _user("bob2", "***"), CAROL_SHOWN]},
+                {"users": [_user("alice2", "A"), _user("bob2", "B"), CAROL]},
+                id="rename-two-in-place",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [ALICE_SHOWN, _user("bob", "B-new"), CAROL_SHOWN]},
+                {"users": [ALICE, _user("bob", "B-new"), CAROL]},
+                id="new-password-in-place",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("dave", "D"), ALICE_SHOWN, BOB_SHOWN, CAROL_SHOWN]},
+                {"users": [_user("dave", "D"), ALICE, BOB, CAROL]},
+                id="insert-first",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("alice2", "***"), _user("bob2", "***"), CAROL_SHOWN, _user("dave", "D")]},
+                {"users": [_user("alice2", "A"), _user("bob2", "B"), CAROL, _user("dave", "D")]},
+                id="rename-two-and-append",
+            ),
+            pytest.param(
+                STORED_USERS, {"users": [BOB_SHOWN, CAROL_SHOWN]}, {"users": [BOB, CAROL]}, id="remove-first"
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [{"password": "***", "name": "bob"}, CAROL_SHOWN]},
+                {"users": [BOB, CAROL]},
+                id="remove-first-with-keys-reordered",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [BOB_SHOWN, ALICE_SHOWN, CAROL_SHOWN]},
+                {"users": [BOB, ALICE, CAROL]},
+                id="swap",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("bob2", "***"), ALICE_SHOWN, CAROL_SHOWN]},
+                {"users": [_user("bob2", "B"), ALICE, CAROL]},
+                id="swap-and-rename-one",
+            ),
+            pytest.param(
+                {"users": [_user("x", "1"), _user("y", "Y"), _user("x", "2")]},
+                {"users": [_user("x", "***"), _user("x", "***")]},
+                {"users": [_user("x", "1"), _user("x", "2")]},
+                id="look-alikes-keep-order-when-another-is-removed",
+            ),
+            pytest.param(
+                {"users": [{"password": "T1"}, {"password": "T2"}]},
+                {"users": [{"password": "***"}, {"password": "T-new"}]},
+                {"users": [{"password": "T1"}, {"password": "T-new"}]},
+                id="secret-only-new-value-in-place",
+            ),
+            pytest.param(
+                {"passwords": ["P1", "P2", "P3"]},
+                {"passwords": ["***", "***", "***", "P4"]},
+                {"passwords": ["P1", "P2", "P3", "P4"]},
+                id="sensitive-values-append",
+            ),
+            pytest.param(
+                CLUSTERS,
+                {"clusters": [{"name": "c1", "nodes": [_node("n2", "***"), _node("n1", "***")]}, C2_SHOWN]},
+                {
+                    "clusters": [
+                        {"name": "c1", "nodes": [_node("n2", "p2"), _node("n1", "p1")]},
+                        CLUSTERS["clusters"][1],
+                    ]
+                },
+                id="inner-list-reordered",
+            ),
+            pytest.param(
+                {"items": [ALICE, "plain", BOB]},
+                {"items": ["plain", BOB_SHOWN]},
+                {"items": ["plain", BOB]},
+                id="mixed-list-remove-record",
+            ),
+        ],
+    )
+    def test_merge_restores_list_items_from_their_own_stored_item(self, stored, submitted, expected):
+        assert self.masker.merge(submitted, stored) == expected
+
+    def test_merge_keeps_an_edit_to_a_value_that_compares_equal(self):
+        stored = {"users": [{"name": "alice", "enabled": 1, "password": "A"}, BOB]}
+        submitted = {"users": [{"name": "alice", "enabled": True, "password": "***"}, BOB_SHOWN]}
+
+        merged = self.masker.merge(submitted, stored)
+
+        assert merged["users"][0]["enabled"] is True
+        assert merged["users"][0]["password"] == "A"
+
+    @pytest.mark.parametrize(
+        ("stored", "submitted", "path"),
+        [
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("bob2", "***"), CAROL_SHOWN]},
+                "users",
+                id="remove-and-edit-another",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [ALICE_SHOWN, BOB_SHOWN, CAROL_SHOWN, _user("alice2", "***")]},
+                "users",
+                id="copy-renamed",
+            ),
+            pytest.param(
+                STORED_USERS,
+                {"users": [_user("dave", "D"), _user("alice2", "***"), _user("bob2", "***"), CAROL_SHOWN]},
+                "users",
+                id="insert-first-and-rename-two",
+            ),
+            pytest.param(
+                {"users": [{"password": "T1"}, {"password": "T2"}]},
+                {"users": [{"password": "***"}]},
+                "users",
+                id="secret-only-remove-one",
+            ),
+            pytest.param(
+                {"passwords": ["P1", "P2", "P3"]},
+                {"passwords": ["***", "***"]},
+                "passwords",
+                id="sensitive-values-remove-one",
+            ),
+            pytest.param(
+                {"clusters": [{"name": "c1", "nodes": [_node("n", "p1"), _node("n", "p2")]}]},
+                {"clusters": [{"name": "c1", "nodes": [_node("n", "***")]}]},
+                "clusters[0].nodes",
+                id="nested-path",
+            ),
+            pytest.param([ALICE, BOB], [_user("bob2", "***")], "", id="top-level-list"),
+        ],
+    )
+    def test_merge_rejects_masked_values_it_cannot_place(self, stored, submitted, path):
+        with pytest.raises(MaskedValueMergeError) as err:
+            self.masker.merge(submitted, stored)
+        assert err.value.path == path
+
+    @pytest.mark.parametrize(("path", "where"), [("users", '"users"'), ("", "the top-level list")])
+    def test_masked_value_merge_error_message(self, path, where):
+        assert str(MaskedValueMergeError(path)) == (
+            f"Cannot tell which stored item the masked values in {where} belong to after this edit. "
+            "Re-enter those values to save this change."
+        )
 
     def test_merge_mismatched_types(self):
         old_data = {"key": "value"}
