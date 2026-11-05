@@ -27,7 +27,10 @@ from __future__ import annotations
 
 import argparse
 import contextlib
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows has no fcntl
+    fcntl = None
 import subprocess
 import time
 from pathlib import Path

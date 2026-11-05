@@ -113,8 +113,10 @@
     "noTryNumber": "시도 횟수 없음",
     "search": {
       "matchCount": "{{total, number}}개 중 {{current, number}}개",
+      "nextMatch": "TODO: translate: Next match",
       "noMatches": "일치하는 결과 없음",
-      "placeholder": "로그 검색"
+      "placeholder": "로그 검색",
+      "previousMatch": "TODO: translate: Previous match"
     },
     "settings": "로그 설정",
     "tryNotStarted": "이 시도는 아직 시작되지 않았습니다.",

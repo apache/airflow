@@ -22,6 +22,7 @@
     },
     "favoriteState": "즐겨찾기 상태",
     "favoriteStatePlaceholder": "즐겨찾기 상태 선택...",
+    "hasImportErrors": "TODO: translate: Has import errors",
     "noTimetableTypesFound": "타임테이블 유형을 찾을 수 없습니다",
     "paused": {
       "active": "활성",

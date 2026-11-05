@@ -28,6 +28,7 @@
         "lastParsed": "마지막 파싱 시점",
         "parseDuration": "파싱 기간"
       },
+      "importErrorForbidden": "이 내용을 읽을 권한이 없습니다. 임포트 오류가 발생했습니다.",
       "importErrorGone": "이 가져오기 오류는 더 이상 기록되어 있지 않습니다. 재구문 분석으로 해결되었을 수 있습니다.",
       "neverParsed": "파싱된 적 없음",
       "parsedFile_one": "파싱된 파일",
