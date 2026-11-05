@@ -828,22 +828,42 @@ class TestTIRunState:
             state=State.QUEUED,
             session=session,
         )
-        asset = AssetModel(name="test_asset", uri="s3://bucket/test_asset", group="asset", extra={})
-        alias = AssetAliasModel(name="test_alias", group="asset")
-        session.add_all([asset, AssetActive.for_asset(asset), alias])
+        asset1 = AssetModel(name="test_asset_1", uri="s3://bucket/test_asset_1", group="asset", extra={})
+        alias1 = AssetAliasModel(name="test_alias_1", group="asset")
+        asset2 = AssetModel(name="test_asset_2", uri="s3://bucket/test_asset_2", group="asset", extra={})
+        alias2 = AssetAliasModel(name="test_alias_2", group="asset")
+        session.add_all(
+            [
+                asset1,
+                AssetActive.for_asset(asset1),
+                alias1,
+                asset2,
+                AssetActive.for_asset(asset2),
+                alias2,
+            ]
+        )
         session.flush()
 
-        asset_event = AssetEvent(
-            asset_id=asset.id,
-            source_dag_id="src",
+        event1 = AssetEvent(
+            asset_id=asset1.id,
+            source_dag_id="src1",
             source_run_id="r1",
             partition_key="2024-01-15",
         )
-        asset_event.source_aliases.append(alias)
-        session.add(asset_event)
+        event1.source_aliases.append(alias1)
+
+        event2 = AssetEvent(
+            asset_id=asset2.id,
+            source_dag_id="src2",
+            source_run_id="r2",
+            partition_key="2024-01-16",
+        )
+        event2.source_aliases.append(alias2)
+
+        session.add_all([event1, event2])
         session.flush()
 
-        ti.dag_run.consumed_asset_events.append(asset_event)
+        ti.dag_run.consumed_asset_events.extend([event1, event2])
         session.commit()
 
         response = client.patch(
@@ -859,10 +879,13 @@ class TestTIRunState:
 
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
-        assert len(events) == 1
-        assert events[0]["asset"]["name"] == "test_asset"
-        assert events[0]["asset"]["uri"] == "s3://bucket/test_asset"
-        assert [a["name"] for a in events[0]["source_aliases"]] == ["test_alias"]
+        assert len(events) == 2
+        assert events[0]["asset"]["name"] == "test_asset_1"
+        assert events[0]["asset"]["uri"] == "s3://bucket/test_asset_1"
+        assert [a["name"] for a in events[0]["source_aliases"]] == ["test_alias_1"]
+        assert events[1]["asset"]["name"] == "test_asset_2"
+        assert events[1]["asset"]["uri"] == "s3://bucket/test_asset_2"
+        assert [a["name"] for a in events[1]["source_aliases"]] == ["test_alias_2"]
 
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
