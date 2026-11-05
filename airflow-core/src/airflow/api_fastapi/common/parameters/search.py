@@ -70,11 +70,12 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         Return the predicates matching values that start with ``term`` on ``column``.
 
         The check is a collation-independent ``substr`` equality — no range bounds are
-        used.  Range bounds (``column >= term``, ``column < term+1``) are unsafe under
-        collations with contractions: Czech ``ch`` sorts after ``h`` (ICU ``cs-CZ-x-icu``),
-        Welsh ``ng`` sorts after ``g`` (``cy-x-icu``), and Igbo ``ch`` likewise (``ig-x-icu``),
-        so a ``>=``/``<`` window can both exclude valid matches and include invalid ones
-        (#74724).  ``LIKE 'term%'`` is avoided because it is case-insensitive on SQLite.
+        used. A ``column >= term`` bound would miss valid matches under collations where a
+        contraction sorts before its first letter: Welsh ``ng`` sorts before ``n``
+        (ICU ``cy-x-icu``) and Igbo ``ch`` sorts before ``c`` (``ig-x-icu``). The earlier
+        upper bound had the mirror problem: Czech ``ch`` sorts after ``h`` (``cs-CZ-x-icu``),
+        so prefix ``c`` missed ``chata`` (#74724). ``LIKE 'term%'`` is avoided because it is
+        case-insensitive on SQLite.
         """
         return [func.substr(column, 1, len(term)) == term]
 
