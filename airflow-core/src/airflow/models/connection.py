@@ -24,7 +24,7 @@ import sys
 import warnings
 from contextlib import suppress
 from json import JSONDecodeError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
@@ -53,6 +53,9 @@ except ImportError:
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 log = logging.getLogger(__name__)
 # sanitize the `conn_id` pattern by allowing alphanumeric characters plus
@@ -661,6 +664,10 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
     def get_team_name(connection_id: str, *, session=NEW_SESSION) -> str | None:
         stmt = select(Connection.team_name).where(Connection.conn_id == connection_id)
         return session.scalar(stmt)
+
+    @staticmethod
+    async def get_team_name_async(connection_id: str, *, session: AsyncSession) -> str | None:
+        return await session.scalar(select(Connection.team_name).where(Connection.conn_id == connection_id))
 
     @staticmethod
     @provide_session
