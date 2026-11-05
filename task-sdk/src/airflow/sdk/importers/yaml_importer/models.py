@@ -45,18 +45,29 @@ from pydantic import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from typing import Protocol
+    from typing import Protocol, TypeAlias, TypeVar
 
     from pydantic import GetJsonSchemaHandler
     from pydantic.json_schema import JsonSchemaValue
     from pydantic_core import CoreSchema
 
+    from airflow.sdk import XComArg
+    from airflow.sdk.definitions._internal.templater import LiteralValue
+
+    _T = TypeVar("_T")
+
+    _OperatorArgument: TypeAlias = (
+        "str | int | float | bool | datetime.datetime | datetime.date | None | "  # Plain values.
+        "XComArg | LiteralValue | "  # Airflow values.
+        "list[_OperatorArgument] | dict[str, _OperatorArgument]"  # Nested (recursive types).
+    )
+
     class _ArgumentContext(Protocol):
         """What a value model needs from the builder to turn itself into an operator argument."""
 
-        def build_xcom_arg(self, ref: XComRef) -> Any: ...
+        def build_xcom_arg(self, ref: XComRef) -> XComArg: ...
         def read_file(self, path: str) -> str: ...
-        def ensure_literal(self, value: Any, *, rendered: bool) -> Any: ...
+        def ensure_literal(self, value: _T, *, rendered: bool) -> _T | LiteralValue: ...
 
 
 XCOM_KEYS = ("$x", "$xcom")
@@ -163,7 +174,7 @@ class _MarkerRef(BaseModel):
         """Whether this node needs rendering and whether it carries a marker."""
         raise NotImplementedError
 
-    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> _OperatorArgument:
         """Turn this node into an operator argument."""
         raise NotImplementedError
 
@@ -197,7 +208,7 @@ class XComRef(_MarkerRef):
             )
         return None
 
-    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> XComArg:
         return ctx.build_xcom_arg(self)
 
 
@@ -232,7 +243,7 @@ class TemplateRef(_MarkerRef):
             "handler binding carries literal values and XCom return values, not rendered templates"
         )
 
-    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str:
         # $t over a string renders that string; $t over $f is a template file (read, then render).
         if isinstance(self.source, FileRef):
             return ctx.read_file(cast("str", self.source.path))
@@ -269,7 +280,7 @@ class FileRef(_MarkerRef):
     def build_marker_flags(self) -> _MarkerFlags:
         return _MarkerFlags(needs_render=False, has_marker=True)
 
-    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str | LiteralValue:
         return ctx.ensure_literal(ctx.read_file(cast("str", self.path)), rendered=rendered)
 
 
@@ -391,7 +402,7 @@ class Literal(RootModel):
             None,
         )
 
-    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> Any:
+    def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> _OperatorArgument:
         if isinstance(self.root, dict):
             return {k: v.as_operator_argument(ctx, rendered=rendered) for k, v in self.root.items()}
         if isinstance(self.root, list):

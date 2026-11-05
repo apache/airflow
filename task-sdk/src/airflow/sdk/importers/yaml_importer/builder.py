@@ -61,10 +61,14 @@ from airflow.sdk.importers.yaml_importer.models import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
+    from typing import TypeVar
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
+    from airflow.sdk.definitions._internal.templater import LiteralValue
     from airflow.sdk.importers.base import DagDefinition
     from airflow.sdk.importers.yaml_importer.models import DagDocument, Task, Value, XComRef
+
+    _T = TypeVar("_T")
 
 
 class YamlDagBuildError(ValueError):
@@ -278,7 +282,7 @@ class DagBuilder:
         except (OSError, ValueError) as exc:
             raise YamlDagBuildError(f"cannot read $f {path!r}: {exc}") from exc
 
-    def ensure_literal(self, value: Any, *, rendered: bool) -> Any:
+    def ensure_literal(self, value: _T, *, rendered: bool) -> _T | LiteralValue:
         return literal(value) if rendered else value
 
     def _stub_callable(self, param_names: tuple[str, ...]) -> Callable[..., None]:
