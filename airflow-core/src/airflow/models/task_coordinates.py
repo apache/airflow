@@ -537,8 +537,12 @@ class TaskCoordinateResolver:
         self,
         caller: TaskInstance,
         producer_task_ids: Collection[str] | None = None,
+        *,
+        task: SerializedOperator | None = None,
     ) -> dict[str, ProducerContext]:
-        task = caller.task or self.get_task(
+        # A caller loaded as a column row has no ``task`` attribute, so its task is passed in.
+        attached_task = task if task is not None else caller.task
+        task = attached_task or self.get_task(
             caller.dag_id, caller.run_id, caller.task_id, dag_version_id=caller.dag_version_id
         )
         if producer_task_ids is None:
@@ -555,7 +559,7 @@ class TaskCoordinateResolver:
         for task_id in producer_task_ids:
             producer = (
                 task.dag.get_task(task_id)
-                if caller.task is not None and task.dag is not None
+                if attached_task is not None and task.dag is not None
                 else self.get_task(
                     caller.dag_id, caller.run_id, task_id, dag_version_id=caller.dag_version_id
                 )

@@ -33,6 +33,7 @@ import type { LogChannel } from "./log-channel.js";
 import type {
   ArgBindings,
   ArgValueSchema,
+  LiteralArgBinding,
   TaskArgBinding,
   XComArgBinding,
 } from "../generated/supervisor.js";
@@ -124,7 +125,8 @@ export async function resolveArgs(
         binding.name,
         binding.kind === "xcom"
           ? await pullXComArg(binding, deps.client)
-          : literalValue(binding.value),
+          : // checkBindable has already refused every kind but these two.
+            literalValue((binding as LiteralArgBinding).value),
       ]),
     );
   // Literals need no request, so only a call that pulls races the abort signal.

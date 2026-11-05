@@ -909,6 +909,20 @@ class TITerminalStatePayload(BaseModel):
     loop_decision: LoopDecisionPayload | None = None
 
 
+class UnresolvedArgBinding(BaseModel):
+    """
+    An argument the server could not finish.
+
+    Its ``map()`` callables are Python, or its nesting fits no single binding. The coordinator's
+    Python helper resolves it against the Dag file and replaces it with a ``LiteralArgBinding``,
+    so no SDK runtime ever receives this kind.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    kind: Annotated[Literal["unresolved"], Field(title="Kind")]
+
+
 class XComArgBinding(BaseModel):
     """
     One positional stub-task argument pulled from an upstream task's XCom.
@@ -917,6 +931,20 @@ class XComArgBinding(BaseModel):
     name: Annotated[str, Field(title="Name")]
     value_schema: ArgValueSchema | None = None
     kind: Annotated[Literal["xcom"], Field(title="Kind")]
+    task_id: Annotated[str, Field(title="Task Id")]
+    map_index: Annotated[int | None, Field(title="Map Index")] = -1
+    element_index: Annotated[int | None, Field(title="Element Index")] = None
+    mapping_key: Annotated[str | None, Field(title="Mapping Key")] = None
+
+
+class XComSequenceArgBinding(BaseModel):
+    """
+    One stub-task argument reading a mapped task's whole output as a lazy sequence.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    kind: Annotated[Literal["sequence"], Field(title="Kind")]
     task_id: Annotated[str, Field(title="Task Id")]
 
 
@@ -992,8 +1020,32 @@ class DagRun(BaseModel):
     team_name: Annotated[str | None, Field(title="Team Name")] = None
 
 
-class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
-    root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
+class TupleArgBindingPart(RootModel[XComArgBinding | LiteralArgBinding]):
+    root: Annotated[
+        XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TupleArgBindingPart")
+    ]
+
+
+class TupleArgBinding(BaseModel):
+    """
+    One ``zip()`` element: one part per zipped argument, gathered into a single argument.
+    """
+
+    name: Annotated[str, Field(title="Name")]
+    value_schema: ArgValueSchema | None = None
+    kind: Annotated[Literal["tuple"], Field(title="Kind")]
+    parts: Annotated[list[TupleArgBindingPart], Field(title="Parts")]
+
+
+class TaskArgBinding(
+    RootModel[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding
+    ]
+):
+    root: Annotated[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding | UnresolvedArgBinding,
+        Field(discriminator="kind", title="TaskArgBinding"),
+    ]
 
 
 class TIRunContext(BaseModel):

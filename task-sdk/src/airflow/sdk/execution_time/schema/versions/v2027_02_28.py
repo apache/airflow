@@ -19,9 +19,12 @@
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from typing import Any
 
-from airflow.sdk.api.datamodels._generated import TIRunContext
+from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, schema
+
+from airflow.sdk.api.datamodels._generated import TIRunContext, XComArgBinding
+from airflow.sdk.execution_time.comms import StartupDetails
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -36,4 +39,38 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
+    )
+
+
+class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
+    """
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence``, ``tuple`` and ``unresolved`` kinds, and the XCom element fields.
+
+    The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
+    the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(XComArgBinding).field("map_index").didnt_exist,
+        schema(XComArgBinding).field("element_index").didnt_exist,
+        schema(XComArgBinding).field("mapping_key").didnt_exist,
+    )
+
+    @convert_response_to_previous_version_for(StartupDetails)  # type: ignore[arg-type]
+    def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
+        """Strip ``arg_bindings`` holding any shape an older runtime cannot read."""
+        ti_context = response.body.get("ti_context") or {}
+        if any(_is_mapped_binding(binding) for binding in ti_context.get("arg_bindings") or ()):
+            ti_context.pop("arg_bindings")
+
+
+def _is_mapped_binding(binding: dict[str, Any]) -> bool:
+    if binding["kind"] in ("sequence", "tuple", "unresolved"):
+        return True
+    return binding["kind"] == "xcom" and (
+        binding.get("map_index", -1) != -1
+        or binding.get("element_index") is not None
+        or binding.get("mapping_key") is not None
     )

@@ -14,15 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Business logic backing the task-instance execution routes."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import derive_mapped_arg_bindings
+from airflow.serialization.definitions.mappedoperator import is_mapped
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
     from airflow.models.dagbag import DBDagBag
     from airflow.serialization.serialized_objects import SerializedOperator
 
@@ -54,17 +57,31 @@ def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOpera
     return dag.task_dict.get(ti.task_id)
 
 
-def get_arg_bindings(task: SerializedOperator) -> list | None:
+def client_supports_mapped_arg_bindings() -> bool:
+    """Whether the request's negotiated API version can receive the arg bindings of a mapped stub."""
+    from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddMappedStubArgBindings
+
+    return AddMappedStubArgBindings.is_applied
+
+
+def get_arg_bindings(
+    task: SerializedOperator, ti: Any, *, dag_bag: DBDagBag, session: Session
+) -> list[TaskArgBinding] | list[dict[str, Any]] | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
-    Mapped (``.expand()``) stubs never capture a parse-time spec, so they resolve to
-    ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
-    lands in a follow-up.
+    A stub whose arguments differ per map index gets its spec derived for this map index; a Dag
+    serialized before such a stub had bindings keeps the legacy ignored-args behavior.
+
+    :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
     """
-    if not task.is_stub:
+    if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
-    return task.arg_bindings
+    if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
+        if not client_supports_mapped_arg_bindings():
+            return None
+        return derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
+    return arg_bindings
 
 
 def get_execution_timeout(task: SerializedOperator) -> float | None:
