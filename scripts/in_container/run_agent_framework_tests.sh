@@ -21,10 +21,10 @@
 # Strands Agents caps mcp, and Google ADK caps opentelemetry and websockets, below the versions
 # uv.lock resolves; the OpenAI Agents SDK needs openai>=3 from 0.21.0, while the workspace holds
 # openai below 3, so only its older releases could join the lock. Their adapter tests are skipped
-# everywhere else in CI. This installs one
-# framework into the CI image and runs the tests of the framework-neutral tools and their adapters,
-# and of durable execution for Strands; the other frameworks' tests skip themselves. One framework
-# per invocation, so a bad release of one cannot mask the others.
+# everywhere else in CI. This installs one framework into the CI image and runs the tests of the
+# framework-neutral tools and their adapters, and of durable execution for Strands and the OpenAI
+# Agents SDK; the other frameworks' tests skip themselves. One framework per invocation, so a bad
+# release of one cannot mask the others.
 #
 # By default every package already in the image is held at its installed version with uv's
 # --override, so the framework is tested against the same dependencies as the rest of Airflow and
@@ -44,6 +44,7 @@ TEST_PATHS=(
     "providers/common/ai/tests/unit/common/ai/tools"
     "providers/common/ai/tests/unit/common/ai/durable/test_strands.py"
     "providers/common/ai/tests/unit/common/ai/durable/test_strands_storage.py"
+    "providers/common/ai/tests/unit/common/ai/durable/test_openai_agents.py"
 )
 
 framework="${1:-}"

@@ -28,10 +28,12 @@
         "lastParsed": "最後解析時間",
         "parseDuration": "解析耗時"
       },
-      "file_one": "檔案",
-      "file_other": "檔案",
+      "importErrorForbidden": "您沒有檢視此匯入錯誤的權限。",
       "importErrorGone": "此匯入錯誤已不再記錄，可能已透過重新解析修復。",
       "neverParsed": "從未",
+      "parsedFile_one": "已解析檔案",
+      "parsedFile_other": "已解析檔案",
+      "parsedFilesNote": "僅列出定義了 Dag 或匯入失敗的檔案。",
       "showImportError_one": "檢視錯誤",
       "showImportError_other": "檢視 {{count, number}} 個錯誤"
     },
@@ -69,6 +71,7 @@
     "columns": {
       "dag": "Dag",
       "key": "鍵",
+      "timestamp": "時間戳記",
       "value": "值"
     },
     "delete": {
