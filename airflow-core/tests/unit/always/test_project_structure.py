@@ -97,7 +97,6 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/operators/vertex_ai/test_pipeline_job.py",
             "providers/google/tests/unit/google/cloud/sensors/vertex_ai/test_feature_store.py",
             "providers/google/tests/unit/google/cloud/transfers/test_bigquery_to_sql.py",
-            "providers/google/tests/unit/google/cloud/transfers/test_presto_to_gcs.py",
             "providers/microsoft/azure/tests/unit/microsoft/azure/operators/test_adls.py",
         ]
         # Deliberately untested: link modules whose tests would only assert constants.

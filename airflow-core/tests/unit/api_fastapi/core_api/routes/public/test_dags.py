@@ -916,6 +916,14 @@ class TestGetDags(TestDagEndpoint):
             f"({first_query_count} → {second_query_count}), suggesting n+1 queries for tags"
         )
 
+    def test_get_dags_should_not_query_on_event_loop(self, test_client, event_loop_queries):
+        """Nothing is queried while the response is serialized on the event loop."""
+        response = test_client.get("/dags")
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert "tag_2" in tags[DAG1_ID]
+        assert event_loop_queries == []
+
     @pytest.mark.parametrize(
         ("deadline", "expected_alert_count"),
         [
@@ -1180,6 +1188,16 @@ class TestPatchDags(TestDagEndpoint):
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
+
+    def test_patch_dags_should_not_query_tags_on_event_loop(self, test_client, event_loop_queries):
+        """Nothing is queried while the response is serialized on the event loop."""
+        response = test_client.patch("/dags", json={"is_paused": True}, params={"dag_id_pattern": "~"})
+        assert response.status_code == 200
+        tags = {dag["dag_id"]: [tag["name"] for tag in dag["tags"]] for dag in response.json()["dags"]}
+        assert "tag_2" in tags[DAG1_ID]
+        # Only the audit log is written on the event loop, through the async engine, which doesn't block it.
+        assert len(event_loop_queries) == 1
+        assert event_loop_queries[0].startswith("INSERT INTO log ")
 
     @pytest.mark.parametrize(
         ("tags_to_add", "query_params", "body", "expected_ids", "expected_paused_ids"),
