@@ -394,7 +394,11 @@ def test_prepare_provider_distributions_skip_git_fetch(
     assert len(fetches) == expected_fetches
 
 
-def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    "push_url",
+    ["https://github.com/apache/airflow.git", "https://github.com/apache/airflow"],
+)
+def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path, push_url):
     commands: list[list[str]] = []
 
     def fake_run_command(cmd, **kwargs):
@@ -403,7 +407,7 @@ def test_tag_providers_detects_push_remote_in_dry_run(monkeypatch, tmp_path):
             if shared_options.get_dry_run(kwargs.get("dry_run_override")):
                 return SimpleNamespace(returncode=0, stdout="")
             if cmd[-1] == "upstream":
-                return SimpleNamespace(returncode=0, stdout="https://github.com/apache/airflow.git\n")
+                return SimpleNamespace(returncode=0, stdout=f"{push_url}\n")
             raise subprocess.CalledProcessError(2, cmd)
         return SimpleNamespace(returncode=0, stdout="")
 
