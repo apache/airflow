@@ -26,10 +26,12 @@ import asyncio
 import os
 import sys
 import types
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
 import pytest
-from pydantic_ai import Agent
+from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults
+from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
@@ -294,12 +296,14 @@ class _FakeTaskInstance:
         self.pushes += 1
 
 
-def _skill_entry(name, path, calls):
+def _skill_entry(name, path, calls_by_run):
+    calls = sum((Counter(calls) for calls in calls_by_run.values()), Counter())
     return {
         "name": name,
         "description": f"A {name} skill for tests.",
         "source": {"path": os.path.realpath(path)},
-        "calls": calls,
+        "calls": dict(calls),
+        "calls_by_run": calls_by_run,
     }
 
 
@@ -318,31 +322,41 @@ class TestSkillsXCom:
             ("load_skill", {"skill_name": "missing"}),
         )
 
-        Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
+        Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go", run_id="run")
 
         assert ti.xcoms[SKILLS_XCOM_KEY] == [
-            _skill_entry("alpha", alpha, {"load_skill": 1, "read_skill_resource": 1}),
-            _skill_entry("beta", beta, {}),
+            _skill_entry("alpha", alpha, {"run": {"load_skill": 1, "read_skill_resource": 1}}),
+            _skill_entry("beta", beta, {"run": {}}),
         ]
 
     @patch(_GET_CONTEXT, autospec=True)
-    def test_adds_to_the_calls_the_run_before_an_approval_pause_published(self, mock_get_context, tmp_path):
-        # A run resumed after an approval pause starts in a new process, with its earlier calls
-        # given back as history rather than run again.
+    def test_counts_a_skill_call_approved_after_a_pause(self, mock_get_context, tmp_path):
+        # The resumed run gets the paused run's transcript as history: the approved call was made
+        # there, and only its return is in the resumed run's own messages.
         alpha = _write_skill(tmp_path, "alpha")
         ti = _FakeTaskInstance()
         mock_get_context.return_value = {"ti": ti}
-        earlier = Agent(
+        agent = Agent(
             _calling(("load_skill", {"skill_name": "alpha"})),
-            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
-        ).run_sync("go")
+            toolsets=[
+                AgentSkillsToolset(sources=[str(tmp_path)]).approval_required(
+                    lambda ctx, tool_def, args: tool_def.name == "load_skill"
+                )
+            ],
+            output_type=[str, DeferredToolRequests],
+        )
+        paused = agent.run_sync("go", run_id="paused")
+        approvals = {call.tool_call_id: True for call in paused.output.approvals}
 
-        Agent(
-            _calling(("load_skill", {"skill_name": "alpha"})),
-            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
-        ).run_sync("go on", message_history=earlier.all_messages())
+        agent.run_sync(
+            message_history=paused.all_messages(),
+            deferred_tool_results=DeferredToolResults(approvals=approvals),
+            run_id="resumed",
+        )
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"load_skill": 2})]
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [
+            _skill_entry("alpha", alpha, {"paused": {}, "resumed": {"load_skill": 1}})
+        ]
 
     @patch(_GET_CONTEXT, autospec=True)
     def test_history_seeded_from_another_task_is_not_counted(self, mock_get_context, tmp_path):
@@ -351,29 +365,52 @@ class TestSkillsXCom:
         earlier = Agent(
             _calling(("load_skill", {"skill_name": "alpha"})),
             toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
-        ).run_sync("go")
+        ).run_sync("go", run_id="other-task")
         ti = _FakeTaskInstance()
         mock_get_context.return_value = {"ti": ti}
 
         Agent(_calling(), toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync(
-            "go on", message_history=earlier.all_messages()
+            "go on", message_history=earlier.all_messages(), run_id="run"
         )
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {})]
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {}})]
 
     @patch(_GET_CONTEXT, autospec=True)
-    def test_adds_to_its_own_stored_skills_and_keeps_the_others(self, mock_get_context, tmp_path):
+    def test_counts_calls_after_a_history_processor_trims_the_transcript(self, mock_get_context, tmp_path):
         alpha = _write_skill(tmp_path, "alpha")
-        other = _skill_entry("other", tmp_path / "elsewhere", {"load_skill": 3})
-        stored_alpha = _skill_entry("alpha", alpha, {"load_skill": 1, "read_skill_resource": 1})
+        mock_get_context.return_value = {"ti": _FakeTaskInstance()}
+        seeded = Agent(_calling(), toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync(
+            "go", run_id="other-task"
+        )
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        agent = Agent(
+            _calling(("load_skill", {"skill_name": "alpha"})),
+            toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])],
+            capabilities=[ProcessHistory(lambda messages: messages[-3:])],
+        )
+
+        agent.run_sync("go on", message_history=seeded.all_messages() * 3, run_id="run")
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {"load_skill": 1}})]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_adds_this_run_to_the_stored_runs_and_keeps_the_other_skills(self, mock_get_context, tmp_path):
+        alpha = _write_skill(tmp_path, "alpha")
+        other = _skill_entry("other", tmp_path / "elsewhere", {"earlier": {"load_skill": 3}})
+        stored_alpha = _skill_entry("alpha", alpha, {"earlier": {"load_skill": 1, "read_skill_resource": 1}})
         ti = _FakeTaskInstance(stored=[stored_alpha, other])
         mock_get_context.return_value = {"ti": ti}
         model = _calling(("load_skill", {"skill_name": "alpha"}))
 
-        Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go")
+        Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go", run_id="run")
 
         assert ti.xcoms[SKILLS_XCOM_KEY] == [
-            _skill_entry("alpha", alpha, {"load_skill": 2, "read_skill_resource": 1}),
+            _skill_entry(
+                "alpha",
+                alpha,
+                {"earlier": {"load_skill": 1, "read_skill_resource": 1}, "run": {"load_skill": 1}},
+            ),
             other,
         ]
 
@@ -390,17 +427,27 @@ class TestSkillsXCom:
 
         async def run():
             async with agent:
-                await agent.run("go")
+                await agent.run("go", run_id="run")
 
         asyncio.run(run())
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"load_skill": 1})]
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {"load_skill": 1}})]
         assert ti.pushes == 1
 
+    @pytest.mark.parametrize(
+        ("second_skill", "expected_second_calls"),
+        [
+            pytest.param("beta", {"load_skill": 1}, id="different_skills"),
+            # Each toolset counts both calls to "alpha"; publishing twice must not count them twice.
+            pytest.param("alpha", None, id="same_skill_name"),
+        ],
+    )
     @patch(_GET_CONTEXT, autospec=True)
-    def test_two_prefixed_toolsets_each_count_their_own_skills(self, mock_get_context, tmp_path):
+    def test_two_prefixed_toolsets_each_count_their_own_skills(
+        self, mock_get_context, tmp_path, second_skill, expected_second_calls
+    ):
         alpha = _write_skill(tmp_path / "one", "alpha")
-        beta = _write_skill(tmp_path / "two", "beta")
+        second = _write_skill(tmp_path / "two", second_skill)
         ti = _FakeTaskInstance()
         mock_get_context.return_value = {"ti": ti}
         toolsets = [
@@ -409,15 +456,19 @@ class TestSkillsXCom:
         ]
         model = _calling(
             ("one_load_skill", {"skill_name": "alpha"}),
-            ("two_load_skill", {"skill_name": "beta"}),
+            ("two_load_skill", {"skill_name": second_skill}),
         )
 
-        Agent(model, toolsets=toolsets).run_sync("go")
+        Agent(model, toolsets=toolsets).run_sync("go", run_id="run")
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [
-            _skill_entry("alpha", alpha, {"load_skill": 1}),
-            _skill_entry("beta", beta, {"load_skill": 1}),
-        ]
+        if expected_second_calls is None:
+            # Toolsets exit in reverse order, so the first one's source is published last.
+            assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {"load_skill": 2}})]
+        else:
+            assert ti.xcoms[SKILLS_XCOM_KEY] == [
+                _skill_entry("alpha", alpha, {"run": {"load_skill": 1}}),
+                _skill_entry(second_skill, second, {"run": expected_second_calls}),
+            ]
 
     @pytest.mark.parametrize(
         "in_task",
@@ -438,6 +489,7 @@ class TestSkillsXCom:
             Agent(model, toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run_sync("go").output
             == "done"
         )
+        mock_get_context.assert_called_once()
         assert ti.pushes == 0
 
     @patch.object(
@@ -474,13 +526,16 @@ class TestCountSkillCalls:
     def test_counts_only_calls_that_succeeded(self, outcome, expected):
         args = {"skill_name": "alpha", "script_name": "run.py"}
         messages = [
-            ModelResponse(parts=[ToolCallPart("run_skill_script", args, tool_call_id="call-1")]),
+            ModelResponse(
+                parts=[ToolCallPart("run_skill_script", args, tool_call_id="call-1")], run_id="run"
+            ),
             ModelRequest(
-                parts=[ToolReturnPart("run_skill_script", "output", tool_call_id="call-1", outcome=outcome)]
+                parts=[ToolReturnPart("run_skill_script", "output", tool_call_id="call-1", outcome=outcome)],
+                run_id="run",
             ),
         ]
 
-        assert _count_skill_calls(messages) == expected
+        assert _count_skill_calls(messages, "run") == expected
 
 
 class TestDescribeSkillSource:

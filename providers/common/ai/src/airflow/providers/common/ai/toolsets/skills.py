@@ -87,16 +87,19 @@ def _describe_skill_source(skill_uri: str, locations: list[_SkillsLocation]) -> 
     }
 
 
-def _count_skill_calls(messages: Sequence[ModelMessage]) -> defaultdict[str, Counter[str]]:
-    """Count, per skill, the calls to each per-skill tool that succeeded."""
+def _count_skill_calls(messages: Sequence[ModelMessage], run_id: str) -> defaultdict[str, Counter[str]]:
+    """Count, per skill, the calls to each per-skill tool that succeeded in the agent run ``run_id``."""
     calls: dict[str, ToolCallPart] = {}
     counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
     for message in messages:
         for part in message.parts:
+            # A call approved after a pause was made in the paused run, so calls are matched across
+            # the whole transcript while only this run's returns are counted.
             if isinstance(part, ToolCallPart):
                 calls[part.tool_call_id] = part
             elif (
                 isinstance(part, ToolReturnPart)
+                and message.run_id == run_id
                 # A denied, failed or interrupted call never ran the skill tool to completion.
                 and part.outcome == "success"
                 and (call := calls.get(part.tool_call_id))
@@ -159,12 +162,12 @@ class AgentSkillsToolset(AbstractToolset):
         self._inner: Any = None
         self._cleanup: Callable[[], None] | None = None
         self._locations: list[_SkillsLocation] = []
-        # The run's messages, its history first. Calls replayed on a durable retry never reach
+        # The run's messages, its history included. Calls replayed on a durable retry never reach
         # call_tool, so the skills XCom counts these.
         self._messages: Sequence[ModelMessage] = ()
-        # How many of those messages are history. Only the instance for_run hands a run sets it:
+        # The agent run this instance serves. Only the instance for_run hands a run sets it:
         # ``async with agent:`` also enters this instance, which never serves a run.
-        self._history_length: int | None = None
+        self._run_id: str | None = None
 
     @property
     def id(self) -> str | None:
@@ -180,7 +183,7 @@ class AgentSkillsToolset(AbstractToolset):
             exclude_resources=self._exclude_resources,
             max_retries=self._max_retries,
         )
-        toolset._history_length = len(ctx.messages)
+        toolset._run_id = ctx.run_id
         return toolset
 
     async def __aenter__(self) -> AgentSkillsToolset:
@@ -239,33 +242,36 @@ class AgentSkillsToolset(AbstractToolset):
         except RuntimeError:
             # Used outside an Airflow task: there is no task instance to publish on.
             return
-        if self._history_length is None or not context["ti"].task.do_xcom_push:
+        run_id = self._run_id
+        if run_id is None or not context["ti"].task.do_xcom_push:
             return
         # Telemetry only: a failure here must not fail the run or skip the clean-up after it.
         try:
-            # History seeded from another task holds that task's calls, made against its own clone.
-            counts = _count_skill_calls(self._messages[self._history_length :])
-            skills = {
-                name: {
-                    "name": name,
-                    "description": skill.description,
-                    "source": _describe_skill_source(skill.uri, self._locations),
-                    "calls": dict(counts.get(name, {})),
-                }
-                for name, skill in self._inner.skills.items()
-            }
-            # Another skills toolset on the agent, or an earlier run of this try (before an approval
-            # pause or a review regeneration), may have published already; this run's calls add to
-            # theirs. XComs from an earlier try are cleared before this one starts.
+            # Only this run's calls: history seeded from another task holds that task's calls.
+            counts = _count_skill_calls(self._messages, run_id)
+            # An earlier run of this try (before an approval pause or a review regeneration), or
+            # another skills toolset on this run's agent, may have published already. Calls are kept
+            # per run: another toolset of this run counts the same calls and replaces them, while an
+            # earlier run's stay. XComs from an earlier try are cleared before this one starts.
             ti = context["ti"]
             stored = {
                 entry["name"]: entry
                 for entry in ti.xcom_pull(key=SKILLS_XCOM_KEY, task_ids=ti.task_id, map_indexes=ti.map_index)
                 or []
             }
-            for name, entry in skills.items():
-                if name in stored:
-                    entry["calls"] = dict(Counter(stored[name]["calls"]) + Counter(entry["calls"]))
+            skills = {}
+            for name, skill in self._inner.skills.items():
+                calls_by_run = {
+                    **stored.get(name, {}).get("calls_by_run", {}),
+                    run_id: dict(counts.get(name, {})),
+                }
+                skills[name] = {
+                    "name": name,
+                    "description": skill.description,
+                    "source": _describe_skill_source(skill.uri, self._locations),
+                    "calls": dict(sum((Counter(calls) for calls in calls_by_run.values()), Counter())),
+                    "calls_by_run": calls_by_run,
+                }
             merged = stored | skills
             ti.xcom_push(key=SKILLS_XCOM_KEY, value=[merged[name] for name in sorted(merged)])
         except Exception:

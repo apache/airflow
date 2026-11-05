@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -137,10 +138,10 @@ class TestResolveGitWithHook:
         assert locations[0].directory.endswith(os.sep + "skills")
         assert locations[1] == _SkillsLocation("/local/skills")
 
-    @patch("git.Repo")
-    def test_empty_repository_clones_with_no_commit(self, mock_repo):
-        mock_repo.clone_from.return_value.head.is_valid.return_value = False
-        source = GitSkills(repo_url="https://github.com/org/repo")
+    def test_empty_repository_clones_with_no_commit(self, tmp_path):
+        empty = tmp_path / "empty.git"
+        subprocess.run(["git", "init", "--bare", "-q", str(empty)], check=True)
+        source = GitSkills(repo_url=empty.as_uri())
 
         locations, cleanup = _materialize_skills([source])
         cleanup()

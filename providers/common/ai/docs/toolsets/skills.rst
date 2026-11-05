@@ -143,8 +143,10 @@ first, with a link to the skill's folder at that commit for a repository on GitH
 GitLab, and says so when the sources held no skills. Calls made before a tool-approval
 pause or a human-review regeneration still count, and so do calls a durable retry replays.
 Only calls that completed count, not denied, failed or interrupted ones, and a
-``message_history`` seeded from another task does not add that task's calls. When a run
-resumes from a tool-approval pause, the source shows the commit the resumed run cloned.
+``message_history`` seeded from another task does not add that task's calls. ``calls``
+totals ``calls_by_run``, which keeps each agent run's calls under its pydantic-ai run id.
+A run resumed from a tool-approval pause and a human-review regeneration each clone the
+repository again, so the source shows the commit the latest run cloned.
 Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
 names apart, share the same list. Nothing is published when the task sets
 ``do_xcom_push=False``.

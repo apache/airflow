@@ -50,6 +50,16 @@ for (const [repoUrl, location] of [
   });
 }
 
+for (const repoUrl of ["/srv/git/skills.git", "http://github.com/org/skills"]) {
+  test(`a remote the tab cannot read, ${repoUrl}, shows as given with no link`, () => {
+    assert.deepEqual(describeSkillSource({ repo_url: repoUrl, path: "skills/alpha", commit }), {
+      location: repoUrl,
+      path: "skills/alpha",
+      commit: "0123456",
+    });
+  });
+}
+
 test("a skill at the repository root links the commit's root", () => {
   const source = { repo_url: "https://github.com/org/skills", path: ".", commit };
 
