@@ -11553,6 +11553,49 @@ class TestSchedulerJob:
         sibling.refresh_from_db(session=session)
         assert sibling.state == TaskInstanceState.FAILED
 
+    def test_heartbeat_timeout_fail_fast_with_task_removed_from_dag(self, dag_maker, session):
+        dag_id = "hb_timeout_fail_fast_task_removed"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="sibling")
+            EmptyOperator(task_id="victim")
+
+        dag_run = dag_maker.create_dagrun(run_id="test_run", state=DagRunState.RUNNING)
+
+        executor = MockExecutor(do_update=False)
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(scheduler_job, executors=[executor])
+
+        ti = dag_run.get_task_instance(task_id="t1")
+        ti.state = TaskInstanceState.RUNNING
+        ti.try_number = 1
+        ti.max_tries = 0
+        ti.queued_by_job_id = scheduler_job.id
+        ti.last_heartbeat_at = timezone.utcnow() - timedelta(seconds=600)
+
+        sibling = dag_run.get_task_instance(task_id="sibling")
+        sibling.state = TaskInstanceState.RUNNING
+        victim = dag_run.get_task_instance(task_id="victim")
+        victim.state = TaskInstanceState.RUNNING
+
+        for x in (ti, sibling, victim):
+            session.merge(x)
+        session.commit()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="t1")
+            EmptyOperator(task_id="sibling")
+
+        self.job_runner._find_and_purge_task_instances_without_heartbeats()
+
+        session.expire_all()
+        assert {x.task_id: x.state for x in dag_run.get_task_instances(session=session)} == {
+            "t1": TaskInstanceState.FAILED,
+            "sibling": TaskInstanceState.FAILED,
+            "victim": TaskInstanceState.RUNNING,
+        }
+
     def test_heartbeat_timeout_skips_ti_completed_concurrently(self, dag_maker, session):
         """
         The heartbeat scan and a worker can race: the worker can commit a terminal state (SUCCESS)
