@@ -16,21 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-import re
-
-from airflow.sdk.definitions.parse_warning_record import (
-    PARSE_FAILURE_WARNING_TYPE,
-    DagParseWarningRecord,
-)
-
-_PARSE_WARNING_TYPE_RE = re.compile(r"^[a-z][a-z0-9_]*:[a-z0-9_.\-]+$", re.ASCII)
+from airflow.sdk.definitions.parse_warning_record import DagParseWarningRecord
 
 
 def emit_dag_warning(
     dag_id: str,
     message: str,
     *,
-    warning_type: str = PARSE_FAILURE_WARNING_TYPE,
     stacktrace: str | None = None,
 ) -> None:
     """Record a parse-time warning for a Dag id that could not be loaded (#29275)."""
@@ -40,13 +32,9 @@ def emit_dag_warning(
 
     if DagContext.current_autoregister_module_name is None:
         raise RuntimeError("emit_dag_warning() can only be called while a Dag file is being parsed")
-    if not _PARSE_WARNING_TYPE_RE.fullmatch(warning_type) or len(warning_type) > 50:
-        raise ValueError(f"invalid warning_type: {warning_type!r}")
     if stacktrace:
         message = f"{message}\n\n{stacktrace}"
-    DagContext.parse_warnings.append(
-        DagParseWarningRecord(dag_id=dag_id, message=message, warning_type=warning_type)
-    )
+    DagContext.parse_warnings.append(DagParseWarningRecord(dag_id=dag_id, message=message))
 
 
 def drain_parse_warnings() -> list[DagParseWarningRecord]:
