@@ -2479,16 +2479,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         # Cap per-tick work so the scheduler transaction stays bounded and other
         # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
-        # FIFO is intentional: the oldest pending APDR fires first. A persistently
-        # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
+        # Revisit the least recently checked rows first, so unsatisfied partitions
+        # cannot monopolize the batch. Persisting the order preserves progress
+        # across scheduler restarts and coordinates HA schedulers.
         # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
         # in HA two schedulers can otherwise both grab the same satisfied APDR
         # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
-        # two APDRs share a `created_at` under bulk asset-event ingestion.
+        # two APDRs share a `next_evaluation_at` after the same scheduler pass.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
         pending_apdrs = session.scalars(
             with_row_locks(
@@ -2500,7 +2498,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DagModel.is_draining.is_(False),
                     DagModel.is_stale.is_(False),
                 )
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .order_by(AssetPartitionDagRun.next_evaluation_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
                 skip_locked=True,
@@ -2510,6 +2508,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         ).all()
         if not pending_apdrs:
             return set()
+
+        # Rotate even rows skipped below for missing or unreadable serialized Dags.
+        # The row locks and evaluation timestamps share the run-creation transaction.
+        evaluated_at = timezone.utcnow()
+        for apdr in pending_apdrs:
+            apdr.next_evaluation_at = evaluated_at
 
         # Pre-fetch all required serialized Dags in one query. The same map
         # serves the stale-version cleanup below and the downstream rollup

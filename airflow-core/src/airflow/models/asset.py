@@ -1004,9 +1004,15 @@ class AssetPartitionDagRun(Base):
     updated_at: Mapped[datetime] = mapped_column(
         UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False
     )
+    next_evaluation_at: Mapped[datetime] = mapped_column(
+        UtcDateTime,
+        default=lambda context: context.get_current_parameters()["created_at"],
+        nullable=False,
+    )
 
     __tablename__ = "asset_partition_dag_run"
     __table_args__ = (
+        Index("idx_apdr_pending_evaluation", "created_dag_run_id", "next_evaluation_at", "id"),
         ForeignKeyConstraint(
             columns=(created_dag_run_id,),
             refcolumns=["dag_run.id"],
