@@ -24,6 +24,9 @@ import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.Frame
 import org.apache.airflow.sdk.execution.IncomingFrame
@@ -48,9 +51,10 @@ import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
-import java.io.OutputStream
+import java.io.InputStream
 import java.net.InetAddress
 import java.net.ServerSocket
+import java.net.Socket
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -59,6 +63,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
+import kotlin.system.exitProcess
 
 private class ServerNoopTask : Task {
   override fun execute(
@@ -328,10 +333,106 @@ object QueuedLogsProbe {
   fun main(args: Array<String>) {
     Log.globalThreshold = Level.DEBUG
     Log.namedThresholds = emptyMap()
-    repeat(64) { LogSender.messages.add(LogMessage("x".repeat(512 * 1024), emptyMap(), "probe", Level.INFO)) }
+    repeat(QUEUED_LINES) { LogSender.messages.add(LogMessage(QUEUED_EVENT, emptyMap(), "probe", Level.INFO)) }
     Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", VariableTask::class.java)))))
   }
 }
+
+/** Logs 32 MiB of messages, and then makes the JVM exit with code 3. */
+class ExitingTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    repeat(QUEUED_LINES) { LogSender.send(LogMessage(QUEUED_EVENT, emptyMap(), "probe", Level.INFO)) }
+    exitProcess(3)
+  }
+}
+
+/** Main class of the JVM that [ServerTest.writesQueuedLogsWhenTaskExitsJvm] starts. The class serves [ExitingTask] as task "a" of Dag "c". */
+object ExitingTaskProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", ExitingTask::class.java)))))
+  }
+}
+
+/**
+ * Starts a daemon thread that logs large lines until the JVM exits, so that the sender thread is usually in the middle of writing one
+ * of these lines when the log connection closes.
+ */
+private fun startBackgroundLogger() {
+  val padding = "x".repeat(256 * 1024)
+  thread(isDaemon = true) {
+    var count = 0
+    while (true) LogSender.send(LogMessage("tick ${count++}", mapOf("padding" to padding), "probe", Level.INFO))
+  }
+}
+
+/** Reads [input] to the end and returns the first part of each line that is not a whole message. */
+private fun readCutLines(input: InputStream): List<String> =
+  input
+    .bufferedReader()
+    .lineSequence()
+    .filter { line -> runCatching { Json.parseToJsonElement(line).jsonObject }.isFailure }
+    .map { it.take(80) }
+    .toList()
+
+/** Starts a thread that keeps logging, and returns while the thread is still logging. */
+class BackgroundLoggingTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    startBackgroundLogger()
+    Thread.sleep(200)
+  }
+}
+
+/** Starts a thread that keeps logging, and then makes the JVM exit with code 3 while the thread is still logging. */
+class ExitingBackgroundLoggingTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) {
+    startBackgroundLogger()
+    // This hook keeps the JVM running for a moment after the SDK's hook closes the log connection. If the
+    // sender thread writes a line after the close, that write then has time to fail.
+    Runtime.getRuntime().addShutdownHook(Thread { Thread.sleep(500) })
+    Thread.sleep(200)
+    exitProcess(3)
+  }
+}
+
+/** Main class of the JVM that [ServerTest.stopsWritingWhenTheServerClosesTheLogConnection] starts. The class serves [BackgroundLoggingTask]. */
+object BackgroundLoggingProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", BackgroundLoggingTask::class.java)))))
+  }
+}
+
+/** Main class of the JVM that [ServerTest.stopsWritingWhenTheJvmExits] starts. The class serves [ExitingBackgroundLoggingTask]. */
+object ExitingBackgroundLoggingProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    Server.create(args).serve(Bundle(listOf(DagDef("c").addTask(TaskDef("a", ExitingBackgroundLoggingTask::class.java)))))
+  }
+}
+
+private const val QUEUED_LINES = 64
+private val QUEUED_EVENT = "x".repeat(512 * 1024)
+
+/** Reads [input] until it ends, and counts the lines that are whole messages with [QUEUED_EVENT]. */
+private fun countQueuedLines(input: InputStream): Int =
+  input.bufferedReader().lineSequence().count { line ->
+    runCatching {
+      Json
+        .parseToJsonElement(line)
+        .jsonObject["event"]!!
+        .jsonPrimitive.content == QUEUED_EVENT
+    }.getOrDefault(false)
+  }
 
 class ServerTest {
   private fun hexToBytes(hex: String): ByteArray =
@@ -347,6 +448,21 @@ class ServerTest {
       packer.packArrayHeader(2)
       packer.packInt(id)
       packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun errorResponseFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packNil()
+      packer.packMapHeader(3)
+      packer.packString("type").packString("ErrorResponse")
+      packer.packString("error").packString("API_SERVER_ERROR")
+      packer.packString("detail").packMapHeader(1)
+      packer.packString("status_code").packInt(503)
     }
     return out.toByteArray()
   }
@@ -381,9 +497,122 @@ class ServerTest {
   }
 
   @Test
-  @DisplayName("Should give a task its reply when the startup details arrive while queued logs are still being written")
+  @DisplayName("Should give a task its reply while queued logs wait to be written, and write all of them before the JVM exits")
   @Timeout(value = 120, unit = TimeUnit.SECONDS)
-  fun taskGetsReplyWhileQueuedLogsAreWritten() {
+  fun taskGetsReplyWhileQueuedLogsAreWritten() =
+    withProbeJvm(QueuedLogsProbe::class.java) { comm, logs, process ->
+      val toServer = DataOutputStream(comm.getOutputStream())
+      val fromServer = DataInputStream(comm.getInputStream())
+      // The test reads no logs until the task has reported its result. The queued messages do not fit in
+      // the socket's buffers, so they are still waiting to be written while the task runs.
+      toServer.writeFrame(hexToBytes(STARTUP_HEX))
+
+      val request = fromServer.readFrame()
+      Assertions.assertInstanceOf(GetVariable::class.java, request.body)
+      toServer.writeFrame(variableResultFrame(request.id))
+      val result = fromServer.readFrame()
+      Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task should get its reply and succeed")
+      toServer.writeFrame(ackFrame(result.id))
+      val queued = countQueuedLines(logs.getInputStream())
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit after it reports the result")
+      Assertions.assertEquals(0, process.exitValue())
+      Assertions.assertEquals(QUEUED_LINES, queued, "every queued message should be written before the log connection closes")
+    }
+
+  @Test
+  @DisplayName("Should write the queued logs before the JVM exits when the task calls System.exit")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun writesQueuedLogsWhenTaskExitsJvm() =
+    withProbeJvm(ExitingTaskProbe::class.java) { comm, logs, process ->
+      DataOutputStream(comm.getOutputStream()).writeFrame(hexToBytes(STARTUP_HEX))
+
+      val queued = countQueuedLines(logs.getInputStream())
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the task should make the JVM exit")
+      Assertions.assertEquals(3, process.exitValue(), "the JVM should exit with the task's code")
+      Assertions.assertEquals(QUEUED_LINES, queued, "every message the task logged should be written before the JVM exits")
+    }
+
+  @Test
+  @DisplayName("Should write the queued logs before the log connection closes when the supervisor rejects the task's result")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun writesQueuedLogsWhenReportingFails() =
+    withProbeJvm(QueuedLogsProbe::class.java) { comm, logs, process ->
+      val toServer = DataOutputStream(comm.getOutputStream())
+      val fromServer = DataInputStream(comm.getInputStream())
+      // The test reads no logs until it has rejected the result, so most queued messages are still waiting
+      // to be written when the server stops serving.
+      toServer.writeFrame(hexToBytes(STARTUP_HEX))
+
+      val request = fromServer.readFrame()
+      toServer.writeFrame(variableResultFrame(request.id))
+      val result = fromServer.readFrame()
+      toServer.writeFrame(errorResponseFrame(result.id))
+      val queued = countQueuedLines(logs.getInputStream())
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit after the server stops serving")
+      Assertions.assertEquals(1, process.exitValue(), "the rejected result should fail the JVM")
+      Assertions.assertEquals(QUEUED_LINES, queued, "every queued message should be written before the log connection closes")
+    }
+
+  @Test
+  @DisplayName("Should stop writing lines that another thread logs once the server starts closing the log connection")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun stopsWritingWhenTheServerClosesTheLogConnection() {
+    val output = File.createTempFile("probe", ".out").apply { deleteOnExit() }
+    withProbeJvm(BackgroundLoggingProbe::class.java, output) { comm, logs, process ->
+      val toServer = DataOutputStream(comm.getOutputStream())
+      val fromServer = DataInputStream(comm.getInputStream())
+      toServer.writeFrame(hexToBytes(STARTUP_HEX))
+      var cut = emptyList<String>()
+      val reader = thread { cut = readCutLines(logs.getInputStream()) }
+
+      val result = fromServer.readFrame()
+      Assertions.assertInstanceOf(SucceedTask::class.java, result.body)
+      toServer.writeFrame(ackFrame(result.id))
+      reader.join()
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit after it reports the result")
+      Assertions.assertEquals(0, process.exitValue())
+      assertWholeLinesWithoutWriteErrors(cut, output)
+    }
+  }
+
+  @Test
+  @DisplayName("Should stop writing lines that another thread logs once the JVM starts exiting")
+  @Timeout(value = 120, unit = TimeUnit.SECONDS)
+  fun stopsWritingWhenTheJvmExits() {
+    val output = File.createTempFile("probe", ".out").apply { deleteOnExit() }
+    withProbeJvm(ExitingBackgroundLoggingProbe::class.java, output) { comm, logs, process ->
+      DataOutputStream(comm.getOutputStream()).writeFrame(hexToBytes(STARTUP_HEX))
+
+      val cut = readCutLines(logs.getInputStream())
+      Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the task should make the JVM exit")
+      Assertions.assertEquals(3, process.exitValue(), "the JVM should exit with the task's code")
+      assertWholeLinesWithoutWriteErrors(cut, output)
+    }
+  }
+
+  /**
+   * Checks that [cut] is empty and that [output] reports no failed write. [cut] holds the lines that were not
+   * whole messages, and [output] holds what the started JVM printed. If a line is written while the SDK closes
+   * the log connection, that line can be cut and its write can fail.
+   */
+  private fun assertWholeLinesWithoutWriteErrors(
+    cut: List<String>,
+    output: File,
+  ) {
+    Assertions.assertEquals(emptyList<String>(), cut, "every line should be a whole message")
+    val errors = output.readLines().filter { it.contains("Cannot send a log line to the supervisor") }
+    Assertions.assertEquals(emptyList<String>(), errors.take(3), "no write should fail (${errors.size} failed)")
+  }
+
+  /**
+   * Starts a JVM that runs [probe] with a comm connection and a logs connection, and runs [block] with both connections and the JVM.
+   * What the started JVM prints goes to [output] if [output] is given, and otherwise to the output of the JVM that runs the test.
+   */
+  private fun withProbeJvm(
+    probe: Class<*>,
+    output: File? = null,
+    block: (comm: Socket, logs: Socket, process: Process) -> Unit,
+  ) {
     val loopback = InetAddress.getLoopbackAddress()
     ServerSocket(0, 1, loopback).use { commListener ->
       ServerSocket(0, 1, loopback).use { logsListener ->
@@ -394,37 +623,20 @@ class ServerTest {
             File(System.getProperty("java.home"), "bin/java").path,
             "-cp",
             System.getProperty("java.class.path"),
-            QueuedLogsProbe::class.java.name,
+            probe.name,
             "--comm",
             "${loopback.hostAddress}:${commListener.localPort}",
             "--logs",
             "${loopback.hostAddress}:${logsListener.localPort}",
           ).redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+            .redirectOutput(output?.let { ProcessBuilder.Redirect.to(it) } ?: ProcessBuilder.Redirect.INHERIT)
             .start()
         try {
           commListener.accept().use { comm ->
             logsListener.accept().use { logs ->
               comm.soTimeout = 30_000
               logs.soTimeout = 30_000
-              val toServer = DataOutputStream(comm.getOutputStream())
-              val fromServer = DataInputStream(comm.getInputStream())
-              // The first byte shows that the server has started to write the queued messages. The test
-              // then reads no logs for a second, so the server is still writing the queued messages when
-              // the startup details arrive.
-              logs.getInputStream().read()
-              toServer.writeFrame(hexToBytes(STARTUP_HEX))
-              Thread.sleep(1000)
-              thread(isDaemon = true) { runCatching { logs.getInputStream().transferTo(OutputStream.nullOutputStream()) } }
-
-              val request = fromServer.readFrame()
-              Assertions.assertInstanceOf(GetVariable::class.java, request.body)
-              toServer.writeFrame(variableResultFrame(request.id))
-              val result = fromServer.readFrame()
-              Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task should get its reply and succeed")
-              toServer.writeFrame(ackFrame(result.id))
-              Assertions.assertTrue(process.waitFor(30, TimeUnit.SECONDS), "the JVM should exit after it reports the result")
-              Assertions.assertEquals(0, process.exitValue())
+              block(comm, logs, process)
             }
           }
         } finally {
@@ -660,6 +872,10 @@ class ServerTest {
       Assertions.assertInstanceOf(SucceedTask::class.java, result.body, "the task returned, so its success is reported")
       Assertions.assertEquals(listOf("Asking the task to stop"), signalLogs())
       Assertions.assertNull(recorded.poll(), "the SDK should keep the SIGTERM for the task")
+      Assertions.assertTrue(
+        LogSender.messages.none { it.event == INTERRUPT_CLEARED_EVENT },
+        "the task left its thread's interrupt flag clear",
+      )
     }
 
   @Test
@@ -714,6 +930,11 @@ class ServerTest {
 
       Assertions.assertEquals(TaskState.State.FAILED, (result.body as TaskState).state)
       Assertions.assertFalse(Thread.interrupted(), "the SDK should clear the flag before it waits for the acknowledgement")
+      Assertions.assertEquals(
+        1,
+        LogSender.messages.count { it.event == INTERRUPT_CLEARED_EVENT },
+        "the SDK should log that it cleared the interrupt flag",
+      )
     }
 
   @Test
@@ -904,6 +1125,7 @@ class ServerTest {
     val SIGNAL_EVENTS = setOf("Asking the task to stop", "Letting the JVM handle the signal")
     const val NOT_STOPPABLE_TASK_ERROR =
       "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method"
+    const val INTERRUPT_CLEARED_EVENT = "Cleared the interrupt flag that the task left on its thread, so the SDK can report the result"
 
     // [2, msg, null] with msg coming from
     // https://github.com/astronomer/airflow/blob/f39c8da8/task-sdk/tests/task_sdk/execution_time/test_comms.py#L73-L108
