@@ -143,7 +143,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
 
     def _heartbeat_api(self, client: DagProcessorAPIClient) -> None:
         # Client imports stay local: its versioned routes import this runner.
-        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired
+        from airflow.dag_processing.api_client import DagProcessorRegistrationRetired, is_transient_api_error
 
         write_processor_health(self._last_api_heartbeat)
         if client.restart_required:
@@ -161,11 +161,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
                 f"{error}. {self._get_heartbeat_delay_message()}"
             ) from error
         except httpx2.HTTPError as error:
-            if (
-                isinstance(error, httpx2.HTTPStatusError)
-                and error.response.status_code < 500
-                and error.response.status_code not in (408, 429)
-            ):
+            if not is_transient_api_error(error):
                 raise
             stats.incr("job_heartbeat_failure", 1, 1)
             elapsed = monotonic() - self._last_api_heartbeat

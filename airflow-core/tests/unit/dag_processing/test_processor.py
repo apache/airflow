@@ -65,6 +65,7 @@ from airflow.dag_processing.processor import (
     DagFileProcessorProcess,
     ToDagProcessor,
     ToManager,
+    _DagParseCommsDecoder,
     _execute_callbacks,
     _execute_dag_callbacks,
     _execute_email_callbacks,
@@ -80,7 +81,7 @@ from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.execution_time import comms, supervisor
+from airflow.sdk.execution_time import comms, supervisor, task_runner
 from airflow.sdk.execution_time.comms import (
     GetConnection,
     GetTaskStates,
@@ -249,8 +250,17 @@ class TestDagFileProcessor:
         if result.import_errors:
             assert "VARIABLE_NOT_FOUND" in next(iter(result.import_errors.values()))
 
-    def test_callback_process_reports_that_no_callback_target_loaded(
-        self, tmp_path: pathlib.Path, inprocess_client
+    @pytest.mark.parametrize(
+        ("variable_response", "targets_missing"),
+        [
+            pytest.param(httpx2.Response(400, json={"detail": "rejected"}), True, id="api-request-failed"),
+            pytest.param(
+                httpx2.Response(404, json={"detail": {"reason": "not_found"}}), False, id="variable-missing"
+            ),
+        ],
+    )
+    def test_callback_process_reports_missing_targets_only_after_api_failure(
+        self, tmp_path: pathlib.Path, variable_response, targets_missing
     ):
         def dag_in_a_fn():
             from airflow.sdk import DAG, Variable
@@ -276,13 +286,19 @@ class TestDagFileProcessor:
             ],
             logger=MagicMock(spec=FilteringBoundLogger),
             logger_filehandle=MagicMock(spec=BinaryIO),
-            client=inprocess_client,
+            client=Client(
+                base_url=None,
+                token="",
+                dry_run=True,
+                transport=httpx2.MockTransport(lambda request: variable_response),
+            ),
         )
 
         while not proc.is_ready:
             proc._service_subprocess(0.1)
 
-        assert proc.callback_targets_missing
+        assert proc.callback_targets_missing is targets_missing
+        assert proc.exited_cleanly is not targets_missing
 
     def test_top_level_variable_set(self, tmp_path: pathlib.Path, inprocess_client):
         from airflow.models.variable import Variable as VariableORM
@@ -758,58 +774,68 @@ def test_parse_file_with_task_callbacks(spy_agency):
     assert called is True
 
 
-@pytest.mark.parametrize("dag_loaded", [False, True], ids=["dag-not-loaded", "task-not-loaded"])
-def test_parse_file_exits_without_running_callbacks_when_no_target_loaded(spy_agency, dag_loaded):
-    called = False
-
-    def on_failure(context):
-        nonlocal called
-        called = True
-
-    with DAG(dag_id="a", on_failure_callback=on_failure) as dag:
-        BaseOperator(task_id="other", on_failure_callback=on_failure)
-
-    def fake_collect_dags(self, *args, **kwargs):
-        if dag_loaded:
-            self.dags[dag.dag_id] = dag
-
-    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
-    ti_data = TIDataModel(
+def _make_callback_request(dag_id: str, task_id: str | None) -> CallbackRequest:
+    if task_id is None:
+        return DagCallbackRequest(
+            filepath="A",
+            msg="Message",
+            dag_id=dag_id,
+            run_id="run",
+            bundle_name="testing",
+            bundle_version=None,
+        )
+    ti = TIDataModel(
         id=uuid.uuid4(),
-        dag_id="a",
-        task_id="b",
-        run_id="test_run",
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id="run",
         map_index=-1,
         try_number=1,
         dag_version_id=uuid.uuid4(),
     )
-    requests: list[CallbackRequest] = [
-        TaskCallbackRequest(
-            filepath="A", msg="Message", ti=ti_data, bundle_name="testing", bundle_version=None
-        )
-    ]
-    if not dag_loaded:
-        requests.append(
-            DagCallbackRequest(
-                filepath="A",
-                msg="Message",
-                dag_id="a",
-                run_id="b",
-                bundle_name="testing",
-                bundle_version=None,
-            )
-        )
+    return TaskCallbackRequest(filepath="A", msg="Message", ti=ti, bundle_name="testing", bundle_version=None)
 
-    with pytest.raises(SystemExit) as exit_info:
-        _parse_file(
-            DagFileParseRequest(
-                file="A", bundle_path="test", bundle_name="testing", callback_requests=requests
-            ),
-            log=structlog.get_logger(),
-        )
 
-    assert exit_info.value.code == _CALLBACK_TARGETS_MISSING_EXIT_CODE
-    assert called is False
+@pytest.mark.parametrize(
+    ("loaded_dag_ids", "targets", "api_request_failed", "exits", "expected_calls"),
+    [
+        pytest.param([], [("a", None), ("a", "t")], True, True, [], id="dag-not-loaded"),
+        pytest.param(["a"], [("a", "missing")], True, True, [], id="task-not-loaded"),
+        pytest.param(["a"], [("a", None), ("b", None)], True, False, ["a"], id="one-of-two-dags-loaded"),
+        pytest.param([], [("a", None)], False, False, [], id="no-api-request-failed"),
+    ],
+)
+def test_parse_file_exits_when_no_callback_target_loaded_after_api_failure(
+    spy_agency, monkeypatch, loaded_dag_ids, targets, api_request_failed, exits, expected_calls
+):
+    calls: list[str] = []
+    with DAG(dag_id="a", on_failure_callback=lambda context: calls.append("a")) as dag_a:
+        BaseOperator(task_id="t", on_failure_callback=lambda context: calls.append("a.t"))
+    dag_b = DAG(dag_id="b", on_failure_callback=lambda context: calls.append("b"))
+    dags = {"a": dag_a, "b": dag_b}
+
+    def fake_collect_dags(self, *args, **kwargs):
+        for dag_id in loaded_dag_ids:
+            self.dags[dag_id] = dags[dag_id]
+
+    spy_agency.spy_on(DagBag.collect_dags, call_fake=fake_collect_dags, owner=DagBag)
+    comms_decoder = _DagParseCommsDecoder(socket=MagicMock(spec=socket))
+    comms_decoder.api_request_failed = api_request_failed
+    monkeypatch.setattr(task_runner, "SUPERVISOR_COMMS", comms_decoder, raising=False)
+    msg = DagFileParseRequest(
+        file="A",
+        bundle_path="test",
+        bundle_name="testing",
+        callback_requests=[_make_callback_request(dag_id, task_id) for dag_id, task_id in targets],
+    )
+
+    if exits:
+        with pytest.raises(SystemExit) as exit_info:
+            _parse_file(msg, log=structlog.get_logger())
+        assert exit_info.value.code == _CALLBACK_TARGETS_MISSING_EXIT_CODE
+    else:
+        assert _parse_file(msg, log=structlog.get_logger()) is None
+    assert calls == expected_calls
 
 
 @conf_vars({("dag_processor", "dag_version_inflation_check_level"): "error"})

@@ -231,35 +231,34 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
 
     def flush(self, *, deadline: float | None = None) -> None:
         """Send queued acknowledgments in order until the deadline, keeping claims after a failure."""
+        # Runtime API-client imports stay local so managers using the in-process API do not load it.
+        from airflow.dag_processing.api_client import is_transient_api_error
+
         if deadline is None:
             deadline = time.monotonic() + _API_SEND_BUDGET_SECONDS
         while self._pending_work_acks and time.monotonic() < deadline:
             kind, item = self._pending_work_acks[0]
             try:
                 self.client.acknowledge_work(kind, item)
-            except httpx2.HTTPStatusError as error:
-                if error.response.status_code in (408, 429) or error.response.status_code >= 500:
+            except httpx2.HTTPError as error:
+                status_code = (
+                    error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+                )
+                if is_transient_api_error(error):
                     self.log.warning(
                         "Unable to acknowledge requested work; retaining the claim",
                         error_type=type(error).__name__,
-                        status_code=error.response.status_code,
+                        status_code=status_code,
                     )
                     return
-                if error.response.status_code != 409:
+                if status_code != 409:
                     # Retrying cannot succeed; the server releases the claim when this Job ends.
                     self.log.warning(
                         "The API refused to acknowledge %s work %s (HTTP %s)",
                         kind,
                         item.id,
-                        error.response.status_code,
+                        status_code,
                     )
-            except httpx2.RequestError as error:
-                self.log.warning(
-                    "Unable to acknowledge requested work; retaining the claim",
-                    error_type=type(error).__name__,
-                    status_code=None,
-                )
-                return
             self._pending_work_acks.pop(0)
 
     def has_outstanding_work(self) -> bool:

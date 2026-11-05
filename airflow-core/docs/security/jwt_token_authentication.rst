@@ -648,7 +648,10 @@ cleanly; callbacks that are still running or that the shutdown signal stopped ar
 When a callback's bundle
 version cannot be prepared, the processor retries with backoff for up to
 ``[dag_processor] job_heartbeat_timeout``
-and then acknowledges the request without running the callback. Priority requests are assigned
+and then acknowledges the request without running the callback. The same retry applies after an
+Execution API request fails, but only when none of the callbacks processed together for a file
+found its Dag or task, so none of them ran. When one of them did, a callback whose Dag or task did
+not load is acknowledged without running. Priority requests are assigned
 to an import started after their requested refresh. Only that import's publication or terminal
 failure acknowledges the request; an older in-flight import cannot consume it. Discovery after
 the requested refresh can also acknowledge a request if it confirms the definition is absent.
