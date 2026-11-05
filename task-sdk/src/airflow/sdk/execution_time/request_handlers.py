@@ -314,6 +314,8 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
         msg.map_index,
         msg.include_prior_dates,
         previous_iteration=msg.previous_iteration,
+        region_id=msg.region_id,
+        region_index=msg.region_index,
     )
     if isinstance(xcom, XComResponse):
         xcom_result = XComResult.from_xcom_response(xcom)
