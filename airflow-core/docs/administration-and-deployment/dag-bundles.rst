@@ -272,9 +272,10 @@ Some caveats:
   Azure Blob Storage bundles pause on any refresh failure. Explicit reparse requests wait for a
   successful refresh. A Dag processor started with ``--num-runs`` does not exit while files wait for
   a paused bundle, so it finishes only after that bundle refreshes successfully.
-  If listing the bundle's Dag files or recording the refresh fails after a successful refresh, the
-  processor keeps parsing the files it listed before, from the refreshed source, and retries the
-  refresh no later than the bundle's :ref:`config:dag_processor__refresh_interval`.
+  If listing the bundle's Dag files fails after a successful refresh, the processor keeps parsing the
+  files it listed before, from the refreshed source; if only recording the refresh fails, it parses
+  the bundle's current files. In both cases it retries the refresh after the bundle's
+  :ref:`config:dag_processor__refresh_interval`, or sooner when a reparse is requested.
 * A new version does not mean the new Dags are running, because bundles are refreshed before their
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
