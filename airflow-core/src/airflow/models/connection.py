@@ -24,14 +24,18 @@ import sys
 import warnings
 from contextlib import suppress
 from json import JSONDecodeError
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
 from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
 
 from airflow._shared.module_loading import import_string
-from airflow._shared.secrets_backend.base import call_secrets_backend_method
+from airflow._shared.secrets_backend.base import accepts_kwarg, call_secrets_backend_method
+from airflow.secrets.metastore import MetastoreBackend
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 from airflow._shared.secrets_masker import mask_secret
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.models.base import ID_LEN, Base
@@ -519,7 +523,13 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         return self.get_extra_dejson()
 
     @classmethod
-    def get_connection_from_secrets(cls, conn_id: str, team_name: str | None = None) -> Connection:
+    def get_connection_from_secrets(
+        cls,
+        conn_id: str,
+        team_name: str | None = None,
+        *,
+        session: Session | None = None,
+    ) -> Connection:
         """
         Get connection by conn_id.
 
@@ -527,6 +537,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         :param conn_id: connection id
         :param team_name: Team name associated to the task trying to access the connection (if any)
+        :param session: Existing session to reuse for the metadata database lookup.
         :return: connection
         """
         # TODO: This is not the best way of having compat, but it's "better than erroring" for now. This still
@@ -536,6 +547,12 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         # If this is set it means are in some kind of execution context (Task, Dag Parse or Triggerer perhaps)
         # and should use the Task SDK API server path
         if hasattr(sys.modules.get("airflow.sdk.execution_time.task_runner"), "SUPERVISOR_COMMS"):
+            if session is not None:
+                raise ValueError(
+                    "Connection.get_connection_from_secrets() cannot use a metadata database session "
+                    "from an execution context; reads there go through the Execution API. "
+                    "Use airflow.sdk.Connection.get() instead."
+                )
             from airflow.sdk import Connection as TaskSDKConnection
             from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 
@@ -577,9 +594,19 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
 
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
+            session_kwargs: dict[str, Session] = {}
+            if (
+                session is not None
+                and isinstance(secrets_backend, MetastoreBackend)
+                and accepts_kwarg(secrets_backend.get_connection, "session")
+            ):
+                session_kwargs["session"] = session
             try:
                 conn = call_secrets_backend_method(
-                    secrets_backend.get_connection, team_name=team_name, conn_id=conn_id
+                    secrets_backend.get_connection,
+                    team_name=team_name,
+                    conn_id=conn_id,
+                    **session_kwargs,
                 )
                 if conn:
                     SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=team_name)
