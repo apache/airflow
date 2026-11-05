@@ -100,11 +100,13 @@ class DurableStorage:
             cache = {}
         except OSError:
             log.warning(
-                "Durable: could not load journal; stopping task to avoid replaying steps", exc_info=True
+                "Durable: could not read the journal; failing this attempt so finished steps don't run again"
             )
             raise
         except (json.JSONDecodeError, ValueError):
-            cache = {}
+            log.warning("Durable: journal is corrupt; failing this attempt so finished steps don't run again")
+            raise
+
         self._cache = cache
         return self._cache
 
@@ -158,8 +160,8 @@ class DurableStorage:
                 self._write(json.dumps(cache))
             else:
                 self._get_path().unlink()
-                self._cache = None
+                self._cache = {}
         except FileNotFoundError:
-            self._cache = None
+            self._cache = {}
         except Exception:
             log.warning("Durable: could not clean up the journal file", exc_info=True)
