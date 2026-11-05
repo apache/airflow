@@ -30,7 +30,7 @@ import { useLocalStorage } from "usehooks-ts";
 import { useDagRunServiceGetDagRun, useDagRunServiceGetDagRuns, useDagServiceGetDag } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 
-import { IconButton, ProgressBar, Toaster } from "src/system-components";
+import { IconButton, Toaster } from "src/system-components";
 
 import { DagStatusChip } from "src/components/DagStatusChip";
 import { TogglePause } from "src/components/TogglePause";
@@ -78,13 +78,12 @@ const SharedScrollBox = ({
 
 type Props = {
   readonly error?: unknown;
-  readonly isLoading?: boolean;
   /** Value exposed to the active tab via ``useOutletContext`` (so tabs can reuse the parent's data). */
   readonly outletContext?: unknown;
   readonly tabs: Array<NavTab>;
 } & PropsWithChildren;
 
-export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
+export const DetailsLayout = ({ children, error, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
   const refetchInterval = useAutoRefresh({ dagId });
@@ -451,7 +450,6 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                     position="relative"
                   >
                     {children}
-                    <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
                     <NavTabs tabs={tabs} />
                     <Box flexGrow={1} overflow="auto" pb={3} px={2}>
                       <Outlet context={outletContext} />

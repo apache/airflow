@@ -34,7 +34,7 @@ import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
 import { TaskIcon } from "src/assets/TaskIcon";
 import { usePluginTabs } from "src/hooks/usePluginTabs";
 import { useRefreshOnNewDagRuns } from "src/queries/useRefreshOnNewDagRuns";
-import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
+import { isStatePending, useAutoRefresh, useDocumentTitle, useStickyError } from "src/utils";
 
 import { DagNotFound } from "./DagNotFound";
 import { Header } from "./Header";
@@ -67,11 +67,7 @@ export const Dag = () => {
     previousLatestRunIdRef.current = "";
   }, [dagId]);
 
-  const {
-    data: dag,
-    error,
-    isLoading,
-  } = useDagServiceGetDagDetails(
+  const { data: dag, error } = useDagServiceGetDagDetails(
     {
       dagId,
     },
@@ -96,11 +92,7 @@ export const Dag = () => {
     dag?.is_paused === true || dag?.scheduling_state === "draining",
   );
 
-  const {
-    data: latestRun,
-    error: runsError,
-    isLoading: isLoadingRuns,
-  } = useDagServiceGetLatestRunInfo(
+  const { data: latestRun, error: runsError } = useDagServiceGetLatestRunInfo(
     {
       dagId,
     },
@@ -127,6 +119,10 @@ export const Dag = () => {
     },
   );
 
+  // Read through useStickyError: the latest-run info polls, and a refetch of a lookup that never
+  // succeeded clears its error, so the raw error would flip the card's alert on every poll.
+  const shownRunsError = useStickyError(runsError, latestRun !== undefined, dagId);
+
   const displayTabs = tabs.filter((tab) => {
     if (dag?.timetable_summary === null && tab.value === "backfills") {
       return false;
@@ -142,8 +138,10 @@ export const Dag = () => {
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error ?? runsError} isLoading={isLoading || isLoadingRuns} tabs={displayTabs}>
-        <Header dag={dag} latestRunInfo={latestRun ?? undefined} />
+      {/* The chip keeps the Dag's own failure; the latest-run lookup is about a run, so it
+        belongs on the card beside the run it describes. */}
+      <DetailsLayout error={error} tabs={displayTabs}>
+        <Header dag={dag} error={shownRunsError} latestRunInfo={latestRun ?? undefined} />
       </DetailsLayout>
     </ReactFlowProvider>
   );
