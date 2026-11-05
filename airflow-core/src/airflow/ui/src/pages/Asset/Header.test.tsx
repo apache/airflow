@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
@@ -33,6 +33,15 @@ describe("Asset header", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "1 alias" })).toBeInTheDocument());
 
     expect(screen.getByRole("button", { name: "1 watcher" })).toBeInTheDocument();
+  });
+
+  it("links each watcher to its trigger and shows the trigger's status", async () => {
+    render(<AppWrapper initialEntries={["/assets/1"]} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "1 watcher" }));
+
+    expect(await screen.findByRole("link", { name: "my_watcher" })).toHaveAttribute("href", "/triggers/5");
+    expect(screen.getByTestId("trigger-status-badge")).toHaveTextContent("states.running");
   });
 
   it("omits the aliases and watchers stats for an asset that has none", async () => {

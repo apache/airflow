@@ -60,6 +60,7 @@ import {
 } from "src/components/FilterBar/filters/runStateParams";
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 import { StateBadge } from "src/components/StateBadge";
+import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 
 import { DagIcon } from "src/assets/DagIcon";
 import { TaskIcon } from "src/assets/TaskIcon";
@@ -70,6 +71,8 @@ import {
   jobStateOptions,
   jobTypeOptions,
   taskInstanceStateOptions,
+  triggerKinds,
+  triggerStatuses,
 } from "src/constants/stateOptions";
 import { useConfig } from "src/queries/useConfig";
 
@@ -595,6 +598,30 @@ export const useFilterConfigs = () => {
       label: translate("common:table.to"),
       startKey: SearchParamsKeys.TO_DATE_GTE,
       type: FilterTypes.DATERANGE,
+    },
+    [SearchParamsKeys.TRIGGER_KIND]: {
+      icon: <MdBuild />,
+      label: translate("browse:triggers.columns.kind"),
+      options: triggerKinds.map((kind) => ({
+        label: translate(`browse:triggers.kind.${kind}`),
+        value: kind,
+      })),
+      type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TRIGGER_STATUS]: {
+      icon: <MdCheckCircle />,
+      label: translate("browse:triggers.columns.status"),
+      options: triggerStatuses.map((status) => ({
+        label: <TriggerStatusBadge status={status} />,
+        value: status,
+      })),
+      type: FilterTypes.MULTISELECT,
+    },
+    [SearchParamsKeys.TRIGGERER_HOSTNAME]: {
+      hotkeyDisabled: true,
+      icon: <MdComputer />,
+      label: translate("browse:triggers.filters.triggererHostname"),
+      type: FilterTypes.TEXT,
     },
     [SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN]: {
       hotkeyDisabled: true,

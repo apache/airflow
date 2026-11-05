@@ -60,6 +60,42 @@
     },
     "title": "Deadlines"
   },
+  "triggers": {
+    "columns": {
+      "failures": "Failures",
+      "kind": "Kind",
+      "lastError": "Last Error",
+      "lastEvent": "Last Event",
+      "owner": "Owner",
+      "status": "Status",
+      "triggerer": "Triggerer"
+    },
+    "detail": {
+      "firstFailedAt": "Failing Since",
+      "lastFailedAt": "Last Failed At"
+    },
+    "filters": {
+      "triggererHostname": "Triggerer Hostname"
+    },
+    "forbidden": {
+      "description": "Triggers are shown to whoever can see what they run for: a Dag's task instances or Dag runs, or an asset they watch. You can see none of these.",
+      "title": "No triggers to show"
+    },
+    "kind": {
+      "asset_watcher": "Asset Watcher",
+      "callback": "Callback",
+      "task": "Task"
+    },
+    "notFound": {
+      "backToList": "Back to Triggers",
+      "description": "Triggers are removed once they fire or what they run for is done, so this one has most likely finished.",
+      "title": "This trigger no longer exists"
+    },
+    "status": {
+      "failing": "Failing",
+      "orphaned": "Orphaned"
+    }
+  },
   "xcom": {
     "add": {
       "error": "Failed to add XCom",

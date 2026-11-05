@@ -3307,6 +3307,10 @@ export type DeadlineResponse = {
     callback_type: string;
     callback_state?: CallbackState | null;
     callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
 
 /**

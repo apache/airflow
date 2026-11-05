@@ -18,14 +18,15 @@
  */
 import type { ReactNode } from "react";
 
-import { Button, Text } from "@chakra-ui/react";
+import { Button, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
 import type { AssetAliasResponse, AssetWatcherResponse } from "openapi/requests/types.gen";
 
-import { Popover } from "src/system-components";
+import { Popover, RouterLink } from "src/system-components";
 
 import Time from "src/components/Time";
+import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 
 import { formatNumber } from "src/utils";
 
@@ -76,11 +77,14 @@ export const WatchersPopover = ({ watchers }: { readonly watchers: Array<AssetWa
   return (
     <ListPopover
       items={watchers.map((watcher) => ({
-        key: String(watcher.trigger_id),
+        // Watchers with the same trigger class and arguments share one trigger.
+        key: `${watcher.trigger_id}-${watcher.name}`,
         label: (
-          <>
-            {watcher.name} <Time datetime={watcher.created_date} />
-          </>
+          <HStack as="span">
+            <RouterLink to={`/triggers/${watcher.trigger_id}`}>{watcher.name}</RouterLink>
+            <TriggerStatusBadge status={watcher.status} />
+            <Time datetime={watcher.created_date} />
+          </HStack>
         ),
       }))}
       noun={translate("watcher", { count: watchers.length })}
