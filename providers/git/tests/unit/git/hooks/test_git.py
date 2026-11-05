@@ -853,7 +853,11 @@ class TestGitHook:
         [
             pytest.param(AIRFLOW_HTTPS_URL, {}, False, id="default"),
             pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": False}, False, id="disabled"),
-            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "false"}, False, id="string"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "false"}, False, id="string-false"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "True"}, True, id="string-true"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": " true "}, True, id="string-padded"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": ""}, False, id="empty"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": None}, False, id="null"),
             pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": True}, True, id="https"),
             pytest.param(AIRFLOW_HTTP_URL, {"proactive_auth": True}, False, id="plain-http"),
         ],
@@ -877,6 +881,20 @@ class TestGitHook:
 
         assert os.environ["GIT_CONFIG_COUNT"] == "1"
         assert "GIT_CONFIG_KEY_3" not in hook.env
+
+    @pytest.mark.parametrize("value", ["yes", 1], ids=["word", "int"])
+    def test_proactive_auth_invalid_value(self, value, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_proactive_auth_invalid",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"proactive_auth": value},
+            )
+        )
+        with pytest.raises(ValueError, match="Invalid proactive_auth value"):
+            GitHook(git_conn_id="git_proactive_auth_invalid")
 
     @pytest.mark.parametrize(
         ("extra", "token"),

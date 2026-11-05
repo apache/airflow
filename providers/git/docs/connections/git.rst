@@ -61,11 +61,12 @@ Extra (optional)
 
     **HTTPS token authentication:**
 
-    * ``proactive_auth`` defaults to off. Set it to the JSON boolean ``true`` to send the token on
-      the first request to the configured HTTPS repository. This can help when anonymous requests
-      to a public repository hit rate limits. Git versions older than 2.46 ignore this setting.
-      If the server rejects the token, update it or turn off the option. With the option off,
-      Airflow leaves any existing Git settings for proactive authentication in effect.
+    * ``proactive_auth`` defaults to off. Use the JSON boolean ``true`` or
+      ``?proactive_auth=true`` in a connection URI to send the token on the first request to the configured
+      HTTPS repository. This can help when anonymous requests to a public repository hit rate
+      limits. Git versions older than 2.46 ignore this setting. If the server rejects the token,
+      update it or turn off the option. With the option off, Airflow leaves any existing Git
+      settings for proactive authentication in effect.
 
     **SSH key authentication:**
 

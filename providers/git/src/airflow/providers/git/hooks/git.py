@@ -89,6 +89,15 @@ class GitHook(BaseHook):
     conn_type = "git"
     hook_name = "GIT"
 
+    @staticmethod
+    def _parse_proactive_auth(value: Any) -> bool:
+        # Connection extras may contain strings; accept boolean strings and treat empty values as unset.
+        if value is None or value == "" or isinstance(value, bool):
+            return bool(value)
+        if isinstance(value, str) and value.strip().lower() in ("true", "false"):
+            return value.strip().lower() == "true"
+        raise ValueError(f"Invalid proactive_auth value: {value!r}. Must be true or false.")
+
     @classmethod
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         return {
@@ -111,6 +120,7 @@ class GitHook(BaseHook):
                         "ssh_port": "",
                         "github_app_id": "",
                         "github_installation_id": "",
+                        "proactive_auth": False,
                     }
                 )
             },
@@ -129,7 +139,7 @@ class GitHook(BaseHook):
         embedded_user, embedded_token = self._strip_embedded_credentials()
         self.user_name = connection.login or embedded_user or "user"
         self.auth_token = connection.password or embedded_token
-        self.proactive_auth = extra.get("proactive_auth") is True
+        self.proactive_auth = self._parse_proactive_auth(extra.get("proactive_auth", False))
 
         # SSH key authentication
         self.private_key = extra.get("private_key")
@@ -336,7 +346,8 @@ printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
             # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
             config = [
                 (f"credential.{scope}.helper", ""),
-                # git runs the value through a shell. The ! marks it as a command and preserves quoting.
+                # git runs the value through a shell, so a temp dir containing a space would
+                # split into two words. ``!`` marks it as a command so the quoting survives.
                 (f"credential.{scope}.helper", "!" + shlex.quote(helper_path)),
             ]
             if self.proactive_auth and scope.startswith("https://"):
