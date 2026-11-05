@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.providers.common.ai.skills import GitSkills, resolve_skills
+from airflow.providers.common.ai.skills import GitSkills, _materialize_skills, _SkillsLocation, resolve_skills
 
 pytest.importorskip("git")
 pytest.importorskip("airflow.providers.git.hooks.git")
@@ -123,6 +123,19 @@ class TestResolveGitWithHook:
             pass
         mock_githook.assert_not_called()
         assert mock_repo.clone_from.call_args.args[0] == "https://github.com/org/repo"
+
+    @patch("git.Repo")
+    def test_records_the_cloned_commit(self, mock_repo):
+        mock_repo.clone_from.return_value.head.commit.hexsha = "0123abc"
+        source = GitSkills(repo_url="https://github.com/org/repo", path="skills")
+
+        locations, cleanup = _materialize_skills([source, "/local/skills"])
+        cleanup()
+
+        assert locations[0].git is source
+        assert locations[0].commit == "0123abc"
+        assert locations[0].directory.endswith(os.sep + "skills")
+        assert locations[1] == _SkillsLocation("/local/skills")
 
     @patch("airflow.providers.git.hooks.git.GitHook")
     @patch("git.Repo")

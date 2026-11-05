@@ -67,6 +67,10 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
   return (
     <ReactSelect
       aria-label={translate("flexibleForm.placeholderMulti")}
+      chakraStyles={{
+        // Optical centering: the icon reads as sitting high next to lowercase labels without the nudge.
+        multiValueRemove: (provided) => ({ ...provided, alignSelf: "center", transform: "translateY(1px)" }),
+      }}
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}

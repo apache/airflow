@@ -377,6 +377,29 @@ class TestKubernetesCmdDecorator(TestKubernetesDecoratorsBase):
 
         assert containers[0].image == f"python:{DAG_ID}"
 
+    def test_execute_renders_only_the_returned_command(self):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        with self.dag_maker(params={"message": "{{ dag.dag_id }}"}):
+
+            @task.kubernetes_cmd(
+                image="python:3.10-slim-buster",
+                in_cluster=False,
+                cluster_context="default",
+                config_file="/tmp/fake_file",
+                namespace="default",
+                env_vars={"MESSAGE": "{{ params.message }}"},
+            )
+            def hello():
+                return ["echo", "{{ ti.task_id }}"]
+
+            hello_task = hello()
+
+        self.execute_task(hello_task)
+
+        containers = self.mock_create_pod.call_args.kwargs["pod"].spec.containers
+        assert containers[0].command == ["echo", "hello"]
+        assert [(env.name, env.value) for env in containers[0].env] == [("MESSAGE", "{{ dag.dag_id }}")]
+
     def test_airflow_skip(self):
         """Test that the operator is skipped if the task is skipped"""
         with self.dag_maker:

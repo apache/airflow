@@ -24,6 +24,7 @@ export const handlers: Array<HttpHandler> = [
   http.get("/api/v2/connections", () => HttpResponse.json({ connections: [], total_entries: 0 })),
   http.get("/ui/connections/hook_meta", () => HttpResponse.json([])),
   http.get("/api/v2/dagBundles", () => HttpResponse.json({ dag_bundles: [], total_entries: 0 })),
+  http.get("/ui/dagBundles/count", () => HttpResponse.json({ total_entries: 0 })),
   http.get("/api/v2/eventLogs", () => HttpResponse.json({ event_logs: [], total_entries: 0 })),
   http.get("/api/v2/jobs", () => HttpResponse.json({ jobs: [], total_entries: 0 })),
   http.get("/api/v2/pools", () => HttpResponse.json({ pools: [], total_entries: 0 })),
