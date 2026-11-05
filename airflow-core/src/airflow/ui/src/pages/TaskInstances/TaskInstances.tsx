@@ -54,7 +54,13 @@ import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { usePluginActions } from "src/hooks/usePluginActions";
 import { useConfig } from "src/queries/useConfig";
 import { useLoopGroupIds } from "src/queries/useIsLoopGroup";
-import { formatNumber, useAutoRefresh, isStatePending, useDocumentTitle } from "src/utils";
+import {
+  formatNumber,
+  useAutoRefresh,
+  isStatePending,
+  shouldListReportError,
+  useDocumentTitle,
+} from "src/utils";
 import { getTaskInstanceLink } from "src/utils/links";
 
 import BulkClearTaskInstancesButton from "./BulkClearTaskInstancesButton";
@@ -313,6 +319,10 @@ export const TaskInstances = () => {
   const { i18n, t: translate } = useTranslation();
   const { dagId, groupId, runId, taskId } = useParams();
   const loopsHere = useLoopGroupIds(groupId ?? taskId);
+  // The Dag, run and task headers report a missing level; the mapped and group levels have no
+  // header that does, so a 404 there is the list's to state.
+  const isScopedToDagLevel =
+    dagId !== undefined && groupId === undefined && !(runId !== undefined && taskId !== undefined);
 
   // Only the standalone list page owns the tab title; nested tabs inherit their parent page's title.
   useDocumentTitle(dagId === undefined ? translate("common:taskInstance_other") : undefined);
@@ -493,7 +503,9 @@ export const TaskInstances = () => {
         <DataTable
           columns={columns}
           data={data?.task_instances ?? []}
-          errorMessage={<ErrorAlert error={error} />}
+          errorMessage={
+            shouldListReportError(error, isScopedToDagLevel) ? <ErrorAlert error={error} /> : undefined
+          }
           filterActions={<TaskInstancesFilter />}
           initialState={tableURLState}
           isLoading={isLoading}
