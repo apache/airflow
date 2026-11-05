@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+    The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the
+    dependencies of its ``evaluation`` extra except ``litellm``, which the extra caps below the fix for
+    a critical advisory. If your tasks call ``vertexai.Client().evals`` with a model that LiteLLM
+    serves, install ``litellm`` yourself; without it those calls raise ``ImportError``.
+
 22.9.0
 ......
 

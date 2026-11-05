@@ -1472,7 +1472,11 @@ no-build-isolation-package = ["sphinx-redoc"]
 # needs openai>=3. Declaring them as conflicting lets uv.lock resolve each one on its own, so the
 # CI image gets openai 3 and the LlamaIndex tests run in the agent framework job instead, with
 # the openai 2.x that llama-index pulls in. Remove this once run-llama/llama_index#22939 is
-# released and the llama-index packages are back in Common AI's dev group.
+# released and the llama-index packages are back in Common AI's dev group, together with the
+# workarounds that exist only because of it: LOWEST_DEPENDENCIES_EXCLUDED_EXTRAS in
+# scripts/docker/entrypoint_ci.sh (otherwise the "llamaindex" extra silently stays out of the
+# lowest-dependency sync), the llama-index entry in the agent framework CI matrix and in breeze's
+# verification plan, and released=(openai) in scripts/in_container/run_agent_framework_tests.sh.
 conflicts = [
     [
         { package = "apache-airflow-providers-common-ai", extra = "llamaindex" },

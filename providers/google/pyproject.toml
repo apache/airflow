@@ -89,13 +89,15 @@ dependencies = [
     # version that still requires openai<3, and below the fix for a critical litellm advisory:
     # https://github.com/googleapis/python-aiplatform/issues/7252
     # The extra's pandas is listed further down. The floors of jsonschema, pyyaml and tqdm match
-    # the other Airflow distributions; scikit-learn 1.7.2 is the first release with Python 3.14
-    # wheels.
+    # the other Airflow distributions. scikit-learn 1.4.2 is the first release that supports
+    # numpy 2, 1.5.2 the first with Python 3.13 wheels and 1.7.2 the first with Python 3.14 wheels.
     "google-cloud-aiplatform>=1.164.0",
     "jsonschema>=4.19.1",
     "pyyaml>=6.0.3",
     "ruamel.yaml>=0.18.0",
-    "scikit-learn>=1.7.2",
+    "scikit-learn>=1.4.2;python_version<'3.13'",
+    "scikit-learn>=1.5.2;python_version>='3.13' and python_version<'3.14'",
+    "scikit-learn>=1.7.2;python_version>='3.14'",
     "tqdm>=4.67.1",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
