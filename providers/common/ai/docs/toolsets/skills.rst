@@ -142,9 +142,12 @@ The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded 
 first, with a link to the skill's folder at that commit for a repository on GitHub or
 GitLab, and says so when the sources held no skills. Calls made before a tool-approval
 pause or a human-review regeneration still count, and so do calls a durable retry replays.
-Only calls that completed count, not denied, failed or interrupted ones, and a
-``message_history`` seeded from another task does not add that task's calls. ``calls``
-totals ``calls_by_run``, which keeps each agent run's calls under its pydantic-ai run id.
+Only calls the tool answered count: a denied, retried, failed or interrupted call does not,
+while a script that exits with an error still does, since ``run_skill_script`` returns its
+output. A ``message_history`` seeded from another task does not add that task's calls, and
+calls that a history processor or compaction removes from the transcript are not counted.
+``calls`` totals ``calls_by_run``, which keeps the calls of each agent run that made any
+under its pydantic-ai run id.
 A run resumed from a tool-approval pause and a human-review regeneration each clone the
 repository again, so the source shows the commit the latest run cloned.
 Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool

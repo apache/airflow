@@ -165,8 +165,9 @@ class AgentSkillsToolset(AbstractToolset):
         # The run's messages, its history included. Calls replayed on a durable retry never reach
         # call_tool, so the skills XCom counts these.
         self._messages: Sequence[ModelMessage] = ()
-        # The agent run this instance serves. Only the instance for_run hands a run sets it:
-        # ``async with agent:`` also enters this instance, which never serves a run.
+        # The agent run this instance serves, set by get_tools. ``async with agent:`` also enters
+        # the instance passed to the agent, which never serves a run and so never publishes. Not
+        # set in for_run: a DynamicToolset builds this toolset per run without calling its for_run.
         self._run_id: str | None = None
 
     @property
@@ -177,14 +178,12 @@ class AgentSkillsToolset(AbstractToolset):
         # Per-run isolation: pydantic-ai shares one toolset instance across runs,
         # but we hold per-run clone/cleanup state on __aenter__/__aexit__. Hand
         # each run its own instance so concurrent runs never clobber each other.
-        toolset = AgentSkillsToolset(
+        return AgentSkillsToolset(
             self._sources,
             exclude_tools=self._exclude_tools,
             exclude_resources=self._exclude_resources,
             max_retries=self._max_retries,
         )
-        toolset._run_id = ctx.run_id
-        return toolset
 
     async def __aenter__(self) -> AgentSkillsToolset:
         # Resolve + clone at run time, on the worker -- not at DAG-parse time.
@@ -261,10 +260,11 @@ class AgentSkillsToolset(AbstractToolset):
             }
             skills = {}
             for name, skill in self._inner.skills.items():
-                calls_by_run = {
-                    **stored.get(name, {}).get("calls_by_run", {}),
-                    run_id: dict(counts.get(name, {})),
-                }
+                calls_by_run = dict(stored.get(name, {}).get("calls_by_run", {}))
+                # A run that made no call to the skill is left out, so the XCom grows with calls,
+                # not with every resume of a paused run.
+                if calls := counts.get(name):
+                    calls_by_run[run_id] = dict(calls)
                 skills[name] = {
                     "name": name,
                     "description": skill.description,
@@ -290,6 +290,7 @@ class AgentSkillsToolset(AbstractToolset):
         # retries say; resolve it the way the provider's other toolsets do instead.
         max_retries = ctx.max_retries if self._max_retries is None else self._max_retries
         self._messages = ctx.messages
+        self._run_id = ctx.run_id
         tools = await self._require_inner().get_tools(ctx)
         return {name: dataclasses.replace(tool, max_retries=max_retries) for name, tool in tools.items()}
 

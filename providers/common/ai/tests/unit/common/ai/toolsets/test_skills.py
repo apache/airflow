@@ -35,6 +35,7 @@ from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.toolsets import DynamicToolset
 
 from airflow.providers.common.ai.skills import GitSkills, _SkillsLocation
 from airflow.providers.common.ai.toolsets.skills import (
@@ -326,7 +327,7 @@ class TestSkillsXCom:
 
         assert ti.xcoms[SKILLS_XCOM_KEY] == [
             _skill_entry("alpha", alpha, {"run": {"load_skill": 1, "read_skill_resource": 1}}),
-            _skill_entry("beta", beta, {"run": {}}),
+            _skill_entry("beta", beta, {}),
         ]
 
     @patch(_GET_CONTEXT, autospec=True)
@@ -354,9 +355,7 @@ class TestSkillsXCom:
             run_id="resumed",
         )
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [
-            _skill_entry("alpha", alpha, {"paused": {}, "resumed": {"load_skill": 1}})
-        ]
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"resumed": {"load_skill": 1}})]
 
     @patch(_GET_CONTEXT, autospec=True)
     def test_history_seeded_from_another_task_is_not_counted(self, mock_get_context, tmp_path):
@@ -373,7 +372,7 @@ class TestSkillsXCom:
             "go on", message_history=earlier.all_messages(), run_id="run"
         )
 
-        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {}})]
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {})]
 
     @patch(_GET_CONTEXT, autospec=True)
     def test_counts_calls_after_a_history_processor_trims_the_transcript(self, mock_get_context, tmp_path):
@@ -413,6 +412,21 @@ class TestSkillsXCom:
             ),
             other,
         ]
+
+    @patch(_GET_CONTEXT, autospec=True)
+    def test_toolset_built_per_run_by_a_factory_publishes(self, mock_get_context, tmp_path):
+        # DynamicToolset, which AgentOperator also wraps a toolset factory in, never calls the
+        # built toolset's for_run.
+        alpha = _write_skill(tmp_path, "alpha")
+        ti = _FakeTaskInstance()
+        mock_get_context.return_value = {"ti": ti}
+        toolset = DynamicToolset(lambda ctx: AgentSkillsToolset(sources=[str(tmp_path)]))
+
+        Agent(_calling(("load_skill", {"skill_name": "alpha"})), toolsets=[toolset]).run_sync(
+            "go", run_id="run"
+        )
+
+        assert ti.xcoms[SKILLS_XCOM_KEY] == [_skill_entry("alpha", alpha, {"run": {"load_skill": 1}})]
 
     @patch(_GET_CONTEXT, autospec=True)
     def test_entering_the_agent_publishes_only_from_the_run(self, mock_get_context, tmp_path):
@@ -521,6 +535,8 @@ class TestCountSkillCalls:
             pytest.param("denied", {}, id="denied"),
             pytest.param("failed", {}, id="failed"),
             pytest.param("interrupted", {}, id="interrupted"),
+            # A missing resource or script: pydantic-ai records the ModelRetry as a "retried" return.
+            pytest.param("retried", {}, id="retried"),
         ],
     )
     def test_counts_only_calls_that_succeeded(self, outcome, expected):
