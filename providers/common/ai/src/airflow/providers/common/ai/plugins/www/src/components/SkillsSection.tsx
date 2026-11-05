@@ -56,7 +56,7 @@ export const SkillsSection: FC<{ skills: SkillInfo[] }> = ({ skills }) => {
       </HStack>
       {skills.length === 0 && (
         <Text color="fg.muted" fontSize="sm">
-          No skills found in the toolset&apos;s sources.
+          No skills found in the toolset's sources.
         </Text>
       )}
       <Stack gap={2}>
