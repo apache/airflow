@@ -171,7 +171,7 @@ the matching ``@task.*`` decorators) the same way it does for ``AgentOperator``:
 the initial run and every retry add to one running total, including the implicit
 ``request_limit=50``. A pause for approval, and a retry after a reviewer rejects the
 output, share the same total. The total is cleared only once the task succeeds -- a
-reviewer approval, or a ``LLMBranchOperator`` skip, counts as success -- and a
+reviewer approval, or a rejection with ``fail_on_reject=False``, counts as success -- and a
 cleared task instance starts a fresh one. A ``cost_limit`` of ``Decimal("0.50")``
 therefore bounds what the task spends across every attempt combined (best-effort,
 like the rest of ``cost_limit`` above -- a SIGKILL loses the spend of the attempt

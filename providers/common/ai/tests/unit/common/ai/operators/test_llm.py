@@ -1545,6 +1545,7 @@ class TestLLMOperatorApproval:
                 {"db_conn_ids": ["db_a", "db_b"], "table_names": ["orders"]},
                 id="llm_schema_compare",
             ),
+            pytest.param(LLMSQLQueryOperator, {}, id="llm_sql"),
         ],
     )
     @patch.object(LLMOperator, "skip")
