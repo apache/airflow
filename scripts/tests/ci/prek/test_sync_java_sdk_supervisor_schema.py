@@ -136,3 +136,21 @@ def test_an_unreadable_source_for_the_newest_pin_is_reported_not_copied(repo):
         "Regenerate the Task SDK schema before syncing the Java SDK copy."
     )
     assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
+
+
+def test_main_reports_a_copy_in_step_on_stdout(repo, capsys):
+    assert syncer.main(repo) == 0
+
+    out, err = capsys.readouterr()
+    assert out.startswith("java-sdk/sdk/schema/schema.json matches")
+    assert err == ""
+
+
+def test_main_reports_a_refresh_on_stderr(repo, capsys):
+    write_schema(repo / syncer.VENDORED_SCHEMA, title="stale")
+
+    assert syncer.main(repo) == 1
+
+    out, err = capsys.readouterr()
+    assert out == ""
+    assert err.startswith("Refreshed java-sdk/sdk/schema/schema.json")
