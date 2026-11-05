@@ -32,7 +32,9 @@ package org.apache.airflow.sdk
  * return true and calls [onKill]. A signal that arrives before the SDK starts
  * the task, and any later signal, goes to the JVM, which by default runs its
  * shutdown hooks and exits. The JVM handles every signal this way for a task that
- * does not implement this interface.
+ * does not implement this interface. If the SDK can catch neither signal, for
+ * example because the JVM runs with `-Xrs`, the SDK fails the task before the
+ * task starts.
  *
  * ```java
  * public class RunReport implements StoppableTask {

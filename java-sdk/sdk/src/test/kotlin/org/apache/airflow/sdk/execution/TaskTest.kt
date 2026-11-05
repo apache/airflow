@@ -334,15 +334,17 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should fail a trigger task whose client throws")
+  @DisplayName("Should fail a trigger task whose client throws, including when the client throws CancellationException")
   fun shouldFailTriggerTaskWhenClientThrows() {
-    val transport = RecordingTransport().also { it.triggerFailure = IllegalStateException("boom") }
+    for (failure in listOf(IllegalStateException("boom"), CancellationException("the request was cancelled"))) {
+      val transport = RecordingTransport().also { it.triggerFailure = failure }
 
-    val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+      val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
 
-    Assertions.assertInstanceOf(TaskState::class.java, result)
-    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
-    Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first })
+      Assertions.assertInstanceOf(TaskState::class.java, result, failure.javaClass.simpleName)
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state, failure.javaClass.simpleName)
+      Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first }, failure.javaClass.simpleName)
+    }
   }
 
   private fun triggerBundle(): Bundle {

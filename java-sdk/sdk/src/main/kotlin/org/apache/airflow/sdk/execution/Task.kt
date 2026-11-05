@@ -19,7 +19,6 @@
 
 package org.apache.airflow.sdk.execution
 
-import kotlinx.coroutines.CancellationException
 import org.apache.airflow.sdk.Bundle
 import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.Context
@@ -107,8 +106,6 @@ internal object TaskRunner {
     taskDef.trigger?.let { trigger ->
       return try {
         TriggerRunner.run(trigger, request, client)
-      } catch (e: CancellationException) {
-        throw e
       } catch (e: Throwable) {
         logger.error(
           "Error triggering Dag run",

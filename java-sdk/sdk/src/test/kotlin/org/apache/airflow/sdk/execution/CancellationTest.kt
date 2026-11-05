@@ -69,21 +69,27 @@ internal fun pollSignals(
 /**
  * Main class of the JVMs that [CancellationTest] starts.
  *
- * Without arguments, it prints each signal that trapStopSignals cannot catch. With `give-back`, it
- * raises SIGTERM in a trap whose callback declines the signal. With `hold`, it raises SIGTERM in a
- * trap whose callback takes the signal. In both modes it prints what happens next.
+ * Without arguments, TrapProbe prints each signal that trapStopSignals cannot catch. With `stoppable`,
+ * the probe passes a stoppable task to [Cancellation.hold] and prints the exception that hold throws, or
+ * null if hold throws nothing. With `give-back`, it raises SIGTERM in a trap whose callback
+ * declines the signal. With `hold`, it raises SIGTERM in a trap whose callback takes the signal. In the
+ * last two modes it prints what happens next.
  */
 object TrapProbe {
   @JvmStatic
   fun main(args: Array<String>) {
     when (args.singleOrNull()) {
       null -> {
-        trapStopSignals { false }.close()
+        trapStopSignals { false }?.close()
         LogCapture
           .drain()
           .filter { it.event == "Cannot catch signal, so the task cannot see it" }
           .forEach { println("${it.arguments["signal"]} ${it.arguments["error"]?.javaClass?.name}") }
       }
+      "stoppable" ->
+        Cancellation().use { cancellation ->
+          println(runCatching { cancellation.hold(TaskTest.StoppableSuccessTask(), taskContext()) }.exceptionOrNull())
+        }
       else -> {
         val take = args.single() == "hold"
         Runtime.getRuntime().addShutdownHook(Thread { println("shutdown hook ran") })
@@ -211,6 +217,20 @@ class CancellationTest {
     Assertions.assertEquals(
       0 to listOf("SIGINT java.lang.IllegalArgumentException", "SIGTERM java.lang.IllegalArgumentException"),
       runTrapProbe(jvmOptions = listOf("-Xrs")),
+    )
+  }
+
+  @Test
+  @DisplayName("Should refuse to start a stoppable task in a JVM started with -Xrs")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun refusesStoppableTaskWhenTheJvmKeepsTheSignals() {
+    Assertions.assertEquals(
+      0 to
+        listOf(
+          "java.lang.IllegalStateException: The SDK cannot catch SIGTERM or SIGINT in this JVM, so the task cannot see a " +
+            "stop request. The JVM might run with -Xrs, or without the jdk.unsupported module",
+        ),
+      runTrapProbe("stoppable", jvmOptions = listOf("-Xrs")),
     )
   }
 
