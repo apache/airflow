@@ -2864,11 +2864,8 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
-    @pytest.mark.parametrize("use_teardown_map", [True, False], ids=["execution_api", "scheduler"])
     @pytest.mark.parametrize("victim_state", [State.REMOVED, State.RUNNING])
-    def test_stop_remaining_tasks_skips_task_removed_from_dag(
-        self, dag_maker, session, use_teardown_map, victim_state
-    ):
+    def test_stop_remaining_tasks_skips_task_removed_from_dag(self, dag_maker, session, victim_state):
         dag_id = "test_stop_remaining_tasks_skips_task_removed_from_dag"
         with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
             EmptyOperator(task_id="boom")
@@ -2885,13 +2882,7 @@ class TestTaskInstance:
         latest_dag = DBDagBag().get_dag_for_run(dag_run=dr, session=session)
         assert "victim" not in latest_dag.task_dict
 
-        boom = tis["boom"]
-        boom.task = latest_dag.get_task("boom")
-        task_teardown_map = (
-            {k: v.is_teardown for k, v in latest_dag.task_dict.items()} if use_teardown_map else None
-        )
-
-        _stop_remaining_tasks(task_instance=boom, task_teardown_map=task_teardown_map, session=session)
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=latest_dag, session=session)
 
         assert tis["victim"].state == victim_state
 
@@ -2911,9 +2902,8 @@ class TestTaskInstance:
         tis["removed"].state = State.REMOVED
         tis["no_state"].state = None
         session.flush()
-        tis["boom"].task = dag_maker.serialized_dag.get_task("boom")
 
-        _stop_remaining_tasks(task_instance=tis["boom"], session=session)
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=dag_maker.serialized_dag, session=session)
 
         assert {task_id: ti.state for task_id, ti in tis.items()} == {
             "boom": State.FAILED,
