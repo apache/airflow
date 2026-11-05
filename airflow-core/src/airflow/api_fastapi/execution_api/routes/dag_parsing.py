@@ -509,7 +509,7 @@ def claim_work(
     body: ProcessorWorkClaimBody,
     *,
     session: SessionDep,
-    token=CurrentExecutionToken,
+    token: DagProcessorToken = CurrentDagProcessorToken,
 ) -> list[ProcessorWorkItem]:
     """Replay outstanding work without letting an old or empty claim take new requests."""
     if not set(body.bundle_names) <= token.claims.dag_bundles:
@@ -596,7 +596,7 @@ def acknowledge_work(
     body: ProcessorWorkAckBody,
     *,
     session: SessionDep,
-    token=CurrentExecutionToken,
+    token: DagProcessorToken = CurrentDagProcessorToken,
 ) -> None:
     """Reject acknowledgments that could consume a replacement owner's claim."""
     _validate_job(job_id, token, session=session)

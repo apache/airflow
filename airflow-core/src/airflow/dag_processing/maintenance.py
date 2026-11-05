@@ -69,7 +69,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
         if len(dags) < batch_size:
             break
     # Each key needs two bind parameters; older SQLite versions allow only 999.
-    warning_batch_size = min(batch_size, 499)
+    key_batch_size = min(batch_size, 499)
     while True:
         with create_session() as session:
             warning_query = (
@@ -79,7 +79,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                     DagModel.is_stale.is_(True),
                 )
                 .order_by(DagWarning.dag_id, DagWarning.warning_type)
-                .limit(warning_batch_size)
+                .limit(key_batch_size)
             )
             keys = session.execute(
                 with_row_locks(warning_query, of=DagWarning, session=session, skip_locked=True)
@@ -88,12 +88,11 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                 session.execute(
                     delete(DagWarning).where(tuple_(DagWarning.dag_id, DagWarning.warning_type).in_(keys))
                 )
-        if len(keys) < warning_batch_size:
+        if len(keys) < key_batch_size:
             break
     with create_session() as session:
         _expire_stale_api_jobs(batch_size, session=session)
     # Visit already-ended Jobs too: retirement may have committed before cleanup was interrupted.
-    checkpoint_batch_size = min(batch_size, 499)
     while True:
         with create_session() as session:
             checkpoint_query = (
@@ -105,7 +104,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                     )
                 )
                 .order_by(DagProcessorPublicationReceipt.job_id, DagProcessorPublicationReceipt.source_key)
-                .limit(checkpoint_batch_size)
+                .limit(key_batch_size)
             )
             checkpoint_keys = session.execute(
                 with_row_locks(checkpoint_query, session=session, skip_locked=True)
@@ -118,7 +117,7 @@ def cleanup_processor_metadata(batch_size: int = 500) -> None:
                         ).in_(checkpoint_keys)
                     )
                 )
-        if len(checkpoint_keys) < checkpoint_batch_size:
+        if len(checkpoint_keys) < key_batch_size:
             break
 
 

@@ -30,7 +30,7 @@ from airflow import settings
 
 pytestmark = pytest.mark.db_test
 
-migration = import_module("airflow.migrations.versions.0153_3_5_0_add_processor_work_claims")
+migration = import_module("airflow.migrations.versions.0155_3_5_0_add_processor_work_claims")
 CALLBACK_ID = UUID(int=1)
 CLAIM_ID = UUID(int=2)
 PRIORITY_ID = "priority-request"

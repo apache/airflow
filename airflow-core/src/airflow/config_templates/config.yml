@@ -2777,8 +2777,8 @@ scheduler:
         How often (in seconds) to check for stale DAGs (DAGs which are no longer present in
         the expected files) which should be deactivated, as well as assets that are no longer
         referenced and should be marked as orphaned. The same cleanup marks the Dags of inactive
-        bundles stale, removes stale Dag warnings, and ends Dag processor Jobs that
-        exceeded ``[dag_processor] job_heartbeat_timeout``.
+        bundles stale, removes stale Dag warnings, and ends Dag processor Jobs using the Execution
+        API that exceeded ``[dag_processor] job_heartbeat_timeout``.
       version_added: 2.5.0
       type: integer
       example: ~
