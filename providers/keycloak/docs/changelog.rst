@@ -25,6 +25,15 @@
 Changelog
 ---------
 
+.. note::
+    Airflow 3.4.1 adds a Dag bundles view, which in multi-team mode is checked against the
+    ``AdminView`` resource, so only ``SuperAdmin`` holds it. Multi-team deployments must upgrade this
+    provider together with Airflow 3.4.1: older releases check the view against ``View``, which every
+    team role can read.
+    Multi-team deployments upgrading from Airflow 3.4.0 must also re-run
+    ``airflow keycloak-auth-manager create-team`` for each team, which removes the Dag bundles menu
+    entry that team roles can no longer open.
+
 0.11.2
 ......
 
