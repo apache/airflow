@@ -50,6 +50,9 @@ The same flag works on ``@task.agent``:
     :start-after: [START howto_decorator_agent_durable]
     :end-before: [END howto_decorator_agent_durable]
 
+``durable=True`` is not supported with an ``async def`` ``@task.agent`` function
+(:ref:`howto/operator:agent-async`).
+
 ``durable=True`` attaches the
 :class:`~airflow.providers.common.ai.durable.AirflowDurability` capability to the
 agent. A pydantic-ai agent you build yourself in a plain ``@task`` takes the capability

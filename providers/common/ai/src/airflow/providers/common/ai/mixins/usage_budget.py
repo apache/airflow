@@ -50,6 +50,10 @@ class UsageBudgetHostProtocol(Protocol):
         self, agent: Agent[Any, Any], user_prompt: Any, **run_kwargs: Any
     ) -> AgentRunResult[Any]: ...
 
+    async def run_agent_async(
+        self, agent: Agent[Any, Any], user_prompt: Any, **run_kwargs: Any
+    ) -> AgentRunResult[Any]: ...
+
     def _build_usage_budget(
         self, context: Context, usage_limits: UsageLimits | None, *, ti: Any
     ) -> TaskStateStoreUsageBudget | None: ...
@@ -119,6 +123,24 @@ class UsageBudgetMixin:
             self._settle_tracked_usage()
             if self._usage_budget:
                 self._usage_budget.save(run_usage)
+        return result, subtract_run_usage(run_usage, base)
+
+    async def _arun_tracked(
+        self: UsageBudgetHostProtocol,
+        agent: Agent[Any, Any],
+        prompt: Any,
+        *,
+        run_usage: RunUsage,
+        **run_kwargs: Any,
+    ) -> tuple[AgentRunResult[Any], RunUsage]:
+        """Async version of :meth:`_run_tracked`, awaiting the run on the event loop."""
+        base = copy_run_usage(run_usage)
+        try:
+            result = await self.run_agent_async(agent, prompt, usage=run_usage, **run_kwargs)
+        finally:
+            self._settle_tracked_usage()
+            if self._usage_budget:
+                await self._usage_budget.asave(run_usage)
         return result, subtract_run_usage(run_usage, base)
 
     def _log_cumulative_usage(self: UsageBudgetHostProtocol, run_usage: RunUsage) -> None:
