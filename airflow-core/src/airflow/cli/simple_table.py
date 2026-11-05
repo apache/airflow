@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 
 from rich.box import ASCII_DOUBLE_HEAD
 from rich.console import Console
+from rich.markup import escape
 from rich.syntax import Syntax
 from rich.table import Table
 from tabulate import tabulate
@@ -68,10 +69,10 @@ class AirflowConsole(Console):
 
         table = SimpleTable(show_header=self.show_header)
         for col in data[0]:
-            table.add_column(col)
+            table.add_column(escape(str(col)))
 
         for row in data:
-            table.add_row(*(str(d) for d in row.values()))
+            table.add_row(*(escape(str(d)) for d in row.values()))
         self.print(table)
 
     def print_as_plain_table(self, data: list[dict]):
@@ -81,7 +82,7 @@ class AirflowConsole(Console):
             return
         rows = [d.values() for d in data]
         output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
-        print(output)
+        self.print(output, markup=False)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
         if isinstance(value, (tuple, list)):
