@@ -47,3 +47,13 @@ class AddExecutionTimeoutToTIRunContext(VersionChange):
     def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``execution_timeout`` from the run context for older clients."""
         response.body.pop("execution_timeout", None)
+
+
+class AddXComKeysEndpoint(VersionChange):
+    """Add the ``POST xcoms/{dag_id}/{run_id}/{task_id}`` endpoint that fetches several XCom values by key in one query."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/xcoms/{dag_id}/{run_id}/{task_id}", ["POST"]).didnt_exist,
+    )
