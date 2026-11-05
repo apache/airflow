@@ -155,9 +155,20 @@ Set up your checkout and fork once:
       gh repo sync <you>/airflow --branch main
       gh workflow enable ci-amd.yml -R <you>/airflow
 
+   GitHub Actions must also be enabled in your fork and allow all actions: ``Tests (AMD)`` uses
+   actions from other repositories.
+
    Keep the workflow enabled for as long as you have open pull requests. If it gets disabled, from
    your fork's Actions tab or by GitHub after 60 days without activity in your fork, the fork CI
    monitor comments on your pull requests with the commands to turn it back on.
+
+   GitHub can also pause GitHub Actions in your fork to reduce wasted compute, and it sends no
+   email when it does. Your pushes then start no run, and the fork CI monitor cannot tell this from
+   a commit you have not pushed yet. ``breeze ci audit`` reports it. The banner on your fork's
+   Actions page turns GitHub Actions back on, and a push made while it was paused must be pushed
+   again. To make the pause less likely,
+   ``breeze ci audit --fix`` disables the workflows in your fork that only run on a schedule or
+   after another workflow. Fork CI does not need them.
 
 3. Check everything at once. ``breeze ci audit`` prints one row per check and the command that fixes
    anything missing; ``--fix`` runs those commands after asking:
@@ -173,8 +184,8 @@ request explains the current state. Once the run is green, a pull request the mo
 marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
 yourself stays a draft, and gets the label, once you mark it ready. A pull request whose fork CI
 does not run for 7 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
-files that define what CI runs, such as ``.github/``, ``dev/breeze/`` or ``scripts/ci/``, a green
-fork run is not enough: a maintainer reviews the change and runs project CI for it.
+files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
+``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
 
 **Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day
@@ -185,8 +196,9 @@ at 00:00 UTC:
    [pilot]
    "your-login" = YYYY-MM-DDT00:00:00Z
 
-Every pull request you open after that instant uses fork CI; your earlier pull requests keep project
-CI. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
+Every pull request you open after that instant uses fork CI. Your earlier pull requests keep project
+CI until you push to them, rebase them or close and reopen them after that instant, and use fork CI
+from then on. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
 the only part of the fork CI gate a pull request using fork CI may change: one that changes the
 gate's code, the rest of its configuration or the ``gate`` job of ``ci-amd.yml`` is closed with an
 explanation. A pilot entry gates your pull

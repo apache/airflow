@@ -25,8 +25,9 @@ import pytest
 from fastapi import Request
 from fastapi.dependencies.models import Dependant
 from sqlalchemy import delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from airflow import settings
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.logging.decorators import (
     _mask_connection_fields,
@@ -40,6 +41,7 @@ from airflow.models.dag import DagModel, clear_team_name_cache
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.session import create_session_async
 
 from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.config import conf_vars
@@ -54,6 +56,20 @@ from tests_common.test_utils.db import (
     clear_db_variables,
 )
 from tests_common.test_utils.mock_operators import MockOperator
+
+
+def _run_log_action(event: str, request: Request) -> None:
+    """Run ``log_action`` on a real async session, as the API server does."""
+
+    async def _run():
+        try:
+            async with create_session_async() as session:
+                await action_logging(event=event)(request=request, session=session, user=None)
+        finally:
+            # Pooled async connections are bound to this event loop, which ``asyncio.run`` closes.
+            await settings.dispose_async_engine()
+
+    asyncio.run(_run())
 
 
 class TestSanitizeForStdlibLog:
@@ -333,13 +349,24 @@ class TestActionLoggingUserFields:
                 return "Jane Doe"
 
         request = Request({"type": "http", "method": "GET", "headers": [], "query_string": b""})
-        session = MagicMock(spec=Session)
+        session = MagicMock(spec=AsyncSession)
 
         asyncio.run(action_logging(event="test_event")(request=request, session=session, user=FakeUser()))
 
         (logged,) = session.add.call_args.args
         assert logged.owner == "jdoe"
         assert logged.owner_display_name == "Jane Doe"
+
+
+class TestActionLoggingCommit:
+    def test_the_commit_is_awaited(self):
+        """A blocking commit waits for a pooled connection on the event loop, stalling every request."""
+        request = Request({"type": "http", "method": "POST", "headers": [], "query_string": b""})
+        session = MagicMock(spec=AsyncSession)
+
+        asyncio.run(action_logging(event="test_event")(request=request, session=session, user=None))
+
+        session.commit.assert_awaited_once()
 
 
 class TestActionLoggingTeamName:
@@ -355,7 +382,7 @@ class TestActionLoggingTeamName:
     )
     def test_team_name_is_taken_from_the_request(self, query_string, expected_team_name):
         request = Request({"type": "http", "method": "POST", "headers": [], "query_string": query_string})
-        session = MagicMock(spec=Session)
+        session = MagicMock(spec=AsyncSession)
 
         asyncio.run(action_logging(event="post_pool")(request=request, session=session, user=None))
 
@@ -373,7 +400,7 @@ class TestActionLoggingTeamName:
         """The row is committed before the endpoint validates the request, so a name the column
         cannot hold would fail the insert instead of the request."""
         request = Request({"type": "http", "method": "POST", "headers": [], "query_string": query_string})
-        session = MagicMock(spec=Session)
+        session = MagicMock(spec=AsyncSession)
 
         asyncio.run(action_logging(event="post_pool")(request=request, session=session, user=None))
 
@@ -416,7 +443,7 @@ class TestActionLoggingResourceTeamName:
                 "path_params": path_params,
             }
         )
-        asyncio.run(action_logging(event="delete_resource")(request=request, session=session, user=None))
+        _run_log_action("delete_resource", request)
         return session.scalar(select(Log).order_by(Log.id.desc()))
 
     @pytest.mark.parametrize(
@@ -477,7 +504,7 @@ class TestActionLoggingResourceTeamName:
             }
         )
 
-        asyncio.run(action_logging(event="delete_connection")(request=request, session=session, user=None))
+        _run_log_action("delete_connection", request)
 
         log = session.scalar(select(Log).order_by(Log.id.desc()))
         assert log.dag_id is None
@@ -499,7 +526,7 @@ class TestActionLoggingDagScope:
         request = Request(
             {"type": "http", "method": "POST", "headers": [], "query_string": query_string, "path_params": {}}
         )
-        session = MagicMock(spec=Session)
+        session = MagicMock(spec=AsyncSession)
         asyncio.run(action_logging(event=event)(request=request, session=session, user=None))
         (logged,) = session.add.call_args.args
         return logged
@@ -549,7 +576,7 @@ class TestActionLoggingUnparsableBody:
         ],
     )
     def test_the_access_is_logged_with_no_body(self, body):
-        session = MagicMock(spec=Session)
+        session = MagicMock(spec=AsyncSession)
 
         asyncio.run(
             action_logging(event="test_event")(
@@ -678,7 +705,7 @@ class TestActionLoggingAddressedAttempt:
                 "path_params": {"dag_id": "audit_dag", "dag_run_id": "audit_run", **path_params},
             }
         )
-        asyncio.run(action_logging(event="patch_task_instance")(request=request, session=session, user=None))
+        _run_log_action("patch_task_instance", request)
         return session.scalar(select(Log).order_by(Log.id.desc()))
 
     @pytest.mark.parametrize(

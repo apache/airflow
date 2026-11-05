@@ -29,7 +29,7 @@ import {
 } from "./verify-package.mjs";
 
 const PACKAGE_JSON = {
-  name: "apache-airflow-ts-sdk",
+  name: "@apache-airflow/ts-sdk",
   exports: {
     ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
     "./coordinator": {
@@ -103,10 +103,10 @@ describe("isAllowedFile", () => {
 describe("parsePackMetadata", () => {
   it("takes the trailing JSON object after the prepack banner", () => {
     const stdout = [
-      "> apache-airflow-ts-sdk@0.1.0 prepack",
+      "> @apache-airflow/ts-sdk@0.1.0 prepack",
       "> pnpm run build",
       "",
-      '{"name":"apache-airflow-ts-sdk","filename":"pkg.tgz","files":[{"path":"LICENSE"}]}',
+      '{"name":"@apache-airflow/ts-sdk","filename":"pkg.tgz","files":[{"path":"LICENSE"}]}',
       "",
     ].join("\n");
     expect(parsePackMetadata(stdout).filename).toBe("pkg.tgz");
@@ -150,8 +150,8 @@ describe("diffPackagedFiles", () => {
 describe("buildImportScript", () => {
   it("imports every exports subpath before asserting the root entrypoints", () => {
     const script = buildImportScript(PACKAGE_JSON);
-    expect(script).toContain('await import("apache-airflow-ts-sdk");');
-    expect(script).toContain('await import("apache-airflow-ts-sdk/coordinator");');
+    expect(script).toContain('await import("@apache-airflow/ts-sdk");');
+    expect(script).toContain('await import("@apache-airflow/ts-sdk/coordinator");');
     for (const name of REQUIRED_ROOT_EXPORTS) {
       expect(script).toContain(name);
     }

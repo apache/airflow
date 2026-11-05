@@ -16,16 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect } from "react";
+
 import { Box, VStack, Heading, Text, Button, Container, HStack, Code } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useRouteError, isRouteErrorResponse } from "react-router-dom";
 
 import { Logo } from "src/components/Logo";
 
+import { reloadAfterFailedRouteModuleLoad } from "src/utils/routeModule";
+
 export const ErrorPage = () => {
   const navigate = useNavigate();
   const error = useRouteError();
   const { t: translate } = useTranslation();
+
+  useEffect(() => {
+    reloadAfterFailedRouteModuleLoad();
+  }, [error]);
 
   let errorMessage = translate("error.defaultMessage");
   let statusCode = "";
@@ -81,6 +89,11 @@ export const ErrorPage = () => {
             >
               {translate("error.home")}
             </Button>
+            {error === null || error === undefined ? undefined : (
+              <Button onClick={() => globalThis.location.reload()} size="lg" variant="outline">
+                {translate("error.reload")}
+              </Button>
+            )}
           </HStack>
         </VStack>
       </Container>

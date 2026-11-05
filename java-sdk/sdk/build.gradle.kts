@@ -959,7 +959,7 @@ publishing {
 }
 
 // Prints the classpath that runs the conformance serializer, for
-// java-sdk/scripts/ci/prek/check_serialization_conformance.py.
+// scripts/ci/lang_sdk_serialization/check_java_sdk.py.
 tasks.register("printConformanceClasspath") {
     dependsOn("testClasses")
     // Capture early to keep compatibility to the Gradle configuration cache.

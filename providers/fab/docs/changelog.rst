@@ -20,6 +20,17 @@
 Changelog
 ---------
 
+.. note::
+    Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which ``Op`` and ``Admin``
+    get by default. Upgrade this provider together with Airflow 3.4.1: older releases deny the Dag
+    bundle pages and API to every role, including ``Admin``, while still showing the Browse menu
+    entry. Custom roles need ``can read`` and ``menu access`` on ``Dag Bundles`` added by hand.
+
+    ``POST /auth/token`` now checks a username and password only against the configured
+    ``AUTH_TYPE``: with ``AUTH_LDAP`` it no longer falls back to database passwords, and with other
+    authentication types (OAuth, remote user) it no longer issues tokens for a username and
+    password; use that type's own login flow instead. Passwords made only of NUL bytes are rejected.
+
 3.10.2
 ......
 

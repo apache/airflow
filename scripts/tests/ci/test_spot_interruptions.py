@@ -297,21 +297,64 @@ def test_find_comment_ignores_comments_of_others(spot):
 
 SERVER_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Server Error (HTTP 502)\n")
 NOT_FOUND_ERROR = subprocess.CalledProcessError(1, ["gh"], stderr="gh: Not Found (HTTP 404)\n")
+STREAM_ERROR = subprocess.CalledProcessError(
+    1, ["gh"], stderr="stream error: stream ID 3; CANCEL; received from peer\n"
+)
 
 
-@pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, False)])
-def test_run_pr_comments_carries_on_past_a_failing_run(spot, capsys, error, expected_ok):
+@pytest.mark.parametrize(
+    ("error", "run_deleted", "expected_ok", "expected_out", "expected_err"),
+    [
+        pytest.param(SERVER_ERROR, None, True, "::warning::Skipped run", "", id="server-error"),
+        pytest.param(STREAM_ERROR, None, True, "::warning::Skipped run", "", id="dropped-connection"),
+        pytest.param(
+            NOT_FOUND_ERROR, True, True, f"Skipped run {RUN_URL}: it was deleted", "", id="deleted-run"
+        ),
+        pytest.param(
+            NOT_FOUND_ERROR,
+            False,
+            False,
+            "",
+            f"Could not handle run {RUN_URL}",
+            id="not-found-in-existing-run",
+        ),
+    ],
+)
+def test_run_pr_comments_carries_on_past_a_failing_run(
+    spot, capsys, error, run_deleted, expected_ok, expected_out, expected_err
+):
     runs = [_run(branch="a"), _run(branch="b")]
 
     with (
         mock.patch.object(spot, "list_pull_request_runs", autospec=True, return_value=runs),
         mock.patch.object(spot, "update_notice", autospec=True, side_effect=[error, None]) as mock_update,
+        mock.patch.object(spot, "is_run_deleted", autospec=True, return_value=run_deleted) as mock_deleted,
     ):
         ok = spot.run_pr_comments("apache/airflow", datetime(2026, 10, 25, tzinfo=UTC))
 
     assert ok is expected_ok
     assert mock_update.call_count == 2
-    assert capsys.readouterr().out.startswith("::warning::") is expected_ok
+    captured = capsys.readouterr()
+    assert captured.out.startswith(expected_out) if expected_out else captured.out == ""
+    assert captured.err.startswith(expected_err) if expected_err else captured.err == ""
+    if run_deleted is None:
+        mock_deleted.assert_not_called()
+    else:
+        mock_deleted.assert_called_once_with("apache/airflow", 7)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param(None, False, id="run-exists"),
+        pytest.param(NOT_FOUND_ERROR, True, id="run-deleted"),
+        pytest.param(SERVER_ERROR, False, id="unknown"),
+    ],
+)
+def test_is_run_deleted(spot, error, expected):
+    with mock.patch.object(spot, "gh_api", autospec=True, side_effect=error, return_value="7") as mock_gh:
+        assert spot.is_run_deleted("apache/airflow", 7) is expected
+    mock_gh.assert_called_once_with("repos/apache/airflow/actions/runs/7", "--jq", ".id")
 
 
 @pytest.mark.parametrize(("error", "expected_ok"), [(SERVER_ERROR, True), (NOT_FOUND_ERROR, None)])
@@ -329,6 +372,7 @@ def test_run_pr_comments_when_listing_the_runs_fails(spot, error, expected_ok):
     [
         pytest.param(("repos/x",), [SERVER_ERROR, SERVER_ERROR], 3, None, id="retries-server-errors"),
         pytest.param(("repos/x",), [SERVER_ERROR] * 3, 3, SERVER_ERROR, id="gives-up"),
+        pytest.param(("repos/x",), [STREAM_ERROR], 2, None, id="retries-dropped-connections"),
         pytest.param(("repos/x",), [NOT_FOUND_ERROR], 1, NOT_FOUND_ERROR, id="no-retry-on-client-error"),
         pytest.param(("-X", "POST", "repos/x"), [SERVER_ERROR], 1, SERVER_ERROR, id="no-retry-on-post"),
         pytest.param(("-X", "PATCH", "repos/x"), [SERVER_ERROR], 2, None, id="retries-patch"),
@@ -348,6 +392,34 @@ def test_gh_api_retries_server_errors(
             spot.gh_api(*args)
         assert raised.value is expected_error
     assert mock_run.call_count == expected_calls
+
+
+@pytest.mark.parametrize(
+    ("stderr", "expected"),
+    [
+        pytest.param("gh: Server Error (HTTP 502)\n", True, id="server-error"),
+        pytest.param("stream error: stream ID 3; CANCEL; received from peer\n", True, id="stream-reset"),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": read tcp 10.1.0.4:52144->140.82.112.6:443: '
+            "read: connection reset by peer\n",
+            True,
+            id="connection-reset",
+        ),
+        pytest.param('Get "https://api.github.com/repos/x": unexpected EOF\n', True, id="unexpected-eof"),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": net/http: TLS handshake timeout\n', True, id="tls-timeout"
+        ),
+        pytest.param(
+            'Get "https://api.github.com/repos/x": dial tcp 140.82.112.6:443: i/o timeout\n',
+            True,
+            id="dial-timeout",
+        ),
+        pytest.param("gh: Not Found (HTTP 404)\n", False, id="client-error"),
+        pytest.param(None, False, id="no-stderr"),
+    ],
+)
+def test_is_transient(spot, stderr, expected):
+    assert spot.is_transient(subprocess.CalledProcessError(1, ["gh"], stderr=stderr)) is expected
 
 
 def test_run_slack_writes_outputs(spot, monkeypatch, tmp_path):

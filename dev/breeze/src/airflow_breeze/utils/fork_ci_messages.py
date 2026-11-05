@@ -35,7 +35,8 @@ from datetime import datetime
 
 STATUS_CONTEXT = "Fork CI / Tests (AMD)"
 # Each job of the fork run is reported under this prefix. Job names come from the contributor's
-# workflow, so the prefix keeps them from posting STATUS_CONTEXT or CI_PASSED_CONTEXT.
+# workflow, so the prefix keeps them from posting STATUS_CONTEXT, CI_PASSED_CONTEXT or
+# CI_RUN_STARTED_CONTEXT.
 JOB_STATUS_CONTEXT_PREFIX = "Fork CI job / "
 JOB_NAME_MAX_LENGTH = 100
 # The check the "Require CI on main" ruleset requires before a pull request can (auto-)merge. Project
@@ -44,6 +45,12 @@ JOB_NAME_MAX_LENGTH = 100
 CI_PASSED_CONTEXT = "CI passed"
 CI_PASSED_DESCRIPTION = "Fork CI passed for this commit"
 CI_PASSED_REVOKED_DESCRIPTION = "Fork CI result no longer trusted for this commit"
+# Also required by the merge rulesets, so GitHub lists it as expected and waiting on every pull
+# request from the moment it is pushed. The reconciler reports it, linking the run: for a gated pull
+# request once the fork has a run for the head commit, for any other once project CI has one.
+CI_RUN_STARTED_CONTEXT = "CI run started"
+CI_RUN_STARTED_DESCRIPTION = "CI runs in the contributor's fork - details open the run"
+CI_RUN_STARTED_PROJECT_DESCRIPTION = "Project CI runs in apache/airflow - details open the run"
 # A fork run tests the head commit as it is, not merged with the base branch. Further behind than
 # this, it says little about the result after merge.
 BEHIND_WARNING_COMMITS = 200
@@ -148,9 +155,10 @@ _STATE_TEXTS = {
     "green": "**Fork CI: green.** CI for the latest commit passed in your fork. The pull request is "
     "ready for maintainer review.",
     "green_unverified": "**Fork CI: green, needs a maintainer.** CI for the latest commit passed in your "
-    "fork, but this pull request changes files that define what CI runs (such as `.github/`, "
-    "`dev/breeze/` or `scripts/ci/`), and the fork run used those changed files. A maintainer will "
-    "review the change and run project CI for it; the pull request stays a draft until then.",
+    "fork, but this pull request changes files that decide which CI jobs run and where (`.github/`, "
+    "the breeze sources, the breeze installation or `scripts/ci/prek/`), and the fork run used those "
+    "changed files. A maintainer will review the change and run project CI for it before it can be "
+    "merged.",
     "closed": "**Fork CI: closed after inactivity.** CI did not run in your fork in time; see the "
     "comment below for how to continue.",
     "gate_bypassed": "**Fork CI: closed.** Project CI ran for this pull request although its CI runs in "
@@ -268,19 +276,43 @@ def _sanitize_path(path: str) -> str:
     return "".join(char if char.isprintable() and char != "`" else "?" for char in path)
 
 
-def ci_change_approval_comment(*, ci_files: list[str]) -> str:
+def build_ci_file_list(ci_files: list[str]) -> str:
     listed = [f"- `{_sanitize_path(path)}`" for path in ci_files[:MAX_LISTED_CI_FILES]]
     if len(ci_files) > MAX_LISTED_CI_FILES:
         listed.append(f"- and {len(ci_files) - MAX_LISTED_CI_FILES} more")
+    return "\n".join(listed)
+
+
+def ci_change_approval_comment(*, ci_files: list[str]) -> str:
     return (
         f"{CI_CHANGE_MARKER}\n\n"
         "**Your CI change needs a maintainer.** CI for this pull request runs in your fork, and the "
         "workflow runs it starts in apache/airflow are approved automatically while they only run the "
         "fork CI gate. This pull request changes files that define what CI runs:\n\n"
-        + "\n".join(listed)
+        + build_ci_file_list(ci_files)
         + "\n\nSuch a change can make project CI run on the project's runners, so its workflow runs in "
         "apache/airflow wait for a maintainer to review the change and approve them. CI in your fork "
         "is not affected, and its result stays visible on this pull request. " + WHY_FORK_CI + FOOTER
+    )
+
+
+CI_MODIFICATION_MARKER = "<!-- workflow-approval: ci-modification -->"
+
+
+GATED_NOTE_SENTENCE = (
+    " CI for this pull request runs in the author's fork, so any green result and `CI passed` status will "
+    "come from a run that executed these changed files."
+)
+
+
+def ci_modification_note_comment(*, ci_files: list[str], gated: bool) -> str:
+    return (
+        f"{CI_MODIFICATION_MARKER}\n\n"
+        "**This pull request changes CI files.** It changes files that CI uses:\n\n"
+        + build_ci_file_list(ci_files)
+        + "\n\nThey do not decide which CI jobs run or on which runners, so its workflow runs are not "
+        "held for this. A maintainer reviewing the pull request will check the CI change together with "
+        "the rest of it." + (GATED_NOTE_SENTENCE if gated else "") + FOOTER
     )
 
 
@@ -297,11 +329,10 @@ _STATUS_DESCRIPTIONS = {
     "gate_modified": "Pull request changes the fork CI gate - see the comment",
 }
 
-# (commit status state, description) of a fork job, by its status and conclusion. A queued job is
-# reported like a running one: each change is one more write, and commit statuses can only be posted
-# one at a time (GraphQL has no mutation for them).
+# (commit status state, description) of a finished fork job, by its conclusion. Queued and running
+# jobs are not reported: each status is one write, commit statuses can only be posted one at a time
+# (GraphQL has no mutation for them), and `Fork CI / Tests (AMD)` already shows the run as running.
 JOB_STATUSES = {
-    "running": ("pending", "Running in the fork - see Details"),
     "success": ("success", "Passed in the fork - see Details"),
     "failure": ("failure", "Failed in the fork - see Details"),
     "timed_out": ("failure", "Timed out in the fork - see Details"),

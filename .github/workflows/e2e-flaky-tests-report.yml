@@ -33,6 +33,7 @@ jobs:
 
   analyze-flaky-tests:
     name: "Analyze E2E flaky tests"
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     runs-on: ubuntu-slim
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"

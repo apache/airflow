@@ -77,6 +77,10 @@ class TaskInstanceHistoryResponse(OmitsMissingRegion, BaseModel):
         validation_alias="retry_reason",
         description=("The reason this try ended, as recorded by a retry policy."),
     )
+    retry_at: datetime | None = Field(
+        default=None,
+        description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
+    )
 
     @field_validator("state_reason", mode="after")
     @classmethod
