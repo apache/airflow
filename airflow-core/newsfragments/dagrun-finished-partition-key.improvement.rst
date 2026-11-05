@@ -1,1 +1,0 @@
-The scheduler's ``DagRun Finished`` log line now ends with ``partition_key=<key>`` (``None`` for runs without a partition key). Existing fields are unchanged; parsers matching the line's end may need updating.
