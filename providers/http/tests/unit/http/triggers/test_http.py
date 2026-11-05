@@ -391,6 +391,7 @@ class TestHttpEventTrigger:
         assert kwargs["json"] is None
         assert kwargs["params"] is None
 
+
 async def _single_positional_arg(resp):
     return resp == "ok"
 

@@ -39,7 +39,7 @@ How It Works
 
 .. note::
    This trigger requires **Airflow >= 3.0** due to dependencies on ``AssetWatcher`` and event-driven scheduling infrastructure.
-   The ``asset_state_store`` deduplication and downstream task context access shown in the example below requires **Airflow >= 3.3**.
+   The ``asset_state_store`` deduplication and downstream task context access shown in the example below require **Airflow >= 3.3**.
 
 Usage Example with AssetWatcher
 -------------------------------
