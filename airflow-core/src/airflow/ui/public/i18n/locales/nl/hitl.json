@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Vereiste acties",
   "requiredAction_other": "Vereiste acties",
-  "requiredActionCount_one": "Vereiste acties ({{count}})",
-  "requiredActionCount_other": "Vereiste acties ({{count}})",
+  "requiredActionCount_one": "Vereiste acties ({{count, number}})",
+  "requiredActionCount_other": "Vereiste acties ({{count, number}})",
   "requiredActionState": "Vereiste actie status",
   "response": {
     "created": "Reactie aangemaakt op",
@@ -29,10 +29,10 @@
       "selectRequiredAction": "Selecteer een vereiste actie om details te zien"
     },
     "list": {
-      "completedRequiredActions": "Voltooide vereiste acties ({{count}})",
+      "completedRequiredActions": "Voltooide vereiste acties ({{count, number}})",
       "loadError": "Kan vereiste acties niet laden",
       "loadingActions": "Vereiste acties laden...",
-      "pendingRequiredActions": "In afwachting van vereiste acties ({{count}})"
+      "pendingRequiredActions": "In afwachting van vereiste acties ({{count, number}})"
     },
     "openReviewDrawer": "Open Review Drawer",
     "pageLimitHint": "Alleen de eerste paar acties worden hier weergegeven. Gebruik \"$t(review.viewAll)\" om ze allemaal te zien.",

@@ -24,6 +24,8 @@ repos:
     hooks:
       - id: mypy-scripts
         name: Run mypy for scripts
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
         language: python
         entry: ./ci/prek/run_mypy_full_dist_local_venv_or_breeze_in_ci.py scripts
         pass_filenames: false

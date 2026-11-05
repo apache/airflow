@@ -48,6 +48,22 @@ const backfillInRange = {
   updated_at: "2025-01-16T01:00:00Z",
 };
 
+// Still running, so ``completed_at`` is null — the one row the ``active`` filter can single out.
+const backfillRunning = {
+  completed_at: null,
+  created_at: "2025-02-01T00:00:00Z",
+  dag_display_name: "tutorial_taskflow_api",
+  dag_id: "tutorial_taskflow_api",
+  dag_run_conf: {},
+  from_date: "2025-02-01T00:00:00Z",
+  id: 3,
+  is_paused: false,
+  max_active_runs: 10,
+  reprocess_behavior: "none",
+  to_date: "2025-02-15T00:00:00Z",
+  updated_at: "2025-02-01T00:00:00Z",
+};
+
 export const handlers: Array<HttpHandler> = [
   http.get("/ui/backfills", ({ request }) => {
     const url = new URL(request.url);
@@ -55,12 +71,18 @@ export const handlers: Array<HttpHandler> = [
     const fromDateLte = url.searchParams.get("from_date_lte");
     const toDateGte = url.searchParams.get("to_date_gte");
     const toDateLte = url.searchParams.get("to_date_lte");
+    const active = url.searchParams.get("active");
 
-    const allBackfills = [backfillBeforeFilter, backfillInRange];
+    const allBackfills = [backfillBeforeFilter, backfillInRange, backfillRunning];
 
     const filtered = allBackfills.filter((backfill) => {
       const fromDate = new Date(backfill.from_date);
       const toDate = new Date(backfill.to_date);
+
+      // The backend models this as "completed_at is null".
+      if (active !== null && (backfill.completed_at === null) !== (active === "true")) {
+        return false;
+      }
 
       if (fromDateGte !== null && fromDate < new Date(fromDateGte)) {
         return false;

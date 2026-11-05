@@ -141,11 +141,9 @@ export const getBottomDragClampTarget = ({
   const { lastRow } = boundary;
   const offset = lastRow.childNodes.length;
 
-  if (selection.focusNode === lastRow && selection.focusOffset === offset) {
-    return undefined;
-  }
-
-  return { node: lastRow, offset };
+  return selection.focusNode === lastRow && selection.focusOffset === offset
+    ? undefined
+    : { node: lastRow, offset };
 };
 
 /**
@@ -160,11 +158,9 @@ export const mergePinnedIndexes = (
 ): Array<number> => {
   const validPins = pinnedIndexes.filter((index) => index >= 0 && index < count);
 
-  if (validPins.length === 0) {
-    return defaultIndexes;
-  }
-
-  return [...new Set([...validPins, ...defaultIndexes])].sort((first, second) => first - second);
+  return validPins.length === 0
+    ? defaultIndexes
+    : [...new Set([...validPins, ...defaultIndexes])].sort((first, second) => first - second);
 };
 
 /**

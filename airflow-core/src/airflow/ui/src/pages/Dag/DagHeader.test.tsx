@@ -16,28 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterEach, describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 
 import type { DAGDetailsResponse } from "openapi/requests/types.gen";
 
-import { handlers } from "src/mocks/handlers";
 import { MOCK_DAG } from "src/mocks/handlers/dag";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { Header } from "./Header";
-
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
 
 describe("Dag Documentation Modal", () => {
   it("Display documentation button when doc_md is present", async () => {

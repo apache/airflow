@@ -38,7 +38,6 @@ from airflow_breeze.commands.common_image_options import (
     option_airflow_constraints_reference_build,
     option_build_progress,
     option_cache_from_image,
-    option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
     option_disable_airflow_repo_cache,
@@ -54,7 +53,10 @@ from airflow_breeze.commands.common_image_options import (
     option_push,
     option_python_image,
     option_skip_image_file_deletion,
+    option_snapshot_file_to_load,
+    option_snapshot_file_to_save,
     option_tag_as,
+    option_use_pinned_os_deps_images,
     option_verify,
     option_wait_for_image,
 )
@@ -108,7 +110,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH, BUILD_CACHE_PATH, SCRIPTS_CI_PATH
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -252,7 +254,6 @@ option_ci_image_file_to_load = click.option(
 @option_builder
 @option_cache_from_image
 @option_commit_sha
-@option_debian_version
 @option_debug_resources
 @option_dev_apt_command
 @option_dev_apt_deps
@@ -275,6 +276,7 @@ option_ci_image_file_to_load = click.option(
 @option_skip_cleanup
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
+@option_use_pinned_os_deps_images
 @option_use_uv
 @option_verbose
 @option_version_suffix
@@ -292,7 +294,6 @@ def build(
     builder: str,
     cache_from_image: str | None,
     commit_sha: str | None,
-    debian_version: str,
     debug_resources: bool,
     dev_apt_command: str | None,
     dev_apt_deps: str | None,
@@ -314,6 +315,7 @@ def build(
     skip_cleanup: bool,
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
+    use_pinned_os_deps_images: bool,
     use_uv: bool,
     version_suffix: str,
 ):
@@ -345,7 +347,6 @@ def build(
         builder=builder,
         cache_from_image=cache_from_image,
         commit_sha=commit_sha,
-        debian_version=debian_version,
         dev_apt_command=dev_apt_command,
         dev_apt_deps=dev_apt_deps,
         disable_airflow_repo_cache=disable_airflow_repo_cache,
@@ -361,6 +362,7 @@ def build(
         python_image=python_image,
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
+        use_pinned_os_deps_images=use_pinned_os_deps_images,
         use_uv=use_uv,
         version_suffix=version_suffix,
     )
@@ -520,6 +522,7 @@ def run_verify_in_parallel(
 @option_image_file_dir
 @option_platform_single
 @option_python
+@option_snapshot_file_to_save
 @option_verbose
 @option_dry_run
 def save(
@@ -528,9 +531,13 @@ def save(
     github_repository: str,
     image_file: Path | None,
     image_file_dir: Path,
+    snapshot_file: Path | None,
 ):
     """Save CI image to a file."""
     perform_environment_checks()
+    if snapshot_file:
+        save_ci_image_snapshot(snapshot_file)
+        return
     image_name = BuildCiParams(
         python=python,
         github_repository=github_repository,
@@ -564,6 +571,7 @@ def save(
 @option_platform_single
 @option_python
 @option_skip_image_file_deletion
+@option_snapshot_file_to_load
 @option_tag_as
 @option_verbose
 def load(
@@ -576,6 +584,7 @@ def load(
     platform: str,
     python: str,
     skip_image_file_deletion: bool,
+    snapshot_file: Path | None,
     tag_as: str | None,
 ):
     """Load CI image from a file."""
@@ -584,6 +593,10 @@ def load(
         python=python,
         github_repository=github_repository,
     )
+    if snapshot_file:
+        restore_ci_image_snapshot(snapshot_file, build_ci_params.airflow_image_name)
+        tag_and_mark_loaded_ci_image(build_ci_params, tag_as)
+        return
     escaped_platform = platform.replace("/", "_")
 
     if not image_file:
@@ -626,6 +639,41 @@ def load(
     if result.returncode != 0:
         console_print(f"[error]Error when loading image: {result.stdout}[/]")
         sys.exit(result.returncode)
+    if not skip_image_file_deletion:
+        console_print(f"[info]Deleting image file {image_file_to_load}[/]")
+        image_file_to_load.unlink()
+    tag_and_mark_loaded_ci_image(build_ci_params, tag_as)
+
+
+def save_ci_image_snapshot(snapshot_file: Path) -> None:
+    """Save a Docker data-root snapshot holding only the CI image, exiting when it cannot be made."""
+    console_print(f"[info]Saving Python CI image snapshot to {snapshot_file}[/]")
+    result = run_command(
+        [os.fspath(SCRIPTS_CI_PATH / "docker_data_root_snapshot.sh"), "create", os.fspath(snapshot_file)],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning]Snapshot {snapshot_file} not created[/]")
+        sys.exit(result.returncode)
+
+
+def restore_ci_image_snapshot(snapshot_file: Path, image_name: str) -> None:
+    """Restore the CI image from a Docker data-root snapshot, exiting when it does not fit."""
+    console_print(f"[info]Restoring Python CI image from snapshot {snapshot_file}[/]")
+    result = run_command(
+        [os.fspath(SCRIPTS_CI_PATH / "docker_data_root_snapshot.sh"), "restore", os.fspath(snapshot_file)],
+        check=False,
+    )
+    if result.returncode != 0:
+        console_print(f"[warning]Snapshot {snapshot_file} not restored, load the image file instead[/]")
+        sys.exit(result.returncode)
+    result = run_command(["docker", "image", "inspect", "--format", "{{.Id}}", image_name], check=False)
+    if result.returncode != 0:
+        console_print(f"[error]The restored snapshot does not hold {image_name}[/]")
+        sys.exit(result.returncode)
+
+
+def tag_and_mark_loaded_ci_image(build_ci_params: BuildCiParams, tag_as: str | None) -> None:
     if tag_as:
         console_print(f"[info]Tagging {build_ci_params.airflow_image_name} as {tag_as}[/]")
         result = run_command(
@@ -635,9 +683,6 @@ def load(
         if result.returncode != 0:
             console_print(f"[error]Error when tagging image: {result.stdout}[/]")
             sys.exit(result.returncode)
-    if not skip_image_file_deletion:
-        console_print(f"[info]Deleting image file {image_file_to_load}[/]")
-        image_file_to_load.unlink()
     if get_verbose():
         run_command(["docker", "images", "-a"])
     mark_image_as_rebuilt(ci_image_params=build_ci_params)
@@ -1063,7 +1108,7 @@ def import_mount_cache(
     make_sure_builder_configured(params=BuildCiParams(builder=builder))
     dockerfile = """
     # syntax=docker/dockerfile:1.4
-    FROM python:3.10-slim-bookworm
+    FROM python:3.11-slim-bookworm
     ARG TARGETARCH
     ARG DEPENDENCY_CACHE_EPOCH=<REPLACE_FROM_DOCKER_CI>
     COPY cache.tar.gz /root/.cache.tar.gz
@@ -1106,7 +1151,9 @@ def import_mount_cache(
     console_print("[info]Built temporary image and copied cache[/]")
     console_print("[info]Removing temporary image[/]")
     run_command(["docker", "rmi", "airflow-import-cache"], check=True)
-    run_command(["docker", "system", "prune", "-f"], check=True)
+    # Not `docker system prune`: it also removes unused build cache, which includes the cache
+    # mount that was just filled, so the next build would start with an empty uv cache.
+    run_command(["docker", "image", "prune", "-f"], check=True)
     console_print("[info]Built temporary image and copying context[/]")
     console_print(f"[info]Removing context: {context}[/]")
     context_cache_file.unlink()

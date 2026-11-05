@@ -236,7 +236,43 @@ class TestDbtCloudRunJobOperator:
             execution_deadline=ANY,
             account_id=None,
             poll_interval=1,
+            hook_params={},
         )
+
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.QUEUED.value,
+    )
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobTrigger")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run",
+        return_value=mock_response_json(DEFAULT_ACCOUNT_JOB_RUN_RESPONSE),
+    )
+    def test_execute_deferrable_hands_hook_params_to_the_trigger(
+        self,
+        mock_trigger_job_run,
+        mock_dbt_hook,
+        mock_dbt_trigger,
+        mock_defer,
+        mock_job_run_status,
+    ):
+        hook_params = {"retry_limit": 3, "retry_delay": 2.0}
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            deferrable=True,
+            hook_params=hook_params,
+        )
+
+        dbt_op.execute(MagicMock())
+
+        assert mock_dbt_trigger.call_args.kwargs["hook_params"] == hook_params
 
     @pytest.mark.parametrize(
         "status",

@@ -22,7 +22,7 @@ import re
 import subprocess
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from subprocess import check_call, check_output
 from typing import Literal
@@ -100,7 +100,7 @@ class BaseK8STest:
         with open(output_file_path, "w") as output_file:
             print("=" * 80, file=output_file)
             print(f"Describe resources for namespace {namespace}", file=output_file)
-            print(f"Datetime: {datetime.now(tz=timezone.utc)}", file=output_file)
+            print(f"Datetime: {datetime.now(tz=UTC)}", file=output_file)
             print("=" * 80, file=output_file)
             print("Describing pods", file=output_file)
             print("-" * 80, file=output_file)
@@ -349,7 +349,7 @@ class BaseK8STest:
         post_string = f"http://{host}/dags/{dag_id}/dagRuns"
         print(f"Calling [start_dag]#2 {post_string}")
 
-        logical_date = datetime.now(timezone.utc).isoformat()
+        logical_date = datetime.now(UTC).isoformat()
         # Trigger a new dagrun
         result = self.session.post(post_string, json={"logical_date": logical_date})
         try:

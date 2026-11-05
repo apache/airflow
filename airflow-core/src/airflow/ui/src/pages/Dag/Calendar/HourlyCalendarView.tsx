@@ -175,7 +175,15 @@ export const HourlyCalendarView = ({
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
+                  const emptyCounts = {
+                    backfill: 0,
+                    failed: 0,
+                    planned: 0,
+                    queued: 0,
+                    running: 0,
+                    success: 0,
+                    total: 0,
+                  };
                   const emptyData = {
                     counts: emptyCounts,
                     date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,

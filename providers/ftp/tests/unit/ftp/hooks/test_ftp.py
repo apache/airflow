@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ftplib
+from ftplib import FTP_TLS
 from io import StringIO
 from unittest import mock
 
@@ -283,6 +284,32 @@ class TestIntegrationFTPHook:
 
         mock_connect.assert_called_once_with("localhost", ftplib.FTP_PORT)
         mock_login.assert_not_called()
+
+    @pytest.mark.parametrize("connection_id", ["ftp_passive", "ftp_encoding"])
+    @pytest.mark.parametrize("failed_step", ["set_pasv", "prot_p"])
+    @pytest.mark.parametrize("cleanup_fails", [False, True])
+    @mock.patch("ftplib.FTP_TLS", autospec=True)
+    def test_ftps_discards_failed_setup(self, mock_ftp, connection_id, failed_step, cleanup_fails):
+        failed = mock_ftp.return_value
+        healthy = mock.create_autospec(FTP_TLS, instance=True)
+        mock_ftp.side_effect = [failed, healthy]
+        setup_error = OSError("setup failed")
+        getattr(failed, failed_step).side_effect = setup_error
+        if cleanup_fails:
+            failed.close.side_effect = OSError("cleanup failed")
+        hook = fh.FTPSHook(connection_id)
+
+        with pytest.raises(OSError, match="setup failed") as error:
+            hook.get_conn()
+
+        assert error.value is setup_error
+        assert hook.conn is None
+        failed.close.assert_called_once_with()
+        assert hook.get_conn() is healthy
+        healthy.set_pasv.assert_called_once_with(True)
+        healthy.prot_p.assert_called_once_with()
+        assert hook.get_conn() is healthy
+        assert mock_ftp.call_count == 2
 
     @mock.patch("ftplib.FTP_TLS")
     def test_ftps_passive_mode(self, mock_ftp):

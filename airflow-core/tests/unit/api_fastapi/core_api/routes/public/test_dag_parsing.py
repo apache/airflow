@@ -16,10 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-
 import pytest
-from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
@@ -44,18 +41,13 @@ TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
 @pytest.fixture
-def dag_reader_test_client(test_client):
+def dag_reader_headers(test_client):
     """A caller who may read the Dags (and import errors) but not edit them: viewer is below the role edits require."""
     auth_manager = test_client.app.state.auth_manager
     token = auth_manager._get_token_signer().generate(
         auth_manager.serialize_user(SimpleAuthManagerUser(username="reader", role="viewer"))
     )
-    with mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False):
-        yield TestClient(
-            test_client.app,
-            headers={"Authorization": f"Bearer {token}"},
-            base_url=str(test_client.base_url),
-        )
+    return {"Authorization": f"Bearer {token}"}
 
 
 class TestDagParsingEndpoint:
@@ -155,7 +147,7 @@ class TestDagParsingEndpoint:
         assert session.scalars(select(DagPriorityParsingRequest)).all() == []
 
     def test_reparse_import_error_file_forbidden_for_basic_import_errors_viewer(
-        self, url_safe_serializer, session, dag_reader_test_client
+        self, url_safe_serializer, session, dag_reader_headers, test_client
     ):
         # Reparsing a file with no registered Dag requires the dedicated REPARSE_ALL permission
         # (admin-by-default), so a caller who can view the import-errors list (basic IMPORT_ERRORS)
@@ -166,8 +158,8 @@ class TestDagParsingEndpoint:
             {"bundle_name": "some_bundle", "relative_fileloc": "dags/broken.py"}
         )
 
-        response = dag_reader_test_client.put(
-            f"/parseDagFile/{token}", headers={"Accept": "application/json"}
+        response = test_client.put(
+            f"/parseDagFile/{token}", headers={"Accept": "application/json", **dag_reader_headers}
         )
 
         assert response.status_code == 403

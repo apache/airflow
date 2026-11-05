@@ -40,7 +40,6 @@ from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.api_fastapi.core_api.datamodels.dag_tags import DagTagResponse
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
 from airflow.configuration import conf
-from airflow.models.dag_version import DagVersion
 from airflow.utils.state import DagSchedulingState
 from airflow.utils.types import DagRunType
 
@@ -228,6 +227,7 @@ class DAGDetailsResponse(DAGResponse):
     is_favorite: bool = False
     active_runs_count: int = 0
     team_name: str | None = None
+    latest_dag_version: DagVersionResponse | None
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -294,15 +294,3 @@ class DAGDetailsResponse(DAGResponse):
         Deprecated: Use max_active_tasks instead.
         """
         return self.max_active_tasks
-
-    # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def latest_dag_version(self) -> DagVersionResponse | None:
-        """Return the latest DagVersion."""
-        latest_dag_version = DagVersion.get_latest_version(
-            self.dag_id, load_dag_model=True, load_bundle_model=True
-        )
-        if latest_dag_version is None:
-            return latest_dag_version
-        return DagVersionResponse.model_validate(latest_dag_version)

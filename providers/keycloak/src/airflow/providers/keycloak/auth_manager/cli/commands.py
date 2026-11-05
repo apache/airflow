@@ -25,6 +25,7 @@ from keycloak import KeycloakAdmin, KeycloakError
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError, raise_error_from_response
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
@@ -64,11 +65,9 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
-# A Dag bundle is visible to whoever can read a Dag inside it, so this entry belongs with ``DAGS``
-# in the base team set rather than the admin one: every team role that can already reach the
-# bundles through the API should be able to find the page. Guarded because this provider also runs
-# against Airflow versions predating the menu item.
-if hasattr(MenuItem, "DAG_BUNDLES"):
+# Airflow 3.4.0 has the Dag bundles menu item but not its view, and shows the bundles to anyone who
+# can read a Dag in them, so there every team role keeps the menu entry.
+if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES"):
     TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,
@@ -557,6 +556,14 @@ def _get_permissions_to_create(
         )
         perm_configs.append(
             {
+                "name": "AdminViewAccess",
+                "type": "scope-based",
+                "scope_names": ["GET"],
+                "resources": [KeycloakResource.ADMIN_VIEW.value],
+            }
+        )
+        perm_configs.append(
+            {
                 "name": "MenuAccess",
                 "type": "scope-based",
                 "scope_names": ["MENU"],
@@ -739,7 +746,7 @@ def _update_admin_permission_resources(
         r["_id"]
         for r in resources
         if any(r["name"].startswith(f"{resource}:") for resource in TEAM_SCOPED_RESOURCE_NAMES)
-        or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
+        or r["name"] in TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
     existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
@@ -884,6 +891,9 @@ def _attach_team_permissions(
         ],
         _dry_run=_dry_run,
     )
+    # ``View`` only covers the views every team role may read. Views over records that are not tied
+    # to a team (e.g. audit log rows not tied to a Dag) live on ``AdminView``, which team roles do not
+    # get -- see ``_attach_superadmin_permissions``.
     for role_name in TEAM_ROLE_NAMES:
         _attach_policy_to_scope_permission(
             client,
@@ -987,6 +997,16 @@ def _attach_superadmin_permissions(
         policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
         scope_names=["GET"],
         resource_names=[KeycloakResource.VIEW.value],
+        decision_strategy="AFFIRMATIVE",
+        _dry_run=_dry_run,
+    )
+    _attach_policy_to_scope_permission(
+        client,
+        client_uuid,
+        permission_name="AdminViewAccess",
+        policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+        scope_names=["GET"],
+        resource_names=[KeycloakResource.ADMIN_VIEW.value],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
     )

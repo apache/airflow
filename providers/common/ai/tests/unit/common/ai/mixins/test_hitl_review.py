@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import pytest
+from pydantic import BaseModel, Field, computed_field
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
 
@@ -27,7 +30,10 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
-from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
+from airflow.providers.common.ai.mixins.hitl_review import (
+    _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
+    HITLReviewMixin,
+)
 from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_AGENT_SESSION,
@@ -57,7 +63,7 @@ class FakeAgenticOperator(HITLReviewMixin):
         self.max_hitl_iterations = 5
         self.hitl_timeout = hitl_timeout or timedelta(seconds=30)
         self.hitl_poll_interval = hitl_poll_interval
-        self.log = MagicMock(spec=["info", "warning"])
+        self.log = MagicMock(spec=["info", "warning", "error"])
 
     def regenerate_with_feedback(self, *, feedback: str, message_history):
         return f"Revised: {feedback}", message_history
@@ -105,6 +111,61 @@ def mock_ti(mock_supervisor_comms):
 @pytest.fixture
 def context(mock_ti):
     return {"task_instance": mock_ti}
+
+
+class _SerializationAliased(BaseModel):
+    user_name: str = Field(serialization_alias="userName")
+
+
+class _Computed(BaseModel):
+    a: int
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def double(self) -> int:
+        return self.a * 2
+
+
+class _NoSchema:
+    def __repr__(self):
+        return "no-schema"
+
+
+@dataclass
+class _UnresolvedForwardReference:
+    value: Missing  # type: ignore[name-defined]  # noqa: F821
+
+    def __repr__(self):
+        return "unresolved"
+
+
+class TestToString:
+    @pytest.mark.parametrize(
+        ("output", "expected"),
+        [
+            (["tag-a", "tag-b"], '["tag-a","tag-b"]'),
+            ([_SerializationAliased(user_name="kax")], '[{"user_name":"kax"}]'),
+            (_Computed(a=1), '{"a":1,"double":2}'),
+            (_NoSchema(), "no-schema"),
+            ([_NoSchema()], "[no-schema]"),
+            (_UnresolvedForwardReference(value=1), "unresolved"),
+        ],
+        ids=[
+            "list",
+            "serialization-aliased-list",
+            "computed-field-shown",
+            "no-schema-falls-back-to-str",
+            "unserializable-falls-back-to-str",
+            "unresolved-schema-falls-back-to-str",
+        ],
+    )
+    def test_to_string_dumps_json_or_falls_back_to_str(self, output, expected):
+        assert HITLReviewMixin._to_string(output) == expected
+
+    def test_warns_when_it_falls_back_to_str(self, caplog):
+        HITLReviewMixin._to_string(_NoSchema())
+
+        assert any("Cannot serialize a _NoSchema" in message for message in caplog.messages)
 
 
 class TestHITLReviewMixin:
@@ -217,6 +278,36 @@ class TestHITLReviewMixin:
 
         with pytest.raises(HITLTimeoutError, match="Task exceeded timeout"):
             fake_op.run_hitl_review(context, "Output")
+
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_xcom_pull_failures_raise_after_limit(self, mock_sleep, fake_op, mock_ti, context):
+        fake_op.hitl_timeout = None
+
+        def failing_pull(*args, **kwargs):
+            if mock_ti.xcom_pull.call_count > _MAX_CONSECUTIVE_XCOM_PULL_FAILURES + 2:
+                pytest.fail("XCom pull retried past the limit")
+            raise ConnectionError("api server down")
+
+        mock_ti.xcom_pull.side_effect = failing_pull
+
+        with pytest.raises(ConnectionError, match="api server down"):
+            fake_op.run_hitl_review(context, "Output")
+
+        assert mock_ti.xcom_pull.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES
+        assert fake_op.log.warning.call_count == _MAX_CONSECUTIVE_XCOM_PULL_FAILURES - 1
+        fake_op.log.error.assert_called_once_with(
+            "Giving up HITL review after %d consecutive XCom pull failures",
+            _MAX_CONSECUTIVE_XCOM_PULL_FAILURES,
+        )
+
+    @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)
+    def test_xcom_pull_failure_counter_resets_on_success(self, mock_sleep, fake_op, mock_ti, context):
+        fake_op.hitl_timeout = None
+        approve = HumanActionData(action="approve", iteration=1).model_dump(mode="json")
+        failures = [ConnectionError("blip")] * (_MAX_CONSECUTIVE_XCOM_PULL_FAILURES - 1)
+        mock_ti.xcom_pull.side_effect = [*failures, None, *failures, approve]
+
+        assert fake_op.run_hitl_review(context, "Output") == "Output"
 
     @patch.object(FakeAgenticOperator, "regenerate_with_feedback")
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)

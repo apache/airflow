@@ -189,7 +189,7 @@ Filter  → "Filtrar"
 
 - Match tone, style, gender agreement, and casing from existing `ca/*.json` files
 - Use formal Catalan register throughout
-- Preserve all i18next placeholders: `{{count}}`, `{{dagName}}`, `{{type}}`, etc.
+- Preserve all i18next placeholders: `{{count, number}}`, `{{dagName}}`, `{{type}}`, etc.
 - Apply correct Catalan elision (`d'`, `l'`, contractions `al`, `del`)
 - Preserve all diacritics (à, è, é, ï, ò, ó, ú, ü, ç, ·)
 - Provide all needed plural suffixes (`_one`, `_other`) for each key

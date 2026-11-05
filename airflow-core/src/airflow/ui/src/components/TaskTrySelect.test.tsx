@@ -108,11 +108,11 @@ const createQueryClient = () =>
   });
 
 const createWrapper =
-  (queryClient: QueryClient) =>
+  (queryClient: QueryClient, search = "") =>
   ({ children }: PropsWithChildren) => (
     <ChakraProvider value={defaultSystem}>
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <MemoryRouter initialEntries={[`/${search}`]}>{children}</MemoryRouter>
       </QueryClientProvider>
     </ChakraProvider>
   );
@@ -140,6 +140,20 @@ const expectTryState = (tryNumber: number, state: string) => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("TaskTrySelect", () => {
+  it("reads tries from the exact loop coordinate rather than the public map index", async () => {
+    const queryClient = createQueryClient();
+    const regionId = "11111111-1111-4111-8111-111111111111";
+    const taskInstance = { ...buildTaskInstance(TASK_A, 2), region_id: regionId, region_index: 3 };
+    const fetch = vi
+      .spyOn(TaskInstanceService, "getMappedTaskInstanceTries")
+      .mockResolvedValue(buildTaskTries([taskInstance]));
+
+    render(<TaskTrySelect taskInstance={taskInstance} />, { wrapper: createWrapper(queryClient) });
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(expect.objectContaining({ mapIndex: -1, regionId, regionIndex: 3 })),
+    );
+  });
+
   it("refetches cached tries immediately when switching tasks", async () => {
     const queryClient = createQueryClient();
     const params = {

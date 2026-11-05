@@ -26,10 +26,14 @@ import re
 import threading
 import time
 from contextlib import suppress
-from typing import TYPE_CHECKING, Literal
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal, TypedDict
 
 try:
     import modal
+
+    from airflow.providers.modal.exceptions import ModalConnectionError
+    from airflow.providers.modal.hooks.modal import ModalHook
 except ModuleNotFoundError as e:
     from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -39,13 +43,21 @@ except ModuleNotFoundError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
 from airflow.providers.common.ai.sandbox.base import (
-    SandboxBackend,
+    EXPIRES_AT_TAG,
+    NETWORK_TAG,
+    OWNER_TAG,
+    WORKDIR_TAG,
+    AttachableSandboxBackend,
+    AttachedSandbox,
     SandboxError,
     SandboxExecResult,
     SandboxTerminalError,
     _new_sandbox_name,
     _validate_positive_finite,
+    encode_network_policy,
+    is_sandbox_handle,
 )
+from airflow.providers.common.compat.sdk import AirflowNotFoundException
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -98,6 +110,33 @@ _ALLOWED_HOSTNAME = re.compile(
 
 EgressEnforcement = Literal["strict", "sni"]
 
+# What reading credentials from the connection can raise before Modal is reached at all: a
+# named connection that does not exist, or one that sets only half of the token.
+_CREDENTIAL_ERRORS = (AirflowNotFoundException, ModalConnectionError)
+# Serializes building a backend's Modal client. ModalHook resolves its connection and builds
+# its client without a lock, so concurrent first calls on a backend shared by several agent
+# runs would each open a gRPC client and keep one. Module-level rather than per instance
+# because a lock cannot be deep-copied, and operators holding a backend are.
+_CLIENT_BUILD_LOCK = threading.Lock()
+
+
+@dataclass
+class _TrackedSandbox:
+    """
+    What this backend instance knows about one sandbox, created here or attached to.
+
+    ``workdir`` is the creator's working directory, or ``None`` until the sandbox has
+    been asked. ``expires_at`` is on this process's monotonic clock. ``lifetime`` is the
+    whole ``sandbox_timeout`` the sandbox was created with, known only when this instance
+    created it; an attached sandbox's lifetime is its creator's, and only the remaining
+    part of it is known.
+    """
+
+    handle: modal.Sandbox | None = None
+    workdir: str | None = None
+    expires_at: float | None = None
+    lifetime: int | None = None
+
 
 def _reject_bare_string(value: object, *, field: str, items: str) -> None:
     """
@@ -133,9 +172,22 @@ def _is_tls_hostname(value: object) -> bool:
     return "." in value.removeprefix("*.")
 
 
-class ModalSandboxBackend(SandboxBackend):
+class _NetworkKwargs(TypedDict, total=False):
+    """The subset of ``modal.Sandbox.create`` arguments that a network policy maps onto."""
+
+    block_network: bool
+    outbound_cidr_allowlist: list[str]
+    outbound_domain_allowlist: list[str]
+
+
+class ModalSandboxBackend(AttachableSandboxBackend):
     """
     Sandbox backend that runs agent commands in a `Modal <https://modal.com>`__ sandbox.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
 
     Each sandbox is a gVisor-isolated container in Modal's infrastructure, provisioned
     over the API. Nothing has to be installed on the Airflow worker and model-written
@@ -149,11 +201,20 @@ class ModalSandboxBackend(SandboxBackend):
     tags are fixed when the backend is constructed, which is Dag-parse time, so they can
     identify the Dag but not the run, task or map index that leaked one.
 
-    **Credentials are ambient.** Modal is authenticated the same way its CLI is: run
-    ``modal token new`` once to write ``~/.modal.toml``, or set ``MODAL_TOKEN_ID`` and
-    ``MODAL_TOKEN_SECRET`` in the worker environment. Nothing is read until the first
-    sandbox is created, so a Dag file that constructs this backend parses without
-    credentials present.
+    **A sandbox can outlive the task that created it and be attached to later.** A
+    ``@task`` that calls :meth:`create` holds the returned id and stays in charge of
+    :meth:`destroy`; a ``SandboxToolset`` with ``attach_to=<id>`` uses that sandbox for
+    its run and leaves it running. The rules are those of
+    :class:`~airflow.providers.common.ai.sandbox.AttachableSandboxBackend`, kept in Modal
+    tags; keys starting with ``airflow_`` are reserved for them and overwrite any
+    ``tags`` of the same name.
+
+    **Credentials come from a** ``modal`` **connection**, resolved by
+    :class:`~airflow.providers.modal.hooks.modal.ModalHook` in the order the
+    :ref:`Modal connection page <howto/connection:modal>` sets out; without a
+    ``modal_default`` connection that is the worker's own Modal credentials. Nothing is
+    read until the first sandbox is created or attached to, so a Dag file that constructs
+    this backend parses without the connection or any credentials present.
 
     **What the network policy can and cannot promise.** ``SandboxSpec(block_network=True)``
     maps to Modal's own ``block_network``, which drops all outbound traffic including DNS.
@@ -188,6 +249,9 @@ class ModalSandboxBackend(SandboxBackend):
     :meth:`read_file`, which deliberately stays on the base class's shell implementation
     (see that method). Any Debian or Ubuntu based image, including ``python:*-slim``, does.
 
+    :param modal_conn_id: The ``modal`` connection to authenticate with. Default
+        ``"modal_default"``. ``None`` uses the worker's Modal credentials without looking
+        for a connection.
     :param image: Registry tag for the sandbox image, or a prepared ``modal.Image``.
         Default ``"python:3.12-slim"``. An image carrying the packages an agent needs is
         the alternative to opening egress so it can install them:
@@ -226,8 +290,8 @@ class ModalSandboxBackend(SandboxBackend):
     :param tags: Extra Modal tags to set on every sandbox, e.g. ``{"dag_id": "my_dag"}``.
         You can query them, which is the point: ``modal.Sandbox.list(app_id=..., tags={"dag_id":
         "my_dag"})`` returns exactly the sandboxes carrying them, which is how an operator
-        finds what a Dag left behind. ``airflow_sandbox`` is set by this backend and will
-        overwrite a key of that name.
+        finds what a Dag left behind. Keys starting with ``airflow_`` are set by this
+        backend and overwrite a tag of the same name.
     :param egress_enforcement: ``"strict"`` (default) refuses a ``SandboxSpec`` that
         names ``allow_egress_to``, because Modal cannot enforce a hostname allowlist
         below TLS. ``"sni"`` accepts it and applies Modal's SNI-matched allowlist, with
@@ -240,6 +304,7 @@ class ModalSandboxBackend(SandboxBackend):
     def __init__(
         self,
         *,
+        modal_conn_id: str | None = ModalHook.default_conn_name,
         image: str | modal.Image = DEFAULT_IMAGE,
         app_name: str = DEFAULT_APP_NAME,
         create_app_if_missing: bool = True,
@@ -283,6 +348,9 @@ class ModalSandboxBackend(SandboxBackend):
             _validate_positive_finite(memory, "memory")
         if egress_enforcement not in ("strict", "sni"):
             raise ValueError(f"egress_enforcement must be 'strict' or 'sni', got {egress_enforcement!r}.")
+        # Constructing the hook reads no connection and opens no client, so this is safe at
+        # Dag-parse time; both wait for _connected_hook.
+        self._hook = ModalHook(modal_conn_id=modal_conn_id)
         self._image = image
         self._app_name = app_name
         self._create_app_if_missing = create_app_if_missing
@@ -298,34 +366,52 @@ class ModalSandboxBackend(SandboxBackend):
         self._egress_enforcement: EgressEnforcement = egress_enforcement
         # Keyed by sandbox handle, so one backend instance shared by concurrent agent
         # runs never has two of them touching the same entry.
-        self._sandboxes: dict[str, modal.Sandbox] = {}
-        self._workdirs: dict[str, str] = {}
-        self._expiries: dict[str, float] = {}
+        self._tracked: dict[str, _TrackedSandbox] = {}
+
+    def _connected_hook(self) -> ModalHook:
+        """
+        Return the hook with its client built, the one place every Modal call goes through.
+
+        Nothing the model does can fix a missing or half-filled connection, so it fails the
+        task, naming the connection the author set. That includes ``destroy``: the sandbox
+        would otherwise bill until its lifetime ends, and the toolset's own teardown catches
+        and logs it, so it still never fails a finished agent run. A Modal error from
+        building the client propagates unchanged for the caller to classify.
+        """
+        with _CLIENT_BUILD_LOCK:
+            try:
+                self._hook.get_conn()
+            except _CREDENTIAL_ERRORS as e:
+                raise SandboxTerminalError(
+                    f"Could not read Modal credentials from connection {self._hook.modal_conn_id!r}: {e}"
+                ) from e
+        return self._hook
 
     # ------------------------------------------------------------------
     # Lifecycle.
     # ------------------------------------------------------------------
 
     def create(self, *, spec: SandboxSpec | None = None) -> str:
-        # Both refuse a spec this backend cannot carry faithfully, before anything is
+        # All three refuse a spec this backend cannot carry faithfully, before anything is
         # provisioned, so a rejected spec never costs a sandbox.
         network = self._network_kwargs(spec)
         environment = self._environment(spec)
+        self._check_attachable(spec)
         name = _new_sandbox_name()
         try:
-            # Looked up per create rather than memoized on the instance: the lookup is
-            # idempotent server-side, and one round trip per sandbox is cheaper than the
-            # locking a shared cache would need, given the toolset shares one backend
-            # across concurrent runs.
-            app = modal.App.lookup(self._app_name, create_if_missing=self._create_app_if_missing)
             # A registry tag is the common case; a prepared Image is how packages get
             # into the sandbox without opening egress to fetch them.
             image = modal.Image.from_registry(self._image) if isinstance(self._image, str) else self._image
-            sandbox = modal.Sandbox.create(
-                app=app,
+            # The hook looks the app up in the connection's environment on every create
+            # rather than memoizing it: the lookup is idempotent server-side, and one round
+            # trip per sandbox is cheaper than the locking a shared cache would need, given
+            # the toolset shares one backend across concurrent runs.
+            sandbox = self._connected_hook().create_sandbox(
+                app_name=self._app_name,
+                create_app_if_missing=self._create_app_if_missing,
                 image=image,
                 name=name,
-                tags={**self._tags, "airflow_sandbox": name},
+                tags=self._create_tags(spec, name),
                 timeout=self._sandbox_timeout,
                 idle_timeout=self._idle_timeout,
                 workdir=self._workdir,
@@ -352,11 +438,90 @@ class ModalSandboxBackend(SandboxBackend):
         # there is no window in which a live sandbox exists half-configured, and no
         # cleanup block to go with it. Anything added here later needs one.
         handle = sandbox.object_id
-        self._sandboxes[handle] = sandbox
-        # When this sandbox stops existing, so a command that could not finish inside its
-        # remaining life is refused up front instead of dying half way through.
-        self._expiries[handle] = time.monotonic() + self._sandbox_timeout
+        self._tracked[handle] = _TrackedSandbox(
+            handle=sandbox,
+            workdir=self._workdir,
+            # When this sandbox stops existing, so a command that could not finish inside
+            # its remaining life is shortened instead of dying half way through.
+            expires_at=time.monotonic() + self._sandbox_timeout,
+            lifetime=self._sandbox_timeout,
+        )
         return handle
+
+    def _check_attachable(self, spec: SandboxSpec | None) -> None:
+        """
+        Refuse an owner on a backend whose idle reclamation would end the sandbox before anyone attaches.
+
+        A sandbox provisioned for another task sits idle between the tasks: through the
+        scheduling gap, through the model's thinking, and through a reviewer's wait.
+        Modal's idle timeout would reclaim it in the first of those, and the stamped
+        expiry would still promise a lifetime the sandbox no longer has.
+        """
+        if spec is not None and spec.owner is not None and self._idle_timeout is not None:
+            raise SandboxTerminalError(
+                "SandboxSpec names an owner, so another task will attach to this sandbox later, but "
+                f"this backend has idle_timeout={self._idle_timeout}, which would reclaim it while it "
+                "waits between tasks. Leave idle_timeout unset on the backend that provisions a sandbox "
+                "for attaching, and size sandbox_timeout to cover the wait."
+            )
+
+    def _create_tags(self, spec: SandboxSpec | None, name: str) -> dict[str, str]:
+        """
+        Return the tags a new sandbox carries: the author's, then the ones this backend reserves.
+
+        The expiry is stamped as wall-clock time because the process that attaches later
+        is not the one that created the sandbox, so a monotonic clock would mean nothing
+        to it. Whole seconds, since Modal's own deadline is in whole seconds.
+        """
+        tags = {**self._tags, "airflow_sandbox": name}
+        tags[EXPIRES_AT_TAG] = str(int(time.time()) + self._sandbox_timeout)
+        if self._workdir is not None:
+            tags[WORKDIR_TAG] = self._workdir
+        if spec is not None:
+            tags[NETWORK_TAG] = encode_network_policy(spec)
+            if spec.owner is not None:
+                tags[OWNER_TAG] = spec.owner
+        return tags
+
+    def read_tags(self, sandbox: str) -> dict[str, str]:
+        handle = self._handle(sandbox)
+        try:
+            return handle.get_tags()
+        except modal.exception.Error as e:
+            raise self._as_sandbox_error(e, sandbox=sandbox) from e
+
+    def write_tags(self, sandbox: str, tags: Mapping[str, str]) -> None:
+        handle = self._handle(sandbox)
+        try:
+            handle.set_tags(dict(tags))
+        except modal.exception.Error as e:
+            raise self._as_sandbox_error(e, sandbox=sandbox) from e
+
+    def attach(self, sandbox: str, *, owner: str, holder: str) -> AttachedSandbox:
+        try:
+            attached = super().attach(sandbox, owner=owner, holder=holder)
+        except Exception:
+            # Reading the tags cached a client-bearing Sandbox object; a refused attach
+            # is never released, so drop it here or a long-lived instance keeps it.
+            self._tracked.pop(sandbox, None)
+            raise
+        tracked = self._tracked.setdefault(sandbox, _TrackedSandbox())
+        # Everything this sandbox was created with is the creator's. What ``_handle``
+        # assumed for an unknown handle is replaced with what the tags say.
+        tracked.workdir = attached.workdir
+        tracked.lifetime = None
+        if attached.remaining_lifetime is not None:
+            # Same treatment as a sandbox this instance created: commands are shortened
+            # to what is left rather than dying half way through.
+            tracked.expires_at = time.monotonic() + attached.remaining_lifetime
+        return attached
+
+    def release(self, sandbox: str, *, holder: str) -> None:
+        try:
+            super().release(sandbox, holder=holder)
+        finally:
+            # The run is over and the sandbox is not ours to keep a handle on.
+            self._tracked.pop(sandbox, None)
 
     def destroy(self, sandbox: str) -> None:
         """
@@ -369,11 +534,12 @@ class ModalSandboxBackend(SandboxBackend):
         within about 35 seconds; ``sandbox_timeout`` is the backstop if the request never
         lands at all.
         """
-        handle = self._sandboxes.pop(sandbox, None)
-        self._workdirs.pop(sandbox, None)
-        self._expiries.pop(sandbox, None)
+        self._check_handle(sandbox)
+        tracked = self._tracked.pop(sandbox, None)
         try:
-            target = handle if handle is not None else modal.Sandbox.from_id(sandbox)
+            target = (
+                tracked.handle if tracked and tracked.handle else self._connected_hook().get_sandbox(sandbox)
+            )
             target.terminate()
         except modal.exception.NotFoundError:
             # Already gone, which is what destroy is for. Idempotent by contract.
@@ -395,12 +561,16 @@ class ModalSandboxBackend(SandboxBackend):
         _validate_positive_finite(max_output_bytes, "max_output_bytes")
         # Modal takes whole-second deadlines and reads 0 as "no timeout", so round up.
         seconds = max(1, math.ceil(timeout))
-        if seconds > self._sandbox_timeout:
+        tracked = self._tracked.get(sandbox)
+        lifetime = tracked.lifetime if tracked is not None else self._sandbox_timeout
+        if lifetime is not None and seconds > lifetime:
             # Against the whole lifetime, which is a fact the Dag author chose and can
-            # change. Recoverable, because the model can also just ask for less.
+            # change. Recoverable, because the model can also just ask for less. An
+            # attached sandbox has no whole lifetime here, only the remainder the clamp
+            # below uses; this instance's setting would give advice about the wrong knob.
             raise SandboxError(
-                f"A {seconds}s command does not fit this sandbox's {self._sandbox_timeout}s "
-                "lifetime. Ask for a shorter timeout, or raise sandbox_timeout on the backend."
+                f"A {seconds}s command does not fit this sandbox's {lifetime}s lifetime. Ask for a "
+                "shorter timeout, or raise sandbox_timeout on the backend."
             )
         # Against what is LEFT, the answer is to shorten the deadline rather than refuse.
         # Refusing here would be unactionable: the file operations inherited from the base
@@ -483,9 +653,7 @@ class ModalSandboxBackend(SandboxBackend):
                 terminated = not self._still_alive(sandbox)
             if terminated:
                 # The handle is dead, so drop it rather than hand it to a later call.
-                self._sandboxes.pop(sandbox, None)
-                self._workdirs.pop(sandbox, None)
-                self._expiries.pop(sandbox, None)
+                self._tracked.pop(sandbox, None)
 
         return SandboxExecResult(
             exit_code=returncode,
@@ -540,11 +708,11 @@ class ModalSandboxBackend(SandboxBackend):
         tenths of a second, either returning 0 or raising -- ``NotFoundError`` for a
         terminated sandbox, ``ConflictError`` for one shutting down at its own timeout.
         """
-        handle = self._sandboxes.get(sandbox)
-        if handle is None:
+        tracked = self._tracked.get(sandbox)
+        if tracked is None or tracked.handle is None:
             return False
         try:
-            handle.exec("sh", "-c", "true", timeout=_LIVENESS_TIMEOUT, text=True).wait()
+            tracked.handle.exec("sh", "-c", "true", timeout=_LIVENESS_TIMEOUT, text=True).wait()
         except modal.exception.Error:
             return False
         except Exception:
@@ -668,7 +836,7 @@ class ModalSandboxBackend(SandboxBackend):
             f"run_command instead, which does not use the helper."
         )
 
-    def _network_kwargs(self, spec: SandboxSpec | None) -> dict[str, object]:
+    def _network_kwargs(self, spec: SandboxSpec | None) -> _NetworkKwargs:
         """
         Map a spec's network policy onto ``Sandbox.create`` arguments, or refuse it.
 
@@ -692,7 +860,7 @@ class ModalSandboxBackend(SandboxBackend):
         # block_network is deliberately not set alongside either list: Modal rejects the
         # combination outright, and an allowlist on its own already blocks every
         # destination that is not on it.
-        kwargs: dict[str, object] = {}
+        kwargs: _NetworkKwargs = {}
         if spec.allow_egress_to_cidrs:
             # Enforced at the address layer for any port and protocol, so there is
             # nothing here for the author to accept; no opt-in is required.
@@ -798,7 +966,7 @@ class ModalSandboxBackend(SandboxBackend):
         return list(allow_egress_to)
 
     @staticmethod
-    def _environment(spec: SandboxSpec | None) -> dict[str, str] | None:
+    def _environment(spec: SandboxSpec | None) -> dict[str, str | None] | None:
         """
         Return the environment to inject, refusing anything Modal cannot carry.
 
@@ -828,21 +996,47 @@ class ModalSandboxBackend(SandboxBackend):
         A handle from elsewhere has a lifetime this backend cannot know, so nothing is
         claimed about it rather than a number being invented.
         """
-        expiry = self._expiries.get(sandbox)
-        return None if expiry is None else max(0.0, expiry - time.monotonic())
+        tracked = self._tracked.get(sandbox)
+        if tracked is None or tracked.expires_at is None:
+            return None
+        return max(0.0, tracked.expires_at - time.monotonic())
+
+    @staticmethod
+    def _check_handle(sandbox: object) -> None:
+        """
+        Refuse something that is not a sandbox id before the SDK trips over it.
+
+        A collecting task that runs whether or not the provisioning task succeeded gets
+        ``None`` from a missing XCom, and ``modal.Sandbox.from_id(None)`` fails with an
+        ``AttributeError`` from inside the SDK, which names neither the handle nor the
+        cause. Say what was passed instead.
+        """
+        if not is_sandbox_handle(sandbox):
+            raise SandboxTerminalError(
+                f"{sandbox!r} is not a sandbox handle. The task that provisions the sandbox pushed "
+                "nothing, or this task ran without it; check the upstream task and what it returned."
+            )
 
     def _handle(self, sandbox: str) -> modal.Sandbox:
         """Return the live sandbox object for a handle, looking it up if not cached."""
-        cached = self._sandboxes.get(sandbox)
-        if cached is not None:
-            return cached
+        self._check_handle(sandbox)
+        tracked = self._tracked.get(sandbox)
+        if tracked is not None and tracked.handle is not None:
+            return tracked.handle
         try:
             # Reachable when the handle came from another backend instance, or from a
             # caller that created the sandbox elsewhere.
-            found = modal.Sandbox.from_id(sandbox)
+            found = self._connected_hook().get_sandbox(sandbox)
         except modal.exception.Error as e:
             raise self._as_sandbox_error(e, sandbox=sandbox) from e
-        self._sandboxes[sandbox] = found
+        if tracked is None:
+            # A handle nobody here created is treated as this instance's own until
+            # ``attach`` says otherwise: its lifetime and working directory are assumed
+            # to be this backend's settings, as they were before attaching existed.
+            tracked = self._tracked[sandbox] = _TrackedSandbox(
+                workdir=self._workdir, lifetime=self._sandbox_timeout
+            )
+        tracked.handle = found
         return found
 
     def _absolute(self, sandbox: str, path: str) -> str:
@@ -864,13 +1058,16 @@ class ModalSandboxBackend(SandboxBackend):
         return "/" + "/".join(segment for segment in joined.split("/") if segment not in ("", "."))
 
     def _working_directory(self, sandbox: str) -> str:
-        if self._workdir is not None:
-            return self._workdir
-        cached = self._workdirs.get(sandbox)
-        if cached is not None:
-            return cached
-        # Only reachable when the backend was built with workdir=None, so the image
-        # decides. Asked once per sandbox and remembered.
+        tracked = self._tracked.get(sandbox)
+        if tracked is None:
+            if self._workdir is not None:
+                return self._workdir
+            tracked = self._tracked[sandbox] = _TrackedSandbox(lifetime=self._sandbox_timeout)
+        if tracked.workdir is not None:
+            return tracked.workdir
+        # Reached when the sandbox was created with workdir=None, so the image decided,
+        # and its creator recorded nothing. Asked once per sandbox and remembered, so the
+        # shell and the file operations keep agreeing on what a relative path means.
         result = self.run_command(sandbox, "pwd", timeout=_FILE_OP_TIMEOUT, max_output_bytes=4096)
         resolved = result.stdout.strip().splitlines()[-1] if result.stdout.strip() else ""
         if result.exit_code or not resolved.startswith("/"):
@@ -878,7 +1075,7 @@ class ModalSandboxBackend(SandboxBackend):
                 "Could not determine the sandbox working directory, so a relative path "
                 "cannot be resolved. Use an absolute path, or set workdir on the backend."
             )
-        self._workdirs[sandbox] = resolved
+        tracked.workdir = resolved
         return resolved
 
     def _as_sandbox_error(self, error: modal.exception.Error, *, sandbox: str | None = None) -> SandboxError:
@@ -895,9 +1092,15 @@ class ModalSandboxBackend(SandboxBackend):
             # error. Only reachable if it escapes from somewhere that cannot report it.
             return SandboxError(f"The command hit its deadline: {error}")
         if isinstance(error, modal.exception.AuthError):
+            if self._hook.credentials is not None:
+                # The token came from the connection, so worker settings would change nothing.
+                return SandboxTerminalError(
+                    f"Modal rejected the token on connection {self._hook.modal_conn_id!r}. Update its "
+                    f"login and password: {error}"
+                )
             return SandboxTerminalError(
-                "Modal rejected the credentials. Run 'modal token new', or set "
-                f"MODAL_TOKEN_ID and MODAL_TOKEN_SECRET on the worker: {error}"
+                "Modal rejected the credentials. Create a 'modal' connection, run 'modal token "
+                f"new', or set MODAL_TOKEN_ID and MODAL_TOKEN_SECRET on the worker: {error}"
             )
         if isinstance(error, modal.exception.PermissionDeniedError):
             # A sibling of AuthError rather than a subclass, and just as unfixable by
@@ -948,9 +1151,9 @@ class ModalSandboxBackend(SandboxBackend):
         answer has to be right now -- deciding whether a command's sandbox died under it --
         :meth:`_still_alive` asks by running a command instead, which does not lag.
         """
-        handle = self._sandboxes.get(sandbox)
-        if handle is None:
+        tracked = self._tracked.get(sandbox)
+        if tracked is None or tracked.handle is None:
             return False
         with suppress(Exception):
-            return handle.poll() is not None
+            return tracked.handle.poll() is not None
         return False

@@ -21,10 +21,13 @@ import { useLocalStorage } from "usehooks-ts";
 import type { Direction } from "src/components/Graph/DirectionDropdown";
 
 import {
+  CLEAR_KEEP_TASK_STATE_KEY,
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
+  DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
@@ -48,6 +51,12 @@ export const useDefaultGraphDirection = () =>
 export const useDefaultTaskGroupsExpanded = () =>
   useLocalStorage<boolean>(DEFAULT_TASK_GROUPS_EXPANDED_KEY, false);
 
+/**
+ * Fallback for the per-searchbar "match anywhere" (substring) toggle: the value a searchbar uses
+ * when neither the URL nor its own localStorage entry says otherwise. Defaults to off (prefix).
+ */
+export const useDefaultMatchAnywhere = () => useLocalStorage<boolean>(DEFAULT_MATCH_ANYWHERE_KEY, false);
+
 /** Default selection for the Dag-run Clear dialog toggle (existing / only-failed / queue-new). */
 export const useClearRunDefaultOptions = () =>
   useLocalStorage<Array<string>>(CLEAR_RUN_DEFAULT_OPTIONS_KEY, ["existingTasks"]);
@@ -60,6 +69,9 @@ export const useClearTaskInstanceDefaultOptions = () =>
 export const useClearPreventRunningTaskDefault = () =>
   useLocalStorage<boolean>(CLEAR_PREVENT_RUNNING_TASK_KEY, true);
 
+/** Default state of the "keep task state" checkbox when clearing task instances. */
+export const useClearKeepTaskStateDefault = () => useLocalStorage<boolean>(CLEAR_KEEP_TASK_STATE_KEY, false);
+
 /** Default selection for the "Mark as" task-instance dialog toggle (past / future / … ). */
 export const useMarkTaskInstanceDefaultOptions = () =>
   useLocalStorage<Array<string>>(MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY, []);
@@ -71,3 +83,7 @@ export const useDefaultTaskInstanceTab = () =>
 /** Page the app root ("/") lands on: the dashboard or the Dags list. */
 export const useDefaultLandingPage = () =>
   useLocalStorage<LandingPageOption>(DEFAULT_LANDING_PAGE_KEY, "dashboard");
+
+/** Whether the Dags list shows recent tasks; off also skips fetching them. */
+export const useShowDagsListRecentTasks = () =>
+  useLocalStorage<boolean>(DAGS_LIST_SHOW_RECENT_TASKS_KEY, true);

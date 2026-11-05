@@ -28,6 +28,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "cleanup",
         "generate-migration-file",
         "doctor",
+        "verify",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -340,15 +341,15 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Project selection",
             "options": [
-                "--all-projects",
+                "--all-worktrees",
                 "--project-name",
             ],
         },
     ],
     "breeze build-docs": [
         {
-            "name": "Build scope (default is to build Python docs and spellcheck)",
-            "options": ["--docs-only", "--sdk-docs-only", "--spellcheck-only"],
+            "name": "Build scope (default is to build Python docs and check their spelling)",
+            "options": ["--sdk-docs-only"],
         },
         {
             "name": "Type of build",
@@ -379,6 +380,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--builder",
                 "--distributions-list",
+                "--sphinx-airflow-theme-path",
             ],
         },
     ],
@@ -397,6 +399,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--message",
                 "--github-repository",
                 "--builder",
+            ],
+        },
+    ],
+    "breeze verify": [
+        {
+            "name": "Verify flags",
+            "options": [
+                "--base-ref",
+                "--full",
+                "--json",
             ],
         },
     ],

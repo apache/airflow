@@ -19,6 +19,30 @@
 Changelog
 ---------
 
+1.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Back off between GitDagBundle bare clone attempts so a fresh GitHub App token can propagate (#73878)``
+* ``Close the ssh askpass helper in GitHook before ssh executes it (#73427)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 1.0.0
 .....
 

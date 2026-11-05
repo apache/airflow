@@ -19,6 +19,8 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 
 _HOOK_PATH = "airflow.providers.common.ai.hooks.mcp.MCPHook"
@@ -130,3 +132,9 @@ class TestMCPToolsetDelegation:
 
         assert result == "tool result"
         mock_server.call_tool.assert_awaited_once_with("my_tool", {"arg": "value"}, ctx, tool)
+
+
+class TestMCPToolsetOutsidePydanticAI:
+    def test_points_other_frameworks_to_their_own_mcp_client(self):
+        with pytest.raises(NotImplementedError, match="framework's own MCP client"):
+            MCPToolset(mcp_conn_id="mcp_default").airflow_tools()

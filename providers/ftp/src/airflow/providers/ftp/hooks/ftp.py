@@ -21,6 +21,7 @@ import datetime
 import ftplib  # nosec: B402
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Any, cast
 
 from airflow.providers.common.compat.sdk import BaseHook
@@ -321,21 +322,27 @@ class FTPSHook(FTPHook):
             # Construct FTP_TLS instance with SSL context to allow certificates to be validated by default
             context = ssl.create_default_context()
             if encoding:
-                self.conn = ftplib.FTP_TLS(context=context, encoding=encoding)  # nosec: B321
+                conn = ftplib.FTP_TLS(context=context, encoding=encoding)  # nosec: B321
             else:
-                self.conn = ftplib.FTP_TLS(context=context)  # nosec: B321
-            if params.host:
-                # Pass the port to connect() rather than setting FTP_TLS.port, which would
-                # change the default port of every FTP_TLS connection in the process.
-                port: int = int(ftplib.FTP_PORT)
-                if params.port is not None:
-                    port = params.port
-                logger.info("Connecting via FTPS to %s:%d", params.host, port)
-                self.conn.connect(params.host, port)
-                if params.login:
-                    self.conn.login(params.login, cast("str", params.password))
-            self.conn.set_pasv(pasv)
-            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
-            self.conn.prot_p()
+                conn = ftplib.FTP_TLS(context=context)  # nosec: B321
+            try:
+                if params.host:
+                    # Pass the port to connect() rather than setting FTP_TLS.port, which would
+                    # change the default port of every FTP_TLS connection in the process.
+                    port: int = int(ftplib.FTP_PORT)
+                    if params.port is not None:
+                        port = params.port
+                    logger.info("Connecting via FTPS to %s:%d", params.host, port)
+                    conn.connect(params.host, port)
+                    if params.login:
+                        conn.login(params.login, cast("str", params.password))
+                conn.set_pasv(pasv)
+                # Without prot_p() file payloads use cleartext despite TLS on the control connection.
+                conn.prot_p()
+            except BaseException:
+                with suppress(Exception):
+                    conn.close()
+                raise
+            self.conn = conn
 
         return self.conn

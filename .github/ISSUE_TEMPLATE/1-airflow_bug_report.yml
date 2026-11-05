@@ -42,10 +42,9 @@ body:
       # yamllint disable rule:line-length
       description: >
         Enter your Airflow version.
-        **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
-        EOL on April 22, 2026 - see the
-        [Airflow 2 EOL page]
-        (https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
+        **Please note:** Airflow 2 reached end of life on April 22, 2026 and no longer gets any fixes, so please
+        check that your issue still happens on Airflow 3 before reporting it - see the
+        [supported versions page](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html)
         for more information.
         Remember, you are encouraged to test with the latest release or on the `main` branch to verify your issue still exists, especially if
         your version is at least a minor version older than the [current stable release](https://airflow.apache.org/docs/apache-airflow/stable/installation/supported-versions.html#version-life-cycle).
@@ -179,6 +178,7 @@ body:
         - microsoft-mssql
         - microsoft-psrp
         - microsoft-winrm
+        - modal
         - mongo
         - mysql
         - neo4j

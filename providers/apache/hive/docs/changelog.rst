@@ -27,6 +27,28 @@
 Changelog
 ---------
 
+.. warning::
+  The deprecated ``HiveServer2Hook.get_pandas_df`` method has been removed. Use ``get_df(..., df_type="pandas")`` instead.
+
+9.7.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
 9.7.0
 .....
 

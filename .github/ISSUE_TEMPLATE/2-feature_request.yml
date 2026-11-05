@@ -27,8 +27,7 @@ body:
         among the community and eventually conduct a successful
         [vote](https://www.apache.org/foundation/voting.html) in the community.
 
-        **Please note:** Airflow 2.x is in limited support (critical and security fixes only), and reaches
-        EOL on April 22, 2026.
+        **Please note:** Airflow 2 reached end of life on April 22, 2026, so new features only go into Airflow 3.
         For reporting security issues in any version, please **do not** use this form and refer to the [Security Reporting Guidelines](https://github.com/apache/airflow/blob/main/.github/SECURITY.md) instead.
 
         If unsure about the impact of your feature or how to formulate it - please open a [discussion](https://github.com/apache/airflow/discussions) first to gather

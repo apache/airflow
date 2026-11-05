@@ -78,7 +78,7 @@ def get_suspended_providers_folders() -> list[str]:
     """
     suspended_providers = []
     for provider_path in AIRFLOW_PROVIDERS_ROOT_PATH.rglob("provider.yaml"):
-        provider_yaml = yaml.safe_load(provider_path.read_text())
+        provider_yaml = yaml.safe_load(provider_path.read_text(encoding="utf-8"))
         if provider_yaml["state"] == "suspended":
             suspended_providers.append(provider_path.parent.resolve().as_posix())
     return suspended_providers

@@ -10,6 +10,41 @@
       "eventType": "Typ zdarzenia"
     }
   },
+  "dagBundles": {
+    "active": "Aktywna",
+    "columns": {
+      "active": "Aktywna",
+      "importErrors": "Błędy importu",
+      "lastRefreshed": "Ostatnie odświeżenie",
+      "name": "Nazwa",
+      "version": "Wersja"
+    },
+    "detail": {
+      "status": "Stan"
+    },
+    "files": {
+      "columns": {
+        "file": "Plik",
+        "lastParsed": "Ostatnia analiza",
+        "parseDuration": "Czas parsowania"
+      },
+      "importErrorGone": "Ten błąd importu nie jest już rejestrowany. Prawdopodobnie został naprawiony przez ponowne przetworzenie.",
+      "neverParsed": "Nigdy",
+      "parsedFile_few": "Przeanalizowane pliki",
+      "parsedFile_many": "Przeanalizowanych plików",
+      "parsedFile_one": "Przeanalizowany plik",
+      "parsedFile_other": "Przeanalizowane pliki",
+      "parsedFilesNote": "Wyświetlane są tylko pliki, które definiują Dag lub których import się nie powiódł.",
+      "showImportError_few": "Zobacz {{count, number}} błędy",
+      "showImportError_many": "Zobacz {{count, number}} błędów",
+      "showImportError_one": "Zobacz błąd",
+      "showImportError_other": "Zobacz {{count, number}} błędy"
+    },
+    "inactive": "Nieaktywna",
+    "neverRefreshed": "Nigdy",
+    "notRefreshedYet": "Jeszcze nieodświeżona",
+    "notVersioned": "Bez wersjonowania"
+  },
   "deadlines": {
     "columns": {
       "alertName": "Nazwa alertu",
@@ -58,6 +93,10 @@
       "successTitle": "XCom zaktualizowany",
       "title": "Edytuj XCom"
     },
+    "entry_few": "Wpisy XCom",
+    "entry_many": "Wpisów XCom",
+    "entry_one": "Wpis XCom",
+    "entry_other": "Wpisy XCom",
     "key": "Klucz",
     "title": "XCom",
     "value": "Wartość"

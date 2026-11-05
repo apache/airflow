@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf
 
@@ -122,7 +123,9 @@ class GlueCrawlerRunOperator(_GlueCrawlerBaseOperator):
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
     :param wait_for_completion: Whether to wait for crawl execution completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed.
         (default: False)
     :param fail_on_already_running: If True (default), the operator will raise an exception when
         ``start_crawler()`` encounters a ``CrawlerRunningException`` (i.e., the crawler is already
@@ -179,7 +182,7 @@ class GlueCrawlerRunOperator(_GlueCrawlerBaseOperator):
             else:
                 raise
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.defer(
                 trigger=GlueCrawlerCompleteTrigger(
                     crawler_name=self.crawler_name,
@@ -253,7 +256,9 @@ class GlueCrawlerOperator(GlueCrawlerRunOperator):
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status.
     :param wait_for_completion: Whether to wait for crawl execution completion. (default: True)
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
-        This implies waiting for completion. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        (default: False)
     :param fail_on_already_running: If True (default), raise an exception if the crawler is already running.
         If False, wait for the existing run to complete.
     :param aws_conn_id: The Airflow connection used for AWS credentials.

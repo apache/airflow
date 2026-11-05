@@ -46,11 +46,11 @@ from airflow.providers.common.ai.exceptions import (
     LLMBatchStaleStateError,
     LLMBatchStateReadError,
     LLMBatchTimeoutError,
+    UnsupportedBatchProviderError,
 )
 from airflow.providers.common.ai.operators import llm_batch as llm_batch_module
 from airflow.providers.common.ai.operators.llm_batch import LLMBatchOperator
-from airflow.providers.common.compat.sdk import TaskDeferred
-from airflow.sdk import Connection, ObjectStoragePath
+from airflow.providers.common.compat.sdk import Connection, ObjectStoragePath, TaskDeferred
 
 
 class Diagnosis(BaseModel):
@@ -258,6 +258,26 @@ class TestConstructorValidation:
             _make_operator(result_path="file:///tmp/x", **kwargs)
 
 
+class TestTemplateFields:
+    def test_template_fields(self):
+        assert set(LLMBatchOperator.template_fields) == {
+            "requests",
+            "result_path",
+            "system_prompt",
+            "model_id",
+            "llm_conn_id",
+            "request_params",
+        }
+
+    def test_request_params_values_are_rendered(self):
+        """``request_params`` is the batch counterpart of ``LLMOperator.agent_params``, so it is
+        templated the same way: the nested walk renders each string leaf and leaves it a string,
+        because the keys are provider body parameters whose types the operator does not know."""
+        op = _make_operator(result_path="file:///tmp/x", request_params={"temperature": "{{ params.temp }}"})
+        op.render_template_fields({"params": {"temp": "0.2"}})
+        assert op.request_params == {"temperature": "0.2"}
+
+
 class TestNormalizeRequests:
     def test_strings_and_dicts_are_accepted(self):
         assert LLMBatchOperator._normalize_requests(["a", {"prompt": "b", "params": {"x": 1}}]) == [
@@ -289,6 +309,85 @@ class TestModelFromConnection:
                 op.execute(ctx)
 
         assert fake_adapter.submit_calls[0]["model"] == "gpt-5-mini"
+
+    @pytest.mark.parametrize(
+        ("model_id", "extra", "expected_model_id", "expected_bare_model"),
+        [
+            pytest.param(
+                None,
+                {"model_provider": "openai-chat", "model": "gpt-5-mini"},
+                "openai-chat:gpt-5-mini",
+                "gpt-5-mini",
+                id="model-field",
+            ),
+            pytest.param(
+                "gpt-5-mini",
+                {"model_provider": "openai-chat"},
+                "openai-chat:gpt-5-mini",
+                "gpt-5-mini",
+                id="model-id",
+            ),
+            pytest.param(
+                "llama3:70b", {"model_provider": "openai"}, "openai:llama3:70b", "llama3:70b", id="name-tag"
+            ),
+            pytest.param(
+                "openai:gpt-5-mini",
+                {"model_provider": "anthropic"},
+                "openai:gpt-5-mini",
+                "gpt-5-mini",
+                id="prefixed",
+            ),
+        ],
+    )
+    def test_default_provider_qualifies_a_bare_model(
+        self, fake_adapter, result_path, model_id, extra, expected_model_id, expected_bare_model
+    ):
+        """The connection's Default Model Provider resolves a bare name here as it does on ``@task.llm``."""
+        ctx = _context()
+        with _running(fake_adapter, conn=_connection(extra=extra)):
+            op = _make_operator(result_path=result_path, deferrable=True, model_id=model_id)
+            with pytest.raises(TaskDeferred):
+                op.execute(ctx)
+
+        key, _ = LLMBatchOperator._identity(ctx)
+        record = state_module.read_state(ObjectStoragePath(result_path), key)
+        assert record is not None
+        assert record.model_id == expected_model_id
+        assert record.adapter == "openai"
+        assert fake_adapter.submit_calls[0]["model"] == expected_bare_model
+
+    def test_default_provider_qualifies_a_bare_per_request_model(self, fake_adapter, result_path):
+        requests = [{"prompt": "a", "model": "gpt-5-mini"}, {"prompt": "b"}]
+        with _running(fake_adapter, conn=_connection(extra={"model_provider": "openai-chat"})):
+            op = _make_operator(
+                result_path=result_path, deferrable=True, model_id="gpt-5-mini", requests=requests
+            )
+            with pytest.raises(TaskDeferred):
+                op.execute(_context())
+
+        submitted = fake_adapter.submit_calls[0]["requests"]
+        assert [r.get("model") for r in submitted] == ["openai-chat:gpt-5-mini", None]
+        assert requests[0]["model"] == "gpt-5-mini", "the caller's request dicts are not mutated"
+
+    def test_bare_model_without_default_provider_points_at_it(self, fake_adapter, result_path):
+        with _running(fake_adapter, conn=_connection(extra={"model": "gpt-5-mini"})):
+            op = _make_operator(result_path=result_path, deferrable=True, model_id=None)
+            with pytest.raises(
+                UnsupportedBatchProviderError, match="set the connection's Default Model Provider"
+            ):
+                op.execute(_context())
+
+    def test_vendor_connection_ignores_default_provider(self, fake_adapter, result_path):
+        """As on ``PydanticAIHook``, only the generic type reads ``extra["model_provider"]``."""
+        conn = _connection(
+            conn_type="pydanticai_azure", extra={"model_provider": "openai", "model": "gpt-5-mini"}
+        )
+        with _running(fake_adapter, conn=conn):
+            op = _make_operator(result_path=result_path, deferrable=True, model_id=None)
+            with pytest.raises(
+                UnsupportedBatchProviderError, match="must be written as '<provider>:<model>'"
+            ):
+                op.execute(_context())
 
 
 class TestReattachDoesNotResubmit:

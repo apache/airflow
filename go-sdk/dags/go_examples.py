@@ -17,12 +17,13 @@
 """
 Python stub Dags mirroring the Go SDK example bundle (``go-sdk/example/bundle``).
 
-Four Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
+Five Dags, all backed by the same Go bundle: ``simple_dag`` (extract/transform/
 load, below), ``concurrent_xcom_dag`` (one ``pull_xcoms_concurrently`` task
 timing sequential vs goroutine XCom pulls), ``taskflow_binding_dag`` (one
 task per shape of the TaskFlow argument-binding surface; see its Dag function
-below), and ``variable_write_dag`` (one ``write_and_delete_variable`` task that
-writes and deletes Airflow Variables).
+below), ``variable_write_dag`` (one ``write_and_delete_variable`` task that
+writes and deletes Airflow Variables), and ``task_state_dag`` (one
+``roundtrip_task_state`` task that round-trips the task state store).
 
 ``simple_dag`` sandwiches the Go tasks between two native Python tasks so the
 run exercises XCom across the language boundary, the same way
@@ -151,7 +152,19 @@ def via_struct_arg_tag(region_code: str, threshold: float): ...
 
 
 @task.stub(queue="golang")
-def via_struct_unmatched_arg(region_code: str, sample_rate: float = 0.1): ...
+def via_struct_default_arg(region_code: str, sample_rate: float = 0.1): ...
+
+
+# The Go struct declares only region_code, so `unused_label` is passed but not
+# declared: a warning, not a failure.
+@task.stub(queue="golang")
+def via_struct_more_args(region_code: str, unused_label: str): ...
+
+
+# The Go struct also declares `not_in_dag`, which this signature has no
+# parameter for: declared but not passed, and it keeps its Go zero value.
+@task.stub(queue="golang")
+def via_struct_fewer_args(region_code: str): ...
 
 
 @task.stub(queue="golang")
@@ -173,16 +186,18 @@ def taskflow_binding_dag():
 
     A Go task declares either flat data parameters, which bind *positionally*
     (order matters, every one must be filled), or a single struct, whose fields
-    bind by *name* like keyword arguments -- an unmatched field stays at its Go
-    zero value instead of failing the task.
+    bind by *name* like keyword arguments. Name binding tolerates a signature
+    mismatch in either direction: taking more or fewer arguments than the call
+    passes is warned about rather than failing the task.
 
     * ``via_flat_args``: every scalar literal, an array literal, keyword args,
       an unpassed ``None`` default, and XComs fanned in from two upstream tasks.
     * ``via_struct_no_tags``: fields fall back to their own Go names, matched
       case- and underscore-insensitively.
     * ``via_struct_arg_tag``: fields bind via explicit ``arg:`` tags.
-    * ``via_struct_unmatched_arg``: a Go field no argument names, and a stub
-      default no Go field claims.
+    * ``via_struct_default_arg``: a stub default no Go field claims.
+    * ``via_struct_more_args`` / ``via_struct_fewer_args``: the two ways a name-bound
+      struct and the call can disagree. Each warns and runs rather than failing.
     * ``via_flat_map`` / ``via_struct_map`` / ``via_plain_map``: one dict bound
       whole into a struct, onto a struct's map field, and into a plain Go map.
 
@@ -202,7 +217,9 @@ def taskflow_binding_dag():
     region = make_region()
     via_struct_no_tags(region_code=region, threshold=0.75)
     via_struct_arg_tag(region_code=region, threshold=0.75)
-    via_struct_unmatched_arg(region_code=region)
+    via_struct_default_arg(region_code=region)
+    via_struct_more_args(region_code=region, unused_label="ignored")
+    via_struct_fewer_args(region_code=region)
     via_flat_map(config={"region": "eu-west-1", "count": 3})
     via_struct_map(payload={"region": "eu-west-1", "count": 3})
     via_plain_map(labels={"team": "data", "tier": "gold"})
@@ -221,3 +238,15 @@ def variable_write_dag():
 
 
 variable_write_dag()
+
+
+@task.stub(queue="golang")
+def roundtrip_task_state(): ...
+
+
+@dag(dag_id="task_state_dag")
+def task_state_dag():
+    roundtrip_task_state()
+
+
+task_state_dag()

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -99,6 +99,25 @@ describe("RenderedJsonField", () => {
     const { container } = render(<RenderedJsonField collapsed content={content} />, { wrapper: Wrapper });
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it.each([
+    ["a collapsed preview", true],
+    ["the open editor", false],
+  ])("keeps the copy button out of the way in %s until hover or focus", (_label, collapsed) => {
+    // One copy button per row reads as chrome. It stays mounted rather than conditionally
+    // rendered, so it keeps its place in the tab order for a keyboard.
+    render(<RenderedJsonField collapsed={collapsed} content={{ score: 0.99 }} />, { wrapper: Wrapper });
+
+    expect(screen.getByTestId("json-clipboard-reveal")).toBeInTheDocument();
+  });
+
+  it("renders no copy button at all when the caller turns the clipboard off", () => {
+    render(<RenderedJsonField collapsed content={{ score: 0.99 }} enableClipboard={false} />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.queryByTestId("json-clipboard-reveal")).not.toBeInTheDocument();
   });
 
   it("renders the editor when the caller never collapses it", () => {
