@@ -34,12 +34,7 @@ if TYPE_CHECKING:
 
 
 class _DatabricksWarehouseBaseOperator(BaseOperator):
-    """
-    Share warehouse connection setup.
-
-    Like ``AwsBaseOperator``, keep connection setup independent of deferred execution:
-    only state-waiting operators need trigger serialization and polling parameters.
-    """
+    """Share warehouse connection setup."""
 
     template_fields: Sequence[str] = ("databricks_conn_id", "warehouse_id")
     ui_color = "#1CB1C2"
