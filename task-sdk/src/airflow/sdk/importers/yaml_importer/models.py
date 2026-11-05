@@ -30,7 +30,7 @@ import collections
 import contextlib
 import datetime
 import itertools
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple, cast
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, NamedTuple
 
 from pydantic import (
     AliasChoices,
@@ -40,6 +40,7 @@ from pydantic import (
     Field,
     RootModel,
     Tag,
+    field_validator,
     model_validator,
 )
 
@@ -142,8 +143,7 @@ class _MarkerRef(BaseModel):
         Post-process published schema for each marker key.
 
         The default publishes the field's schema as a disjoint union.
-        :class:`FileRef` overrides it to reject a templated filename in the
-        schema too.
+        :class:`FileRef` overrides it to publish a bare string.
         """
         return _as_exclusive_union(field_schema)
 
@@ -246,7 +246,7 @@ class TemplateRef(_MarkerRef):
     def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str:
         # $t over a string renders that string; $t over $f is a template file (read, then render).
         if isinstance(self.source, FileRef):
-            return ctx.read_file(cast("str", self.source.path))
+            return ctx.read_file(self.source.path)
         return self.source
 
 
@@ -265,23 +265,24 @@ class FileRef(_MarkerRef):
 
     _marker_keys = FILE_KEYS
 
-    path: str | TemplateRef = Field(serialization_alias="$f", validation_alias=AliasChoices(*FILE_KEYS))
+    path: str = Field(serialization_alias="$f", validation_alias=AliasChoices(*FILE_KEYS))
 
     @classmethod
     def _process_value_schema(cls, field_schema: JsonSchemaValue) -> JsonSchemaValue:
         return {"type": "string"}
 
-    @model_validator(mode="after")
-    def _reject_templated_filename(self) -> FileRef:
-        if isinstance(self.path, TemplateRef):
+    @field_validator("path", mode="before")
+    @classmethod
+    def _reject_templated_filename(cls, v: Any) -> Any:
+        if _value_discriminator(v) == "template":
             raise ValueError("templated filename ($f wrapping $t) is not supported yet")
-        return self
+        return v
 
     def build_marker_flags(self) -> _MarkerFlags:
         return _MarkerFlags(needs_render=False, has_marker=True)
 
     def as_operator_argument(self, ctx: _ArgumentContext, *, rendered: bool) -> str | LiteralValue:
-        return ctx.ensure_literal(ctx.read_file(cast("str", self.path)), rendered=rendered)
+        return ctx.ensure_literal(ctx.read_file(self.path), rendered=rendered)
 
 
 class ConstRef(_MarkerRef):
