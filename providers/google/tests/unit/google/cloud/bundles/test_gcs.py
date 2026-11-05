@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 import tarfile
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, call, patch
@@ -31,7 +32,7 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from tests_common.test_utils.config import conf_vars
 
 if airflow.version.version.strip().startswith("3"):
-    from airflow.providers.google.cloud.bundles.gcs import GCSDagBundle
+    from airflow.providers.google.cloud.bundles.gcs import GCSArchiveDagBundle, GCSDagBundle
 
 GCP_CONN_ID = "gcs_dags_connection"
 GCS_BUCKET_NAME = "my-airflow-dags-bucket"
@@ -286,6 +287,16 @@ class TestGCSDagBundle:
         assert mock_hook.sync_to_local_dir.call_count == 2
         assert mock_hook.sync_to_local_dir.call_args_list == [sync_call, sync_call]
 
+    def test_rejects_archive_object(self):
+        with pytest.raises(TypeError, match="archive_object"):
+            GCSDagBundle(
+                name="test",
+                gcp_conn_id=GCP_CONN_ID,
+                bucket_name=GCS_BUCKET_NAME,
+                prefix=GCS_BUCKET_PREFIX,
+                archive_object=GCS_ARCHIVE_OBJECT,
+            )
+
 
 def _archive_hook(store: dict[str, tuple[bytes, str]]) -> MagicMock:
     hook = MagicMock(spec=GCSHook)
@@ -296,15 +307,16 @@ def _archive_hook(store: dict[str, tuple[bytes, str]]) -> MagicMock:
     return hook
 
 
-class TestGCSDagBundleArchive:
+@pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
+class TestGCSArchiveDagBundle:
     @pytest.fixture(autouse=True)
     def bundle_storage_path(self, tmp_path):
         with conf_vars({("dag_processor", "dag_bundle_storage_path"): str(tmp_path)}):
             yield tmp_path
 
-    def test_archive_object_and_prefix_are_mutually_exclusive(self):
-        with pytest.raises(ValueError, match="either 'prefix' or 'archive_object', not both"):
-            GCSDagBundle(
+    def test_rejects_prefix(self):
+        with pytest.raises(TypeError, match="prefix"):
+            GCSArchiveDagBundle(
                 name="test",
                 gcp_conn_id=GCP_CONN_ID,
                 bucket_name=GCS_BUCKET_NAME,
@@ -312,13 +324,30 @@ class TestGCSDagBundleArchive:
                 archive_object=GCS_ARCHIVE_OBJECT,
             )
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    def test_supports_versioning(self):
+        bundle = GCSArchiveDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        assert GCSArchiveDagBundle.supports_versioning is False
+        bundle.version = "test_version"
+        with pytest.raises(ValueError, match="Refreshing a specific version is not supported"):
+            bundle.refresh()
+        with pytest.raises(ValueError, match="GCS url with version is not supported"):
+            bundle.view_url("test_version")
+
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_refresh_from_archive(self, mock_gcs_hook_property):
         archive = _make_archive({"dag_01.py": b"print(1)\n", "subdir/dag_02.py": b"print(2)\n"})
         store = {GCS_ARCHIVE_OBJECT: (archive, "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -332,14 +361,17 @@ class TestGCSDagBundleArchive:
         mock_gcs_hook_property.return_value.sync_to_local_dir.assert_not_called()
         mock_gcs_hook_property.return_value.list.assert_not_called()
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_refresh_from_archive_skips_unchanged_etag(self, mock_gcs_hook_property):
         archive = _make_archive({"dag_01.py": b"print(1)\n"})
         store = {GCS_ARCHIVE_OBJECT: (archive, "etag-1")}
         hook = _archive_hook(store)
         mock_gcs_hook_property.return_value = hook
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -361,13 +393,110 @@ class TestGCSDagBundleArchive:
         assert sentinel.read_text() == "keep me"
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
 
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
+    def test_initialize_restages_when_bundle_dir_cleared_and_etag_matches(self, mock_gcs_hook_property):
+        archive = _make_archive({"dag_01.py": b"print(1)\n"})
+        store = {GCS_ARCHIVE_OBJECT: (archive, "etag-1")}
+        mock_gcs_hook_property.return_value = _archive_hook(store)
+
+        bundle = GCSArchiveDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        bundle.initialize()
+        marker = bundle._archive_etag_path()
+        etag = marker.read_text()
+        assert (bundle.path / "dag_01.py").is_file()
+
+        shutil.rmtree(bundle.path)
+        assert not bundle.path.exists()
+        assert marker.is_file()
+        assert marker.read_text() == etag
+
+        with patch.object(
+            _FakeBlob,
+            "download_to_filename",
+            autospec=True,
+            side_effect=_FakeBlob.download_to_filename,
+        ) as spy:
+            bundle.initialize()
+
+        assert spy.call_count == 1
+        assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
+        assert marker.read_text() == etag
+
     @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
+    def test_prefix_refresh_drops_archive_etag_marker(self, mock_archive_hook, mock_prefix_hook):
+        archive = _make_archive({"archive_only.py": b"from archive"})
+        store = {GCS_ARCHIVE_OBJECT: (archive, "etag-1")}
+        mock_archive_hook.return_value = _archive_hook(store)
+
+        archive_bundle = GCSArchiveDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        archive_bundle.initialize()
+        marker = archive_bundle._archive_etag_path()
+        assert marker.is_file()
+        assert (archive_bundle.path / "archive_only.py").is_file()
+
+        def sync_prefix_files(**kwargs):
+            local_dir = Path(kwargs["local_dir"])
+            for child in list(local_dir.iterdir()):
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            (local_dir / "dag_01.py").write_bytes(b"from prefix")
+
+        prefix_hook = MagicMock()
+        prefix_hook.get_bucket.return_value = object()
+        prefix_hook.list.return_value = [f"{GCS_BUCKET_PREFIX}/dag_01.py"]
+        prefix_hook.sync_to_local_dir.side_effect = sync_prefix_files
+        mock_prefix_hook.return_value = prefix_hook
+
+        prefix_bundle = GCSDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            prefix=GCS_BUCKET_PREFIX,
+            bucket_name=GCS_BUCKET_NAME,
+        )
+        prefix_bundle.initialize()
+        assert not marker.exists()
+        assert (prefix_bundle.path / "dag_01.py").read_bytes() == b"from prefix"
+        assert not (prefix_bundle.path / "archive_only.py").exists()
+
+        archive_bundle = GCSArchiveDagBundle(
+            name="test",
+            gcp_conn_id=GCP_CONN_ID,
+            bucket_name=GCS_BUCKET_NAME,
+            archive_object=GCS_ARCHIVE_OBJECT,
+        )
+        archive_bundle.initialize()
+        assert (archive_bundle.path / "archive_only.py").read_bytes() == b"from archive"
+        assert not (archive_bundle.path / "dag_01.py").exists()
+
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_empty_etag_always_restages(self, mock_gcs_hook_property):
         archive = _make_archive({"dag_01.py": b"print(1)\n"})
         store = {GCS_ARCHIVE_OBJECT: (archive, "")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -387,12 +516,15 @@ class TestGCSDagBundleArchive:
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert not bundle._archive_etag_path().exists()
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_refresh_from_archive_replaces_tree_when_etag_changes(self, mock_gcs_hook_property):
         store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -409,11 +541,14 @@ class TestGCSDagBundleArchive:
         assert (bundle.path / "dag_02.py").read_bytes() == b"print(2)\n"
         assert bundle._archive_etag_path().read_text() == "etag-2"
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_initialize_missing_archive_raises(self, mock_gcs_hook_property):
         mock_gcs_hook_property.return_value = _archive_hook({})
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -423,12 +558,15 @@ class TestGCSDagBundleArchive:
             bundle.initialize()
         mock_gcs_hook_property.return_value.sync_to_local_dir.assert_not_called()
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_generation_mismatch_keeps_previous_tree(self, mock_gcs_hook_property):
         store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -451,12 +589,15 @@ class TestGCSDagBundleArchive:
         assert not (bundle.path / "dag_02.py").exists()
         assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_corrupt_archive_keeps_previous_tree(self, mock_gcs_hook_property):
         store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -471,12 +612,15 @@ class TestGCSDagBundleArchive:
         assert (bundle.path / "dag_01.py").read_bytes() == b"print(1)\n"
         assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_failed_swap_restores_previous_tree(self, mock_gcs_hook_property):
         store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"print(1)\n"}), "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
 
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -502,11 +646,14 @@ class TestGCSDagBundleArchive:
         assert not (bundle.path / "dag_02.py").exists()
         assert list(bundle._archive_state_dir().glob("archive-staging-*")) == []
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_refresh_removes_only_this_bundles_stale_staging_dir(self, mock_gcs_hook_property):
         archive = _make_archive({"dag_01.py": b"print(1)\n"})
         mock_gcs_hook_property.return_value = _archive_hook({GCS_ARCHIVE_OBJECT: (archive, "etag-1")})
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -530,11 +677,14 @@ class TestGCSDagBundleArchive:
         assert collided.is_dir()
         assert other.is_dir()
 
-    @patch("airflow.providers.google.cloud.bundles.gcs.GCSDagBundle.gcs_hook", new_callable=PropertyMock)
+    @patch(
+        "airflow.providers.google.cloud.bundles.gcs.GCSArchiveDagBundle.gcs_hook",
+        new_callable=PropertyMock,
+    )
     def test_refresh_rejects_archive_member_that_escapes_bundle(self, mock_gcs_hook_property):
         store = {GCS_ARCHIVE_OBJECT: (_make_archive({"dag_01.py": b"kept"}), "etag-1")}
         mock_gcs_hook_property.return_value = _archive_hook(store)
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
@@ -552,7 +702,7 @@ class TestGCSDagBundleArchive:
     def test_archive_object_requires_tar_data_filter(self, monkeypatch):
         monkeypatch.delattr(tarfile, "data_filter", raising=False)
         with pytest.raises(RuntimeError, match="3.11.4"):
-            GCSDagBundle(
+            GCSArchiveDagBundle(
                 name="test",
                 gcp_conn_id=GCP_CONN_ID,
                 bucket_name=GCS_BUCKET_NAME,
@@ -560,7 +710,7 @@ class TestGCSDagBundleArchive:
             )
 
     def test_view_url_template_points_at_archive(self):
-        bundle = GCSDagBundle(
+        bundle = GCSArchiveDagBundle(
             name="test",
             gcp_conn_id=GCP_CONN_ID,
             bucket_name=GCS_BUCKET_NAME,
