@@ -23,6 +23,7 @@
     "received": "תגובה התקבלה ב",
     "respond": "הגב",
     "responded_by_user_name": "נענה על ידי (שם משתמש)",
+    "selectAtLeastOne": "בחר לפחות אפשרות אחת",
     "success": "התגובה של {{taskId}} הצליחה",
     "title": "מופע משימה ידנית - {{taskId}}"
   },
