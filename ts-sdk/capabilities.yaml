@@ -151,7 +151,10 @@ capabilities:
     sdk_version: "1.0.0"
     note: "dag.taskGroup"
   task-loops:
-    supported: false
+    supported: true
+    since: "3.5.0"
+    sdk_version: "1.0.0"
+    note: "taskGroup(...).loop"
   if-else-branching:
     supported: true
     since: "3.4.0"

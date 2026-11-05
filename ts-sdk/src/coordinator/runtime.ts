@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
+import { createCoordinatorClient, RETURN_VALUE_KEY, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -54,14 +54,30 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
+import type {
+  LoopContext as WireLoopContext,
+  LoopDecisionPayload,
+} from "../generated/supervisor.js";
+import { createLoopSource, toLoopDecisionPayload } from "./loop-context.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk/bundle.js";
-import { finalizeDag } from "../sdk/dag.js";
+import {
+  bundleDags,
+  bundleDagTaskIds,
+  BundleTaskKind,
+  getBundleTask,
+  type Bundle,
+} from "../sdk/bundle.js";
+import { findTaskLoop, finalizeDag, type Dag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
 import { buildOperatorContext, runOperator } from "./operator-runner.js";
 import type { OperatorOutcome } from "../sdk/operator.js";
-import { runInTaskScope, type TaskContext, type TaskFunction } from "../sdk/task.js";
+import {
+  runInTaskScope,
+  type TaskContext,
+  type TaskFunction,
+  type TaskScope,
+} from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -366,8 +382,17 @@ async function handleTask(
 
   const ctx = buildContext(details, signal);
   const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
-  if (task.kind === "handler") {
-    return runHandler(details, task.fn, ctx, client, logs);
+  const loop = details.ti_context.loop;
+  const scope: TaskScope = {
+    ctx,
+    client,
+    ...(loop != null && { loop: createLoopSource(loop, client) }),
+  };
+  if (task.kind === BundleTaskKind.HANDLER) {
+    return runHandler(details, task.fn, scope, client, logs, readsAsSequence(task.dag, ti.task_id));
+  }
+  if (task.kind === BundleTaskKind.LOOP_GATE) {
+    return runLoopGate(details, task, scope, client, logs, readsAsSequence(task.dag, ti.task_id));
   }
 
   // How an operator ends the task as a failure: log the reason, then report the task
@@ -379,7 +404,7 @@ async function handleTask(
   };
   try {
     switch (task.kind) {
-      case "operator":
+      case BundleTaskKind.OPERATOR:
         return await runOperator(
           task.operator,
           buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
@@ -390,31 +415,142 @@ async function handleTask(
   }
 }
 
-/** Run the author's handler: bind its arguments, call it, push what it returns. */
-async function runHandler(
+/**
+ * Which upstream outputs task `taskId` reads as an `XComSequence`: those of a task in a loop that
+ * `taskId` is outside of, which ran once per iteration. Python resolves the same reference the same
+ * way, by where the reader sits. Absent for a Python Dag's task, whose graph this bundle does not
+ * hold.
+ */
+function readsAsSequence(
+  dag: Dag | undefined,
+  taskId: string,
+): ((upstream: string) => boolean) | undefined {
+  if (dag === undefined) return undefined;
+  const own = findTaskLoop(dag, taskId)?.groupId;
+  return (upstream) => {
+    const loop = findTaskLoop(dag, upstream);
+    return loop !== undefined && loop.groupId !== own;
+  };
+}
+
+/** Bind a handler's arguments, or the failure to report when they cannot be bound. */
+async function bindArgs(
   details: StartupDetails,
   handler: TaskFunction,
-  ctx: TaskContext,
+  scope: TaskScope,
   client: CoordinatorClient,
   logs: LogChannel,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
-  let bound: BoundArgs;
+  sequenceReads?: (taskId: string) => boolean,
+): Promise<BoundArgs | RuntimeRetryTask | RuntimeTaskState> {
   try {
-    bound = await resolveArgs(details.ti_context?.arg_bindings, {
+    return await resolveArgs(details.ti_context?.arg_bindings, {
       client,
-      signal: ctx.signal,
+      signal: scope.ctx.signal,
       logs,
       argNames: getArgNames(handler),
+      ...(sequenceReads && { readsAsSequence: sequenceReads }),
     });
   } catch (err) {
     // Before the handler ran, so nothing it might have written is at stake.
     const message = (err as Error).message ?? String(err);
     logs.error("Cannot bind this task's call arguments", {
-      task_id: ctx.taskId,
+      task_id: scope.ctx.taskId,
       error: message,
     });
     return buildFailureResponse(details, message);
   }
+}
+
+/**
+ * Run a loop's gate: decide whether another iteration follows, and send core the decision.
+ *
+ * The gate pushes no return value. Core validates the decision, rejecting a `stop` of false at the
+ * last iteration, and creates the next iteration in the same transaction (ADR-0017 decision 5).
+ */
+async function runLoopGate(
+  details: StartupDetails,
+  gate: { readonly fn: TaskFunction; readonly hasUntil: boolean },
+  scope: TaskScope,
+  client: CoordinatorClient,
+  logs: LogChannel,
+  sequenceReads?: (taskId: string) => boolean,
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
+  const { ctx } = scope;
+  const loop = details.ti_context.loop;
+  if (loop == null) {
+    const message =
+      `Task "${ctx.taskId}" is the gate of a loop, but Airflow ran it with no loop context; ` +
+      "the Dag version it ran against does not declare the loop";
+    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+    return buildFailureResponse(details, message, { retry: false });
+  }
+  // A fixed-count loop stops at its bound and nowhere else.
+  if (!gate.hasUntil) {
+    return succeedGate(loop, { stop: loop.index >= loop.max_iterations }, ctx.taskId, logs);
+  }
+  const bound = await bindArgs(details, gate.fn, scope, client, logs, sequenceReads);
+  if (!("args" in bound)) return bound;
+  let returned: unknown;
+  try {
+    returned = await runInTaskScope(scope, () => gate.fn(bound.args as never));
+  } catch (err) {
+    const message = (err as Error).message ?? String(err);
+    logs.error("Task failed", {
+      task_id: ctx.taskId,
+      error: message,
+      stack: (err as Error).stack ?? null,
+      bound_args: bound.names,
+    });
+    return buildFailureResponse(details, message);
+  }
+  let decision: LoopDecisionPayload;
+  try {
+    decision = toLoopDecisionPayload(returned);
+  } catch (err) {
+    // The handler would return the same value again, so a retry cannot help, as Python's
+    // AirflowFailException for a malformed LoopDecision has it.
+    const message = (err as Error).message;
+    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+    return buildFailureResponse(details, message, { retry: false });
+  }
+  return succeedGate(loop, decision, ctx.taskId, logs);
+}
+
+/** Log a gate's decision and send it to core on the gate's success. */
+function succeedGate(
+  loop: WireLoopContext,
+  decision: LoopDecisionPayload,
+  taskId: string,
+  logs: LogChannel,
+): RuntimeSucceedTask {
+  // The reason is left out: this runtime cannot redact it, and the supervisor masks it on its way
+  // to the UI, where it is shown next to the iteration.
+  logs.info(`Loop iteration ${loop.index}: ${decision.stop ? "stop" : "continue"}`, {
+    task_id: taskId,
+    index: loop.index,
+    max_iterations: loop.max_iterations,
+  });
+  return {
+    type: "SucceedTask",
+    end_date: new Date().toISOString(),
+    task_outlets: [],
+    outlet_events: [],
+    loop_decision: decision,
+  };
+}
+
+/** Run the author's handler: bind its arguments, call it, push what it returns. */
+async function runHandler(
+  details: StartupDetails,
+  handler: TaskFunction,
+  scope: TaskScope,
+  client: CoordinatorClient,
+  logs: LogChannel,
+  sequenceReads?: (taskId: string) => boolean,
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
+  const { ctx } = scope;
+  const bound = await bindArgs(details, handler, scope, client, logs, sequenceReads);
+  if (!("args" in bound)) return bound;
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
   logs.debug("Dispatching to handler", { task_id: ctx.taskId, bound_args: bound.names });
@@ -423,9 +559,9 @@ async function runHandler(
     // The scope is installed around the call, not awaited inside it: the store
     // follows the handler across every `await` it makes, so `getContext()` and
     // `getClient()` work at any depth without the handler being handed either.
-    const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
+    const result = await runInTaskScope(scope, () => handler(bound.args as never));
     if (result !== undefined) {
-      await client.setXCom({ key: "return_value", value: result as JsonValue });
+      await client.setXCom({ key: RETURN_VALUE_KEY, value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists, since the Execution API's TISuccessStatePayload
@@ -473,9 +609,10 @@ async function sendSupervisorResponse(
 function buildFailureResponse(
   details: StartupDetails,
   message: string,
+  { retry = true }: { readonly retry?: boolean } = {},
 ): RuntimeRetryTask | RuntimeTaskState {
   const endDate = new Date().toISOString();
-  if (details.ti_context.should_retry) {
+  if (retry && details.ti_context.should_retry) {
     return {
       type: "RetryTask",
       end_date: endDate,

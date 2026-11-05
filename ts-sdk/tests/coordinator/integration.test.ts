@@ -42,6 +42,9 @@ import { Bundle } from "../../src/sdk/bundle.js";
 import { withArgNames } from "../../src/sdk/arg-names.js";
 import { TaskHandler } from "../../src/sdk/task-handler.js";
 import { getClient, getContext } from "../../src/sdk/task.js";
+import { getLoop, type LoopContext } from "../../src/sdk/loop.js";
+import type { XComSequence } from "../../src/sdk/xcom-sequence.js";
+import { LazyXComSequence } from "../../src/coordinator/xcom-sequence.js";
 
 /** The arguments `py_dag.bound`'s Python call site passes, as its handler
  *  spells them. Folding absorbs the snake_case on the wire. */
@@ -1858,6 +1861,418 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(resumed, "SetXCom")[0]).toMatchObject({
         value: { chosenOptions: ["Approve"], paramsInput: { amount: 80 } },
       });
+    });
+  });
+
+  describe("task loops", () => {
+    type Metrics = { estimate: number; error: number };
+
+    /** `TIRunContext.loop` as the API server sends it, for iteration `index` of `refine`. */
+    function loopContext(index: number, overrides: Record<string, unknown> = {}) {
+      return {
+        node_id: "refine",
+        index,
+        max_iterations: 3,
+        terminal_task_id: "refine.evaluate",
+        terminal_is_mapped: false,
+        region_id: "0192f0c0-0000-7000-8000-000000000001",
+        trajectory: 0,
+        ...overrides,
+      };
+    }
+
+    /** ADR-0003's example, with the handlers observed through `seen`. */
+    function declareRefine(seen: { loop?: LoopContext; history?: XComSequence<Metrics> }) {
+      const refine = testDag.taskGroup("refine");
+      const improve = refine.task(async function improve(): Promise<number> {
+        seen.loop = await getLoop();
+        const estimate = seen.loop.getPrevious<Metrics>()?.estimate ?? 1.0;
+        return (estimate + 2.0 / estimate) / 2.0;
+      });
+      const evaluate = refine.task(async function evaluate({
+        estimate,
+      }: {
+        estimate: number;
+      }): Promise<Metrics> {
+        return { estimate, error: Math.abs(estimate * estimate - 2) };
+      });
+      async function accurateEnough({ result }: { result: Metrics }) {
+        seen.loop = await getLoop();
+        return { stop: result.error < 1e-3, reason: `error ${result.error.toExponential(1)}` };
+      }
+      const report = testDag.task(async function report({
+        history,
+      }: {
+        history: XComSequence<Metrics>;
+      }) {
+        seen.history = history;
+        const last = await history.at(-1);
+        return { iterations: await history.length(), last, all: await history.slice() };
+      });
+      const evaluated = evaluate({ estimate: improve() });
+      refine.loop(accurateEnough, { result: evaluated }, { maxIterations: 3 });
+      report({ history: evaluated });
+    }
+
+    it("hands a body task its iteration and the previous terminal result", async () => {
+      const seen: { loop?: LoopContext } = {};
+      declareRefine(seen);
+      const responder: Responder = (msgType, body) =>
+        msgType === "GetXCom"
+          ? {
+              body: { type: "XComResult", key: body["key"], value: { estimate: 1.5, error: 0.25 } },
+            }
+          : { body: null };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("refine.improve", "test_dag", "r1", { loop: loopContext(2) }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(seen.loop).toMatchObject({ index: 2, maxIterations: 3 });
+      expect(seen.loop!.previous).toEqual({ estimate: 1.5, error: 0.25 });
+      // The previous iteration is the existing call with previous_iteration set, of the terminal.
+      expect(requestsOf(result, "GetXCom")).toEqual([
+        expect.objectContaining({
+          task_id: "refine.evaluate",
+          key: "return_value",
+          map_index: null,
+          previous_iteration: true,
+        }),
+      ]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ value: (1.5 + 2 / 1.5) / 2 });
+    });
+
+    it("reads nothing for the previous result of the first iteration", async () => {
+      const seen: { loop?: LoopContext } = {};
+      declareRefine(seen);
+
+      const result = await driveSupervisor(
+        makeStartupDetails("refine.improve", "test_dag", "r1", { loop: loopContext(1) }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(seen.loop!.previous).toBeNull();
+      expect(requestsOf(result, "GetXCom")).toEqual([]);
+    });
+
+    it("reads a mapped terminal's previous result as a sequence", async () => {
+      let previous: unknown;
+      const group = testDag.taskGroup("refine");
+      group.task(async function evaluate() {
+        previous = (await getLoop()).previous;
+        return (await getLoop()).getPrevious<XComSequence<number>>()!.length();
+      })();
+      group.loop({ maxIterations: 3 });
+      const responder: Responder = (msgType) =>
+        msgType === "GetXComCount"
+          ? { body: { type: "XComCountResponse", len: 4 } }
+          : { body: null };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("refine.evaluate", "test_dag", "r1", {
+          loop: loopContext(2, { terminal_is_mapped: true }),
+        }),
+        responder,
+      );
+
+      expect(previous).toBeInstanceOf(LazyXComSequence);
+      expect(requestsOf(result, "GetXCom")).toEqual([]);
+      expect(requestsOf(result, "GetXComCount")).toEqual([
+        expect.objectContaining({ task_id: "refine.evaluate", previous_iteration: true }),
+      ]);
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ value: 4 });
+    });
+
+    it("sends the gate's decision on SucceedTask and pushes no return value", async () => {
+      const seen: { loop?: LoopContext } = {};
+      declareRefine(seen);
+      const responder: Responder = (msgType, body) =>
+        msgType === "GetXCom"
+          ? {
+              body: { type: "XComResult", key: body["key"], value: { estimate: 1.4, error: 0.04 } },
+            }
+          : { body: null };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("refine.accurateEnough", "test_dag", "r1", {
+          loop: loopContext(1),
+          arg_bindings: [{ name: "result", kind: "xcom", task_id: "refine.evaluate" }],
+        }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "SucceedTask",
+        loop_decision: { stop: false, reason: "error 4.0e-2" },
+      });
+      // Inside the loop the terminal reads as this iteration's one value.
+      expect(requestsOf(result, "GetXCom")[0]).toMatchObject({ task_id: "refine.evaluate" });
+      expect(requestsOf(result, "GetXCom")[0]).not.toHaveProperty("previous_iteration");
+      expect(requestsOf(result, "SetXCom")).toEqual([]);
+      expect(seen.loop).toMatchObject({ index: 1 });
+      // The runtime cannot redact the reason, so it leaves it to the supervisor rather than log it.
+      const logged = result.logRecords.find(
+        (r) => r["event"] === "[ts-sdk.runtime] Loop iteration 1: continue",
+      );
+      expect(logged).toMatchObject({ index: 1, max_iterations: 3 });
+      expect(JSON.stringify(logged)).not.toContain("error 4.0e-2");
+    });
+
+    it.each([
+      [1, false],
+      [3, true],
+    ])("stops a fixed-count loop at its bound, at iteration %i: stop %s", async (index, stop) => {
+      const poll = testDag.taskGroup("poll");
+      poll.task("check", async () => true)();
+      poll.loop({ maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("poll.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(index, { node_id: "poll", terminal_task_id: "poll.check" }),
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "SucceedTask",
+        loop_decision: { stop },
+      });
+      expect(result.firstResponse!.body).not.toHaveProperty("loop_decision.reason");
+      expect(result.runtimeRequests).toEqual([]);
+    });
+
+    it("passes a decision to continue at the bound on, for core to reject", async () => {
+      const group = testDag.taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      group.loop(async () => false, { value: leaf } as never, { maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(3, { node_id: "g", terminal_task_id: "g.leaf" }),
+          arg_bindings: [{ name: "value", kind: "literal", value: 1 }],
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "SucceedTask",
+        loop_decision: { stop: false },
+      });
+    });
+
+    it.each([
+      ["a number", 1, /returns a boolean or \{ stop, reason \}, not the number 1/],
+      [
+        "a non-boolean stop",
+        { stop: "yes" },
+        /stop of a loop decision is a boolean, not the string/,
+      ],
+      ["a non-string reason", { stop: true, reason: 3 }, /reason of a loop decision is a string/],
+      ["a NUL", { stop: true, reason: "a\u0000b" }, /cannot hold a NUL character or a lone/],
+      ["too many bytes", { stop: true, reason: "é".repeat(257) }, /at most 512 bytes .* not 514/],
+      ["too many characters", { stop: true, reason: "a".repeat(513) }, /not more than 512$/],
+      ["a lone surrogate", { stop: true, reason: "\uD800" }, /or a lone surrogate/],
+    ])("fails the gate without a retry for %s", async (_label, returned, message) => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop(async () => returned as never, {}, { maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+          should_retry: true,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      const failure = result.logRecords.find((r) => r["event"] === "[ts-sdk.runtime] Task failed");
+      expect(String(failure?.["error"])).toMatch(message);
+    });
+
+    it("treats a bare boolean and an empty reason as a decision with no reason", async () => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop(async () => ({ stop: true, reason: "" }), {}, { maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+        }),
+      );
+
+      expect((result.firstResponse!.body as Record<string, unknown>)["loop_decision"]).toEqual({
+        stop: true,
+      });
+    });
+
+    it("retries a gate whose until handler throws, as any task", async () => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop(
+        async () => {
+          throw new Error("cannot decide");
+        },
+        {},
+        { maxIterations: 3 },
+      );
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+          should_retry: true,
+        }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "RetryTask",
+        retry_reason: "cannot decide",
+      });
+    });
+
+    it("fails a gate Airflow ran with no loop context, without a retry", async () => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop({ maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", { should_retry: true }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    });
+
+    it("hands a gate every iteration of a task in another loop", async () => {
+      let seen: number | undefined;
+      const first = testDag.taskGroup("first");
+      const produced = first.task("produce", async (): Promise<number> => 1)();
+      first.loop({ maxIterations: 2 });
+      const second = testDag.taskGroup("second");
+      second.task("work", async () => 1)();
+      second.loop(
+        async ({ history }: { history: XComSequence<number> }) => {
+          seen = await history.length();
+          return true;
+        },
+        { history: produced as never },
+        { maxIterations: 2 },
+      );
+      const responder: Responder = (msgType) =>
+        msgType === "GetXComCount"
+          ? { body: { type: "XComCountResponse", len: 2 } }
+          : { body: null };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("second.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "second", terminal_task_id: "second.work" }),
+          arg_bindings: [{ name: "history", kind: "xcom", task_id: "first.produce" }],
+        }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({
+        type: "SucceedTask",
+        loop_decision: { stop: true },
+      });
+      expect(seen).toBe(2);
+      expect(requestsOf(result, "GetXCom")).toEqual([]);
+    });
+
+    it("hands a task outside the loop every iteration of a body task, read on demand", async () => {
+      const seen: { history?: XComSequence<Metrics> } = {};
+      declareRefine(seen);
+      const values = [
+        { estimate: 1.5, error: 0.25 },
+        { estimate: 1.4167, error: 0.007 },
+      ];
+      const responder: Responder = (msgType, body) => {
+        if (msgType === "GetXComCount") return { body: { type: "XComCountResponse", len: 2 } };
+        if (msgType === "GetXComSequenceItem") {
+          const offset = body["offset"] as number;
+          return {
+            body: { type: "XComSequenceIndexResult", root: values.at(offset) },
+          };
+        }
+        if (msgType === "GetXComSequenceSlice") {
+          return { body: { type: "XComSequenceSliceResult", root: values } };
+        }
+        return { body: null };
+      };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("report", "test_dag", "r1", {
+          arg_bindings: [{ name: "history", kind: "xcom", task_id: "refine.evaluate" }],
+        }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({
+        value: { iterations: 2, last: values[1], all: values },
+      });
+      // A plain GetXCom of a loop task from outside the loop is refused by the server.
+      expect(requestsOf(result, "GetXCom")).toEqual([]);
+      expect(requestsOf(result, "GetXComCount")).toEqual([
+        expect.objectContaining({
+          task_id: "refine.evaluate",
+          key: "return_value",
+          previous_iteration: false,
+        }),
+      ]);
+      expect(requestsOf(result, "GetXComSequenceItem")[0]).toMatchObject({ offset: -1 });
+      expect(requestsOf(result, "GetXComSequenceSlice")[0]).toMatchObject({
+        start: null,
+        stop: null,
+        step: null,
+      });
+    });
+
+    it("iterates a sequence, and reports an index past its end", async () => {
+      const seen: { history?: XComSequence<number> } = {};
+      const group = testDag.taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      group.loop({ maxIterations: 2 });
+      testDag.task("collect", async ({ all }: { all: XComSequence<number> }) => {
+        seen.history = all;
+        const read: number[] = [];
+        for await (const value of all) read.push(value);
+        await expect(all.at(5)).rejects.toThrow(/has no value at index 5/);
+        await expect(all.at(0.5)).rejects.toThrow(RangeError);
+        await expect(all.slice(0.5)).rejects.toThrow(RangeError);
+        return read;
+      })({ all: leaf });
+      const responder: Responder = (msgType, body) => {
+        if (msgType === "GetXComCount") return { body: { type: "XComCountResponse", len: 2 } };
+        if (msgType === "GetXComSequenceItem") {
+          const offset = body["offset"] as number;
+          return offset < 2
+            ? { body: { type: "XComSequenceIndexResult", root: offset * 10 } }
+            : { body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND", detail: { offset } } };
+        }
+        return { body: null };
+      };
+
+      const result = await driveSupervisor(
+        makeStartupDetails("collect", "test_dag", "r1", {
+          arg_bindings: [{ name: "all", kind: "xcom", task_id: "g.leaf" }],
+        }),
+        responder,
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "SucceedTask" });
+      expect(requestsOf(result, "SetXCom")[0]).toMatchObject({ value: [0, 10] });
+      // The length is asked for once however often the sequence is read.
+      expect(requestsOf(result, "GetXComCount")).toHaveLength(1);
+    });
+
+    it("throws from getLoop() in a task outside any loop", async () => {
+      let error: unknown;
+      testDag.task("plain", async () => {
+        error = await getLoop().catch((err: unknown) => err);
+      })();
+
+      await driveSupervisor(makeStartupDetails("plain"));
+
+      expect(String(error)).toMatch(/task "plain" of Dag "test_dag", which is not in a loop/);
     });
   });
 });
