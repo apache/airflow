@@ -217,15 +217,24 @@ class DatabricksEditWarehouseOperator(BaseOperator):
     waiting for the warehouse to reach a particular state. Use
     :class:`DatabricksStartWarehouseOperator` to start the warehouse and wait for ``RUNNING``.
 
-    :param warehouse_id: ID of the Databricks SQL warehouse. (templated)
-    :param json: Non-empty request body for the SQL Warehouses edit API, for example
+    :param warehouse_id: Required ID of the Databricks SQL warehouse. Has no default. (templated)
+    :param json: Required, non-empty dictionary containing the SQL Warehouses edit API request body,
+        with no default. Requiring at least one setting is an operator validation. For example,
         ``{"cluster_size": "Small", "auto_stop_mins": 10}``. Values are sent as provided;
-        use native template rendering for numeric or boolean Jinja expressions. (templated)
+        no warehouse configuration defaults are added. Use native template rendering for numeric
+        or boolean Jinja expressions. (templated)
     :param databricks_conn_id: Reference to the Databricks connection.
         Defaults to ``databricks_default``. (templated)
-    :param databricks_retry_limit: Number of attempts for retryable Databricks requests. Defaults to 3.
-    :param databricks_retry_delay: Initial wait in seconds between retryable attempts. Defaults to 1.
-    :param databricks_retry_args: Additional arguments for ``tenacity.Retrying``. Defaults to ``None``.
+    :param databricks_retry_limit: Maximum number of attempts, including the initial request, under
+        the default retry strategy. Must be at least 1. Defaults to 3.
+    :param databricks_retry_delay: Minimum wait in seconds between retryable attempts under the default
+        exponential backoff strategy, capped at ``2 ** databricks_retry_limit`` seconds. Defaults to 1.
+    :param databricks_retry_args: Custom arguments for ``tenacity.Retrying``. Defaults to ``None``.
+        ``None`` or an empty dictionary selects the hook's default strategy. A non-empty dictionary
+        replaces its retry configuration, including the default stop and wait settings; the hook
+        retains its retryable-error predicate and error-logging callback.
+
+    Returns ``None`` after the edit request succeeds and produces no ``return_value`` XCom.
     """
 
     template_fields: Sequence[str] = ("databricks_conn_id", "warehouse_id", "json")
