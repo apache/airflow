@@ -57,6 +57,13 @@ interface DagCase {
   readonly groups?: readonly string[];
   readonly tasks: readonly TaskCase[];
   readonly order_edges?: readonly (readonly [string, string, string?])[];
+  readonly loops?: readonly LoopCase[];
+}
+
+interface LoopCase {
+  readonly group: string;
+  readonly max_iterations: number;
+  readonly until?: string;
 }
 
 // A duration is already a number of seconds in this SDK's authoring API.
@@ -132,6 +139,17 @@ function buildDag(dagCase: DagCase): Dag {
       inputs[`from_${upstream}`] = ref;
     }
     refs.set(qualifiedTaskId(task), factories.get(qualifiedTaskId(task))!(inputs));
+  }
+  // After the upstream edges and before the order-only ones, as test_dags.yaml says.
+  for (const loop of dagCase.loops ?? []) {
+    const group = groups.get(loop.group)!;
+    if (loop.until === undefined) {
+      group.loop({ maxIterations: loop.max_iterations });
+    } else {
+      // The gate is named after its handler.
+      const until = Object.defineProperty(async () => true, "name", { value: loop.until });
+      group.loop(until, {}, { maxIterations: loop.max_iterations });
+    }
   }
   for (const [upstream, downstream, text] of dagCase.order_edges ?? []) {
     const from = groups.get(upstream) ?? refs.get(upstream);
