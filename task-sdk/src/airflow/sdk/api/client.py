@@ -646,11 +646,18 @@ class XComOperations:
         include_prior_dates: bool = False,
         *,
         previous_iteration: bool = False,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> XComResponse:
         """Get a XCom value from the API server."""
         params: dict[str, str | int] = {}
         if previous_iteration:
             params["previous_iteration"] = True
+        # Sent only when set, so a read without them works with servers older than the parameters.
+        if region_id is not None:
+            params["region_id"] = str(region_id)
+        if region_index is not None:
+            params["region_index"] = region_index
         if map_index is not None and map_index >= 0:
             params.update({"map_index": map_index})
         if include_prior_dates:
