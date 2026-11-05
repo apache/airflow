@@ -4781,6 +4781,36 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_to_failed_when_fail_fast_raises(self, client, session, dag_maker):
+        with dag_maker(dag_id="test_dag_fail_fast_raises", fail_fast=True, serialized=True):
+            EmptyOperator(task_id="task1")
+            EmptyOperator(task_id="task2")
+
+        dr = dag_maker.create_dagrun()
+        ti1 = dr.get_task_instance(task_id="task1", session=session)
+        ti1.state = State.RUNNING
+        ti1.start_date = DEFAULT_START_DATE
+        session.commit()
+
+        with mock.patch(
+            "airflow.api_fastapi.execution_api.routes.task_instances._stop_remaining_tasks",
+            autospec=True,
+            side_effect=KeyError("task2"),
+        ) as mock_stop:
+            response = client.patch(
+                f"/execution/task-instances/{ti1.id}/state",
+                json={
+                    "state": TerminalTIState.FAILED,
+                    "end_date": DEFAULT_END_DATE.isoformat(),
+                },
+            )
+
+        assert response.status_code == 204
+        assert mock_stop.call_count == 2
+        session.expire_all()
+        ti1 = session.get(TaskInstance, ti1.id)
+        assert ti1.state == State.FAILED
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
