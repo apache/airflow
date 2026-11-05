@@ -3528,8 +3528,9 @@ dag_processor:
         Processors do not heartbeat while initializing, refreshing,
         or listing a single bundle, so set this above the longest of those operations; the local
         health check must also tolerate them, through ``health_check_threshold`` and the probe's
-        failure budget. It also bounds how long a processor retries preparing the bundle
-        version of a claimed callback before acknowledging it without running it.
+        failure budget. It also bounds how long a processor retries a claimed callback that has not
+        run, because its bundle version could not be prepared or because an Execution API request
+        failed and its Dag or task did not load, before acknowledging it without running it.
         A callback that ran before its acknowledgment was recorded can run again after the Job
         times out or is replaced, repeating its side effects. Callbacks should tolerate repeated execution.
         The API server validates this value against ``health_check_threshold``, the scheduler reads
