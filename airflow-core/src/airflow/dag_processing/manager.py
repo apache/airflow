@@ -1445,7 +1445,9 @@ class DagFileProcessorManager(LoggingMixin):
                             failed_sources=sorted(discovery.failed_sources),
                         )
                     except ValidationError:
-                        # Handled like a failed listing, so the API never sees a partial inventory.
+                        # Unlike a failed listing, a retry cannot fix an inventory the API cannot accept, so
+                        # the bundle releases its claimed work. Dropping the invalid entries would publish a
+                        # partial inventory.
                         self.log.exception("Bundle %s has a listing the API cannot accept", bundle.name)
                         self._defer_unusable_bundle_inventory(bundle.name)
                         continue
@@ -2269,10 +2271,10 @@ class DagFileProcessorManager(LoggingMixin):
             processor.close()
 
     def _finish_callback_attempt(self, processor: BaseDagFileProcessorProcess) -> None:
-        if processor.api_request_error is None:
+        # Running a callback again repeats its side effects, so retry only a process that ran none of them.
+        if processor.api_request_error is None or not processor.callback_targets_missing:
             self.work_source.attempt_finished(processor.id, had_callbacks=True)
             return
-        # Acknowledging confirms delivery to user code, but the Dag may not have loaded without the API.
         self.log.warning(
             "Retrying callbacks after an Execution API request failed",
             file=processor.dag_file_rel_path,
@@ -2825,12 +2827,8 @@ class DagFileProcessorManager(LoggingMixin):
         if self.work_source.requires_acknowledgment:
             for processor in self._processors.values():
                 # The shutdown signal can also reach children through the process group, so only a clean
-                # exit without an API failure shows that a callback finished; others are delivered again.
-                if (
-                    processor.had_callbacks
-                    and processor.exited_cleanly
-                    and processor.api_request_error is None
-                ):
+                # exit shows that a callback finished; a stopped callback is delivered again.
+                if processor.had_callbacks and processor.exited_cleanly:
                     self.work_source.attempt_finished(processor.id, had_callbacks=True)
         bundle_to_team = self._get_team_names({file.bundle_name for file in self._processors})
 

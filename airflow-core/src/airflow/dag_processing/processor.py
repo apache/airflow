@@ -104,6 +104,9 @@ if TYPE_CHECKING:
     from airflow.sdk.execution_time.supervisor import RequestHandler, RequestResult, ResponseSent
     from airflow.typing_compat import Self
 
+_CALLBACK_TARGETS_MISSING_EXIT_CODE = 75
+"""Exit status of a callback process that ran no callback because none of their Dags or tasks loaded."""
+
 
 class DagFileParseRequest(BaseModel):
     """
@@ -258,8 +261,11 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
     )
 
     if msg.callback_requests:
+        targets_loaded = any(_is_callback_target_loaded(bag, request) for request in msg.callback_requests)
         # If the request is for callback, we shouldn't serialize the Dags
         _execute_callbacks(bag, msg.callback_requests, log)
+        if not targets_loaded:
+            sys.exit(_CALLBACK_TARGETS_MISSING_EXIT_CODE)
         return None
 
     serialized_dags, serialization_import_errors = _serialize_dags(bag, log)
@@ -343,6 +349,18 @@ def _get_dag_with_task(
             ) from None
 
     return dag, None
+
+
+def _is_callback_target_loaded(dagbag: DagBag, request: CallbackRequest) -> bool:
+    if isinstance(request, DagCallbackRequest):
+        dag_id, task_id = request.dag_id, None
+    else:
+        dag_id, task_id = request.ti.dag_id, request.ti.task_id
+    try:
+        _get_dag_with_task(dagbag, dag_id, task_id)
+    except ValueError:
+        return False
+    return True
 
 
 def _execute_callbacks(
@@ -773,6 +791,11 @@ class BaseDagFileProcessorProcess(WatchedSubprocess, LoggingMixin):
     def exited_cleanly(self) -> bool:
         """Whether the process has exited with status 0."""
         return self._check_subprocess_exit() == 0
+
+    @property
+    def callback_targets_missing(self) -> bool:
+        """Whether the process ran no callback because none of their Dags or tasks loaded."""
+        return self._check_subprocess_exit() == _CALLBACK_TARGETS_MISSING_EXIT_CODE
 
     def wait(self) -> int:
         raise NotImplementedError(f"Don't call wait on {type(self).__name__} objects")
