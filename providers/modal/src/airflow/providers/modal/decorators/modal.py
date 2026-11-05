@@ -250,6 +250,15 @@ class _ModalDecoratedOperator(DecoratedOperator, _ModalSandboxOperator):
     # Modal objects hold SDK state that is not meant to be deep-copied, and are never mutated here.
     shallow_copy_attrs: Sequence[str] = ("python_callable", "image", "secrets", "volumes")
 
+    @property
+    def xcom_push(self) -> bool:
+        """Read by ``DecoratedOperator.execute`` on Airflow 3.0, which passes it to ``_handle_output``."""
+        return self.do_xcom_push
+
+    @xcom_push.setter
+    def xcom_push(self, value: bool) -> None:
+        self.do_xcom_push = value
+
     def _build_payload(self) -> str:
         return build_payload(
             source=self.get_python_source(),
