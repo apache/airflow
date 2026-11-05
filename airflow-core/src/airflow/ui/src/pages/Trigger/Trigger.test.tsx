@@ -19,7 +19,7 @@
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -68,6 +68,18 @@ describe("Trigger details", () => {
 
     expect(await screen.findByRole("heading", { name: "MessageQueueTrigger" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /tabs\.details/u })).toHaveAttribute("href", "/triggers/3");
+  });
+
+  it("leads back to the Triggers list from a breadcrumb", async () => {
+    renderAt("/triggers/3/owner");
+
+    const breadcrumb = await screen.findByTestId("trigger-breadcrumb");
+
+    expect(within(breadcrumb).getByRole("link", { name: /browse\.triggers/u })).toHaveAttribute(
+      "href",
+      "/triggers",
+    );
+    expect(within(breadcrumb).getByText("3").closest("[aria-current='page']")).not.toBeNull();
   });
 
   it("leaves out the failure times of a trigger that is not failing", async () => {

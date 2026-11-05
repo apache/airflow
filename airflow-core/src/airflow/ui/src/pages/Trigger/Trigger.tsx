@@ -32,6 +32,7 @@ import { TriggerOwner } from "src/pages/Triggers/TriggerOwner";
 import { TriggersForbidden } from "src/pages/Triggers/TriggersForbidden";
 import { getTriggerClassName } from "src/pages/Triggers/getTriggerClassName";
 
+import { BreadcrumbRow, CrumbLink, CrumbStack, CrumbText } from "src/components/Breadcrumb";
 import { ErrorAlert } from "src/components/ErrorAlert";
 import { HeaderCard } from "src/components/HeaderCard";
 import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
@@ -63,6 +64,14 @@ export const Trigger = () => {
 
   return (
     <Box p={2}>
+      <BreadcrumbRow aria-label={translate("common:breadcrumb")} data-testid="trigger-breadcrumb" mb={3}>
+        <CrumbLink shape={{ hasNotch: false, hasPoint: true }} to="/triggers">
+          <CrumbStack caption={translate("common:nav.browse")} value={translate("common:browse.triggers")} />
+        </CrumbLink>
+        <CrumbText shape={{ hasNotch: true, hasPoint: false }}>
+          <CrumbStack caption={translate("common:trigger_one")} isCurrent value={triggerId} />
+        </CrumbText>
+      </BreadcrumbRow>
       {/* A trigger's row is deleted once it fires or its owner is done with it, so a 404 is
           usually a trigger that has finished, possibly while this page was open. */}
       {getErrorStatus(error) === 404 ? (

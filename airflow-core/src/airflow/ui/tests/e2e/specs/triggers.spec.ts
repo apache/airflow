@@ -114,5 +114,8 @@ test.describe("Triggers page", () => {
     await triggersPage.tableRows.first().getByRole("link").first().click();
     await expect(page).toHaveURL(/\/triggers\/\d+$/u);
     await expect(page.getByText(/FileDeleteTrigger/u).first()).toBeVisible({ timeout: 30_000 });
+
+    await page.getByTestId("trigger-breadcrumb").getByRole("link").click();
+    await expect(page).toHaveURL(/\/triggers$/u);
   });
 });
