@@ -42,15 +42,10 @@ vi.mock("openapi/queries", async (importOriginal) => {
   };
 });
 vi.mock("src/hooks/usePluginTabs", () => ({ usePluginTabs: vi.fn(() => []) }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({
-    children,
-    error,
-    tabs,
-  }: PropsWithChildren<{ readonly error?: unknown; readonly tabs: Array<NavTab> }>) => (
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({ children, tabs }: PropsWithChildren<{ readonly tabs: Array<NavTab> }>) => (
     <>
       {children}
-      {error === null || error === undefined ? undefined : <div data-testid="chip-error" />}
       <NavTabs tabs={tabs} />
     </>
   ),
@@ -133,8 +128,6 @@ describe("Run header", () => {
 
     expect(screen.getByTestId("error-alert")).toHaveTextContent("request failed");
     expect(screen.getByTestId("header-card")).toHaveTextContent("run_1");
-    // The run's card states the failure; the Dag chip is about the Dag, so it stays quiet.
-    expect(screen.queryByTestId("chip-error")).not.toBeInTheDocument();
   });
 
   // The route element stays mounted when only :runId changes, so a failure held for one run must

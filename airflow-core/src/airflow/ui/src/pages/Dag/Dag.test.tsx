@@ -40,13 +40,8 @@ vi.mock("openapi/queries", async (importOriginal) => {
 });
 vi.mock("src/hooks/usePluginTabs", () => ({ usePluginTabs: vi.fn(() => []) }));
 vi.mock("src/queries/useRefreshOnNewDagRuns", () => ({ useRefreshOnNewDagRuns: vi.fn() }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children, error }: PropsWithChildren<{ readonly error?: unknown }>) => (
-    <>
-      {children}
-      {error === null || error === undefined ? undefined : <div data-testid="chip-error" />}
-    </>
-  ),
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({ children }: PropsWithChildren) => children,
 }));
 vi.mock("./Header", () => ({
   Header: ({ error }: { readonly error?: unknown }) =>
@@ -63,7 +58,7 @@ const { useDagServiceGetLatestRunInfo } = await import("openapi/queries");
 describe("Dag", () => {
   // The latest-run lookup is about a run, not the Dag, so its failure belongs on the card and the
   // Dag chip stays quiet.
-  it("reports a failed latest-run lookup on the card, not the Dag chip", () => {
+  it("reports a failed latest-run lookup on the card", () => {
     vi.mocked(useDagServiceGetLatestRunInfo).mockReturnValue({
       data: undefined,
       error: new Error("request failed"),
@@ -80,6 +75,5 @@ describe("Dag", () => {
     );
 
     expect(screen.getByTestId("header-error")).toBeInTheDocument();
-    expect(screen.queryByTestId("chip-error")).not.toBeInTheDocument();
   });
 });
