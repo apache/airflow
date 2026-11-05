@@ -76,5 +76,5 @@ class MakeVariableValueNonNullable(VersionChange):
     @convert_request_to_next_version_for(VariablePostBody)  # type: ignore[arg-type]
     def store_null_value_as_none_string(request: RequestInfo) -> None:
         """Keep the old behavior of storing ``str(None)`` when an older client sets null."""
-        if request.body.get("val") is None:
+        if "val" in request.body and request.body["val"] is None:
             request.body["val"] = "None"
