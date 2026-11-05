@@ -2510,6 +2510,96 @@ class TestCallbackOperations:
         assert client.auth is not None
         assert client.auth.token == "execution-token"
 
+    @pytest.mark.parametrize(
+        "connect_error",
+        [httpx2.ConnectError("Connection refused"), httpx2.ConnectTimeout("timed out")],
+        ids=["connect-error", "connect-timeout"],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_retries_connect_errors_for_longer_than_other_calls(self, _sleep, connect_error):
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= 10:
+                raise connect_error
+            return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        client.callbacks.run(uuid7())
+
+        assert attempts == 11
+        assert client.auth.token == "execution-token"
+
+    @pytest.mark.parametrize(
+        "failure",
+        [
+            pytest.param(httpx2.ReadTimeout("timed out"), id="read-timeout"),
+            pytest.param(httpx2.RemoteProtocolError("Server disconnected"), id="remote-protocol-error"),
+            pytest.param(httpx2.WriteError("Broken pipe"), id="write-error"),
+            pytest.param(httpx2.WriteTimeout("timed out"), id="write-timeout"),
+            pytest.param(httpx2.Response(status_code=500), id="500"),
+        ],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_does_not_retry_once_the_request_may_have_reached_the_server(self, _sleep, failure):
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            if isinstance(failure, Exception):
+                raise failure
+            return failure
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.HTTPError):
+            client.callbacks.run(uuid7())
+
+        assert attempts == 1
+
+    @pytest.mark.parametrize(
+        ("failure", "outcome_unknown"),
+        [
+            pytest.param(httpx2.ReadTimeout("timed out"), True, id="read-timeout"),
+            pytest.param(httpx2.RemoteProtocolError("Server disconnected"), True, id="remote-protocol-error"),
+            pytest.param(httpx2.WriteError("Broken pipe"), True, id="write-error"),
+            pytest.param(httpx2.WriteTimeout("timed out"), True, id="write-timeout"),
+            pytest.param(httpx2.ConnectError("Connection refused"), False, id="connect-error-retried"),
+        ],
+    )
+    @mock.patch("tenacity.nap.time.sleep")
+    def test_run_logs_when_the_token_may_have_been_used(
+        self, _sleep, cap_structlog, failure, outcome_unknown
+    ):
+        callback_id = uuid7()
+        attempts = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise failure
+            return httpx2.Response(status_code=204, headers={"Refreshed-API-Token": "execution-token"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        if outcome_unknown:
+            with pytest.raises(type(failure)):
+                client.callbacks.run(callback_id)
+        else:
+            client.callbacks.run(callback_id)
+
+        event = "Callback token exchange outcome unknown, not retrying"
+        assert (event in cap_structlog) is outcome_unknown
+        if outcome_unknown:
+            assert {
+                "event": event,
+                "log_level": "error",
+                "callback_id": callback_id,
+                "error_type": type(failure).__name__,
+            } in cap_structlog
+
     def test_run_raises_on_conflict(self):
         callback_id = uuid7()
 
