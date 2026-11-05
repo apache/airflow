@@ -31,7 +31,6 @@ from __future__ import annotations
 import json
 import re
 import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -100,24 +99,8 @@ def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int
     )
 
 
-def download_via_gradle(expected: str, repo_root: Path = REPO_ROOT) -> int:
-    if api_version_of(repo_root / VENDORED_SCHEMA) == expected:
-        print(f"{VENDORED_SCHEMA} is up-to-date (api_version={expected}).")
-        return 0
-    print(f"{VENDORED_SCHEMA} differs from configured {expected!r}, syncing via Gradle.")
-    java_sdk_dir = repo_root / "java-sdk"
-    result = subprocess.run(
-        [str(java_sdk_dir / "gradlew"), "-p", str(java_sdk_dir), ":sdk:syncSupervisorSchema"],
-        check=False,
-    )
-    return result.returncode
-
-
 def main(repo_root: Path = REPO_ROOT) -> int:
-    expected = configured_version(repo_root)
-    if not (repo_root / SOURCE_SCHEMA).is_file():
-        return download_via_gradle(expected, repo_root)
-    exit_code, report = refresh_from_source(expected, repo_root)
+    exit_code, report = refresh_from_source(configured_version(repo_root), repo_root)
     print(report, file=sys.stderr if exit_code else sys.stdout)
     return exit_code
 
