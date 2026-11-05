@@ -21,7 +21,7 @@ Keep the Java SDK's vendored ``schema.json`` at the pinned supervisor schema ver
 ``airflowSupervisorSchemaVersion`` in ``java-sdk/gradle.properties`` is the version the Java SDK
 speaks and must be one the Task SDK schema bundle defines. When it is the bundle's newest version,
 the vendored copy is compared by content with the Task SDK schema and refreshed from it. When it is
-older, the vendored copy must already declare that version.
+older, the vendored copy must already declare that version, as copied from the release that ships it.
 
 Exits 0 when the copy is in sync, 1 when it was refreshed or needs attention.
 """
@@ -87,7 +87,7 @@ def sync_vendored_schema(expected: str, repo_root: Path = REPO_ROOT) -> tuple[in
             return 0, f"{VENDORED_SCHEMA} is pinned to api_version={expected} (newest is {newest})."
         return 1, (
             f"{VENDORED_SCHEMA} is api_version={vendored_version!r} but {GRADLE_PROPERTIES} pins {expected!r}.\n"
-            "Restore the vendored schema for that version from git history, or move the pin."
+            f"Copy {SOURCE_SCHEMA} from the release that ships that version, or move the pin."
         )
     if (source_version := api_version_of(source)) != newest:
         return 1, (
