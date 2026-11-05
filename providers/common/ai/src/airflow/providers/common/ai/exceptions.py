@@ -70,8 +70,9 @@ class UnsupportedToolDeferralError(AirflowFailException):
     In ``AgentOperator``, either the tool hands its work to an external system, or it needs
     approval where approval is not available (before Airflow 3.3, or with ``durable``,
     ``enable_hitl_review``, code mode or a ``SandboxToolset``). In ``run_durably`` for the
-    OpenAI Agents SDK, a tool call needs approval. A retry would repeat the same call, so the
-    task fails without retrying.
+    OpenAI Agents SDK, a tool call needs approval and the run cannot pause the task for it,
+    such as before Airflow 3.4 or with a ``session``. A retry would repeat the same call, so
+    the task fails without retrying.
     """
 
 
@@ -80,8 +81,10 @@ class DurableJournalError(AirflowFailException):
     Raised when durable execution cannot record or replay a step.
 
     A step's result is not JSON-serializable, or the journal holds a result this version
-    cannot replay. The same step fails the same way on every attempt, so the task fails
-    without retrying.
+    cannot replay. Or a task resumed with the answer to an approval, and the run, which
+    took a different path this time, never came back to the call the answer is for. The
+    same step fails the same way on every attempt, and an answer cannot be matched to a
+    call nobody was asked about, so the task fails without retrying.
     """
 
 

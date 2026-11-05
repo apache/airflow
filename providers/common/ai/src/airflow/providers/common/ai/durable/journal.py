@@ -46,6 +46,9 @@ journal for pydantic-ai. Another framework's adapter starts a run with
   ``await run.run(name, kind=..., fingerprint=..., body=...)``.
 * :meth:`DurableRun.claim` and :meth:`JournalStep.record` split it in two, for a
   framework whose hooks see a step's input and its output in separate callbacks.
+
+An adapter that stops the task to wait for input (``request_input()``) calls
+:meth:`DurableRun.pause` first, so that the resumed task replays what this attempt recorded.
 """
 
 from __future__ import annotations
@@ -209,6 +212,8 @@ class DurableRun:
         self.journal = journal
         self.key = key
         self.diverged = False
+        # Where this attempt stopped replaying, when it did.
+        self._diverged_at: int | None = None
         self._position = 0
         # Read on first use: where the last failed attempt's entries stop being trusted,
         # and how far any attempt got.
@@ -230,6 +235,9 @@ class DurableRun:
         # Read with the rest of the run's entry: whether the previous attempt failed because
         # of the model's answers, which changes why the retry runs live from ``_diverge_from``.
         self._model_at_fault = False
+        # Read with the rest of the run's entry: whether ``_diverge_from`` is where the task paused
+        # rather than where an attempt failed.
+        self._paused = False
         # Steps ``reserve`` numbered for the latest model response, by tool call id, until taken.
         self._reserved: dict[str, JournalStep] = {}
 
@@ -247,6 +255,7 @@ class DurableRun:
         self._diverge_from = diverge_from if isinstance(diverge_from, int) else None
         self._high_water = high_water if isinstance(high_water, int) else 0
         self._model_at_fault = meta.get("model_at_fault") is True
+        self._paused = meta.get("paused") is True
 
     def peek(self, position: int) -> dict[str, Any] | None:
         """
@@ -278,6 +287,11 @@ class DurableRun:
                     name, kind=kind, fingerprint=fingerprint, replayable=True, count_replay=False
                 )
         self._reserved = reserved
+
+    def has_recorded(self, call_id: str) -> bool:
+        """Whether the step :meth:`reserve` kept for ``call_id`` holds a result an earlier attempt recorded."""
+        step = self._reserved.get(call_id)
+        return step is not None and step.replayed
 
     def claim_reserved(
         self, call_id: str, name: str, *, kind: StepKind, fingerprint: str | None
@@ -326,15 +340,25 @@ class DurableRun:
             self._last_model_position = position
         self._load_meta()
         if not self.diverged and self._diverge_from is not None and position >= self._diverge_from:
-            self._diverge(
-                position,
-                name,
-                reason=(
-                    "the model's answers from this step on failed the previous attempt, so it is asked again"
-                    if self._model_at_fault
-                    else "the previous attempt failed before reaching this step"
-                ),
-            )
+            if self._paused:
+                # Nothing went wrong: the task paused here and resumed with the input it waited for.
+                self.diverged, self._diverged_at = True, position
+                self._peeked.clear()
+                log.info(
+                    "Durable: the task resumed after a pause; this step and the ones after it run live",
+                    position=position,
+                    step=name,
+                )
+            else:
+                self._diverge(
+                    position,
+                    name,
+                    reason=(
+                        "the model's answers from this step on failed the previous attempt, so it is asked again"
+                        if self._model_at_fault
+                        else "the previous attempt failed before reaching this step"
+                    ),
+                )
         entry = self.peek(position) if replayable else None
         self._peeked.pop(position, None)
         previous_replayed, self._previous_replayed = self._previous_replayed, False
@@ -427,10 +451,44 @@ class DurableRun:
             # The entry at the previous attempt's point is still that attempt's, as this one
             # recorded nothing over it (the step there raised, say), so a retry must not replay it.
             diverge_from, rerun_model = previous, self._model_at_fault
+        self._save_meta(diverge_from, model_at_fault=rerun_model)
+
+    def pause(self) -> None:
+        """
+        Record that the task is about to pause, so that resuming it replays what this attempt recorded.
+
+        An adapter calls this before it stops the task to wait for input. Where an earlier
+        attempt's failure, or a different path this attempt took, left entries that must not
+        replay, this attempt has run live from there: what it recorded becomes trusted, and
+        the earlier entries at positions it left empty (a call still waiting for approval, a
+        tool that raised) are deleted. Positions from here on still run live after the pause.
+        """
+        self._load_meta()
+        start = min((p for p in (self._diverge_from, self._diverged_at) if p is not None), default=None)
+        if start is None or self._position <= start:
+            # This attempt has not run anything live past the untrusted entries yet.
+            return
+        stale = {
+            position: build_step_key(self.key, position)
+            for position in range(start, self._position)
+            if position not in self._saved
+        }
+        if stale:
+            self.journal.storage.delete_steps(stale.values())
+        # Deleting is best-effort; an entry that survived must still not replay.
+        survived = [position for position, key in stale.items() if self.journal.storage.load_step(key)]
+        if survived:
+            log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
+        trusted_until = survived[0] if survived else self._position
+        self._diverge_from, self._model_at_fault = trusted_until, False
+        self._save_meta(trusted_until, model_at_fault=False, paused=True)
+
+    def _save_meta(self, diverge_from: int | None, *, model_at_fault: bool, paused: bool = False) -> None:
         meta = {
             "diverge_from": diverge_from,
             "high_water": max(self._high_water, self._position),
-            "model_at_fault": rerun_model,
+            "model_at_fault": model_at_fault,
+            "paused": paused,
         }
         self.journal.storage.save_step(build_run_meta_key(self.key), meta)
 
@@ -463,7 +521,8 @@ class DurableRun:
         self._diverge(step.position, step.name, reason=reason)
 
     def _diverge(self, position: int, name: str, *, reason: str) -> None:
-        self.diverged = True
+        if not self.diverged:
+            self.diverged, self._diverged_at = True, position
         self._peeked.clear()
         log.warning(
             "Durable: the run took a different path from the previous attempt; this step and "
