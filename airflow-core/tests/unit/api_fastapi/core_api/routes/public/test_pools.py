@@ -1202,6 +1202,37 @@ class TestBulkPools(TestPoolsEndpoint):
         assert updated_pool.include_deferred is True  # unchanged
 
     @pytest.mark.parametrize(
+        ("entities", "action_on_non_existence"),
+        [
+            pytest.param(["default_pool"], "fail", id="default_pool_only"),
+            pytest.param(["default_pool"], "skip", id="default_pool_only_with_skip"),
+            pytest.param(["default_pool", POOL2_NAME], "fail", id="default_pool_with_other_pool"),
+        ],
+    )
+    def test_bulk_delete_rejects_default_pool(self, test_client, session, entities, action_on_non_existence):
+        self.create_pools()
+
+        response = test_client.patch(
+            "/pools",
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": entities,
+                        "action_on_non_existence": action_on_non_existence,
+                    }
+                ]
+            },
+        )
+
+        assert response.status_code == 200
+        assert response.json()["delete"] == {
+            "success": [],
+            "errors": [{"error": "Default Pool can't be deleted", "status_code": 400}],
+        }
+        assert sorted(session.scalars(select(Pool.pool).where(Pool.pool.in_(entities)))) == sorted(entities)
+
+    @pytest.mark.parametrize(
         ("pool_count"),
         [5, 10, 20],
     )
