@@ -371,7 +371,6 @@ repos:
         entry: ./scripts/ci/prek/sync_java_sdk_supervisor_schema.py
         language: python
         pass_filenames: false
-        # Also watches the task-sdk source, like sync-go-sdk-schemas, so every schema change reaches the copy.
         files: >
           (?x)
           ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|

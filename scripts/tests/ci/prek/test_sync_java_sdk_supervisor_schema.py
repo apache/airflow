@@ -66,7 +66,6 @@ def test_a_copy_in_step_is_left_alone(repo):
 
 
 def test_a_copy_that_drifted_without_moving_api_version_is_still_refreshed(repo):
-    # Same api_version, different content.
     vendored = write_schema(repo / syncer.VENDORED_SCHEMA, title="stale")
 
     exit_code, report = syncer.refresh_from_source(VERSION, repo)
