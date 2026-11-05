@@ -190,8 +190,6 @@ class BulkDAGBody(DAGPatchBody):
 class DAGCollectionResponse(BaseModel):
     """Dag Collection serializer for responses."""
 
-    # Not Iterable: pydantic validates Iterable items lazily during serialization, which would
-    # load each Dag's tags on the event loop.
     dags: list[DAGResponse]
     total_entries: int
 
