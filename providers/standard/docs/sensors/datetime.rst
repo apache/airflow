@@ -34,6 +34,21 @@ To run the sensor in deferrable mode, set ``deferrable=True``. See :ref:`deferri
 
 
 
+DateTimeSensor and DateTimeSensorAsync
+======================================
+
+Use :class:`~airflow.providers.standard.sensors.date_time.DateTimeSensor` to wait
+until ``target_time``. The
+:class:`~airflow.providers.standard.sensors.date_time.DateTimeSensorAsync`
+variant waits in the triggerer instead of occupying a worker.
+
+A ``datetime`` without timezone information is interpreted in Airflow's
+``core.default_timezone``, not the operating system's local timezone. This also
+applies when ``start_from_trigger=True`` bypasses the worker. Use a timezone-aware
+``datetime`` or an ISO 8601 string with an explicit offset to specify an absolute
+instant.
+
+
 .. _howto/operator:TimeSensor:
 
 TimeSensor
