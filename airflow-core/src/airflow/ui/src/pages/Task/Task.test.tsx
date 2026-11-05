@@ -39,8 +39,8 @@ vi.mock("src/hooks/useRequiredActionTabs", () => ({
   useRequiredActionTabs: vi.fn((_params: unknown, tabs: Array<unknown>) => ({ tabs })),
 }));
 vi.mock("src/queries/useGridStructure.ts", () => ({ useGridStructure: vi.fn(() => ({ data: undefined })) }));
-vi.mock("src/layouts/Details/DetailsLayout", () => ({
-  DetailsLayout: ({ children }: PropsWithChildren) => children,
+vi.mock("src/layouts/Details/DetailsPanel", () => ({
+  DetailsPanel: ({ children }: PropsWithChildren) => children,
 }));
 vi.mock("src/utils", async () => {
   const actual = await vi.importActual("src/utils");

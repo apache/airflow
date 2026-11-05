@@ -17,7 +17,6 @@
  * under the License.
  */
 import { Heading } from "@chakra-ui/react";
-import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
 import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
 import {
@@ -31,7 +30,7 @@ import {
 import { PiBracketsCurlyBold } from "react-icons/pi";
 import { Navigate, useLocation, useParams, useSearchParams } from "react-router-dom";
 
-import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
+import { DetailsPanel } from "src/layouts/Details/DetailsPanel";
 import type { NavTab } from "src/layouts/Details/NavTabs";
 
 import { HeaderCardSkeleton } from "src/components/HeaderCardSkeleton";
@@ -182,31 +181,29 @@ export const TaskInstance = () => {
   }
 
   return (
-    <ReactFlowProvider>
-      <DetailsLayout tabs={displayTabs}>
-        {taskInstance === undefined ? (
-          // The failure is tested first and read through useStickyError: a refetch of an instance
-          // that never loaded clears the error and reports itself as pending again. The heading
-          // below says "no such instance", which a failed fetch has not established.
-          Boolean(shownError) ? (
-            <HeaderError error={shownError} taskId={taskId} />
-          ) : isLoading || isResolvingCoordinate ? (
-            // A looped task instance cannot be asked for until its pass resolves into a
-            // coordinate, so that lookup is still loading rather than an instance that is missing.
-            <HeaderCardSkeleton stats={TASK_INSTANCE_STAT_SKELETON} type="taskInstance" />
-          ) : (
-            <Heading p={2} size="lg">
-              {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
-            </Heading>
-          )
-        ) : historicalTaskInstance === undefined ? (
-          liveTaskInstance === undefined ? undefined : (
-            <Header error={shownError} taskInstance={liveTaskInstance} />
-          )
+    <DetailsPanel tabs={displayTabs}>
+      {taskInstance === undefined ? (
+        // The failure is tested first and read through useStickyError: a refetch of an instance
+        // that never loaded clears the error and reports itself as pending again. The heading
+        // below says "no such instance", which a failed fetch has not established.
+        Boolean(shownError) ? (
+          <HeaderError error={shownError} taskId={taskId} />
+        ) : isLoading || isResolvingCoordinate ? (
+          // A looped task instance cannot be asked for until its pass resolves into a
+          // coordinate, so that lookup is still loading rather than an instance that is missing.
+          <HeaderCardSkeleton stats={TASK_INSTANCE_STAT_SKELETON} type="taskInstance" />
         ) : (
-          <HistoryHeader error={shownError} taskInstance={historicalTaskInstance} />
-        )}
-      </DetailsLayout>
-    </ReactFlowProvider>
+          <Heading p={2} size="lg">
+            {translate("common:noItemsFound", { modelName: translate("common:taskInstance_one") })}
+          </Heading>
+        )
+      ) : historicalTaskInstance === undefined ? (
+        liveTaskInstance === undefined ? undefined : (
+          <Header error={shownError} taskInstance={liveTaskInstance} />
+        )
+      ) : (
+        <HistoryHeader error={shownError} taskInstance={historicalTaskInstance} />
+      )}
+    </DetailsPanel>
   );
 };

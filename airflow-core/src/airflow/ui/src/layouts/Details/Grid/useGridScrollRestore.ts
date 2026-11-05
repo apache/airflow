@@ -105,9 +105,9 @@ const scrollRunIntoView = ({
   return true;
 };
 
-// Navigating into a run or task swaps the route (Dag/Run/TaskInstance each render their own Grid),
-// so the Grid unmounts and a fresh one mounts scrolled back to the top left. Restoring the saved
-// offsets stops a click from jumping the Grid.
+// A Grid that mounts starts scrolled to the top left (a first visit, or a browser reload), and one
+// that stays mounted while the route switches to another Dag still holds the offsets of the Dag it
+// was showing. Restoring the offsets saved for this Dag picks up where it was left.
 //
 // If the content changed since we saved (a new version, groups expanded/collapsed, runs added or
 // paged) the offsets no longer line up, so we fall back to revealing whatever is selected: the task
@@ -132,7 +132,7 @@ export const useGridScrollRestore = ({
 
   // What the reveal below last settled on. The run list changes in place (polling brings a new run,
   // the user pages), and re-revealing then would yank the Grid back to the selection after the user
-  // scrolled away from it. A remount starts empty, which is the case the reveal exists for.
+  // scrolled away from it. Starting empty, a freshly mounted Grid reveals whatever is selected.
   const revealed = useRef<{ anchorId?: string; cell?: string; flatNodes?: Array<GridTask> }>({});
 
   useLayoutEffect(() => {

@@ -20,7 +20,11 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-// Resolve the route module during test collection, outside the per-test timeout.
+// Resolve the route modules during test collection, outside the per-test timeout. The detail
+// layout is the Dag route's own lazy chunk rather than part of the task instance page, so it has
+// to be named here too or the first test loads the whole Grid inside its wait for the logs.
+import "src/layouts/Details/DagDetailsRoute";
+
 import "src/pages/TaskInstance";
 
 import { AppWrapper } from "src/utils/AppWrapper";
