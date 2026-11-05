@@ -408,7 +408,8 @@ run's event, and fails when it cannot read them.
 
 Both rules use the same list as "Trusting a green fork run", so a gated pull request whose runs are
 approved automatically is also one whose green fork run is trusted, and one that changes CI is both
-left waiting for approval and labelled `needs project ci` once its fork run is green. The gate
+left waiting for approval and labelled `needs project ci` once its fork run is green, unless its
+author keeps it a draft. The gate
 tampering check still applies to every run a maintainer approves by hand.
 
 The approval reads only API metadata and the git objects of the merge commit; it never checks out or
@@ -532,28 +533,45 @@ pull requests without a fork run for their head commit, not by the total.
 
 ### State machine
 
-| Observed fork state | Draft | `ready for maintainer review` | Commit status | Comment |
-|---|---|---|---|---|
-| **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | draft | remove | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
-| **awaiting_push**: enabled, no run for the head SHA | draft | remove | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
-| **running**: run in progress | unchanged (a rebase of an approved pull request does not draft it; a failed run does) | remove | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled or timed out | draft | remove | `failure` (red), link to the run | update with the run link |
-| **green**: conclusion success and the pull request does not change CI-defining files | undraft\* | add | `success` (green), link to the run | update: ready for review, run link |
-| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | undraft\* | remove | `pending` (yellow), link to the run | update: a maintainer must run project CI; labelled `needs project ci` |
-| setup_required or awaiting_push for `close_after_days` | unchanged | unchanged | unchanged | close with a new comment; reopening restarts the clock |
-| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | undraft\* | unchanged | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
-| **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | draft | remove | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
-| **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | draft | remove | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
+The draft state and the two review labels depend only on the state and on whether the pull
+request is the author's draft: a draft whose last convert-to-draft event was not by
+`github-actions[bot]`, or a pull request opened as a draft. `compute_projection` in
+`fork_ci_reconcile.py` holds this table, and `test_projection_table` lists every row.
 
-\* only if the last convert-to-draft event on the pull request was by `github-actions[bot]`;
-a pull request the author drafted stays a draft.
+| State | Draft | `ready for maintainer review` | `needs project ci` |
+|---|---|---|---|
+| setup_required, awaiting_push, failed | draft | remove | remove |
+| running | unchanged | remove | remove |
+| green | undraft | add | remove |
+| green_unverified | undraft | remove | add |
+| green or green_unverified, on the author's draft | unchanged | remove | remove |
+| released, ungated | undraft, except the author's draft | unchanged | remove |
+| closed, gate_modified, gate_bypassed | unchanged | remove | remove |
+
+The author's draft waits for its author, so neither review label lists it. The reconciler never
+undrafts it, and closed pull requests are not drafted, since the draft-state job runs after the
+close and GitHub refuses to draft a closed pull request.
+
+| Observed fork state | Commit status | Comment |
+|---|---|---|
+| **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
+| **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
+| **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
+| **failed**: conclusion is failure, cancelled or timed out | `failure` (red), link to the run | update with the run link |
+| **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
+| **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
+| **closed**: setup_required or awaiting_push for `close_after_days` | unchanged | close with a new comment; reopening restarts the clock |
+| **released**: the pull request carries `use project ci` | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
+| **ungated**: the base branch has no gate, for example after retargeting to an older release branch | `success` (green), link to the pull request's checks | update: project CI is in use; `fork ci required` is removed |
+| **gate_modified**: the pull request changes the fork CI gate (see "Gate protection") | `error` (red), link to the pull request's changed files | post a **new** comment explaining why, then close; checked after gate tampering, before the fork state |
+| **gate_bypassed**: a recorded project CI run of the pull request's branch bypassed the gate (see "Gate tampering") | `error` (red), link to the project CI run that should not have happened | post a **new** comment explaining why, then close; takes precedence over every row above |
 
 Rules that sit under the table:
 
 - **Gate tampering wins.** The `gate_bypassed` check is evaluated first for every pull
   request whose eligibility reason is `external` or `pilot`; when it holds, the fork state is not
-  consulted at all. A pull request that was already `green` and undrafted is drafted again,
-  loses the review label and is closed on the same run.
+  consulted at all. A pull request that was already `green` loses the review label and is
+  closed on the same run.
 
 - **A new push resets the row.** The head SHA is recorded in the state comment. A push to a
   green pull request is observed as `running` or `awaiting_push` on the next run, which removes
@@ -607,8 +625,8 @@ decided or recorded for the old commit, and the next run decides for the new one
 seen, the state is `green_unverified` instead of `green`. The pull request is not drafted (a
 draft the reconciler made earlier is undone, as for `green`), but it gets no review label, the
 status is pending, and it is labelled `needs project ci` so maintainers can list these pull
-requests, review the change and add `use project ci`. Without `CI passed` it cannot be merged
-until then. It is not posted to Slack:
+requests, review the change and add `use project ci`. A draft the author made gets no label
+until the author marks it ready for review. Without `CI passed` it cannot be merged until then. It is not posted to Slack:
 the label already lists these pull requests, and a post for every new green commit would bury
 the CI breakages that channel is for.
 The reconciler removes `needs project ci` as soon as the state is anything else. A renamed file
@@ -710,8 +728,8 @@ contributor losing their collaborator association) with full runs in the last si
 (`TAMPER_WINDOW`) is closed. Signal 1 exists so that an external pull request that edits
 `ci-amd.yml` legitimately, and leaves the gate intact, is not closed for touching the file.
 
-When both hold the reconciler records `gate_bypassed` in the state comment marker, drafts the
-pull request, removes `ready for maintainer review`, posts an `error` status whose
+When both hold the reconciler records `gate_bypassed` in the state comment marker, removes
+`ready for maintainer review`, posts an `error` status whose
 `target_url` is the project CI run that should not have happened, posts a new comment and
 closes. The comment says which run was observed, that changes to `.github/workflows/` from a
 gated pull request cannot be verified in `apache/airflow` without a maintainer, and that a
@@ -766,7 +784,7 @@ run checks the pull request again, with the gate configuration of its new base. 
 retarget to a base without the gate in between could close a pull request that should be
 released to project CI.
 
-The state is `gate_modified`: the pull request is drafted, loses `ready for maintainer review`
+The state is `gate_modified`: the pull request loses `ready for maintainer review`
 and `needs project ci`, gets an `error` status linking its changed files, and the closure is
 reported to Slack as an attention item. Gate tampering is checked first and wins. As for gate
 tampering, only a reopen by someone other than the author counts: an open pull request whose

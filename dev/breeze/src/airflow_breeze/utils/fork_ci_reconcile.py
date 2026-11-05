@@ -344,6 +344,64 @@ def _set_label(plan: Plan, labels: set[str], label: str, *, present: bool) -> No
         plan.remove_labels.append(label)
 
 
+@dataclass(frozen=True)
+class Projection:
+    """
+    What a gated pull request shows in a state; None leaves its draft state or label as it is.
+
+    :param draft: whether the pull request should be a draft.
+    :param ready_for_review: whether it carries `ready for maintainer review`.
+    :param needs_project_ci: whether it carries `needs project ci`.
+    """
+
+    draft: bool | None
+    ready_for_review: bool | None
+    needs_project_ci: bool
+
+
+def compute_projection(state: ForkState, *, author_draft: bool) -> Projection:
+    """
+    Return what a pull request shows in a state.
+
+    :param author_draft: the pull request is a draft that the bot did not make, including one opened
+        as a draft. It is never undrafted and waits for its author, not for a maintainer.
+    """
+    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
+        if author_draft:
+            return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+        return Projection(
+            draft=False,
+            ready_for_review=state == ForkState.GREEN,
+            needs_project_ci=state == ForkState.GREEN_UNVERIFIED,
+        )
+    if state in (ForkState.RELEASED, ForkState.UNGATED):
+        return Projection(
+            draft=None if author_draft else False, ready_for_review=None, needs_project_ci=False
+        )
+    if state in (ForkState.SETUP_REQUIRED, ForkState.AWAITING_PUSH, ForkState.FAILED):
+        return Projection(draft=True, ready_for_review=False, needs_project_ci=False)
+    # A running pull request keeps its draft state, so rebasing an approved one does not draft it. A
+    # closed one is not drafted, since the draft-state job runs after the close and GitHub refuses
+    # to draft a closed pull request.
+    if state in (ForkState.RUNNING, ForkState.CLOSED, ForkState.GATE_BYPASSED, ForkState.GATE_MODIFIED):
+        return Projection(draft=None, ready_for_review=False, needs_project_ci=False)
+    raise ValueError(f"No projection for fork CI state {state.value!r}")
+
+
+def _is_author_draft(pr: PullRequestSnapshot) -> bool:
+    return pr.is_draft and not _is_bot(pr.last_draft_actor)
+
+
+def _enter_state(plan: Plan, pr: PullRequestSnapshot, labels: set[str], state: ForkState) -> None:
+    plan.state = state
+    projection = compute_projection(state, author_draft=_is_author_draft(pr))
+    if projection.draft is not None and projection.draft != pr.is_draft:
+        plan.draft = projection.draft
+    if projection.ready_for_review is not None:
+        _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=projection.ready_for_review)
+    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=projection.needs_project_ci)
+
+
 def _workflow_file(resource_path: str | None) -> str:
     return (resource_path or "").rsplit("/", 1)[-1]
 
@@ -584,11 +642,8 @@ def classify(
         marker = None
 
     def release(state: ForkState, comment: Callable[[Marker], str]) -> Plan:
-        plan.state = state
         plan.remove_labels.append(LABEL_FORK_CI_REQUIRED)
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
+        _enter_state(plan, pr, labels, state)
         since = marker.since if marker and marker.state == state.value else now
         _set_marker_comment(plan, pr, comment(Marker(state.value, pr.head_sha, since)))
         _set_status(plan, pr, state.value, f"https://github.com/{repo}/pull/{pr.number}/checks")
@@ -610,12 +665,7 @@ def classify(
     if reason in TAMPER_CHECKED_REASONS:
         bypass_run = find_bypass_run()
         if bypass_run is not None:
-            plan.state = ForkState.GATE_BYPASSED
-            if not pr.is_draft:
-                plan.draft = True
-            if LABEL_READY_FOR_REVIEW in labels:
-                plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_BYPASSED)
             _set_status(plan, pr, ForkState.GATE_BYPASSED.value, bypass_run)
             _set_marker_comment(
                 plan,
@@ -642,8 +692,7 @@ def classify(
     if marker and marker.state in reopened_since_closing:
         reopened = reopened_since_closing[marker.state]
         if reopened is None or reopened <= marker.since:
-            plan.state = ForkState(marker.state)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState(marker.state))
             if plan.state == ForkState.CLOSED:
                 comment = inactivity_close_comment(days=config.close_after_days, fork=pr.head_repo)
             elif plan.state == ForkState.GATE_MODIFIED:
@@ -676,11 +725,7 @@ def classify(
     if gate_checked and not already_checked:
         change = find_gate_change()
         if change is not None:
-            plan.state = ForkState.GATE_MODIFIED
-            if not pr.is_draft:
-                plan.draft = True
-            _set_label(plan, labels, LABEL_READY_FOR_REVIEW, present=False)
-            _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+            _enter_state(plan, pr, labels, ForkState.GATE_MODIFIED)
             _set_status(
                 plan, pr, ForkState.GATE_MODIFIED.value, f"https://github.com/{repo}/pull/{pr.number}/files"
             )
@@ -753,8 +798,7 @@ def classify(
         )
 
     if state in CLOSABLE_STATES and now - since >= timedelta(days=config.close_after_days):
-        plan.state = ForkState.CLOSED
-        _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=False)
+        _enter_state(plan, pr, labels, ForkState.CLOSED)
         _set_marker_comment(
             plan,
             pr,
@@ -768,26 +812,7 @@ def classify(
         plan.close = True
         return plan
 
-    if state in (ForkState.GREEN, ForkState.GREEN_UNVERIFIED):
-        # A green run that changes CI files still needs a maintainer's review, which a draft would
-        # hide; the `needs project ci` label marks it instead of the review label.
-        if pr.is_draft and _is_bot(pr.last_draft_actor):
-            plan.draft = False
-        ready = not pr.is_draft or plan.draft is False
-        if state == ForkState.GREEN and ready and LABEL_READY_FOR_REVIEW not in labels:
-            plan.add_labels.append(LABEL_READY_FOR_REVIEW)
-        elif state == ForkState.GREEN_UNVERIFIED and LABEL_READY_FOR_REVIEW in labels:
-            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-    else:
-        # A run in progress needs nothing from the author, and drafting on it would draft every
-        # approved pull request the moment it is rebased; it is drafted only if the run then fails.
-        if not pr.is_draft and state != ForkState.RUNNING:
-            plan.draft = True
-        if LABEL_READY_FOR_REVIEW in labels:
-            plan.remove_labels.append(LABEL_READY_FOR_REVIEW)
-    # Lets maintainers list the pull requests that only wait for them to run project CI, which
-    # otherwise look like any other pull request with a pending fork CI status.
-    _set_label(plan, labels, LABEL_NEEDS_PROJECT_CI, present=state == ForkState.GREEN_UNVERIFIED)
+    _enter_state(plan, pr, labels, state)
 
     target_url = fork.run_url or fork_actions_url(pr.head_repo)
     _set_status(plan, pr, state.value, target_url, force=refresh_status)
@@ -809,6 +834,7 @@ def classify(
             fork=pr.head_repo,
             run_url=fork.run_url,
             base_ref=pr.base_ref,
+            author_draft=_is_author_draft(pr),
         ),
     )
     return plan
