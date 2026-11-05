@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import pytest
@@ -29,7 +30,7 @@ if not AIRFLOW_V_3_1_PLUS:
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
-from pydantic_ai.messages import BinaryContent
+from pydantic_ai.messages import BinaryContent, UserContent
 
 from airflow.providers.common.ai.exceptions import HITLMaxIterationsError
 from airflow.providers.common.ai.mixins.hitl_review import (
@@ -54,7 +55,7 @@ class FakeAgenticOperator(HITLReviewMixin):
     def __init__(
         self,
         *,
-        prompt: str = "Summarize this",
+        prompt: str | Sequence[UserContent] = "Summarize this",
         task_id: str = "test_task",
         hitl_timeout: timedelta | None = None,
         hitl_poll_interval: float = 0.1,
@@ -284,20 +285,24 @@ class TestHITLReviewMixin:
             ),
             XComResult(
                 key=XCOM_HUMAN_ACTION,
-                value=HumanActionData(action="approve", iteration=2).model_dump(mode="json"),
+                value=HumanActionData(
+                    action="changes_requested", feedback="Even more", iteration=2
+                ).model_dump(mode="json"),
             ),
         ]
         prompt = ["Describe this:", BinaryContent(data=b"\x89PNG", media_type="image/png")]
-        op = FakeAgenticOperator(prompt=prompt)  # type: ignore[arg-type]
+        op = FakeAgenticOperator(prompt=prompt)
+        op.max_hitl_iterations = 2
 
-        op.run_hitl_review(context, "Initial")
+        with pytest.raises(HITLMaxIterationsError, match="Task exceeded max iterations"):
+            op.run_hitl_review(context, "Initial")
 
         prompts = [
             c[1]["value"]["prompt"]
             for c in mock_ti.xcom_push.call_args_list
             if c[1]["key"] == XCOM_AGENT_SESSION
         ]
-        assert prompts == ["Describe this:\n[image/png, 4 bytes]"] * 2
+        assert prompts == ["Describe this:\n[image/png, 4 bytes]"] * 3
 
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.monotonic", autospec=True)
     @patch("airflow.providers.common.ai.mixins.hitl_review.time.sleep", autospec=True)

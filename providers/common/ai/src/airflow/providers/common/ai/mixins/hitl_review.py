@@ -51,9 +51,11 @@ class HITLReviewProtocol(Protocol):
     max_hitl_iterations: int
     hitl_timeout: timedelta | None
     hitl_poll_interval: float
-    prompt: str | Sequence[Any]
     task_id: str
     log: Any
+
+    @property
+    def prompt(self) -> str | Sequence[Any]: ...
 
 
 class HITLReviewMixin:

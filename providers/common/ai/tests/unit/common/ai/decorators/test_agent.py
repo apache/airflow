@@ -127,17 +127,18 @@ class TestAgentDecoratedOperator:
         mock_agent = MagicMock(spec=["run_sync", "instrument"])
         mock_agent.run_sync.return_value = make_mock_run_result("Initial output")
         mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
-        mock_run_hitl.return_value = "Initial output"
+        prompt = ["x", ImageUrl(url="https://example.com/x.png")]
 
         op = _AgentDecoratedOperator(
             task_id="test",
-            python_callable=lambda: ["x", ImageUrl(url="https://example.com/x.png")],
+            python_callable=lambda: prompt,
             llm_conn_id="my_llm",
             enable_hitl_review=True,
         )
 
         assert op.execute(context=_make_context()) == "Initial output"
         mock_run_hitl.assert_called_once()
+        assert mock_agent.run_sync.call_args.args[0] == prompt
 
     @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
     def test_execute_merges_op_kwargs_into_callable(self, mock_hook_cls, make_mock_run_result):
