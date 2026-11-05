@@ -21,8 +21,8 @@ Changelog
 ---------
 
 .. note::
-    Airflow 3.4.0 gives Dag bundles their own ``Dag Bundles`` resource, which ``Op`` and ``Admin``
-    get by default. Upgrade this provider together with Airflow 3.4.0: older releases deny the Dag
+    Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which ``Op`` and ``Admin``
+    get by default. Upgrade this provider together with Airflow 3.4.1: older releases deny the Dag
     bundle pages and API to every role, including ``Admin``, while still showing the Browse menu
     entry. Custom roles need ``can read`` and ``menu access`` on ``Dag Bundles`` added by hand.
 

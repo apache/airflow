@@ -37,6 +37,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams, GetXComSliceFilterParams
 
 
 class AddLoopContext(VersionChange):
@@ -175,4 +176,15 @@ class AddFirstTaskRescheduleStartDateField(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddPreviousIterationToXComFilterParams(VersionChange):
+    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
+        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
     )
