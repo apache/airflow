@@ -64,6 +64,10 @@ Setting ``archive_key`` instead of ``prefix`` stages the bundle from a single ``
 a local unpack and a swap into place. The two options are mutually exclusive — configuring both
 raises at startup — so the archive is the only source of the Dags, with no second copy to keep in sync.
 
+Archive mode requires Python 3.11.4 or later, because unpacking uses ``tarfile`` ``filter="data"``
+(added in that release). Constructing the bundle with ``archive_key`` on an older interpreter raises
+``RuntimeError``.
+
 .. code-block:: bash
 
     export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[

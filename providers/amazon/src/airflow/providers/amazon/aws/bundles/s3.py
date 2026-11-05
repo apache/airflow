@@ -206,8 +206,7 @@ class S3DagBundle(BaseDagBundle):
         body = response["Body"]
         try:
             with archive_path.open("wb") as handle:
-                for chunk in body.iter_chunks():
-                    handle.write(chunk)
+                shutil.copyfileobj(body, handle, 1024 * 1024)
         finally:
             body.close()
         return response.get("ETag", "")
