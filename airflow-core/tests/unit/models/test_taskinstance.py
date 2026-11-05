@@ -2864,7 +2864,7 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
-    @pytest.mark.parametrize("victim_state", [State.REMOVED, State.RUNNING])
+    @pytest.mark.parametrize("victim_state", [None, TaskInstanceState.SCHEDULED, TaskInstanceState.RUNNING])
     def test_stop_remaining_tasks_skips_task_removed_from_dag(self, dag_maker, session, victim_state):
         dag_id = "test_stop_remaining_tasks_skips_task_removed_from_dag"
         with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
@@ -2872,7 +2872,7 @@ class TestTaskInstance:
             EmptyOperator(task_id="victim")
         dr = dag_maker.create_dagrun(session=session)
         tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        tis["boom"].state = State.FAILED
+        tis["boom"].state = TaskInstanceState.FAILED
         tis["victim"].state = victim_state
         session.flush()
 
@@ -2897,19 +2897,19 @@ class TestTaskInstance:
                 EmptyOperator(task_id=task_id)
         dr = dag_maker.create_dagrun(session=session)
         tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        tis["boom"].state = State.FAILED
-        tis["upstream_failed"].state = State.UPSTREAM_FAILED
-        tis["removed"].state = State.REMOVED
+        tis["boom"].state = TaskInstanceState.FAILED
+        tis["upstream_failed"].state = TaskInstanceState.UPSTREAM_FAILED
+        tis["removed"].state = TaskInstanceState.REMOVED
         tis["no_state"].state = None
         session.flush()
 
         _stop_remaining_tasks(task_instance=tis["boom"], dag=dag_maker.serialized_dag, session=session)
 
         assert {task_id: ti.state for task_id, ti in tis.items()} == {
-            "boom": State.FAILED,
-            "upstream_failed": State.UPSTREAM_FAILED,
-            "removed": State.REMOVED,
-            "no_state": State.SKIPPED,
+            "boom": TaskInstanceState.FAILED,
+            "upstream_failed": TaskInstanceState.UPSTREAM_FAILED,
+            "removed": TaskInstanceState.REMOVED,
+            "no_state": TaskInstanceState.SKIPPED,
         }
 
     def test_retries_on_other_exceptions(self, dag_maker):

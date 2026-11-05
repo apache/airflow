@@ -4838,10 +4838,10 @@ class TestTIUpdateState:
 
         dr = dag_maker.create_dagrun()
         boom = dr.get_task_instance(task_id="boom", session=session)
-        boom.state = State.RUNNING
+        boom.state = TaskInstanceState.RUNNING
         boom.start_date = DEFAULT_START_DATE
         victim = dr.get_task_instance(task_id="victim", session=session)
-        victim.state = State.RUNNING
+        victim.state = TaskInstanceState.RUNNING
         session.commit()
 
         # Re-parse without "victim"; the unversioned run resolves to this latest version.
@@ -4855,8 +4855,8 @@ class TestTIUpdateState:
 
         assert response.status_code == 204
         session.expire_all()
-        assert session.get(TaskInstance, boom.id).state == State.FAILED
-        assert session.get(TaskInstance, victim.id).state == State.RUNNING
+        assert session.get(TaskInstance, boom.id).state == TaskInstanceState.FAILED
+        assert session.get(TaskInstance, victim.id).state == TaskInstanceState.RUNNING
 
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
