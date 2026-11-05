@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -45,9 +46,13 @@ _API_SEND_BUDGET_SECONDS = 1.0
 _MAX_CALLBACK_RETRY_DELAY = 60.0
 
 
+def _get_status_code(error: httpx2.HTTPError) -> int | None:
+    return error.response.status_code if isinstance(error, httpx2.HTTPStatusError) else None
+
+
 @attrs.define
 class DeferredCallback:
-    """A claimed callback whose bundle could not be prepared, retried until it expires."""
+    """A claimed callback that could not be prepared or run, retried until it expires."""
 
     expires_at: float
     attempts: int = 0
@@ -71,6 +76,8 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
     _callback_claims: dict[int, ProcessorWorkItem] = attrs.field(factory=dict, init=False)
     _deferred_api_callbacks: list[CallbackRequest] = attrs.field(factory=list, init=False)
     _deferred_callback_retries: dict[int, DeferredCallback] = attrs.field(factory=dict, init=False)
+    _interrupted_callback_retries: dict[str, DeferredCallback] = attrs.field(factory=dict, init=False)
+    """Retries of callbacks an API failure interrupted, by work ID, so later attempts share one expiry."""
     _callback_attempts: dict[UUID, list[ProcessorWorkItem]] = attrs.field(factory=dict, init=False)
     _priority_claims: dict[tuple[str, UUID], PriorityParseClaim] = attrs.field(factory=dict, init=False)
     _pending_work_acks: list[tuple[Literal["callbacks", "priority"], ProcessorWorkItem]] = attrs.field(
@@ -108,8 +115,12 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         eligible_bundles = [name for name in bundles_by_name if name not in unavailable]
         try:
             work = self.client.claim_work("priority", eligible_bundles, available)
-        except httpx2.HTTPError:
-            self.log.warning("Unable to claim priority parses; retrying on a later loop")
+        except httpx2.HTTPError as error:
+            self.log.warning(
+                "Unable to claim priority parses; retrying on a later loop",
+                error_type=type(error).__name__,
+                status_code=_get_status_code(error),
+            )
             return []
         files = []
         for item in work:
@@ -139,28 +150,47 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
 
     def fetch_callbacks(self, bundles: Collection[BaseDagBundle], *, limit: int) -> list[CallbackRequest]:
         """Claim callbacks for ready bundles and include requests awaiting bundle preparation."""
+        # Callbacks waiting for a retry take no capacity from other bundles. Their bundle stops claiming
+        # only once it holds a full batch, so one unavailable version does not block the rest.
+        deferred = Counter(
+            request.bundle_name
+            for request in self._deferred_api_callbacks
+            if id(request) in self._deferred_callback_retries
+        )
         available = (
             limit
-            - len(self._callback_claims)
+            - (len(self._callback_claims) - deferred.total())
             - sum(len(work) for work in self._callback_attempts.values())
             - sum(kind == "callbacks" for kind, _ in self._pending_work_acks)
         )
         if available <= 0:
             return list(self._deferred_api_callbacks)
-        eligible_bundles = [b.name for b in bundles if not b.supports_versioning or b.is_initialized]
+        eligible_bundles = [
+            b.name
+            for b in bundles
+            if (not b.supports_versioning or b.is_initialized) and deferred[b.name] < limit
+        ]
         try:
             work = self.client.claim_work("callbacks", eligible_bundles, available)
-        except httpx2.HTTPError:
-            self.log.warning("Unable to claim callbacks; retrying on a later loop")
+        except httpx2.HTTPError as error:
+            self.log.warning(
+                "Unable to claim callbacks; retrying on a later loop",
+                error_type=type(error).__name__,
+                status_code=_get_status_code(error),
+            )
             return list(self._deferred_api_callbacks)
         for item in work:
-            if item.callback is None:
-                raise ValueError("Callback claim returned no request")
-            # Each claim needs its own identity, even when a client reuses an equal callback object.
-            request = item.callback.model_copy(deep=True)
-            self._callback_claims[id(request)] = item
-            self._deferred_api_callbacks.append(request)
+            self._retain_callback_claim(item)
         return list(self._deferred_api_callbacks)
+
+    def _retain_callback_claim(self, item: ProcessorWorkItem) -> CallbackRequest:
+        if item.callback is None:
+            raise ValueError("Callback claim returned no request")
+        # Each claim needs its own identity, even when a client reuses an equal callback object.
+        request = item.callback.model_copy(deep=True)
+        self._callback_claims[id(request)] = item
+        self._deferred_api_callbacks.append(request)
+        return request
 
     def callbacks_started(self, attempt_id: UUID, callbacks: Collection[CallbackRequest]) -> None:
         """Associate a callback process with the claims it will execute."""
@@ -181,12 +211,23 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         """Queue acknowledgments only for claims assigned to this terminal attempt."""
         if had_callbacks:
             for item in self._callback_attempts.pop(attempt_id, []):
+                self._interrupted_callback_retries.pop(item.id, None)
                 self._pending_work_acks.append(("callbacks", item))
             return
         for key, claim in list(self._priority_claims.items()):
             if claim.attempt_id == attempt_id:
                 self._pending_work_acks.append(("priority", claim.work))
                 del self._priority_claims[key]
+
+    def callbacks_interrupted(self, attempt_id: UUID) -> None:
+        """Retry an attempt's callbacks with backoff until the expiry set by their first failure."""
+        for item in self._callback_attempts.pop(attempt_id, []):
+            request = self._retain_callback_claim(item)
+            if retry := self._interrupted_callback_retries.get(item.id):
+                self._deferred_callback_retries[id(request)] = retry
+            self.callback_deferred(request)
+            if retry := self._deferred_callback_retries.get(id(request)):
+                self._interrupted_callback_retries[item.id] = retry
 
     def flush(self, *, deadline: float | None = None) -> None:
         """Send queued acknowledgments in order until the deadline, keeping claims after a failure."""
@@ -198,7 +239,11 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
                 self.client.acknowledge_work(kind, item)
             except httpx2.HTTPStatusError as error:
                 if error.response.status_code in (408, 429) or error.response.status_code >= 500:
-                    self.log.warning("Unable to acknowledge requested work; retaining the claim")
+                    self.log.warning(
+                        "Unable to acknowledge requested work; retaining the claim",
+                        error_type=type(error).__name__,
+                        status_code=error.response.status_code,
+                    )
                     return
                 if error.response.status_code != 409:
                     # Retrying cannot succeed; the server releases the claim when this Job ends.
@@ -208,8 +253,12 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
                         item.id,
                         error.response.status_code,
                     )
-            except httpx2.RequestError:
-                self.log.warning("Unable to acknowledge requested work; retaining the claim")
+            except httpx2.RequestError as error:
+                self.log.warning(
+                    "Unable to acknowledge requested work; retaining the claim",
+                    error_type=type(error).__name__,
+                    status_code=None,
+                )
                 return
             self._pending_work_acks.pop(0)
 
@@ -260,6 +309,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
     def callback_discarded(self, request: CallbackRequest) -> None:
         """Acknowledge a claimed callback that cannot execute."""
         if item := self._callback_claims.pop(id(request), None):
+            self._interrupted_callback_retries.pop(item.id, None)
             self._pending_work_acks.append(("callbacks", item))
             self._remove_deferred_callback(request)
 
@@ -271,7 +321,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
         self._deferred_callback_retries.pop(id(request), None)
 
     def callback_deferred(self, request: CallbackRequest) -> None:
-        """Retry preparing a claimed callback's bundle with backoff, then drop the unpreparable request."""
+        """Retry a claimed callback with backoff, then drop it once its retries time out."""
         if not self.has_callback_claim(request):
             return
         now = time.monotonic()
@@ -284,7 +334,7 @@ class ExecutionAPIWorkSource(RequestedWorkSource, LoggingMixin):
                 ti = request.ti
                 target = f"dag_id={ti.dag_id} run_id={ti.run_id} task_id={ti.task_id}"
             self.log.error(
-                "Dropping callback after bundle preparation timed out",
+                "Dropping callback after its retries timed out",
                 callback_type=type(request).__name__,
                 filepath=request.filepath,
                 bundle_name=request.bundle_name,

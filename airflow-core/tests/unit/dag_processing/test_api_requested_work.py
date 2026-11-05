@@ -223,7 +223,7 @@ def test_priority_finish_keeps_newer_claim_for_same_file(api_source):
     "failure",
     [httpx2.ConnectError("unavailable"), *(_make_status_error(status) for status in (408, 429, 503))],
 )
-def test_flush_retries_mixed_kinds_in_fifo_order(api_source, failure):
+def test_flush_retries_mixed_kinds_in_fifo_order(api_source, caplog, failure):
     source, client, bundle = api_source
     request, callback_work = _claim_callback(source, client, bundle)
     source.callback_discarded(request)
@@ -236,6 +236,11 @@ def test_flush_retries_mixed_kinds_in_fifo_order(api_source, failure):
     source.flush()
 
     client.acknowledge_work.assert_called_once_with("callbacks", callback_work)
+    assert {
+        "event": "Unable to acknowledge requested work; retaining the claim",
+        "error_type": type(failure).__name__,
+        "status_code": failure.response.status_code if isinstance(failure, httpx2.HTTPStatusError) else None,
+    } in caplog
     assert source.has_outstanding_work()
     source.flush()
     assert client.acknowledge_work.call_args_list == [
@@ -308,6 +313,45 @@ def test_callback_preparation_defers_then_expires_without_duplicate_ack(monotoni
 
     client.acknowledge_work.assert_called_once_with("callbacks", work)
     assert not source.has_outstanding_work()
+
+
+@pytest.mark.parametrize("outcome", ["finished", "expired"])
+@mock.patch("airflow.dag_processing.api_requested_work.time.monotonic", autospec=True, return_value=10)
+@conf_vars({("dag_processor", "job_heartbeat_timeout"): "3"})
+def test_interrupted_callback_retries_until_its_first_failure_expires(monotonic, api_source, outcome):
+    source, client, bundle = api_source
+    request, work = _claim_callback(source, client, bundle)
+    client.claim_work.return_value = []
+    source.callback_queued(request)
+    first_attempt = uuid7()
+    source.callbacks_started(first_attempt, [request])
+
+    source.callbacks_interrupted(first_attempt)
+
+    [retried] = source.fetch_callbacks([bundle], limit=1)
+    assert retried == request
+    assert source.has_callback_claim(retried)
+    assert not source.has_callback_attempt(first_attempt)
+    assert not source.is_callback_preparation_ready(retried)
+    monotonic.return_value = 11
+    assert source.is_callback_preparation_ready(retried)
+    source.callback_queued(retried)
+    second_attempt = uuid7()
+    source.callbacks_started(second_attempt, [retried])
+    source.flush()
+    client.acknowledge_work.assert_not_called()
+
+    if outcome == "finished":
+        source.attempt_finished(second_attempt, had_callbacks=True)
+    else:
+        monotonic.return_value = 13
+        source.callbacks_interrupted(second_attempt)
+    source.flush()
+
+    client.acknowledge_work.assert_called_once_with("callbacks", work)
+    assert source.fetch_callbacks([bundle], limit=1) == []
+    assert not source.has_outstanding_work()
+    assert not source._interrupted_callback_retries
 
 
 @pytest.mark.parametrize(
@@ -385,9 +429,34 @@ def test_priority_capacity_retains_unavailable_claims_without_blocking_healthy_b
     assert source.has_outstanding_work()
 
 
+@pytest.mark.parametrize(("deferred", "eligible"), [(1, ["testing", "healthy"]), (2, ["healthy"])])
+def test_deferred_callbacks_do_not_take_other_bundles_capacity(api_source, deferred, eligible):
+    source, client, bundle = api_source
+    healthy = LocalDagBundle(name="healthy", path=str(bundle.path), refresh_interval=0)
+    client.claim_work.return_value = [
+        _make_work(
+            bundle.name,
+            callback=DagCallbackRequest(
+                filepath="a.py", bundle_name=bundle.name, bundle_version="v1", dag_id="dag", run_id=str(run)
+            ),
+        )
+        for run in range(deferred)
+    ]
+    requests = source.fetch_callbacks([bundle], limit=2)
+    for request in requests:
+        source.callback_deferred(request)
+    client.claim_work.reset_mock()
+    client.claim_work.return_value = []
+
+    assert source.fetch_callbacks([bundle, healthy], limit=2) == requests
+
+    client.claim_work.assert_called_once_with("callbacks", eligible, 2)
+    assert all(source.has_callback_claim(request) for request in requests)
+
+
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
 @pytest.mark.parametrize("failure", [httpx2.ConnectError("unavailable"), _make_status_error(503)])
-def test_claim_failure_retains_outstanding_work(api_source, kind, failure):
+def test_claim_failure_retains_outstanding_work(api_source, caplog, kind, failure):
     source, client, bundle = api_source
     if kind == "callbacks":
         request, _ = _claim_callback(source, client, bundle)
@@ -404,6 +473,12 @@ def test_claim_failure_retains_outstanding_work(api_source, kind, failure):
         assert _claim_priority(source, bundle) == []
         assert source.has_priority_request(file)
     client.claim_work.assert_called_once_with(kind, [bundle.name], 1)
+    assert {
+        "event": f"Unable to claim {'callbacks' if kind == 'callbacks' else 'priority parses'}; "
+        "retrying on a later loop",
+        "error_type": type(failure).__name__,
+        "status_code": failure.response.status_code if isinstance(failure, httpx2.HTTPStatusError) else None,
+    } in caplog
     assert source.has_outstanding_work()
 
 
