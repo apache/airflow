@@ -3566,6 +3566,12 @@ paths:
         own permissions.
 
 
+        ``can_read_import_error`` is per caller, unlike the counts: it says whether
+        ``GET /importErrors``
+
+        would return the file''s error to them.
+
+
         ``dag_count`` counts live Dags only. Dag rows are never deleted: a file that
         fails to import
 
@@ -16029,6 +16035,12 @@ components:
           description: Number of import errors recorded against the file, which is
             at most one. Reading the error itself is authorized separately, through
             ``GET /importErrors``.
+        can_read_import_error:
+          type: boolean
+          title: Can Read Import Error
+          description: Whether the caller may read the file's import error through
+            ``GET /importErrors``, possibly with its stack trace redacted. Always
+            false when the file has no error.
       type: object
       required:
       - relative_fileloc
@@ -16036,6 +16048,7 @@ components:
       - last_parsed_time
       - last_parse_duration
       - import_error_count
+      - can_read_import_error
       title: DagBundleFileResponse
       description: A file in a Dag bundle, as the Dag processor last saw it.
     DagBundleResponse:

@@ -95,6 +95,12 @@ class DagBundleFileResponse(BaseModel):
             "error itself is authorized separately, through ``GET /importErrors``."
         )
     )
+    can_read_import_error: bool = Field(
+        description=(
+            "Whether the caller may read the file's import error through ``GET /importErrors``, "
+            "possibly with its stack trace redacted. Always false when the file has no error."
+        ),
+    )
 
 
 class DagBundleFileCollectionResponse(BaseModel):

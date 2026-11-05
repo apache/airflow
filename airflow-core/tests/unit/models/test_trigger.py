@@ -45,6 +45,7 @@ from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.serialization.encoders import encode_trigger
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.triggers.base import (
+    AssetTriggerEvent,
     BaseEventTrigger,
     BaseTrigger,
     TaskFailedEvent,
@@ -455,6 +456,32 @@ def test_submit_event(mock_callback_handle_event, session, create_task_instance)
     mock_callback_handle_event.assert_called_once_with(event, session)
 
 
+def test_submit_asset_event_to_shared_task_and_asset_watcher(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    task_instance = create_task_instance(
+        session=session, logical_date=timezone.datetime(2026, 10, 16), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.next_kwargs = {"resume_arg": "kept"}
+    asset = AssetModel("shared-trigger-asset")
+    asset.add_trigger(trigger, "shared-trigger-watcher")
+    session.add(asset)
+    session.commit()
+    payload = {"partition_key": "payload-only", "changed": True}
+
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key="2026-10-16"), session=session)
+    session.flush()
+    session.refresh(task_instance)
+
+    assert task_instance.state == State.SCHEDULED
+    assert task_instance.next_kwargs == {"event": payload, "resume_arg": "kept"}
+    asset_event = session.scalar(select(AssetEvent).where(AssetEvent.asset_id == asset.id))
+    assert asset_event.partition_key == "2026-10-16"
+    assert asset_event.extra == {"from_trigger": True, "payload": payload}
+
+
 @pytest.mark.parametrize("owner", ["task", "asset_watcher", "callback", "none"])
 def test_submit_event_records_the_event_time_for_every_kind(session, create_task_instance, owner):
     t0 = timezone.datetime(2026, 10, 21, 12, 0, 0)
@@ -480,6 +507,32 @@ def test_submit_event_records_the_event_time_for_every_kind(session, create_task
 
     session.expire_all()
     assert session.get(Trigger, trigger.id).last_event_at == t0
+
+
+@pytest.mark.parametrize("partition_key", [None, "2026-10-16", " region-west ", "x" * 250])
+def test_submit_event_preserves_native_asset_partition(session, partition_key):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    assets = [AssetModel("partitioned-first"), AssetModel("partitioned-second")]
+    for asset in assets:
+        asset.add_trigger(trigger, f"partition_watcher_{asset.name}")
+    session.add_all(assets)
+    session.flush()
+    payload = {"partition_key": "payload-only", "changed": True}
+
+    Trigger.submit_event(trigger.id, AssetTriggerEvent(payload, partition_key=partition_key), session=session)
+    session.flush()
+    session.expire_all()
+
+    asset_events = session.scalars(
+        select(AssetEvent).where(AssetEvent.asset_id.in_([a.id for a in assets]))
+    ).all()
+    assert len(asset_events) == 2
+    assert {event.asset_id for event in asset_events} == {asset.id for asset in assets}
+    for asset_event in asset_events:
+        assert asset_event.partition_key == partition_key
+        assert asset_event.extra == {"from_trigger": True, "payload": payload}
 
 
 @pytest.mark.parametrize(("asset_count", "expected_query_count"), [(1, 6), (5, 6)])

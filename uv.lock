@@ -3161,6 +3161,7 @@ common-messaging = [
 ]
 duckdb = [
     { name = "apache-airflow-providers-duckdb" },
+    { name = "duckdb" },
 ]
 exasol = [
     { name = "apache-airflow-providers-exasol" },
@@ -3284,6 +3285,7 @@ requires-dist = [
     { name = "aws-msk-iam-sasl-signer-python", marker = "extra == 'msk'", specifier = ">=1.0.1" },
     { name = "boto3", specifier = ">=1.43.4" },
     { name = "botocore", specifier = ">=1.43.4" },
+    { name = "duckdb", marker = "extra == 'duckdb'", specifier = ">=1.2.2" },
     { name = "inflection", specifier = ">=0.5.1" },
     { name = "jmespath", specifier = ">=0.7.0" },
     { name = "jsonpath-ng", specifier = ">=1.5.3" },
