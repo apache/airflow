@@ -3302,10 +3302,12 @@ class TestIterableOperator:
 
                 seen_active_during_run = []
 
-                def tracking_execute(context, ti, log):
+                def tracking_execute(ti, context, log):
                     seen_active_during_run.append(task.task in iterable_op._state)
 
-                monkeypatch.setattr("airflow.sdk.execution_time.task_runner._execute_task", tracking_execute)
+                monkeypatch.setattr(
+                    "airflow.sdk.execution_time.task_runner._TaskRunner.run", staticmethod(tracking_execute)
+                )
 
                 with event_loop() as loop, AsyncAwareExecutor(loop=loop, max_workers=1) as executor:
                     outcome = loop.run_until_complete(IndexedTaskLifecycle(run, task, executor).run())

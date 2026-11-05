@@ -161,6 +161,7 @@ def test_upgrade_mirrors_the_base_images_with_its_token(
         "apache/airflow",
         hint="Or skip it with --no-mirror-base-images.",
         trigger_upgrade_check=trigger_upgrade_check,
+        build_os_deps_images=False,
     )
 
 

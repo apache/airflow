@@ -666,7 +666,7 @@ class XComOperations:
             resp = self.client.get(f"xcoms/{dag_id}/{run_id}/{task_id}/{key}", params=params)
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "XCom not found",
                     dag_id=dag_id,
                     run_id=run_id,
@@ -747,7 +747,7 @@ class XComOperations:
             )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.error(
+                log.debug(
                     "XCom not found",
                     dag_id=dag_id,
                     run_id=run_id,

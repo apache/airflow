@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from pydantic import JsonValue, RootModel
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -28,6 +30,28 @@ class XComResponse(BaseModel):
     key: str
     value: JsonValue
     """The returned XCom value in a JSON-compatible format."""
+
+
+class GetXComSliceFilterParams(BaseModel):
+    """Class to house slice params."""
+
+    start: int | None = None
+    stop: int | None = None
+    step: int | None = None
+    include_prior_dates: bool = False
+    previous_iteration: bool = False
+
+
+class GetXcomFilterParams(BaseModel):
+    """Class to house the params that can optionally be set for Get XCom."""
+
+    map_index: int = -1
+    include_prior_dates: bool = False
+    offset: int | None = None
+    previous_iteration: bool = False
+    # The producer's region and pass, named explicitly instead of resolved from the reader's.
+    region_id: UUID | None = None
+    region_index: int | None = None
 
 
 class XComSequenceIndexResponse(RootModel):

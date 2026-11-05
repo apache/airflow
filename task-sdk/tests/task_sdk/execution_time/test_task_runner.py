@@ -199,13 +199,13 @@ from airflow.sdk.execution_time.task_runner import (
     TaskRunnerMarker,
     _axcom_push,
     _defer_task,
-    _execute_task,
     _find_native_dag_importer,
     _make_task_span,
     _push_xcom_if_needed,
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _TaskRunner,
     _xcom_push,
     check_xcom_backend_supports_loops,
     finalize,
@@ -2128,7 +2128,7 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
     ti = create_runtime_ti(task=op, dag_id="dag_execution_timeout")
 
     with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+        _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
 
 
 def test_execution_timeout_caps_iterated_task_with_sync_indexed_tasks(
@@ -2159,7 +2159,7 @@ def test_execution_timeout_caps_iterated_task_with_sync_indexed_tasks(
 
     started = time.monotonic()
     with pytest.raises(AirflowTaskTimeout):
-        _execute_task(context=ti.get_template_context(), ti=ti, log=mock.MagicMock())
+        _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
     assert time.monotonic() - started < 1.8
 
 
@@ -2836,7 +2836,7 @@ def test_execute_task_exports_context_vars_to_environ(create_runtime_ti, mock_su
 def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
     create_runtime_ti, mock_supervisor_comms
 ):
-    """Indexed tasks run concurrently in one process, so _execute_task must not touch the shared
+    """Indexed tasks run concurrently in one process, so _TaskRunner.run must not touch the shared
     os.environ for them; the parent IterableOperator exported the same values before they started."""
     captured_vars = {}
 
@@ -2850,7 +2850,7 @@ def test_execute_task_leaves_environ_alone_for_indexed_task_instance(
         context={"ti": ti, "task": task, "task_state_store": ti.task_state_store}, index=0, operator=task
     )
 
-    _execute_task(context=indexed_ti.get_template_context(), ti=indexed_ti, log=mock.MagicMock())
+    _TaskRunner.run(indexed_ti, indexed_ti.get_template_context(), mock.MagicMock())
 
     assert captured_vars == {"dag_id": None}
     assert "AIRFLOW_CTX_DAG_ID" not in os.environ
@@ -3509,8 +3509,8 @@ class TestIndexedTaskRunner:
         context["task_state_store"] = mock.MagicMock(name="parent_store")
         return context
 
-    def test_run_delegates_to_execute_task(self, make_indexed_ti):
-        """run() must call _execute_task with the indexed task's view of the given context."""
+    def test_run_delegates_to_the_task_runner(self, make_indexed_ti):
+        """run() must call _TaskRunner.run with the indexed task's view of the given context."""
         ti = make_indexed_ti()
         ti.parent_task_state_store = mock.MagicMock(name="parent_store")
         task = BaseOperator(task_id="test_task")
@@ -3518,15 +3518,16 @@ class TestIndexedTaskRunner:
         context = self._parent_context(task)
         executor = IndexedTaskRunner(task_instance=ti)
 
-        with mock.patch(
-            "airflow.sdk.execution_time.task_runner._execute_task",
+        with mock.patch.object(
+            _TaskRunner,
+            "run",
             autospec=True,
             return_value="result",
         ) as mock_execute:
             result = executor.run(context)
 
         mock_execute.assert_called_once()
-        indexed_context, passed_ti, log = mock_execute.call_args.args
+        passed_ti, indexed_context, log = mock_execute.call_args.args
         assert (passed_ti, log) == (ti, executor.log)
         assert indexed_context["ti"] is ti
         assert indexed_context["task_state_store"] is ti.task_state_store

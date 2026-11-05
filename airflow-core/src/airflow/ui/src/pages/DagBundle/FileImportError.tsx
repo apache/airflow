@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useEffect, useState } from "react";
+
 import { Heading, HStack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuFileWarning } from "react-icons/lu";
@@ -25,10 +27,15 @@ import { useImportErrorServiceGetImportErrors } from "openapi/queries";
 import { Modal } from "src/system-components";
 
 import { DagImportErrorModal } from "src/components/DagImportErrorModal";
+import { ErrorAlert } from "src/components/ErrorAlert";
+
+import { getErrorStatus } from "src/utils/errorHandling";
 
 type Props = {
   readonly bundleName: string;
+  readonly hasImportError: boolean;
   readonly onClose: () => void;
+  readonly recheckImportError: () => Promise<unknown>;
   readonly relativeFileloc: string | undefined;
 };
 
@@ -40,10 +47,17 @@ type Props = {
  * error. A dialog rather than a page of its own, because a single stack trace is not worth an
  * addressable route.
  */
-export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props) => {
+export const FileImportError = ({
+  bundleName,
+  hasImportError,
+  onClose,
+  recheckImportError,
+  relativeFileloc,
+}: Props) => {
   const { t: translate } = useTranslation("browse");
+  const [recheckedFileloc, setRecheckedFileloc] = useState<string | undefined>(undefined);
 
-  const { data, isLoading } = useImportErrorServiceGetImportErrors(
+  const { data, error, isLoading, refetch } = useImportErrorServiceGetImportErrors(
     { bundleName, filename: relativeFileloc ?? "" },
     undefined,
     { enabled: relativeFileloc !== undefined },
@@ -51,14 +65,38 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
 
   const [importError] = data?.import_errors ?? [];
 
+  // ``GET /importErrors`` leaves out errors the caller may not read, so an empty result is told
+  // apart by the file list, whose count is not filtered by caller. The badge was clicked on a
+  // count that may predate a fix, and the empty result may be cached from before the error came
+  // back, so both are refetched once before the count is trusted.
+  const needsRecheck =
+    relativeFileloc !== undefined &&
+    data !== undefined &&
+    importError === undefined &&
+    hasImportError &&
+    recheckedFileloc !== relativeFileloc;
+
+  useEffect(() => {
+    if (needsRecheck) {
+      void Promise.all([recheckImportError(), refetch()]).finally(() => {
+        setRecheckedFileloc(relativeFileloc);
+      });
+    }
+  }, [needsRecheck, recheckImportError, refetch, relativeFileloc]);
+
+  const close = () => {
+    setRecheckedFileloc(undefined);
+    onClose();
+  };
+
   if (importError !== undefined) {
     return (
-      <DagImportErrorModal importError={importError} onClose={onClose} open={relativeFileloc !== undefined} />
+      <DagImportErrorModal importError={importError} onClose={close} open={relativeFileloc !== undefined} />
     );
   }
 
-  // The table polls, so the error can be gone by the time its badge is clicked. Say so rather
-  // than leaving the click with no visible effect.
+  const isForbidden = getErrorStatus(error) === 403 || (data !== undefined && hasImportError);
+
   return (
     <Modal
       headerProps={{
@@ -69,10 +107,18 @@ export const FileImportError = ({ bundleName, onClose, relativeFileloc }: Props)
           </HStack>
         ),
       }}
-      onOpenChange={onClose}
-      open={relativeFileloc !== undefined && !isLoading}
+      onOpenChange={close}
+      open={relativeFileloc !== undefined && !isLoading && !needsRecheck}
     >
-      <Text color="fg.muted">{translate("dagBundles.files.importErrorGone")}</Text>
+      {error !== null && !isForbidden ? (
+        <ErrorAlert error={error} />
+      ) : (
+        <Text color="fg.muted">
+          {translate(
+            isForbidden ? "dagBundles.files.importErrorForbidden" : "dagBundles.files.importErrorGone",
+          )}
+        </Text>
+      )}
     </Modal>
   );
 };

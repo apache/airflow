@@ -24,7 +24,21 @@ from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from sqlalchemy import JSON, ForeignKey, Index, Integer, String, Text, delete, func, or_, select, update
+from sqlalchemy import (
+    JSON,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    and_,
+    case,
+    delete,
+    func,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship, selectinload
 from sqlalchemy.sql.functions import coalesce
@@ -36,14 +50,14 @@ from airflow.models.asset import AssetWatcherModel
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.enums import stringify_encoding_keys
-from airflow.triggers.base import BaseTaskEndEvent
+from airflow.triggers.base import AssetTriggerEvent, BaseTaskEndEvent
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy import Row
-    from sqlalchemy.sql import Select
+    from sqlalchemy.sql import ColumnElement, Select
 
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -76,6 +90,28 @@ class TriggerKind(str, Enum):
     TASK = "task"
     CALLBACK = "callback"
     ASSET_WATCHER = "asset_watcher"
+
+
+class TriggerStatus(str, Enum):
+    """How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat."""
+
+    # pending: not picked up yet. running: on a live triggerer and not failed since it last recovered.
+    # failing: on a live triggerer and failed since it last recovered. orphaned: its triggerer stopped
+    # sending heartbeats; another triggerer will take it.
+    PENDING = "pending"
+    RUNNING = "running"
+    FAILING = "failing"
+    ORPHANED = "orphaned"
+
+
+def get_triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnElement[bool], ...]:
+    """Conditions under which a triggerer job still owns its triggers; otherwise any triggerer may take them."""
+    from airflow.jobs.job import Job  # To avoid circular import
+
+    return (
+        Job.end_date.is_(None),
+        Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
+    )
 
 
 class TriggerFailureReason(str, Enum):
@@ -363,6 +399,7 @@ class Trigger(Base):
             AssetManager.register_asset_change(
                 asset=asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
+                partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
             )
         if trigger.callback:
@@ -451,6 +488,91 @@ class Trigger(Base):
             )
         )
 
+    @property
+    def kind(self) -> TriggerKind | None:
+        """What the trigger runs for, from the owner recorded on it or its watchers; keep in step with :meth:`kind_expression`."""
+        owner_ref = self.owner_ref or {}
+        if "ti_id" in owner_ref:
+            return TriggerKind.TASK
+        if "callback_id" in owner_ref:
+            return TriggerKind.CALLBACK
+        if self.asset_watchers:
+            return TriggerKind.ASSET_WATCHER
+        return None
+
+    @classmethod
+    def kind_expression(cls) -> ColumnElement[str | None]:
+        """Return the SQL for :attr:`kind`."""
+        return case(
+            (cls.owner_ref["ti_id"].as_string().is_not(None), TriggerKind.TASK.value),
+            (cls.owner_ref["callback_id"].as_string().is_not(None), TriggerKind.CALLBACK.value),
+            (cls.id.in_(select(AssetWatcherModel.trigger_id)), TriggerKind.ASSET_WATCHER.value),
+            else_=None,
+        )
+
+    @classmethod
+    def owner_still_refers_expression(cls) -> ColumnElement[bool]:
+        """
+        Whether the recorded owner still refers to the trigger.
+
+        A trigger it no longer refers to (a task that resumed or failed, a finished callback, a removed
+        watcher) is deleted on the triggerer's next cleanup.
+        """
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
+
+        # Uncorrelated IN subqueries: Postgres plans each once, where a correlated EXISTS is costed per row
+        # and sets off its JIT on large tables.
+        return or_(
+            and_(
+                cls.owner_ref["ti_id"].as_string().is_not(None),
+                cls.id.in_(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id.is_not(None))),
+            ),
+            and_(
+                cls.owner_ref["callback_id"].as_string().is_not(None),
+                cls.id.in_(select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))),
+            ),
+            cls.id.in_(select(AssetWatcherModel.trigger_id)),
+        )
+
+    @classmethod
+    def status_expression(cls) -> ColumnElement[str]:
+        """
+        Return the SQL for :class:`TriggerStatus`; needs ``Trigger.triggerer_job`` outer-joined.
+
+        Keep in step with :meth:`status`.
+        """
+        threshold = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+        # Positive conditions only: a NULL from the outer join (job row gone, no heartbeat) is not true, so
+        # it falls through to "orphaned" as it does in Python.
+        alive = and_(*get_triggerer_alive_clauses(threshold))
+        return case(
+            (cls.triggerer_id.is_(None), TriggerStatus.PENDING.value),
+            (and_(alive, cls.consecutive_failures > 0), TriggerStatus.FAILING.value),
+            (alive, TriggerStatus.RUNNING.value),
+            else_=TriggerStatus.ORPHANED.value,
+        )
+
+    def is_owner_alive(self) -> bool:
+        """Whether the triggerer that owns this trigger still holds it (see :meth:`assign_unassigned`)."""
+        job = self.triggerer_job
+        threshold = conf.getfloat("triggerer", "triggerer_health_check_threshold")
+        return (
+            job is not None
+            and job.end_date is None
+            and job.latest_heartbeat is not None
+            and job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=threshold)
+        )
+
+    def status(self) -> TriggerStatus:
+        """Return the :class:`TriggerStatus` of this trigger; needs ``triggerer_job`` loaded."""
+        if self.triggerer_id is None:
+            return TriggerStatus.PENDING
+        if not self.is_owner_alive():
+            return TriggerStatus.ORPHANED
+        if self.consecutive_failures:
+            return TriggerStatus.FAILING
+        return TriggerStatus.RUNNING
+
     @classmethod
     @provide_session
     def ids_for_triggerer(
@@ -523,8 +645,7 @@ class Trigger(Base):
             return
 
         alive_triggerer_ids = select(Job.id).where(
-            Job.end_date.is_(None),
-            Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
+            *get_triggerer_alive_clauses(health_check_threshold),
             Job.job_type == "TriggererJob",
         )
 

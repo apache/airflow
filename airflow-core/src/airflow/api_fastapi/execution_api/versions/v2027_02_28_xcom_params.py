@@ -21,7 +21,7 @@ from cadwyn import VersionChange, schema
 
 # These models live next to the routes that use them, and the routes import this version package, so the
 # changes that touch them cannot sit in ``v2027_02_28`` without a circular import.
-from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams
 
 
 class AddRegionToXComFilterParams(VersionChange):

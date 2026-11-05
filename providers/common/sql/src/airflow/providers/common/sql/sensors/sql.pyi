@@ -37,8 +37,10 @@ from typing import Any
 
 from _typeshed import Incomplete as Incomplete
 
-from airflow.providers.common.compat.sdk import BaseSensorOperator
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator
 from airflow.sdk import Context
+
+class SqlSensorTriggerError(AirflowException): ...
 
 class SqlSensor(BaseSensorOperator):
     template_fields: Sequence[str]
@@ -49,8 +51,10 @@ class SqlSensor(BaseSensorOperator):
     parameters: Incomplete
     success: Incomplete
     failure: Incomplete
+    selector: Incomplete
     fail_on_empty: Incomplete
     hook_params: Incomplete
+    deferrable: Incomplete
     def __init__(
         self,
         *,
@@ -59,8 +63,12 @@ class SqlSensor(BaseSensorOperator):
         parameters: Mapping[str, Any] | None = None,
         success: Callable[[Any], bool] | None = None,
         failure: Callable[[Any], bool] | None = None,
+        selector: Callable[[tuple[Any]], Any] = ...,
         fail_on_empty: bool = False,
         hook_params: Mapping[str, Any] | None = None,
+        deferrable: bool = ...,
         **kwargs,
     ) -> None: ...
     def poke(self, context: Context) -> bool: ...
+    def execute(self, context: Context) -> Any: ...
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None: ...
