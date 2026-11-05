@@ -174,7 +174,7 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
     @get:Internal
     abstract val schemaFile: RegularFileProperty
 
-    /** The Task SDK schema; absent in a source distribution. */
+    /** The Task SDK schema; missing outside the monorepo. */
     @get:Internal
     abstract val sourceFile: RegularFileProperty
 
@@ -194,8 +194,8 @@ abstract class SyncSupervisorSchemaTask : DefaultTask() {
         val file = schemaFile.get().asFile
         val version = schemaVersion.get()
         // Prefer the in-repo schema, compared by content: the remote only serves released versions.
-        val source = sourceFile.asFile.orNull
-        if (source != null && apiVersionOf(source) == version) {
+        val source = sourceFile.get().asFile
+        if (apiVersionOf(source) == version) {
             if (file.exists() && file.readBytes().contentEquals(source.readBytes())) {
                 logger.lifecycle("Supervisor Schema is up-to-date (api_version=$version).")
                 return
