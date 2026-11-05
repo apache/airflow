@@ -55,7 +55,7 @@ def _make_archive(files: dict[str, bytes]) -> bytes:
 
 
 if airflow.version.version.strip().startswith("3"):
-    from airflow.providers.amazon.aws.bundles.s3 import S3DagBundle
+    from airflow.providers.amazon.aws.bundles.s3 import S3ArchiveDagBundle, S3DagBundle
 
 
 @pytest.fixture
@@ -92,30 +92,31 @@ def bundle_temp_dir(tmp_path):
         yield tmp_path
 
 
+@pytest.fixture(autouse=True)
+def setup_connections(create_connection_without_db):
+    create_connection_without_db(
+        Connection(
+            conn_id=AWS_CONN_ID_DEFAULT,
+            conn_type="aws",
+            extra={
+                "config_kwargs": {"s3": {"bucket_name": S3_BUCKET_NAME}},
+            },
+        )
+    )
+    create_connection_without_db(
+        Connection(
+            conn_id=AWS_CONN_ID_WITH_REGION,
+            conn_type="aws",
+            extra={
+                "config_kwargs": {"s3": {"bucket_name": S3_BUCKET_NAME}},
+                "region_name": AWS_CONN_ID_REGION,
+            },
+        )
+    )
+
+
 @pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
 class TestS3DagBundle:
-    @pytest.fixture(autouse=True)
-    def setup_connections(self, create_connection_without_db):
-        create_connection_without_db(
-            Connection(
-                conn_id=AWS_CONN_ID_DEFAULT,
-                conn_type="aws",
-                extra={
-                    "config_kwargs": {"s3": {"bucket_name": S3_BUCKET_NAME}},
-                },
-            )
-        )
-        create_connection_without_db(
-            Connection(
-                conn_id=AWS_CONN_ID_WITH_REGION,
-                conn_type="aws",
-                extra={
-                    "config_kwargs": {"s3": {"bucket_name": S3_BUCKET_NAME}},
-                    "region_name": AWS_CONN_ID_REGION,
-                },
-            )
-        )
-
     def test_view_url_generates_presigned_url(self):
         bundle = S3DagBundle(
             name="test", aws_conn_id=AWS_CONN_ID_DEFAULT, prefix="project1/dags", bucket_name=S3_BUCKET_NAME
@@ -130,13 +131,6 @@ class TestS3DagBundle:
         )
         url: str = bundle.view_url_template()
         assert url.startswith("https://my-airflow-dags-bucket.s3.amazonaws.com/project1/dags")
-
-    def test_view_url_template_points_at_archive(self):
-        bundle = self._archive_bundle()
-        assert (
-            bundle.view_url_template()
-            == f"https://{S3_BUCKET_NAME}.s3.{AWS_CONN_ID_REGION}.amazonaws.com/{S3_ARCHIVE_KEY}"
-        )
 
     def test_supports_versioning(self):
         bundle = S3DagBundle(
@@ -289,17 +283,46 @@ class TestS3DagBundle:
         assert bundle.view_url_template() == original_url
         assert s3_client.get_object(Bucket=S3_BUCKET_NAME, Key=extra_key)["Body"].read() == b"outside"
 
-    def _archive_bundle(self) -> S3DagBundle:
-        return S3DagBundle(
+    def test_rejects_archive_key(self):
+        with pytest.raises(TypeError, match="archive_key"):
+            S3DagBundle(
+                name="test",
+                aws_conn_id=AWS_CONN_ID_DEFAULT,
+                bucket_name=S3_BUCKET_NAME,
+                prefix=S3_BUCKET_PREFIX,
+                archive_key=S3_ARCHIVE_KEY,
+            )
+
+
+@pytest.mark.skipif(not airflow.version.version.strip().startswith("3"), reason="Airflow >=3.0.0 test")
+class TestS3ArchiveDagBundle:
+    def _archive_bundle(self) -> S3ArchiveDagBundle:
+        return S3ArchiveDagBundle(
             name="test",
             aws_conn_id=AWS_CONN_ID_WITH_REGION,
             archive_key=S3_ARCHIVE_KEY,
             bucket_name=S3_BUCKET_NAME,
         )
 
-    def test_archive_key_and_prefix_are_mutually_exclusive(self):
-        with pytest.raises(ValueError, match="either 'prefix' or 'archive_key'"):
-            S3DagBundle(
+    def test_view_url_template_points_at_archive(self):
+        bundle = self._archive_bundle()
+        assert (
+            bundle.view_url_template()
+            == f"https://{S3_BUCKET_NAME}.s3.{AWS_CONN_ID_REGION}.amazonaws.com/{S3_ARCHIVE_KEY}"
+        )
+
+    def test_supports_versioning(self):
+        bundle = self._archive_bundle()
+        assert S3ArchiveDagBundle.supports_versioning is False
+        bundle.version = "test_version"
+        with pytest.raises(AirflowException, match="Refreshing a specific version is not supported"):
+            bundle.refresh()
+        with pytest.raises(AirflowException, match="S3 url with version is not supported"):
+            bundle.view_url("test_version")
+
+    def test_rejects_prefix(self):
+        with pytest.raises(TypeError, match="prefix"):
+            S3ArchiveDagBundle(
                 name="test",
                 aws_conn_id=AWS_CONN_ID_DEFAULT,
                 bucket_name=S3_BUCKET_NAME,

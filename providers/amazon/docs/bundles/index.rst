@@ -51,21 +51,22 @@ Example of using the S3DagBundle:
       }
     ]'
 
-Staging from a single archive object
-------------------------------------
+S3ArchiveDagBundle
+==================
 
-By default the bundle is staged by downloading every object under ``prefix`` one at a time. Each object
-costs a full request round-trip, so bundles made of many small files can take a long time to stage — a cost
-paid by every component that stages the bundle, which with ephemeral workers (e.g. KubernetesExecutor task
-pods) means on every task start.
+Use :class:`~airflow.providers.amazon.aws.bundles.s3.S3ArchiveDagBundle` when the Dags are published as one
+``.tar.gz`` object. :class:`~airflow.providers.amazon.aws.bundles.s3.S3DagBundle` downloads every object under
+``prefix`` one at a time. Each object costs a full request round-trip, so bundles made of many small files
+can take a long time to stage — a cost paid by every component that stages the bundle, which with ephemeral
+workers (e.g. KubernetesExecutor task pods) means on every task start.
 
-Setting ``archive_key`` instead of ``prefix`` stages the bundle from a single ``.tar.gz`` object: one
-``HEAD`` request to detect changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then
-a local unpack and a swap into place. The two options are mutually exclusive — configuring both
-raises at startup — so the archive is the only source of the Dags, with no second copy to keep in sync.
+``S3ArchiveDagBundle`` stages the bundle from the ``archive_key`` object: one ``HEAD`` request to detect
+changes (unchanged archives are not re-downloaded), one ``GET`` to fetch it, then a local unpack and a swap
+into place. The archive is the only source of the Dags. Configure this class instead of ``S3DagBundle``;
+there is no ``prefix`` argument and no second copy to keep in sync.
 
 Archive mode requires Python 3.11.4 or later, because unpacking uses ``tarfile`` ``filter="data"``
-(added in that release). Constructing the bundle with ``archive_key`` on an older interpreter raises
+(added in that release). Constructing ``S3ArchiveDagBundle`` on an older interpreter raises
 ``RuntimeError``.
 
 .. code-block:: bash
@@ -73,7 +74,7 @@ Archive mode requires Python 3.11.4 or later, because unpacking uses ``tarfile``
     export AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST='[
       {
         "name": "my-s3-dags",
-        "classpath": "airflow.providers.amazon.aws.bundles.s3.S3DagBundle",
+        "classpath": "airflow.providers.amazon.aws.bundles.s3.S3ArchiveDagBundle",
         "kwargs": {
           "aws_conn_id": "aws_default",
           "bucket_name": "my-airflow-bucket",
