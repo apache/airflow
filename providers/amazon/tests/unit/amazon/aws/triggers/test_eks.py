@@ -439,6 +439,21 @@ class TestEksPodTrigger:
         assert classpath == classpath2
         assert kwargs == kwargs2
 
+    def test_serialize_emits_log_events_on_startup_only_when_disabled(self):
+        """serialize() should emit log_events_on_startup only when False, and round-trip successfully."""
+        trigger_default = self._create_trigger()
+        assert "log_events_on_startup" not in trigger_default.serialize()[1]
+
+        trigger_disabled = self._create_trigger(log_events_on_startup=False)
+        classpath, kwargs = trigger_disabled.serialize()
+        assert kwargs["log_events_on_startup"] is False
+
+        trigger2 = EksPodTrigger(**kwargs)
+        assert trigger2.log_events_on_startup is False
+        classpath2, kwargs2 = trigger2.serialize()
+        assert classpath == classpath2
+        assert kwargs == kwargs2
+
     @pytest.mark.asyncio
     @patch("airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger.run")
     @patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")

@@ -1237,17 +1237,25 @@ class TestGKEStartPodOperator:
         assert order == ["persist", "defer"]
         mock_invoke_defer_method.assert_called_once_with(self.operator, context=context)
 
+    @pytest.mark.parametrize("log_events_on_startup", [True, False])
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodOperator.defer"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEClusterAuthDetails.fetch_cluster_info"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEHook"))
     @mock.patch(GKE_OPERATORS_PATH.format("GKEStartPodTrigger"))
     @mock.patch(GKE_OPERATORS_PATH.format("timezone.utcnow"))
     def test_invoke_defer_method(
-        self, mock_utcnow, mock_trigger, mock_cluster_hook, mock_fetch_cluster_info, mock_defer
+        self,
+        mock_utcnow,
+        mock_trigger,
+        mock_cluster_hook,
+        mock_fetch_cluster_info,
+        mock_defer,
+        log_events_on_startup,
     ):
         mock_trigger_start_time = mock_utcnow.return_value
 
         self.operator.pod = make_pod()
+        self.operator.log_events_on_startup = log_events_on_startup
         mock_fetch_cluster_info.return_value = GKE_CLUSTER_URL, GKE_SSL_CA_CERT
         mock_get_logs = mock.MagicMock()
         self.operator.get_logs = mock_get_logs
@@ -1275,6 +1283,7 @@ class TestGKEStartPodOperator:
             last_log_time=mock_last_log_time,
             use_dns_endpoint=False,
             trigger_kwargs={},
+            log_events_on_startup=log_events_on_startup,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger.return_value,
