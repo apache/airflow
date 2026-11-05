@@ -57,7 +57,7 @@ def test_a_gradle_properties_without_the_version_is_an_error(repo):
 
 
 def test_a_copy_in_step_is_left_alone(repo):
-    exit_code, report = syncer.refresh_from_source(VERSION, repo)
+    exit_code, report = syncer.sync_vendored_schema(VERSION, repo)
 
     assert exit_code == 0
     assert report == (
@@ -68,7 +68,7 @@ def test_a_copy_in_step_is_left_alone(repo):
 def test_a_copy_that_drifted_without_moving_api_version_is_still_refreshed(repo):
     vendored = write_schema(repo / syncer.VENDORED_SCHEMA, title="stale")
 
-    exit_code, report = syncer.refresh_from_source(VERSION, repo)
+    exit_code, report = syncer.sync_vendored_schema(VERSION, repo)
 
     assert exit_code == 1
     assert report == (
@@ -82,7 +82,7 @@ def test_a_copy_that_drifted_without_moving_api_version_is_still_refreshed(repo)
 def test_a_missing_copy_is_created(repo):
     (repo / syncer.VENDORED_SCHEMA).unlink()
 
-    exit_code, _ = syncer.refresh_from_source(VERSION, repo)
+    exit_code, _ = syncer.sync_vendored_schema(VERSION, repo)
 
     assert exit_code == 1
     assert (repo / syncer.VENDORED_SCHEMA).read_bytes() == (repo / syncer.SOURCE_SCHEMA).read_bytes()
@@ -91,17 +91,17 @@ def test_a_missing_copy_is_created(repo):
 def test_an_older_pin_keeps_its_vendored_copy(repo):
     vendored = write_schema(repo / syncer.VENDORED_SCHEMA, api_version="2026-10-30", title="released")
 
-    exit_code, report = syncer.refresh_from_source("2026-10-30", repo)
+    exit_code, report = syncer.sync_vendored_schema("2026-10-30", repo)
 
     assert exit_code == 0
     assert report == (
-        f"java-sdk/sdk/schema/schema.json is pinned to api_version=2026-10-30 (source is {VERSION})."
+        f"java-sdk/sdk/schema/schema.json is pinned to api_version=2026-10-30 (newest is {VERSION})."
     )
     assert json.loads(vendored.read_text())["title"] == "released"
 
 
 def test_an_older_pin_with_a_different_vendored_version_is_reported(repo):
-    exit_code, report = syncer.refresh_from_source("2026-10-30", repo)
+    exit_code, report = syncer.sync_vendored_schema("2026-10-30", repo)
 
     assert exit_code == 1
     assert report == (
@@ -113,12 +113,26 @@ def test_an_older_pin_with_a_different_vendored_version_is_reported(repo):
 
 
 def test_a_pin_the_bundle_does_not_define_is_reported_not_copied(repo):
-    exit_code, report = syncer.refresh_from_source("2025-01-01", repo)
+    exit_code, report = syncer.sync_vendored_schema("2025-01-01", repo)
 
     assert exit_code == 1
     assert report == (
         "java-sdk/gradle.properties declares airflowSupervisorSchemaVersion='2025-01-01', which "
         "task-sdk/src/airflow/sdk/execution_time/schema/versions does not define.\n"
         f"Known versions: 2026-10-30, {VERSION}."
+    )
+    assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
+
+
+def test_an_unreadable_source_for_the_newest_pin_is_reported_not_copied(repo):
+    (repo / syncer.SOURCE_SCHEMA).write_text("<<<<<<< HEAD")
+
+    exit_code, report = syncer.sync_vendored_schema(VERSION, repo)
+
+    assert exit_code == 1
+    assert report == (
+        "task-sdk/src/airflow/sdk/execution_time/schema/schema.json is api_version=None but "
+        f"task-sdk/src/airflow/sdk/execution_time/schema/versions defines '{VERSION}'.\n"
+        "Regenerate the Task SDK schema before syncing the Java SDK copy."
     )
     assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"

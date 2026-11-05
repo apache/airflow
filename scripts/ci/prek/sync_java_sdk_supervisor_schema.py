@@ -73,7 +73,7 @@ def known_versions(repo_root: Path = REPO_ROOT) -> list[str]:
     return sorted(versions)
 
 
-def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int, str]:
+def sync_vendored_schema(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int, str]:
     source = repo_root / SOURCE_SCHEMA
     vendored = repo_root / VENDORED_SCHEMA
     if expected not in (versions := known_versions(repo_root)):
@@ -82,13 +82,17 @@ def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int
             f"{SCHEMA_VERSIONS} does not define.\n"
             f"Known versions: {', '.join(versions) or 'none'}."
         )
-    source_version = api_version_of(source)
-    if expected != source_version:
+    if expected != (newest := versions[-1]):
         if (vendored_version := api_version_of(vendored)) == expected:
-            return 0, f"{VENDORED_SCHEMA} is pinned to api_version={expected} (source is {source_version})."
+            return 0, f"{VENDORED_SCHEMA} is pinned to api_version={expected} (newest is {newest})."
         return 1, (
             f"{VENDORED_SCHEMA} is api_version={vendored_version!r} but {GRADLE_PROPERTIES} pins {expected!r}.\n"
             "Restore the vendored schema for that version from git history, or move the pin."
+        )
+    if (source_version := api_version_of(source)) != newest:
+        return 1, (
+            f"{SOURCE_SCHEMA} is api_version={source_version!r} but {SCHEMA_VERSIONS} defines {newest!r}.\n"
+            "Regenerate the Task SDK schema before syncing the Java SDK copy."
         )
     if vendored.is_file() and vendored.read_bytes() == source.read_bytes():
         return 0, f"{VENDORED_SCHEMA} matches the schema it is vendored from (api_version={expected})."
@@ -100,7 +104,7 @@ def refresh_from_source(expected: str, repo_root: Path = REPO_ROOT) -> tuple[int
 
 
 def main(repo_root: Path = REPO_ROOT) -> int:
-    exit_code, report = refresh_from_source(configured_version(repo_root), repo_root)
+    exit_code, report = sync_vendored_schema(configured_version(repo_root), repo_root)
     print(report, file=sys.stderr if exit_code else sys.stdout)
     return exit_code
 
