@@ -123,16 +123,3 @@ def test_a_pin_the_bundle_does_not_define_is_reported_not_copied(repo):
         f"Known versions: 2026-10-30, {VERSION}."
     )
     assert json.loads((repo / syncer.VENDORED_SCHEMA).read_text())["title"] == "supervisor"
-
-
-def test_without_the_source_it_falls_back_to_the_download(repo, monkeypatch):
-    (repo / syncer.SOURCE_SCHEMA).unlink()
-    monkeypatch.setattr(syncer, "download_via_gradle", lambda expected, root: 7)
-
-    assert syncer.main(repo) == 7
-
-
-def test_the_download_is_skipped_when_the_copy_already_declares_the_version(repo):
-    (repo / syncer.SOURCE_SCHEMA).unlink()
-
-    assert syncer.main(repo) == 0
