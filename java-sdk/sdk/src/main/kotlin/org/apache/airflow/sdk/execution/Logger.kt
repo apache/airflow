@@ -28,9 +28,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import java.time.Instant
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedDeque
-import java.util.concurrent.ExecutionException
-import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.Semaphore
+import kotlin.concurrent.thread
 import kotlin.reflect.KClass
 
 // Adapted from Python logging.
@@ -223,27 +225,46 @@ internal class Logger(
 }
 
 // Several threads log: the task's own thread, the thread that handles a stop signal, and the thread
-// that reads replies from the supervisor. The lock keeps send from queuing a message after configure
-// has written out the queue. It also keeps a new message from being written before the messages that
-// were queued earlier.
+// that reads replies from the supervisor. The lock keeps send from adding a message to messages after
+// configure has passed the messages in that queue to the sender thread. The lock also keeps a new message
+// from being written before the messages that were queued earlier.
 internal object LogSender {
+  /** The number of characters that the queued lines can hold before a caller has to wait for room. */
+  internal const val PENDING_CHARS = 8 * 1024 * 1024
+
   private var writer: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
-  // While runBlocking waits, it also runs other coroutines that are ready on the calling thread. On the
-  // thread that Server.serve blocks, one of them runs the task. So on that thread, a runBlocking call
-  // here could run the task while the caller holds this object's lock. The task would then hang if it
-  // waited for another thread that logs, such as the thread that reads replies from the supervisor.
-  // Writing on writerThread avoids this, because the waiting caller runs no coroutines.
-  private val writerThread =
-    Executors.newSingleThreadExecutor { Thread(it, "Airflow log sender").apply { isDaemon = true } }
+  // Only the sender thread writes to the channel, so a caller never waits in runBlocking. While
+  // runBlocking waits, it also runs other coroutines that are ready on the calling thread. On the thread
+  // that Server.serve blocks, one of those coroutines runs the task. If a caller waited in runBlocking on
+  // that thread, the task would run while the caller holds this object's lock. The task would then hang if
+  // it waited for another thread that logs, such as the thread that reads replies from the supervisor.
+  private val pending = LinkedBlockingQueue<() -> Unit>()
+
+  // A queued line holds one permit for each of its characters until the sender thread has written the line.
+  private val room = Semaphore(PENDING_CHARS)
+
+  init {
+    thread(name = "Airflow log sender", isDaemon = true) {
+      while (true) {
+        try {
+          pending.take().invoke()
+        } catch (e: Throwable) {
+          // If the sender thread ended, flush would wait forever, and so would every caller that waits for room.
+        }
+      }
+    }
+  }
 
   @Synchronized
   fun configure(channel: ByteWriteChannel) {
     writer = channel
     if (!channel.isClosedForWrite) {
       while (messages.isNotEmpty()) {
-        sendTo(channel, messages.removeFirst())
+        // Waiting for room would save no memory here, because the earlier messages are already in memory.
+        // Waiting would also block the thread that serves the task.
+        queueLine(channel, messages.removeFirst(), waitForRoom = false)
       }
     }
   }
@@ -254,8 +275,25 @@ internal object LogSender {
     if (channel == null || channel.isClosedForWrite) {
       messages.addLast(message)
     } else {
-      sendTo(channel, message)
+      queueLine(channel, message, waitForRoom = true)
     }
+  }
+
+  /** Waits until the lines queued so far are written. Keeps waiting if the calling thread is interrupted. */
+  fun flush() {
+    val written = CompletableFuture<Unit>()
+    pending.add { written.complete(Unit) }
+    written.join()
+  }
+
+  /**
+   * Stops queuing lines for the channel and waits until the queued lines are written. Lines logged once
+   * queuing stops stay in [messages]. After this call, closing the channel cannot cut a line that the sender
+   * thread is writing.
+   */
+  fun detachAndFlush() {
+    synchronized(this) { writer = null }
+    flush()
   }
 
   internal fun reset() {
@@ -263,31 +301,32 @@ internal object LogSender {
     messages.clear()
   }
 
-  private fun sendTo(
+  private fun queueLine(
     writer: ByteWriteChannel,
     message: LogMessage,
+    waitForRoom: Boolean,
   ) {
     val map = message.arguments.toMutableMap()
     map["event"] = message.event
     map["level"] = message.level.name.lowercase()
     map["logger"] = message.logger
     map["timestamp"] = message.timestamp.toString()
-    // Build the line here rather than on writerThread. Building it calls toString() on the arguments.
-    // On writerThread, a toString() that logs would wait for this object's lock, which the caller holds
-    // while it waits for writerThread.
+    // Build the line now, so that it shows the arguments as they were when the caller logged them.
     val line = "${map.toJsonElement()}\n"
-    // TODO: Can this be done asynchronously instead?
-    val written = writerThread.submit { runBlocking { writer.writeString(line) } }
-    // Future.get() throws at once for a thread that is already interrupted, even when the write finishes
-    // right away. Code that restores a thread's interrupt status often logs next, so the status is
-    // cleared while the caller waits and set again afterwards.
-    val interrupted = Thread.interrupted()
-    try {
-      written.get()
-    } catch (e: ExecutionException) {
-      throw e.cause ?: e
-    } finally {
-      if (interrupted) Thread.currentThread().interrupt()
+    // A line longer than the limit waits until the sender thread has written every other queued line.
+    val chars = if (waitForRoom) minOf(line.length, PENDING_CHARS) else 0
+    // Code that restores a thread's interrupt status often logs next, so keep waiting if the calling
+    // thread is interrupted. acquireUninterruptibly also keeps the calling thread's interrupt status.
+    room.acquireUninterruptibly(chars)
+    pending.add {
+      try {
+        runBlocking { writer.writeString(line) }
+      } catch (e: Throwable) {
+        // The supervisor puts what the JVM writes to stderr in the task log.
+        System.err.println("Cannot send a log line to the supervisor: $e")
+      } finally {
+        room.release(chars)
+      }
     }
   }
 }

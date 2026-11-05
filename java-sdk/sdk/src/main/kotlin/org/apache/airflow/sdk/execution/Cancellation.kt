@@ -40,6 +40,9 @@ internal class Cancellation : AutoCloseable {
   private val signalHandled = CompletableFuture<Unit>()
 
   @Volatile
+  private var held = false
+
+  @Volatile
   private var trap: AutoCloseable? = null
 
   @Volatile
@@ -56,14 +59,17 @@ internal class Cancellation : AutoCloseable {
   }
 
   private fun throwIfTaskCannotSeeRequest() {
-    if (trap == null) {
-      throw IllegalStateException(
-        "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method",
-      )
+    check(held) {
+      "Only a StoppableTask can see a stop request. Implement StoppableTask, or give an annotated task an @Airflow.OnKill method"
     }
   }
 
-  /** Catches the first stop signal for [task] until [close] is called. The SDK calls this method just before it starts the task. */
+  /**
+   * Catches the first stop signal for [task] until [close] is called. The SDK calls this method just before it starts the task.
+   *
+   * @throws IllegalStateException if the SDK can catch neither stop signal. If the task ran anyway, it would never
+   *   see a stop request, and it could start work, such as a job in an external system, that its onKill could not stop.
+   */
   fun hold(
     task: StoppableTask,
     context: Context,
@@ -74,7 +80,14 @@ internal class Cancellation : AutoCloseable {
       Thread.currentThread().contextClassLoader = classLoader
       task.onKill(context)
     }
-    trap = trapStopSignals(::takeSignal)
+    // A signal can reach onKill before trapStopSignals returns. If onKill then checks for a stop request,
+    // that check reads held, so set held before calling trapStopSignals.
+    held = true
+    trap =
+      checkNotNull(trapStopSignals(::takeSignal)) {
+        "The SDK cannot catch SIGTERM or SIGINT in this JVM, so the task cannot see a stop request. The JVM might run with -Xrs, " +
+          "or without the jdk.unsupported module"
+      }
   }
 
   /**
@@ -123,15 +136,17 @@ private val logger = Logger(Cancellation::class)
 
 /**
  * Opens a trap that passes SIGINT and SIGTERM to [onSignal] instead of the JVM. The trap stays open
- * until the caller closes the returned handle.
+ * until the caller closes the returned handle. If the SDK can catch neither signal, for example because
+ * the JVM runs with -Xrs, no trap opens and this function returns null.
  *
  * When [onSignal] returns false or throws, the JVM gets its own handler back and receives the
  * signal again, so the JVM handles the signal as it would have without the trap. Only one trap can
  * be open at a time, because closing a trap puts back the handlers that were installed when that
  * trap opened.
  */
-internal fun trapStopSignals(onSignal: (signal: String) -> Boolean): AutoCloseable {
+internal fun trapStopSignals(onSignal: (signal: String) -> Boolean): AutoCloseable? {
   val restores = listOf("INT", "TERM").mapNotNull { trapSignal(it, onSignal) }
+  if (restores.isEmpty()) return null
   return AutoCloseable { restores.forEach { restore -> restore() } }
 }
 

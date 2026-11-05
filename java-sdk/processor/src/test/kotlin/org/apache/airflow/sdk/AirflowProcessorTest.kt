@@ -3570,4 +3570,31 @@ class AirflowProcessorTest {
       assertThat(compilation).hadErrorContaining("@Airflow.OnKill method 'stop' can take a Context and no other parameter")
     }
   }
+
+  @Test
+  @DisplayName("reject a hook that is private, static or abstract")
+  fun rejectPrivateStaticOrAbstractOnKill() {
+    listOf(
+      "" to "private void stop() {}",
+      "" to "public static void stop() {}",
+      "abstract " to "public abstract void stop();",
+    ).forEach { (classModifier, hook) ->
+      val compilation =
+        compile(
+          """
+          package org.apache.airflow.example;
+          import org.apache.airflow.sdk.Airflow;
+          public ${classModifier}class TestExample {
+            @Airflow.TaskHandler(dag = "etl", task = "score")
+            public void score() {}
+
+            @Airflow.OnKill(task = "score")
+            $hook
+          }
+        """,
+        )
+
+      assertThat(compilation).hadErrorContaining("@Airflow.OnKill method 'stop' must not be private, static or abstract")
+    }
+  }
 }

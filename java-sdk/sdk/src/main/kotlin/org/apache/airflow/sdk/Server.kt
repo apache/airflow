@@ -25,6 +25,7 @@ import com.xenomachina.argparser.MissingValueException
 import com.xenomachina.argparser.default
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
+import io.ktor.network.sockets.Socket
 import io.ktor.network.sockets.aSocket
 import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
@@ -211,11 +212,29 @@ class CoordinatorServer(
           aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            deferral.await()
+            Runtime.getRuntime().addShutdownHook(Thread({ sendQueuedLogs(socket) }, "Airflow log flush"))
+            try {
+              deferral.await()
+            } finally {
+              // The socket closes when the enclosing use block ends, even when serving fails, so write the
+              // queued lines while the socket is still open.
+              LogSender.detachAndFlush()
+            }
           }
         }
       }
     }
+  }
+
+  /**
+   * Writes the queued log lines, and waits until the socket has sent them and closed. Closing the socket
+   * starts sending what is left in its buffer, so without the wait, the JVM can exit before the last
+   * lines reach the supervisor.
+   */
+  private fun sendQueuedLogs(socket: Socket) {
+    LogSender.detachAndFlush()
+    socket.close()
+    runBlocking { socket.socketContext.join() }
   }
 
   internal suspend fun dispatchTask(
@@ -244,7 +263,9 @@ class CoordinatorServer(
       // The task or its onKill can leave this thread interrupted. runBlocking in serve would then throw
       // InterruptedException, and the JVM would exit with code 1 before the supervisor acknowledges the
       // task's result.
-      Thread.interrupted()
+      if (Thread.interrupted()) {
+        logger.info("Cleared the interrupt flag that the task left on its thread, so the SDK can report the result")
+      }
       coordinator.communicate<Unit>(result)
     }
   }

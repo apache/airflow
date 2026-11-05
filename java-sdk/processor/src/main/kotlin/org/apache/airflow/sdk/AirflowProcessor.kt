@@ -813,12 +813,18 @@ class AirflowProcessor : AbstractProcessor() {
       .filterIsInstance<ExecutableElement>()
       .firstOrNull { it.getAnnotation(Airflow.OnKill::class.java)?.task == taskId }
 
-  /** Rejects an [Airflow.OnKill] method that takes the wrong parameters, or that does not name exactly one task with a body. */
+  /**
+   * Rejects an [Airflow.OnKill] method that is private, static or abstract, that takes the wrong
+   * parameters, or that does not name exactly one task with a body.
+   */
   private fun checkKillHook(hook: ExecutableElement) {
     val name = hook.simpleName
     val owner = hook.enclosingElement as TypeElement
     val taskId = hook.getAnnotation(Airflow.OnKill::class.java).task
     val methods = owner.enclosedElements.filterIsInstance<ExecutableElement>()
+    require(hook.modifiers.none { it == Modifier.PRIVATE || it == Modifier.STATIC || it == Modifier.ABSTRACT }) {
+      "@Airflow.OnKill method '$name' must not be private, static or abstract"
+    }
     require(hook.parameters.all { with(processingEnv) { isType(it.asType(), CONTEXT_TYPE) } } && hook.parameters.size <= 1) {
       "@Airflow.OnKill method '$name' can take a Context and no other parameter"
     }

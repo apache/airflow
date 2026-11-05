@@ -719,10 +719,10 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |   * ```
             |   *
             |   * The method can take a [Context] parameter. It cannot take any other
-            |   * parameter. If a task method only checks [Context.isCancelled] in a loop,
-            |   * this method can be empty. The generated class checks for a stop request
-            |   * just before it calls the task method, and fails the task if it finds a
-            |   * request.
+            |   * parameter, and it cannot be private, static or abstract. If a task
+            |   * method only checks [Context.isCancelled] in a loop, this method can be
+            |   * empty. The generated class checks for a stop request just before it
+            |   * calls the task method, and fails the task if it finds a request.
             |   *
             |   * @param task ID of the task. The class that declares this method must
             |   *    also declare the task with [Task], [If], [Switch] or [TaskHandler].
