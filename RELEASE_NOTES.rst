@@ -24,7 +24,7 @@
 
 .. towncrier release notes start
 
-Airflow 3.4.0 (2026-11-04)
+Airflow 3.4.0 (2026-11-06)
 --------------------------
 
 Significant Changes
@@ -508,6 +508,18 @@ If you call these functions directly:
 * Tests that patch ``airflow.utils.email.send_mime_email`` no longer intercept the call made by
   ``send_email_smtp``. Patch ``airflow.providers.smtp.utils.emailer.send_mime_email`` instead.
 
+- The API server uses a second database connection pool
+
+  API server workers now run some database work on the async engine as well as the sync one, and each engine has its own connection pool, sized by the same ``[database] sql_alchemy_pool_size`` and ``[database] sql_alchemy_max_overflow`` settings. What uses the async pool depends on the ``--apps`` option of ``airflow api-server``:
+
+  - ``execution``: task heartbeats and several Execution API reads.
+  - ``core``: the audit log entry recorded for each write request through the REST API or the UI.
+  - ``all`` (the default): both of the above.
+
+  In every mode a worker can therefore open up to twice ``sql_alchemy_pool_size + sql_alchemy_max_overflow`` connections (30 with the defaults) and keep up to twice ``sql_alchemy_pool_size`` of them idle. Account for this, per ``[api] workers``, when sizing PgBouncer or the database's ``max_connections``.
+
+  The async pool is used since #67800, #73403, #73407 and #76416. (#76430)
+
 New Features
 ^^^^^^^^^^^^
 
@@ -603,6 +615,14 @@ New Features
 Bug Fixes
 ^^^^^^^^^
 
+- Fix async engine datetimes being shifted on non-UTC MySQL servers (#76505)
+- Scope asset-event ``created_dagruns`` to Dags the caller can read (#76234)
+- Keep mapped tasks when clearing with run on latest version (#76420)
+- Load Java Dags from a bundle path that holds a colon (#76432)
+- UI: Fix task groups not expanding when ``localStorage`` is full (#76302)
+- Keep the audit log off the API server event loop (#76416)
+- Fix LocalExecutor deadlock when a workload put blocks (#75086)
+- TS SDK: Inherit the Dag queue when a task passes queue undefined (#76123)
 - UI: Fix Portuguese and Hungarian labels that show a raw placeholder (#75964)
 - Fix the 404 on a looped task group's breadcrumb (#76050)
 - Fix stale queued asset rows in scheduler cleanup and readiness (#76002)
@@ -771,6 +791,14 @@ Bug Fixes
 Miscellaneous
 ^^^^^^^^^^^^^
 
+- Let non-task callers set and delete Variables over the Execution API (#76375)
+- Let asset watchers write asset state over the Execution API (#76376)
+- UI: Label the Dag bundle file table as Parsed Files (#76462)
+- UI: Complete the Italian translation (#76464)
+- UI: Update the French translations to 100% coverage (#76461)
+- UI: Complete the Spanish translation (#76087)
+- UI: Complete and fix the Polish translations (#76429)
+- UI: Complete the missing zh-TW translations (#76398)
 - UI: Make asset state store entries scrollable (#75870)
 - UI: Stop bundling the ELK worker twice (#75864)
 - Store and show the retry deadline; start retries with empty run fields (#76027)
@@ -988,6 +1016,10 @@ Miscellaneous
 Doc Only Changes
 ^^^^^^^^^^^^^^^^
 
+- Document how to create a TypeScript SDK project (#76374)
+- Add screenshots and a review loop example to the Task Loops docs (#76435)
+- Fix retry policy docs and the example Dag's ``ConnectionError`` rules (#76313)
+- Document the Dag Versions comparison tab in the UI overview (#76387)
 - Show UI doc screenshots in synced dark/light tabs (#75957)
 - Document the zh-TW translation workflow (#75702)
 - Go SDK: Correct the documented install command that broke the first bundle build (#75574)
