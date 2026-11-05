@@ -2684,7 +2684,7 @@ def test_mapped_literal_verify_integrity(dag_maker, session):
 
 
 def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
-    """Test that when we change from literal to a XComArg the TIs are removed"""
+    """Changing from a literal to an unresolved XComArg keeps the TIs until the XComArg resolves."""
 
     @task
     def task_2(arg2): ...
@@ -2702,15 +2702,22 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
     dag_version_id = DagVersion.get_latest_version(dag_id=dr.dag_id, session=session).id
     dr.verify_integrity(dag_version_id=dag_version_id, session=session)
 
-    indices = session.execute(
+    query = (
         select(TI.map_index, TI.state)
         .where(TI.task_id == "task_2", TI.dag_id == dr.dag_id, TI.run_id == dr.run_id)
         .order_by(TI.map_index)
-    ).all()
+    )
+    assert session.execute(query).all() == [(0, None), (1, None), (2, None), (3, None)]
 
-    assert indices == [
-        (0, TaskInstanceState.REMOVED),
-        (1, TaskInstanceState.REMOVED),
+    upstream = dr.get_task_instance(task_id="task_1", session=session)
+    upstream.state = TaskInstanceState.SUCCESS
+    push_mapped_length(upstream, [1, 2], session=session)
+    decision = dr.task_instance_scheduling_decisions(session=session)
+
+    assert sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "task_2") == [0, 1]
+    assert session.execute(query).all() == [
+        (0, None),
+        (1, None),
         (2, TaskInstanceState.REMOVED),
         (3, TaskInstanceState.REMOVED),
     ]

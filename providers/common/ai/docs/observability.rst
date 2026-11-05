@@ -96,6 +96,10 @@ How it works
   push it; like ``run_id`` and ``usage``, with ``enable_hitl_review`` it is the initial
   run's model, not a human-feedback regeneration's, since ``regenerate_with_feedback``
   doesn't re-push it.
+* **Skills.** An ``AgentSkillsToolset`` publishes the skills it offered the agent, where
+  each came from (a local path, or a repository, path and commit) and the skill tools the
+  agent called for each, under the namespaced key ``__AIRFLOW__COMMON_AI_SKILLS__``. See
+  :ref:`agent-skills-observability`.
 * **Scope.** The ``run_id`` / ``usage`` XComs and the model name come from
   ``AgentOperator`` and ``LLMOperator`` and its subclasses (and their decorator forms).
   Those operators also stamp the ``airflow.*`` identity attributes on their spans, and so
@@ -105,7 +109,8 @@ How it works
 
   **Model tab.** Separately from tracing, the provider adds an "AI Model" tab to the
   task-instance page showing the resolved model name and the ``usage`` XCom above as a
-  readable table, including an estimated cost. It needs Airflow >= 3.4, since it relies on
+  readable table, including an estimated cost, and the skills XCom above as the list of
+  skills the agent was offered, with the ones it loaded first. It needs Airflow >= 3.4, since it relies on
   the ``applies_to`` operator scoping core added in that version to show up only for
   ``AgentOperator`` runs and runs of ``LLMOperator`` and its SQL / branch / file-analysis /
   schema-compare subclasses (and their decorator forms) -- the match is on the exact

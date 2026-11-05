@@ -28,6 +28,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from airflow.providers.common.ai.operators.llm_schema_compare import LLMSchemaCompareOperator
+from airflow.providers.common.ai.utils.prompt import call_arguments
 from airflow.providers.common.ai.utils.validation import validate_prompt
 from airflow.providers.common.compat.sdk import (
     SET_DURING_EXECUTION,
@@ -90,7 +91,11 @@ class _LLMSchemaCompareDecoratedOperator(DecoratedOperator, LLMSchemaCompareOper
 
         validate_prompt(self.prompt, decorator_name="@task.llm_schema_compare")
 
-        self.render_template_fields(context)
+        # Render only the prompt the callable returned. The other template fields were already
+        # rendered before execute().
+        # The arguments of the call, positional ones too, can be referenced by name in the prompt.
+        context_merge(context, call_arguments(self.python_callable, self.op_args, self.op_kwargs))
+        self.prompt = self.render_template(self.prompt, context)
         return LLMSchemaCompareOperator.execute(self, context)
 
 

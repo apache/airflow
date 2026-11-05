@@ -728,6 +728,23 @@ class TestListEnvs:
         assert env["api_url"] == "error reading config"
         assert expected in env["status"]
 
+    @patch("airflowctl.ctl.commands.auth_command.AirflowConsole", autospec=True)
+    @patch("keyring.get_password", autospec=True, return_value="OLD_TOKEN")
+    def test_list_envs_skips_keyring_when_token_is_not_in_keyring(
+        self, mock_get_password, mock_console, monkeypatch, tmp_path
+    ):
+        monkeypatch.setenv("AIRFLOW_HOME", str(tmp_path))
+        (tmp_path / "production.json").write_text(
+            json.dumps({"api_url": "http://new:8080", "token_in_keyring": False})
+        )
+
+        auth_command.list_envs(self.parser.parse_args(["auth", "list-envs"]))
+
+        assert mock_console.return_value.print_as.call_args.kwargs["data"] == [
+            {"environment": "production", "api_url": "http://new:8080", "status": "not authenticated"}
+        ]
+        mock_get_password.assert_not_called()
+
     def test_list_envs_debug_mode(self, monkeypatch):
         """Test list-envs in debug mode."""
         with tempfile.TemporaryDirectory() as temp_airflow_home:
