@@ -359,7 +359,9 @@ export const TaskInstances = () => {
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
   const renderedMapIndexFilter = searchParams.get(RENDERED_MAP_INDEX_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
+  // TaskInstancesFilter only offers a run id filter when no run is in the route. Applying one anyway
+  // lets a pattern carried over from the grid empty this table with no filter chip there to clear it.
+  const filteredRunId = runId === undefined ? searchParams.get(RUN_ID_PATTERN_PARAM) : null;
   const hasFilteredState = filteredState.length > 0;
   const taskDisplayNamePattern = searchParams.get(NAME_PATTERN_PARAM);
   const teams = searchParams.getAll(TEAMS_PARAM);

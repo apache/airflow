@@ -97,9 +97,11 @@ const selectSetting = async (testId: string) => {
   fireEvent.click(await screen.findByTestId(testId));
 };
 
-const renderLogSourceTask = async () => {
+const renderLogSourceTask = async (search = "") => {
   render(
-    <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
+    <AppWrapper
+      initialEntries={[`/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source${search}`]}
+    />,
   );
   await waitForLogs();
 
@@ -309,6 +311,12 @@ describe("Task log search", () => {
     await waitForLogs();
 
     expect(screen.getByTestId("log-search-input")).toBeInTheDocument();
+  });
+
+  it("seeds the search query from the url, so it outlives the unmount a tab change causes", async () => {
+    await renderLogSourceTask("?log_search=running");
+
+    expect(screen.getByTestId("log-search-input")).toHaveValue("running");
   });
 
   it("typing in the search input enables navigation buttons for a known term", async () => {

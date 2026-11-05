@@ -33,23 +33,48 @@ export type NavTab = {
 };
 
 type Props = {
+  /** Query parameters to copy from the current url onto every tab link. */
+  readonly persistentKeys?: ReadonlyArray<string>;
   readonly tabs: Array<NavTab>;
 };
 
 const INDICATOR_HEIGHT = "2px";
+const NO_KEYS: ReadonlyArray<string> = [];
 
 const trimTrailingSlash = (path: string) => path.replace(/\/$/u, "");
+
+// A tab link replaces the query string rather than adding to it, so only the persistent keys carry over.
+const buildTabSearch = (
+  currentSearch: string,
+  tabSearch: string | undefined,
+  persistentKeys: ReadonlyArray<string>,
+) => {
+  const current = new URLSearchParams(currentSearch);
+  const tabParams = new URLSearchParams(tabSearch);
+
+  for (const key of persistentKeys) {
+    if (!tabParams.has(key)) {
+      for (const value of current.getAll(key)) {
+        tabParams.append(key, value);
+      }
+    }
+  }
+
+  return tabParams.toString();
+};
 
 const NavTabLink = ({
   containerWidth,
   icon,
   label,
   matchPaths,
+  persistentKeys,
   search,
   value,
-}: { readonly containerWidth: number } & NavTab) => {
-  const { pathname } = useLocation();
-  const resolved = useResolvedPath({ pathname: value, search });
+}: { readonly containerWidth: number; readonly persistentKeys: ReadonlyArray<string> } & NavTab) => {
+  const { pathname, search: currentSearch } = useLocation();
+  const to = { pathname: value, search: buildTabSearch(currentSearch, search, persistentKeys) };
+  const resolved = useResolvedPath(to);
   // NavLink compares the raw location against its resolved target, and a run id carries ":" and
   // "+". Landing on a link where those arrived percent-encoded leaves the two spellings of the
   // same path looking different, so the tab for the page you are on reads as inactive.
@@ -59,7 +84,7 @@ const NavTabLink = ({
   const active = current === target || (matchPaths ?? []).includes(lastSegment);
 
   return (
-    <NavLink end title={label} to={{ pathname: value, search }}>
+    <NavLink end title={label} to={to}>
       <Center
         _focus={{ color: active ? "fg" : "brand.solid" }}
         _hover={{ color: active ? "fg" : "brand.solid" }}
@@ -80,7 +105,7 @@ const NavTabLink = ({
   );
 };
 
-export const NavTabs = ({ tabs }: Props) => {
+export const NavTabs = ({ persistentKeys = NO_KEYS, tabs }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
 
@@ -93,7 +118,12 @@ export const NavTabs = ({ tabs }: Props) => {
       ref={containerRef}
     >
       {tabs.map((tab) => (
-        <NavTabLink containerWidth={containerWidth} key={tab.value} {...tab} />
+        <NavTabLink
+          containerWidth={containerWidth}
+          key={tab.value}
+          persistentKeys={persistentKeys}
+          {...tab}
+        />
       ))}
     </Flex>
   );

@@ -27,6 +27,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 
 import type { DagRunState, DagRunType, GridRunsResponse } from "openapi/requests";
 
+import { TASK_STREAM_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import type { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import type { GridCell } from "src/context/gridSelection";
 import { useGroups } from "src/context/groups";
@@ -97,10 +98,10 @@ export const Grid = ({
   const { dagId = "", groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
   const [searchParams] = useSearchParams();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depthParam = searchParams.get("depth");
+  const filterRoot = searchParams.get(TASK_STREAM_SEARCH_PARAMS.root) ?? undefined;
+  const includeUpstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.upstream) === "true";
+  const includeDownstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.downstream) === "true";
+  const depthParam = searchParams.get(TASK_STREAM_SEARCH_PARAMS.depth);
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Over fetch gridRuns and then truncate to limit, in order to check pagination

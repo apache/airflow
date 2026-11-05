@@ -18,6 +18,7 @@
  */
 import { useSearchParams } from "react-router-dom";
 
+import { TASK_STREAM_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 
 import type { GraphFilterValues } from "../useGraphFilteredNodes";
@@ -34,10 +35,10 @@ type GraphSearchParams = {
 export const useGraphSearchParams = (): GraphSearchParams => {
   const [searchParams] = useSearchParams();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depthParam = searchParams.get("depth");
+  const filterRoot = searchParams.get(TASK_STREAM_SEARCH_PARAMS.root) ?? undefined;
+  const includeUpstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.upstream) === "true";
+  const includeDownstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.downstream) === "true";
+  const depthParam = searchParams.get(TASK_STREAM_SEARCH_PARAMS.depth);
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
   const hasActiveFilter = includeUpstream || includeDownstream;
 

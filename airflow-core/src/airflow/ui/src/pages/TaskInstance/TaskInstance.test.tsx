@@ -30,6 +30,8 @@ import { TaskInstanceService, type TaskInstanceResponse } from "openapi/requests
 
 import { NavTabs, type NavTab } from "src/layouts/Details/NavTabs";
 
+import { usePersistentSearchParamKeys } from "src/constants/persistentSearchParams";
+
 import { HITLResponse } from "./HITLResponse";
 import { TaskInstance } from "./TaskInstance";
 
@@ -61,7 +63,7 @@ vi.mock("src/layouts/Details/DetailsLayout", () => ({
     <>
       {children}
       {error === null || error === undefined ? undefined : <div data-testid="layout-error" />}
-      <NavTabs tabs={tabs} />
+      <NavTabs persistentKeys={usePersistentSearchParamKeys()} tabs={tabs} />
       <Outlet />
     </>
   ),
@@ -332,8 +334,8 @@ describe("TaskInstance", () => {
     expect(screen.getByTestId("location").textContent).toContain("region_index=3");
   });
 
-  it.each(["", "?try_number=1&log_level=error"])(
-    "keeps the selected try across task tabs with %s",
+  it.each(["", "?try_number=1&log_level=error&log_source=task&log_search=boom&offset=20"])(
+    "keeps the selected try and the log filters across task tabs with %s",
     async (search) => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -354,7 +356,7 @@ describe("TaskInstance", () => {
         { wrapper: createWrapper(queryClient) },
       );
       expect(await screen.findByText(`${TASK_A}:up_for_retry:2`)).toBeTruthy();
-      const expectedSearch = search ? "?try_number=1" : "";
+      const expectedSearch = search ? "?try_number=1&log_level=error&log_source=task&log_search=boom" : "";
 
       fireEvent.click(screen.getByRole("link", { name: "tabs.details" }));
       expect(screen.getByTestId("location")).toHaveTextContent(`${path}/details${expectedSearch}`);
@@ -362,7 +364,7 @@ describe("TaskInstance", () => {
       expect(screen.getByTestId("location")).toHaveTextContent(`${path}/required_actions${expectedSearch}`);
       fireEvent.click(screen.getByRole("link", { name: "tabs.logs" }));
       expect(screen.getByTestId("location")).toHaveTextContent(`${path}${expectedSearch}`);
-      expect(screen.getByTestId("location")).not.toHaveTextContent("log_level");
+      expect(screen.getByTestId("location")).not.toHaveTextContent("offset");
     },
   );
 

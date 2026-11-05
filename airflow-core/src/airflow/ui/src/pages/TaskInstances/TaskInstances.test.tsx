@@ -327,6 +327,30 @@ describe("TaskInstances", () => {
   });
 });
 
+// The pattern reaches the api as a prefix match unless advanced search is on, so check both names.
+const runIdFilter = () =>
+  vi.mocked(useTaskInstanceServiceGetTaskInstances).mock.lastCall?.[0]?.runIdPattern ??
+  vi.mocked(useTaskInstanceServiceGetTaskInstances).mock.lastCall?.[0]?.runIdPrefixPattern;
+
+describe("TaskInstances run id filter", () => {
+  beforeEach(() => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    mockSearchParams = new URLSearchParams("run_id_pattern=nomatch");
+  });
+
+  it("ignores a run id pattern once the route already pins the run", () => {
+    mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(runIdFilter()).toBeUndefined();
+  });
+
+  it("still applies a run id pattern on the list across runs", () => {
+    mockParams = { dagId: "example_dag" };
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(runIdFilter()).toBe("nomatch");
+  });
+});
+
 describe("TaskInstances date filters", () => {
   beforeEach(() => {
     mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
