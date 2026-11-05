@@ -225,11 +225,11 @@ release that shipped it. See the legend below the tables for what each mark mean
      - TypeScript
    * - Min. Airflow version
      - 3.5.0
-     - 3.4.0
+     - 3.5.0
      - 3.5.0
    * - Current Supervisor Schema Version
      - 2027-02-28
-     - 2026-10-30
+     - 2027-02-28
      - 2027-02-28
 
 .. list-table:: Common to both authoring modes
