@@ -168,6 +168,10 @@ DuckDB how to authenticate, and the ``credential_strategy`` parameter selects ho
         hook_params={"aws_conn_id": "aws_static_keys", "credential_strategy": "config"},
     )
 
+If ``credential_strategy`` is not set and the AWS connection has credentials (keys, a ``role_arn`` or
+a ``profile_name``), the hook logs a warning, because ``credential_chain`` does not use them. Set it to
+``config`` to use them, or to ``credential_chain`` to silence the warning.
+
 Non-default S3 endpoints
 ========================
 
