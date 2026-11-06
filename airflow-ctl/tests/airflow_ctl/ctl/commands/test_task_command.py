@@ -23,6 +23,7 @@ from unittest import mock
 import httpx
 import pytest
 
+from airflowctl.api.client import Client
 from airflowctl.api.datamodels.generated import (
     StructuredLogMessage,
     TaskDependencyCollectionResponse,
@@ -504,6 +505,20 @@ class TestStatesForDagRun:
             ],
             output="json",
         )
+
+    def test_states_for_dag_run_not_found_prints_ids_containing_markup(self, capsys):
+        api_client = mock.MagicMock(spec=Client)
+        api_client.task_instances.list.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit, match="1"):
+            task_command.states_for_dag_run(
+                self.parser.parse_args(["tasks", "states-for-dag-run", "my_dag[/y]", "run_[/x]"]),
+                api_client=api_client,
+            )
+
+        output = capsys.readouterr().out
+        assert "run_[/x]" in output
+        assert "my_dag[/y]" in output
 
     @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
     def test_states_for_dag_run_by_logical_date(self, mock_console_cls):
@@ -1056,7 +1071,7 @@ class TestLogs:
     ],
 )
 def test_task_instance_not_found_prints_task_id_containing_markup(command, argv, api_method, capsys):
-    api_client = mock.MagicMock()
+    api_client = mock.MagicMock(spec=Client)
     getattr(api_client.task_instances, api_method).side_effect = _make_server_error(404)
 
     with pytest.raises(SystemExit, match="1"):

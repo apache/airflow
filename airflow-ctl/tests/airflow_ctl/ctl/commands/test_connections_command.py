@@ -337,7 +337,7 @@ class TestCliConnectionCommands:
 def test_import_prints_failure_containing_markup(bulk_setup, tmp_path, capsys):
     connections_file = tmp_path / "connections.json"
     connections_file.write_text(json.dumps({"my_conn": {"conn_type": "http"}}))
-    api_client = mock.MagicMock()
+    api_client = mock.MagicMock(spec=Client)
     bulk_setup(api_client.connections.bulk)
 
     with pytest.raises(SystemExit) as exc_info:

@@ -248,7 +248,7 @@ def _print_dag_runs_to_clear(dag_id: str, dag_runs: list) -> None:
         partition_date = getattr(dag_run, "partition_date", None)
         partition_date_display = partition_date.isoformat() if partition_date is not None else "-"
         rich.print(
-            f"  - {dag_run.dag_run_id} (logical date: {logical_date}, partition date: {partition_date_display})"
+            f"  - {escape(dag_run.dag_run_id)} (logical date: {logical_date}, partition date: {partition_date_display})"
         )
 
 

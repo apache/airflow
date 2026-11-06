@@ -25,7 +25,7 @@ from unittest.mock import Mock, call, create_autospec
 import httpx
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import ClearTaskInstancesBody, DAGResponse, DagSchedulingState
 from airflowctl.api.operations import DagRunOperations, ServerResponseError, TasksOperations
 from airflowctl.ctl import cli_parser
@@ -243,6 +243,18 @@ class TestDagCommands:
 
         assert "[/x]" in capsys.readouterr().err
 
+    def test_pause_fail_prints_dag_id_containing_markup(self, capsys):
+        api_client = Mock(spec=Client)
+        api_client.dags.update.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit):
+            dag_command.pause(
+                self.parser.parse_args(["dags", "pause", "my_dag[/y]"]),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().err
+
     def test_unpause_dag(self, api_client_maker, monkeypatch):
         api_client = api_client_maker(
             path=f"/api/v2/dags/{self.dag_id}",
@@ -378,6 +390,33 @@ class TestDagCommands:
             api_client=api_client,
         )
         assert result is None
+
+    def test_next_execution_fail_prints_dag_id_containing_markup(self, capsys):
+        api_client = Mock(spec=Client)
+        api_client.dags.get.side_effect = _make_server_error(404)
+
+        with pytest.raises(SystemExit):
+            dag_command.next_execution(
+                self.parser.parse_args(["dags", "next-execution", "my_dag[/y]"]),
+                api_client=api_client,
+            )
+
+        assert "my_dag[/y]" in capsys.readouterr().out
+
+    def test_next_execution_fail_prints_server_error_containing_markup(self, api_client_maker, capsys):
+        api_client = api_client_maker(
+            path=f"/api/v2/dags/{self.dag_id}",
+            response_json={"detail": "bad [/x] value"},
+            expected_http_status_code=404,
+            kind=ClientKind.CLI,
+        )
+        with pytest.raises(SystemExit):
+            dag_command.next_execution(
+                self.parser.parse_args(["dags", "next-execution", self.dag_id]),
+                api_client=api_client,
+            )
+
+        assert "[/x]" in capsys.readouterr().out
 
     def test_next_execution_fail(self, api_client_maker):
         api_client = api_client_maker(
@@ -744,6 +783,19 @@ class TestDagCommands:
 
         assert result == {"dag_run_count": 1, "cleared_task_instances": 0, "cancelled": True}
         api_client.tasks.clear.assert_not_called()
+
+    @pytest.mark.parametrize("run_id", ["run_[/x]", "run[abc]"])
+    def test_clear_prompt_lists_run_id_containing_markup(self, run_id, monkeypatch, capsys):
+        api_client = self._api_client_mock()
+        api_client.dag_runs.get.return_value = self._dag_run(run_id)
+        monkeypatch.setattr("builtins.input", lambda _: "n")
+
+        dag_command.clear(
+            self.parser.parse_args(["dags", "clear", self.dag_id, "--run-id", run_id]),
+            api_client=api_client,
+        )
+
+        assert f"- {run_id} (" in capsys.readouterr().out
 
     @pytest.mark.parametrize(
         "command",

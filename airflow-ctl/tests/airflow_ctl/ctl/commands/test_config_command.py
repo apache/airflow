@@ -22,7 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.generated import Config, ConfigOption, ConfigSection
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import config_command
@@ -615,7 +615,7 @@ class TestCliConfigCommands:
 
 
 def test_lint_prints_failure_containing_markup(capsys):
-    api_client = mock.MagicMock()
+    api_client = mock.MagicMock(spec=Client)
     api_client.configs.list.side_effect = RuntimeError("bad [/x]")
 
     with pytest.raises(SystemExit) as exc_info:

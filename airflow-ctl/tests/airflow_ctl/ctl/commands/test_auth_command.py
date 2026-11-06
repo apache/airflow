@@ -24,7 +24,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflowctl.api.client import ClientKind
+from airflowctl.api.client import Client, ClientKind
 from airflowctl.api.datamodels.auth_generated import LoginResponse
 from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import auth_command
@@ -650,7 +650,7 @@ class TestListEnvs:
 
 
 def test_login_prints_failure_containing_markup(capsys):
-    api_client = mock.MagicMock()
+    api_client = mock.MagicMock(spec=Client)
     api_client.login.login_with_username_and_password.side_effect = RuntimeError("bad [/x]")
 
     with pytest.raises(SystemExit) as exc_info:
@@ -675,7 +675,7 @@ def test_login_prints_failure_containing_markup(capsys):
 
 
 def test_token_prints_failure_containing_markup(capsys):
-    api_client = mock.MagicMock()
+    api_client = mock.MagicMock(spec=Client)
     api_client.login.login_with_username_and_password.side_effect = RuntimeError("bad [/x]")
 
     with pytest.raises(SystemExit) as exc_info:
