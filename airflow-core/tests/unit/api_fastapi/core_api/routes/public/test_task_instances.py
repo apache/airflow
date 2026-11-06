@@ -9595,7 +9595,7 @@ class TestPatchTaskGroupDryRun(TestTaskInstanceEndpoint):
             f"Adding one task should add at most a few queries for per-TI state updates, "
             f"got {per_task_overhead} (section_1={count_section_1}, section_2={count_section_2})"
         )
-        
+
     def test_dry_run_loads_notes_in_one_query(self, test_client, session):
         """Notes should be loaded together, not one query per task instance."""
         self.create_task_instances(session, dag_id=self.DAG_ID)
