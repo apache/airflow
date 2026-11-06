@@ -888,6 +888,7 @@ class TestGetGridDataEndpoint:
             ti["loop_iterations_count"] = None
             ti["latest_region_id"] = None
             ti["latest_region_index"] = None
+            ti["retry_at"] = None
         for obj in actual, expected:
             tis = obj["task_instances"]
             tis[:] = sorted(tis, key=lambda x: x["task_id"])
@@ -997,6 +998,7 @@ class TestGetGridDataEndpoint:
             ti["loop_iterations_count"] = None
             ti["latest_region_id"] = None
             ti["latest_region_index"] = None
+            ti["retry_at"] = None
         expected = sort_dict(expected)
         actual = sort_dict(actual)
         assert actual == expected
@@ -1269,6 +1271,29 @@ class TestGetGridDataEndpoint:
 
         assert by_task_id[TASK_ID]["has_note"] is True
         assert all(not ti["has_note"] for task_id, ti in by_task_id.items() if task_id != TASK_ID)
+
+    def test_grid_ti_summaries_retry_at_only_for_a_single_task_instance(self, session, test_client):
+        retry_at = pendulum.DateTime(2024, 12, 30, 3, 0, 0, tzinfo=pendulum.UTC)
+        waiting = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.run_id == "run_2",
+                (TaskInstance.task_id == TASK_ID)
+                | ((TaskInstance.task_id == "mapped_task_group.subtask") & (TaskInstance.map_index == 2)),
+            )
+        ).all()
+        for ti in waiting:
+            ti.state = TaskInstanceState.UP_FOR_RETRY
+            ti.retry_at = retry_at
+        session.commit()
+
+        response = test_client.get(f"/grid/ti_summaries/{DAG_ID}?run_ids=run_2")
+        assert response.status_code == 200
+        [data] = self._parse_ndjson(response)
+        by_task_id = {ti["task_id"]: ti for ti in data["task_instances"]}
+
+        assert by_task_id[TASK_ID]["retry_at"] == "2024-12-30T03:00:00Z"
+        assert by_task_id["mapped_task_group.subtask"]["retry_at"] is None
+        assert by_task_id["mapped_task_group"]["retry_at"] is None
 
     @staticmethod
     def _parse_ndjson(response) -> list[dict]:

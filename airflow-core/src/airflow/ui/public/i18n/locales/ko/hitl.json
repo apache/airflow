@@ -21,6 +21,7 @@
     "received": "응답 수신 시간: ",
     "respond": "응답하기",
     "responded_by_user_name": "(사용자 이름)에 의해 응답됨",
+    "selectAtLeastOne": "옵션을 하나 이상 선택하세요",
     "success": "{{taskId}} 응답 성공",
     "title": "휴먼 태스크 인스턴스 - {{taskId}}"
   },

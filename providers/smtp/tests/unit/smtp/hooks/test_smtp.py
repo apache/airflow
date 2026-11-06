@@ -755,9 +755,7 @@ class TestSmtpHookAsync:
         assert call_kwargs["use_tls"] == expected_ssl
         assert call_kwargs["start_tls"] == (None if expected_ssl else True)
         assert isinstance(call_kwargs["tls_context"], ssl.SSLContext)
-
-        if expected_ssl:
-            assert mock_smtp_client.starttls.await_count == 1
+        mock_smtp_client.starttls.assert_not_awaited()
 
         assert mock_smtp_client.auth_login.await_count == 1
         mock_smtp_client.auth_login.assert_awaited_once_with(SMTP_LOGIN, SMTP_PASSWORD)
@@ -828,14 +826,33 @@ class TestSmtpHookAsync:
 
         mock_smtp_client.sendmail.assert_not_awaited()
 
+    async def test_async_starttls_not_repeated_after_connect(
+        self, mock_smtp, mock_smtp_client, mock_get_connection
+    ):
+        """Test that aget_conn does not repeat the STARTTLS upgrade aiosmtplib already did in connect()."""
+        # Like aiosmtplib, reject STARTTLS on a connection that already uses TLS.
+        mock_smtp_client.starttls.side_effect = aiosmtplib.errors.SMTPException(
+            "Connection already using TLS"
+        )
+
+        async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL) as hook:
+            await hook.asend_email_smtp(to=TO_EMAIL, subject=TEST_SUBJECT, html_content=TEST_BODY)
+
+        assert mock_smtp.call_args.kwargs["start_tls"] is True
+        mock_smtp_client.starttls.assert_not_awaited()
+        mock_smtp_client.sendmail.assert_awaited_once()
+
     async def test_async_ehlo_called_after_starttls(self, mock_smtp, mock_smtp_client, mock_get_connection):
-        """Test that ehlo() is called after starttls() in async path."""
+        """Test that ehlo() is called after connect(), which does the STARTTLS upgrade, and before login."""
+        manager = AsyncMock()
+        mock_smtp_client.connect = manager.connect
+        mock_smtp_client.ehlo = manager.ehlo
+        mock_smtp_client.auth_login = manager.auth_login
+
         async with SmtpHook(smtp_conn_id=CONN_ID_NONSSL):
             pass
 
-        # For non-SSL, starttls is called followed by ehlo
-        assert mock_smtp_client.starttls.await_count == 1
-        assert mock_smtp_client.ehlo.await_count >= 2  # once in _abuild_client + once after starttls
+        assert manager.mock_calls == [call.connect(), call.ehlo(), call.auth_login(SMTP_LOGIN, SMTP_PASSWORD)]
 
     async def test_async_oauth2_auth(
         self, mock_smtp, mock_smtp_client, mock_get_connection, create_connection_without_db

@@ -901,6 +901,7 @@ def _build_python_docs(
     package_filter: tuple[str, ...],
     distributions_list: str,
     doc_packages: tuple[str, ...],
+    sphinx_airflow_theme_path: str,
 ):
     # Docs are always built on the default Python. The Sphinx configuration mocks third-party
     # modules, and what that mocking does depends on the interpreter - on 3.12 functools copies
@@ -964,6 +965,7 @@ def _build_python_docs(
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         mount_sources=MOUNT_ALL,
+        sphinx_airflow_theme_path=sphinx_airflow_theme_path,
     )
     result = execute_command_in_shell(shell_params, project_name="breeze-docs", command=cmd)
     fix_ownership_using_docker()
@@ -974,6 +976,16 @@ def _build_python_docs(
             "the built docs at http://localhost:8000"
         )
     return sphinx_returncode
+
+
+def _validate_sphinx_airflow_theme_path(ctx: click.Context, param: click.Parameter, value: str | None):
+    if value and not Path(value, "sphinx_airflow_theme/static/_gen").is_dir():
+        raise click.BadParameter(
+            f"{value} has no sphinx_airflow_theme/static/_gen. It must be the `sphinx_airflow_theme` "
+            "sub-folder of an airflow-site checkout (not the repository root), "
+            "after `./site.sh build-landing-pages && ./site.sh prepare-theme`."
+        )
+    return value
 
 
 @main.command(name="build-docs")
@@ -1035,6 +1047,14 @@ def _build_python_docs(
     is_flag=True,
     help="Only build SDK docs. Requires at least one --sdk value to be useful.",
 )
+@click.option(
+    "--sphinx-airflow-theme-path",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    callback=_validate_sphinx_airflow_theme_path,
+    help="Build the docs with the `sphinx_airflow_theme` sub-folder of an airflow-site checkout "
+    "(e.g. `../airflow-site/sphinx_airflow_theme`, not the repository root), after "
+    "`./site.sh build-landing-pages && ./site.sh prepare-theme`, instead of the published theme.",
+)
 @option_verbose
 @option_answer
 @argument_doc_packages
@@ -1053,11 +1073,17 @@ def build_docs(
     distributions_list: str,
     sdk: tuple[str, ...],
     sdk_docs_only: bool,
+    sphinx_airflow_theme_path: str | None,
     doc_packages: tuple[str, ...],
 ):
     """
     Build documents.
     """
+    if sdk_docs_only and sphinx_airflow_theme_path:
+        raise click.UsageError(
+            "--sphinx-airflow-theme-path cannot be used with --sdk-docs-only: "
+            "the SDK docs do not use the Sphinx theme."
+        )
     perform_environment_checks()
     fix_ownership_using_docker()
     cleanup_python_generated_files()
@@ -1080,6 +1106,7 @@ def build_docs(
             package_filter=package_filter,
             distributions_list=distributions_list,
             doc_packages=doc_packages,
+            sphinx_airflow_theme_path=sphinx_airflow_theme_path or "",
         )
     # Every requested SDK is built even if an earlier one failed, so a single run reports
     # all the broken toolchains rather than only the first.

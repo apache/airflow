@@ -38,7 +38,7 @@ plugins {
     kotlin("plugin.serialization") version "2.4.20"
 }
 
-val schemaBaseUrl = "https://airflow.staged.apache.org/schemas/supervisor-schema"
+val schemaBaseUrl = "https://airflow.apache.org/schemas/supervisor-schema"
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
 val pointersDir = layout.buildDirectory.dir("schema-pointers/main")
 val jsonSchemaPackage = "org.apache.airflow.sdk.execution.comm"
@@ -959,7 +959,7 @@ publishing {
 }
 
 // Prints the classpath that runs the conformance serializer, for
-// java-sdk/scripts/ci/prek/check_serialization_conformance.py.
+// scripts/ci/lang_sdk_serialization/check_java_sdk.py.
 tasks.register("printConformanceClasspath") {
     dependsOn("testClasses")
     // Capture early to keep compatibility to the Gradle configuration cache.

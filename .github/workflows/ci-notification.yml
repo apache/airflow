@@ -34,6 +34,7 @@ env:
 jobs:
 
   workflow-status:
+    if: github.event_name != 'schedule' || github.repository == 'apache/airflow'
     strategy:
       matrix:
         branch: ["v3-4-test"]

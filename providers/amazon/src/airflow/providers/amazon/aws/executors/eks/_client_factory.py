@@ -16,8 +16,8 @@
 # under the License.
 """Kubernetes client factories for the AwsEksExecutor."""
 
-# Internal to AwsEksExecutor, which writes these functions' import paths into
-# [kubernetes_executor] client_factory and async_client_factory.
+# Internal to AwsEksExecutor, which declares these functions' import paths as its client_factory
+# and async_client_factory.
 
 from __future__ import annotations
 
@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.executors.eks.utils import (
     CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllEksConfigKeys,
+    get_cluster_name_env_var,
 )
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
@@ -62,42 +63,55 @@ def _get_sync_token_key(kubernetes_version: str) -> str:
 _SYNC_TOKEN_KEY = _get_sync_token_key(kubernetes.__version__)
 
 
-def _get_eks_kube_client() -> client.CoreV1Api:
-    """Build a Kubernetes client for the configured EKS cluster, in memory and without a kubeconfig."""
+class _EksExecutorHook(EksHook):
+    # Without this, the user agent reports KubernetesExecutor as the caller.
+    def _get_caller(self, target_function_name: str = "execute") -> str:
+        return "AwsEksExecutor"
+
+
+def _get_eks_kube_client(team_name: str | None = None) -> client.CoreV1Api:
+    """Build a Kubernetes client for the team's EKS cluster, in memory and without a kubeconfig."""
     from kubernetes import client
 
     configuration = client.Configuration()
-    _configure_eks_auth(configuration, _SYNC_TOKEN_KEY)
+    _configure_eks_auth(configuration, _SYNC_TOKEN_KEY, team_name)
     return client.CoreV1Api(client.ApiClient(configuration=configuration))
 
 
-def _get_eks_async_kube_client() -> async_client.CoreV1Api:
+def _get_eks_async_kube_client(team_name: str | None = None) -> async_client.CoreV1Api:
     """Build the asynchronous Kubernetes client used when ``async_pod_creation`` is enabled."""
     from kubernetes_asyncio import client as async_client
 
     configuration = async_client.Configuration()
     # kubernetes_asyncio has always used "BearerToken".
-    _configure_eks_auth(configuration, "BearerToken")
+    _configure_eks_auth(configuration, "BearerToken", team_name)
     return async_client.CoreV1Api(async_client.ApiClient(configuration=configuration))
 
 
 def _configure_eks_auth(
-    configuration: client.Configuration | async_client.Configuration, token_key: str
+    configuration: client.Configuration | async_client.Configuration,
+    token_key: str,
+    team_name: str | None,
 ) -> None:
-    cluster_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None)
+    # The factories run where there is no executor, such as the pod watcher process, so they look
+    # up the team's config themselves, the same way ExecutorConf does. Airflow releases without
+    # multi-team don't accept team_name.
+    team_kwargs = {"team_name": team_name} if team_name else {}
+    cluster_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.CLUSTER_NAME, fallback=None, **team_kwargs)
     if not cluster_name:
         raise ValueError(
             f"[{CONFIG_GROUP_NAME}] cluster_name is required to build an EKS client. "
-            "Set it in airflow.cfg or with AIRFLOW__AWS_EKS_EXECUTOR__CLUSTER_NAME."
+            f"Set it in airflow.cfg or with {get_cluster_name_env_var(team_name)}."
         )
-    region_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.REGION_NAME, fallback=None)
+    region_name = conf.get(CONFIG_GROUP_NAME, AllEksConfigKeys.REGION_NAME, fallback=None, **team_kwargs)
     conn_id = conf.get(
         CONFIG_GROUP_NAME,
         AllEksConfigKeys.AWS_CONN_ID,
         fallback=CONFIG_DEFAULTS[AllEksConfigKeys.AWS_CONN_ID],
+        **team_kwargs,
     )
 
-    eks_hook = EksHook(aws_conn_id=conn_id, region_name=region_name)
+    eks_hook = _EksExecutorHook(aws_conn_id=conn_id, region_name=region_name)
     cluster = eks_hook.conn.describe_cluster(name=cluster_name)["cluster"]
     if cluster["status"] not in _USABLE_CLUSTER_STATUSES:
         raise ValueError(
