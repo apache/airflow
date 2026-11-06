@@ -43,8 +43,24 @@ Russian has **four plural forms**. Use the correct form for each suffix:
 "connection_many": "Соединения"   // genitive singular used for 5+
 ```
 
-`_few` and `_many` must differ. A set where they are identical is almost
-always a mistake.
+Where a numeral governs the noun, `_few` and `_many` take different cases and
+must differ:
+
+```json
+"connection_few": "Соединения",    // 2-4
+"connection_many": "Соединений"    // 5 and up
+```
+
+Where the string carries no numeral, one plural form covers every count, and
+the suffixes may legitimately be identical:
+
+```json
+"firstConfirmMessage_few": "Вы собираетесь удалить следующие соединения:",
+"firstConfirmMessage_many": "Вы собираетесь удалить следующие соединения:"
+```
+
+So judge a set by whether a number is rendered next to the noun, not by
+whether the suffixes differ.
 
 **`_other` is unsettled in this locale.** Russian takes the genitive singular
 after a fraction (`1,5 пула`), which is the same form as `_few`. Most entries
