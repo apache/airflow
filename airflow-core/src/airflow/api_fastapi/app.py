@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.dagbag import create_dag_bag
 from airflow.api_fastapi.common.exceptions import init_error_handlers
 from airflow.api_fastapi.common.http_access_log import HttpAccessLogMiddleware
 from airflow.api_fastapi.common.http_metrics import HttpMetricsMiddleware
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.api_fastapi.core_api.app import (
     init_config,
     init_flask_plugins,
@@ -154,6 +155,7 @@ def create_app(apps: str = "all") -> FastAPI:
         "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),
+        telemetry=NATIVE_TELEMETRY_DISABLED,
         version="2",
         docs_url="/docs" if conf.getboolean("api", "enable_swagger_ui") else None,
         redoc_url="/redoc" if conf.getboolean("api", "enable_swagger_ui") else None,

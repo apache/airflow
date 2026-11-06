@@ -26,6 +26,7 @@ from unittest import mock
 import pytest
 import time_machine
 import uuid6
+from fastapi import HTTPException, status
 from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
@@ -2216,6 +2217,60 @@ class TestGetDagRunAssetTriggerEvents:
         assert [event["id"] for event in body["asset_events"]] == [event_ids["dag_b"]]
         assert {event["uri"] for event in body["asset_events"]} == {"file:///da2"}
         assert body["total_entries"] == 1
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"TEST_DAG_ID"}, ["TEST_DAG_ID"], id="other-consumer-dag-not-readable"),
+            pytest.param(
+                {"TEST_DAG_ID", "other_consumer"}, ["TEST_DAG_ID", "other_consumer"], id="both-readable"
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_run_dags
+    ):
+        """An event's created Dag runs are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        asset = AssetModel(name="ds1", uri="file:///da1", group="asset")
+        session.add(asset)
+        session.flush()
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(asset_id=asset.id, timestamp=START_DATE1)
+        session.add(event)
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.append(event)
+        session.merge(DagBundleModel(name="testing"))
+        session.flush()
+        session.add(DagModel(dag_id="other_consumer", bundle_name="testing"))
+        session.flush()
+        other_run = DagRun(
+            dag_id="other_consumer",
+            run_id="other_consumer_run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=START_DATE1,
+            start_date=START_DATE1,
+            data_interval=(START_DATE1, START_DATE1),
+            state=DagRunState.SUCCESS,
+        )
+        other_run.consumed_asset_events.append(event)
+        session.add(other_run)
+        session.commit()
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -5224,6 +5279,80 @@ class TestBulkDagRuns:
         )
         assert dag_run.note == "bulk note"
         assert dag_run.state == DAG1_RUN1_STATE
+
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    @pytest.mark.parametrize(
+        ("existing_note", "new_note", "expected_note"),
+        [
+            pytest.param(None, "new note", "new note", id="new-note"),
+            pytest.param("old note", "new note", "new note", id="replace-stale-note"),
+            pytest.param("old note", "", None, id="empty-string-clears-note"),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_updated(
+        self, test_client, listener_manager, session, state, existing_note, new_note, expected_note
+    ):
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.state = DagRunState.RUNNING
+        if existing_note is not None:
+            dag_run.note = (existing_note, "not_test")
+        session.commit()
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": state, "note": new_note}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert body["update"]["errors"] == []
+        assert listener.state == [state]
+        assert listener.dag_run_note_at_listener == expected_note
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.dag_run.get_dag_for_run", autospec=True)
+    def test_bulk_update_dag_not_found_keeps_note_and_state(self, mock_get_dag_for_run, test_client, session):
+        mock_get_dag_for_run.side_effect = HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{DAG1_ID}` was not found"
+        )
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.note = ("old note", "not_test")
+        session.commit()
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "new note"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        assert body["update"]["errors"] == [
+            {"error": f"The Dag with ID: `{DAG1_ID}` was not found", "status_code": 404}
+        ]
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        assert dag_run.note == "old note"
+        assert dag_run.state == DAG1_RUN2_STATE
 
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""

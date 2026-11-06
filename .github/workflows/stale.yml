@@ -27,6 +27,7 @@ permissions:
   issues: write
 jobs:
   stale:
+    if: github.repository == 'apache/airflow'
     runs-on: ["ubuntu-slim"]
     steps:
       # Handle all PRs (45-day stale) and pending-response issues (14-day stale)
@@ -38,6 +39,7 @@ jobs:
             for your contributions.
           days-before-pr-stale: 45
           days-before-pr-close: 5
+          operations-per-run: 500
           exempt-pr-labels: 'pinned,security,pending-response'
           only-issue-labels: 'pending-response'
           remove-stale-when-updated: true

@@ -105,7 +105,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_base_simple_dag"
+                        "name": "openlineage_base_simple_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -113,7 +120,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_base_simple_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -145,7 +159,11 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -233,7 +251,14 @@
                 "parent": {
                     "job": {
                         "namespace": "{{ result is string }}",
-                        "name": "openlineage_base_simple_dag"
+                        "name": "openlineage_base_simple_dag",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
                     },
                     "run": {
                         "runId": "{{ is_uuid(result) }}"
@@ -241,7 +266,14 @@
                     "root": {
                         "job": {
                             "name": "openlineage_base_simple_dag",
-                            "namespace": "{{ result is string }}"
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
                         },
                         "run": {
                             "runId": "{{ is_uuid(result) }}"
@@ -273,7 +305,11 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,

@@ -9,7 +9,11 @@
   "config": {
     "columns": {
       "section": "Secção"
-    }
+    },
+    "config_many": "Configurações",
+    "config_one": "Configuração",
+    "config_other": "Configurações",
+    "config_zero": "Nenhuma configuração"
   },
   "connections": {
     "add": "Adicionar Conexão",
@@ -24,7 +28,7 @@
     "connection_other": "Conexões",
     "connection_zero": "Nenhuma conexão",
     "delete": {
-      "deleteConnection_many": "Excluir {{count, number}} conexões",
+      "deleteConnection_many": "Excluir {{count, number}} de conexões",
       "deleteConnection_one": "Excluir 1 conexão",
       "deleteConnection_other": "Excluir {{count, number}} conexões",
       "deleteConnection_zero": "Nenhuma conexão para excluir",
@@ -34,13 +38,16 @@
       "firstConfirmMessage_zero": "Nenhuma conexão para excluir",
       "title": "Excluir Conexão"
     },
+    "duplicate": "Duplicar $t(connections.connection_one)",
     "edit": "Editar Conexão",
     "form": {
       "connectionIdRequired": "ID da Conexão é obrigatório",
       "connectionIdRequirement": "ID da Conexão não pode conter somente espaços",
+      "connectionTypeFields": "Campos de {{connectionType}}",
       "connectionTypeRequired": "Tipo de Conexão é obrigatório",
       "extraFieldsJson": "Campos Extra JSON",
       "helperText": "Tipo de conexão faltando? Certifique-se de ter instalado o pacote do provider correspondente ao Airflow.",
+      "helperTextForDuplicatedRedactedFields": "Campos ocultos ('***') não são copiados. Preencha-os para a nova conexão.",
       "helperTextForRedactedFields": "Os campos redigidos ('***') permanecerão inalterados se não forem modificados.",
       "selectConnectionType": "Selecionar Tipo de Conexão",
       "standardFields": "Campos Padrão"
@@ -100,7 +107,11 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_many": "Jobs",
+    "job_one": "Job",
+    "job_other": "Jobs",
+    "job_zero": "Nenhum Job"
   },
   "plugins": {
     "columns": {
@@ -110,6 +121,10 @@
     "importError_one": "Erro de Importação de Plugin",
     "importError_other": "Erros de Importação de Plugins",
     "importError_zero": "Nenhum erro de importação de plugin",
+    "plugin_many": "Plugins",
+    "plugin_one": "Plugin",
+    "plugin_other": "Plugins",
+    "plugin_zero": "Nenhum Plugin",
     "searchPlaceholder": "Pesquisar por arquivo"
   },
   "pools": {
@@ -126,7 +141,8 @@
       "includeDeferred": "Incluir Deferidos",
       "nameMaxLength": "Nome pode conter um máximo de 256 caracteres",
       "nameRequired": "Nome é obrigatório",
-      "slots": "Slots"
+      "slots": "Slots",
+      "slotsHelperText": "Use -1 para slots ilimitados."
     },
     "noPoolsFound": "Nenhum pool encontrado",
     "pool_many": "Pools",
@@ -144,7 +160,11 @@
     "columns": {
       "packageName": "Nome do Pacote",
       "version": "Versão"
-    }
+    },
+    "provider_many": "Providers",
+    "provider_one": "Provider",
+    "provider_other": "Providers",
+    "provider_zero": "Nenhum Provider"
   },
   "variables": {
     "add": "Adicionar Variável",
@@ -152,7 +172,7 @@
       "isEncrypted": "Está Encriptado"
     },
     "delete": {
-      "deleteVariable_many": "Excluir {{count, number}} Variáveis",
+      "deleteVariable_many": "Excluir {{count, number}} de Variáveis",
       "deleteVariable_one": "Excluir 1 Variável",
       "deleteVariable_other": "Excluir {{count, number}} Variáveis",
       "deleteVariable_zero": "Nenhuma variável para excluir",
@@ -188,6 +208,7 @@
           "title": "Ignorar"
         }
       },
+      "parsingFile": "Analisando arquivo...",
       "title": "Importar Variáveis",
       "upload": "Upload um Arquivo JSON",
       "uploadPlaceholder": "Upload um arquivo JSON contendo variáveis (exemplo: {\"key\": \"value\", ...})"

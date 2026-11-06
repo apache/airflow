@@ -35,3 +35,8 @@ class AllEksConfigKeys(BaseConfigKeys):
     CHECK_HEALTH_ON_STARTUP = "check_health_on_startup"
     CLUSTER_NAME = "cluster_name"
     REGION_NAME = "region_name"
+
+
+def get_cluster_name_env_var(team_name: str | None) -> str:
+    team_prefix = f"{team_name.upper()}___" if team_name else ""
+    return f"AIRFLOW__{team_prefix}{CONFIG_GROUP_NAME.upper()}__{AllEksConfigKeys.CLUSTER_NAME.upper()}"
