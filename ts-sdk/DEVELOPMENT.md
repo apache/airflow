@@ -148,8 +148,8 @@ names the source commit that produced the tarball. The tag must already exist
 on `apache/airflow` before the dispatch below can reference it as `--ref`:
 
 ```bash
-git tag ts-sdk/1.0.0-beta2 <commit-sha>
-git push upstream ts-sdk/1.0.0-beta2
+git tag ts-sdk/1.0.0 <commit-sha>
+git push upstream ts-sdk/1.0.0
 ```
 
 The commit you tag must be on `main` or on a core release branch (`vX-Y-test`
@@ -160,10 +160,10 @@ change there first, then tag that branch's commit.
 To submit the package to npm's private staging area for review, run:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta2 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0 \
   -f release_type=staged \
-  -f tag=ts-sdk/1.0.0-beta2 \
-  -f npm_tag=beta
+  -f tag=ts-sdk/1.0.0 \
+  -f npm_tag=latest
 ```
 
 The publish job calls `npm stage publish` only after the unprivileged build job
@@ -186,10 +186,10 @@ that is already staged; approve or reject that staged version instead.
 To publish directly without npm's staging review, trigger the formal path:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta2 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0 \
   -f release_type=formal \
-  -f tag=ts-sdk/1.0.0-beta2 \
-  -f npm_tag=beta
+  -f tag=ts-sdk/1.0.0 \
+  -f npm_tag=latest
 ```
 
 Use `latest` for stable releases. A prerelease may only use the channel derived
