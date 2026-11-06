@@ -61,7 +61,6 @@ EXCLUDED_COMMANDS = {
     "assets materialize",
     "backfill cancel",
     "backfill create",
-    "backfill create-dry-run",
     "backfill get",
     "backfill pause",
     "backfill unpause",

@@ -270,7 +270,7 @@ def test_selected_hooks_match_the_hooks_each_job_runs():
         "ci-arm.yml:migration-round-trip",
         "ci-arm.yml:mypy-providers",
         "generate-constraints.yml:generate-constraints-matrix",
-        "prod-image-build.yml:build-prod-packages",
+        "prod-packages-build.yml:build-prod-packages",
         "test-providers.yml:prepare-install-verify-provider-distributions",
         "test-providers.yml:providers-compatibility-tests-matrix",
     ]

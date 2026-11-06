@@ -19,7 +19,7 @@
 import type { TFunction } from "i18next";
 import { describe, it, expect, vi } from "vitest";
 
-import type { HITLDetail } from "openapi/requests/types.gen";
+import type { HITLDetail, TaskInstanceState } from "openapi/requests/types.gen";
 
 import { getHITLFormData, getHITLParamsDict, getHITLState, isHITLPending } from "./hitl";
 
@@ -51,13 +51,12 @@ const createMockHITLDetail = (overrides?: Partial<HITLDetail>): HITLDetail =>
   }) as HITLDetail;
 
 describe("isHITLPending", () => {
-  it("treats a deferred task as pending", () => {
-    expect(isHITLPending("deferred")).toBe(true);
-  });
-
-  it("treats an awaiting_input task as pending", () => {
-    expect(isHITLPending("awaiting_input")).toBe(true);
-  });
+  it.each<TaskInstanceState>(["deferred", "awaiting_input", "running"])(
+    "treats a %s task as pending",
+    (state) => {
+      expect(isHITLPending(state)).toBe(true);
+    },
+  );
 
   it("treats a finished/cleared task as not pending", () => {
     expect(isHITLPending("success")).toBe(false);
@@ -67,22 +66,25 @@ describe("isHITLPending", () => {
 });
 
 describe("getHITLState", () => {
-  it("reports a 'required' state for an awaiting_input task without a response", () => {
-    const hitlDetail = createMockHITLDetail({
-      response_received: false,
-      task_instance: {
-        dag_id: "test_dag",
-        dag_run_id: "test_run",
-        map_index: -1,
-        state: "awaiting_input",
-        task_id: "test_task",
-      },
-    } as Partial<HITLDetail>);
+  it.each<TaskInstanceState>(["awaiting_input", "running"])(
+    "reports a 'required' state for a %s task without a response",
+    (state) => {
+      const hitlDetail = createMockHITLDetail({
+        response_received: false,
+        task_instance: {
+          dag_id: "test_dag",
+          dag_run_id: "test_run",
+          map_index: -1,
+          state,
+          task_id: "test_task",
+        },
+      } as Partial<HITLDetail>);
 
-    // Empty params + non-approval options -> choice task; the point is that a parked
-    // awaiting_input task is "required", not "noResponseReceived".
-    expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
-  });
+      // Empty params + non-approval options -> choice task; the point is that a task still
+      // waiting for its answer is "required", not "noResponseReceived".
+      expect(getHITLState(mockTranslate, hitlDetail)).toBe("state.choiceRequired");
+    },
+  );
 
   it("reports no response received for a finished task without a response", () => {
     const hitlDetail = createMockHITLDetail({

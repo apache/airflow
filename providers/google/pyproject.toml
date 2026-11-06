@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-google"
-version = "22.8.0"
+version = "22.9.0"
 description = "Provider package apache-airflow-providers-google for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -83,10 +83,22 @@ dependencies = [
     # google-cloud-aiplatform doesn't install ray for python 3.12 (issue: https://github.com/googleapis/python-aiplatform/issues/5252).
     # Temporarily lock in ray 2.42.0 which is compatible with python 3.12 until linked issue is solved.
     # Remove the ray dependency as well as google-cloud-bigquery-storage once linked issue is fixed
-    # Floor raised to 1.164.0: earlier "evaluation" extras cap litellm below the version that
-    # carries the fixes for CVE-2026-35030 and its follow-on advisories on Python 3.14.
-    # - https://github.com/googleapis/python-aiplatform/issues/7057
-    "google-cloud-aiplatform[evaluation]>=1.164.0",
+    # The dependencies of google-cloud-aiplatform's "evaluation" extra, except litellm, which
+    # vertexai.preview.evaluation (what the generative model hook uses) never imports; only the
+    # vertexai._genai evals client does, behind an ImportError guard. The extra caps litellm at a
+    # version that still requires openai<3, and below the fix for a critical litellm advisory:
+    # https://github.com/googleapis/python-aiplatform/issues/7252
+    # The extra's pandas is listed further down. The floors of jsonschema, pyyaml and tqdm match
+    # the other Airflow distributions. scikit-learn 1.4.2 is the first release that supports
+    # numpy 2, 1.5.2 the first with Python 3.13 wheels and 1.7.2 the first with Python 3.14 wheels.
+    "google-cloud-aiplatform>=1.164.0",
+    "jsonschema>=4.19.1",
+    "pyyaml>=6.0.3",
+    "ruamel.yaml>=0.18.0",
+    "scikit-learn>=1.4.2;python_version<'3.13'",
+    "scikit-learn>=1.5.2;python_version>='3.13' and python_version<'3.14'",
+    "scikit-learn>=1.7.2;python_version>='3.14'",
+    "tqdm>=4.67.1",
     "ray[default]>=2.42.0;python_version<'3.13'",
     "ray[default]>=2.49.0;python_version>='3.13' and python_version <'3.14'",
     "ray[default]>=2.55.0;python_version>='3.14' and python_version <'3.15'",
@@ -285,8 +297,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.8.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.9.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-google/22.9.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"
