@@ -25,7 +25,7 @@ import pytest
 
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.sdk import Connection, task
@@ -35,10 +35,7 @@ else:
     from airflow.models import Connection  # type: ignore[assignment]
     from airflow.utils.types import NOTSET as SET_DURING_EXECUTION  # type: ignore[attr-defined,no-redef]
 
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk import timezone
-else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 conn_id: str = "my_conn_id"
@@ -122,6 +119,25 @@ class TestSqlDecorator:
         _, _ = self.execute_task(sql_task)
 
         assert sql_task.operator.sql == "SELECT 1;"
+
+    @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
+    def test_execute_renders_only_the_returned_sql(self):
+        """Fields rendered before execute() are not rendered again; only the returned value is."""
+        with self.dag_maker:
+
+            @task.sql(conn_id=conn_id, parameters={"name": "{{ name }}"})
+            def sql():
+                return "SELECT :name FROM {{ table }}"
+
+            sql_task = sql()
+
+        op = sql_task.operator
+        context = {"table": "users", "name": "{{ other }}", "other": "rendered twice"}
+        op.render_template_fields(context)
+        op.execute(context=context)
+
+        assert op.sql == "SELECT :name FROM users"
+        assert op.parameters == {"name": "{{ other }}"}
 
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook", MagicMock())
     @pytest.mark.parametrize("sql_query", ["", 1, None, [""], ["SELECT 1;", ""]])

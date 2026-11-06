@@ -40,6 +40,50 @@ used to specify a callback function by providing a path to the function. e.g ``"
 of parameters are described in the
 `Confluent Kafka python library <https://github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md>`_.
 
+.. warning::
+
+    Callback options supplied as dotted-path strings (``error_cb``, ``throttle_cb``, ``stats_cb``,
+    ``log_cb``, ``oauth_cb``, ``on_commit``) are only imported when listed in the
+    :ref:`config:apache_kafka__callback_allowlist` configuration. Each allowlist entry is the full
+    importable path of the callback itself — module plus attribute, e.g.
+    ``my_company.kafka.auth.oauth_cb`` — and must match the connection value exactly; a bare module
+    such as ``my_company.kafka.auth`` does not lead to authorization of the callables inside it.
+    This is enforced for security reasons, to prevent malicious callbacks from being executed.
+    The allowlist is empty by default, which disables string-valued callbacks entirely.
+    Managed authentication (Amazon MSK IAM, Google Managed Kafka) does not rely on this and is unaffected.
+
 If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 
 Most operators and hooks will check that at the minimum the ``bootstrap.servers`` key exists and has a value set to be valid.
+
+Amazon MSK with IAM authentication
+----------------------------------
+
+`Amazon MSK <https://aws.amazon.com/msk/>`_ clusters (both provisioned and serverless) can be
+authenticated with `IAM <https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html>`_.
+This requires the ``aws-msk-iam-sasl-signer-python`` package, which is installed with the ``msk`` extra:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-apache-kafka[msk]
+
+When the ``bootstrap.servers`` point at an Amazon MSK endpoint (for example
+``*.kafka.<region>.amazonaws.com`` or ``*.kafka-serverless.<region>.amazonaws.com``) and
+``sasl.mechanism`` is set to ``OAUTHBEARER``, the hook automatically generates and refreshes the
+IAM authentication token, deriving the AWS region from the bootstrap servers. The credentials are
+resolved by the signer using the standard AWS credential provider chain (environment variables,
+shared config/credentials files, instance/task IAM roles, etc.).
+
+An example ``extra`` (``Config Dict``) for an MSK connection:
+
+.. code-block:: json
+
+    {
+        "bootstrap.servers": "boot-abcde1.c2.kafka-serverless.us-east-1.amazonaws.com:9098",
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "group.id": "my-group"
+    }
+
+An explicit ``oauth_cb`` provided in the connection configuration is always respected and is never
+overwritten by the automatic MSK IAM callback.

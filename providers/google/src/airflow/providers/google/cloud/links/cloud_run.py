@@ -16,7 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from typing import TYPE_CHECKING, Any
+
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
+
+if TYPE_CHECKING:
+    from airflow.providers.common.compat.sdk import Context
+
+
+CLOUD_RUN_BASE_LINK = "/run"
+CLOUD_RUN_JOB_EXECUTION_DETAILS_LINK = (
+    CLOUD_RUN_BASE_LINK + "/jobs/details/{region}/{job_name}/executions?project={project_id}"
+)
 
 
 class CloudRunJobLoggingLink(BaseGoogleLink):
@@ -25,3 +36,24 @@ class CloudRunJobLoggingLink(BaseGoogleLink):
     name = "Cloud Run Job Logging"
     key = "log_uri"
     format_str = "{log_uri}"
+
+    @classmethod
+    def persist(cls, context: Context, **value: Any) -> None:
+        """Persist the complete URL expected by serialized operator links."""
+        context["ti"].xcom_push(key=cls.key, value=value["log_uri"])
+
+
+class CloudRunJobExecutionDetailsLink(BaseGoogleLink):
+    """Helper class for constructing a Cloud Run Job execution details link."""
+
+    name = "Cloud Run Job Execution Details"
+    key = "cloud_run_job_execution_details"
+    format_str = CLOUD_RUN_JOB_EXECUTION_DETAILS_LINK
+
+    @classmethod
+    def persist(cls, context: Context, **value: Any) -> None:
+        """Persist the complete URL so it is usable while the execution is running."""
+        context["ti"].xcom_push(
+            key=cls.key,
+            value=BASE_LINK + cls.format_str.format(**value),
+        )

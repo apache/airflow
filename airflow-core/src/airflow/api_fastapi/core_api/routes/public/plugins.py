@@ -22,6 +22,7 @@ from fastapi import Depends
 from pydantic import ValidationError
 
 from airflow import plugins_manager
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -30,7 +31,8 @@ from airflow.api_fastapi.core_api.datamodels.plugins import (
     PluginImportErrorCollectionResponse,
     PluginResponse,
 )
-from airflow.api_fastapi.core_api.security import requires_access_view
+from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_view
+from airflow.configuration import conf
 
 logger = structlog.get_logger(__name__)
 
@@ -44,8 +46,20 @@ plugins_router = AirflowRouter(tags=["Plugin"], prefix="/plugins")
 def get_plugins(
     limit: QueryLimit,
     offset: QueryOffset,
+    user: GetUserDep,
 ) -> PluginCollectionResponse:
     plugins_info = sorted(plugins_manager.get_plugin_info(), key=lambda x: x["name"])
+
+    # In multi-team mode, a team-scoped plugin is only visible to users authorized for
+    # its team. Global plugins (team_name is None) remain visible to everyone.
+    if conf.getboolean("core", "multi_team"):
+        authorized_teams = get_auth_manager().get_authorized_teams(user=user)
+        plugins_info = [
+            plugin_dict
+            for plugin_dict in plugins_info
+            if plugin_dict.get("team_name") is None or plugin_dict["team_name"] in authorized_teams
+        ]
+
     valid_plugins: list[PluginResponse] = []
     for plugin_dict in plugins_info:
         try:

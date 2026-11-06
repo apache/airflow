@@ -48,7 +48,7 @@ Running cleanup
 
 The command is::
 
-    airflow state-store cleanup-task-state-store
+    airflow state-store clean
 
 It reads ``[state_store] default_retention_days`` and ``[state_store] state_cleanup_batch_size`` from the ``airflow.cfg`` file, then deletes all eligible rows.
 
@@ -56,7 +56,7 @@ It reads ``[state_store] default_retention_days`` and ``[state_store] state_clea
 
 Use ``--dry-run`` to preview what would be deleted without removing anything::
 
-    airflow state-store cleanup-task-state-store --dry-run
+    airflow state-store clean --dry-run
 
 The output lists every row that would be deleted, grouped by dag, run, task, map index, and key.
 

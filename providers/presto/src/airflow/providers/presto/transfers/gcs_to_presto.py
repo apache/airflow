@@ -62,6 +62,8 @@ class GCSToPrestoOperator(BaseOperator):
         "source_bucket",
         "source_object",
         "presto_table",
+        "presto_conn_id",
+        "gcp_conn_id",
     )
 
     def __init__(

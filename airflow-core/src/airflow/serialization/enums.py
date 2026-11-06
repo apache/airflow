@@ -36,11 +36,10 @@ def stringify_encoding_keys(d: Any) -> Any:
     """
     Convert BaseSerialization Encoding enum keys to their string values recursively.
 
-    Python 3.10 compatibility: str(Encoding.TYPE) returns "Encoding.TYPE" on 3.10
-    instead of "__type__" (3.10 is still the default CI target). serde.serialize
-    uses str(k) for dict keys, so without this conversion the encrypted blob ends up
-    with "Encoding.TYPE" keys that neither serde._convert nor the BaseSerialization
-    fallback can read back.
+    str(Encoding.TYPE) returns "Encoding.TYPE" instead of "__type" for a ``(str, Enum)``
+    mixin. serde.serialize uses str(k) for dict keys, so without this conversion the
+    encrypted blob ends up with "Encoding.TYPE" keys that neither serde._convert nor the
+    BaseSerialization fallback can read back.
     """
     if isinstance(d, dict):
         return {
@@ -70,7 +69,6 @@ class DagAttributeTypes(str, Enum):
     TIMEDELTA = "timedelta"
     TIMEZONE = "timezone"
     RELATIVEDELTA = "relativedelta"
-    BASE_TRIGGER = "base_trigger"
     AIRFLOW_EXC_SER = "airflow_exc_ser"
     BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"

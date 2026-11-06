@@ -36,6 +36,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
+    S3CopyPrefixOperator,
     S3CreateBucketOperator,
     S3CreateObjectOperator,
     S3DeleteBucketOperator,
@@ -54,20 +55,15 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.taskinstance import create_task_instance, render_template_fields
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
-
-if AIRFLOW_V_3_1_PLUS:
-    from airflow.sdk.timezone import datetime, utcnow
-else:
-    from airflow.utils.timezone import datetime, utcnow  # type: ignore[attr-defined,no-redef]
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -658,6 +654,250 @@ class TestS3CopyObjectOperator:
         assert objects_in_dest_bucket["Contents"][0]["Key"] == self.dest_key
 
 
+class TestS3CopyPrefixOperator:
+    def setup_method(self):
+        self.source_bucket = "source-bucket"
+        self.source_prefix = "data/logs/"
+        self.dest_bucket = "dest-bucket"
+        self.dest_prefix = "backup/logs/"
+
+        self.source_s3_url = f"s3://{self.source_bucket}/{self.source_prefix}"
+        self.dest_s3_url = f"s3://{self.dest_bucket}/{self.dest_prefix}"
+
+    @staticmethod
+    def _create_s3_client():
+        return boto3.client("s3", region_name="us-east-1")
+
+    def _create_buckets(self, s3_client):
+        s3_client.create_bucket(Bucket=self.source_bucket)
+        s3_client.create_bucket(Bucket=self.dest_bucket)
+
+    def _upload_test_objects(self, s3_client, keys):
+        for key in keys:
+            s3_client.upload_fileobj(Bucket=self.source_bucket, Key=key, Fileobj=BytesIO(b"test-content"))
+
+    @mock_aws
+    def test_s3_copy_prefix_basic(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client,
+            [
+                f"{self.source_prefix}file1.txt",
+                f"{self.source_prefix}file2.txt",
+                f"{self.source_prefix}subdir/file3.txt",
+            ],
+        )
+
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert "Contents" not in dest_objects
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 3
+
+        copied_keys = [obj["Key"] for obj in dest_objects["Contents"]]
+        assert "backup/logs/file1.txt" in copied_keys
+        assert "backup/logs/file2.txt" in copied_keys
+        assert "backup/logs/subdir/file3.txt" in copied_keys
+
+    @mock_aws
+    def test_s3_copy_prefix_selective_copying(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client,
+            [
+                f"{self.source_prefix}file1.txt",
+                f"{self.source_prefix}subdir/file2.txt",
+                "data/metrics/file3.txt",
+                "other/logs/file4.txt",
+                "archive/data/file5.txt",
+            ],
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_selective",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 2
+
+        copied_keys = [obj["Key"] for obj in dest_objects["Contents"]]
+        assert "backup/logs/file1.txt" in copied_keys
+        assert "backup/logs/subdir/file2.txt" in copied_keys
+
+    @mock_aws
+    def test_s3_copy_prefix_s3_urls(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client, [f"{self.source_prefix}file1.txt", f"{self.source_prefix}file2.txt"]
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_urls",
+            source_bucket_prefix=self.source_s3_url,
+            dest_bucket_prefix=self.dest_s3_url,
+        )
+
+        op.execute(None)
+
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert len(dest_objects["Contents"]) == 2
+
+    def test_invalid_combination_bucket_with_s3_url(self):
+        op = S3CopyPrefixOperator(
+            task_id="test_invalid",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=f"s3://{self.source_bucket}/{self.source_prefix}",
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        with pytest.raises(TypeError, match="should be a relative path"):
+            op.execute(None)
+
+    @mock_aws
+    def test_s3_copy_prefix_same_bucket(self):
+        s3_client = self._create_s3_client()
+        s3_client.create_bucket(Bucket=self.source_bucket)
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_same_bucket",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.source_bucket,
+            dest_bucket_prefix="archive/logs/",
+        )
+
+        op.execute(None)
+
+        all_objects = s3_client.list_objects_v2(Bucket=self.source_bucket)
+        keys = [obj["Key"] for obj in all_objects["Contents"]]
+        assert f"{self.source_prefix}file1.txt" in keys
+        assert "archive/logs/file1.txt" in keys
+
+    @mock_aws
+    def test_s3_copy_prefix_empty_result(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_empty",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+
+        op.execute(None)
+
+        dest_objects = s3_client.list_objects_v2(Bucket=self.dest_bucket, Prefix=self.dest_prefix)
+        assert "Contents" not in dest_objects
+
+    @mock_aws
+    def test_continue_on_failure_false(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(s3_client, [f"{self.source_prefix}file1.txt"])
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_fail_fast",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+            continue_on_failure=False,
+        )
+
+        with mock.patch.object(op.hook, "copy_object", side_effect=Exception("Copy failed")):
+            with pytest.raises(
+                RuntimeError, match=f"Failed to copy {self.source_prefix}file1.txt: Copy failed"
+            ):
+                op.execute(None)
+
+    @mock_aws
+    def test_continue_on_failure_true(self):
+        s3_client = self._create_s3_client()
+        self._create_buckets(s3_client)
+        self._upload_test_objects(
+            s3_client, [f"{self.source_prefix}file1.txt", f"{self.source_prefix}file2.txt"]
+        )
+
+        op = S3CopyPrefixOperator(
+            task_id="test_copy_prefix_continue",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+            continue_on_failure=True,
+        )
+
+        def mock_copy_object(*args, **kwargs):
+            if "file1.txt" in kwargs.get("source_bucket_key", ""):
+                raise Exception("Copy failed for file1")
+            return None
+
+        with mock.patch.object(op.hook, "copy_object", side_effect=mock_copy_object) as mock_copy:
+            with pytest.raises(RuntimeError, match=r"Failed to copy 1 object\(s\)"):
+                op.execute(None)
+
+        attempted_keys = [call.kwargs["source_bucket_key"] for call in mock_copy.call_args_list]
+        assert f"{self.source_prefix}file2.txt" in attempted_keys
+
+    @pytest.mark.parametrize(
+        "op_kwargs",
+        [
+            {
+                "source_bucket_name": "source-bucket",
+                "source_bucket_prefix": "data/logs/",
+                "dest_bucket_name": "dest-bucket",
+                "dest_bucket_prefix": "backup/logs/",
+            },
+            {
+                "source_bucket_prefix": "s3://source-bucket/data/logs/",
+                "dest_bucket_prefix": "s3://dest-bucket/backup/logs/",
+            },
+        ],
+        ids=["bucket_and_prefix", "s3_urls"],
+    )
+    def test_get_openlineage_facets_on_start(self, op_kwargs):
+        from airflow.providers.common.compat.openlineage.facet import Dataset
+
+        op = S3CopyPrefixOperator(task_id="test", **op_kwargs)
+
+        lineage = op.get_openlineage_facets_on_start()
+        assert lineage.inputs == [Dataset(namespace="s3://source-bucket", name="data/logs/")]
+        assert lineage.outputs == [Dataset(namespace="s3://dest-bucket", name="backup/logs/")]
+
+    def test_template_fields(self):
+        operator = S3CopyPrefixOperator(
+            task_id="test_copy_prefix",
+            source_bucket_name=self.source_bucket,
+            source_bucket_prefix=self.source_prefix,
+            dest_bucket_name=self.dest_bucket,
+            dest_bucket_prefix=self.dest_prefix,
+        )
+        validate_template_fields(operator)
+
+
 @mock_aws
 class TestS3DeleteObjectsOperator:
     def test_s3_delete_single_object(self):
@@ -714,8 +954,8 @@ class TestS3DeleteObjectsOperator:
         for k in keys:
             conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
-        logical_date = utcnow()
-        dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
+        logical_date = timezone.utcnow()
+        dag = DAG("test_dag", start_date=timezone.datetime(2020, 1, 1), schedule=timedelta(days=1))
         # use macros.ds_add since it returns a string, not a date
         op = S3DeleteObjectsOperator(
             task_id="XXXXXXXXXXXXXXXXXXXXXXX",
@@ -739,7 +979,7 @@ class TestS3DeleteObjectsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
                 state=DagRunState.RUNNING,
-                run_after=utcnow(),
+                run_after=timezone.utcnow(),
             )
         if AIRFLOW_V_3_0_PLUS:
             from airflow.models.dag_version import DagVersion
@@ -770,7 +1010,7 @@ class TestS3DeleteObjectsOperator:
         assert len(objects_in_dest_bucket["Contents"]) == n_keys
         assert sorted(x["Key"] for x in objects_in_dest_bucket["Contents"]) == sorted(keys)
 
-        now = utcnow()
+        now = timezone.utcnow()
         from_datetime = now.replace(year=now.year - 1)
         to_datetime = now.replace(year=now.year + 1)
 
@@ -859,15 +1099,15 @@ class TestS3DeleteObjectsOperator:
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
                 None,
                 id="keys-prefix-and-from_datetime",
             ),
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
-                datetime(1993, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1993, 3, 8, 18, 52, 51),
                 id="keys-prefix-and-from-to_datetime",
             ),
             pytest.param(None, None, None, None, id="all-none"),
@@ -875,7 +1115,7 @@ class TestS3DeleteObjectsOperator:
     )
     def test_validate_keys_and_filters_in_constructor(self, keys, prefix, from_datetime, to_datetime):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match=r"Either keys or at least one of prefix, from_datetime, to_datetime should be set.",
         ):
             S3DeleteObjectsOperator(
@@ -895,15 +1135,15 @@ class TestS3DeleteObjectsOperator:
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
                 None,
                 id="keys-prefix-and-from_datetime",
             ),
             pytest.param(
                 ["path/data.txt"],
                 "path/data",
-                datetime(1992, 3, 8, 18, 52, 51),
-                datetime(1993, 3, 8, 18, 52, 51),
+                timezone.datetime(1992, 3, 8, 18, 52, 51),
+                timezone.datetime(1993, 3, 8, 18, 52, 51),
                 id="keys-prefix-and-from-to_datetime",
             ),
             pytest.param(None, None, None, None, id="all-none"),

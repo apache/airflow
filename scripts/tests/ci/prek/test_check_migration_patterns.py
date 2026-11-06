@@ -33,6 +33,7 @@ from ci.prek.check_migration_patterns import (
     check_mig001,
     check_mig002,
     check_mig003,
+    check_mig004,
     main,
 )
 
@@ -515,13 +516,75 @@ def upgrade():
         assert any("MIG003" in e for e in errors)
 
 
+class TestCheckMig004:
+    @pytest.mark.parametrize(
+        "src",
+        [
+            pytest.param(
+                '"""\nAdd foo table.\n\nRevision ID: abc123\n"""\n\ndef upgrade(): pass\n',
+                id="imperative-capitalized",
+            ),
+            pytest.param(
+                '"""\nAdd foo table\nwith extra columns.\n\nRevision ID: abc123\n"""\n',
+                id="multi-line-description",
+            ),
+        ],
+    )
+    def test_no_violation(self, tmp_path, src):
+        assert check_mig004(parse_migration(tmp_path, src)) == []
+
+    def test_init_py_is_skipped(self, tmp_path):
+        p = tmp_path / "__init__.py"
+        p.write_text('"""not a description"""\n')
+        assert check_mig004(MigrationFile.from_path(p)) == []
+
+    @pytest.mark.parametrize(
+        ("src", "expected"),
+        [
+            pytest.param(
+                '"""\nadd foo table.\n\nRevision ID: abc123\n"""\n',
+                "capital letter",
+                id="lowercase-start",
+            ),
+            pytest.param(
+                '"""\n``foo`` cleanup.\n\nRevision ID: abc123\n"""\n',
+                "capital letter",
+                id="non-letter-start",
+            ),
+            pytest.param(
+                '"""\nAdded foo table.\n\nRevision ID: abc123\n"""\n',
+                "imperative mood",
+                id="past-tense",
+            ),
+            pytest.param(
+                '"""\nAdding foo table.\n\nRevision ID: abc123\n"""\n',
+                "imperative mood",
+                id="gerund",
+            ),
+            pytest.param(
+                '"""\nAdd foo table\n\nRevision ID: abc123\n"""\n',
+                "end with a period",
+                id="missing-period",
+            ),
+            pytest.param(
+                "def upgrade(): pass\n",
+                "migration description",
+                id="missing-docstring",
+            ),
+        ],
+    )
+    def test_violation(self, tmp_path, src, expected):
+        errors = check_mig004(parse_migration(tmp_path, src))
+        assert any("MIG004" in e and expected in e for e in errors)
+
+
 class TestMain:
     def test_no_args_exits_zero(self, monkeypatch):
         monkeypatch.setattr(sys, "argv", ["check_migration_patterns.py"])
         assert main() == 0
 
     def test_clean_file_exits_zero(self, tmp_path, monkeypatch):
-        p = write_migration(tmp_path, "def upgrade(): pass\n")
+        p = write_migration(tmp_path, '"""Add foo table."""\n\ndef upgrade(): pass\n')
         monkeypatch.setattr(sys, "argv", ["check_migration_patterns.py", str(p)])
         assert main() == 0
 
@@ -548,7 +611,7 @@ def upgrade():
 
     def test_any_violation_in_batch_exits_one(self, tmp_path, monkeypatch):
         clean = tmp_path / "0001_clean.py"
-        clean.write_text("def upgrade(): pass\n")
+        clean.write_text('"""Add foo table."""\n\ndef upgrade(): pass\n')
         violation = tmp_path / "0002_bad.py"
         violation.write_text(
             "def upgrade():\n    op.execute('UPDATE dag SET x=1')\n    with disable_sqlite_fkeys(op): pass\n"

@@ -85,7 +85,7 @@ from airflow.sdk import Param
 # ---------------------------------------------------------------------------
 
 LLM_CONN_ID = "langchain_default"
-LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-4o")
+LLM_MODEL = os.environ.get("LLM_MODEL", "openai:gpt-5")
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "openai:text-embedding-3-small")
 
 DOCS_PATH = os.environ.get("DOCS_PATH", "/opt/airflow/data/rag_documents")
@@ -371,7 +371,7 @@ def _build_tools(hook, index_dir: str, survey_csv_path: str) -> list:
         merge freeze active right now", "how recent is the survey data").
         LLMs cannot reliably know the wall-clock time on their own.
         """
-        return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+        return datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds")
 
     return [search_knowledge_base, query_survey_data, search_web, get_current_utc_time]
 

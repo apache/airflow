@@ -34,7 +34,7 @@ TEST_DATA_STORAGE_BLOB_NAME = "test_blob_providers_team.txt"
 TEST_DATA_STORAGE_CONTAINER_NAME = "test-container-providers-team"
 TEST_DATA_STORAGE_BLOB_PREFIX = TEST_DATA_STORAGE_BLOB_NAME[:10]
 TEST_WASB_CONN_ID = "wasb_default"
-POKE_INTERVAL = 5.0
+POKE_INTERVAL = 0.5
 
 
 @pytest.fixture(autouse=True)

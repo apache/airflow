@@ -21,11 +21,25 @@ import datetime
 import ftplib  # nosec: B402
 import logging
 from collections.abc import Callable
+from contextlib import suppress
 from typing import Any, cast
 
 from airflow.providers.common.compat.sdk import BaseHook
 
 logger = logging.getLogger(__name__)
+
+
+def _get_passive_mode(extra: dict[str, Any]) -> bool:
+    """
+    Read the ``passive`` connection extra as a boolean.
+
+    Extras parsed from a connection URI (e.g. ``ftp://host?passive=false``) are strings,
+    and a non-empty string such as ``"false"`` is truthy.
+    """
+    passive = extra.get("passive", True)
+    if isinstance(passive, str):
+        return passive.strip().lower() not in ("false", "0", "no", "off")
+    return bool(passive)
 
 
 class FTPHook(BaseHook):
@@ -63,7 +77,7 @@ class FTPHook(BaseHook):
         """Return an FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
             if encoding:
@@ -184,6 +198,7 @@ class FTPHook(BaseHook):
         """
         conn = self.get_conn()
         is_path = isinstance(local_full_path_or_buffer, str)
+        output_handle = None
 
         # without a callback, default to writing to a user-provided file or
         # file-like buffer
@@ -195,12 +210,15 @@ class FTPHook(BaseHook):
 
             callback = output_handle.write
 
-        self.log.info("Retrieving file from FTP: %s", remote_full_path)
-        conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
-        self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
-
-        if is_path and output_handle:
-            output_handle.close()
+        try:
+            self.log.info("Retrieving file from FTP: %s", remote_full_path)
+            conn.retrbinary(f"RETR {remote_full_path}", callback, block_size)
+            self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
+        finally:
+            # Only close handles we opened ourselves; a caller-supplied buffer
+            # must stay open per this method's contract.
+            if is_path and output_handle:
+                output_handle.close()
 
     def store_file(
         self, remote_full_path: str, local_full_path_or_buffer: Any, block_size: int = 8192
@@ -226,10 +244,13 @@ class FTPHook(BaseHook):
         else:
             input_handle = local_full_path_or_buffer
 
-        conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
-
-        if is_path:
-            input_handle.close()
+        try:
+            conn.storbinary(f"STOR {remote_full_path}", input_handle, block_size)
+        finally:
+            # Only close handles we opened ourselves; a caller-supplied buffer
+            # must stay open per this method's contract.
+            if is_path:
+                input_handle.close()
 
     def delete_file(self, path: str) -> None:
         """
@@ -294,7 +315,7 @@ class FTPSHook(FTPHook):
 
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            pasv = params.extra_dejson.get("passive", True)
+            pasv = _get_passive_mode(params.extra_dejson)
             encoding = params.extra_dejson.get("encoding")
             self.encoding = encoding
 
@@ -307,13 +328,19 @@ class FTPSHook(FTPHook):
             params.password = cast("str", params.password)
             params.login = cast("str", params.login)
             if encoding:
-                self.conn = ftplib.FTP_TLS(
+                conn = ftplib.FTP_TLS(
                     params.host, params.login, params.password, context=context, encoding=encoding
                 )  # nosec: B321
             else:
-                self.conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
-            self.conn.set_pasv(pasv)
-            # Without prot_p() ftplib transfers file payloads over cleartext sockets even though the control connection is TLS.
-            self.conn.prot_p()
+                conn = ftplib.FTP_TLS(params.host, params.login, params.password, context=context)  # nosec: B321
+            try:
+                conn.set_pasv(pasv)
+                # Without prot_p() file payloads use cleartext despite TLS on the control connection.
+                conn.prot_p()
+            except BaseException:
+                with suppress(Exception):
+                    conn.close()
+                raise
+            self.conn = conn
 
         return self.conn

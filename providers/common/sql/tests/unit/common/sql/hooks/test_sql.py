@@ -20,11 +20,14 @@ from __future__ import annotations
 
 import inspect
 import logging
+import sqlite3
+from contextlib import closing
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
 import polars as pl
 import pytest
+from sqlalchemy import event
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -334,6 +337,98 @@ class TestDbApiHook:
             assert isinstance(df, expected_type)
 
 
+class TestDbApiHookGetSqlalchemyEngine:
+    """SQLAlchemy resolves a bare ``postgresql`` scheme to the psycopg2 DB-API by default, which
+    may not be installed now that it's an optional extra of apache-airflow-providers-postgres."""
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.common.sql.hooks.sql._is_sqlalchemy_2", return_value=True)
+    @patch("airflow.providers.common.sql.hooks.sql.find_spec")
+    @patch("airflow.providers.common.sql.hooks.sql.create_engine")
+    def test_falls_back_to_psycopg_when_psycopg2_import_fails(
+        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2, caplog
+    ):
+        mock_find_spec.return_value = object()
+        mock_create_engine.side_effect = [ModuleNotFoundError("No module named 'psycopg2'"), MagicMock()]
+        dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "postgresql"})
+
+        dbapi_hook.get_sqlalchemy_engine()
+
+        assert mock_create_engine.call_count == 2
+        retried_url = mock_create_engine.call_args.kwargs["url"]
+        assert retried_url.drivername == "postgresql+psycopg"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with psycopg (v3) ('postgresql+psycopg')."
+        ) in caplog.text
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.common.sql.hooks.sql._is_sqlalchemy_2", return_value=False)
+    @patch("airflow.providers.common.sql.hooks.sql.find_spec")
+    @patch("airflow.providers.common.sql.hooks.sql.create_engine")
+    def test_falls_back_to_psycopg2_when_sqlalchemy_below_2(
+        self, mock_create_engine, mock_find_spec, mock_is_sqlalchemy_2, caplog
+    ):
+        # SQLAlchemy 1.4 (shipped with Airflow 2.11) has no native "postgresql+psycopg" dialect,
+        # so even when psycopg (v3) is importable the retry must use psycopg2, not psycopg.
+        mock_find_spec.return_value = object()
+        mock_create_engine.side_effect = [ModuleNotFoundError("No module named 'psycopg2'"), MagicMock()]
+        dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "postgresql"})
+
+        dbapi_hook.get_sqlalchemy_engine()
+
+        assert mock_create_engine.call_count == 2
+        retried_url = mock_create_engine.call_args.kwargs["url"]
+        assert retried_url.drivername == "postgresql+psycopg2"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with 'postgresql+psycopg2'."
+        ) in caplog.text
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.common.sql.hooks.sql.find_spec")
+    @patch("airflow.providers.common.sql.hooks.sql.create_engine")
+    def test_falls_back_to_psycopg2_when_psycopg_unavailable(
+        self, mock_create_engine, mock_find_spec, caplog
+    ):
+        mock_find_spec.side_effect = lambda name: None if name == "psycopg" else object()
+        mock_create_engine.side_effect = [ModuleNotFoundError("No module named 'psycopg2'"), MagicMock()]
+        dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "postgresql"})
+
+        dbapi_hook.get_sqlalchemy_engine()
+
+        assert mock_create_engine.call_count == 2
+        retried_url = mock_create_engine.call_args.kwargs["url"]
+        assert retried_url.drivername == "postgresql+psycopg2"
+        assert (
+            "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+            "retrying with 'postgresql+psycopg2'."
+        ) in caplog.text
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.common.sql.hooks.sql.find_spec", return_value=None)
+    @patch("airflow.providers.common.sql.hooks.sql.create_engine")
+    def test_reraises_when_no_postgres_driver_is_available(self, mock_create_engine, mock_find_spec):
+        original_error = ModuleNotFoundError("No module named 'psycopg2'")
+        mock_create_engine.side_effect = original_error
+        dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "postgresql"})
+
+        with pytest.raises(ModuleNotFoundError, match="psycopg2"):
+            dbapi_hook.get_sqlalchemy_engine()
+        mock_create_engine.assert_called_once()
+
+    @pytest.mark.db_test
+    @patch("airflow.providers.common.sql.hooks.sql.create_engine")
+    def test_does_not_retry_for_non_postgres_schemes(self, mock_create_engine):
+        original_error = ModuleNotFoundError("No module named 'some_other_driver'")
+        mock_create_engine.side_effect = original_error
+        dbapi_hook = mock_db_hook(DbApiHook, conn_params={"conn_type": "mysql"})
+
+        with pytest.raises(ModuleNotFoundError, match="some_other_driver"):
+            dbapi_hook.get_sqlalchemy_engine()
+        mock_create_engine.assert_called_once()
+
+
 class TestDbApiHookGetTableSchema:
     @pytest.mark.db_test
     def test_get_table_schema(self):
@@ -378,3 +473,33 @@ def test_inspector_is_cached():
         inspector2 = hook.inspector
         assert inspector1 is inspector2
         mock_get_engine.assert_called_once()
+
+
+def test_inspector_closes_its_dbapi_connections_after_each_inspection(tmp_path):
+    """A cached inspector must not hold a pooled DBAPI connection open for the hook's lifetime."""
+    db_path = tmp_path / "inspect.db"
+    with closing(sqlite3.connect(db_path)) as conn:
+        conn.execute("CREATE TABLE users (id INTEGER, name TEXT)")
+    hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+    opened, closed = [], []
+    real_get_sqlalchemy_engine = hook.get_sqlalchemy_engine
+
+    def get_sqlalchemy_engine_with_listeners(engine_kwargs=None):
+        engine = real_get_sqlalchemy_engine(engine_kwargs)
+        event.listen(engine, "connect", lambda dbapi_conn, _record: opened.append(dbapi_conn))
+        event.listen(engine, "close", lambda dbapi_conn, _record: closed.append(dbapi_conn))
+        return engine
+
+    with (
+        patch.object(hook, "get_uri", autospec=True, return_value=f"sqlite:///{db_path}"),
+        patch.object(
+            hook, "get_sqlalchemy_engine", autospec=True, side_effect=get_sqlalchemy_engine_with_listeners
+        ),
+    ):
+        columns = hook.get_table_schema("users")
+        table_names = hook.inspector.get_table_names()
+
+    assert columns == [{"name": "id", "type": "INTEGER"}, {"name": "name", "type": "TEXT"}]
+    assert table_names == ["users"]
+    assert opened
+    assert closed == opened

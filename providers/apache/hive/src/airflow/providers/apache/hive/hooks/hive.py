@@ -26,12 +26,9 @@ import subprocess
 import time
 from collections.abc import Iterable, Mapping
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, overload
 
-from deprecated import deprecated
-from typing_extensions import overload
-
-from airflow.exceptions import AirflowOptionalProviderFeatureException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.sdk import (
     AIRFLOW_VAR_NAME_FORMAT_MAPPING,
     AirflowException,
@@ -50,6 +47,7 @@ if TYPE_CHECKING:
 
 
 HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
+JDBC_PARAMETER_NAME_PATTERN = re.compile(r"^[A-Za-z]([A-Za-z0-9._-]*[A-Za-z0-9])?$")
 
 
 def get_context_from_env_var() -> dict[Any, Any]:
@@ -88,6 +86,10 @@ class HiveCliHook(BaseHook):
         This can make monitoring easier.
     :param hive_cli_params: Space separated list of hive command parameters to add to the
         hive command.
+    :param jdbc_params: Additional JDBC parameters to append to the Beeline URL.
+        Parameter names must start with a letter, contain only letters, digits,
+        dots, underscores, or hyphens, and not end in a separator. Values must
+        be strings. Empty strings are ignored; semicolons are rejected.
     :param proxy_user: Run HQL code as this user.
     """
 
@@ -104,6 +106,7 @@ class HiveCliHook(BaseHook):
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
         auth: str | None = None,
+        jdbc_params: Mapping[str, str] | None = None,
         proxy_user: str | None = None,
     ) -> None:
         super().__init__()
@@ -111,6 +114,7 @@ class HiveCliHook(BaseHook):
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
         self.auth = auth
+        self.jdbc_params = jdbc_params or {}
         self.conn = conn
         self.sub_process: Any = None
         if mapred_queue_priority:
@@ -200,6 +204,7 @@ class HiveCliHook(BaseHook):
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
 
+            jdbc_url = self._append_jdbc_params(jdbc_url)
             jdbc_url = f'"{jdbc_url}"'
 
             cmd_extra += ["-u", jdbc_url]
@@ -211,6 +216,27 @@ class HiveCliHook(BaseHook):
         hive_params_list = self.hive_cli_params.split()
 
         return [hive_bin, *cmd_extra, *hive_params_list]
+
+    def _append_jdbc_params(self, jdbc_url: str) -> str:
+        if not self.jdbc_params:
+            return jdbc_url
+        segments = []
+        for name, value in self.jdbc_params.items():
+            if not isinstance(name, str) or not JDBC_PARAMETER_NAME_PATTERN.fullmatch(name):
+                raise ValueError(
+                    f"Invalid JDBC parameter name {name!r}: must match {JDBC_PARAMETER_NAME_PATTERN.pattern}"
+                )
+            if not isinstance(value, str):
+                raise ValueError(f"Invalid JDBC parameter value for {name!r}: must be a string")
+            if value == "":
+                continue
+            if ";" in value:
+                raise ValueError(f"Invalid JDBC parameter value for {name!r}: must not contain ';'")
+            segments.append(f"{name}={value}")
+        if not segments:
+            return jdbc_url
+        separator = "" if jdbc_url.endswith(";") else ";"
+        return f"{jdbc_url}{separator}" + ";".join(segments)
 
     def _validate_beeline_parameters(self, conn):
         if self.high_availability:
@@ -1133,20 +1159,6 @@ class HiveServer2Hook(DbApiHook):
             return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
         if df_type == "polars":
             return self._get_polars_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(  # type: ignore
-        self,
-        sql: str,
-        schema: str = "default",
-        hive_conf: dict[Any, Any] | None = None,
-        **kwargs,
-    ) -> pd.DataFrame:
-        return self._get_pandas_df(sql, schema=schema, hive_conf=hive_conf, **kwargs)
 
     @property
     def sqlalchemy_url(self) -> URL:

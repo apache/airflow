@@ -8,6 +8,7 @@
     "Variables": "Variabelen"
   },
   "allOperators": "Alle Operators",
+  "allTeams": "Alle teams",
   "appearance": {
     "appearance": "Uiterlijk",
     "darkMode": "Donkere modus",
@@ -18,10 +19,16 @@
   "asset_other": "Assets",
   "assetEvent_one": "Asset Event",
   "assetEvent_other": "Asset Events",
+  "assetInactive": {
+    "tooltip": "Upstream asset is gedeactiveerd; de scheduler houdt partitie-evaluatie vast tot de asset het opnieuw wordt geactiveerd."
+  },
   "backfill_one": "Backfill",
   "backfill_other": "Backfills",
+  "breadcrumb": "Broodkruimel",
   "browse": {
-    "auditLog": "Audit Log",
+    "auditLog": "Auditlog",
+    "dagBundles": "Dag bundels",
+    "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Vereiste acties",
     "xcoms": "XComs"
@@ -33,7 +40,11 @@
   "createdAssetEvent_other": "Asset Events aangemaakt",
   "dag_one": "Dag",
   "dag_other": "Dags",
+  "dagBundle_one": "Dag bundel",
+  "dagBundle_other": "Dag bundels",
   "dagDetails": {
+    "activeRuns": "Actieve runs",
+    "bundleVersion": "Bundle versie",
     "catchup": "Catchup",
     "dagRunTimeout": "Dag Run timeout",
     "defaultArgs": "Standaard argumenten",
@@ -47,13 +58,14 @@
     "latestDagVersion": "Laatste Dag versie",
     "latestRun": "Laatste Run",
     "maxActiveRuns": "Maximaal aantal actieve Runs",
-    "maxActiveTasks": "Maximaal aantal actieve Tasks",
+    "maxActiveTasks": "Maximaal aantal actieve taken",
     "maxConsecutiveFailedDagRuns": "Maximaal aantal opeenvolgend mislukte Dag Runs",
     "nextRun": "Volgende Run",
     "owner": "Eigenaar",
     "params": "Parameters",
     "schedule": "Planning",
-    "tags": "Labels"
+    "tags": "Labels",
+    "team": "Team"
   },
   "dagId": "Dag ID",
   "dagRun": {
@@ -68,6 +80,7 @@
     "expectedDuration": "Verwachte Duur",
     "lastSchedulingDecision": "Laatste planningsbeslissing",
     "mappedPartitionKey": "Gemapte partitie sleutel",
+    "partitionDate": "Partitie datum",
     "partitionKey": "Partitie sleutel",
     "queuedAt": "In de wachtrij gezet om",
     "runAfter": "Run na",
@@ -79,9 +92,7 @@
   "dagRun_one": "Dag Run",
   "dagRun_other": "Dag Runs",
   "dagRunId": "Dag Run ID",
-  "dagWarnings": "Dag waarschuwingen/fouten",
-  "defaultToGraphView": "Standaard grafiekweergave",
-  "defaultToGridView": "Standaard rasterweergave",
+  "dagRunState": "Dag Run status",
   "delete": "Verwijder",
   "diff": "Diff",
   "diffCompareWith": "Vergelijk met",
@@ -115,6 +126,8 @@
       "title": "Toegang geweigerd"
     }
   },
+  "event_one": "Event",
+  "event_other": "Events",
   "expand": {
     "collapse": "Uitklappen",
     "expand": "Inklappen",
@@ -126,22 +139,49 @@
     "all": "Alles",
     "and": "En",
     "any": "Elk",
+    "hiddenAsset": "Verborgen Asset",
     "or": "Of"
   },
   "filter": "Filter",
   "filters": {
+    "addFilter": "Filter toevoegen",
+    "allIterations": "Alle",
+    "completedAt": "Voltooid op",
+    "date": "Datum",
     "durationFrom": "Duur van",
     "durationTo": "Duur tot",
     "endTime": "Eindtijd",
+    "iteration": "Iteratie",
     "logicalDateFrom": "Van logische datum",
     "logicalDateTo": "Tot logische datum",
+    "loop": "Loop",
+    "loopAllIterations": "{{loop}} alle",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Selecteer een loop",
+    "maxActiveRunsFrom": "Max actieve runs van",
+    "maxActiveRunsTo": "Max actieve runs tot",
+    "removeFilter": "Filter verwijderen",
     "runAfterFrom": "Van Run na",
     "runAfterTo": "Tot Run na",
     "searchAsset": "Zoek Asset",
     "selectDateRange": "Selecteer datumbereik",
-    "startTime": "Starttijd"
+    "selectDateTime": "Selecteer datum en tijd",
+    "startTime": "Starttijd",
+    "switchIteration": "Wissel iteratie",
+    "time": "Tijd"
+  },
+  "fullscreen": {
+    "tooltip": "Druk op {{hotkey}} voor volledig scherm"
   },
   "generateToken": "Genereer token",
+  "includedIn": "Inbegrepen in",
+  "key": "Sleutel",
+  "loading": "Laden…",
+  "logLevel": {
+    "hide": "Verberg logniveaus",
+    "hotkey": "l",
+    "show": "Toon logniveaus"
+  },
   "logicalDate": "Logische datum",
   "logout": "Uitloggen",
   "logoutConfirmation": "Je staat op het punt om uit te loggen uit de applicatie.",
@@ -161,27 +201,57 @@
     "assets": "Assets",
     "browse": "Verken",
     "dags": "Dags",
+    "dashboard": "Dashboard",
     "docs": "Documentatie",
     "home": "Home",
     "legacyFabViews": "Legacy weergaven",
     "plugins": "Plugins",
     "security": "Beveiliging"
   },
+  "no": "Nee",
   "noItemsFound": "Geen {{modelName}} gevonden",
   "note": {
     "add": "Notitie toevoegen",
     "dagRun": "Dag Run notitie",
+    "edit": "Bewerk notitie",
     "label": "Notitie",
     "placeholder": "Voeg een notitie toe...",
-    "taskInstance": "Task Instance notitie"
+    "preview": "Voorbeeld",
+    "taskInstance": "Taakinstantie notitie",
+    "write": "Schrijf"
   },
+  "overallStatus": "Algemene status",
+  "pagination": {
+    "nextPage": "Volgende pagina",
+    "previousPage": "Vorige pagina"
+  },
+  "partition_one": "Partitie",
+  "partition_other": "Partities",
   "partitionedDagRun_one": "Gepartitioneerde Dag Run",
   "partitionedDagRun_other": "Gepartitioneerde Dag Runs",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "Ontvangen Asset Events"
   },
-  "pendingDagRun_one": "{{count}} Wachtende Dag Run",
-  "pendingDagRun_other": "{{count}} Wachtende Dag Runs",
+  "pause": "Pauzeer",
+  "pendingDagRun_one": "{{count, number}} Wachtende Dag Run",
+  "pendingDagRun_other": "{{count, number}} Wachtende Dag Runs",
+  "presetFilters": {
+    "deleteTitle": "Verwijder preset filter",
+    "deleteWarning": "Preset filters worden alleen in deze browser opgeslagen.",
+    "duplicate": "Het preset filter \"{{name}}\" slaat deze exacte setup al op.",
+    "empty": "Geen preset filters beschikbaar",
+    "info": {
+      "default": "Pin een preset filter als standaard en het wordt automatisch toegepast wanneer je op deze pagina komt zonder dat er filters zijn toegepast.",
+      "save": "Sla de huidige filters en sortering op als een genoemd preset filter, en schakel er op elk moment weer naar terug.",
+      "storage": "Preset filters zijn opgeslagen in deze browser."
+    },
+    "namePlaceholder": "Preset filter naam",
+    "nothingToSave": "Niets om op te slaan. Pas filters of sortering toe om een preset filter op te slaan.",
+    "save": "Opslaan",
+    "setDefault": "Stel in als standaard",
+    "title": "Preset filters",
+    "unsetDefault": "Standaardinstelling verwijderen"
+  },
   "reset": "Reset",
   "runId": "Run ID",
   "runTypes": {
@@ -198,6 +268,13 @@
     },
     "tooltip": "Druk op {{hotkey}} om te scrollen naar {{direction}}"
   },
+  "search": {
+    "advanced": {
+      "description": "Zoek overal in de waarde (substring zoekopdracht). Langzamer bij grote deployments omdat het de standaard B-tree index niet kan gebruiken. Bekijk de documentatie sectie over aangepaste metadata-indexen voor details.",
+      "title": "Zoek overal",
+      "toggleLabel": "Schakel overal zoeken in"
+    }
+  },
   "security": {
     "actions": "Acties",
     "permissions": "Permissies",
@@ -207,8 +284,128 @@
   },
   "selectLanguage": "Selecteer taal",
   "selected": "Geselecteerd",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "Bewaar task state store entries standaard bij het wissen van taakinstanties, in plaats van ze te verwijderen.",
+        "label": "Behoud taakstatus bij wissen"
+      },
+      "preventRunningTask": {
+        "helper": "Sla taken over die momenteel worden uitgevoerd over bij het wissen van taakinstanties.",
+        "label": "Voorkom het wissen van lopende taken"
+      },
+      "runSelection": {
+        "helper": "Opties die standaard zijn geselecteerd bij het wissen van een Dag run.",
+        "label": "Standaard selectie bij wissen van run"
+      },
+      "taskSelection": {
+        "helper": "Opties die standaard zijn geselecteerd bij het wissen van taakinstanties.",
+        "label": "Standaard selectie bij wissen van taken"
+      },
+      "title": "Wissen"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Toon de recente taakstatussen van elke Dag in de Dags lijst. Schakel uit om het laden over te slaan, wat kan helpen bij deployments met veel Dags.",
+        "label": "Toon recente taken"
+      },
+      "title": "Dags lijst"
+    },
+    "description": "Deze voorkeuren worden alleen in deze browser opgeslagen en zijn van toepassing op de hele app.",
+    "general": {
+      "landingPage": {
+        "helper": "Pagina die wordt weergegeven wanneer je Airflow opent.",
+        "label": "Startpagina",
+        "options": {
+          "dags": "Dags",
+          "dashboard": "Dashboard"
+        }
+      },
+      "title": "Algemeen"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "Layoutrichting voor Dag- en assetgrafieken die je niet individueel hebt ingesteld.",
+        "label": "Standaard grafiekrichting"
+      },
+      "taskGroupsExpanded": {
+        "helper": "Vouw taakgroepen uit in Dags waar je geen groepsselectie hebt opgeslagen. Bestaande selecties worden behouden.",
+        "label": "Vouw taakgroepen standaard uit"
+      },
+      "title": "Grafiek"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "Opties die standaard zijn geselecteerd bij het markeren van de status van een taakinstantie.",
+        "label": "Standaard markering selectie"
+      },
+      "title": "Markering"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) Per-zoekbalk keuzes en gedeelde links hebben nog steeds voorrang.",
+        "label": "Match standaard overal"
+      },
+      "title": "Zoek"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "Tabblad dat eerst wordt weergegeven wanneer je een taakinstantie opent. Links naar een specifiek tabblad openen nog steeds dat tabblad.",
+        "label": "Standaard tabblad taakinstantie"
+      },
+      "title": "Taakinstantie"
+    },
+    "title": "Instellingen"
+  },
+  "shortcuts": {
+    "categories": {
+      "code": "Code",
+      "dagView": "Dag weergave",
+      "filters": "Filters",
+      "global": "Globaal",
+      "logs": "Logs",
+      "navigation": "Navigatie",
+      "runActions": "Run- & Taakacties",
+      "search": "Zoeken"
+    },
+    "descriptions": {
+      "clearRun": "Wis $t(dagRun_one)",
+      "clearTaskInstance": "Wis $t(taskInstance_one)",
+      "downloadLogs": "Download logs",
+      "focusFilterSearch": "Focus op filter zoeken",
+      "focusLogSearch": "Zoek logs",
+      "focusSearch": "Focus op zoeken",
+      "markRunFailed": "Markeer $t(dagRun_one) als mislukt",
+      "markRunSuccess": "Markeer $t(dagRun_one) als succesvol",
+      "markTaskFailed": "Markeer $t(task_one) als mislukt",
+      "markTaskGroupFailed": "Markeer $t(taskGroup_one) als mislukt",
+      "markTaskGroupSuccess": "Markeer $t(taskGroup_one) als succesvol",
+      "markTaskSuccess": "Markeer $t(task_one) als succesvol",
+      "navigateTasks": "Navigeer $t(task_other)",
+      "openGraphFilters": "Open grafiekfilters",
+      "scrollBottom": "Scroll naar beneden",
+      "scrollTop": "Scroll naar boven",
+      "searchDags": "Zoek $t(dag_other)",
+      "selectGridCellRange": "Selecteer een bereik van $t(taskInstance_other) of $t(taskGroup_other)",
+      "showHelp": "Toon $t(shortcuts.title)",
+      "toggleExpand": "Vouw alle groepen uit of in",
+      "toggleFullscreen": "Schakel volledig scherm in of uit",
+      "toggleGraphGrid": "Schakel grafiek-/rasterweergave in of uit",
+      "toggleGridCellSelection": "Voeg een $t(taskInstance_one) of $t(taskGroup_one) toe aan de selectie of verwijder deze eruit",
+      "toggleLogLevel": "Schakel tussen logniveaus",
+      "toggleSource": "Schakel bron in of uit",
+      "toggleTaskGroup": "Vouw $t(taskGroup_one) uit of in",
+      "toggleTimestamp": "Schakel tijdstempels in of uit",
+      "toggleWrap": "Schakel $t(wrap.wrap) in of uit"
+    },
+    "empty": "Geen sneltoetsen beschikbaar op deze pagina.",
+    "title": "Sneltoetsen"
+  },
   "showDetailsPanel": "Details weergeven",
   "signedInAs": "Ingelogd als",
+  "slot": "Slot",
+  "slot_one": "Slot",
+  "slot_other": "Sloten",
   "source": {
     "hide": "Verberg bron",
     "hotkey": "s",
@@ -219,11 +416,13 @@
   "startDate": "Start datum",
   "state": "Status",
   "states": {
+    "awaiting_input": "Wachtend op invoer",
     "deferred": "Uitgesteld",
     "failed": "Mislukt",
     "no_status": "Geen status",
     "none": "Geen status",
     "open": "Open",
+    "pending": "In afwachting",
     "planned": "Gepland",
     "queued": "Wachtend",
     "removed": "Verwijderd",
@@ -236,37 +435,57 @@
     "up_for_retry": "Wachtend op een nieuwe poging",
     "upstream_failed": "Upstream mislukt"
   },
+  "switchDag": "Wissel $t(dag_one)",
+  "switchDagRun": "Wissel $t(dagRun_one)",
+  "switchMapIndex": "Wissel $t(mapIndex)",
   "table": {
-    "completedAt": "Completed at",
-    "createdAt": "Created at",
+    "completedAt": "Voltooid op",
+    "createdAt": "Aangemaakt op",
     "filterByTag": "Filter Dags op label",
     "filterColumns": "Filter tabel kolommen",
     "filterReset_one": "Reset filter",
     "filterReset_other": "Reset filters",
     "from": "Van",
-    "maxActiveRuns": "Maximaal aantal active Runs",
+    "maxActiveRuns": "Maximaal aantal actieve Runs",
+    "noResultsFound": "Geen resultaten gevonden",
     "noTagsFound": "Geen labels gevonden",
+    "noTeamsFound": "Geen teams gevonden",
+    "ownerPlaceholder": "Filter op eigenaar",
     "tagMode": {
       "all": "All",
       "any": "Any"
     },
     "tagPlaceholder": "Filter op label",
-    "to": "Naar"
+    "to": "Naar",
+    "updatedAt": "Bijgewerkt op"
   },
   "task": {
-    "documentation": "Task documentatie",
-    "lastInstance": "Laatste Task Instance",
+    "dependsOnPast": "Afhankelijk van vorige",
+    "documentation": "Taak documentatie",
+    "lastInstance": "Laatste taakinstantie",
     "operator": "Operator",
-    "triggerRule": "Trigger regel"
+    "retries": "Pogingen",
+    "triggerRule": "Trigger regel",
+    "waitForDownstream": "Wacht op downstream"
   },
-  "task_one": "Task",
-  "task_other": "Tasks",
-  "taskId": "Task ID",
+  "task_one": "Taak",
+  "task_other": "Taken",
+  "taskGroup": {
+    "documentation": "Taaakgroep documentatie"
+  },
+  "taskGroup_one": "Taakgroep",
+  "taskGroup_other": "Taakgroepen",
+  "taskId": "Taak ID",
   "taskInstance": {
+    "additionalAttributes": "Extra taakinstantie attributen",
     "dagVersion": "Dag versie",
     "executor": "Executor",
     "executorConfig": "Executor Configuratie",
     "hostname": "Hostname",
+    "id": "ID",
+    "iteration": "Iteratie",
+    "loopDecision": "Beslissing",
+    "loopIterations": "Iteraties uitgevoerd",
     "maxTries": "Maximaal aantal pogingen",
     "pid": "PID",
     "pool": "Pool",
@@ -274,23 +493,43 @@
     "priorityWeight": "Prioriteitsgewicht",
     "queue": "Wachtrij",
     "queuedWhen": "In de wachtrij gezet om",
+    "renderedMapIndex": "Gerenderde Map index",
+    "retryAt": "Volgende poging om",
     "scheduledWhen": "Gepland om",
+    "stateReason": "Reden voor status",
+    "stateReasonSummary": {
+      "failed": "Gestopt bij poging {{tryNumber}} van {{totalTries}}",
+      "upForRetry": "Opnieuw proberen na poging {{tryNumber}} van {{totalTries}}"
+    },
+    "trigger": "Trigger",
     "triggerer": {
-      "assigned": "Toegewegen Triggerer",
+      "assigned": "Toegewezen Triggerer",
       "class": "Trigger class",
       "createdAt": "Trigger aangemaakt op",
       "id": "Trigger ID",
+      "job": "Triggerer Job",
       "latestHeartbeat": "Laatste Triggerer hartslag",
       "title": "Triggerer informatie"
     },
     "unixname": "Unix naam"
   },
-  "taskInstance_one": "Task Instance",
-  "taskInstance_other": "Task Instances",
+  "taskInstance_one": "Taakinstantie",
+  "taskInstance_other": "Taakinstanties",
+  "teams": {
+    "more_one": "en {{count, number}} meer",
+    "more_other": "en {{count, number}} meer",
+    "none": "Geen team",
+    "title": "Teams"
+  },
   "timeRange": {
+    "anyTime": "Elke tijd",
+    "in": "in",
+    "last7Days": "Laatste 7 dagen",
     "last12Hours": "Laatste 12 uur",
     "last24Hours": "Laatste 24 uur",
+    "last30Days": "Laatste 30 dagen",
     "lastHour": "Laatste uur",
+    "latestRun": "Laatste Run",
     "pastWeek": "Laatste week"
   },
   "timestamp": {
@@ -309,21 +548,21 @@
     "bulkClear": {
       "error": "Bulk opschoonverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol opgeschoond. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol opgeschoond. Sleutels: {{keys}}",
         "title": "Bulk opschoonverzoek voor {{resourceName}} verzonden"
       }
     },
     "bulkDelete": {
       "error": "Bulkwijderingsverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol verwijderd. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol verwijderd. Sleutels: {{keys}}",
         "title": "Bulkwijderingsverzoek voor {{resourceName}} verzonden"
       }
     },
     "bulkUpdate": {
       "error": "Bulkupdateverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol geüpdatet. Sleutels: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol geüpdatet. Sleutels: {{keys}}",
         "title": "Bulkupdateverzoek voor {{resourceName}} verzonden"
       }
     },
@@ -344,14 +583,14 @@
     "import": {
       "error": "Importeerverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{count}} {{resourceName}} zijn succesvol geïmporteerd.",
+        "description": "{{count, number}} {{resourceName}} zijn succesvol geïmporteerd.",
         "title": "Importeerverzoek voor {{resourceName}} verzonden"
       }
     },
     "update": {
       "error": "Updateverzoek voor {{resourceName}} mislukt",
       "success": {
-        "description": "{{resourceName}} is succesvol geupdatet.",
+        "description": "{{resourceName}} is succesvol geüpdatet.",
         "title": "Updateverzoek voor {{resourceName}} verzonden"
       }
     }
@@ -369,17 +608,20 @@
     "tokenShownOnce": "Dit token wordt slechts één keer weergegeven. Kopieer het nu."
   },
   "total": "Totaal {{state}}",
-  "triggered": "Triggered",
+  "triggered": "Getriggerd",
   "tryNumber": "Poging nummer",
+  "unpause": "Hervatten",
   "user": "Gebruiker",
   "validation": {
     "mustBeAtLeast": "Moet minimaal {{min}} zijn.",
     "mustBeValidNumber": "Moet een geldig nummer zijn."
   },
+  "value": "Waarde",
   "wrap": {
     "hotkey": "w",
     "tooltip": "Druk op {{hotkey}} om wrap te schakelen",
     "unwrap": "Unwrap",
     "wrap": "Wrap"
-  }
+  },
+  "yes": "Ja"
 }

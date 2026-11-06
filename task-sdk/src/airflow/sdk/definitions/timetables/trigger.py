@@ -150,14 +150,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
       running every hour, this would run the previous time if less than 6
       minutes had past since the previous run time, otherwise it would wait
       until the next hour.
-
-    # todo: AIP-76 talk about how we can have auto-reprocessing of partitions
-    # todo: AIP-76 we could allow a tuple of integer + time-based
-
     """
 
     run_offset: int | datetime.timedelta | relativedelta | None = None
-    # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
     key_format: str = r"%Y-%m-%dT%H:%M:%S"
 
     def __init__(
@@ -167,11 +162,9 @@ class CronPartitionTimetable(CronTriggerTimetable):
         timezone: str | Timezone | FixedTimezone,
         run_offset: int | datetime.timedelta | relativedelta | None = None,
         run_immediately: bool | datetime.timedelta = False,
-        # todo: AIP-76 we can't infer partition date from this, so we need to store it separately
         key_format: str = r"%Y-%m-%dT%H:%M:%S",
     ) -> None:
         if not isinstance(run_offset, (int, NoneType)):
-            # todo: AIP-76 implement timedelta / relative delta?
             raise ValueError("Run offset other than integer not supported yet.")
         self.__attrs_init__(  # type: ignore[attr-defined]
             cron,

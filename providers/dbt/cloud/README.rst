@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-dbt-cloud``
 
-Release: ``4.9.1``
+Release: ``4.11.2``
 
 
 `dbt Cloud <https://www.getdbt.com/product/dbt-cloud/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``dbt.cloud`` provider. All classes for this prov
 are in ``airflow.providers.dbt.cloud`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.9.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.11.2/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-dbt-cloud``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -62,8 +62,8 @@ PIP package                                 Version required
 ``tenacity``                                ``>=8.3.0``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -72,25 +72,23 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-dbt-cloud[common.compat]
+    pip install apache-airflow-providers-dbt-cloud[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                    ``http``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Optional dependencies
 ----------------------
 
-===============  ===============================================
+===============  ================================================
 Extra            Dependencies
-===============  ===============================================
-``openlineage``  ``apache-airflow-providers-openlineage>=2.3.0``
-===============  ===============================================
+===============  ================================================
+``openlineage``  ``apache-airflow-providers-openlineage>=2.16.0``
+===============  ================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.9.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-dbt-cloud/4.11.2/changelog.html>`_.

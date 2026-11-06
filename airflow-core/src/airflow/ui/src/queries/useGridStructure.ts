@@ -20,33 +20,52 @@ import { useParams } from "react-router-dom";
 
 import { useGridServiceGetDagStructure } from "openapi/queries";
 import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
-import { useAutoRefresh } from "src/utils";
 
+import { SearchParamsKeys } from "src/constants/searchParams";
+import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+
+// Topology only (no per-run state), so it refreshes via `gridQueryKeys` invalidation, not polling.
 export const useGridStructure = ({
   dagRunState,
   depth,
-  hasActiveRun,
   includeDownstream,
   includeUpstream,
   limit,
   root,
+  runIdPattern,
   runType,
   triggeringUser,
 }: {
   dagRunState?: DagRunState | undefined;
   depth?: number | undefined;
-  hasActiveRun?: boolean;
   includeDownstream?: boolean;
   includeUpstream?: boolean;
   limit?: number;
   root?: string;
+  runIdPattern?: string | undefined;
   runType?: DagRunType | undefined;
   triggeringUser?: string | undefined;
 }) => {
   const { dagId = "" } = useParams();
-  const refetchInterval = useAutoRefresh({ dagId });
 
-  // This is necessary for keepPreviousData
+  // Advanced-search toggle picks between the substring ``runIdPattern`` and the
+  // index-friendly ``runIdPrefixPattern`` variants of the Run ID filter.
+  const runIdPatternArg = useAdvancedSearchArg({
+    patternApiKey: "runIdPattern",
+    prefixApiKey: "runIdPrefixPattern",
+    storageKey: SearchParamsKeys.RUN_ID_PATTERN,
+    value: runIdPattern,
+  });
+
+  // Advanced-search toggle picks between the substring ``triggeringUser`` and the
+  // index-friendly ``triggeringUserPrefix`` variants of the Triggering User filter.
+  const triggeringUserArg = useAdvancedSearchArg({
+    patternApiKey: "triggeringUser",
+    prefixApiKey: "triggeringUserPrefix",
+    storageKey: SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
+    value: triggeringUser,
+  });
+
   const { data: dagStructure, ...rest } = useGridServiceGetDagStructure(
     {
       dagId,
@@ -56,14 +75,15 @@ export const useGridStructure = ({
       limit,
       orderBy: ["-run_after"],
       root,
+      ...runIdPatternArg,
       runType: runType ? [runType] : undefined,
       state: dagRunState ? [dagRunState] : undefined,
-      triggeringUser: triggeringUser ?? undefined,
+      ...triggeringUserArg,
     },
     undefined,
-    {
-      refetchInterval: hasActiveRun ? refetchInterval : false,
-    },
+    // The global Task Instances page has no Dag, and asking for the structure of an empty id
+    // is a request that cannot answer anything.
+    { enabled: Boolean(dagId) },
   );
 
   return { data: dagStructure, ...rest };

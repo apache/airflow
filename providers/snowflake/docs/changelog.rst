@@ -27,6 +27,268 @@
 Changelog
 ---------
 
+6.21.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support Workload Identity Federation in Snowflake REST API authentication (#75810)``
+* ``Align Snowflake Cortex Agent hook with the Common AI managed-agent contract (#74672)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix stale cursor descriptions between SnowflakeHook runs (#76163)``
+* ``Fix lost transaction in SnowflakeHook when 'session_parameters' is set with 'snowflake-connector-python' < 5 (#75425, #75457)``
+* ``Fix Snowflake connections ignoring region with 'snowflake-connector-python' 5 (#75334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Move Snowflake trigger tests to match the trigger module name (#73760)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Make common.ai hooks report misconfiguration instead of failing silently (#74451)``
+
+6.20.0
+......
+
+.. note::
+
+    The Cortex Agent hook and operator modules are now ``hooks.cortex_agent`` and
+    ``operators.cortex_agent``, and the SQL API hook module is ``hooks.sql_api`` under
+    ``airflow.providers.snowflake``. Previously released imports continue to work with
+    deprecation warnings. SQLAlchemy must be below 2.1 for compatibility with snowflake-sqlalchemy.
+
+.. note::
+
+    **Significant change: OpenLineage query lineage events**
+
+    The ``openlineage`` extra now requires ``apache-airflow-providers-openlineage>=2.16.0``
+    instead of ``>=2.3.0``. Query lineage emission requires OpenLineage provider 2.16.0
+    or later; with an older version it is skipped and only a log message is written.
+    Users on OpenLineage provider 2.5.0 through 2.15.x must upgrade to retain query lineage.
+
+    Query lineage now uses the OpenLineage public API. The ``jobType.integration`` job facet
+    value changes from ``SNOWFLAKE`` to ``AIRFLOW``, and query errors use the
+    ``errorMessage`` run facet instead of ``error``. Update lineage consumers that filter on
+    the previous integration value or read the previous error facet. OpenLineage supplies
+    the ``jobType`` facet, which can no longer be overridden through ``additional_job_facets``.
+    Per-query job names remain ``<dag_id>.<task_id>.query.<counter>``.
+
+Features
+~~~~~~~~
+
+* ``Add password grant type to Snowflake OAuth token requests (#74804)``
+* ``Snowflake, Databricks: emit query lineage via OpenLineage public API (#73655)``
+* ``Add Snowflake Cortex Agent management operators (#70930)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent Snowflake SQLAlchemy import failures by requiring SQLAlchemy below 2.1 (#73822)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+* ``Remove redundant Snowflake prefixes from Cortex Agent and SQL API modules (#74300)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.19.0
+......
+
+Features
+~~~~~~~~
+
+* ``Support PAT and key-pair auth in the Snowflake Cortex Agent hook (#73932)``
+* ``Add create and update support to Snowflake Cortex Agent hook (#70703)``
+* ``Add key-pair JWT authentication to Snowflake Cortex Agent hook (#73815)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Snowflake SQL API wait_for_query timing out on finished queries (#73761)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Snowflake UTC usage in TestSnowflakeRestTokenProvider (#74393)``
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+6.18.0
+......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add SnowflakeNotebookOperator for executing Snowflake Notebooks (#63470)``
+* ``Add Cortex Agent management methods to SnowflakeCortexAgentHook (#70101)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate Snowflake account and region before building the SQL API URL (#72174)``
+* ``Fix Snowflake SQL API OAuth for client_credentials and azure_conn_id (#73162)``
+
+Misc
+~~~~
+
+* ``Log when a Snowpark container job returns no logs (#73011)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+
+6.17.0
+......
+
+.. warning::
+  ``SnowparkContainerJobOperator`` now applies a default ``timeout`` of 24 hours where it
+  previously polled indefinitely, so a task running longer than a day now fails. Increase
+  ``timeout`` to allow more time.
+
+Features
+~~~~~~~~
+
+* ``Add external access integrations to SnowparkContainerJobOperator (#72602)``
+* ``Add deferrable mode to SnowparkContainerJobOperator (#70103)``
+* ``Cancel Snowflake queries when a user kills the deferred task (#69635)``
+
+Misc
+~~~~
+
+* ``Remove redundant _set_context in SnowflakeSqlApiTrigger (#71659)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove the TaskFlow recommendation from the Snowflake documentation (#72090)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix collection error and timeout assertion in Snowpark container tests (#72709)``
+   * ``Sync connection UI metadata in provider.yaml with hook definitions (#72087)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+6.16.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'durable' reach 'default_args' and warn when set below Airflow 3.3 (#71531)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document how clearing tasks works with task state store on durable operators (#71358)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+6.16.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add SnowflakeCortexAgentOperator to Snowflake Provider (#69939)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log check_query_output response via format string in Snowflake SQL API hook (#67848)``
+* ``Fix snowflake provider installs picking an unimportable pyOpenSSL (#71145)``
+
+Misc
+~~~~
+
+* ``Use common.compat.sdk for timezone imports in providers (#70492)``
+* ``Move the SnowparkContainerJobOperator required-argument check to execute() (#70332, #70874)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document effect of state-store cleanup for operators with durable execution (#70721)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
+6.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add durable execution to SnowflakeSqlApiOperator (#69477)``
+* ``Add SnowflakeCortexAgentHook (#68942)``
+* ``Add SnowparkContainerJobOperator (#68259)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Set stream=False for Snowflake Cortex Agent requests. (#69731)``
+* ``Fix SnowflakeSqlApiOperator polling to avoid needless sleeps (#69450)``
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+Misc
+~~~~
+
+* ``Flag conn-fields in hook but absent from provider.yaml in static checks (#69655)``
+* ``Extract configuration-specific logic from _get_static_conn_params() (#68597)``
+* ``SnowflakeHook: extract OAuth token lifecycle management into dedicated helper (#68549)``
+
+Doc-only
+~~~~~~~~
+
+* ``Link task state store docs in durable execution across providers (#69851)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-07-06 (#69486)``
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``SnowflakeSqlApiOperator: add XCom query ID test coverage (#68731)``
+   * ``Add a test verifying that SnowparkOperator closes the Snowpark (#68775)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Refactor Snowflake provider tests to remove legacy unittest imports (#68898)``
+
+6.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Snowflake Workload Identity Federation (WIF) support (#68107)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve SnowflakeSqlApiOperator error message on query status check failure (#66642)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix compat test flakiness in SnowflakeSqlApiHook timeout test (#67641)``
+
 6.13.0
 ......
 

@@ -1,10 +1,15 @@
 {
-  "assetSchedule": "{{count}} de {{total}} assets actualizados",
+  "assetSchedule": "{{count, number}} de {{total, number}} assets actualizados",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
       "warning": "Esto eliminará toda la metadata relacionada con el Dag, incluyendo Ejecuciones y Tareas."
     }
+  },
+  "draining": {
+    "badgeTooltip": "Este Dag se pausa cuando terminen sus ejecuciones en curso.",
+    "label": "Drenando",
+    "tooltip": "Drenando {{dagDisplayName}} — se pausa cuando terminen las ejecuciones en curso. Haz clic para reanudar."
   },
   "favoriteDag": "Dag Favorito",
   "filters": {
@@ -15,24 +20,56 @@
       "favorite": "Favoritos",
       "unfavorite": "No Favoritos"
     },
+    "favoriteState": "Estado de Favorito",
+    "favoriteStatePlaceholder": "Seleccionar estado de favorito…",
+    "hasImportErrors": "Tiene Errores de Importación",
+    "noTimetableTypesFound": "No se encontraron tipos de programación",
     "paused": {
       "active": "Activo",
       "all": "Todos",
       "paused": "Pausado"
     },
-    "runIdPatternFilter": "Buscar Ejecuciones de Dag"
+    "pausedPlaceholder": "Seleccionar estado de pausa…",
+    "pausedState": "Estado de Pausa",
+    "requiresHitlAction": "Requiere Acción HITL",
+    "runIdPatternFilter": "Buscar Ejecuciones de Dag",
+    "runState": "Estado de la Ejecución",
+    "runStatePlaceholder": "Seleccionar estado de la ejecución…",
+    "timetableType": "Tipo de Programación"
+  },
+  "folders": {
+    "all": "Todos los Dags",
+    "empty": "No hay carpetas",
+    "hide": "Ocultar carpetas",
+    "show": "Mostrar carpetas",
+    "title": "Carpetas"
   },
   "ownerLink": "Enlace de Propietario para {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Estado de las tareas de todas las ejecuciones del Dag en curso o, si no hay ninguna en curso, de la ejecución más reciente. Puedes desactivarlo en tu configuración de usuario.",
+    "label": "Tareas recientes",
+    "loading": "Cargando los conteos de estados de tareas recientes",
+    "tooltip": "{{state}}: {{formattedCount}} — haz clic para filtrar tareas"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No se encontraron tareas.",
-      "title": "Tareas Afectadas: {{count}}"
+      "title": "Tareas Afectadas: {{count, number}}"
     },
     "clear": {
       "button": "Limpiar {{type}}",
       "buttonTooltip": "Presiona shift+c para limpiar",
       "error": "Error al limpiar {{type}}",
       "title": "Limpiar {{type}}"
+    },
+    "clearAllMapped": {
+      "button": "Limpiar Todas las Tareas Mapeadas",
+      "buttonTooltip": "Presiona shift+c para limpiar todas las instancias de tarea mapeadas",
+      "title": "Limpiar Todas las Instancias de Tarea Mapeadas"
+    },
+    "confirmationDialog": {
+      "description": "La tarea está actualmente en estado {{state}}, iniciada por el usuario {{user}} a las {{time}}. \nEl usuario no puede limpiar esta tarea hasta que termine de ejecutarse o hasta que desmarque la opción \"Evitar reejecución si la tarea está en ejecución\" en el diálogo de limpiar tarea.",
+      "title": "No Se Puede Limpiar la Instancia de Tarea"
     },
     "delete": {
       "button": "Eliminar {{type}}",
@@ -53,24 +90,47 @@
         "failed": "Presiona shift+f para marcar como fallido",
         "success": "Presiona shift+s para marcar como exitoso"
       },
+      "skippedInfo": "Marcar una instancia de tarea como omitida registra que no se ejecutó de forma intencional. Las tareas downstream se siguen evaluando según sus reglas de activación: con la regla predeterminada \"all_success\" también se omitirán. Solo se pueden omitir las instancias de tarea que aún no han comenzado a ejecutarse, y solo se ve afectada esta instancia de tarea.",
       "title": "Marcar {{type}} como {{state}}"
     },
     "options": {
       "downstream": "Downstream",
       "existingTasks": "Limpiar tareas existentes",
       "future": "Futuro",
+      "keepTaskState": "Conservar el estado de tarea y reanudar",
+      "laterIterations": "Iteraciones posteriores",
       "onlyFailed": "Limpiar solo tareas fallidas",
       "past": "Pasado",
+      "preventRunningTasks": "Evitar reejecución si la tarea está en ejecución",
       "queueNew": "Poner en cola nuevas tareas",
       "runOnLatestVersion": "Ejecutar en la última versión del bundle",
-      "upstream": "Upstream"
+      "runOnLatestVersionForced": "Siempre usa la última — no hay una versión anterior a la que volver",
+      "upstream": "Upstream",
+      "wholeExpansion": "Expansión completa"
     }
+  },
+  "runStateCounts": {
+    "label": "Estados de Ejecución",
+    "loading": "Cargando conteos de estados de ejecución",
+    "tooltip": "{{state}}: {{formattedCount}} — haz clic para filtrar ejecuciones"
+  },
+  "schedulingActions": {
+    "cancelDrain": "Cancelar el drenado",
+    "drain": "Drenar y luego pausar",
+    "drainPrompt": "Este Dag tiene ejecuciones en curso. Drenar permite que terminen antes de que el Dag se pause; pausar ahora detiene la programación de inmediato sin esperarlas.",
+    "pauseNow": "Pausar ahora",
+    "pauseSelected": "Pausar / Drenar"
+  },
+  "schedulingBanner": {
+    "message": "Este Dag se está drenando. Se pausará cuando terminen sus ejecuciones en curso."
   },
   "search": {
     "advanced": "Búsqueda Avanzada",
     "clear": "Limpiar búsqueda",
+    "dagRuns": "Buscar $t(common:dagRun_other)",
     "dags": "Buscar Dags",
     "hotkey": "+K",
+    "mapIndexes": "Buscar $t(common:mapIndex)",
     "tasks": "Buscar Tareas"
   },
   "sort": {
@@ -78,9 +138,9 @@
       "asc": "Ordenar por Nombre (A-Z)",
       "desc": "Ordenar por Nombre (Z-A)"
     },
-    "lastRunStartDate": {
-      "asc": "Ordenar por Fecha Inicial de Ejecución (Más Antiguo-Más Reciente)",
-      "desc": "Ordenar por Fecha Inicial de Ejecución (Más Reciente-Más Antiguo)"
+    "lastRunAfter": {
+      "asc": "Ordenar por Ejecutar Después de la Última Ejecución (Más Antiguo-Más Reciente)",
+      "desc": "Ordenar por Ejecutar Después de la Última Ejecución (Más Reciente-Más Antiguo)"
     },
     "lastRunState": {
       "asc": "Ordenar por Estado de Ejecución (A-Z)",
@@ -92,5 +152,5 @@
     },
     "placeholder": "Ordenar por"
   },
-  "unfavoriteDag": "Desmarcar Dag como favorito"
+  "unfavoriteDag": "Desmarcar Dag como Favorito"
 }

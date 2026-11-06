@@ -65,8 +65,9 @@ the shim installer, which works the same in Gitpod as on a local machine:
    pip install uv
    ./scripts/tools/setup_breeze
 
-This installs ``~/.local/bin/breeze`` as a small shim that runs Breeze via ``uvx`` from the
-current git worktree's ``dev/breeze`` folder. See
+This installs ``~/.local/bin/breeze`` as a small shim that runs Breeze via ``uv run --locked``
+from the current git worktree's ``dev/breeze`` folder, with dependencies pinned by
+``dev/breeze/uv.lock``. See
 `ADR 0017 <../../dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md>`_ for the
 rationale.
 

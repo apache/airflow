@@ -40,6 +40,40 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // `@types/react` declares `export as namespace React`, so `React.ReactNode`
+      // type-checks even without an import — only a syntax rule catches those.
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              importNames: ["default"],
+              message:
+                'The automatic JSX runtime makes the React namespace import unnecessary. Import what you need by name, e.g. `import { forwardRef, type ReactNode } from "react"`.',
+              name: "react",
+            },
+          ],
+        },
+      ],
+      "no-restricted-syntax": [
+        "error",
+        {
+          message:
+            "Do not type components with `React.FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`.",
+          selector: "TSQualifiedName[left.name='React'][right.name=/^(FC|FunctionComponent|VFC)$/]",
+        },
+        {
+          message:
+            "Do not type components with `FC`. Annotate the props parameter instead: `const Foo = ({ bar }: FooProps) => ...`.",
+          selector:
+            "VariableDeclarator[init.type='ArrowFunctionExpression'] > Identifier > TSTypeAnnotation > TSTypeReference > Identifier[name=/^(FC|FunctionComponent|VFC)$/]",
+        },
+        {
+          message:
+            'Import React types by name instead of qualifying them with the `React` namespace: `import { type ReactElement } from "react"`, then use `ReactElement`.',
+          selector: "TSQualifiedName[left.name='React']:not([right.name=/^(FC|FunctionComponent|VFC)$/])",
+        },
+      ],
       "perfectionist/sort-objects": [
         "error",
         {

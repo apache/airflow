@@ -21,36 +21,43 @@ import { FiLock } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import { useAuthLinksServiceGetAuthMenus } from "openapi/queries";
-import { Menu } from "src/components/ui";
+
+import { Menu } from "src/system-components";
 
 import { NavButton } from "./NavButton";
+import { NavMenu } from "./NavMenu";
 
 export const SecurityButton = () => {
   const { data: authLinks } = useAuthLinksServiceGetAuthMenus();
-  const { t: translate } = useTranslation("common");
+  const { t: translate } = useTranslation();
 
   if (authLinks?.extra_menu_items === undefined || authLinks.extra_menu_items.length < 1) {
     return undefined;
   }
 
-  return (
-    <Menu.Root positioning={{ placement: "right" }}>
-      <Menu.Trigger asChild>
-        <NavButton icon={FiLock} title={translate("nav.security")} />
-      </Menu.Trigger>
-      <Menu.Content>
-        {authLinks.extra_menu_items.map(({ text }) => {
-          const securityKey = text.toLowerCase().replace(" ", "-");
+  const securityItems = authLinks.extra_menu_items.map(({ text }) => {
+    const securityKey = text.toLowerCase().replace(" ", "-");
 
-          return (
-            <Menu.Item asChild key={text} value={text}>
-              <Link aria-label={text} to={`security/${securityKey}`}>
-                {translate(`security.${securityKey}`)}
-              </Link>
-            </Menu.Item>
-          );
-        })}
-      </Menu.Content>
-    </Menu.Root>
+    return { path: `security/${securityKey}`, securityKey, text };
+  });
+
+  return (
+    <NavMenu
+      trigger={
+        <NavButton
+          icon={FiLock}
+          title={translate("nav.security")}
+          to={securityItems.map(({ path }) => path)}
+        />
+      }
+    >
+      {securityItems.map(({ path, securityKey, text }) => (
+        <Menu.Item asChild key={text} value={text}>
+          <Link aria-label={text} to={path}>
+            {translate(`security.${securityKey}`)}
+          </Link>
+        </Menu.Item>
+      ))}
+    </NavMenu>
   );
 };

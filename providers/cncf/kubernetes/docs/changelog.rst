@@ -27,6 +27,317 @@
 Changelog
 ---------
 
+11.0.0
+......
+
+.. note::
+  ``@task.kubernetes_cmd`` now renders only the command returned by the decorated function inside
+  ``execute()``. Its other template fields are rendered once before ``execute()`` and are no
+  longer rendered a second time.
+
+.. note::
+  In multi-team mode, a team's ``KubernetesExecutor`` now reads ``in_cluster``, ``config_file``,
+  ``cluster_context``, ``verify_ssl``, ``ssl_ca_cert`` and ``api_client_retry_configuration`` from the
+  team's ``[kubernetes_executor]`` config. Like all team config, these don't fall back to the
+  un-prefixed section. If your teams connected using the un-prefixed values, set them for each team.
+
+.. warning::
+  The deprecated ``KubernetesExecutor.cleanup_stuck_queued_tasks`` and ``LocalKubernetesExecutor.cleanup_stuck_queued_tasks`` methods have been removed. Use ``revoke_task`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated cleanup_stuck_queued_tasks from KubernetesExecutor and LocalKubernetesExecutor (#76129)``
+
+Features
+~~~~~~~~
+
+* ``Emit resumable_job metrics from KubernetesPodOperator (#75734)``
+* ``Let each team's KubernetesExecutor connect to its own cluster (#75251)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Restore the on_operator_resuming callback in KubernetesPodOperator (#76035)``
+* ``Report Kubernetes API 403 errors from the deferrable pod trigger (#76081)``
+* ``Fix KubernetesJobOperator dry_run printing a Pod instead of a Job (#75403)``
+
+Misc
+~~~~
+
+* ``Bump the default XCom sidecar image to alpine:3.24.3 (#75270)``
+* ``Remove unused Spark pod try number helper (#75787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused Spark application expectation helper (#75877)``
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Parametrize Spark sensor waiting-state tests (#75879)``
+
+10.25.0
+.......
+
+.. note::
+
+    TCP keepalive settings now apply through the Kubernetes client configuration,
+    including with urllib3 2.x. This release requires ``kubernetes>=36.0.1,<37.0.0``.
+
+Features
+~~~~~~~~
+
+* ``Make KubernetesPodOperator event logging best-effort and optional (#75016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Kubernetes TCP keepalive not being applied with urllib3 2.x (#74921)``
+* ``Fix 'KubernetesExecutor' leaving invalid-config tasks stuck in queued (#74512)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop loading the task runner on every Airflow process startup (#74496)``
+
+10.24.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Allow a custom Kubernetes client factory for KubernetesExecutor (#73014)``
+* ``Carry task attempt UUIDs through remote executor providers (#73917)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep retried task attempts and their data under the attempt UUID (#74222)``
+* ``Look up task logs by task try UUID (#74204)``
+* ``Honor the polling interval for deferred Kubernetes jobs (#74143)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+
+10.23.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesExecutor not queuing tasks on Airflow 3.0.x (#73764)``
+* ``Prevent KubernetesExecutor from launching stale workloads (#69762)``
+* ``Fix KubernetesPodOperator discarding successful XCom when sidecar kill fails (#72068)``
+* ``Fix deferrable Kubernetes 401s with a default exec-based kubeconfig (#72300)``
+* ``Fix unformatted Kubernetes pod trigger error messages (#73034)``
+* ``Apply KubernetesPodOperator template fields only after rendering (#71174)``
+
+Misc
+~~~~
+
+* ``Bump the default XCom sidecar image to alpine 3.24.2 (#73629)``
+* ``Unify executor workload queues (#63491)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove mention of CeleryKubernetesExecutor from KubernetesExecutor doc (#73624)``
+* ``Document that clear_on_success also removes the KubernetesPodOperator pod identity (#71749)``
+* ``Remove note about airflow 2.7.0 from docs (#72913)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Correlate executor task events by attempt UUID (#73916)``
+   * ``Add dedicated tests for cncf.kubernetes secret and k8s_model modules (#73751)``
+   * ``Prepare providers release 2026-09-22 (#73506)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Fix Airflow 2 session leak in mapped KubernetesPodOperator test (#73260)``
+
+10.22.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add KubernetesPodExecOperator for existing Kubernetes Pods (#71244)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix XCom sidecar helper mutating the caller's pod volumes (#72522)``
+* ``Fix KubernetesPodOperator XCom loss when container_logs is a string (#72502)``
+
+Misc
+~~~~
+
+* ``Refactor validate_key to raise ValueError instead of AirflowException (#68890)``
+* ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+Doc-only
+~~~~~~~~
+
+* ``Remove stale is_async docstring param from await_pod_start (#72261)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.21.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make KubernetesPodOperator durable execution inert below Airflow 3.3 (#71492)``
+* ``Coerce explicit None _request_timeout in async/sync k8s API clients (#69611)``
+
+Doc-only
+~~~~~~~~
+
+* ``Add missing argument docs for pod methods (#71217)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+10.21.0
+.......
+
+.. note::
+    ``airflow kubernetes cleanup-pods`` now takes ``--min-completed-minutes``, which defaults to
+    ``1``. Terminal pods are therefore no longer deleted immediately; pass
+    ``--min-completed-minutes 0`` to restore the previous behavior. The delay closes a race
+    where cleanup removed a pod before ``await_pod_completion`` had read its final state.
+
+Features
+~~~~~~~~
+
+* ``Add '--min-completed-minutes' to 'cleanup-pods' to prevent KubernetesPodOperator race condition (#70595)``
+* ``Add opt-in concurrent pod creation to KubernetesExecutor (#68480)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Prevent deferrable KubernetesPodOperator log parsing from blocking the triggerer event loop (#69661)``
+* ``Fix KubernetesPodOperator dry_run requiring live Kubernetes API client (#70234)``
+* ``Build KubernetesInstallKueueOperator manifest URL after rendering (#70335)``
+
+Misc
+~~~~
+
+* ``Mark KubernetesPodOperator and AgentOperator as durable capable (#70289)``
+* ``Validate KubernetesResourceBaseOperator yaml_conf after rendering (#70337)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document Kubernetes RBAC permissions (#68716)``
+* ``Documenting effect if task state store cleanup for KubernetesPodOperator (#70722)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Fix version_added for the concurrent pod creation options (#71157)``
+
+10.20.0
+.......
+
+.. note::
+   The ``KubernetesExecutor`` now transparently requeues a worker pod that fails *before* the
+   task process starts (node drain, autoscaler scale-down, node boot race, transient image pull
+   failure, etc.) instead of failing the task on the first pod failure. This is a change in
+   default behavior, controlled by the new ``[kubernetes_executor] pod_launch_failure_retries``
+   option (default ``1``); requeues do not consume a task-level retry. Set it to ``0`` to restore
+   the previous behavior of failing immediately. Avoid ``-1`` (unlimited) with a pod that fails on
+   every launch, as the failed pods are not cleaned up under the default
+   ``delete_worker_pods_on_failure = False`` and will accumulate. The companion
+   ``pod_launch_failure_excluded_container_reasons`` option (default ``Error``) lists container
+   reasons that are excluded from the requeue path.
+
+.. note::
+   ``KubernetesPodOperator.reattach_on_restart`` is deprecated in favor of the new ``durable``
+   parameter, which keeps the same meaning and the same ``True`` default. Passing
+   ``reattach_on_restart`` still works and still wins, but emits an
+   ``AirflowProviderDeprecationWarning`` on Airflow 3.3+ and will be removed in a future release —
+   rename the argument to ``durable`` in your Dags (including in ``default_args``). On Airflow
+   3.3+ the reattach itself also changes: the operator now reconnects using the pod identity it
+   persisted in the task state store rather than searching by label, which removes the ambiguity
+   failure that a label search hits when more than one matching pod exists. On older Airflow
+   versions the previous label-search behavior is unchanged.
+
+Features
+~~~~~~~~
+
+* ``Replace 'reattach_on_restart' with 'durable' execution in KPO (#69914)``
+* ``Add streaming task log support to KubernetesExecutor (#69300)``
+* ``Add running_pod_log_lines config option to KubernetesExecutor (#69301)``
+* ``Allow configuring XCom sidecar container security context (#69613)``
+* ``Requeue KubernetesExecutor tasks whose pod failed before execution started (#69058)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cncf-kubernetes: fix potential race condition in trigger_reentry flow caused by 'is_istio_enabled' (#69269)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Hide non-user-facing entries from ad-hoc provider release notes``
+   * ``Fix flaky KubernetesPodOperator log-timestamp test (#69563)``
+   * ``Prepare ad-hoc providers release 2026-07-01 (cncf.kubernetes, common.io, keycloak) (#69223)``
+   * ``Prepare ad-hoc providers release 2026-07-01``
+
+
+10.19.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Decide pod_template and image based on Coordinator for lang-SDK tasks on KubernetesExecutor (#68713)``
+* ``Add team_name tags to Kubernetes executor metrics (#69046)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesExecutor leaking a Manager process when reading running task logs (#68800)``
+* ``Fix KubernetesExecutor never draining its 'self.completed' adoption set (#68674)``
+* ``Make cncf.kubernetes model deserialization picklable in-cluster (#68848)``
+* ``Run 'await_pod_start' before 'await_init_containers_completion' to prevent hanging when streaming init-container logs (#68450)``
+* ``Handle pod preemption before container creation in KubernetesPodOperator (#68328)``
+
+Misc
+~~~~
+
+* ``Make pod patching logic explicitly reflect when a pod is retained (#68507)``
+* ``Fix mypy errors for task_instance access in provider triggers (#68685)``
+* ``Remove leftovers from #45184 clear_not_launched_queued_tasks removal (#68698)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Trim redundant comments from KubernetesExecutor lazy-Manager tests (#69216)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``[main] Upgrade important CI environment (#68322)``
+   * ``[main] Upgrade important CI environment (#68560)``
+   * ``Add regression test for KPO awaiting pod start before init-container logs (#68503)``
+   * ``Prepare provider documentation 2026-06-16 (#68642)``
+
 10.18.0
 .......
 
@@ -727,7 +1038,6 @@ Misc
 * ``Remove unused db method in k8s provider (#49186)``
 
 
-
 10.4.2
 ......
 
@@ -816,7 +1126,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 10.2.0
 ......

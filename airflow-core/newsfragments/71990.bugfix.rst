@@ -1,0 +1,1 @@
+Fix ``airflow db clean`` to include ``task_reschedule`` in ``task_instance`` dependent tables so task reschedules are cleaned and archived prior to task instances.

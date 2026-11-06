@@ -59,6 +59,51 @@ class TestGetPartitionedDagRuns:
         response = unauthorized_test_client.get("/partitioned_dag_runs?dag_id=any")
         assert response.status_code == 403
 
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/visible", name="visible")
+        secret = Asset(uri="s3://bucket/secret", name="secret")
+        with dag_maker(
+            dag_id="redacted_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & secret),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id="redacted_dag", partition_key="2024-06-01", created_dag_run_id=None
+            )
+        )
+        session.commit()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        resp = test_client.get("/partitioned_dag_runs")
+
+        assert resp.status_code == 200
+        assert resp.json()["asset_expressions"]["redacted_dag"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
+
     def test_should_response_404(self, test_client):
         assert test_client.get("/partitioned_dag_runs?dag_id=no_such_dag").status_code == 404
 
@@ -68,7 +113,7 @@ class TestGetPartitionedDagRuns:
         dag_maker.create_dagrun()
         dag_maker.sync_dagbag_to_db()
 
-        with assert_queries_count(3):
+        with assert_queries_count(5):
             resp = test_client.get("/partitioned_dag_runs?dag_id=normal&has_created_dag_run_id=false")
         assert resp.status_code == 200
         assert resp.json() == {"partitioned_dag_runs": [], "total": 0, "asset_expressions": None}
@@ -155,16 +200,18 @@ class TestGetPartitionedDagRuns:
             )
         session.commit()
 
-        # Five batch queries, each independent of len(rows) / num_assets:
-        # 1. outer SELECT of AssetPartitionDagRun rows
-        # 2. SELECT DagModel WHERE dag_id IN (unique_dag_ids)
-        # 3. _fetch_active_assets_per_dag — joined SELECT on AssetModel + DagScheduleAssetReference
-        # 4. SELECT PartitionedAssetKeyLog WHERE asset_partition_dag_run_id IN (apdr_ids)
-        # 5. SELECT timetable for asset_expressions (cached per response)
+        # Seven batch queries, each independent of len(rows) / num_assets:
+        # 1. SELECT COUNT of matching AssetPartitionDagRun rows
+        # 2. outer SELECT of paginated AssetPartitionDagRun rows
+        # 3. SELECT DagModel WHERE dag_id IN (unique_dag_ids)
+        # 4. _fetch_active_assets_per_dag — joined SELECT on AssetModel + DagScheduleAssetReference
+        # 5. SELECT PartitionedAssetKeyLog WHERE asset_partition_dag_run_id IN (apdr_ids)
+        # 6. SELECT timetable for asset_expressions (cached per response)
+        # 7. SELECT AssetModel.id for the assets the caller may read
         # The count does not scale with num_assets or len(rows), so the bump
-        # from main's baseline of 3 (3 → 4 → 5 across this branch) is constant
+        # from main's baseline of 3 (3 → 4 → 5 → 6 → 7 across this branch) is constant
         # per request, not per row.
-        with assert_queries_count(5):
+        with assert_queries_count(7):
             resp = test_client.get(
                 f"/partitioned_dag_runs?dag_id=list_dag"
                 f"&has_created_dag_run_id={str(has_created_dag_run_id).lower()}"
@@ -177,6 +224,50 @@ class TestGetPartitionedDagRuns:
             assert pdr_resp["state"] == expected_state
             assert pdr_resp["total_received"] == received_count
             assert pdr_resp["total_required"] == num_assets
+
+    def test_should_paginate_partitioned_dag_runs(self, test_client, dag_maker, session):
+        with dag_maker(
+            dag_id="paginated_dag",
+            schedule=PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/page", name="page")),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.sync_dagbag_to_db()
+
+        start = pendulum.datetime(2024, 6, 1, tz="UTC")
+        session.add_all(
+            [
+                AssetPartitionDagRun(
+                    target_dag_id="paginated_dag",
+                    partition_key=f"key-{idx}",
+                    created_at=start.add(minutes=idx),
+                )
+                for idx in range(3)
+            ]
+        )
+        session.commit()
+
+        first_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2"
+        )
+        assert first_page.status_code == 200
+        first_body = first_page.json()
+        assert first_body["total"] == 3
+        assert [row["partition_key"] for row in first_body["partitioned_dag_runs"]] == ["key-2", "key-1"]
+
+        second_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2&offset=2"
+        )
+        assert second_page.status_code == 200
+        second_body = second_page.json()
+        assert second_body["total"] == 3
+        assert [row["partition_key"] for row in second_body["partitioned_dag_runs"]] == ["key-0"]
+
+        empty_page = test_client.get(
+            "/partitioned_dag_runs?dag_id=paginated_dag&has_created_dag_run_id=false&limit=2&offset=20"
+        )
+        assert empty_page.status_code == 200
+        assert empty_page.json() == {"partitioned_dag_runs": [], "total": 3, "asset_expressions": None}
 
     @pytest.mark.parametrize(
         ("num_target_assets", "num_other_assets", "received_count"),
@@ -255,6 +346,33 @@ class TestGetPartitionedDagRuns:
         body = resp.json()
         dag_ids = {r["dag_id"] for r in body["partitioned_dag_runs"]}
         assert "restricted_dag" not in dag_ids
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        return_value={"other_dag"},
+    )
+    def test_dag_id_filter_does_not_disclose_unreadable_dag_existence(
+        self, _, test_client, dag_maker, session
+    ):
+        """
+        An unreadable-but-existing Dag must not be distinguishable from a nonexistent
+        Dag via the ``dag_id`` filter: both return 404. Without the scoping, the
+        readable-dags row filter drops the APDR rows, ``total_entries`` collapses to
+        0, and the DagModel probe still finds the Dag — returning 200-empty and
+        giving the caller an oracle for Dag ids outside their permitted set.
+        """
+        schedule = PartitionedAssetTimetable(assets=Asset(uri="s3://bucket/a", name="a"))
+        with dag_maker(dag_id="restricted_dag", schedule=schedule, serialized=True):
+            EmptyOperator(task_id="t")
+        dag_maker.sync_dagbag_to_db()
+        # An APDR row exists but the readable-dags filter drops it — this is the
+        # branch where the pre-fix DagModel probe leaked existence.
+        session.add(AssetPartitionDagRun(target_dag_id="restricted_dag", partition_key="2024-06-01"))
+        session.commit()
+
+        existing_unreadable = test_client.get("/partitioned_dag_runs?dag_id=restricted_dag")
+        nonexistent = test_client.get("/partitioned_dag_runs?dag_id=no_such_dag")
+        assert existing_unreadable.status_code == nonexistent.status_code == 404
 
     def test_duplicate_events_count_as_one(self, test_client, dag_maker, session):
         """Multiple log entries for the same asset count as 1 received, not N."""
@@ -544,11 +662,13 @@ class TestGetPartitionedDagRuns:
 
 class TestGetPendingPartitionedDagRun:
     def test_should_response_401(self, unauthenticated_test_client):
-        response = unauthenticated_test_client.get("/pending_partitioned_dag_run/any_dag/any_key")
+        response = unauthenticated_test_client.get(
+            "/pending_partitioned_dag_run/any_dag?partition_key=any_key"
+        )
         assert response.status_code == 401
 
     def test_should_response_403(self, unauthorized_test_client):
-        response = unauthorized_test_client.get("/pending_partitioned_dag_run/any_dag/any_key")
+        response = unauthorized_test_client.get("/pending_partitioned_dag_run/any_dag?partition_key=any_key")
         assert response.status_code == 403
 
     @pytest.mark.parametrize(
@@ -583,7 +703,15 @@ class TestGetPendingPartitionedDagRun:
             )
             session.commit()
 
-        resp = test_client.get(f"/pending_partitioned_dag_run/{dag_id}/{partition_key}")
+        resp = test_client.get(f"/pending_partitioned_dag_run/{dag_id}?partition_key={partition_key}")
+        assert resp.status_code == 404
+
+    def test_missing_partition_key_query_param_returns_422(self, test_client):
+        resp = test_client.get("/pending_partitioned_dag_run/any_dag")
+        assert resp.status_code == 422
+
+    def test_empty_partition_key_query_param_returns_404(self, test_client):
+        resp = test_client.get("/pending_partitioned_dag_run/any_dag?partition_key=")
         assert resp.status_code == 404
 
     @pytest.mark.parametrize(
@@ -644,7 +772,7 @@ class TestGetPendingPartitionedDagRun:
             )
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/detail_dag/2024-07-01")
+        resp = test_client.get("/pending_partitioned_dag_run/detail_dag?partition_key=2024-07-01")
         assert resp.status_code == 200
         body = resp.json()
         assert body["dag_id"] == "detail_dag"
@@ -657,6 +785,74 @@ class TestGetPendingPartitionedDagRun:
 
         received_uris = {a["asset_uri"] for a in body["assets"] if a["received"]}
         assert received_uris == set(uris[:received_count])
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_hides_assets_the_caller_may_not_read(
+        self, mock_get_authorized_assets, test_client, dag_maker, session
+    ):
+        visible = Asset(uri="s3://bucket/visible", name="visible")
+        secret = Asset(uri="s3://bucket/secret", name="secret")
+        with dag_maker(
+            dag_id="redacted_detail_dag",
+            schedule=PartitionedAssetTimetable(assets=visible & secret),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(
+            AssetPartitionDagRun(
+                target_dag_id="redacted_detail_dag", partition_key="2024-07-01", created_dag_run_id=None
+            )
+        )
+        session.commit()
+        visible_id = session.scalar(select(AssetModel.id).where(AssetModel.name == "visible"))
+        mock_get_authorized_assets.return_value = {visible_id}
+
+        resp = test_client.get("/pending_partitioned_dag_run/redacted_detail_dag?partition_key=2024-07-01")
+
+        assert resp.status_code == 200
+        body = resp.json()
+        # Rows come back ordered by the asset's uri, so "secret" precedes "visible".
+        assert [
+            {k: a[k] for k in ("asset_id", "asset_name", "asset_uri", "hidden", "required_count")}
+            for a in body["assets"]
+        ] == [
+            {
+                "asset_id": None,
+                "asset_name": None,
+                "asset_uri": None,
+                "hidden": True,
+                "required_count": 1,
+            },
+            {
+                "asset_id": visible_id,
+                "asset_name": "visible",
+                "asset_uri": "s3://bucket/visible",
+                "hidden": False,
+                "required_count": 1,
+            },
+        ]
+        # Progress stays readable: a blanked asset still counts toward the run's totals.
+        assert body["total_required"] == 2
+        assert body["asset_expression"] == {
+            "all": [
+                {
+                    "asset": {
+                        "uri": "s3://bucket/visible",
+                        "name": "visible",
+                        "group": "asset",
+                        "id": visible_id,
+                        "hidden": False,
+                    }
+                },
+                {"asset": {"uri": None, "name": None, "group": "asset", "id": None, "hidden": True}},
+            ]
+        }
 
     def test_is_rollup_false_for_non_rollup_asset(self, test_client, dag_maker, session):
         """is_rollup is False for every asset when the schedule uses identity (non-rollup) mappers."""
@@ -677,7 +873,7 @@ class TestGetPendingPartitionedDagRun:
         session.add(AssetPartitionDagRun(target_dag_id="nr_detail_dag", partition_key="2024-07-01"))
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/nr_detail_dag/2024-07-01")
+        resp = test_client.get("/pending_partitioned_dag_run/nr_detail_dag?partition_key=2024-07-01")
         assert resp.status_code == 200
         assets = resp.json()["assets"]
         assert len(assets) == 2
@@ -713,7 +909,7 @@ class TestGetPendingPartitionedDagRun:
         session.add(AssetPartitionDagRun(target_dag_id="rollup_default_dag", partition_key="2024-06-03"))
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/rollup_default_dag/2024-06-03")
+        resp = test_client.get("/pending_partitioned_dag_run/rollup_default_dag?partition_key=2024-06-03")
         assert resp.status_code == 200
         body = resp.json()
         assert body["total_required"] == 14
@@ -761,7 +957,7 @@ class TestGetPendingPartitionedDagRun:
         )
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/rollup_detail_dag/2024-06-03")
+        resp = test_client.get("/pending_partitioned_dag_run/rollup_detail_dag?partition_key=2024-06-03")
         assert resp.status_code == 200
         body = resp.json()
         assert body["total_required"] == 7
@@ -832,7 +1028,9 @@ class TestGetPendingPartitionedDagRun:
             ),
             mock.patch("airflow.api_fastapi.core_api.routes.ui.partitioned_dag_runs.log") as mock_log,
         ):
-            resp = test_client.get("/pending_partitioned_dag_run/rollup_warn_detail_dag/2024-06-03")
+            resp = test_client.get(
+                "/pending_partitioned_dag_run/rollup_warn_detail_dag?partition_key=2024-06-03"
+            )
 
         assert resp.status_code == 200
         a = resp.json()["assets"][0]
@@ -873,7 +1071,7 @@ class TestGetPendingPartitionedDagRun:
         session.delete(asset_active_row)
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/inactive_detail_dag/2024-07-01")
+        resp = test_client.get("/pending_partitioned_dag_run/inactive_detail_dag?partition_key=2024-07-01")
         assert resp.status_code == 200
         assets = resp.json()["assets"]
         assert len(assets) == 1
@@ -896,8 +1094,145 @@ class TestGetPendingPartitionedDagRun:
         session.add(AssetPartitionDagRun(target_dag_id="active_detail_dag", partition_key="2024-07-01"))
         session.commit()
 
-        resp = test_client.get("/pending_partitioned_dag_run/active_detail_dag/2024-07-01")
+        resp = test_client.get("/pending_partitioned_dag_run/active_detail_dag?partition_key=2024-07-01")
         assert resp.status_code == 200
         assets = resp.json()["assets"]
         assert len(assets) == 1
         assert assets[0]["asset_inactive"] is False
+
+    def test_partition_key_containing_slash_round_trips(self, test_client, dag_maker, session):
+        """
+        A partition key containing ``/`` must survive as a query parameter.
+
+        As a path segment, a URL-encoded ``/`` (``%2F``) is decoded before Starlette
+        routing sees it, so any key containing a literal ``/`` would 404. Sending it
+        as a query parameter instead avoids that ambiguity entirely.
+        """
+        asset = Asset(uri="s3://bucket/slash_key", name="slash_key")
+        with dag_maker(
+            dag_id="slash_key_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        session.add(AssetPartitionDagRun(target_dag_id="slash_key_dag", partition_key="region/us"))
+        session.commit()
+
+        resp = test_client.get(
+            "/pending_partitioned_dag_run/slash_key_dag", params={"partition_key": "region/us"}
+        )
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["dag_id"] == "slash_key_dag"
+        assert body["partition_key"] == "region/us"
+
+    @pytest.mark.parametrize(
+        "selection", [None, "oldest", "newest", "missing", "other-dag", "other-partition", "created"]
+    )
+    def test_pending_partition_details_select_run(self, test_client, dag_maker, session, selection):
+        asset = Asset(uri="s3://bucket/dup_apdr", name="dup_apdr")
+        with dag_maker(
+            dag_id="dup_apdr_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_run = dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset = session.scalar(select(AssetModel).where(AssetModel.uri == "s3://bucket/dup_apdr"))
+
+        next_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
+        session.add(next_pdr)
+        session.flush()
+
+        later_pdr = AssetPartitionDagRun(target_dag_id="dup_apdr_dag", partition_key="2024-08-01")
+        session.add(later_pdr)
+        session.flush()
+        event = AssetEvent(asset_id=asset.id, timestamp=pendulum.datetime(2024, 8, 1))
+        session.add(event)
+        session.flush()
+        session.add(
+            PartitionedAssetKeyLog(
+                asset_id=asset.id,
+                asset_event_id=event.id,
+                asset_partition_dag_run_id=next_pdr.id,
+                source_partition_key="2024-08-01",
+                target_dag_id="dup_apdr_dag",
+                target_partition_key="2024-08-01",
+            )
+        )
+        params = {"partition_key": "2024-08-01"}
+        if selection is not None:
+            params["partitioned_dag_run_id"] = next_pdr.id if selection == "oldest" else later_pdr.id
+        if selection == "missing":
+            params["partitioned_dag_run_id"] = -1
+        elif selection == "other-dag":
+            later_pdr.target_dag_id = "other-dag"
+        elif selection == "other-partition":
+            later_pdr.partition_key = "other-partition"
+        elif selection == "created":
+            later_pdr.created_dag_run_id = dag_run.id
+        session.commit()
+
+        resp = test_client.get("/pending_partitioned_dag_run/dup_apdr_dag", params=params)
+        if selection in {"missing", "other-dag", "other-partition", "created"}:
+            assert resp.status_code == 404
+            return
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["id"] == (next_pdr.id if selection == "oldest" else later_pdr.id)
+        assert body["total_received"] == (1 if selection == "oldest" else 0)
+
+    def test_non_rollup_many_to_one_received_capped_at_one(self, test_client, dag_maker, session):
+        """
+        Detail route must cap non-rollup received credit at 1, matching the list route.
+
+        Multiple distinct upstream ``source_partition_key`` values logged against the
+        same non-rollup asset (a many-to-one mapper) must not inflate ``received_count``
+        past ``required_count`` — otherwise the detail view shows e.g. "2/1" while the
+        list view shows "1/1" for the same APDR.
+        """
+        asset = Asset(uri="s3://bucket/many_to_one", name="many_to_one")
+        with dag_maker(
+            dag_id="many_to_one_dag",
+            schedule=PartitionedAssetTimetable(assets=asset),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="t")
+        dag_maker.create_dagrun()
+        dag_maker.sync_dagbag_to_db()
+
+        asset = session.scalar(select(AssetModel).where(AssetModel.uri == "s3://bucket/many_to_one"))
+        pdr = AssetPartitionDagRun(target_dag_id="many_to_one_dag", partition_key="2024-08-01")
+        session.add(pdr)
+        session.flush()
+
+        for source_key in ("2024-08-01", "different-key"):
+            event = AssetEvent(asset_id=asset.id, timestamp=pendulum.now())
+            session.add(event)
+            session.flush()
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=asset.id,
+                    asset_event_id=event.id,
+                    asset_partition_dag_run_id=pdr.id,
+                    source_partition_key=source_key,
+                    target_dag_id="many_to_one_dag",
+                    target_partition_key="2024-08-01",
+                )
+            )
+        session.commit()
+
+        resp = test_client.get("/pending_partitioned_dag_run/many_to_one_dag?partition_key=2024-08-01")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["total_required"] == 1
+        assert body["total_received"] == 1
+        asset_resp = body["assets"][0]
+        assert asset_resp["required_count"] == 1
+        assert asset_resp["received_count"] == 1
+        assert asset_resp["received"] is True

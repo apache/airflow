@@ -7,16 +7,95 @@
       "when": "Cuando"
     },
     "filters": {
-      "eventType": "Tipo de evento"
+      "eventType": "Tipo de Evento"
+    }
+  },
+  "dagBundles": {
+    "active": "Activo",
+    "columns": {
+      "active": "Activo",
+      "importErrors": "Errores de Importación",
+      "lastRefreshed": "Última Actualización",
+      "name": "Nombre",
+      "version": "Versión"
     },
-    "title": "Auditar Log"
+    "detail": {
+      "status": "Estado"
+    },
+    "files": {
+      "columns": {
+        "file": "Archivo",
+        "lastParsed": "Último Análisis",
+        "parseDuration": "Duración del Análisis"
+      },
+      "file_many": "Archivos",
+      "file_one": "Archivo",
+      "file_other": "Archivos",
+      "importErrorForbidden": "No tienes permiso para leer este error de importación.",
+      "importErrorGone": "Este error de importación ya no está registrado. Probablemente se corrigió con un nuevo análisis.",
+      "neverParsed": "Nunca",
+      "showImportError_many": "Ver {{count, number}} de errores",
+      "showImportError_one": "Ver error",
+      "showImportError_other": "Ver {{count, number}} errores"
+    },
+    "inactive": "Inactivo",
+    "neverRefreshed": "Nunca",
+    "notRefreshedYet": "Aún no actualizado",
+    "notVersioned": "Sin versionar"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nombre de Alerta",
+      "deadlineTime": "Hora del Plazo",
+      "status": "Estado"
+    },
+    "deadline_many": "Plazos",
+    "deadline_one": "Plazo",
+    "deadline_other": "Plazos",
+    "filters": {
+      "status": "Estado",
+      "statusOptions": {
+        "all": "Todos",
+        "missed": "Incumplido",
+        "pending": "Pendiente"
+      }
+    },
+    "title": "Plazos"
   },
   "xcom": {
+    "add": {
+      "error": "Error al agregar XCom",
+      "errorTitle": "Error",
+      "success": "XCom agregado exitosamente",
+      "successTitle": "XCom Agregado",
+      "title": "Agregar XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Clave",
+      "timestamp": "Timestamp",
       "value": "Valor"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Error al eliminar XCom",
+      "errorTitle": "Error",
+      "success": "XCom eliminado exitosamente",
+      "successTitle": "XCom Eliminado",
+      "title": "Eliminar XCom",
+      "warning": "¿Confirmas que deseas eliminar este XCom? Esta acción no se puede deshacer."
+    },
+    "edit": {
+      "error": "Error al actualizar XCom",
+      "errorTitle": "Error",
+      "success": "XCom actualizado exitosamente",
+      "successTitle": "XCom Actualizado",
+      "title": "Editar XCom"
+    },
+    "entry_many": "Entradas de XCom",
+    "entry_one": "Entrada de XCom",
+    "entry_other": "Entradas de XCom",
+    "key": "Clave",
+    "title": "XCom",
+    "value": "Valor"
   }
 }

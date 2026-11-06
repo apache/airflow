@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Editable, Text, VStack } from "@chakra-ui/react";
 import type { ChangeEvent } from "react";
+
+import { Editable, Text, VStack } from "@chakra-ui/react";
 
 import ReactMarkdown from "src/components/ReactMarkdown";
 

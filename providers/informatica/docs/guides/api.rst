@@ -101,7 +101,7 @@ Plugins
 **InformaticaProviderPlugin**
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ``InformaticaProviderPlugin`` registers event listeners that monitor Airflow task lifecycle events (start, success, failure) and trigger lineage extraction and EDC API calls. This plugin is loaded automatically when the provider is installed and enabled.
+The ``InformaticaProviderPlugin`` registers event listeners that monitor Airflow task lifecycle events (running, success, failure) and trigger lineage extraction and EDC API calls. Listener resolution is best-effort: resolution exceptions are logged, and task execution is not failed by listener hooks. Use ``pre_execute=validate_informatica_lineage`` on an operator when strict pre-execution failure is required.
 
 No manual instantiation is required. The plugin works transparently with any task that defines inlets and outlets.
 

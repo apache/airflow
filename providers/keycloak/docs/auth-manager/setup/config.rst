@@ -72,3 +72,6 @@ Optional config options:
 - ``server_url``. Keycloak server URL. This server URL is used by the Airflow API server to communicate with Keycloak.
   If the Airflow API server and Keycloak are running in Docker, set "http://host.docker.internal:<PORT>" (default value).
   You do not need to set this configuration option if you are running Keycloak with Breeze.
+- ``jwt_federated_client_ids``. Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to
+  exchange a Keycloak-issued access token for an Airflow token via the ``urn:ietf:params:oauth:grant-type:jwt-bearer``
+  grant at ``/auth/token``. See :doc:`../token` for details. Unset or empty denies every caller.

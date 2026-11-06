@@ -10,8 +10,8 @@
   },
   "requiredAction_one": "Required Action",
   "requiredAction_other": "Required Actions",
-  "requiredActionCount_one": "Required Action ({{count}})",
-  "requiredActionCount_other": "Required Actions ({{count}})",
+  "requiredActionCount_one": "Required Action ({{count, number}})",
+  "requiredActionCount_other": "Required Actions ({{count, number}})",
   "requiredActionState": "Required Action State",
   "response": {
     "created": "Response created at ",
@@ -21,8 +21,23 @@
     "received": "Response received at ",
     "respond": "Respond",
     "responded_by_user_name": "Responded by (User Name)",
+    "selectAtLeastOne": "Select at least one option",
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"
+  },
+  "review": {
+    "detail": {
+      "selectRequiredAction": "Select a required action to see details"
+    },
+    "list": {
+      "completedRequiredActions": "Completed required actions ({{count, number}})",
+      "loadError": "Unable to load required actions",
+      "loadingActions": "Loading required actions...",
+      "pendingRequiredActions": "Pending required actions ({{count, number}})"
+    },
+    "openReviewDrawer": "Open Review Drawer",
+    "pageLimitHint": "Only the first few of actions are shown here. Use \"$t(review.viewAll)\" to see all of them.",
+    "viewAll": "View all required actions"
   },
   "state": {
     "approvalReceived": "Approval Received",

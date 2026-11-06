@@ -122,11 +122,12 @@ If there are **missing** keys, scaffold them with `TODO: translate:` stubs:
 breeze ui check-translation-completeness --language <locale> --add-missing
 ```
 
-If there are **extra** keys (present in the locale but not in English), remove
-them:
+If there are **unused** keys — keys that are not required, meaning they are
+absent from the English locale or are plural suffixes this language does not
+need — remove them:
 
 ```bash
-breeze ui check-translation-completeness --language <locale> --remove-extra
+breeze ui check-translation-completeness --language <locale> --remove-unused
 ```
 
 Now translate the `TODO: translate:` entries following the locale-specific
@@ -138,10 +139,18 @@ guideline, then continue to **Validation** below.
 
 After completing translations, run these checks:
 
-Check completeness. The output should show 0 missing, 0 extra, and 0 TODOs:
+Check completeness. The output table should show 0 missing, 0 TODOs, 0 unused,
+and 100% coverage:
 
 ```bash
 breeze ui check-translation-completeness --language <locale>
+```
+
+For machine-readable validation, add `--json` and check the language's totals
+instead — stdout carries only the JSON document:
+
+```bash
+breeze ui check-translation-completeness --language <locale> --json
 ```
 
 Run pre-commit hooks to fix formatting, licenses, and linting issues:
@@ -181,6 +190,10 @@ Translation strings use `{{variable}}` interpolation (i18next format).
 Never translate or remove variable names inside `{{…}}`. Placeholders may be
 reordered as needed for natural word order, but the exact variable casing must
 be preserved (e.g., `{{dagDisplayName}}`).
+
+Counters use the i18next `number` formatter so they get the locale's digit
+grouping (e.g., `{{count, number}}`, `{{total, number}}`). Keep the `, number`
+suffix exactly as it appears in the English string.
 
 ### Plural Forms
 
@@ -239,6 +252,7 @@ from a global rule in this document, follow the locale-specific guideline.
 | `nl`        | Dutch                   | [locales/nl.md](locales/nl.md)  |
 | `pl`        | Polish                  | [locales/pl.md](locales/pl.md)  |
 | `pt`        | Portuguese              | [locales/pt.md](locales/pt.md)  |
+| `ru`        | Russian                 | [locales/ru.md](locales/ru.md)  |
 | `th`        | Thai                    | [locales/th.md](locales/th.md)  |
 | `tr`        | Turkish                 | [locales/tr.md](locales/tr.md)  |
 | `zh-CN`     | Simplified Chinese      | [locales/zh-CN.md](locales/zh-CN.md) |

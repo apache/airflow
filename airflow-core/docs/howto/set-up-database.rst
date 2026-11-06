@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/14/>`__.
+Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/20/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
@@ -32,7 +32,7 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 13, 14, 15, 16, 17
+* PostgreSQL: 14, 15, 16, 17, 18
 * MySQL: 8.0, 8.4, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
 * SQLite: 3.15.0+
 
@@ -66,7 +66,7 @@ the example below.
     $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
-The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
+The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/20/core/engines.html>`__. We will also show you some examples below.
 
 Setting up a SQLite Database
 ----------------------------
@@ -93,8 +93,8 @@ You can make sure which version is used by the interpreter by running this check
 
 .. code-block:: bash
 
-    [Breeze:3.10.19] root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
+    [Breeze:3.11.16] root@b8a8e73caa2c:/opt/airflow# python
+    Python 3.11.16 (default, Oct 06 2026, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -159,7 +159,7 @@ Setting up a PostgreSQL Database
 --------------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and a user with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
@@ -184,9 +184,9 @@ in the Postgres documentation to learn more.
 
 .. warning::
 
-   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
-   In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
-   SQLAlchemy 1.4.0+ results in:
+   On SQLAlchemy 1.4+, use ``postgresql://`` as the connection string schema in ``sql_alchemy_conn``.
+   In earlier versions of SQLAlchemy it was possible to use ``postgres://``, but doing so in
+   SQLAlchemy 1.4+ results in:
 
    .. code-block::
 
@@ -195,16 +195,76 @@ in the Postgres documentation to learn more.
               )
       E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
 
-   If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
-   1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/20/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
-   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
-
-We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
+We recommend specifying a driver, such as ``psycopg``, explicitly in your SQLAlchemy connection string:
 
 .. code-block:: text
 
-   postgresql+psycopg2://<user>:<password>@<host>/<db>
+   postgresql+<driver>://<user>:<password>@<host>/<db>
+
+Sync SQLAlchemy engine and the sync driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``psycopg`` (psycopg3) is the default synchronous driver for the metadata database. When ``sql_alchemy_conn`` omits a driver
+(a bare ``postgresql://`` scheme) or still uses the legacy ``postgres://`` / ``postgres+psycopg2://`` schemes, Airflow
+rewrites it to:
+
+.. code-block:: text
+
+   postgresql+psycopg://<user>:<password>@<host>/<db>
+
+If you need the old ``psycopg2`` driver, install the ``apache-airflow-providers-postgres[psycopg2]`` extra and set the
+connection string explicitly:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn = postgresql+psycopg2://<user>:<password>@<host>/<db>
+
+An explicit ``postgresql+psycopg2://`` URL is never rewritten. If ``psycopg2`` is not installed while such a URL is
+configured, Airflow fails loudly at connection time rather than silently falling back to a different driver.
+
+Async SQLAlchemy engine and the async driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In addition to the synchronous engine, Airflow maintains an async SQLAlchemy engine for the metadata database (used e.g. by async API endpoints).
+When ``[database] sql_alchemy_conn_async`` is not set, its URL is derived from ``sql_alchemy_conn`` using ``psycopg`` (psycopg3) as the async driver:
+
+.. code-block:: text
+
+   postgresql+psycopg_async://<user>:<password>@<host>/<db>
+
+psycopg3 is the default because Airflow can make it safe behind transaction-mode PgBouncer (recommended for all production Postgres installations, see the note below) automatically, which it cannot do for asyncpg without you opting in.
+psycopg3 `prepares statements server-side <https://www.psycopg.org/psycopg3/docs/advanced/prepare.html>`_ once a statement has been executed ``prepare_threshold`` times (5 by default), which a transaction-pooling pooler cannot honor unless it tracks prepared statements itself.
+Airflow therefore sets ``prepare_threshold = None`` by default for both the sync and async psycopg3 engines, which disables the behaviour.
+If your pooler tracks prepared statements, or you run without a pooler at all, you can opt back in by pointing ``sql_alchemy_connect_args`` (or ``sql_alchemy_connect_args_async``) at a dictionary that sets ``prepare_threshold``.
+With PgBouncer that needs all of 1.22 or newer, ``max_prepared_statements`` above 0 — it defaults to 0 until 1.24, where it becomes 200 — and ``libpq`` 17 or newer on the Airflow side, as `psycopg documents <https://www.psycopg.org/psycopg3/docs/advanced/prepare.html#using-prepared-statements-with-pgbouncer>`_.
+Opting back in without all three gives you the failures the default avoids.
+If psycopg3 is not installed — for example with an older ``apache-airflow-providers-postgres`` release that ships ``asyncpg`` but not ``psycopg`` — Airflow falls back to deriving an ``asyncpg`` URL instead.
+
+If you need the extra throughput of ``asyncpg``, opt in by installing the ``apache-airflow-providers-postgres[asyncpg]`` extra and setting the async URL explicitly:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn_async = postgresql+asyncpg://<user>:<password>@<host>/<db>
+
+asyncpg uses `named server-side prepared statements <https://magicstack.github.io/asyncpg/current/faq.html#why-am-i-getting-prepared-statement-errors>`_, which break under transaction-mode PgBouncer.
+If you run asyncpg behind transaction-mode PgBouncer, you must disable its prepared-statement caching by pointing ``sql_alchemy_connect_args_async`` at a dictionary defined in your ``airflow_local_settings.py``:
+
+.. code-block:: python
+
+   # airflow_local_settings.py
+   connect_args_async = {
+       "statement_cache_size": 0,
+       "prepared_statement_cache_size": 0,
+   }
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_connect_args_async = airflow_local_settings.connect_args_async
 
 Also note that since SqlAlchemy does not expose a way to target a specific schema in the database URI, you need to ensure schema ``public`` is in your Postgres user's search_path.
 
@@ -218,7 +278,16 @@ If you use a current Postgres user with custom search_path, search_path can be c
 
    ALTER USER airflow_user SET search_path = public;
 
-For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/14/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+For more information regarding setup of the PostgreSQL connection, see `PostgreSQL dialect <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html>`__ in SQLAlchemy documentation.
+
+.. note::
+
+   SQLAlchemy supports multiple fallback hosts for the psycopg2, psycopg, and asyncpg PostgreSQL dialects.
+   These dialects accept repeated ``host=<host>:<port>`` query parameters, with driver-specific port
+   requirements. See
+   `Specifying multiple fallback hosts <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#specifying-multiple-fallback-hosts>`__
+   and `asyncpg Multihost Connections <https://docs.sqlalchemy.org/en/20/dialects/postgresql.html#multihost-connections>`__
+   in the SQLAlchemy documentation for details.
 
 .. note::
 
@@ -276,7 +345,7 @@ Setting up a MySQL Database
 ---------------------------
 
 You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+In the example below, a database ``airflow_db`` and a user with username ``airflow_user`` with password ``airflow_pass`` will be created
 
 .. code-block:: sql
 
@@ -304,10 +373,10 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
 .. important::
-    The integration of MySQL backend has only been validated using the ``mysqlclient`` driver
+    The synchronous integration of MySQL backend has only been validated using the ``mysqlclient`` driver
     during Apache Airflow's continuous integration (CI) process.
 
-If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/14/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/20/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
@@ -319,6 +388,32 @@ In addition, you also should pay particular attention to MySQL's encoding. Altho
     To avoid this error, you could disable ``NO_ZERO_DATE`` mode on you MySQL server.
     Read https://stackoverflow.com/questions/9192027/invalid-default-value-for-create-date-timestamp-field for how to disable it.
     See `SQL Mode - NO_ZERO_DATE <https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_no_zero_date>`__ for more information.
+
+Async SQLAlchemy engine and the async driver
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``[database] sql_alchemy_conn_async`` is not set, Airflow derives the async MySQL
+metadata database URL from ``sql_alchemy_conn``. It selects ``asyncmy`` when installed:
+
+.. code-block:: text
+
+   mysql+asyncmy://<user>:<password>@<host>[:<port>]/<dbname>
+
+The MySQL provider installs ``asyncmy`` by default. If an older provider release does not
+install it, core falls back to ``aiomysql``, so upgrading core alone keeps working.
+The provider also keeps installing ``aiomysql`` for older supported core releases that
+always derive a ``mysql+aiomysql://`` URL.
+
+An explicit ``sql_alchemy_conn_async`` is never rewritten. To keep using ``aiomysql``,
+install ``apache-airflow-providers-mysql[aiomysql]`` and set:
+
+.. code-block:: ini
+
+   [database]
+   sql_alchemy_conn_async = mysql+aiomysql://<user>:<password>@<host>[:<port>]/<dbname>
+
+Review ``sql_alchemy_connect_args_async`` when changing drivers: driver-specific
+connection arguments must be supported by the selected driver.
 
 MsSQL Database
 --------------
@@ -353,7 +448,7 @@ For instance, you can specify a database schema where Airflow will create its re
 
 .. code-block:: bash
 
-    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN="postgresql+psycopg://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
     export AIRFLOW__DATABASE__SQL_ALCHEMY_SCHEMA="airflow"
 
 Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
@@ -454,7 +549,7 @@ engine configuration).
 - Suitable for non-production environments like staging systems.
 
 You can do it with ``echo=True`` as sqlalchemy engine configuration as explained in the
-`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/14/core/engines.html#configuring-logging>`_.
+`SQLAlchemy logging documentation <https://docs.sqlalchemy.org/en/20/core/engines.html#configuring-logging>`_.
 
 Use :ref:`config:database__sql_alchemy_engine_args` configuration parameter to set echo arg to True.
 

@@ -16,58 +16,68 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+
+import type { ButtonProps } from "@chakra-ui/react";
+import { HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { TaskInstanceResponse, TaskInstanceState } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Menu, Tooltip } from "src/components/ui";
 
-import { allowedStates } from "../utils";
+import { IconButton, Menu, Tooltip } from "src/system-components";
+
+import { StateBadge } from "src/components/StateBadge";
+
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
+
+import { allowedStates, canMarkTaskInstanceAsSkipped } from "../utils";
 import MarkTaskInstanceAsDialog from "./MarkTaskInstanceAsDialog";
 
 type Props = {
   readonly isHotkeyEnabled?: boolean;
   readonly taskInstance: TaskInstanceResponse;
-};
+} & ButtonProps;
 
-const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Props) => {
+export const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
 
   const [state, setState] = useState<TaskInstanceState>("success");
 
-  useHotkeys(
-    "shift+f",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskFailed,
+    callback: () => {
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
-  useHotkeys(
-    "shift+s",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskSuccess,
+    callback: () => {
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
   const label = translate("dags:runAndTaskActions.markAs.button", {
     type: translate("taskInstance_one"),
   });
 
+  const menuStates: Array<TaskInstanceState> = canMarkTaskInstanceAsSkipped(taskInstance.state)
+    ? [...allowedStates, "skipped"]
+    : allowedStates;
+
   return (
-    <Box>
+    <div>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }} tooltipLabel={label}>
         <Menu.Trigger asChild>
-          <IconButton aria-label={label}>
+          <IconButton {...rest} aria-label={label}>
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>
@@ -76,16 +86,17 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
           </IconButton>
         </Menu.Trigger>
         <Menu.Content>
-          {allowedStates.map((menuState) => {
-            const content = translate(
-              `dags:runAndTaskActions.markAs.buttonTooltip.${menuState === "success" ? "success" : "failed"}`,
-            );
+          {menuStates.map((menuState) => {
+            const hasShortcut = menuState === "success" || menuState === "failed";
+            const content = hasShortcut
+              ? translate(`dags:runAndTaskActions.markAs.buttonTooltip.${menuState}`)
+              : undefined;
 
             return (
               <Tooltip
                 closeDelay={100}
                 content={content}
-                disabled={!isHotkeyEnabled}
+                disabled={!isHotkeyEnabled || !hasShortcut}
                 key={menuState}
                 openDelay={100}
               >
@@ -110,8 +121,6 @@ const MarkTaskInstanceAsButton = ({ isHotkeyEnabled = false, taskInstance }: Pro
       </Menu.Root>
 
       <MarkTaskInstanceAsDialog onClose={onClose} open={open} state={state} taskInstance={taskInstance} />
-    </Box>
+    </div>
   );
 };
-
-export default MarkTaskInstanceAsButton;

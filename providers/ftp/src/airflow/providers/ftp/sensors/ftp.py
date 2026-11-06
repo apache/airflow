@@ -40,7 +40,10 @@ class FTPSensor(BaseSensorOperator):
         reference to run the sensor against.
     """
 
-    template_fields: Sequence[str] = ("path",)
+    template_fields: Sequence[str] = (
+        "path",
+        "ftp_conn_id",
+    )
 
     """Errors that are transient in nature, and where action can be retried"""
     transient_errors = [421, 425, 426, 434, 450, 451, 452]

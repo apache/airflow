@@ -19,10 +19,12 @@
 
 from __future__ import annotations
 
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 
-BASE_LINK = "https://console.cloud.google.com/data-fusion"
-DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+DATAFUSION_BASE_LINK = BASE_LINK + "/data-fusion"
+DATAFUSION_INSTANCE_LINK = (
+    DATAFUSION_BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
+)
 DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/{namespace}/pipelines"
 DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/{namespace}/view/{pipeline_name}"
 

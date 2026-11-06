@@ -296,32 +296,47 @@ class BaseSQLOperator(BaseOperator):
             # OpenLineage provider release < 1.8.0 - we always use connection
             use_external_connection = True
 
-        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
-        try:
-            database_info = hook.get_openlineage_database_info(connection)
-        except AttributeError:
-            self.log.debug("%s has no database info provided", hook)
-            database_info = None
+        conn_id = getattr(hook, hook.conn_name_attr)
+        connection = hook.get_connection(conn_id)
+        get_database_info = getattr(hook, "get_openlineage_database_info", None)
+        database_info = None
+        if get_database_info is not None:
+            try:
+                database_info = get_database_info(connection)
+            except Exception as e:
+                self.log.warning("Failed to get OpenLineage database info for %s: %s", conn_id, e)
+                self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_info is None:
             self.log.debug("OpenLineage could not retrieve database information. Skipping.")
             return OperatorLineage()
 
-        try:
-            sql_parser = SQLParser(
-                dialect=hook.get_openlineage_database_dialect(connection),
-                default_schema=hook.get_openlineage_default_schema(),
-            )
-        except AttributeError:
-            self.log.debug("%s failed to get database dialect", hook)
+        get_dialect = getattr(hook, "get_openlineage_database_dialect", None)
+        get_default_schema = getattr(hook, "get_openlineage_default_schema", None)
+        if get_dialect is None or get_default_schema is None:
+            self.log.debug("%s has no database dialect or default schema provided", conn_id)
             return None
+        try:
+            sql_parser = SQLParser(dialect=get_dialect(connection), default_schema=get_default_schema())
+        except Exception as e:
+            self.log.warning(
+                "Failed to get OpenLineage database dialect or default schema for %s: %s", conn_id, e
+            )
+            self.log.debug("OpenLineage failure details:", exc_info=True)
+            return None
+
+        sqlalchemy_engine = None
+        try:
+            sqlalchemy_engine = hook.get_sqlalchemy_engine()
+        except Exception as e:
+            self.log.debug("Failed to get sql alchemy engine: %s", e)
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
             sql=sql,
             hook=hook,
             database_info=database_info,
             database=self.database,
-            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
+            sqlalchemy_engine=sqlalchemy_engine,
             use_connection=use_external_connection,
         )
 
@@ -337,11 +352,17 @@ class BaseSQLOperator(BaseOperator):
 
         operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
         hook = self.get_db_hook()
-        try:
-            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
-        except AttributeError:
-            self.log.debug("%s has no database specific lineage provided", hook)
-            database_specific_lineage = None
+        conn_id = getattr(hook, hook.conn_name_attr)
+        get_specific_lineage = getattr(hook, "get_openlineage_database_specific_lineage", None)
+        database_specific_lineage = None
+        if get_specific_lineage is None:
+            self.log.debug("%s has no database specific lineage provided", conn_id)
+        else:
+            try:
+                database_specific_lineage = get_specific_lineage(task_instance)
+            except Exception as e:
+                self.log.warning("Failed to get OpenLineage database specific lineage for %s: %s", conn_id, e)
+                self.log.debug("OpenLineage failure details:", exc_info=True)
 
         if database_specific_lineage is None:
             if not self.check_results:
@@ -744,35 +765,32 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         if record is None and self.accept_none:
             record = 0
         match_boolean = True
+
+        # abs() so the tolerance margin widens the bound outward for negative expected values too.
+        # Without a tolerance the bound is compared as-is: a min/max check may be declared on a
+        # date or text column, where arithmetic on the bound raises TypeError.
+        def _lower(expected):
+            return expected - abs(expected) * tolerance if tolerance is not None else expected
+
+        def _upper(expected):
+            return expected + abs(expected) * tolerance if tolerance is not None else expected
+
         if "geq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record >= check_values["geq_to"] * (1 - tolerance)
-            else:
-                match_boolean = record >= check_values["geq_to"]
+            match_boolean = record >= _lower(check_values["geq_to"])
         elif "greater_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record > check_values["greater_than"] * (1 - tolerance)
-            else:
-                match_boolean = record > check_values["greater_than"]
+            match_boolean = record > _lower(check_values["greater_than"])
         if "leq_to" in check_values:
-            if tolerance is not None:
-                match_boolean = record <= check_values["leq_to"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record <= check_values["leq_to"] and match_boolean
+            match_boolean = record <= _upper(check_values["leq_to"]) and match_boolean
         elif "less_than" in check_values:
-            if tolerance is not None:
-                match_boolean = record < check_values["less_than"] * (1 + tolerance) and match_boolean
-            else:
-                match_boolean = record < check_values["less_than"] and match_boolean
+            match_boolean = record < _upper(check_values["less_than"]) and match_boolean
         if "equal_to" in check_values:
-            if tolerance is not None:
-                match_boolean = (
-                    check_values["equal_to"] * (1 - tolerance)
-                    <= record
-                    <= check_values["equal_to"] * (1 + tolerance)
-                ) and match_boolean
+            expected = check_values["equal_to"]
+            if tolerance is None:
+                # Equality, not a degenerate range: a NULL result must fail the check rather
+                # than raise on an ordering comparison against None.
+                match_boolean = record == expected and match_boolean
             else:
-                match_boolean = record == check_values["equal_to"] and match_boolean
+                match_boolean = (_lower(expected) <= record <= _upper(expected)) and match_boolean
         return match_boolean
 
     def _column_mapping_validation(self, check, check_values):
@@ -1279,12 +1297,14 @@ class SQLValueCheckOperator(BaseSQLOperator):
     def _get_string_matches(self, records, pass_value_conv):
         return [str(record) == pass_value_conv for record in records]
 
+    def _get_tolerance_bounds(self, numeric_pass_value_conv):
+        margin = abs(numeric_pass_value_conv) * self.tol
+        return numeric_pass_value_conv - margin, numeric_pass_value_conv + margin
+
     def _get_numeric_matches(self, numeric_records, numeric_pass_value_conv):
         if self.has_tolerance:
-            return [
-                numeric_pass_value_conv * (1 - self.tol) <= record <= numeric_pass_value_conv * (1 + self.tol)
-                for record in numeric_records
-            ]
+            lower_bound, upper_bound = self._get_tolerance_bounds(numeric_pass_value_conv)
+            return [lower_bound <= record <= upper_bound for record in numeric_records]
 
         return [record == numeric_pass_value_conv for record in numeric_records]
 
@@ -1308,7 +1328,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
             pass_value_conv = _convert_to_float_if_possible(self.pass_value)
             if isinstance(pass_value_conv, float) and isinstance(self.tol, float):
-                expected_str = f">= {pass_value_conv * (1 - self.tol)}, <= {pass_value_conv * (1 + self.tol)}"
+                lower_bound, upper_bound = self._get_tolerance_bounds(pass_value_conv)
+                expected_str = f">= {lower_bound}, <= {upper_bound}"
                 check_type = "accepted_range"
 
             return [
@@ -1916,3 +1937,79 @@ def _initialize_partition_clause(clause: str | None) -> str | None:
         raise ValueError("Invalid partition_clause: semicolons (;) not allowed.")
 
     return clause
+
+
+class SQLBulkLoadOperator(BaseSQLOperator):
+    """
+    Bulk load a tab-delimited file into a database table.
+
+    This operator delegates to the underlying hook's ``bulk_load`` implementation,
+    allowing each provider to use its native bulk loading mechanism.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLBulkLoadOperator`
+
+    :param table: Name of the target table (templated).
+    :param tmp_file: Path to the tab-delimited file to load (templated).
+    :param conn_id: The connection ID used to connect to the database. Defaults to ``None``.
+    :param database: Name of the database which overrides the one defined in the connection.
+        Defaults to ``None``.
+    :param preoperator: SQL statement or list of statements to execute before bulk loading
+        (templated). Defaults to ``None``.
+    :param postoperator: SQL statement or list of statements to execute after bulk loading
+        (templated). Defaults to ``None``.
+    """
+
+    template_fields: Sequence[str] = (
+        "table",
+        "tmp_file",
+        "preoperator",
+        "postoperator",
+        *BaseSQLOperator.template_fields,
+    )
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        tmp_file: str,
+        conn_id: str | None = None,
+        database: str | None = None,
+        preoperator: str | list[str] | None = None,
+        postoperator: str | list[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            conn_id=conn_id,
+            database=database,
+            **kwargs,
+        )
+        self.table = table
+        self.tmp_file = tmp_file
+        self.preoperator = preoperator
+        self.postoperator = postoperator
+
+    def execute(self, context: Context) -> None:
+        hook = self.get_db_hook()
+
+        if self.preoperator:
+            self.log.info("Executing preoperator.")
+            hook.run(self.preoperator)
+
+        self.log.info(
+            "Bulk loading '%s' into table '%s'.",
+            self.tmp_file,
+            self.table,
+        )
+
+        hook.bulk_load(
+            table=self.table,
+            tmp_file=self.tmp_file,
+        )
+
+        if self.postoperator:
+            self.log.info("Executing postoperator.")
+            hook.run(self.postoperator)
+
+        self.log.info("Bulk load completed.")

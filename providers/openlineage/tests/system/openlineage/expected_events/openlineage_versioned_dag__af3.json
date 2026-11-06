@@ -1,53 +1,63 @@
 [
-  {
-    "eventType": "START",
-    "run": {
-      "facets": {
-        "airflowDagRun": {
-          "dagRun": {
-            "dag_id": "openlineage_versioned_dag",
-            "dag_bundle_name": "{{ result is string }}",
-            "dag_bundle_version": "{{ result is string }}",
-            "dag_version_id": "{{ is_uuid(result) }}",
-            "dag_version_number": "{{ result is number }}"
-          }
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflowDagRun": {
+                    "dagRun": {
+                        "dag_id": "openlineage_versioned_dag",
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}",
+                        "dag_version_id": "{{ is_uuid(result) }}",
+                        "dag_version_number": "{{ result is number }}"
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_versioned_dag"
         }
-      }
     },
-    "job": {
-      "name": "openlineage_versioned_dag"
-    }
-  },
-  {
-    "eventType": "START",
-    "run": {
-      "facets": {
-        "airflow": {
-          "taskInstance": {
-            "dag_bundle_name": "{{ result is string }}",
-            "dag_bundle_version": "{{ result is string }}"
-          }
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}",
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_versioned_dag.do_nothing_task"
         }
-      }
     },
-    "job": {
-      "name": "openlineage_versioned_dag.do_nothing_task"
-    }
-  },
-  {
-    "eventType": "COMPLETE",
-    "run": {
-      "facets": {
-        "airflow": {
-          "taskInstance": {
-            "dag_bundle_name": "{{ result is string }}",
-            "dag_bundle_version": "{{ result is string }}"
-          }
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "taskInstance": {
+                        "dag_bundle_name": "{{ result is string }}",
+                        "dag_bundle_version": "{{ result is string }}",
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_versioned_dag.do_nothing_task"
         }
-      }
-    },
-    "job": {
-      "name": "openlineage_versioned_dag.do_nothing_task"
     }
-  }
 ]

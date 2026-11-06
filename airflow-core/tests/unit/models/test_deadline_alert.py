@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -24,6 +25,7 @@ import time_machine
 from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
+from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models.deadline_alert import DeadlineAlert
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.sdk.definitions.deadline import BaseDeadlineReference, DeadlineReference
@@ -117,6 +119,36 @@ class TestDeadlineAlert:
         assert "interval=1m" in repr_str
         assert repr(deadline_alert_orm.callback_def) in repr_str
 
+    @pytest.mark.parametrize(
+        ("interval", "expected"),
+        [
+            # Post-0117 shape: interval is the serialized dict, not a bare number.
+            pytest.param(
+                {"__classname__": "datetime.timedelta", "__data__": 7200.0}, "interval=2h", id="timedelta_2h"
+            ),
+            # A corrupted dict without ``__data__`` must still render (no raise) as dynamic.
+            pytest.param({"unexpected": "shape"}, "interval=dynamic", id="corrupted_dict_dynamic"),
+            # A VariableInterval serializes with a dict ``__data__`` (its key), not a number,
+            # so it renders as dynamic rather than a fixed duration.
+            pytest.param(
+                {
+                    "__classname__": "airflow.sdk.definitions.deadline.VariableInterval",
+                    "__data__": {"key": "deadline_seconds"},
+                },
+                "interval=dynamic",
+                id="variable_interval_dynamic",
+            ),
+        ],
+    )
+    def test_deadline_alert_repr_does_not_raise_on_json_dict_interval(
+        self, deadline_alert_orm, interval, expected
+    ):
+        """``DeadlineAlert.__repr__`` must not raise for the production JSON-dict interval shape."""
+        deadline_alert_orm.interval = interval
+        repr_str = repr(deadline_alert_orm)  # must not raise
+        assert "[DeadlineAlert]" in repr_str
+        assert expected in repr_str
+
     def test_deadline_alert_matches_definition(self, session, deadline_reference):
         alert1 = DeadlineAlert(
             serialized_dag_id=SERIALIZED_DAG_ID,
@@ -188,23 +220,83 @@ class TestDeadlineAlert:
 
         wrapper = SerializedReferenceModels.SerializedCustomReference(inner_ref)
 
-        wrapper.evaluate_with(
-            session=None,
-            interval=timedelta(hours=1),
-            dag_id="test_dag",
-            run_id="test_run",
-            extra_param="should_be_filtered",
-        )
-
-        inner_ref._evaluate_with.assert_called_once_with(session=None, dag_id="test_dag", run_id="test_run")
-
-        # try calling with missing required parameters
-        with pytest.raises(ValueError, match="missing required parameters: run_id"):
+        with pytest.warns(RemovedInAirflow4Warning, match="required_kwargs is deprecated"):
             wrapper.evaluate_with(
                 session=None,
                 interval=timedelta(hours=1),
                 dag_id="test_dag",
+                run_id="test_run",
+                extra_param="should_be_filtered",
             )
+
+        inner_ref._evaluate_with.assert_called_once_with(session=None, dag_id="test_dag", run_id="test_run")
+
+        # try calling with missing required parameters
+        with pytest.warns(RemovedInAirflow4Warning, match="required_kwargs is deprecated"):
+            with pytest.raises(ValueError, match="missing required parameters: run_id"):
+                wrapper.evaluate_with(
+                    session=None,
+                    interval=timedelta(hours=1),
+                    dag_id="test_dag",
+                )
+
+    def test_serialized_custom_reference_receives_dagrun(self):
+        class DagRunReference(BaseDeadlineReference):
+            def _evaluate_with(self, *, session, dagrun):
+                return dagrun.queued_at
+
+        wrapper = SerializedReferenceModels.SerializedCustomReference(DagRunReference())
+        dagrun = SimpleNamespace(queued_at=DEFAULT_DATE)
+
+        assert wrapper.evaluate_with(
+            session=None,
+            interval=timedelta(hours=1),
+            dagrun=dagrun,
+            dag_id="test_dag",
+            run_id="test_run",
+            unexpected="ignored",
+        ) == DEFAULT_DATE + timedelta(hours=1)
+
+    def test_serialized_custom_reference_receives_dagrun_with_var_keyword_arguments(self):
+        class DagRunReference(BaseDeadlineReference):
+            def _evaluate_with(self, *, session, dagrun, **kwargs):
+                return dagrun.queued_at
+
+        wrapper = SerializedReferenceModels.SerializedCustomReference(DagRunReference())
+        dagrun = SimpleNamespace(queued_at=DEFAULT_DATE)
+
+        assert wrapper.evaluate_with(
+            session=None,
+            interval=timedelta(hours=1),
+            dagrun=dagrun,
+            dag_id="test_dag",
+            run_id="test_run",
+        ) == DEFAULT_DATE + timedelta(hours=1)
+
+    def test_serialized_custom_reference_var_keyword_receives_full_context(self):
+        class VarKeywordReference(BaseDeadlineReference):
+            received_kwargs: dict[str, object]
+
+            def _evaluate_with(self, *, session, **kwargs):
+                self.received_kwargs = kwargs
+                return DEFAULT_DATE
+
+        reference = VarKeywordReference()
+        wrapper = SerializedReferenceModels.SerializedCustomReference(reference)
+        dagrun = SimpleNamespace()
+
+        assert wrapper.evaluate_with(
+            session=None,
+            interval=timedelta(hours=1),
+            dagrun=dagrun,
+            dag_id="test_dag",
+            run_id="test_run",
+        ) == DEFAULT_DATE + timedelta(hours=1)
+        assert reference.received_kwargs == {
+            "dagrun": dagrun,
+            "dag_id": "test_dag",
+            "run_id": "test_run",
+        }
 
     def test_core_deadline_reference_treated_as_builtins(self):
         """Test that refs from airflow.models.deadline are still treated as builtins."""

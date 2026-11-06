@@ -33,22 +33,36 @@ from sqlalchemy import func, or_, select, tuple_
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, DagNotPartitionedError, NodeNotFound, TaskNotFound
+from airflow.exceptions import (
+    AirflowException,
+    DagNotPartitionedError,
+    DagVersionNotFound,
+    DeserializationError,
+    InvalidPartitionKeyError,
+    NodeNotFound,
+    TaskNotFound,
+)
+from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline import Deadline
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
-from airflow.models.taskinstancekey import TaskInstanceKey
+from airflow.models.task_coordinates import public_map_index_expression
 from airflow.models.tasklog import LogTemplate
-from airflow.sdk.definitions.deadline import VariableInterval
-from airflow.serialization.decoders import decode_deadline_alert
+from airflow.serialization.decoders import (
+    decode_deadline_alert,
+    decode_timetable,
+    resolve_deadline_alert_interval,
+)
 from airflow.serialization.definitions.deadline import DeadlineAlertFields, SerializedReferenceModels
 from airflow.serialization.definitions.param import SerializedParamsDict
-from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import PROHIBIT_COMMIT_ERROR_MESSAGE
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -56,6 +70,7 @@ if TYPE_CHECKING:
     import datetime
     from collections.abc import Collection, Iterable, Sequence
     from typing import Any, Literal
+    from uuid import UUID
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
@@ -70,6 +85,11 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunTriggeredByType
 
 log = structlog.get_logger(__name__)
+
+_DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
+    SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
+    SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
+}
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -108,6 +128,7 @@ class SerializedDAG:
     rerun_with_latest_version: bool | None = None
     doc_md: str | None = None
     edge_info: dict[str, dict[str, EdgeInfoType]] = attrs.field(factory=dict)
+    bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
     has_on_failure_callback: bool = False
@@ -127,11 +148,17 @@ class SerializedDAG:
     # These are set dynamically during deserialization.
     task_dict: dict[str, SerializedOperator] = attrs.field(init=False)
     task_group: SerializedTaskGroup = attrs.field(init=False)
-    timetable: Timetable = attrs.field(init=False)
+    _timetable: Timetable = attrs.field(init=False)
+    # Decoded on first access, so loading a Dag does not need the timetable's plugin.
+    _encoded_timetable: dict[str, Any] | None = attrs.field(init=False, default=None)
     timezone: FixedTimezone | Timezone = attrs.field(init=False)
 
     # Only on serialized dag.
     last_loaded: datetime.datetime = attrs.field(init=False)
+    fileloc: str = attrs.field(init=False)
+    relative_fileloc: str | None = attrs.field(init=False)
+    # Set when the Dag is deserialized from a stored version, so holders can tell which version they have.
+    dag_version_id: UUID | None = attrs.field(init=False, default=None)
     # Determine the relative fileloc based only on the serialize dag.
     _processor_dags_folder: str = attrs.field(init=False)
 
@@ -140,6 +167,23 @@ class SerializedDAG:
 
     def __repr__(self) -> str:
         return f"<SerializedDAG: {self.dag_id}>"
+
+    @property
+    def timetable(self) -> Timetable:
+        if (encoded := self._encoded_timetable) is not None:
+            try:
+                self._timetable = decode_timetable(encoded)
+                self._encoded_timetable = None
+            except TimetableNotRegistered:
+                raise
+            except Exception as err:
+                raise DeserializationError(self.dag_id) from err
+        return self._timetable
+
+    @timetable.setter
+    def timetable(self, value: Timetable) -> None:
+        self._timetable = value
+        self._encoded_timetable = None
 
     @classmethod
     def get_serialized_fields(cls) -> frozenset[str]:
@@ -173,6 +217,7 @@ class SerializedDAG:
                 "task_group",
                 "timetable",
                 "timezone",
+                "bundle_name",
             }
         )
 
@@ -246,6 +291,15 @@ class SerializedDAG:
     @property
     def owner(self) -> str:
         return ", ".join({t.owner for t in self.tasks})
+
+    @functools.cached_property
+    def has_dynamic_nodes(self) -> bool:
+        from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
+
+        return any(task.get_needs_expansion() for task in self.tasks) or any(
+            isinstance(group, SerializedLoopTaskGroup)
+            for group in self.task_group.get_task_group_dict().values()
+        )
 
     def has_task(self, task_id: str) -> bool:
         return task_id in self.task_dict
@@ -454,11 +508,29 @@ class SerializedDAG:
         latest: datetime.datetime,
     ) -> Iterable[DagRunInfo]:
         """
-        Yield DagRunInfo using this DAG's timetable between given interval.
+        Yield DagRunInfo using this Dag's timetable between given interval.
 
-        DagRunInfo instances yielded if their ``logical_date`` is not earlier
-        than ``earliest``, nor later than ``latest``. The instances are ordered
-        by their ``logical_date`` from earliest to latest.
+        For non-partitioned timetables, DagRunInfo instances are yielded if
+        their ``logical_date`` is not earlier than ``earliest``, nor later than
+        ``latest``. The instances are ordered by their ``logical_date`` from
+        earliest to latest.
+
+        For partitioned timetables, the iteration axis is ``partition_date``
+        rather than ``logical_date``. The wall-clock reading of *earliest* and
+        *latest* (year, month, day, hour, minute, second) is re-interpreted in
+        the timetable's own timezone before alignment, so a UTC-midnight bound
+        supplied by the production backfill path is treated as the
+        timetable-local midnight — a cross-timezone daily backfill therefore
+        includes the first day rather than silently dropping it. The window
+        granularity follows the timetable's own partition cadence and is *not*
+        rounded up to whole calendar days, so a single-hour window on an hourly
+        timetable yields only the partitions inside it (08:00 and 09:00, not the
+        full day's 24).  Each yielded
+        :class:`~airflow.timetables.base.DagRunInfo` has
+        ``logical_date=None``, ``data_interval=None``, and
+        ``run_after == partition_date``; see
+        :meth:`~airflow.timetables.base.Timetable.iter_partition_dagrun_infos`
+        for details.
         """
         if earliest is None:
             earliest = self._time_restriction.earliest
@@ -466,6 +538,13 @@ class SerializedDAG:
             raise ValueError("earliest was None and we had no value in time_restriction to fallback on")
         earliest = coerce_datetime(earliest)
         latest = coerce_datetime(latest)
+
+        if self.timetable.partitioned:
+            yield from self.timetable.iter_partition_dagrun_infos(
+                earliest=earliest,
+                latest=latest,
+            )
+            return
 
         restriction = TimeRestriction(earliest, latest, catchup=True)
 
@@ -502,22 +581,33 @@ class SerializedDAG:
 
     def validate_partition_key(self, partition_key: str | None) -> None:
         """
-        Raise ``DagNotPartitionedError`` if a partition key is supplied for a non-partitioned Dag.
+        Validate a partition key against Dag partitioning state and content constraints.
 
-        A ``None`` value is always accepted. A non-``None`` value is accepted only when the
+        A ``None`` value is always accepted. A non-``None`` value must be a ``str``,
+        non-empty, at most ``ID_LEN`` characters long, and may only be supplied when the
         Dag's timetable sets ``partitioned=True`` or ``partitioned_at_runtime=True``.
 
         :param partition_key: The partition key to validate, or ``None`` to skip validation.
         :raises DagNotPartitionedError: When ``partition_key`` is not ``None`` and the Dag's
             timetable is neither ``partitioned`` nor ``partitioned_at_runtime``.
+        :raises InvalidPartitionKeyError: When ``partition_key`` is not a ``str``, is an empty
+            string, or exceeds ``ID_LEN`` characters.
         """
-        if (
-            partition_key is not None
-            and not self.timetable.partitioned
-            and not self.timetable.partitioned_at_runtime
-        ):
+        if partition_key is None:
+            return
+        if not self.timetable.partitioned and not self.timetable.partitioned_at_runtime:
             raise DagNotPartitionedError(
                 f"Dag '{self.dag_id}' is not a partitioned Dag and does not accept a partition_key."
+            )
+        if not isinstance(partition_key, str):
+            raise InvalidPartitionKeyError(
+                f"Expected partition_key to be a `str` or `None` but got `{type(partition_key).__name__}`"
+            )
+        if not partition_key.strip():
+            raise InvalidPartitionKeyError("partition_key must not be empty or whitespace-only.")
+        if len(partition_key) > ID_LEN:
+            raise InvalidPartitionKeyError(
+                f"partition_key must be at most {ID_LEN} characters; got {len(partition_key)}."
             )
 
     @provide_session
@@ -537,8 +627,10 @@ class SerializedDAG:
         creating_job_id: int | None = None,
         backfill_id: NonNegativeInt | None = None,
         partition_key: str | None = None,
+        bundle_version: str | None = None,
         partition_date: datetime.datetime | None = None,
         note: str | None = None,
+        dag_version: DagVersion | None = None,
         session: Session = NEW_SESSION,
     ) -> DagRun:
         """
@@ -606,10 +698,28 @@ class SerializedDAG:
                     f"is reserved for {inferred_run_type.value} runs"
                 )
 
-        self.validate_partition_key(partition_key)
-
         # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
-        copied_params = self.params.deep_merge(conf)
+
+        # When triggering against a specific bundle version, resolve that version first so
+        # partition_key and conf are validated against it (not the live/latest dag).
+        if bundle_version is not None:
+            if self.disable_bundle_versioning:
+                raise ValueError(f"DAG with dag_id: '{self.dag_id}' does not support bundle versioning")
+            if dag_version is None:
+                dag_version = DagVersion.get_latest_version(
+                    self.dag_id, bundle_version=bundle_version, load_serialized_dag=True, session=session
+                )
+                if not dag_version:
+                    raise DagVersionNotFound(
+                        f"DAG with dag_id: '{self.dag_id}' does not have a version for bundle_version '{bundle_version}'"
+                    )
+            params_dag = dag_version.serialized_dag.dag
+        else:
+            params_dag = self
+
+        params_dag.validate_partition_key(partition_key)
+
+        copied_params = params_dag.params.deep_merge(conf)
         copied_params.validate()
         orm_dagrun = _create_orm_dagrun(
             dag=self,
@@ -626,12 +736,15 @@ class SerializedDAG:
             triggered_by=triggered_by,
             triggering_user_name=triggering_user_name,
             partition_key=partition_key,
+            bundle_version=bundle_version,
             partition_date=partition_date,
             note=note,
+            dag_version=dag_version,
+            resolved_dag=params_dag if bundle_version is not None else None,
             session=session,
         )
 
-        if self.deadline:
+        if params_dag.deadline:
             self._process_dagrun_deadline_alerts(orm_dagrun, session)
 
         return orm_dagrun
@@ -667,47 +780,86 @@ class SerializedDAG:
             select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
         ).all()
 
-        for deadline_alert in deadline_alert_records:
-            if not deadline_alert:
-                continue
+        if not deadline_alert_records:
+            return
 
-            deserialized_deadline_alert = decode_deadline_alert(
-                {
-                    Encoding.TYPE: DAT.DEADLINE_ALERT,
-                    Encoding.VAR: {
-                        DeadlineAlertFields.REFERENCE: deadline_alert.reference,
-                        DeadlineAlertFields.INTERVAL: deadline_alert.interval,
-                        DeadlineAlertFields.CALLBACK: deadline_alert.callback_def,
-                    },
-                }
-            )
+        team_name = (
+            DagModel.get_team_name(self.dag_id, session=session)
+            if airflow_conf.getboolean("core", "multi_team")
+            else None
+        )
+        metrics_tags = prune_dict({"dag_id": self.dag_id, "team_name": team_name})
 
-            interval = deserialized_deadline_alert.interval
+        # Read every value off the ORM up front. A failing alert can leave the session rolled back
+        # and its instances detached, so nothing after this point may touch ORM state -- otherwise
+        # the skip path raises DetachedInstanceError and takes the DagRun down anyway.
+        run_id = orm_dagrun.run_id
+        dagrun_id = orm_dagrun.id
+        dagrun_dag_id = orm_dagrun.dag_id
+        bundle_name = orm_dagrun.dag_model.bundle_name
+        stored_alerts = [
+            (alert.id, alert.name, alert.reference, alert.interval, alert.callback_def)
+            for alert in deadline_alert_records
+            if alert
+        ]
 
-            if isinstance(interval, VariableInterval):
-                interval = interval.resolve()
-
-            if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                    session=session,
-                    interval=interval,
-                    # TODO : Pretty sure we can drop these last two; verify after testing is complete
-                    dag_id=self.dag_id,
-                    run_id=orm_dagrun.run_id,
+        for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
+            # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
+            try:
+                deserialized_deadline_alert = decode_deadline_alert(
+                    {
+                        DeadlineAlertFields.NAME: alert_name,
+                        DeadlineAlertFields.REFERENCE: alert_reference,
+                        DeadlineAlertFields.INTERVAL: alert_interval,
+                        DeadlineAlertFields.CALLBACK: alert_callback_def,
+                    }
                 )
+                interval = resolve_deadline_alert_interval(deserialized_deadline_alert, session=session)
 
-                if deadline_time is not None:
-                    session.add(
-                        Deadline(
-                            deadline_time=deadline_time,
-                            callback=deserialized_deadline_alert.callback,
-                            dagrun_id=orm_dagrun.id,
-                            deadline_alert_id=deadline_alert.id,
-                            dag_id=orm_dagrun.dag_id,
-                            bundle_name=orm_dagrun.dag_model.bundle_name,
-                        )
+                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
+                    deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                        session=session,
+                        interval=interval,
+                        dagrun=orm_dagrun,
+                        dag_id=self.dag_id,
+                        run_id=run_id,
                     )
-                    stats.incr("deadline_alerts.deadline_created", tags={"dag_id": self.dag_id})
+
+                    if deadline_time is not None:
+                        session.add(
+                            Deadline(
+                                deadline_time=deadline_time,
+                                callback=deserialized_deadline_alert.callback,
+                                dagrun_id=dagrun_id,
+                                deadline_alert_id=alert_id,
+                                dag_id=dagrun_dag_id,
+                                bundle_name=bundle_name,
+                            )
+                        )
+                        stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
+                    elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                        type(deserialized_deadline_alert.reference)
+                    ):
+                        log.warning(
+                            "skipping deadline alert because the deadline reference evaluated to None",
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                            deadline_alert_id=alert_id,
+                            reference_type=deserialized_deadline_alert.reference.reference_name,
+                            required_dagrun_column=required_dagrun_column,
+                        )
+            except Exception as exc:
+                if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
+                    # A rejected commit means the scheduler's HA locking is already broken. Recording
+                    # that as a skipped alert would hide it, so let it escape instead.
+                    raise
+                log.exception(
+                    "skipping deadline alert because creating its deadline failed",
+                    dag_id=self.dag_id,
+                    run_id=run_id,
+                    deadline_alert_id=alert_id,
+                )
+                stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
 
     @provide_session
     def set_task_instance_state(
@@ -909,7 +1061,6 @@ class SerializedDAG:
 
         return altered
 
-    @overload
     def _get_task_instances(
         self,
         *,
@@ -921,58 +1072,10 @@ class SerializedDAG:
         exclude_task_ids: Collection[str | tuple[str, int]] | None,
         exclude_run_ids: frozenset[str] | None,
         session: Session,
-    ) -> Iterable[TaskInstance]: ...  # pragma: no cover
-
-    @overload
-    def _get_task_instances(
-        self,
-        *,
-        task_ids: Collection[str | tuple[str, int]] | None,
-        as_pk_tuple: Literal[True],
-        start_date: datetime.datetime | None,
-        end_date: datetime.datetime | None,
-        run_id: str | None,
-        state: TaskInstanceState | Sequence[TaskInstanceState],
-        exclude_task_ids: Collection[str | tuple[str, int]] | None,
-        exclude_run_ids: frozenset[str] | None,
-        session: Session,
-    ) -> set[TaskInstanceKey]: ...  # pragma: no cover
-
-    def _get_task_instances(
-        self,
-        *,
-        task_ids: Collection[str | tuple[str, int]] | None,
-        as_pk_tuple: Literal[True, None] = None,
-        start_date: datetime.datetime | None,
-        end_date: datetime.datetime | None,
-        run_id: str | None,
-        state: TaskInstanceState | Sequence[TaskInstanceState],
-        exclude_task_ids: Collection[str | tuple[str, int]] | None,
-        exclude_run_ids: frozenset[str] | None,
-        session: Session,
-    ) -> Iterable[TaskInstance] | set[TaskInstanceKey]:
+    ) -> Iterable[TaskInstance]:
         from airflow.models.taskinstance import TaskInstance
 
-        # If we are looking at dependent dags we want to avoid UNION calls
-        # in SQL (it doesn't play nice with fields that have no equality operator,
-        # like JSON types), we instead build our result set separately.
-        #
-        # This will be empty if we are only looking at one dag, in which case
-        # we can return the filtered TI query object directly.
-        result: set[TaskInstanceKey] = set()
-
-        # Do we want full objects, or just the primary columns?
-        if as_pk_tuple:
-            tis_pk = select(
-                TaskInstance.dag_id,
-                TaskInstance.task_id,
-                TaskInstance.run_id,
-                TaskInstance.map_index,
-            )
-            tis_pk = tis_pk.join(TaskInstance.dag_run)
-        else:
-            tis_full = select(TaskInstance)
-            tis_full = tis_full.join(TaskInstance.dag_run)
+        tis_full = select(TaskInstance).join(TaskInstance.dag_run)
 
         # Apply common filters
         def apply_filters(query):
@@ -993,10 +1096,7 @@ class SerializedDAG:
                 query = query.where(DagRun.logical_date <= end_date)
             return query
 
-        if as_pk_tuple:
-            tis_pk = apply_filters(tis_pk)
-        else:
-            tis_full = apply_filters(tis_full)
+        tis_full = apply_filters(tis_full)
 
         def apply_state_filter(query):
             if state:
@@ -1021,42 +1121,17 @@ class SerializedDAG:
                 query = query.where(TaskInstance.run_id.not_in(exclude_run_ids))
             return query
 
-        if as_pk_tuple:
-            tis_pk = apply_state_filter(tis_pk)
-        else:
-            tis_full = apply_state_filter(tis_full)
+        tis_full = apply_state_filter(tis_full)
 
-        if result or as_pk_tuple:
-            # Only execute the `ti` query if we have also collected some other results
-            if as_pk_tuple:
-                tis_query = session.execute(tis_pk).all()
-                result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
-            else:
-                result.update(ti.key for ti in session.scalars(tis_full))
-
-            if exclude_task_ids is not None:
-                result = {
-                    task
-                    for task in result
-                    if task.task_id not in exclude_task_ids
-                    and (task.task_id, task.map_index) not in exclude_task_ids
-                }
-
-        if as_pk_tuple:
-            return result
-        if result:
-            # We've been asked for objects, lets combine it all back in to a result set
-            ti_filters = TaskInstance.filter_for_tis(result)
-            if ti_filters is not None:
-                tis_final = select(TaskInstance).where(ti_filters)
-                return session.scalars(tis_final)
-        elif exclude_task_ids is None:
+        if exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
             tis_full = tis_full.where(TaskInstance.task_id.notin_(exclude_task_ids))
         else:
             tis_full = tis_full.where(
-                tuple_(TaskInstance.task_id, TaskInstance.map_index).not_in(exclude_task_ids)
+                tuple_(TaskInstance.task_id, public_map_index_expression(TaskInstance)).not_in(
+                    exclude_task_ids
+                )
             )
 
         return session.scalars(tis_full)
@@ -1197,13 +1272,19 @@ class SerializedDAG:
         :param run_on_latest_version: whether to run on latest serialized DAG and Bundle version
         :param session: The sqlalchemy session to use
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
-            tuples that should not be cleared
+            tuples that should not be cleared. A task excluded here is still archived when it sits in
+            a later pass of a loop whose gate is cleared.
         :param exclude_run_ids: A set of ``run_id`` or (``run_id``)
+
+        A dry run also lists the task instances of later loop passes that clearing a gate archives.
         """
+        from airflow.models.task_coordinates import LOOP_GATE_OPERATOR
         from airflow.models.taskinstance import (
+            TaskInstance,
             _get_new_task_ids,
             _update_dagrun_to_latest_version,
-            clear_task_instances,
+            clear_task_instances_for_runs,
+            select_loop_clear_scope,
         )
 
         if only_new:
@@ -1257,7 +1338,24 @@ class SerializedDAG:
         )
 
         if dry_run:
-            return list(tis_result)
+            dry_run_tis = list(tis_result)
+            if only_failed or only_running:
+                return dry_run_tis
+            listed_ids = {ti.id for ti in dry_run_tis}
+            archive_ids: set[UUID] = set()
+            gate_runs = {(ti.dag_id, ti.run_id) for ti in dry_run_tis if ti.operator == LOOP_GATE_OPERATOR}
+            for gate_run in sorted(gate_runs):
+                archive_ids |= select_loop_clear_scope(
+                    [ti for ti in dry_run_tis if (ti.dag_id, ti.run_id) == gate_run],
+                    downstream=False,
+                    session=session,
+                ).archive_ids
+            if not archive_ids - listed_ids:
+                return dry_run_tis
+            return [
+                *dry_run_tis,
+                *session.scalars(select(TaskInstance).where(TaskInstance.id.in_(archive_ids - listed_ids))),
+            ]
 
         tis = list(tis_result)
 
@@ -1265,11 +1363,23 @@ class SerializedDAG:
         if count == 0:
             return 0
 
-        clear_task_instances(
-            list(tis),
-            session,
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
             dag_run_state=dag_run_state,
             run_on_latest_version=run_on_latest_version,
+            later_loop_iterations=not (only_failed or only_running),
+            whole_task_keys={
+                (ti.dag_id, ti.run_id, ti.task_id)
+                for ti in tis
+                if not only_failed
+                and not only_running
+                and (task_ids is None or ti.task_id in task_ids)
+                and not any(
+                    isinstance(excluded, tuple) and excluded[0] == ti.task_id
+                    for excluded in exclude_task_ids or ()
+                )
+            },
         )
 
         session.flush()
@@ -1339,16 +1449,25 @@ def _create_orm_dagrun(
     triggered_by: DagRunTriggeredByType,
     triggering_user_name: str | None = None,
     partition_key: str | None = None,
+    bundle_version: str | None = None,
     partition_date: datetime.datetime | None = None,
     note: str | None = None,
+    dag_version: DagVersion | None = None,
+    resolved_dag: SerializedDAG | None = None,
     session: Session = NEW_SESSION,
 ) -> DagRun:
-    bundle_version = None
-    if not dag.disable_bundle_versioning:
-        bundle_version = session.scalar(
-            select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id),
-        )
-    dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+    resolved_bundle_version: str | None = None
+    use_resolved_dag = False
+    if dag_version is not None:
+        resolved_bundle_version = bundle_version
+        use_resolved_dag = True
+    else:
+        if not dag.disable_bundle_versioning:
+            resolved_bundle_version = session.scalar(
+                select(DagModel.bundle_version).where(DagModel.dag_id == dag.dag_id)
+            )
+        dag_version = DagVersion.get_latest_version(dag.dag_id, session=session)
+
     if not dag_version:
         raise AirflowException(f"Cannot create DagRun for DAG {dag.dag_id} because the dag is not serialized")
 
@@ -1366,7 +1485,7 @@ def _create_orm_dagrun(
         triggered_by=triggered_by,
         triggering_user_name=triggering_user_name,
         backfill_id=backfill_id,
-        bundle_version=bundle_version,
+        bundle_version=resolved_bundle_version,
         partition_key=partition_key,
         partition_date=partition_date,
         note=note,
@@ -1379,6 +1498,8 @@ def _create_orm_dagrun(
     session.add(run)
     session.flush()
     run.dag = dag
+    if use_resolved_dag:
+        run.dag = resolved_dag if resolved_dag is not None else dag_version.serialized_dag.dag
     # create the associated task instances
     # state is None at the moment of creation
     run.verify_integrity(session=session, dag_version_id=dag_version.id)

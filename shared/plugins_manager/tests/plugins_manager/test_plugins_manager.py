@@ -25,6 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow_shared.plugins_manager import (
+    AirflowPlugin,
     EntryPointSource,
     PluginsDirectorySource,
     _load_entrypoint_plugins,
@@ -109,3 +110,18 @@ class TestPluginsManager:
                 "test.plugins.test_plugins_manager",
                 "my_fake_module not found",
             ) in import_errors.items()
+
+
+class TestAirflowPluginTeamName:
+    def test_team_name_defaults_to_none(self):
+        class GlobalPlugin(AirflowPlugin):
+            name = "global_plugin"
+
+        assert GlobalPlugin.team_name is None
+
+    def test_team_name_can_be_scoped_to_a_team(self):
+        class TeamPlugin(AirflowPlugin):
+            name = "team_plugin"
+            team_name = "team_a"
+
+        assert TeamPlugin.team_name == "team_a"

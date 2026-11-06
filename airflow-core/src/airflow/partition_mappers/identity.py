@@ -16,7 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.partition_mappers.base import PartitionMapper
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class IdentityMapper(PartitionMapper):
@@ -24,3 +29,9 @@ class IdentityMapper(PartitionMapper):
 
     def to_downstream(self, key: str) -> str:
         return key
+
+    def carry_partition_date(self, source_partition_date: datetime | None) -> datetime | None:
+        # Identity passthrough: the consumer's key equals the producer's, so the
+        # producer's partition_date is the consumer's. to_partition_date cannot
+        # recover it (the key carries no temporal meaning), so it is carried here.
+        return source_partition_date

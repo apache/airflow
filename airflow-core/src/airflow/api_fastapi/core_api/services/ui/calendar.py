@@ -17,27 +17,29 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import Iterator
 from datetime import datetime, timedelta
 from typing import Literal, cast
 
 import sqlalchemy as sa
 import structlog
-from croniter.croniter import croniter
 from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.parameters import Range, RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
+    CalendarDeadlineCollectionResponse,
+    CalendarDeadlineResponse,
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction
 from airflow.utils.sqlalchemy import get_dialect_name
+from airflow.utils.types import DagRunType
 
 log = structlog.get_logger(logger_name=__name__)
 
@@ -115,10 +117,16 @@ class CalendarService:
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
         time_expression = self._get_time_truncation_expression(effective_date, granularity, dialect)
 
+        is_backfill_expression = sa.case(
+            (DagRun.run_type == DagRunType.BACKFILL_JOB, sa.literal(True)),
+            else_=sa.literal(False),
+        )
+
         select_stmt = (
             sa.select(
                 time_expression.label("datetime"),
                 DagRun.state,
+                is_backfill_expression.label("is_backfill"),
                 sa.func.max(DagRun.data_interval_start).label("data_interval_start"),
                 sa.func.max(DagRun.data_interval_end).label("data_interval_end"),
                 sa.func.max(DagRun.run_after).label("run_after"),
@@ -126,7 +134,7 @@ class CalendarService:
                 sa.func.count("*").label("count"),
             )
             .where(DagRun.dag_id == dag_id)
-            .group_by(time_expression, DagRun.state)
+            .group_by(time_expression, DagRun.state, is_backfill_expression)
             .order_by(time_expression.asc())
         )
 
@@ -139,6 +147,7 @@ class CalendarService:
                 date=ds.datetime,
                 state=ds.state,
                 count=int(ds._mapping["count"]),
+                is_backfill=bool(ds._mapping["is_backfill"]),
             )
             for ds in dag_states
         ]
@@ -260,24 +269,28 @@ class CalendarService:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
+        cron_timetable = cast("CronMixin", dag.timetable)
+
         # Skip straight to the displayed range instead of iterating over every tick in between.
-        # croniter yields ticks strictly after start_time, so step back for an inclusive lower bound.
+        # _get_next returns ticks strictly after its input, so step back for an inclusive lower bound.
         start_times = [last_data_interval.end]
         if date_filter.value:
             if date_filter.value.lower_bound_gte:
-                start_times.append(date_filter.value.lower_bound_gte - timedelta(seconds=1))
+                start_times.append(
+                    timezone.coerce_datetime(date_filter.value.lower_bound_gte) - timedelta(seconds=1)
+                )
             if date_filter.value.lower_bound_gt:
-                start_times.append(date_filter.value.lower_bound_gt)
-        start_time = max(start_times)
+                start_times.append(timezone.coerce_datetime(date_filter.value.lower_bound_gt))
+        dt = max(start_times)
 
-        dates_iter: Iterator[datetime | None] = croniter(
-            cast("CronMixin", dag.timetable)._expression,
-            start_time=start_time,
-            ret_type=datetime,
-        )
-
-        for dt in dates_iter:
-            if dt is None or self._is_after_range(dt, date_filter):
+        # Step with CronMixin._get_next so planned instants match the scheduler exactly,
+        # including its DST gap/fold handling. Cap the iteration like
+        # _calculate_timetable_planned_runs does; a high-frequency expression (e.g.
+        # "* * * * *", or a seconds-resolution cron) would otherwise take hundreds of
+        # thousands of steps before hitting the end of the range.
+        for _ in range(self.MAX_PLANNED_RUNS):
+            dt = cron_timetable._get_next(dt)
+            if self._is_after_range(dt, date_filter):
                 break
             if dag.end_date and dt > dag.end_date:
                 break
@@ -423,3 +436,55 @@ class CalendarService:
             return False
 
         return True
+
+    def get_deadline_calendar_data(
+        self,
+        dag_id: str,
+        deadline_time: RangeFilter,
+        granularity: Literal["hourly", "daily"] = "daily",
+        *,
+        session: Session,
+    ) -> CalendarDeadlineCollectionResponse:
+        """
+        Get deadline calendar data for a Dag, aggregated by time bucket and missed status.
+
+        Args:
+            dag_id: The Dag ID
+            session: Database session
+            deadline_time: Date range filter for deadline_time
+            granularity: Time granularity ("hourly" or "daily")
+
+        Returns:
+            Aggregated deadline counts per time bucket, split by missed/pending status
+        """
+        dialect = get_dialect_name(session)
+        time_expression = self._get_time_truncation_expression(Deadline.deadline_time, granularity, dialect)
+
+        select_stmt = (
+            sa.select(
+                time_expression.label("datetime"),
+                Deadline.missed,
+                sa.func.count("*").label("count"),
+            )
+            .join(Deadline.dagrun)
+            .where(DagRun.dag_id == dag_id)
+            .group_by(time_expression, Deadline.missed)
+            .order_by(time_expression.asc(), Deadline.missed.asc())
+        )
+
+        select_stmt = deadline_time.to_orm(select_stmt)
+        rows = session.execute(select_stmt).all()
+
+        results = [
+            CalendarDeadlineResponse(
+                date=row.datetime,
+                missed=row.missed,
+                count=int(row._mapping["count"]),
+            )
+            for row in rows
+        ]
+
+        return CalendarDeadlineCollectionResponse(
+            total_entries=len(results),
+            deadlines=results,
+        )

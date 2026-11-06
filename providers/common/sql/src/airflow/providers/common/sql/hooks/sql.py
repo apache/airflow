@@ -22,11 +22,11 @@ from collections.abc import Callable, Generator, Iterable, Mapping, MutableMappi
 from contextlib import closing, contextmanager, suppress
 from datetime import datetime
 from functools import cached_property
+from importlib.util import find_spec
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overload
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
 
@@ -34,15 +34,16 @@ try:
     from sqlalchemy import create_engine, inspect
     from sqlalchemy.engine import make_url
     from sqlalchemy.exc import ArgumentError, NoSuchModuleError
+    from sqlalchemy.pool import NullPool
 except ImportError:
     create_engine = None  # type: ignore[assignment]
     inspect = None  # type: ignore[assignment]
     make_url = None  # type: ignore[assignment]
+    NullPool = None  # type: ignore[assignment,misc]
     ArgumentError = Exception  # type: ignore[misc,assignment]
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -66,6 +67,16 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
+
+
+def _is_sqlalchemy_2() -> bool:
+    """Whether the installed SQLAlchemy has the native psycopg (v3) dialect (added in 2.0)."""
+    from packaging.version import Version
+    from sqlalchemy import __version__ as sqlalchemy_version
+
+    return Version(sqlalchemy_version) >= Version("2.0.0")
+
+
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
 
@@ -334,7 +345,31 @@ class DbApiHook(BaseHook):
 
         self.log.debug("url: %s", url)
         self.log.debug("engine_kwargs: %s", engine_kwargs)
-        return create_engine(url=url, **engine_kwargs)
+        try:
+            return create_engine(url=url, **engine_kwargs)
+        except (ImportError, ModuleNotFoundError):
+            # SQLAlchemy resolves a bare "postgresql" scheme to the psycopg2 DB-API by default.
+            # Retry with a driver this hook can actually resolve, since psycopg2 may not be
+            # installed now that it's an optional extra of apache-airflow-providers-postgres.
+            parsed_url = make_url(url) if make_url is not None else None
+            if parsed_url is None or parsed_url.drivername != "postgresql":
+                raise
+            # psycopg (v3) may be importable where SQLAlchemy is pinned below 2.0, which has no
+            # native "postgresql+psycopg" dialect and would raise NoSuchModuleError — so only
+            # prefer it on SQLAlchemy 2.0+; otherwise fall back to psycopg2.
+            if find_spec("psycopg") is not None and _is_sqlalchemy_2():
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with psycopg (v3) ('postgresql+psycopg')."
+                )
+                return create_engine(url=parsed_url.set(drivername="postgresql+psycopg"), **engine_kwargs)
+            if find_spec("psycopg2") is not None:
+                self.log.info(
+                    "SQLAlchemy could not load a DB-API driver for the bare 'postgresql://' URL; "
+                    "retrying with 'postgresql+psycopg2'."
+                )
+                return create_engine(url=parsed_url.set(drivername="postgresql+psycopg2"), **engine_kwargs)
+            raise
 
     @cached_property
     def inspector(self) -> Inspector:
@@ -343,7 +378,10 @@ class DbApiHook(BaseHook):
                 "SQLAlchemy is required for database inspection. "
                 "Install it with: pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
             )
-        return inspect(self.get_sqlalchemy_engine())
+        # The inspector is cached for the hook's lifetime, so a pooled engine would keep the
+        # connection it reflected with open until the process exits. With NullPool, no
+        # connection outlives the inspection that opened it.
+        return inspect(self.get_sqlalchemy_engine({"poolclass": NullPool}))
 
     def get_table_schema(self, table_name: str, schema: str | None = None) -> list[dict[str, str]]:
         """
@@ -409,41 +447,6 @@ class DbApiHook(BaseHook):
 
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        **kwargs,
-    ) -> PandasDataFrame:
-        """
-        Execute the sql and returns a pandas dataframe.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df_by_chunks`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df_by_chunks(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        **kwargs,
-    ) -> Generator[PandasDataFrame, None, None]:
-        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
 
     @overload
     def get_df(
@@ -839,7 +842,7 @@ class DbApiHook(BaseHook):
             return _last_result
         return results
 
-    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple]:
+    def _make_common_data_structure(self, result: T | Sequence[T]) -> tuple | list[tuple] | None:
         """
         Ensure the data returned from an SQL command is a standard tuple or list[tuple].
 
@@ -1075,7 +1078,7 @@ class DbApiHook(BaseHook):
 
         return status, message
 
-    def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo | None:
         """
         Return database specific information needed to generate and parse lineage metadata.
 

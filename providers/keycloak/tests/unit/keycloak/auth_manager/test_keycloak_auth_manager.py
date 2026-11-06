@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import base64
 import json
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import ExitStack
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from jwt import InvalidTokenError
 from keycloak import KeycloakPostError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -38,14 +40,26 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     VariableDetails,
 )
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_7_PLUS, AIRFLOW_V_3_2_PLUS
+from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_1_7_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+
+if AIRFLOW_V_3_1_7_PLUS:
+    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
+else:
+    AuthManagerRefreshTokenExpiredException = None  # type: ignore[assignment,misc]
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow.api_fastapi.auth.managers.models.resource_details import TeamDetails
 else:
     TeamDetails = None  # type: ignore[assignment,misc]
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowProviderDeprecationWarning
 
 try:
     from airflow.providers.common.compat.sdk import AirflowException
@@ -56,6 +70,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
+    CONF_REQUESTS_POOL_SIZE_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
 )
@@ -63,9 +78,8 @@ from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
     KeycloakAuthManager,
 )
+from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-
-from tests_common.test_utils.config import conf_vars
 
 
 def _build_access_token(payload: dict[str, object]) -> str:
@@ -120,39 +134,64 @@ def _clear_filter_cache():
     cache_module._pending_requests.clear()
 
 
+def token_with_payload(payload: str) -> str:
+    """Build a JWT-shaped token whose payload segment is the given raw text.
+
+    Only the payload segment is read when the token is bound to the Airflow session
+    identity, so the header and signature are placeholders.
+    """
+    encoded = base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
+    return f"header.{encoded}.signature"
+
+
+def keycloak_token(subject: str) -> str:
+    """Build a JWT-shaped Keycloak token carrying ``sub``."""
+    return token_with_payload(json.dumps({"sub": subject}))
+
+
 class TestKeycloakAuthManager:
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    def test_get_cli_user(self, mock_get_keycloak_client, auth_manager):
-        # client_credentials (service account) flow returns an access token and no refresh token.
-        mock_get_keycloak_client.return_value.token.return_value = {"access_token": "svc-token"}
-
-        user = auth_manager.get_cli_user()
-
-        assert user.get_id() == "airflow-cli"
-        assert user.access_token == "svc-token"
-        assert user.refresh_token is None
-        mock_get_keycloak_client.return_value.token.assert_called_once_with(grant_type="client_credentials")
-
-    @patch.object(KeycloakAuthManager, "get_keycloak_client")
-    def test_get_cli_user_raises_when_credentials_unusable(self, mock_get_keycloak_client, auth_manager):
-        mock_get_keycloak_client.return_value.token.side_effect = Exception("boom")
-
-        with pytest.raises(AirflowConfigException, match="AIRFLOW_CLI_TOKEN"):
-            auth_manager.get_cli_user()
-
-    def test_deserialize_user(self, auth_manager):
-        result = auth_manager.deserialize_user(
-            {
-                "user_id": "user_id",
-                "name": "name",
-                "access_token": "access_token",
-                "refresh_token": "refresh_token",
-            }
-        )
-        assert result.user_id == "user_id"
-        assert result.name == "name"
-        assert result.access_token == "access_token"
-        assert result.refresh_token == "refresh_token"
+    @pytest.mark.parametrize(
+        ("token_data", "exp"),
+        [
+            pytest.param(
+                {
+                    "user_id": "user_id",
+                    "name": "name",
+                },
+                {
+                    "user_id": "user_id",
+                    "name": "name",
+                    "access_token": "",
+                    "refresh_token": None,
+                },
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies"
+                ),
+                id="no-Keycloak-tokens",
+            ),
+            pytest.param(
+                {
+                    "user_id": "user_id",
+                    "name": "name",
+                    "access_token": "access_token",
+                    "refresh_token": "refresh_token",
+                },
+                {
+                    "user_id": "user_id",
+                    "name": "name",
+                    "access_token": "access_token",
+                    "refresh_token": "refresh_token",
+                },
+                id="with-Keycloak-tokens",
+            ),
+        ],
+    )
+    def test_deserialize_user(self, auth_manager, token_data, exp):
+        result = auth_manager.deserialize_user(token_data)
+        assert result.user_id == exp["user_id"]
+        assert result.name == exp["name"]
+        assert result.access_token == exp["access_token"]
+        assert result.refresh_token == exp["refresh_token"]
 
     def test_serialize_user(self, auth_manager):
         result = auth_manager.serialize_user(
@@ -160,12 +199,174 @@ class TestKeycloakAuthManager:
                 user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
             )
         )
-        assert result == {
-            "user_id": "user_id",
-            "name": "name",
-            "access_token": "access_token",
-            "refresh_token": "refresh_token",
-        }
+        if AIRFLOW_V_3_3_PLUS:
+            assert result == {"user_id": "user_id", "name": "name"}
+        else:
+            assert result == {
+                "user_id": "user_id",
+                "name": "name",
+                "access_token": "access_token",
+                "refresh_token": "refresh_token",
+            }
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_with_keycloak_tokens(self, auth_manager):
+        mock_get_user_from_token = AsyncMock(
+            return_value=KeycloakAuthManagerUser(
+                user_id="user_id", name="name", access_token="", refresh_token=None
+            )
+        )
+        with (
+            patch.object(
+                BaseAuthManager,
+                "get_user_from_token",
+                mock_get_user_from_token,
+            ),
+        ):
+            access_token = keycloak_token("user_id")
+            user = await auth_manager.get_user_from_token("token", access_token, "refresh_token")
+        mock_get_user_from_token.assert_called_with("token")
+        assert user.get_id() == "user_id"
+        assert user.get_name() == "name"
+        assert user.access_token == access_token
+        assert user.refresh_token == "refresh_token"
+
+    @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Testing Old Keycloak JWT flow.")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token(self, auth_manager):
+        mock_token_validator = Mock()
+        mock_get_token_validator = Mock(return_value=mock_token_validator)
+        mock_token_validator.avalidated_claims = AsyncMock(
+            return_value=dict(
+                user_id="user_id", name="name", access_token="access_token", refresh_token="refresh_token"
+            )
+        )
+        with (
+            patch.object(
+                KeycloakAuthManager,
+                "_get_token_validator",
+                mock_get_token_validator,
+            ),
+        ):
+            user = await auth_manager.get_user_from_token("token")
+        mock_token_validator.avalidated_claims.assert_called_with("token")
+        assert user.get_id() == "user_id"
+        assert user.get_name() == "name"
+        assert user.access_token == "access_token"
+        assert user.refresh_token == "refresh_token"
+
+    @pytest.mark.asyncio
+    async def test_api_token_authenticates_without_cookies(self, auth_manager):
+        """A token from ``POST /auth/token`` must authorize an ``Authorization`` header request.
+
+        Such a client sends no cookies, so ``get_user_from_token`` is called with the
+        token alone and the user has to be reconstructible from its claims.
+        """
+        access_token = keycloak_token("user_id")
+        user = KeycloakAuthManagerUser(
+            user_id="user_id", name="name", access_token=access_token, refresh_token="refresh_token"
+        )
+
+        minted_claims: dict = {}
+
+        class _CapturingSigner:
+            def generate(self, claims):
+                minted_claims.update(claims)
+                return "token"
+
+        with patch.object(KeycloakAuthManager, "_get_token_signer", Mock(return_value=_CapturingSigner())):
+            auth_manager.generate_api_jwt(user)
+
+        mock_token_validator = Mock()
+        mock_token_validator.avalidated_claims = AsyncMock(return_value=minted_claims)
+        with patch.object(
+            KeycloakAuthManager, "_get_token_validator", Mock(return_value=mock_token_validator)
+        ):
+            resolved = await auth_manager.get_user_from_token("token")
+
+        assert resolved is not None
+        assert resolved.get_id() == "user_id"
+        assert resolved.access_token == access_token
+        assert resolved.refresh_token == "refresh_token"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Browser tokens omit the Keycloak JWTs")
+    @pytest.mark.asyncio
+    async def test_browser_token_without_cookies_is_not_authenticated(self, auth_manager):
+        """A browser token carries no Keycloak JWTs, so it cannot stand in for the cookies."""
+        browser_claims = auth_manager.serialize_user(
+            KeycloakAuthManagerUser(
+                user_id="user_id",
+                name="name",
+                access_token=keycloak_token("user_id"),
+                refresh_token="refresh_token",
+            )
+        )
+        assert "access_token" not in browser_claims
+
+        mock_token_validator = Mock()
+        mock_token_validator.avalidated_claims = AsyncMock(return_value=browser_claims)
+        with patch.object(
+            KeycloakAuthManager, "_get_token_validator", Mock(return_value=mock_token_validator)
+        ):
+            assert await auth_manager.get_user_from_token("token") is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_keycloak_jwts_missing(self, auth_manager):
+        mock_get_user_from_token = AsyncMock(
+            return_value=KeycloakAuthManagerUser(
+                user_id="user_id", name="name", access_token="", refresh_token=None
+            )
+        )
+        with (
+            patch.object(
+                BaseAuthManager,
+                "get_user_from_token",
+                mock_get_user_from_token,
+            ),
+        ):
+            assert await auth_manager.get_user_from_token("token") is None
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_rejects_another_subjects_token(self, auth_manager):
+        """A Keycloak token naming a different subject must not attach to this session."""
+        mock_get_user_from_token = AsyncMock(
+            return_value=KeycloakAuthManagerUser(
+                user_id="user_id", name="name", access_token="", refresh_token=None
+            )
+        )
+        with (
+            patch.object(BaseAuthManager, "get_user_from_token", mock_get_user_from_token),
+            pytest.raises(InvalidTokenError, match="does not belong to this Airflow session"),
+        ):
+            await auth_manager.get_user_from_token("token", keycloak_token("someone_else"), "refresh_token")
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Uses KeycloakJWTMiddleware and separate cookies")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "access_token",
+        [
+            pytest.param("not-a-jwt", id="no-payload-segment"),
+            pytest.param(token_with_payload("not json"), id="payload-not-json"),
+            pytest.param(token_with_payload("1"), id="payload-not-an-object"),
+            pytest.param(token_with_payload('{"other": "user_id"}'), id="payload-without-sub"),
+            pytest.param(token_with_payload('{"sub": null}'), id="payload-with-null-sub"),
+        ],
+    )
+    async def test_get_user_from_token_rejects_unparsable_token(self, auth_manager, access_token):
+        """A token whose subject cannot be read matches no user and is refused."""
+        mock_get_user_from_token = AsyncMock(
+            return_value=KeycloakAuthManagerUser(
+                user_id="user_id", name="name", access_token="", refresh_token=None
+            )
+        )
+        with (
+            patch.object(BaseAuthManager, "get_user_from_token", mock_get_user_from_token),
+            pytest.raises(InvalidTokenError, match="does not belong to this Airflow session"),
+        ):
+            await auth_manager.get_user_from_token("token", access_token, "refresh_token")
 
     def test_get_url_login(self, auth_manager):
         result = auth_manager.get_url_login()
@@ -182,6 +383,10 @@ class TestKeycloakAuthManager:
         result = auth_manager.refresh_user(user=Mock())
 
         assert result is None
+
+    def test_refresh_user_not_user(self, auth_manager):
+        """When called from JWTRefreshMiddleware, ensure a None user can be passed through."""
+        assert auth_manager.refresh_user(user=None) is None
 
     def test_refresh_user_no_refresh_token(self, auth_manager):
         """Test that refresh_user returns None when refresh_token is empty (client_credentials case)."""
@@ -404,6 +609,33 @@ class TestKeycloakAuthManager:
                 getattr(auth_manager, function)(method="GET", user=user)
 
             assert "Unexpected error" in str(e.value)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_is_authorized_missing_keycloak_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_dag(
+            method="GET", details=DagDetails(id="dag_0", team_name="team-a"), user=user
+        )
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+        assert "Resource with id [Dag:team-a] does not exist." in caplog.text
+
+    def test_is_authorized_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.is_authorized_dag(method="GET", details=DagDetails(id="dag_0"), user=user)
+
+        assert result is False
 
     @pytest.mark.parametrize(
         "function",
@@ -672,6 +904,31 @@ class TestKeycloakAuthManager:
         assert result == {"dag-a"}
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_filter_authorized_dag_ids_missing_keycloak_resource(self, auth_manager_multi_team, user, caplog):
+        def post_response(*_, data, **__):
+            claims = json.loads(base64.b64decode(data["claim_token"]).decode())
+            dag_id = claims[RESOURCE_ID_ATTRIBUTE_NAME][0]
+            response = Mock()
+            if dag_id == "dag-missing":
+                response.status_code = 400
+                response.text = '{"error":"invalid_resource", "error_description": "Resource with id [Dag:team-a] does not exist."}'
+            else:
+                response.status_code = 200
+            return response
+
+        auth_manager_multi_team.http_session.post = Mock(side_effect=post_response)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager_multi_team.filter_authorized_dag_ids(
+            dag_ids={"dag-allowed", "dag-missing"}, user=user, team_name="team-a"
+        )
+
+        assert result == {"dag-allowed"}
+        assert auth_manager_multi_team.http_session.post.call_count == 2
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
     def test_filter_authorized_pools_no_team_returns_empty(
         self, mock_is_authorized, auth_manager_multi_team, user
@@ -746,6 +1003,56 @@ class TestKeycloakAuthManager:
             token_url, data=payload, headers=headers, timeout=5
         )
         assert result == expected
+
+    @pytest.mark.parametrize(
+        ("view_name", "multi_team", "expected_permission"),
+        [
+            ("AUDIT_LOGS_ALL", "True", "AdminView#GET"),
+            ("IMPORT_ERRORS_ALL", "True", "AdminView#GET"),
+            ("REPARSE_ALL", "True", "AdminView#GET"),
+            ("AUDIT_LOGS_ALL", "False", "View#GET"),
+            ("IMPORT_ERRORS", "True", "View#GET"),
+            ("PLUGINS", "True", "View#GET"),
+            ("DAG_BUNDLES", "True", "AdminView#GET"),
+            ("DAG_BUNDLES", "False", "View#GET"),
+        ],
+    )
+    def test_is_authorized_view_resource(
+        self, view_name, multi_team, expected_permission, auth_manager, user
+    ):
+        access_view = getattr(AccessView, view_name, None)
+        if access_view is None:
+            pytest.skip(f"AccessView.{view_name} is not available in this Airflow version")
+        mock_response = Mock()
+        mock_response.status_code = 200
+        auth_manager.http_session.post = Mock(return_value=mock_response)
+
+        with conf_vars({("core", "multi_team"): multi_team}):
+            assert auth_manager.is_authorized_view(access_view=access_view, user=user) is True
+
+        payload = auth_manager._get_payload(
+            "client_id", expected_permission, {RESOURCE_ID_ATTRIBUTE_NAME: view_name}
+        )
+        auth_manager.http_session.post.assert_called_once_with(
+            auth_manager._get_token_url("server_url", "realm"),
+            data=payload,
+            headers=auth_manager._get_headers(user.access_token),
+            timeout=5,
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="AccessView.AUDIT_LOGS_ALL not available")
+    @conf_vars({("core", "multi_team"): "True"})
+    def test_is_authorized_view_missing_admin_view_resource(self, auth_manager, user, caplog):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_resource", "error_description": "Resource with id [AdminView] does not exist."}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+        caplog.set_level("WARNING", logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager")
+
+        result = auth_manager.is_authorized_view(access_view=AccessView.AUDIT_LOGS_ALL, user=user)
+
+        assert result is False
+        assert "Keycloak authorization resource is missing; denying access" in caplog.text
 
     @pytest.mark.parametrize(
         ("status_code", "expected"),
@@ -831,6 +1138,16 @@ class TestKeycloakAuthManager:
         auth_manager.http_session.post.assert_called_once_with(
             token_url, data=payload, headers=headers, timeout=5
         )
+
+    def test_filter_authorized_menu_items_invalid_grant(self, auth_manager, user):
+        resp = Mock()
+        resp.status_code = 400
+        resp.text = '{"error": "invalid_grant", "error_description": "Invalid bearer token"}'
+        auth_manager.http_session.post = Mock(return_value=resp)
+
+        result = auth_manager.filter_authorized_menu_items([MenuItem.ASSETS, MenuItem.CONNECTIONS], user=user)
+
+        assert result == []
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) == 1
@@ -1125,3 +1442,193 @@ class TestKeycloakAuthManager:
         assert result2 == dag_ids
         # is_authorized_dag should only be called for the first invocation (2 dag_ids × 1 call)
         assert mock_is_authorized.call_count == 2
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_asset",
+        side_effect=lambda *, details, **kw: details.uri.startswith("s3://team-a/"),
+    )
+    def test_filter_authorized_assets(self, mock_is_authorized, auth_manager, user):
+        assets = [
+            AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv"),
+            AssetDetails(id="2", name="salary", uri="s3://team-b/salary.csv"),
+            AssetDetails(id="3", name="logs", uri="s3://team-a/logs.csv"),
+        ]
+
+        result = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert result == {"1", "3"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_assets_empty(self, auth_manager, user):
+        assert auth_manager.filter_authorized_assets(assets=[], user=user, method="GET") == set()
+
+    @pytest.mark.skipif(
+        not AIRFLOW_V_3_4_PLUS, reason="AssetDetails name and uri not available before Airflow 3.4.0"
+    )
+    @patch.object(KeycloakAuthManager, "is_authorized_asset", return_value=True)
+    def test_filter_authorized_assets_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """A second identical call is served from the cache without asking Keycloak again."""
+        assets = [AssetDetails(id="1", name="sales", uri="s3://team-a/sales.csv")]
+
+        first = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+        second = auth_manager.filter_authorized_assets(assets=assets, user=user, method="GET")
+
+        assert first == second == {"1"}
+        assert mock_is_authorized.call_count == 1
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_connection",
+        side_effect=lambda *, details, **kw: {"conn_0": True, "conn_1": False, "conn_2": True}[
+            details.conn_id
+        ],
+    )
+    def test_filter_authorized_connections(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1", "conn_2"}, user=user, method="GET"
+        )
+
+        assert result == {"conn_0", "conn_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_connections_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(conn_ids=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=False)
+    def test_filter_authorized_connections_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_connections(
+            conn_ids={"conn_0", "conn_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_connection", return_value=True)
+    def test_filter_authorized_connections_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        conn_ids = {"conn_0", "conn_1"}
+
+        result1 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_connections(conn_ids=conn_ids, user=user, method="GET")
+
+        assert result1 == conn_ids
+        assert result2 == conn_ids
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_pool",
+        side_effect=lambda *, details, **kw: {"pool_0": True, "pool_1": False, "pool_2": True}[details.name],
+    )
+    def test_filter_authorized_pools(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1", "pool_2"}, user=user, method="GET"
+        )
+
+        assert result == {"pool_0", "pool_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_pools_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(pool_names=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=False)
+    def test_filter_authorized_pools_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_pools(
+            pool_names={"pool_0", "pool_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_pool", return_value=True)
+    def test_filter_authorized_pools_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        pool_names = {"pool_0", "pool_1"}
+
+        result1 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+        result2 = auth_manager.filter_authorized_pools(pool_names=pool_names, user=user, method="GET")
+
+        assert result1 == pool_names
+        assert result2 == pool_names
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(
+        KeycloakAuthManager,
+        "is_authorized_variable",
+        side_effect=lambda *, details, **kw: {"var_0": True, "var_1": False, "var_2": True}[details.key],
+    )
+    def test_filter_authorized_variables(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1", "var_2"}, user=user, method="GET"
+        )
+
+        assert result == {"var_0", "var_2"}
+        assert mock_is_authorized.call_count == 3
+
+    def test_filter_authorized_variables_empty(self, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(variable_keys=set(), user=user, method="GET")
+        assert result == set()
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=False)
+    def test_filter_authorized_variables_all_denied(self, mock_is_authorized, auth_manager, user):
+        result = auth_manager.filter_authorized_variables(
+            variable_keys={"var_0", "var_1"}, user=user, method="GET"
+        )
+
+        assert result == set()
+        assert mock_is_authorized.call_count == 2
+
+    @patch.object(KeycloakAuthManager, "is_authorized_variable", return_value=True)
+    def test_filter_authorized_variables_cache_hit(self, mock_is_authorized, auth_manager, user):
+        """Second call with same args should return cached result without hitting Keycloak."""
+        variable_keys = {"var_0", "var_1"}
+
+        result1 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+        result2 = auth_manager.filter_authorized_variables(
+            variable_keys=variable_keys, user=user, method="GET"
+        )
+
+        assert result1 == variable_keys
+        assert result2 == variable_keys
+        assert mock_is_authorized.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("dag_count", "pool_size", "expected_max_workers"),
+        [
+            pytest.param(5, 10, 5, id="dag-count-smaller-than-pool"),
+            pytest.param(50, 10, 10, id="dag-count-larger-than-pool"),
+            pytest.param(10, 10, 10, id="dag-count-same-as-pool"),
+        ],
+    )
+    @patch.object(KeycloakAuthManager, "is_authorized_dag", return_value=True)
+    @patch(
+        "airflow.providers.keycloak.auth_manager.keycloak_auth_manager.ThreadPoolExecutor",
+        wraps=ThreadPoolExecutor,
+    )
+    def test_filter_authorized_dag_ids_caps_max_workers(
+        self,
+        mock_executor,
+        _mock_is_authorized,
+        auth_manager,
+        user,
+        dag_count,
+        pool_size,
+        expected_max_workers,
+    ):
+        dag_ids = {f"dag-{index}" for index in range(dag_count)}
+
+        with conf_vars({(CONF_SECTION_NAME, CONF_REQUESTS_POOL_SIZE_KEY): str(pool_size)}):
+            auth_manager.filter_authorized_dag_ids(dag_ids=dag_ids, user=user)
+
+        mock_executor.assert_called_once_with(max_workers=expected_max_workers)
+
+    def test_get_fastapi_middleware(self, auth_manager):
+        assert auth_manager.get_fastapi_middlewares() == [(KeycloakJWTMiddleware, {})]

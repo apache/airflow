@@ -28,12 +28,13 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
     BaseSQLOperator,
     BranchSQLOperator,
+    SQLBulkLoadOperator,
     SQLCheckOperator,
     SQLCheckResult,
     SQLColumnCheckOperator,
@@ -46,7 +47,6 @@ from airflow.providers.common.sql.operators.sql import (
 )
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.utils import timezone  # type: ignore[attr-defined]
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
@@ -876,6 +876,12 @@ class TestValueCheckOperator:
         with pytest.raises(AirflowException, match="Tolerance:100.0%"):
             operator.execute(context=MagicMock())
 
+    @pytest.mark.parametrize("record", [-110, -100, -90])
+    def test_negative_pass_value_with_tolerance(self, record):
+        operator = self._construct_operator("select value from tab1 limit 1;", -100, 0.1)
+
+        operator.check_value([record])
+
 
 class TestIntervalCheckOperator:
     def _construct_operator(self, table, metric_thresholds, ratio_formula, ignore_zero):
@@ -1684,6 +1690,66 @@ class TestSQLColumnCheckOperatorBuildCheckResults:
         assert r.expected == ">=1, <=100"
         assert r.params == {"geq_to": 1, "leq_to": 100, "accept_none": True}
 
+    @pytest.mark.parametrize(
+        ("check_values", "record", "tolerance", "expected"),
+        [
+            # Negative thresholds: tolerance widens the bound outward, so a record equal to
+            # the threshold passes.
+            ({"geq_to": -1000}, -1000, 0.1, True),
+            ({"geq_to": -1000}, -1100, 0.1, True),
+            ({"geq_to": -1000}, -1101, 0.1, False),
+            ({"greater_than": -1000}, -1050, 0.1, True),
+            ({"greater_than": -1000}, -1100, 0.1, False),  # strict: equal to the widened bound fails
+            ({"leq_to": -10}, -10, 0.1, True),
+            ({"less_than": -10}, -11, 0.1, True),
+            ({"equal_to": -100}, -100, 0.1, True),
+            ({"equal_to": -100}, -110, 0.1, True),
+            ({"equal_to": -100}, -111, 0.1, False),
+            ({"geq_to": -100, "leq_to": -50}, -75, 0.1, True),
+            # Positive thresholds keep their existing bounds.
+            ({"geq_to": 1000}, 900, 0.1, True),
+            ({"geq_to": 1000}, 899, 0.1, False),
+            ({"equal_to": 100}, 110, 0.1, True),
+            ({"equal_to": 100}, 111, 0.1, False),
+            # No tolerance: exact bounds.
+            ({"geq_to": 10}, 10, None, True),
+            ({"equal_to": 5}, 6, None, False),
+        ],
+    )
+    def test_get_match_tolerance_handles_negative_thresholds(self, check_values, record, tolerance, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record, tolerance) == expected
+
+    @pytest.mark.parametrize(
+        ("check_values", "record", "expected"),
+        [
+            ({"geq_to": "2020-01-01"}, "2021-06-30", True),
+            ({"geq_to": "2020-01-01"}, "2019-12-31", False),
+            ({"greater_than": "2020-01-01"}, "2020-01-01", False),
+            ({"leq_to": "2020-01-01"}, "2019-12-31", True),
+            ({"less_than": "2020-01-01"}, "2020-01-01", False),
+            ({"equal_to": "abc"}, "abc", True),
+            ({"equal_to": "abc"}, "abcd", False),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2020, 6, 30),
+                True,
+            ),
+            (
+                {"geq_to": datetime.date(2020, 1, 1), "leq_to": datetime.date(2020, 12, 31)},
+                datetime.date(2021, 1, 1),
+                False,
+            ),
+        ],
+    )
+    def test_get_match_compares_non_numeric_bounds_without_tolerance(self, check_values, record, expected):
+        op = self._make_operator({"col": {"min": {"geq_to": 1}}})
+        assert op._get_match(check_values, record) == expected
+
+    def test_get_match_equal_to_fails_cleanly_on_none_record(self):
+        op = self._make_operator({"col": {"null_check": {"equal_to": 0}}}, accept_none=False)
+        assert op._get_match({"equal_to": 0}, None) is False
+
     def test_multiple_checks_correct_names_and_order(self):
         op = self._make_operator(
             {
@@ -2043,6 +2109,16 @@ class TestSQLValueCheckOperatorBuildCheckResults:
         assert r.check_type == "accepted_range"
         assert r.expected == ">= 4.5, <= 5.5"
         assert r.params == {"pass_value": "5", "tolerance": 0.1}
+
+    def test_negative_numeric_tolerance_produces_accepted_range(self):
+        op = self._make_operator(pass_value=-100, tolerance=0.1)
+        results = op._build_check_results([-100])
+        assert len(results) == 1
+        r = results[0]
+        assert r.success is True
+        assert r.check_type == "accepted_range"
+        assert r.expected == ">= -110.0, <= -90.0"
+        assert r.params == {"pass_value": "-100", "tolerance": 0.1}
 
     def test_non_numeric_pass_value_is_accepted_values(self):
         op = self._make_operator(pass_value="hello")
@@ -2957,3 +3033,86 @@ class TestSQLInsertRowsOperator:
             (4, "Lundgren", "Dolph", 66),
             (5, "Norris", "Chuck", 84),
         ]
+
+
+class TestSQLBulkLoadOperator:
+    def _construct_operator(self, table, tmp_file, **kwargs):
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
+        return SQLBulkLoadOperator(
+            task_id="test_task",
+            conn_id="default_conn",
+            table=table,
+            tmp_file=tmp_file,
+            dag=dag,
+            **kwargs,
+        )
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+            preoperator="CREATE TABLE users (id INT);",
+            postoperator="DROP TABLE users;",
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        assert hook.mock_calls == [
+            mock.call.run("CREATE TABLE users (id INT);"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute_templated_fields(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="{{ params.table }}",
+            tmp_file="{{ params.file }}",
+            preoperator="TRUNCATE TABLE {{ params.table }};",
+            postoperator="DROP TABLE {{ params.table }};",
+        )
+
+        operator.render_template_fields(
+            {
+                "params": {
+                    "table": "users",
+                    "file": "/tmp/users.tsv",
+                }
+            }
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        assert hook.mock_calls == [
+            mock.call.run("TRUNCATE TABLE users;"),
+            mock.call.bulk_load(
+                table="users",
+                tmp_file="/tmp/users.tsv",
+            ),
+            mock.call.run("DROP TABLE users;"),
+        ]
+
+    @mock.patch.object(SQLBulkLoadOperator, "get_db_hook")
+    def test_execute_without_pre_or_post_operator(self, mock_get_db_hook):
+        operator = self._construct_operator(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+        )
+
+        operator.execute(context=MagicMock())
+
+        hook = mock_get_db_hook.return_value
+
+        hook.run.assert_not_called()
+        hook.bulk_load.assert_called_once_with(
+            table="users",
+            tmp_file="/tmp/users.tsv",
+        )

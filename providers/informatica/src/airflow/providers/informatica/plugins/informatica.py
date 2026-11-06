@@ -17,9 +17,9 @@
 from __future__ import annotations
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.informatica.conf import listener_disabled
 
-is_disabled = conf.getboolean("informatica", "listener_disabled", fallback=False)
+is_disabled = listener_disabled()
 # Conditional imports - only load expensive dependencies when plugin is enabled
 if not is_disabled:
     from airflow.providers.common.compat.sdk import HookLineageReader

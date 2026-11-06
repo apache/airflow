@@ -1,0 +1,887 @@
+[
+    {"eventType": "START", "job": {"name": "openlineage_trigger_dag_deferrable"}},
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_trigger_dag_deferrable.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {
+                            "some_config": "value1",
+                            "openlineage": {
+                                "parentRunId": "{{ is_uuid(result) }}",
+                                "parentJobNamespace": "{{ result is string }}",
+                                "parentJobName": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                                "rootParentRunId": "{{ is_uuid(result) }}",
+                                "rootParentJobNamespace": "{{ result is string }}",
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result.startswith('manual__202') }}",
+                        "run_type": "operator_triggered",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_trigger_dag_deferrable_child__notrigger",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "DAG",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "airflow": {
+                    "taskGroups": {},
+                    "taskTree": {},
+                    "tasks": {
+                        "trigger_dagrun2": {
+                            "downstream_task_ids": [],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.trigger_dagrun.TriggerDagRunOperator",
+                            "ui_label": "trigger_dagrun2"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/JobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowState": {
+                    "dagRunState": "success",
+                    "tasksState": {
+                        "trigger_dagrun2": "success"
+                    },
+                    "tasksDuration": {
+                        "trigger_dagrun2": "{{ result is number }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "airflowDagRun": {
+                    "dag": {
+                        "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_trigger_dag_deferrable.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {
+                            "some_config": "value1",
+                            "openlineage": {
+                                "parentRunId": "{{ is_uuid(result) }}",
+                                "parentJobNamespace": "{{ result is string }}",
+                                "parentJobName": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                                "rootParentRunId": "{{ is_uuid(result) }}",
+                                "rootParentJobNamespace": "{{ result is string }}",
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result.startswith('manual__202') }}",
+                        "run_type": "operator_triggered",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable.trigger_dagrun",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_trigger_dag_deferrable_child__notrigger",
+            "facets": {
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "DAG",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "trigger_dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "trigger_dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "trigger_run_id": "{{ result.startswith('manual__202') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2"
+        }
+    },
+    {
+        "eventType": "START",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowDagRun": {
+                    "dag": {
+                        "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_trigger_dag_deferrable.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {
+                            "openlineage": {
+                                "parentRunId": "{{ is_uuid(result) }}",
+                                "parentJobNamespace": "{{ result is string }}",
+                                "parentJobName": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                                "rootParentRunId": "{{ is_uuid(result) }}",
+                                "rootParentJobNamespace": "{{ result is string }}",
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result.startswith('manual__202') }}",
+                        "run_type": "operator_triggered",
+                        "start_date": "{{ is_datetime(result) }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger",
+            "facets": {
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "DAG",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                },
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "airflow": {
+                    "taskGroups": {},
+                    "taskTree": {},
+                    "tasks": {
+                        "check_macros": {
+                            "downstream_task_ids": [],
+                            "emits_ol_events": "{{ result == true }}",
+                            "is_setup": false,
+                            "is_teardown": false,
+                            "operator": "airflow.providers.standard.operators.python.PythonOperator",
+                            "ui_label": "check_macros"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/JobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "eventTime": "{{ is_datetime(result) }}",
+        "producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+        "schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunEvent$\") }}",
+        "inputs": [],
+        "outputs": [],
+        "run": {
+            "runId": "{{ is_uuid(result) }}",
+            "facets": {
+                "airflowState": {
+                    "dagRunState": "success",
+                    "tasksState": {
+                        "check_macros": "success"
+                    },
+                    "tasksDuration": {
+                        "check_macros": "{{ result is number }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "airflowDagRun": {
+                    "dag": {
+                        "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "fileloc": "{{ result.endswith('openlineage/example_openlineage_trigger_dag_deferrable.py') }}",
+                        "owner": "airflow",
+                        "owner_links": {},
+                        "start_date": "{{ is_datetime(result) }}",
+                        "timetable": {}
+                    },
+                    "dagRun": {
+                        "conf": {
+                            "openlineage": {
+                                "parentRunId": "{{ is_uuid(result) }}",
+                                "parentJobNamespace": "{{ result is string }}",
+                                "parentJobName": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                                "rootParentRunId": "{{ is_uuid(result) }}",
+                                "rootParentJobNamespace": "{{ result is string }}",
+                                "rootParentJobName": "openlineage_trigger_dag_deferrable",
+                                "parentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "TASK"
+                                },
+                                "rootParentJobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "dag_id": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "data_interval_end": "{{ is_datetime(result) }}",
+                        "data_interval_start": "{{ is_datetime(result) }}",
+                        "logical_date": "{{ is_datetime(result) }}",
+                        "run_id": "{{ result.startswith('manual__202') }}",
+                        "run_type": "operator_triggered",
+                        "start_date": "{{ is_datetime(result) }}",
+                        "duration": "{{ result is number }}"
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/[\\d-]+\\/OpenLineage.json\\#\\/\\$defs\\/RunFacet\") }}"
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child__notrigger.trigger_dagrun2",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "TASK"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "nominalTime": {
+                    "nominalEndTime": "{{ is_datetime(result) }}",
+                    "nominalStartTime": "{{ is_datetime(result) }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/NominalTimeRunFacet.json\\#\\/\\$defs\\/NominalTimeRunFacet$\") }}"
+                },
+                "processing_engine": {
+                    "name": "Airflow",
+                    "openlineageAdapterVersion": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "version": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ProcessingEngineRunFacet.json\\#\\/\\$defs\\/ProcessingEngineRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "namespace": "{{ result is string }}",
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger",
+            "facets": {
+                "ownership": {
+                    "owners": [
+                        {
+                            "name": "airflow"
+                        }
+                    ],
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/OwnershipJobFacet.json\\#\\/\\$defs\\/OwnershipJobFacet\") }}"
+                },
+                "jobType": {
+                    "integration": "AIRFLOW",
+                    "jobType": "DAG",
+                    "processingType": "BATCH",
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.check_macros"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable_child2__notrigger",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                },
+                "airflow": {
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable_child2__notrigger.check_macros"
+        }
+    },
+    {
+        "eventType": "START",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "deferrable": "{{ result == true }}",
+                        "trigger_dag_id": "openlineage_trigger_dag_deferrable_child__notrigger"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable.trigger_dagrun"
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "run": {
+            "facets": {
+                "airflow": {
+                    "task": {
+                        "deferrable": "{{ result == true }}",
+                        "trigger_dag_id": "openlineage_trigger_dag_deferrable_child__notrigger",
+                        "trigger_run_id": "{{ result.startswith('manual__') }}"
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
+                    }
+                },
+                "parent": {
+                    "job": {
+                        "namespace": "{{ result is string }}",
+                        "name": "openlineage_trigger_dag_deferrable",
+                        "facets": {
+                            "jobType": {
+                                "processingType": "BATCH",
+                                "integration": "AIRFLOW",
+                                "jobType": "DAG"
+                            }
+                        }
+                    },
+                    "run": {
+                        "runId": "{{ is_uuid(result) }}"
+                    },
+                    "root": {
+                        "job": {
+                            "name": "openlineage_trigger_dag_deferrable",
+                            "namespace": "{{ result is string }}",
+                            "facets": {
+                                "jobType": {
+                                    "processingType": "BATCH",
+                                    "integration": "AIRFLOW",
+                                    "jobType": "DAG"
+                                }
+                            }
+                        },
+                        "run": {
+                            "runId": "{{ is_uuid(result) }}"
+                        }
+                    },
+                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
+                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
+                }
+            }
+        },
+        "job": {
+            "name": "openlineage_trigger_dag_deferrable.trigger_dagrun"
+        }
+    }
+]

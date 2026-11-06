@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import sys
+from collections import namedtuple
 from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.lineage.hook import _lacks_add_extra_method, _lacks_asset_methods
+from airflow.providers.common.compat.lineage.hook import (
+    _add_extra_polyfill,
+    _lacks_add_extra_method,
+    _lacks_asset_methods,
+)
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -1023,3 +1029,103 @@ class TestEdgeCases:
 
         assert len(lineage.inputs) == 0
         assert len(lineage.outputs) == 0
+
+
+class TestAddExtraPolyfillIdempotency:
+    """Regression tests for the ``add_extra`` polyfill (RecursionError on the Compat provider matrix).
+
+    ``_add_extra_polyfill`` is re-applied for every fresh collector instance (the trigger gate keys
+    on instance-level ``_extra``), and on Airflow 2 the asset-naming layer re-patches
+    ``collected_assets`` before each call. The polyfill must capture the *true* original getter once
+    and always wrap that; otherwise it wraps the previously installed wrapper and the getter chain
+    grows one level per call until property access raises ``RecursionError``.
+    """
+
+    @staticmethod
+    def _make_collector_class():
+        """A minimal collector lacking ``add_extra`` (simulates Airflow < 3.2)."""
+        fake_lineage = namedtuple("_FakeLineage", ["inputs", "outputs"])
+
+        class FakeCollector:
+            @property
+            def collected_assets(self):
+                return fake_lineage(inputs=[], outputs=[])
+
+            @property
+            def has_collected(self):
+                return False
+
+        return FakeCollector
+
+    def test_true_original_getter_captured_once(self):
+        fake_collector_cls = self._make_collector_class()
+        real_getter = fake_collector_cls.collected_assets.fget
+
+        _add_extra_polyfill(fake_collector_cls())
+        stored = fake_collector_cls.__dict__["_compat_original_collected_assets"].fget
+        assert stored is real_getter
+        assert fake_collector_cls.collected_assets.fget is not real_getter  # now a wrapper
+
+        # Re-applying for a fresh instance keeps the original; it never captures the wrapper.
+        _add_extra_polyfill(fake_collector_cls())
+        assert fake_collector_cls.__dict__["_compat_original_collected_assets"].fget is real_getter
+
+    def test_repeated_polyfill_does_not_recurse(self):
+        fake_collector_cls = self._make_collector_class()
+
+        # Many fresh collectors of the same class (as across a test session). Pre-fix this stacked
+        # one wrapper per call and blew the recursion limit on the next property access.
+        for _ in range(sys.getrecursionlimit() + 100):
+            _add_extra_polyfill(fake_collector_cls())
+
+        collector = _add_extra_polyfill(fake_collector_cls())
+        collector.add_extra(mock.MagicMock(), "k", "v")
+
+        lineage = collector.collected_assets  # must not raise RecursionError
+        assert [extra.key for extra in lineage.extra] == ["k"]
+        assert collector.has_collected is True
+
+    def test_extra_survives_external_repatch_of_collected_assets(self):
+        """Mirrors Airflow 2: the asset-naming layer re-patches ``collected_assets`` (to a plain,
+        no-``extra`` wrapper) before each polyfill call. The extra wrapper must be re-applied each
+        time so ``collected_assets.extra`` stays present, without the getter chain growing unbounded.
+        """
+        fake_collector_cls = self._make_collector_class()
+        real_getter = fake_collector_cls.collected_assets.fget
+
+        for _ in range(sys.getrecursionlimit() + 100):
+            # External (asset-naming) layer resets collected_assets to a fresh plain wrapper.
+            fake_collector_cls.collected_assets = property(lambda self, _g=real_getter: _g(self))
+            _add_extra_polyfill(fake_collector_cls())
+
+        collector = fake_collector_cls()
+        fake_collector_cls.collected_assets = property(lambda self, _g=real_getter: _g(self))
+        collector = _add_extra_polyfill(collector)
+        collector.add_extra(mock.MagicMock(), "k", "v")
+
+        lineage = collector.collected_assets
+        assert hasattr(lineage, "extra")
+        assert [extra.key for extra in lineage.extra] == ["k"]
+
+    def test_subclass_with_own_property_is_captured_independently(self):
+        """Idempotency stash is keyed on the class's own ``__dict__``, not inherited attributes."""
+        base_collector_cls = self._make_collector_class()
+        _add_extra_polyfill(base_collector_cls())
+
+        fake_lineage = namedtuple("_FakeLineage", ["inputs", "outputs"])
+
+        class SubCollector(base_collector_cls):
+            @property
+            def collected_assets(self):
+                return fake_lineage(inputs=[], outputs=[])
+
+            @property
+            def has_collected(self):
+                return False
+
+        sub_getter = SubCollector.collected_assets.fget
+        collector = _add_extra_polyfill(SubCollector())
+        assert SubCollector.__dict__["_compat_original_collected_assets"].fget is sub_getter
+
+        collector.add_extra(mock.MagicMock(), "k", "v")
+        assert [extra.key for extra in collector.collected_assets.extra] == ["k"]

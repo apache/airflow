@@ -17,33 +17,91 @@
 from __future__ import annotations
 
 import asyncio
+import gc
+import threading
+from contextlib import asynccontextmanager
 from unittest import mock
 from uuid import UUID
 
+import httpx2
 import pytest
-from fastapi import Request
+from fastapi import APIRouter, Depends, FastAPI, Request, status
 from fastapi.params import Security as SecurityParam
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from opentelemetry import context as otel_context, propagate as otel_propagate
+from sqlalchemy import event, select, text
+from sqlalchemy.exc import SQLAlchemyError
 
+from airflow import settings
+from airflow.api_fastapi.app import create_app
 from airflow.api_fastapi.execution_api.app import (
+    InProcessExecutionAPI,
     _extract_w3c_trace_context,
+    _inject_trace_context_dep,
+    _is_trace_context_dep,
+    create_jwt_generator,
     create_task_execution_api_app,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
+from airflow.models.xcom import XComModel
+from airflow.utils.session import create_session_async
 
+from tests_common.test_utils.api_fastapi import iter_api_routes
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 
+@pytest.mark.parametrize("supply_dag_bag", [False, True])
+@mock.patch("airflow.api_fastapi.common.dagbag.create_dag_bag", autospec=True)
+def test_create_app_initializes_dag_bag(mock_create_dag_bag, supply_dag_bag):
+    dag_bag = mock.sentinel.dag_bag if supply_dag_bag else None
+    app = create_task_execution_api_app(dag_bag=dag_bag)
+
+    if supply_dag_bag:
+        assert app.state.dag_bag is dag_bag
+        mock_create_dag_bag.assert_not_called()
+    else:
+        assert app.state.dag_bag is mock_create_dag_bag.return_value
+        mock_create_dag_bag.assert_called_once_with()
+
+
+@pytest.mark.parametrize("in_process_first", [False, True])
+@conf_vars({("api_auth", "jwt_secret"): "execution-api-hosting-test-secret"})
+def test_server_and_in_process_apps_isolate_auth(in_process_first, monkeypatch):
+    monkeypatch.setenv("AIRFLOW_VAR_EXECUTION_API_HOSTING", "shared-value")
+    if in_process_first:
+        api = InProcessExecutionAPI()
+        assert api.app is not None
+        server_app = create_app(apps="execution")
+    else:
+        server_app = create_app(apps="execution")
+        api = InProcessExecutionAPI()
+
+    with (
+        TestClient(server_app) as server,
+        httpx2.Client(transport=api.transport, base_url="http://in-process.invalid") as local,
+    ):
+        response = local.get("/variables/execution_api_hosting")
+        assert response.status_code == 200
+        assert response.json() == {"key": "execution_api_hosting", "value": "shared-value"}
+        assert server.get("/execution/variables/execution_api_hosting").status_code == 401
+        token = create_jwt_generator().generate({"sub": "00000000-0000-0000-0000-000000000000"})
+        authenticated_response = server.get(
+            "/execution/variables/execution_api_hosting", headers={"Authorization": f"Bearer {token}"}
+        )
+        # Missing credentials bypass JWTValidator; only an authenticated request detects a leaked stub.
+        assert authenticated_response.status_code == 200
+        assert authenticated_response.json() == response.json()
+
+
 def test_custom_openapi_includes_extra_schemas(client):
     """Test to ensure that extra schemas are correctly included in the OpenAPI schema."""
-    response = client.get("/execution/openapi.json?version=2025-04-28")
+    response = client.get(f"/execution/openapi.json?version={bundle.version_values[0]}")
     assert response.status_code == 200
 
     openapi_schema = response.json()
@@ -58,6 +116,21 @@ def test_access_api_contract(client):
     response = client.get("/execution/docs")
     assert response.status_code == 200
     assert response.headers["airflow-api-version"] == bundle.versions[0].value
+
+
+@conf_vars({("api", "expose_stacktrace"): "False"})
+@mock.patch("airflow.api_fastapi.common.exceptions.get_random_string", return_value="test-error-id")
+def test_direct_execution_api_app_handles_sqlalchemy_errors(mock_get_random_string):
+    app = create_task_execution_api_app()
+
+    @app.get("/test-sqlalchemy-error")
+    def trigger_error():
+        raise SQLAlchemyError("boom")
+
+    response = TestClient(app, raise_server_exceptions=False).get("/test-sqlalchemy-error")
+
+    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+    assert response.json()["detail"]["reason"] == "Database error"
 
 
 def test_ti_self_routes_have_task_instance_id_param(client):
@@ -89,6 +162,185 @@ def test_ct_self_routes_have_connection_test_id_param(client):
                 assert "connection_test_id" in route.dependant.path_param_names, (
                     f"Route {route.path} has ct:self scope but no {{connection_test_id}} path parameter"
                 )
+
+
+# Execution-API routes that expose a {task_instance_id} path parameter but intentionally do NOT
+# enforce the ti:self scope. Add a route here only with a clear justification.
+TI_ID_ROUTES_WITHOUT_TI_SELF: set[str] = set()
+
+
+def test_routes_with_task_instance_id_param_enforce_ti_self(client):
+    """Dual of :func:`test_ti_self_routes_have_task_instance_id_param`.
+
+    Every operation that exposes a ``{task_instance_id}`` path parameter must require the
+    ``ti:self`` scope, so a caller can only act on its own task instance -- unless the path is
+    explicitly listed in ``TI_ID_ROUTES_WITHOUT_TI_SELF``. This guards against a new endpoint
+    accepting a caller-supplied ``task_instance_id`` while silently skipping the ownership check
+    (the bug fixed alongside this test, where ``/task-reschedules/{task_instance_id}/start_date``
+    lacked it). Checked against the served OpenAPI spec of every API version, since the execution
+    API assembles its routes per version.
+    """
+    http_methods = {"get", "put", "post", "delete", "patch", "options", "head", "trace"}
+    offenders = []
+    checked = 0
+    for version in bundle.versions:
+        spec = client.get(f"/execution/openapi.json?version={version.value}").json()
+        for path, operations in spec.get("paths", {}).items():
+            if "{task_instance_id}" not in path or path in TI_ID_ROUTES_WITHOUT_TI_SELF:
+                continue
+            for method, operation in operations.items():
+                if method.lower() not in http_methods or not isinstance(operation, dict):
+                    continue
+                checked += 1
+                requirements = operation.get("security") or []
+                has_ti_self = any(
+                    "ti:self" in scopes for requirement in requirements for scopes in requirement.values()
+                )
+                if not has_ti_self:
+                    offenders.append(f"[{version.value}] {method.upper()} {path}")
+
+    assert checked, "Found no {task_instance_id} operations in any API version -- the test is vacuous."
+    assert not offenders, (
+        "These execution-API operations expose a {task_instance_id} path parameter without the "
+        "ti:self scope. Add `Security(require_auth, scopes=['ti:self'])` to the router, or add the "
+        "path to TI_ID_ROUTES_WITHOUT_TI_SELF with a justification:\n" + "\n".join(sorted(offenders))
+    )
+
+
+@conf_vars({("api_auth", "jwt_secret"): None})
+def test_in_process_execution_api_runs_without_jwt_secret():
+    """The in-process API must not require ``api_auth/jwt_secret`` to be configured."""
+    api = InProcessExecutionAPI()
+    with httpx2.Client(transport=api.transport) as client:
+        response = client.get("http://localhost/health")
+    assert response.status_code == 200
+
+
+def test_in_process_task_xcom_write_uses_its_attempt_id(create_task_instance, session):
+    ti = create_task_instance()
+    session.commit()
+    path = f"/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/return_value"
+
+    with TestClient(InProcessExecutionAPI().app) as client:
+        wrong = client.post(path, json="wrong", headers={"X-Airflow-In-Process-Attempt-Id": str(UUID(int=1))})
+        correct = client.post(path, json="correct", headers={"X-Airflow-In-Process-Attempt-Id": str(ti.id)})
+
+    assert wrong.status_code == 404
+    assert correct.status_code == 201
+    stored = session.scalar(select(XComModel).where(XComModel.task_instance_id == ti.id))
+    assert stored.value == "correct"
+
+
+def test_in_process_execution_api_transport_lifecycle():
+    """The background loop + thread lifecycle is tied to the ``.transport``, not the factory instance.
+
+    Callers build a sync ``Client`` from ``InProcessExecutionAPI().transport`` and drop the factory
+    object. Dropping the instance must NOT stop the loop while the transport is still held -- doing so
+    left every later request hanging on a stopped loop. Dropping the transport must stop the loop and
+    join the daemon thread (the a2wsgi background-thread leak guard).
+    """
+    # Collect earlier tests' garbage first. If GC runs a failing __del__ (an aiomysql connection on a closed loop)
+    # while the app below is built, pytest keeps that error, and its __context__ chain holds the app-building
+    # frames, which keep the transport alive.
+    gc.collect()
+    before = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"}
+
+    api = InProcessExecutionAPI()
+    transport = api.transport  # triggers loop + thread creation; the transport is what callers keep
+
+    new_threads = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
+    assert len(new_threads) == 1
+    thread = new_threads.pop()
+    assert thread.is_alive()
+
+    # Dropping only the factory instance must leave the loop running for the still-live transport.
+    del api
+    gc.collect()
+    assert thread.is_alive()
+
+    # Dropping the transport runs the weakref.finalize: loop stopped, daemon thread joined (no leak).
+    del transport
+    gc.collect()
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+
+
+@pytest.fixture
+def in_process_db_app():
+    engine = settings.async_engine
+    opened, closed = [], []
+    app = FastAPI()
+
+    def record_connect(connection, record):
+        opened.append((connection, asyncio.get_running_loop()))
+
+    def record_close(connection, record):
+        closed.append((connection, asyncio.get_running_loop()))
+
+    @app.get("/")
+    async def query():
+        async with create_session_async() as session:
+            return (await session.execute(text("SELECT 1"))).scalar_one()
+
+    event.listen(engine.sync_engine, "connect", record_connect)
+    event.listen(engine.sync_engine, "close", record_close)
+    try:
+        yield app, opened, closed
+    finally:
+        event.remove(engine.sync_engine, "connect", record_connect)
+        event.remove(engine.sync_engine, "close", record_close)
+
+
+@pytest.mark.parametrize("fail_shutdown", [False, True])
+def test_in_process_shutdown_closes_connections_after_lifespan(in_process_db_app, fail_shutdown):
+    app, opened, closed = in_process_db_app
+    shutdown_loops = []
+
+    @asynccontextmanager
+    async def lifespan(app):
+        yield
+        async with create_session_async() as session:
+            assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
+        assert closed == []
+        shutdown_loops.append(asyncio.get_running_loop())
+        if fail_shutdown:
+            raise RuntimeError("shutdown failed")
+
+    app.router.lifespan_context = lifespan
+    api = InProcessExecutionAPI(app)
+    with httpx2.Client(transport=api.transport) as client:
+        assert client.get("http://localhost/").json() == 1
+    del client, api
+    gc.collect()
+
+    assert len(opened) == 1
+    assert closed == opened
+    assert shutdown_loops == [opened[0][1]]
+
+
+def test_session_factory_remains_usable_after_in_process_shutdown(in_process_db_app):
+    app, opened, closed = in_process_db_app
+    engine, factory = settings.async_engine, settings.AsyncSession
+    api = InProcessExecutionAPI(app)
+    with httpx2.Client(transport=api.transport) as client:
+        assert client.get("http://localhost/").json() == 1
+    del client, api
+    gc.collect()
+
+    assert settings.async_engine is engine
+    assert settings.AsyncSession is factory
+
+    async def query_after_shutdown():
+        try:
+            async with create_session_async() as session:
+                assert (await session.execute(text("SELECT 1"))).scalar_one() == 1
+        finally:
+            await settings.dispose_async_engine()
+
+    asyncio.run(query_after_shutdown())
+    assert len(opened) == 2
+    assert opened[0][1] is not opened[1][1]
+    assert closed == opened
 
 
 class TestCorrelationIdMiddleware:
@@ -148,18 +400,14 @@ class TestTraceContextPropagation:
     """Exercise ``execution_api.otel_trace_propagation`` on the real Execution API app."""
 
     @pytest.fixture(autouse=True)
-    def _restore_router_dependencies(self):
+    def _restore_route_dependencies(self):
         from airflow.api_fastapi.execution_api.routes import execution_api_router
 
-        snapshot = {
-            id(route): list(route.dependencies)
-            for route in execution_api_router.routes
-            if isinstance(route, APIRoute)
-        }
+        routes = [context.original_route for context in iter_api_routes(execution_api_router.routes)]
+        snapshot = [list(route.dependencies) for route in routes]
         yield
-        for route in execution_api_router.routes:
-            if isinstance(route, APIRoute):
-                route.dependencies[:] = snapshot[id(route)]
+        for route, dependencies in zip(routes, snapshot):
+            route.dependencies[:] = dependencies
 
     @staticmethod
     def _build_app(mode: str):
@@ -204,6 +452,16 @@ class TestTraceContextPropagation:
         assert spy.called is expect_extract
         if expect_status is not None:
             assert response.status_code == expect_status
+
+    def test_only_authenticated_detects_auth_added_by_include_router(self):
+        router = APIRouter()
+        router.add_api_route("/variables/{key}", lambda key: None)
+        parent = APIRouter()
+        parent.include_router(router, dependencies=[Depends(require_auth)])
+
+        _inject_trace_context_dep(parent.routes, "only-authenticated")
+
+        assert any(_is_trace_context_dep(d) for d in router.routes[0].dependencies)
 
     def test_trace_context_dep_cleans_up_on_route_exception(self):
         """Verify extract and cleanup run correctly when a route handler raises."""

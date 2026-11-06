@@ -27,14 +27,19 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, SupportsAbs
 
-from google.api_core.exceptions import Conflict
+from google.api_core.exceptions import Conflict, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.routine import Routine
 from google.cloud.bigquery.table import RowIterator, Table, TableListItem, TableReference
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.sdk import AirflowException, AirflowSkipException, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSkipException,
+    ResumableJobMixin,
+    conf,
+)
 from airflow.providers.common.sql.operators.sql import (  # for _parse_boolean
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -60,20 +65,46 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
-from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
+
+try:
+    from airflow.sdk.definitions._internal.types import NOTSET, ArgNotSet, is_arg_set
+except ImportError:
+    from airflow.utils.types import NOTSET, ArgNotSet  # type: ignore[attr-defined,no-redef]
+
+    def is_arg_set(value):  # type: ignore[misc,no-redef]
+        return value is not NOTSET
+
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
     from google.cloud.bigquery import UnknownJob
+    from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
 
 
 BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
+BIGQUERY_LEGACY_SQL_DEFAULT_WARNING = (
+    "The default value of `use_legacy_sql` is deprecated and will change from `True` to `False` "
+    "in a future provider release. Set `use_legacy_sql=True` explicitly if you need legacy SQL, "
+    "or set `use_legacy_sql=False` to use GoogleSQL."
+)
 
 LABEL_REGEX = re.compile(r"^[\w-]{0,63}$")
+
+
+def _resolve_use_legacy_sql(use_legacy_sql: bool | ArgNotSet) -> bool:
+    if is_arg_set(use_legacy_sql):
+        return use_legacy_sql
+
+    warnings.warn(
+        BIGQUERY_LEGACY_SQL_DEFAULT_WARNING,
+        AirflowProviderDeprecationWarning,
+        stacklevel=3,
+    )
+    return True
 
 
 class BigQueryUIColors(enum.Enum):
@@ -218,6 +249,7 @@ class BigQueryCheckOperator(
         "impersonation_chain",
         "labels",
         "query_params",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -229,7 +261,7 @@ class BigQueryCheckOperator(
         sql: str,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -241,7 +273,7 @@ class BigQueryCheckOperator(
     ) -> None:
         super().__init__(sql=sql, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -278,6 +310,7 @@ class BigQueryCheckOperator(
             hook = BigQueryHook(
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
+                use_legacy_sql=self.use_legacy_sql,
             )
             if self.project_id is None:
                 self.project_id = hook.project_id
@@ -373,6 +406,7 @@ class BigQueryValueCheckOperator(
         "pass_value",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = BigQueryUIColors.CHECK.value
@@ -387,7 +421,7 @@ class BigQueryValueCheckOperator(
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -398,7 +432,7 @@ class BigQueryValueCheckOperator(
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -433,7 +467,11 @@ class BigQueryValueCheckOperator(
         if not self.deferrable:
             super().execute(context=context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+            hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                use_legacy_sql=self.use_legacy_sql,
+            )
             if self.project_id is None:
                 self.project_id = hook.project_id
             job = self._submit_job(hook, job_id="")
@@ -537,6 +575,7 @@ class BigQueryIntervalCheckOperator(
         "sql2",
         "impersonation_chain",
         "labels",
+        "conn_id",
     )
     ui_color = BigQueryUIColors.CHECK.value
     conn_id_field = "gcp_conn_id"
@@ -549,7 +588,7 @@ class BigQueryIntervalCheckOperator(
         date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
         gcp_conn_id: str = "google_cloud_default",
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         encryption_configuration: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -568,7 +607,7 @@ class BigQueryIntervalCheckOperator(
         )
 
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.encryption_configuration = encryption_configuration
         self.impersonation_chain = impersonation_chain
@@ -598,7 +637,11 @@ class BigQueryIntervalCheckOperator(
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+            hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id,
+                impersonation_chain=self.impersonation_chain,
+                use_legacy_sql=self.use_legacy_sql,
+            )
             self.log.info("Using ratio formula: %s", self.ratio_formula)
 
             if self.project_id is None:
@@ -701,7 +744,7 @@ class BigQueryColumnCheckOperator(
         encryption_configuration: dict | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -722,7 +765,7 @@ class BigQueryColumnCheckOperator(
         self.accept_none = accept_none
         self.gcp_conn_id = gcp_conn_id
         self.encryption_configuration = encryption_configuration
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -842,7 +885,7 @@ class BigQueryTableCheckOperator(
         partition_clause: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         project_id: str = PROVIDE_PROJECT_ID,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -851,7 +894,7 @@ class BigQueryTableCheckOperator(
     ) -> None:
         super().__init__(table=table, checks=checks, partition_clause=partition_clause, **kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.labels = labels
@@ -974,8 +1017,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         Mutually exclusive with table_id. (templated)
     :param job_project_id: (Optional) Google Cloud Project where the job is running.
         If None, it will be derived from the hook's project ID. (templated)
-    :param project_id: (Deprecated) (Optional) The name of the project where the data
-        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -1011,7 +1052,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         "table_project_id",
         "job_id",
         "job_project_id",
-        "project_id",
         "max_results",
         "selected_fields",
         "gcp_conn_id",
@@ -1027,7 +1067,6 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         table_project_id: str | None = None,
         job_id: str | None = None,
         job_project_id: str | None = None,
-        project_id: str = PROVIDE_PROJECT_ID,
         max_results: int = 100,
         selected_fields: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -1037,7 +1076,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         as_dict: bool = False,
-        use_legacy_sql: bool = True,
+        use_legacy_sql: bool | ArgNotSet = NOTSET,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1053,11 +1092,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         self.location = location
         self.impersonation_chain = impersonation_chain
         self.encryption_configuration = encryption_configuration
-        self.project_id = project_id
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
-        self.use_legacy_sql = use_legacy_sql
+        self.use_legacy_sql = _resolve_use_legacy_sql(use_legacy_sql)
 
     def _submit_job(
         self,
@@ -1090,21 +1128,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
         )
         return query
 
-    """Deprecated method to assign project_id to table_project_id."""
-
-    @deprecated(
-        planned_removal_date="June 30, 2026",
-        use_instead="table_project_id",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def _assign_project_id(self, project_id: str) -> str:
-        return project_id
-
     def execute(self, context: Context):
-        if self.project_id != PROVIDE_PROJECT_ID and not self.table_project_id:
-            self.table_project_id = self._assign_project_id(self.project_id)
-        elif self.project_id != PROVIDE_PROJECT_ID and self.table_project_id:
-            self.log.info("Ignoring 'project_id' parameter, as 'table_project_id' is found.")
         if not exactly_one(self.job_id, self.table_id):
             raise AirflowException(
                 "'job_id' and 'table_id' parameters are mutually exclusive, "
@@ -1262,6 +1286,7 @@ class BigQueryCreateTableOperator(GoogleCloudBaseOperator):
         "gcs_schema_object",
         "gcp_conn_id",
         "impersonation_chain",
+        "google_cloud_storage_conn_id",
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
@@ -2225,7 +2250,9 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
         return OperatorLineage(outputs=[output_dataset])
 
 
-class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin):
+class BigQueryInsertJobOperator(
+    ResumableJobMixin, GoogleCloudBaseOperator, _BigQueryInsertJobOperatorOpenLineageMixin
+):
     """
     Execute a BigQuery job.
 
@@ -2278,6 +2305,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     :param deferrable: Run operator in the deferrable mode
     :param poll_interval: (Deferrable mode only) polling period in seconds to check for the status of job.
         Defaults to 4 seconds.
+    :param durable: In synchronous mode, when ``True`` (the default), the submitted BigQuery job id and
+        location are persisted to task state before polling begins. On retry, the operator uses the saved
+        id to reconnect to the existing job rather than submitting a duplicate, regardless of ``force_rerun``.
+        Set to ``False`` to always submit fresh on retry.
+        Requires Airflow 3.3+; no-op on earlier versions.
     """
 
     template_fields: Sequence[str] = (
@@ -2294,6 +2326,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
     template_fields_renderers = {"configuration": "json", "configuration.query.query": "sql"}
     ui_color = BigQueryUIColors.QUERY.value
     operator_extra_links = (BigQueryTableLink(), BigQueryJobDetailLink())
+    external_id_key = "bigquery_job_id"
 
     def __init__(
         self,
@@ -2310,12 +2343,18 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         result_timeout: float | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
+        durable: bool | None = None,
         **kwargs,
     ) -> None:
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         super().__init__(**kwargs)
         self.configuration = configuration
         self.location = location
         self.job_id = job_id
+        self._configured_job_id: str | None = None
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.force_rerun = force_rerun
@@ -2387,6 +2426,56 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         if job.state != "DONE":
             raise AirflowException(f"Job failed with state: {job.state}")
 
+    def _persist_job_links(self, job: BigQueryJob | UnknownJob, context: Any) -> None:
+        location = job.location or self.location
+        job_types = {
+            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            ExtractJob._JOB_TYPE: ["sourceTable"],
+            QueryJob._JOB_TYPE: ["destinationTable"],
+        }
+
+        if self.project_id:
+            for job_type, tables_prop in job_types.items():
+                job_configuration = job.to_api_repr()["configuration"]
+                if job_type in job_configuration:
+                    for table_prop in tables_prop:
+                        if table_prop in job_configuration[job_type]:
+                            table = job_configuration[job_type][table_prop]
+                            persist_kwargs = {
+                                "context": context,
+                                "project_id": self.project_id,
+                                "table_id": table,
+                            }
+                            if not isinstance(table, str):
+                                persist_kwargs["table_id"] = table["tableId"]
+                                persist_kwargs["dataset_id"] = table["datasetId"]
+                                persist_kwargs["project_id"] = table["projectId"]
+                            BigQueryTableLink.persist(**persist_kwargs)
+
+        self.job_id = job.job_id
+        if self.project_id:
+            job_id_path = convert_job_id(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=location,
+            )
+            warnings.warn(
+                "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
+                "future provider release. Use the operator return value or BigQuery job extra link instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+
+        persist_kwargs = {
+            "context": context,
+            "project_id": self.project_id,
+            "location": location,
+            "job_id": self.job_id,
+        }
+        BigQueryJobDetailLink.persist(**persist_kwargs)
+
     def _submit_new_job_on_retry(
         self,
         context: Any,
@@ -2407,6 +2496,34 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         return job
 
     def execute(self, context: Any):
+        self._configured_job_id = self.job_id
+        if not self.deferrable:
+            self.execute_resumable(context)
+            return self.job_id
+
+        self.job_id = self.submit_job(context)
+        job = self._job
+
+        if job.running():
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BigQueryInsertJobTrigger(
+                    conn_id=self.gcp_conn_id,
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=job.location or self.location or self.hook.location,  # type: ignore[union-attr]
+                    poll_interval=self.poll_interval,
+                    impersonation_chain=self.impersonation_chain,
+                    cancel_on_kill=self.cancel_on_kill,
+                ),
+                method_name="execute_complete",
+            )
+        self.log.info("Current state of job %s is %s", job.job_id, job.state)
+        self._handle_job_error(job)
+        return self.job_id
+
+    def submit_job(self, context: Any) -> str:
+        """Submit the job (or reattach per today's Conflict/reattach_states/429 rules) and return its id."""
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2424,11 +2541,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         # To maintain backward compatibility, the try_number is appended to the job name
         # only starting from the 2nd attempt.
         ti_try_number = None
-        if self.job_id is None and context["ti"].try_number > 2:
+        if self._configured_job_id is None and context["ti"].try_number > 2:
             ti_try_number = context["ti"].try_number - 1
 
         self.job_id = hook.generate_job_id(
-            job_id=self.job_id,
+            job_id=self._configured_job_id,
             dag_id=self.dag_id,
             task_id=self.task_id,
             logical_date=None,
@@ -2439,7 +2556,9 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         )
 
         try:
-            self.log.info("Executing: %s'", self.configuration)
+            self.log.info("Executing: %s", self.configuration)
+            if self.sql:
+                self.log.info("SQL query:\n%s", self.sql)
             # Create a job
             if self.job_id is None:
                 raise ValueError("job_id cannot be None")
@@ -2479,77 +2598,66 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
                 # We are reattaching to a job
                 self.log.info("Reattaching to existing Job in state %s", job.state)
 
-        job_types = {
-            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
-            ExtractJob._JOB_TYPE: ["sourceTable"],
-            QueryJob._JOB_TYPE: ["destinationTable"],
-        }
+        self._job = job
+        self._persist_job_links(job, context)
+        if (
+            self.durable
+            and not self.deferrable
+            and (task_store := context.get("task_state_store")) is not None
+        ):
+            # The mixin checkpoints the ID separately, so bind this location to its job ID.
+            task_store.set("bigquery_job_location", {"job_id": job.job_id, "location": job.location})
+        return job.job_id
 
-        if self.project_id:
-            for job_type, tables_prop in job_types.items():
-                job_configuration = job.to_api_repr()["configuration"]
-                if job_type in job_configuration:
-                    for table_prop in tables_prop:
-                        if table_prop in job_configuration[job_type]:
-                            table = job_configuration[job_type][table_prop]
-                            persist_kwargs = {
-                                "context": context,
-                                "project_id": self.project_id,
-                                "table_id": table,
-                            }
-                            if not isinstance(table, str):
-                                persist_kwargs["table_id"] = table["tableId"]
-                                persist_kwargs["dataset_id"] = table["datasetId"]
-                                persist_kwargs["project_id"] = table["projectId"]
-                            BigQueryTableLink.persist(**persist_kwargs)
-
-        self.job_id = job.job_id
-        if self.project_id:
-            job_id_path = convert_job_id(
-                job_id=self.job_id,
-                project_id=self.project_id,
-                location=self.location,
+    def get_job_status(self, external_id: JsonValue, context: Any) -> str:
+        """Query the raw job status; a missing job degrades to a not_found sentinel."""
+        job_id = str(external_id)
+        # On reconnect/already-succeeded, submit_job never runs, so hook/project_id normally
+        # resolved there must be resolved here too.
+        if self.hook is None:
+            self.hook = BigQueryHook(
+                gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
             )
-            warnings.warn(
-                "BigQueryInsertJobOperator's `job_id_path` XCom is deprecated and will be removed in a "
-                "future provider release. Use the operator return value or BigQuery job extra link instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
+        if self.project_id is None:
+            self.project_id = self.hook.project_id
 
-        persist_kwargs = {
-            "context": context,
-            "project_id": self.project_id,
-            "location": self.location,
-            "job_id": self.job_id,
-        }
-        BigQueryJobDetailLink.persist(**persist_kwargs)
+        location = self.location
+        if self.durable and (task_store := context.get("task_state_store")) is not None:
+            saved_location = task_store.get("bigquery_job_location")
+            if (
+                isinstance(saved_location, dict)
+                and saved_location.get("job_id") == job_id
+                and isinstance(saved_location.get("location"), str)
+            ):
+                location = saved_location["location"]
 
-        # Wait for the job to complete
-        if not self.deferrable:
-            job.result(timeout=self.result_timeout, retry=self.result_retry)
-            self._handle_job_error(job)
-            return self.job_id
+        try:
+            job = self.hook.get_job(project_id=self.project_id, location=location, job_id=job_id)
+        except NotFound:
+            return "not_found"
+        # Reuse the same link bookkeeping as submit_job: this is the only place a job object is
+        # obtained when reconnecting to (or finding already-succeeded) a previously stored id.
+        self._job = job
+        self._persist_job_links(job, context)
+        if job.state != "DONE":
+            return job.state
+        return "error" if job.error_result else "success"
 
-        if job.running():
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryInsertJobTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=self.job_id,
-                    project_id=self.project_id,
-                    location=self.location or hook.location,
-                    poll_interval=self.poll_interval,
-                    impersonation_chain=self.impersonation_chain,
-                    cancel_on_kill=self.cancel_on_kill,
-                ),
-                method_name="execute_complete",
-            )
-        self.log.info("Current state of job %s is %s", job.job_id, job.state)
+    def is_job_active(self, status: str) -> bool:
+        return status not in ("success", "error", "not_found")
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return status == "success"
+
+    def poll_until_complete(self, external_id: JsonValue, context: Any) -> None:
+        # self._job is set by whichever of submit_job / get_job_status last obtained it,
+        # never fetched again here, since neither of those calls skip setting it.
+        job = self._job
+        job.result(timeout=self.result_timeout, retry=self.result_retry)
         self._handle_job_error(job)
-        return self.job_id
+
+    def get_job_result(self, external_id: JsonValue, context: Any) -> None:
+        return None
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> str | None:
         """
@@ -2570,10 +2678,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator, _BigQueryInsertJobOpera
         return self.job_id
 
     def on_kill(self) -> None:
-        if self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(  # type: ignore[union-attr]
-                job_id=self.job_id, project_id=self.project_id, location=self.location
-            )
+        if self.hook and self.job_id and self.cancel_on_kill:
+            location = self.location
+            job: BigQueryJob | UnknownJob | None = getattr(self, "_job", None)
+            # A replacement may be submitting while _job still refers to the previous job.
+            if job is not None and job.job_id == self.job_id:
+                location = job.location or location
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 

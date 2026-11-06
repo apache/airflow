@@ -17,6 +17,7 @@
  * under the License.
  */
 import { testConfig } from "playwright.config";
+
 import { expect } from "tests/e2e/fixtures";
 import { test } from "tests/e2e/fixtures/dashboard-data";
 
@@ -58,13 +59,13 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await homePage.activeDagsCard.click();
-    await expect(homePage.page).toHaveURL(/paused=false/);
+    await expect(homePage.page).toHaveURL(/scheduling_state=active/);
 
     await homePage.navigate();
     await homePage.waitForDashboardLoad();
 
     await homePage.runningDagsCard.click();
-    await expect(homePage.page).toHaveURL(/last_dag_run_state=running/);
+    await expect(homePage.page).toHaveURL(/dag_run_state=running/);
   });
 
   test("should display welcome heading on dashboard", async ({ homePage }) => {
@@ -72,6 +73,21 @@ test.describe("Dashboard Metrics Display", () => {
     await homePage.waitForDashboardLoad();
 
     await expect(homePage.welcomeHeading).toBeVisible();
+  });
+
+  test("verify HITL review modal opens from the Required Actions button", async ({
+    homePage,
+    pendingHITLRun,
+  }) => {
+    test.slow();
+
+    await homePage.navigate();
+    await homePage.waitForDashboardLoad();
+
+    await expect(homePage.requiredActionsButton).toBeVisible({ timeout: 30_000 });
+    await homePage.requiredActionsButton.click();
+
+    await homePage.hitlReviewModal.expectOpenWith(pendingHITLRun.dagId);
   });
 
   test("should update metrics when Dag is triggered", async ({ dagRunCleanup, dagsPage, homePage }) => {
@@ -112,5 +128,41 @@ test.describe("Dashboard Metrics Display", () => {
     test.skip(!isDagImportErrorsVisible, "No Dag import errors present in test environment");
 
     await expect(homePage.dagImportErrorsCard).toBeVisible();
+  });
+});
+
+test.describe("Dashboard Alert Clamping", () => {
+  const longText = [
+    "Long alert start",
+    ...Array.from({ length: 10 }, (_, index) => `Line ${index + 2}`),
+    "Long alert end",
+  ].join("\n\n");
+  const alerts = [
+    { category: "info" as const, text: longText },
+    { category: "warning" as const, text: "Short alert text" },
+  ];
+
+  test("clamps a tall alert and toggles its height with See more / See less", async ({ homePage }) => {
+    await homePage.mockDashboardAlerts(alerts);
+    await homePage.navigate();
+    await homePage.waitForDashboardLoad();
+
+    await expect(homePage.alertSeeMoreButton).toHaveCount(1);
+    await expect(homePage.alertSeeLessButton).toHaveCount(0);
+
+    // The tall alert's clamped content height reflects the See more / See less toggle.
+    const collapsedHeight = (await homePage.firstAlertContent.boundingBox())?.height ?? 0;
+
+    await homePage.alertSeeMoreButton.click();
+    await expect(homePage.alertSeeLessButton).toBeVisible();
+    await expect(homePage.alertSeeMoreButton).toHaveCount(0);
+
+    const expandedHeight = (await homePage.firstAlertContent.boundingBox())?.height ?? 0;
+
+    expect(expandedHeight).toBeGreaterThan(collapsedHeight);
+
+    await homePage.alertSeeLessButton.click();
+    await expect(homePage.alertSeeMoreButton).toBeVisible();
+    expect((await homePage.firstAlertContent.boundingBox())?.height ?? 0).toBeLessThan(expandedHeight);
   });
 });

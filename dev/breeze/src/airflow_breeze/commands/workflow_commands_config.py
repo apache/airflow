@@ -18,7 +18,13 @@ from __future__ import annotations
 
 WORKFLOW_RUN_COMMANDS: dict[str, str | list[str]] = {
     "name": "Airflow github actions workflow commands",
-    "commands": ["publish-docs"],
+    "commands": [
+        "publish-docs",
+        "sync-staging-to-main",
+        "release-constraints",
+        "mirror-base-images",
+        "upgrade-check",
+    ],
 }
 
 WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -45,6 +51,7 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--exclude-docs",
                 "--site-env",
                 "--skip-write-to-stable-folder",
+                "--skip-site-index-check",
             ],
         },
         {
@@ -55,3 +62,39 @@ WORKFLOW_RUN_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
     ],
 }
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run release-constraints"] = [
+    {
+        "name": "Constraints to resolve",
+        "options": [
+            "--version",
+            "--ref",
+            "--workflow-branch",
+            "--fail-on-pending-provider-candidates",
+        ],
+    },
+]
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run sync-staging-to-main"] = [
+    {
+        "name": "Confirmation",
+        "options": [
+            "--answer",
+        ],
+    },
+]
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run upgrade-check"] = [
+    {
+        "name": "Branch to upgrade",
+        "options": [
+            "--branch",
+        ],
+    },
+]
+WORKFLOW_RUN_PARAMETERS["breeze workflow-run mirror-base-images"] = [
+    {
+        "name": "Mirror flags",
+        "options": [
+            "--trigger-upgrade-check",
+            "--build-os-deps-images",
+        ],
+    },
+]

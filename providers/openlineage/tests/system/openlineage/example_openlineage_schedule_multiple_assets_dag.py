@@ -29,12 +29,14 @@ from airflow import DAG
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.standard.operators.bash import BashOperator
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_schedule_multiple_assets_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=(
@@ -44,7 +46,7 @@ with DAG(
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="sleep 10;")
+    do_nothing_task = BashOperator(task_id="do_nothing_task", bash_command="echo")
 
     check_events = OpenLineageTestOperator(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID)

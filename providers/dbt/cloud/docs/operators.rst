@@ -87,6 +87,20 @@ by providing the ``project_name``, ``environment_name``, and ``job_name``.
 Please note that it will only work if the above three parameters uniquely identify a job in your account
 (i.e. you cannot have two jobs with the same name in the same project and environment).
 
+Linking dbt Cloud runs to the triggering Airflow task
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Setting ``openlineage_inject_parent_job_info`` to True replaces the triggered run's ``cause`` field
+with the Airflow task's OpenLineage parent (and root) run identifiers as JSON. A consumer that reads
+dbt Cloud runs can then parse this JSON and attach a ``ParentRunFacet``, linking the dbt Cloud run back
+to the Airflow task that triggered it. This overwrites the ``trigger_reason``.
+
+The parameter defaults to the ``openlineage.spark_inject_parent_job_info`` configuration value. Because
+the dbt Cloud ``cause`` has a length limit, the injected payload is trimmed to fit: the essential
+``parent`` link is always kept, the ``root`` block is dropped if the two together do not fit, and if
+even the parent identifiers alone do not fit, injection is skipped and the original ``cause`` is left
+unchanged.
+
 .. exampleinclude:: /../tests/system/dbt/cloud/example_dbt_cloud.py
     :language: python
     :dedent: 4

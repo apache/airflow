@@ -27,6 +27,7 @@ from airflow.api_fastapi.core_api.routes.public.auth import auth_router
 from airflow.api_fastapi.core_api.routes.public.backfills import backfills_router
 from airflow.api_fastapi.core_api.routes.public.config import config_router
 from airflow.api_fastapi.core_api.routes.public.connections import connections_router
+from airflow.api_fastapi.core_api.routes.public.dag_bundles import dag_bundles_router
 from airflow.api_fastapi.core_api.routes.public.dag_parsing import dag_parsing_router
 from airflow.api_fastapi.core_api.routes.public.dag_run import dag_run_at_dag_router, dag_run_router
 from airflow.api_fastapi.core_api.routes.public.dag_sources import dag_sources_router
@@ -48,6 +49,7 @@ from airflow.api_fastapi.core_api.routes.public.providers import providers_route
 from airflow.api_fastapi.core_api.routes.public.task_instances import task_instances_router
 from airflow.api_fastapi.core_api.routes.public.task_state_store import task_state_store_router
 from airflow.api_fastapi.core_api.routes.public.tasks import tasks_router
+from airflow.api_fastapi.core_api.routes.public.triggers import triggers_router
 from airflow.api_fastapi.core_api.routes.public.variables import variables_router
 from airflow.api_fastapi.core_api.routes.public.version import version_router
 from airflow.api_fastapi.core_api.routes.public.xcom import xcom_router
@@ -71,6 +73,7 @@ authenticated_router.include_router(connections_router)
 authenticated_router.include_router(dag_run_router)
 authenticated_router.include_router(dag_run_at_dag_router)
 authenticated_router.include_router(dag_sources_router)
+authenticated_router.include_router(dag_bundles_router)
 authenticated_router.include_router(dag_stats_router)
 authenticated_router.include_router(config_router)
 authenticated_router.include_router(dag_warning_router)
@@ -87,6 +90,7 @@ authenticated_router.include_router(task_state_store_router)
 authenticated_router.include_router(xcom_router)
 authenticated_router.include_router(task_instances_router)
 authenticated_router.include_router(tasks_router)
+authenticated_router.include_router(triggers_router)
 authenticated_router.include_router(variables_router)
 authenticated_router.include_router(task_instances_log_router)
 authenticated_router.include_router(dag_parsing_router)

@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { MouseEvent } from "react";
+
 import { Box, chakra, Flex, Link } from "@chakra-ui/react";
 import type { VirtualItem } from "@tanstack/react-virtual";
-import type { MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { FiChevronUp } from "react-icons/fi";
 import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom";
 
+import type { GridTISummaries } from "openapi/requests";
+
 import { TaskName } from "src/components/TaskName";
+
 import { useGroups } from "src/context/groups";
-import { useHover } from "src/context/hover";
+import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 
 import { ROW_HEIGHT } from "./constants";
 import type { GridTask } from "./utils";
@@ -34,27 +38,17 @@ type Props = {
   readonly depth?: number;
   readonly nodes: Array<GridTask>;
   readonly onRowClick?: () => void;
+  readonly tiSummaries?: GridTISummaries;
   readonly virtualItems?: Array<VirtualItem>;
 };
 
 const indent = (depth: number) => `${depth * 0.75 + 0.5}rem`;
 
-export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
+export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const { hoveredTaskId, setHoveredTaskId } = useHover();
   const { toggleGroupId } = useGroups();
   const { dagId = "", groupId, taskId } = useParams();
   const [searchParams] = useSearchParams();
-
-  const handleMouseEnter = (event: MouseEvent<HTMLDivElement>) => {
-    const { nodeId } = event.currentTarget.dataset;
-
-    if (nodeId !== undefined) {
-      setHoveredTaskId(nodeId);
-    }
-  };
-
-  const handleMouseLeave = () => setHoveredTaskId(undefined);
 
   const handleToggleGroup = (event: MouseEvent<HTMLSpanElement>) => {
     event.preventDefault();
@@ -82,7 +76,18 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
     onRowClick?.();
   };
 
-  const search = searchParams.toString();
+  const baseSearchParams = stripExecutionParams(searchParams);
+  // A task inside a loop has one row per iteration, so its link needs a coordinate or the API
+  // cannot say which one is meant. The grid shows the task once, so point at the newest.
+  const searchFor = (nodeId: string) => {
+    const summary = tiSummaries?.task_instances.find((ti) => ti.task_id === nodeId);
+
+    return setExecutionCoordinates(
+      new URLSearchParams(baseSearchParams),
+      summary?.latest_region_id,
+      summary?.latest_region_index,
+    ).toString();
+  };
 
   // If virtualItems is provided, use virtualization; otherwise render all items
   const itemsToRender =
@@ -98,23 +103,22 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
         }
 
         const isSelected = node.id === taskId || node.id === groupId;
-        const isHovered = hoveredTaskId === node.id;
 
         return (
           <Box
-            bg={isSelected ? "brand.emphasized" : isHovered ? "brand.muted" : undefined}
+            bg={isSelected ? "brand.emphasized" : undefined}
             borderBottomWidth={1}
             borderColor={node.isGroup ? "border.emphasized" : "border"}
             borderTopWidth={virtualItem.index === 0 ? 1 : 0}
             cursor="pointer"
             data-node-id={node.id}
+            data-selected={isSelected}
+            data-task-id={node.id}
             data-testid={`task-${node.id.replaceAll(".", "-")}`}
             height={`${ROW_HEIGHT}px`}
             id={`task-${node.id.replaceAll(".", "-")}`}
             key={node.id}
             left={0}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
             position="absolute"
             right={0}
             top={0}
@@ -122,7 +126,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
             transition="background-color 0.2s"
           >
             {node.isGroup ? (
-              <Link asChild data-testid={node.id} display="block" width="100%">
+              <Link
+                _hover={{ textDecoration: "none" }}
+                asChild
+                data-testid={node.id}
+                display="block"
+                width="100%"
+              >
                 <RouterLink
                   data-group-id={node.id}
                   onClick={onClick}
@@ -130,7 +140,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                   style={{ outline: "none" }}
                   to={{
                     pathname: `/dags/${dagId}/tasks/group/${node.id}`,
-                    search,
+                    search: searchFor(node.id),
                   }}
                 >
                   <Flex alignItems="center" width="100%">
@@ -138,6 +148,7 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                       fontSize="sm"
                       fontWeight="normal"
                       isGroup={true}
+                      isLoop={Boolean(node.is_loop)}
                       isMapped={Boolean(node.is_mapped)}
                       label={node.label}
                       paddingLeft={indent(node.depth)}
@@ -166,13 +177,13 @@ export const TaskNames = ({ nodes, onRowClick, virtualItems }: Props) => {
                 </RouterLink>
               </Link>
             ) : (
-              <Link asChild data-testid={node.id} display="inline">
+              <Link _hover={{ textDecoration: "none" }} asChild data-testid={node.id} display="inline">
                 <RouterLink
                   onClick={onRowClick}
                   replace
                   to={{
                     pathname: `/dags/${dagId}/tasks/${node.id}`,
-                    search,
+                    search: searchFor(node.id),
                   }}
                 >
                   <TaskName

@@ -18,7 +18,7 @@
 Simple DAG with task group dependency
 
 It checks:
-    - task's `task_group` attr
+    - task's `task_group` attr, with its `unique_group_id`
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 
 try:
@@ -33,19 +34,22 @@ try:
 except ImportError:
     from airflow.utils.task_group import TaskGroup  # type: ignore[no-redef]
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
 DAG_ID = "openlineage_task_groups_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    task_0 = PythonOperator(task_id="task_0", python_callable=lambda: print("task 0"))
+    # Only the upstream of the task groups, its events are not checked: an EmptyOperator never uses a worker slot
+    task_0 = EmptyOperator(task_id="task_0")
 
     with TaskGroup("tg1") as tg1:
         task_1 = PythonOperator(task_id="task_1", python_callable=lambda: print("task 1"))

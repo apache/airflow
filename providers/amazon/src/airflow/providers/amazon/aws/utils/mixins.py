@@ -28,9 +28,7 @@ This module contains different mixin classes for internal use within the Amazon 
 from __future__ import annotations
 
 from functools import cache, cached_property
-from typing import Any, Generic, NamedTuple, TypeVar
-
-from typing_extensions import final
+from typing import Any, Generic, NamedTuple, TypeVar, final
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 

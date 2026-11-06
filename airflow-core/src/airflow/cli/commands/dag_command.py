@@ -30,23 +30,22 @@ import subprocess
 import sys
 from typing import TYPE_CHECKING, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
+from airflow.api.client import get_current_api_client
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
-from airflow.cli.api_client import NEW_API_CLIENT, Client, provide_api_client
 from airflow.cli.simple_table import AirflowConsole
 from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.dag_processing.bundles.base import unpack_bundle_version
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, sync_bag_to_db
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import clear_task_instances
+from airflow.models.taskinstance import clear_task_instances_for_runs
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -57,9 +56,10 @@ from airflow.utils.cli import (
 )
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.helpers import ask_yesno, chunks
+from airflow.utils.platform import getuser
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -69,6 +69,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow import DAG
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.timetables.base import DagRunInfo
 
@@ -80,46 +81,55 @@ log = logging.getLogger(__name__)
 _RUN_CHUNK_SIZE = 500
 
 
-@cli_utils.action_cli
 @deprecated_for_airflowctl("airflowctl dags trigger")
-@providers_configuration_loaded
-@provide_api_client
-def dag_trigger(args, api_client: Client = NEW_API_CLIENT) -> None:
-    """Create a dag run for the specified dag."""
-    run_conf = json.loads(args.conf) if args.conf is not None else None
-    if run_conf is not None and not isinstance(run_conf, dict):
-        raise ValueError("DagRun conf must be a JSON object or null")
-    # The core_api request models are the source of truth; they are wire-compatible with
-    # the airflowctl client's generated models (the API server uses populate_by_name).
-    trigger_body = TriggerDAGRunPostBody(
-        dag_run_id=args.run_id,
-        conf=run_conf,
-        logical_date=args.logical_date,
-    )
-    dag_run = api_client.dags.trigger(dag_id=args.dag_id, trigger_dag_run=trigger_body)  # type: ignore[arg-type]
-    AirflowConsole().print_as(
-        data=[dag_run.model_dump(mode="json")],
-        output=args.output,
-    )
-
-
 @cli_utils.action_cli
-@deprecated_for_airflowctl("airflowctl dags delete")
 @providers_configuration_loaded
-@provide_api_client
-def dag_delete(args, api_client: Client = NEW_API_CLIENT) -> None:
+def dag_trigger(args) -> None:
+    """Create a dag run for the specified dag."""
+    api_client = get_current_api_client()
+    try:
+        user = getuser()
+    except AirflowConfigException as e:
+        log.warning("Failed to get user name from os: %s, not setting the triggering user", e)
+        user = None
+    try:
+        message = api_client.trigger_dag(
+            dag_id=args.dag_id,
+            run_id=args.run_id,
+            conf=args.conf,
+            logical_date=args.logical_date,
+            triggering_user_name=user,
+            replace_microseconds=args.replace_microseconds,
+        )
+        AirflowConsole().print_as(
+            data=[message] if message is not None else [],
+            output=args.output,
+        )
+    except OSError as err:
+        raise AirflowException(err)
+
+
+@deprecated_for_airflowctl("airflowctl dags delete")
+@cli_utils.action_cli
+@providers_configuration_loaded
+def dag_delete(args) -> None:
     """Delete all DB records related to the specified dag."""
+    api_client = get_current_api_client()
     if (
         args.yes
         or input("This will drop all existing records related to the specified DAG. Proceed? (y/n)").upper()
         == "Y"
     ):
-        api_client.dags.delete(dag_id=args.dag_id)
-        print(f"Removed DAG {args.dag_id}")
+        try:
+            message = api_client.delete_dag(dag_id=args.dag_id)
+            print(message)
+        except OSError as err:
+            raise AirflowException(err)
     else:
         print("Cancelled")
 
 
+@deprecated_for_airflowctl("airflowctl dags clear")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -127,12 +137,11 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
     """
     Clear Dag runs selected by run_id, partition_key, or a partition_date window.
 
-    When a partition_date window is given, both bounds are **day-granular** and
-    anchored in the timetable's timezone for tz-aware partitioned timetables.
-    --partition-date-start is the inclusive start local calendar day;
-    --partition-date-end is the inclusive end local calendar day (any
-    time-of-day or timezone-offset component in either value is ignored; only
-    the calendar date is used).
+    When a partition_date window is given, both bounds are interpreted in the
+    timetable's local timezone.
+    --partition-date-start is the inclusive start; --partition-date-end is the
+    inclusive end.  A date-only value (no time component) is treated as local
+    midnight of that date.
     """
     has_range = args.partition_date_start is not None or args.partition_date_end is not None
     selectors_used = sum([args.run_id is not None, args.partition_key is not None, has_range])
@@ -164,14 +173,12 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         query = query.where(DagRun.partition_key == args.partition_key)
     else:
         query = query.where(DagRun.partition_date.is_not(None))
-        if args.partition_date_start is not None:
-            lower = dag.timetable.resolve_day_bound(args.partition_date_start.date())
-            query = query.where(DagRun.partition_date >= lower)
-        if args.partition_date_end is not None:
-            upper = dag.timetable.resolve_day_bound(
-                args.partition_date_end.date() + datetime.timedelta(days=1)
-            )
-            query = query.where(DagRun.partition_date < upper)
+        query = DagRun.apply_partition_date_window(
+            query,
+            timetable=dag.timetable,
+            start=args.partition_date_start,
+            end=args.partition_date_end,
+        )
     query = query.order_by(DagRun.partition_date, DagRun.run_id)
 
     runs = list(session.execute(query).all())
@@ -228,7 +235,12 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
+            later_loop_iterations=not state_filter,
+            whole_task_keys=() if state_filter else {(ti.dag_id, ti.run_id, ti.task_id) for ti in tis},
+        )
         session.flush()
         cleared += len(tis)
 
@@ -236,38 +248,47 @@ def _bulk_clear_runs(
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags pause")
 @providers_configuration_loaded
-def dag_pause(args) -> None:
+def dag_pause(args, dag: DAG | None = None) -> None:
     """Pauses a DAG."""
-    set_is_paused(True, args)
+    set_is_paused(True, args, dag)
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags unpause")
 @providers_configuration_loaded
-def dag_unpause(args) -> None:
+def dag_unpause(args, dag: DAG | None = None) -> None:
     """Unpauses a DAG."""
-    set_is_paused(False, args)
+    set_is_paused(False, args, dag)
 
 
 @providers_configuration_loaded
 @provide_session
-def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> None:
+def set_is_paused(is_paused: bool, args, dag: DAG | None = None, *, session: Session = NEW_SESSION) -> None:
     """Set is_paused for DAG by a given dag_id."""
+    if dag:
+        # A Dag object fully determines the target, so pattern matching has nothing left to match on.
+        args.dag_id = dag.dag_id
+        args.treat_dag_id_as_regex = False
     query = select(DagModel)
     if args.treat_dag_id_as_regex:
         query = query.where(DagModel.dag_id.regexp_match(args.dag_id))
     else:
         query = query.where(DagModel.dag_id == args.dag_id)
 
-    query = query.where(DagModel.is_paused != is_paused)
+    query = query.where(or_(DagModel.is_paused != is_paused, DagModel.is_draining))
 
     matched_dags = list(session.scalars(query).all())
     if not matched_dags:
-        print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        if args.output in ("table", "plain"):
+            print(f"No {'un' if is_paused else ''}paused DAGs were found")
+        else:
+            AirflowConsole().print_as(data=[], output=args.output)
         return
 
     if not args.yes and args.treat_dag_id_as_regex:
-        dags_ids = [dag.dag_id for dag in matched_dags]
+        dags_ids = [dag_model.dag_id for dag_model in matched_dags]
         question = (
             f"You are about to {'un' if not is_paused else ''}pause {len(dags_ids)} DAGs:\n"
             f"{','.join(dags_ids)}"
@@ -279,7 +300,7 @@ def set_is_paused(is_paused: bool, args, *, session: Session = NEW_SESSION) -> N
 
     def _update_is_paused(dag_model: DagModel) -> bool:
         old_is_paused = dag_model.is_paused
-        dag_model.is_paused = is_paused
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED if is_paused else DagSchedulingState.ACTIVE)
         return old_is_paused
 
     old_values = [
@@ -359,7 +380,7 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
     print(f"File {filename} saved")
 
 
-def _get_dagbag_dag_details(dag: DAG) -> dict:
+def _get_dagbag_dag_details(dag: BaggedDAG) -> dict:
     """Return a dagbag dag details dict."""
     from airflow.serialization.encoders import coerce_to_core_timetable
 
@@ -370,6 +391,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "bundle_name": None,
         "bundle_version": None,
         "is_paused": None,
+        "scheduling_state": None,
         "is_stale": None,
         "last_parsed_time": None,
         "last_parse_duration": None,
@@ -401,6 +423,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     }
 
 
+@deprecated_for_airflowctl("airflowctl dags state")
 @cli_utils.action_cli
 @providers_configuration_loaded
 @provide_session
@@ -430,6 +453,7 @@ def dag_state(args, *, session: Session = NEW_SESSION) -> None:
         print(dr.state)
 
 
+@deprecated_for_airflowctl("airflowctl dags next-execution")
 @cli_utils.action_cli
 @providers_configuration_loaded
 def dag_next_execution(args) -> None:
@@ -521,6 +545,7 @@ def dag_next_execution(args) -> None:
             print(value)
 
 
+@deprecated_for_airflowctl("airflowctl dags list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -552,6 +577,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
+                    bundle.initialize()
                     bundle_dagbag = BundleDagBag(
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )
@@ -564,7 +590,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             dags_list.extend(list(dagbag.dags.values()))
             dagbag_import_errors += len(dagbag.import_errors)
     else:
-        dags_list.extend(cast("DAG", sm.dag) for sm in session.scalars(select(SerializedDagModel)))
+        dags_list.extend(
+            cast("DAG", dag) for dag in SerializedDagModel.read_all_dags(session=session).values()
+        )
         pie_stmt = select(func.count()).select_from(ParseImportError)
         if args.bundle_name:
             pie_stmt = pie_stmt.where(ParseImportError.bundle_name.in_(args.bundle_name))
@@ -579,7 +607,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             file=sys.stderr,
         )
 
-    def get_dag_detail(dag: DAG) -> dict:
+    def get_dag_detail(dag: BaggedDAG) -> dict:
         if dag_model := DagModel.get_dagmodel(dag.dag_id, session=session):
             dag_detail = DAGResponse.model_validate(dag_model, from_attributes=True).model_dump()
         else:
@@ -588,7 +616,9 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
             return dag_detail
         return {col: dag_detail[col] for col in cols if col in DAG_DETAIL_FIELDS}
 
-    def filter_dags_by_bundle(dags: Iterable[DAG], bundle_names: list[str] | None) -> Iterable[DAG]:
+    def filter_dags_by_bundle(
+        dags: Iterable[BaggedDAG], bundle_names: list[str] | None
+    ) -> Iterable[BaggedDAG]:
         """Filter DAGs based on the specified bundle name, if provided."""
         if not bundle_names:
             return dags
@@ -609,6 +639,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl dags get-details")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -632,6 +663,7 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl dags list-import-errors")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 @provide_session
@@ -650,6 +682,7 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
+                    bundle.initialize()
                     bundle_dagbag = BundleDagBag(
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )
@@ -720,6 +753,7 @@ def dag_report(args) -> None:
     )
 
 
+@deprecated_for_airflowctl("airflowctl jobs list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -751,6 +785,7 @@ def dag_list_jobs(args, dag: DAG | None = None, *, session: Session = NEW_SESSIO
     )
 
 
+@deprecated_for_airflowctl("airflowctl dagrun list")
 @cli_utils.action_cli
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -775,6 +810,10 @@ def dag_list_dag_runs(args, dag: DAG | None = None, *, session: Session = NEW_SE
         session=session,
     )
     dag_runs.sort(key=operator.attrgetter("run_after"), reverse=True)
+    # Slice after sorting so `--limit` reliably returns the most recent runs,
+    # independent of insertion order in DagRun.find().
+    if getattr(args, "limit", None):
+        dag_runs = dag_runs[: args.limit]
 
     def _render_dagrun(dr: DagRun) -> dict[str, str]:
         return {
@@ -830,7 +869,7 @@ def dag_test(args, dag: DAG | None = None, *, session: Session = NEW_SESSION) ->
     if show_dagrun or imgcat or filename:
         tis = session.scalars(
             select(TaskInstance).where(
-                TaskInstance.dag_id == args.dag_id,
+                TaskInstance.dag_id == dag.dag_id,
                 TaskInstance.run_id == dr.run_id,
             )
         ).all()

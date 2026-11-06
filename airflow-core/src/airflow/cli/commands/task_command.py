@@ -23,20 +23,32 @@ import importlib
 import json
 import logging
 import os
+import re
 import textwrap
 from contextlib import redirect_stdout
 from typing import TYPE_CHECKING, Protocol, cast
 
+import uuid6
+from sqlalchemy import select
+
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import fetch_dag_run_from_run_id_or_logical_date_string
+from airflow.cli.utils import deprecated_for_airflowctl, fetch_dag_run_from_run_id_or_logical_date_string
 from airflow.exceptions import AirflowConfigException, DagRunNotFound, NotMapped, TaskInstanceNotFound
 from airflow.models import TaskInstance
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, get_or_create_dagrun
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_coordinates import (
+    TaskCoordinateResolver,
+    enclosing_loop,
+    mapped_region_expression,
+    public_map_index_expression,
+)
 from airflow.sdk.definitions.dag import DAG, _run_task
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.serialization.definitions.dag import SerializedDAG
@@ -62,6 +74,7 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm.session import Session
 
+    from airflow.dag_processing.dagbag import BaggedDAG
     from airflow.sdk import Context
     from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import Operator
@@ -183,6 +196,8 @@ def _get_ti(
 
     if not logical_date_or_run_id and not create_if_necessary:
         raise ValueError("Must provide `logical_date_or_run_id` if not `create_if_necessary`.")
+    if enclosing_loop(task) is not None:
+        raise ValueError("A loop task requires an explicit region scope")
     if task.get_needs_expansion():
         if map_index < 0:
             raise RuntimeError("No map_index passed to mapped task")
@@ -195,7 +210,13 @@ def _get_ti(
         session=session,
     )
 
-    ti_or_none = dag_run.get_task_instance(task.task_id, map_index=map_index, session=session)
+    producers = TaskCoordinateResolver(DBDagBag(), session).resolve(
+        dag_id=dag_run.dag_id,
+        run_id=dag_run.run_id,
+        task_id=task.task_id,
+        map_indexes=map_index,
+    )
+    ti_or_none = producers[0] if producers else None
     ti: TaskInstance
     if ti_or_none is None:
         if not create_if_necessary:
@@ -221,7 +242,46 @@ def _get_ti(
             raise ValueError(
                 f"Cannot create TaskInstance for {dag.dag_id} because the Dag is not serialized."
             )
-        ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index, dag_version_id=dag_version.id)
+        region_id = SENTINEL_REGION_ID
+        if map_index >= 0:
+            existing_region_id = session.scalar(
+                select(DynamicRegion.id)
+                .where(
+                    DynamicRegion.dag_id == dag.dag_id,
+                    DynamicRegion.run_id == dag_run.run_id,
+                    DynamicRegion.node_id == task.task_id,
+                )
+                .order_by(DynamicRegion.id.desc())
+                .limit(1)
+            )
+            has_legacy_instances = existing_region_id is None and session.scalar(
+                select(
+                    select(TaskInstance.id)
+                    .where(
+                        TaskInstance.working_set.is_(True),
+                        TaskInstance.dag_id == dag.dag_id,
+                        TaskInstance.run_id == dag_run.run_id,
+                        TaskInstance.task_id == task.task_id,
+                    )
+                    .exists()
+                )
+            )
+            if existing_region_id is not None:
+                region_id = existing_region_id
+            elif not has_legacy_instances:
+                if dag_run in session:
+                    region_id = DynamicRegion.get_or_create(
+                        dag_id=dag.dag_id, run_id=dag_run.run_id, node_id=task.task_id, session=session
+                    ).id
+                else:
+                    region_id = uuid6.uuid7()
+        ti = TaskInstance(
+            task,
+            run_id=dag_run.run_id,
+            region_id=region_id,
+            region_index=map_index,
+            dag_version_id=dag_version.id,
+        )
         if dag_run in session:
             session.add(ti)
         ti.dag_run = dag_run
@@ -241,11 +301,22 @@ def _get_ti(
 
 
 def _get_template_context(ti: TaskInstance, task: SdkOperator) -> Context:
-    from airflow.api_fastapi.execution_api.datamodels.taskinstance import DagRun, TaskInstance, TIRunContext
+    from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        DagRun,
+        TaskInstance,
+        TIRunContext,
+        task_instance_to_runtime,
+    )
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
     runtime_ti = RuntimeTaskInstance.model_construct(
-        **TaskInstance.model_validate(ti, from_attributes=True).model_dump(exclude_unset=True),
+        **task_instance_to_runtime(
+            ti,
+            model=TaskInstance,
+            map_index=ti.region_index
+            if ti.region_id == SENTINEL_REGION_ID or task.get_needs_expansion()
+            else -1,
+        ).model_dump(exclude_unset=True),
         task=task,
         _ti_context_from_server=TIRunContext(
             dag_run=DagRun.model_validate(ti.dag_run, from_attributes=True),
@@ -262,6 +333,7 @@ class TaskCommandMarker:
     """Marker for listener hooks, to properly detect from which component they are called."""
 
 
+@deprecated_for_airflowctl("airflowctl tasks failed-deps")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_failed_deps(args) -> None:
@@ -290,6 +362,7 @@ def task_failed_deps(args) -> None:
         print("Task instance dependencies are all met.")
 
 
+@deprecated_for_airflowctl("airflowctl tasks state")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -307,12 +380,13 @@ def task_state(args) -> None:
     print(ti.state)
 
 
+@deprecated_for_airflowctl("airflowctl tasks list")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
-def task_list(args, dag: DAG | None = None) -> None:
+def task_list(args, dag: BaggedDAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
-    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id)
+    dag = dag or get_bagged_dag(args.bundle_name, args.dag_id, allow_lang_sdk_dag=True)
     tasks = sorted(t.task_id for t in dag.tasks)
     print("\n".join(tasks))
 
@@ -354,6 +428,7 @@ def _guess_debugger() -> _SupportedDebugger:
     raise exc
 
 
+@deprecated_for_airflowctl("airflowctl tasks states-for-dag-run")
 @cli_utils.action_cli(check_db=False)
 @suppress_logs_and_warning
 @providers_configuration_loaded
@@ -372,7 +447,23 @@ def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
             "not found"
         )
 
-    has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
+    rows = session.execute(
+        select(
+            TaskInstance,
+            public_map_index_expression(TaskInstance),
+            mapped_region_expression(TaskInstance),
+        ).where(
+            TaskInstance.working_set.is_(True),
+            TaskInstance.dag_id == dag_run.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+        )
+    ).all()
+    task_instances = [ti for ti, _, _ in rows]
+    map_indexes = {ti.id: map_index for ti, map_index, _ in rows}
+    has_mapped_instances = any(map_index >= 0 for map_index in map_indexes.values())
+    has_loop_instances = any(
+        ti.region_id != SENTINEL_REGION_ID and not in_own_region for ti, _, in_own_region in rows
+    )
 
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
@@ -384,10 +475,14 @@ def task_states_for_dag_run(args, *, session: Session = NEW_SESSION) -> None:
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
         }
         if has_mapped_instances:
-            data["map_index"] = str(ti.map_index) if ti.map_index is not None and ti.map_index >= 0 else ""
+            map_index = map_indexes[ti.id]
+            data["map_index"] = str(map_index) if map_index >= 0 else ""
+        if has_loop_instances:
+            data["region_id"] = str(ti.region_id)
+            data["region_index"] = str(ti.region_index)
         return data
 
-    AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
+    AirflowConsole().print_as(data=task_instances, output=args.output, mapper=format_task_instance)
 
 
 @cli_utils.action_cli(check_db=False)
@@ -413,7 +508,7 @@ def task_test(args, dag: DAG | None = None) -> None:
     env_vars = {"AIRFLOW_TEST_MODE": "True"}
     if args.env_vars:
         env_vars.update(args.env_vars)
-        os.environ.update(env_vars)
+    os.environ.update(env_vars)
 
     if dag:
         sdk_dag = dag
@@ -492,11 +587,19 @@ def task_render(args, dag: DAG | None = None) -> None:
         )
 
 
+@deprecated_for_airflowctl("airflowctl tasks clear")
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def task_clear(args) -> None:
     """Clear all task instances or only those matched by regex for a DAG(s)."""
     logging.basicConfig(level=logging.INFO, format=settings.SIMPLE_LOG_FORMAT)
+    task_pattern = None
+    if args.task_regex:
+        try:
+            task_pattern = re.compile(args.task_regex)
+        except re.error as e:
+            raise SystemExit(f"Invalid --task-regex {args.task_regex!r}: {e}")
+
     if args.dag_id and not args.bundle_name and not args.dag_regex and not args.task_regex:
         dags = [get_db_dag(bundle_names=args.bundle_name, dag_id=args.dag_id)]
     else:
@@ -504,10 +607,10 @@ def task_clear(args) -> None:
         # Reading from_db because clear method still not implemented in Task SDK DAG
         dags = get_dags(args.bundle_name, args.dag_id, use_regex=args.dag_regex, from_db=True)
 
-        if args.task_regex:
+        if task_pattern:
             for idx, dag in enumerate(dags):
                 dags[idx] = dag.partial_subset(
-                    task_ids=args.task_regex,
+                    task_ids={task_id for task_id in dag.task_ids if task_pattern.search(task_id)},
                     include_downstream=args.downstream,
                     include_upstream=args.upstream,
                 )
@@ -522,15 +625,18 @@ def task_clear(args) -> None:
             dry_run=True,
         )
         if not tis:
+            print("Nothing to clear.")
             return
         if not ask_yesno(f"You are about to delete these {len(tis)} tasks:\n{tis}\n\nAre you sure? [y/n]"):
             print("Cancelled, nothing was cleared.")
             return
 
-    SerializedDAG.clear_dags(
+    cleared = SerializedDAG.clear_dags(
         dags,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
     )
+    if not cleared:
+        print("Nothing to clear.")

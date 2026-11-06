@@ -19,6 +19,7 @@
 
 .. spelling:word-list::
 
+   accessors
    subscripted
    subscripting
 
@@ -36,6 +37,30 @@ When is ``asset_state_store`` available?
 ----------------------------------------
 
 When using asset state store within a task, ``context["asset_state_store"]`` is populated for **concrete** :class:`~airflow.sdk.definitions.asset.Asset` inlets and outlets. A task must declare at least one concrete inlet or outlet for ``asset_state_store`` to contain any entries.
+
+If a task has no inlets or outlets and accesses ``context["asset_state_store"]``, a ``KeyError`` is raised at runtime. Declare at least one asset inlet or outlet on the task to use asset state store.
+
+This applies to both the ``@asset`` pattern and the ``@task`` pattern:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, DAG, asset, task
+
+    my_asset = Asset("my_data", uri="s3://bucket/my_data")
+
+
+    # @asset Dags implicitly declare the asset as an outlet
+    @asset(schedule=None)
+    def my_asset_dag(context):
+        context["asset_state_store"].set("watermark", "2024-06-01")
+
+
+    # @task within a @dag requires explicit inlets or outlets
+    with DAG("example", schedule=None):
+
+        @task(outlets=[my_asset])
+        def my_task(**context):
+            context["asset_state_store"].set("watermark", "2024-06-01")
 
 Accessing asset state store using ``context``
 ---------------------------------------------
@@ -77,7 +102,7 @@ If the task has more than one concrete inlet or outlet, calling the shorthand ra
 API reference
 -------------
 
-The following methods are available on both the per-asset accessor (``context["asset_state_store"][my_asset]``) and the shorthand (``context["asset_state_store"]``) when the task has exactly one inlet.
+The following methods are available on both the per-asset accessor (``context["asset_state_store"][my_asset]``) and the shorthand (``context["asset_state_store"]``) when the task has exactly one inlet. Each has an ``a``-prefixed async counterpart — ``aget``, ``aset``, ``adelete``, ``aclear`` — for use inside ``async`` tasks and watcher triggers.
 
 ``get(key, default)``
 ~~~~~~~~~~~~~~~~~~~~~
@@ -125,6 +150,96 @@ Deletes *all* asset state store keys for the asset.
 
     # Using context
     context["asset_state_store"][my_asset].clear()
+
+``aget``, ``aset``, ``adelete``, ``aclear``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Async counterparts of ``get``, ``set``, ``delete``, and ``clear``. They take the same arguments and behave identically to their synchronous siblings — ``aset`` has no ``retention`` parameter either — but ``await`` the round-trip to the API server instead of blocking the event loop, so a coroutine can read and advance asset state without stalling other concurrent work.
+
+.. code-block:: python
+
+    watermark = await context["asset_state_store"][my_asset].aget("watermark", default="initial_watermark")
+    await context["asset_state_store"][my_asset].aset("watermark", "2024-06-01T00:00:00Z")
+    await context["asset_state_store"][my_asset].adelete("watermark")
+    await context["asset_state_store"][my_asset].aclear()
+
+Calling the synchronous ``get``/``set``/``delete``/``clear`` from inside an ``async`` task blocks the event loop and defeats the concurrency the coroutine was written for. Use the ``a``-prefixed methods there instead.
+
+Using ``asset_state_store`` inside a Watcher Trigger
+-----------------------------------------------------
+
+:class:`~airflow.triggers.base.BaseEventTrigger` subclasses (watcher triggers) can read and write asset state store directly from within ``run()``. The triggerer injects ``self.asset_state_store`` before ``run()`` is called, scoped to the asset the trigger is watching. It is not available during ``__init__`` or ``serialize()``, only access it from within ``run()``.
+
+Unlike task-based access (where the asset is identified by an inlet or outlet declaration), the accessor in a watcher trigger is automatically bound to the watched asset, so no subscripting is needed.
+
+.. code-block:: python
+
+    import asyncio
+    from collections.abc import AsyncIterator
+    from typing import Any
+
+    from airflow.triggers.base import BaseEventTrigger, TriggerEvent
+
+
+    class PollEventsTrigger(BaseEventTrigger):
+        def __init__(self, source: str, waiter_delay: int, **kwargs):
+            super().__init__(**kwargs)
+            self.source = source
+            self.waiter_delay = waiter_delay
+
+        def serialize(self) -> tuple[str, dict[str, Any]]:
+            return (
+                f"{self.__class__.__module__}.{self.__class__.__qualname__}",
+                {"source": self.source, "waiter_delay": self.waiter_delay},
+            )
+
+        def _poll_for_new_record(self, source: str, last_seen: str) -> str | None:
+            ...  # Add logic for polling a certain source
+            return None
+
+        async def run(self) -> AsyncIterator[TriggerEvent]:
+            while True:
+                last_seen = await self.asset_state_store.aget("last_seen_id", default=0)
+                new_id = self._poll_for_new_record(
+                    source=self.source,
+                    last_seen=last_seen,
+                )
+
+                if new_id is not None:
+                    await self.asset_state_store.aset("last_seen_id", new_id)
+                    yield TriggerEvent({"status": "success", "record_id": new_id})
+                    return
+
+                await asyncio.sleep(self.waiter_delay)
+
+``run()`` is a coroutine, and every trigger on a triggerer shares one event loop, so use the async accessors there. The synchronous methods also work, but they hold the loop for the whole round-trip to the API server.
+
+The corresponding :class:`~airflow.sdk.definitions.asset.AssetWatcher` wires the trigger to the asset:
+
+.. code-block:: python
+
+    from airflow.sdk import Asset, AssetWatcher
+
+    from my_dag.triggers import PollEventsTrigger
+
+    my_asset = Asset(
+        name="orders_api",
+        watchers=[
+            AssetWatcher(
+                name="orders_api_watcher",
+                trigger=PollEventsTrigger(source="orders", waiter_delay=30),
+            )
+        ],
+    )
+
+    ...
+
+``self.asset_state_store`` behaves identically to the per-asset accessor described in the task sections above: ``get``, ``set``, ``delete``, ``clear`` and their async counterparts ``aget``, ``aset``, ``adelete``, ``aclear`` are all available. Values written by the trigger are visible to any task that declares ``my_asset`` as an inlet or outlet, and vice versa.
+
+.. note::
+
+   ``self.asset_state_store`` is only available inside :class:`~airflow.triggers.base.BaseEventTrigger` subclasses. Plain :class:`~airflow.triggers.base.BaseTrigger` subclasses (used for task deferral) do not have access to asset state store.
+
 
 Some Example Use cases
 ----------------------

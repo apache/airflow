@@ -9,8 +9,9 @@ the parent [SKILL.md](../SKILL.md).
 
 ## Plural Forms
 
-Simplified Chinese **does not** distinguish between singular and plural forms.
-Use the **same translation** for both `_one` and `_other` suffixes:
+Simplified Chinese **does not** grammatically distinguish between singular and
+plural forms. For labels without a quantity, use the **same translation** for
+both `_one` and `_other` suffixes:
 
 **English source:**
 
@@ -26,6 +27,14 @@ Use the **same translation** for both `_one` and `_other` suffixes:
 "dagRun_other": "Dag 执行"
 ```
 
+For phrases that express a quantity with a measure word, use literal `1` in
+`_one` and `{{count, number}}` in `_other`, followed by the appropriate measure word:
+
+```json
+"showMoreAlerts_one": "+1 个警告",
+"showMoreAlerts_other": "+{{count, number}} 个警告"
+```
+
 ## Spacing Rules
 
 Insert a **half-width space** between Chinese characters and adjacent
@@ -37,7 +46,7 @@ English words, numbers, or symbols:
 "Dag 执行"        // space between English and Chinese
 "最近 12 小时"     // space around numbers
 "连接 ID"          // space before abbreviation
-"{{count}} 个连接" // space after placeholder
+"{{count, number}} 个连接" // space after placeholder
 ```
 
 **Incorrect:**
@@ -74,9 +83,9 @@ appropriate measure word for each context:
 
 | Measure Word | Usage | Example |
 |---|---|---|
-| `个` | General objects (connections, variables, errors) | `删除 {{count}} 个连接` |
-| `次` | Occurrences (runs, executions, attempts) | `最近 {{count}} 次 Dag 执行` |
-| `项` | List items | `+ 其他 {{count}} 项` |
+| `个` | General objects (connections, variables, errors) | `删除 {{count, number}} 个连接` |
+| `次` | Occurrences (runs, executions, attempts) | `最近 {{count, number}} 次 Dag 执行` |
+| `项` | List items | `+ 其他 {{count, number}} 项` |
 
 ## Tone and Formality
 
@@ -110,6 +119,10 @@ word order:
 ```
 
 ## Terminology Reference
+
+Translate `Provider` and `Providers` as `整合套件` in UI text. This overrides the
+parent skill's English-term default for zh-CN. Preserve literal package names
+and code identifiers.
 
 The established zh-CN translations are defined in the existing locale files.
 Before translating, **read the existing zh-CN JSON files** to learn the

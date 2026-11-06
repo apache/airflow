@@ -1,0 +1,72 @@
+[
+    {
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag",
+            "facets": {
+                "airflow": {
+                    "tasks": {
+                        "task_normal": {
+                            "emits_ol_events": "{{ result == true }}"
+                        },
+                        "task_silenced": {
+                            "emits_ol_events": "{{ result == false }}"
+                        },
+                        "check_events": {
+                            "emits_ol_events": "{{ result == true }}"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    {
+        "eventType": "START",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_normal",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'hello' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "eventType": "COMPLETE",
+        "inputs": [],
+        "outputs": [],
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_normal",
+            "facets": {
+                "sourceCode": {
+                    "language": "python",
+                    "sourceCode": "{{ 'hello' in result }}"
+                }
+            }
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "START",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "COMPLETE",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    },
+    {
+        "$absent": "task has emit=False via authoring",
+        "eventType": "FAIL",
+        "job": {
+            "name": "openlineage_policy_task_emit_false_dag.task_silenced"
+        }
+    }
+]

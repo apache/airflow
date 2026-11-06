@@ -21,13 +21,14 @@ from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urlparse
 
 from airflow.providers.common.compat.sdk import BaseOperatorLink, BaseSensorOperator, XCom
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS, BaseOperator
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
     from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
-BASE_LINK = "https://console.cloud.google.com"
+BASE_LINK = f"https://console.cloud.{GoogleBaseHook.get_high_value_cookie_domain()}"
 
 
 class BaseGoogleLink(BaseOperatorLink):

@@ -26,19 +26,27 @@ from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
-from airflow._shared.module_loading import accepts_context as _accepts_context  # noqa: F401
+from airflow._shared.module_loading import (
+    accepts_context as _accepts_context,  # noqa: F401
+    qualname,
+)
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
-from airflow.executors.workloads.callback import CallbackFetchMethod
+from airflow.executors.workloads.callback import (
+    CALLBACK_KWARGS_ENCODING_KEY,
+    SERDE_KWARGS_ENCODING,
+    CallbackFetchMethod,
+)
 from airflow.models import Base
 from airflow.models.base import StringID
 from airflow.models.dagbundle import DagBundleModel
+from airflow.utils.helpers import prune_dict
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import CallbackState
 
@@ -64,6 +72,12 @@ log = structlog.get_logger(__name__)
 
 ACTIVE_STATES = frozenset((CallbackState.PENDING, CallbackState.QUEUED, CallbackState.RUNNING))
 TERMINAL_STATES = frozenset((CallbackState.SUCCESS, CallbackState.FAILED))
+
+
+def _format_kwargs_for_display(kwargs: dict | None) -> Any:
+    from airflow.serialization.decoders import format_encoded_value_for_display
+
+    return format_encoded_value_for_display(kwargs) if kwargs else ""
 
 
 class CallbackType(str, Enum):
@@ -101,6 +115,13 @@ class ImportPathExecutorCallbackDefProtocol(ImportPathCallbackDefProtocol, Proto
     executor: str | None
 
 
+@runtime_checkable
+class ImportPathAsyncCallbackDefProtocol(ImportPathCallbackDefProtocol, Protocol):
+    """Protocol for callbacks that use the import path fetch method and support trigger queue assignment."""
+
+    queue: str | None
+
+
 class Callback(Base, BaseWorkload):
     """Base class for callbacks."""
 
@@ -136,8 +157,17 @@ class Callback(Base, BaseWorkload):
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     # Used for callbacks of type CallbackType.TRIGGERER
-    trigger_id: Mapped[int] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
+    trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
+
+    __table_args__ = (
+        Index(
+            "idx_callback_trigger_id",
+            trigger_id,
+            postgresql_where=trigger_id.is_not(None),
+            sqlite_where=trigger_id.is_not(None),
+        ),
+    )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         """
@@ -156,13 +186,18 @@ class Callback(Base, BaseWorkload):
     def queue(self, *, session: Session) -> None:
         self.state = CallbackState.QUEUED
 
-    def get_metric_info(self, status: CallbackState, result: Any) -> dict:
+    def get_metric_info(self, status: CallbackState, result: Any, team_name: str | None = None) -> dict:
         tags = {"result": result, **self.data}
         tags.pop("prefix", None)
+        tags.pop(CALLBACK_KWARGS_ENCODING_KEY, None)
 
         if "kwargs" in tags:
+            from airflow.serialization.decoders import format_encoded_value_for_display
+
             # Remove the context (if exists) to keep the tags simple
-            tags["kwargs"] = {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            tags["kwargs"] = format_encoded_value_for_display(
+                {k: v for k, v in tags["kwargs"].items() if k != "context"}
+            )
 
         # Metric backends (statsd, OpenTelemetry) require tag values to be primitives.
         # OTel's aggregation key is built via ``frozenset(attributes.items())``, which
@@ -176,6 +211,10 @@ class Callback(Base, BaseWorkload):
             else json.dumps(v, default=str, sort_keys=True)
             for k, v in tags.items()
         }
+
+        # team_name is omitted entirely when not in a multi-team deployment or when the
+        # callback's bundle is not mapped to a team.
+        tags = prune_dict({**tags, "team_name": team_name})
 
         prefix = self.data.get("prefix", "")
         name = f"{prefix}.callback_{status}" if prefix else f"callback_{status}"
@@ -196,7 +235,7 @@ class Callback(Base, BaseWorkload):
         match type(callback_def).__name__:
             case "AsyncCallback":
                 if TYPE_CHECKING:
-                    assert isinstance(callback_def, ImportPathCallbackDefProtocol)
+                    assert isinstance(callback_def, ImportPathAsyncCallbackDefProtocol)
                 return TriggererCallback(callback_def, **kwargs)
 
             case "SyncCallback":
@@ -225,21 +264,31 @@ class TriggererCallback(Callback):
         self.data |= callback_def.serialize()
 
     def __repr__(self):
-        return f"{self.data['path']}({self.data['kwargs'] or ''}) on a triggerer"
+        return f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) on a triggerer"
 
     def queue(self, *, session: Session) -> None:
         from airflow.models.trigger import Trigger
+        from airflow.serialization.encoders import encode_queued_callback_kwargs
         from airflow.triggers.callback import CallbackTrigger
 
         team_name: str | None = None
         if self.bundle_name and conf.getboolean("core", "multi_team"):
             team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
 
-        self.trigger = Trigger.from_object(
-            CallbackTrigger(
-                callback_path=self.data["path"],
-                callback_kwargs=self.data["kwargs"],
-            )
+        if self.id is None:
+            # Not flushed yet; the trigger records which callback it runs for.
+            self.id = uuid6.uuid7()
+        dag_run = ((self.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+        # The kwargs stay encoded: the triggerer decodes them when it creates the CallbackTrigger.
+        self.trigger = Trigger.from_serialized_kwargs(
+            classpath=qualname(CallbackTrigger),
+            serialized_kwargs={
+                "callback_path": self.data["path"],
+                "callback_kwargs": encode_queued_callback_kwargs(self.data["kwargs"] or {}),
+            },
+            queue=self.data.get("queue"),
+            dag_id=self.get_dag_id() or dag_run.get("dag_id"),
+            owner_ref={"callback_id": str(self.id)},
         )
         self.trigger.team_name = team_name
         super().queue(session=session)
@@ -250,9 +299,12 @@ class TriggererCallback(Callback):
         if (status := event.payload.get(PAYLOAD_STATUS_KEY)) and status in (ACTIVE_STATES | TERMINAL_STATES):
             self.state = status
             if status in TERMINAL_STATES:
+                team_name: str | None = None
+                if self.bundle_name and conf.getboolean("core", "multi_team"):
+                    team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
                 self.trigger = None
                 self.output = event.payload.get(PAYLOAD_BODY_KEY)
-                stats.incr(**self.get_metric_info(status, self.output))
+                stats.incr(**self.get_metric_info(status, self.output, team_name=team_name))
 
             session.add(self)
         else:
@@ -274,12 +326,21 @@ class ExecutorCallback(Callback):
         :param fetch_method: Method to fetch the callback at runtime
         :param kwargs: Passed to parent Callback.__init__ (see base class for details)
         """
+        from airflow.serialization.encoders import encode_stored_callback_kwargs
+
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
         self.data |= callback_def.serialize()
+        # The kwargs are decoded by the callback runner on the worker, which needs the marker
+        # to tell them apart from the already-decoded kwargs of callbacks stored before it.
+        self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
+        self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
 
     def __repr__(self):
-        return f"{self.data['path']}({self.data['kwargs'] or ''}) on {self.data.get('executor', 'default')} executor"
+        return (
+            f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) "
+            f"on {self.data.get('executor', 'default')} executor"
+        )
 
 
 class DagProcessorCallback(Callback):

@@ -27,6 +27,62 @@
 Changelog
 ---------
 
+4.7.1
+.....
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+4.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+
+
+4.6.2
+.....
+
+Misc
+~~~~
+
+* ``Use oracledb AuthMode/Purity enums in Oracle hook connection config (#67689)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 4.6.1
 .....
 

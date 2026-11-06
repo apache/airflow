@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { useMemo } from "react";
+
 import { Field, Stack, Spinner } from "@chakra-ui/react";
 import { Select } from "chakra-react-select";
-import { useMemo } from "react";
 import { type Control, Controller, type FieldValues, type Path } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 

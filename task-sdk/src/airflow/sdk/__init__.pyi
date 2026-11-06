@@ -53,16 +53,26 @@ from airflow.sdk.definitions.asset import (
 from airflow.sdk.definitions.asset.access_control import AssetAccessControl as AssetAccessControl
 from airflow.sdk.definitions.asset.decorators import asset as asset
 from airflow.sdk.definitions.asset.metadata import Metadata as Metadata
+from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
 from airflow.sdk.definitions.connection import Connection as Connection
 from airflow.sdk.definitions.context import (
+    CallbackMeta as CallbackMeta,
+    CallbackSource as CallbackSource,
     Context as Context,
     get_current_context as get_current_context,
     get_parsing_context as get_parsing_context,
 )
 from airflow.sdk.definitions.dag import DAG as DAG, dag as dag
-from airflow.sdk.definitions.decorators import setup as setup, task as task, teardown as teardown
+from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference
+from airflow.sdk.definitions.decorators import (
+    result as result,
+    setup as setup,
+    task as task,
+    teardown as teardown,
+)
 from airflow.sdk.definitions.decorators.task_group import task_group as task_group
 from airflow.sdk.definitions.edges import EdgeModifier as EdgeModifier, Label as Label
+from airflow.sdk.definitions.loop import LoopDecision as LoopDecision
 from airflow.sdk.definitions.param import Param as Param
 from airflow.sdk.definitions.partition_mappers.allowed_key import AllowedKeyMapper
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
@@ -95,18 +105,22 @@ from airflow.sdk.definitions.partition_mappers.window import (
     YearWindow,
 )
 from airflow.sdk.definitions.retry_policy import (
+    ChainRetryPolicy as ChainRetryPolicy,
     ExceptionRetryPolicy as ExceptionRetryPolicy,
     RetryAction as RetryAction,
     RetryDecision as RetryDecision,
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
+from airflow.sdk.definitions.task_handlers.registry import task_handler as task_handler
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
+    AssetAndTimeSchedule,
     AssetOrTimeSchedule,
-    PartitionAtRuntime,
+    AssetTriggeredTimetable,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
 )
 from airflow.sdk.definitions.timetables.events import EventsTimetable
 from airflow.sdk.definitions.timetables.interval import (
@@ -123,6 +137,7 @@ from airflow.sdk.definitions.variable import Variable as Variable
 from airflow.sdk.definitions.xcom_arg import XComArg as XComArg
 from airflow.sdk.execution_time import macros as macros
 from airflow.sdk.execution_time.cache import SecretCache as SecretCache
+from airflow.sdk.execution_time.context import NEVER_EXPIRE
 from airflow.sdk.io.path import ObjectStoragePath as ObjectStoragePath
 
 conf: AirflowSDKConfigParser
@@ -134,9 +149,12 @@ __all__ = [
     "AssetAccessControl",
     "AssetAlias",
     "AssetAll",
+    "AssetAndTimeSchedule",
     "AssetAny",
     "AssetOrTimeSchedule",
+    "AssetTriggeredTimetable",
     "AssetWatcher",
+    "AsyncCallback",
     "BaseAsyncOperator",
     "BaseBranchOperator",
     "BaseHook",
@@ -147,6 +165,7 @@ __all__ = [
     "BaseXCom",
     "BranchMixIn",
     "ChainMapper",
+    "ChainRetryPolicy",
     "Connection",
     "Context",
     "CronDataIntervalTimetable",
@@ -155,6 +174,8 @@ __all__ = [
     "DAG",
     "DagRunState",
     "DayWindow",
+    "DeadlineAlert",
+    "DeadlineReference",
     "DeltaDataIntervalTimetable",
     "DeltaTriggerTimetable",
     "EdgeModifier",
@@ -165,14 +186,16 @@ __all__ = [
     "HourWindow",
     "IdentityMapper",
     "Label",
+    "LoopDecision",
     "Metadata",
     "MinimumCount",
     "MonthWindow",
     "MultipleCronTriggerTimetable",
+    "NEVER_EXPIRE",
     "ObjectStoragePath",
     "Param",
     "PokeReturnValue",
-    "PartitionAtRuntime",
+    "PartitionedAtRuntime",
     "PartitionedAssetTimetable",
     "PartitionMapper",
     "ProductMapper",
@@ -192,6 +215,7 @@ __all__ = [
     "StartOfQuarterMapper",
     "StartOfWeekMapper",
     "StartOfYearMapper",
+    "SyncCallback",
     "TaskGroup",
     "TaskInstanceState",
     "TriggerRule",
@@ -215,6 +239,7 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
     "conf",
 ]

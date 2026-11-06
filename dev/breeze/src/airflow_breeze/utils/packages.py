@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
 from enum import Enum
@@ -530,10 +531,6 @@ def get_provider_yaml(provider_id: str) -> Path:
 
 
 def load_pyproject_toml(pyproject_toml_file_path: Path) -> dict[str, Any]:
-    try:
-        import tomllib
-    except ImportError:
-        import tomli as tomllib  # type: ignore[no-redef]
     toml_content = pyproject_toml_file_path.read_text()
     syntax = Syntax(toml_content, "toml", theme="ansi_dark", line_numbers=True)
     try:
@@ -615,7 +612,7 @@ def get_min_airflow_version(provider_id: str) -> str:
 
 
 def get_python_requires(provider_id: str) -> str:
-    python_requires = "~=3.10"
+    python_requires = f"~={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     provider_details = get_provider_details(provider_id=provider_id)
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}.*"
@@ -683,6 +680,34 @@ def get_cross_provider_dependent_packages(provider_id: str) -> list[str]:
     return get_provider_dependencies()[provider_id]["cross-providers-deps"]
 
 
+def get_cross_provider_dependencies_for_extras(provider_id: str) -> list[str]:
+    """Return cross-provider dependencies that can be rendered as installable extras.
+
+    ``cross-providers-deps`` is an import-level graph. Some entries are already
+    required dependencies, so they should not be documented as ``pkg[extra]``.
+    This mirrors the filtering used when generating provider ``pyproject.toml``.
+    """
+    cross_provider_dependencies = get_cross_provider_dependent_packages(provider_id)
+    if not cross_provider_dependencies:
+        return []
+
+    from packaging.requirements import Requirement
+    from packaging.utils import canonicalize_name
+
+    suspended_provider_ids = get_suspended_provider_ids()
+    required_package_names = {
+        canonicalize_name(Requirement(requirement).name)
+        for requirement in get_provider_requirements(provider_id)
+    }
+
+    return [
+        cross_provider_id
+        for cross_provider_id in cross_provider_dependencies
+        if cross_provider_id not in suspended_provider_ids
+        and canonicalize_name(get_pip_package_name(cross_provider_id)) not in required_package_names
+    ]
+
+
 def get_license_files(provider_id: str) -> str:
     if provider_id == "fab":
         return str(["LICENSE", "NOTICE", "3rd-party-licenses/LICENSES-*"]).replace('"', "'")
@@ -700,7 +725,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    cross_providers_dependencies = get_cross_provider_dependent_packages(provider_id=provider_id)
+    cross_providers_dependencies = get_cross_provider_dependencies_for_extras(provider_id)
 
     requires_python_version: str = f">={DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
     # Most providers require the same python versions, but some may have exclusions
@@ -729,7 +754,7 @@ def get_provider_jinja_context(
         "MIN_AIRFLOW_VERSION": get_min_airflow_version(provider_id),
         "PROVIDER_REMOVED": provider_details.removed,
         "PROVIDER_INFO": get_provider_info_dict(provider_id),
-        "CROSS_PROVIDERS_DEPENDENCIES": get_cross_provider_dependent_packages(provider_id),
+        "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
         "CROSS_PROVIDERS_DEPENDENCIES_TABLE_RST": convert_cross_package_dependencies_to_table(
             cross_providers_dependencies, markdown=False
         ),
@@ -794,6 +819,8 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
     * check if the local repo is shallow, mark it to un-shallow in this case
     * fetch from the remote including all tags and overriding local tags in case
       they are set differently
+    * fetch branch refs so that remote-tracking refs like
+      apache-https-for-providers/main are available for git log range queries
 
     """
     try:
@@ -822,7 +849,14 @@ def make_sure_remote_apache_exists_and_fetch(github_repository: str = "apache/ai
         text=True,
     )
     is_shallow_repo = result.stdout.strip() == "true"
-    fetch_command = ["git", "fetch", "--tags", "--force", HTTPS_REMOTE]
+    fetch_command = [
+        "git",
+        "fetch",
+        "--tags",
+        "--force",
+        HTTPS_REMOTE,
+        "+refs/heads/*:refs/remotes/apache-https-for-providers/*",
+    ]
     if is_shallow_repo:
         fetch_command.append("--unshallow")
     try:
@@ -1316,6 +1350,32 @@ def _process_line_with_next_version_comment(
 
     if not provider_version:
         return line, False
+
+    provider_id = provider_package_name.replace("apache-airflow-providers-", "").replace("-", ".")
+    version_tag = get_version_tag(provider_version, provider_id)
+    existing_tags = run_command(
+        ["git", "tag", "--list", f"{version_tag}*"],
+        cwd=AIRFLOW_PROVIDERS_ROOT_PATH,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.split()
+    relative_pyproject = pyproject_file.relative_to(AIRFLOW_PROVIDERS_ROOT_PATH)
+    # A final tag means the version is immutable, so "next version" is a future release. An rc tag
+    # alone is ambiguous: the version is either in vote (pin must wait) or being re-cut in this
+    # release (pin must resolve), and only the release manager knows which.
+    if version_tag in existing_tags:
+        console_print(
+            f"[warning]Skipping {provider_package_name} in {relative_pyproject}: "
+            f"version {provider_version} is already released, leaving the pin for the next release"
+        )
+        return line, False
+    if existing_tags:
+        console_print(
+            f"[warning]{provider_package_name} {provider_version} has release candidate tags but no final "
+            f"release. Revert the update of {relative_pyproject} below if {provider_package_name} "
+            f"is not part of this release."
+        )
 
     # Update the line with the new version
     return _update_dependency_line_with_new_version(

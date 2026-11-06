@@ -1,0 +1,92 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.airflow.example;
+
+import static java.lang.System.Logger.Level.INFO;
+
+import java.util.List;
+import org.apache.airflow.sdk.*;
+
+// Stub-backed tasks wired by the Python Dag file: each parameter receives the
+// value the stub call bound at its position, widening or narrowing to the
+// declared type at run time.
+public class XComCastingExample {
+  private static final System.Logger log = System.getLogger(XComCastingExample.class.getName());
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "produce_number")
+  public int produceNumber() {
+    log.log(INFO, "Producing int 7");
+    return 7;
+  }
+
+  // Any primitive numeric type (byte, short, int, long, float, double) and its boxed form works the same way.
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "widen_to_long")
+  public long widenToLong(long value) {
+    log.log(INFO, "Got long {0}", value);
+    return value + 1;
+  }
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "widen_to_double")
+  public void widenToDouble(double value) {
+    log.log(INFO, "Got double {0}", value);
+    if (value != 8.0) {
+      throw new RuntimeException("expected 8.0 but got " + value);
+    }
+  }
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "produce_nothing")
+  public void produceNothing() {
+    // Pushes no return_value XCom.
+  }
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "consume_nullable")
+  public void consumeNullable(Integer value) {
+    log.log(INFO, "Got nullable int {0}", value);
+    if (value != null) {
+      throw new RuntimeException("expected null but got " + value);
+    }
+  }
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "produce_fraction")
+  public double produceFraction() {
+    log.log(INFO, "Producing double 1.5");
+    return 1.5;
+  }
+
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "consume_float")
+  public void consumeFloat(float value) {
+    log.log(INFO, "Got float {0}", value);
+    if (value != 1.5f) {
+      throw new RuntimeException("expected 1.5 but got " + value);
+    }
+  }
+
+  // A parameter with type arguments keeps its element type. Reading an element
+  // is what would fail if it did not: the wire integers decode to Long unless
+  // the declared List<Double> survives the binding.
+  @Airflow.TaskHandler(dag = "java_task_handler_xcom_casting_example", task = "consume_double_list")
+  public void consumeDoubleList(List<Double> values) {
+    log.log(INFO, "Got list {0}", values);
+    double total = values.get(0) + values.get(1);
+    if (total != 3.0) {
+      throw new RuntimeException("expected 3.0 but got " + total);
+    }
+  }
+}

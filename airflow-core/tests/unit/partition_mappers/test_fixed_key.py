@@ -66,6 +66,26 @@ class TestFixedKeyMapper:
         assert isinstance(restored, FixedKeyMapper)
         assert restored.downstream_key == "bucket"
 
+    def test_max_downstream_keys_defaults_to_none(self):
+        assert FixedKeyMapper("all").max_downstream_keys is None
+
+    def test_constructor_accepts_max_downstream_keys(self):
+        m = FixedKeyMapper("all", max_downstream_keys=5)
+        assert m.max_downstream_keys == 5
+
+    def test_serialize_deserialize_round_trip_carries_max_downstream_keys(self):
+        m = FixedKeyMapper("bucket", max_downstream_keys=3)
+        restored = FixedKeyMapper.deserialize(m.serialize())
+        assert restored.max_downstream_keys == 3
+
+    def test_sdk_encode_core_decode_round_trip_carries_max_downstream_keys(self):
+        # Dag-author code constructs the SDK class; the scheduler encodes it via
+        # encoders.py and decodes it into the core class above.
+        sdk_mapper = SdkFixedKeyMapper("all_regions", max_downstream_keys=7)
+        restored = decode_partition_mapper(encode_partition_mapper(sdk_mapper))
+        assert isinstance(restored, FixedKeyMapper)
+        assert restored.max_downstream_keys == 7
+
 
 class TestCategoricalRollupEquivalence:
     """RollupMapper(FixedKeyMapper, SegmentWindow) behaves like old SegmentMapper."""

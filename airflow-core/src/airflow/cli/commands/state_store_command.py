@@ -26,12 +26,23 @@ log = logging.getLogger(__name__)
 # Other state operations (list, get, delete per key) will be added here in the future.
 
 
-def cleanup_task_state_store(args) -> None:
-    """Remove expired task state store rows (MetastoreBackend only)."""
+def clean_state_store(args) -> None:
+    """
+    Remove expired task state store rows from the metastore backend.
+
+    Deliberately restricted to ``MetastoreBackend`` for now. A custom backend is typically
+    worker-side (object storage, etc.); cleaning it correctly means deleting the metadata-DB
+    refs *and* the backend data in order, which has to run where the backend and its
+    dependencies live (the worker), not on the server-side CLI. Until that experience exists,
+    the command skips custom backends rather than half-cleaning them.
+    """
     backend = get_state_backend()
 
     if not isinstance(backend, MetastoreBackend):
-        print("Custom backend configured — skipping cleanup (not supported).")
+        print(
+            f"Custom state store backend configured ({type(backend).__name__}); skipping. "
+            f"The clean command currently supports the metastore backend only."
+        )
         return
 
     if args.dry_run:
@@ -41,8 +52,10 @@ def cleanup_task_state_store(args) -> None:
             print("Nothing to delete.")
             return
         print(f"Would delete {len(expired)} task state store row(s):\n")
-        for dag_id, run_id, task_id, map_index, key in expired:
-            print(f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, map_index {map_index!r}, key {key!r}")
+        for dag_id, run_id, task_id, region_index, key in expired:
+            print(
+                f"  Dag {dag_id!r}, run {run_id!r}, task {task_id!r}, region_index {region_index!r}, key {key!r}"
+            )
         return
 
     log.info("Running task state store cleanup")

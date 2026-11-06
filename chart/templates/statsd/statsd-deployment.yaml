@@ -26,8 +26,8 @@
 {{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := include "airflow.revisionHistoryLimit" (list .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit) }}
-{{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
-{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
+{{- $securityContext := include "localPodSecurityContext" (list .Values.statsd .Values) }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" (list .Values.statsd .Values) }}
 {{- $containerLifecycleHooks := .Values.statsd.containerLifecycleHooks }}
 apiVersion: apps/v1
 kind: Deployment
@@ -64,13 +64,11 @@ spec:
         {{- if or .Values.labels .Values.statsd.labels }}
           {{- mustMerge .Values.statsd.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
-      {{- if or .Values.statsd.extraMappings .Values.statsd.podAnnotations }}
       annotations:
         checksum/statsd-config: {{ include (print $.Template.BasePath "/configmaps/statsd-configmap.yaml") . | sha256sum }}
         {{- if .Values.statsd.podAnnotations }}
           {{- tpl (toYaml .Values.statsd.podAnnotations) . | nindent 8 }}
         {{- end }}
-      {{- end }}
     spec:
       {{- if .Values.statsd.priorityClassName }}
       priorityClassName: {{ .Values.statsd.priorityClassName }}
@@ -85,14 +83,18 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.statsd.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "statsd.serviceAccountName" . }}
       enableServiceLinks: {{ .Values.enableServiceLinks }}
+      {{- if $securityContext }}
       securityContext: {{ $securityContext | nindent 8 }}
+      {{- end }}
       restartPolicy: Always
       imagePullSecrets: {{ include "image_pull_secrets" . | nindent 8 }}
       containers:
         - name: statsd
           image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
+          {{- if $containerSecurityContext }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- end }}
           {{- if $containerLifecycleHooks }}
           lifecycle: {{- tpl (toYaml $containerLifecycleHooks) . | nindent 12 }}
           {{- end }}

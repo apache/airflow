@@ -28,7 +28,7 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
 from airflow.models import Connection
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
@@ -117,6 +117,28 @@ class TestPysparkDecorator:
         assert config.get("spark.app.name")
 
         spark_mock.builder.config.assert_called_once_with(conf=conf_mock())
+
+    @pytest.mark.db_test
+    @mock.patch("pyspark.SparkConf")
+    @mock.patch("pyspark.sql.SparkSession")
+    def test_pyspark_decorator_renders_template_fields(self, spark_mock, conf_mock, dag_maker):
+        config = FakeConfig()
+        conf_mock.return_value = config
+
+        @task.pyspark(
+            conn_id="spark-{{ 'connect' }}",
+            config_kwargs={"spark.app.name": "app-{{ task.task_id }}"},
+        )
+        def f(spark):
+            return True
+
+        with dag_maker():
+            f()
+
+        ti = dag_maker.run_ti("f")
+        assert ti.xcom_pull()
+        assert config.get("spark.remote") == "sc://localhost"
+        assert config.get("spark.app.name") == "app-f"
 
     @pytest.mark.db_test
     @mock.patch("pyspark.SparkConf")

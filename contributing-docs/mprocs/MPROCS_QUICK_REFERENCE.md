@@ -70,6 +70,14 @@ use it outside of Breeze if needed.
 | `q`  | Quit mprocs                |
 | `?`  | Show help                  |
 
+When stopping the Breeze environment, press `q` rather than stopping only the
+selected process. Quitting mprocs lets the `breeze start-airflow` container exit
+and release its forwarded ports. After returning to the host shell, run:
+
+```bash
+breeze down
+```
+
 ## Components Managed
 
 - **scheduler** - Airflow scheduler

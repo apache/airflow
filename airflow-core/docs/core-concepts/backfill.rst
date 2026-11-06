@@ -18,8 +18,8 @@
 Backfill
 ========
 
-Backfill is when you create runs for past dates of a Dag.  Airflow provides a mechanism
-to do this through the CLI and REST API.  You provide a Dag, a start date, and an end date,
+Backfill is when you create runs for past dates of a Dag. Airflow provides a mechanism
+to do this through the CLI and REST API. You provide a Dag, a start date, and an end date,
 and Airflow will create runs in the range according to the Dag's schedule.
 
 Backfill does not make sense for Dags that don't have a time-based schedule.
@@ -27,11 +27,13 @@ Backfill does not make sense for Dags that don't have a time-based schedule.
 Control over data reprocessing
 ------------------------------
 
-There are three options for reprocessing behavior:
+There are three options for reprocessing behavior. The user-facing names and their corresponding
+CLI and REST API values are:
 
-* **none** - if there's already a run for this logical date, do not create another, no matter the state
-* **failed** - if a run exists, if the state is failed, create a new run for this date
-* **completed** - if a run exists, if the state is completed or failed, create a new run for this date
+* **Missing Runs** (``none``) - if there's already a run for this logical date, do not create another,
+  no matter the state
+* **Missing and Errored Runs** (``failed``) - if a run exists and is failed, create a new run for this date
+* **All Runs** (``completed``) - if a run exists and is completed or failed, create a new run for this date
 
 If the latest run is still running or is queued, we do not create another run, no matter the chosen reprocessing behavior.
 
@@ -39,19 +41,25 @@ Concurrency control
 -------------------
 
 You can set ``max_active_runs`` on a backfill and it will control how many Dag runs in
-the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently
+the backfill can run concurrently. Backfill ``max_active_runs`` is applied independently of
 the Dag ``max_active_runs`` setting.
+
+Once a backfill's Dag runs are actually running, the scheduler does not otherwise
+deprioritize their task scheduling relative to other running Dag runs. ``max_active_runs``
+is therefore the primary lever for controlling how much of your scheduling capacity a
+backfill consumes at once — lower it to leave more room for time-sensitive scheduled work
+while the backfill is in progress.
 
 Run ordering
 ------------
 
-You can run your backfill in reverse, i.e. latest runs first.  The CLI option is ``--run-backwards``.
+You can run your backfill in reverse, i.e. latest runs first. The CLI option is ``--run-backwards``.
 
 Dry run
 -------
 
 Backfill dry run is a CLI option that will print out the dates that the
-backfill will consider creating runs for.  Whether or not they will be created
+backfill will consider creating runs for. Whether or not they will be created
 depends on your chosen reprocessing behavior and the states of any existing
 runs in the range at the time you actually run the backfill.
 
@@ -83,7 +91,30 @@ For UI, follow the following steps:
    - **Max active runs**: limit concurrent backfill runs for this backfill.
    - **Run backwards**: execute most recent intervals first.
    - **Advanced Config**: optionally provide JSON ``dag_run.conf``.
-   - If the Dag is paused, you can **Unpause** it in the same window.
+   - If the Dag is paused, choose under **Dag is paused** what happens to the Dag: **Unpause** (the
+     default) makes the Dag active and resumes its schedule; **Drain** lets the unfinished Dag runs,
+     including the backfill's, start or resume without creating scheduled ones, and pauses the Dag again once
+     they finish (see :ref:`concepts:dag-pausing`); **Keep paused** leaves the backfill runs queued until the
+     Dag is unpaused. Both **Unpause** and **Drain** show how many unfinished Dag runs will start or resume.
+     Paused backfills remain paused under all three choices.
 
 .. image:: ../img/ui-light/backfill.png
    :alt: Backfill pop-up window (Light Mode)
+
+Partitioned Dag backfills
+-------------------------
+
+For Dags that use a partition-based timetable (e.g. ``CronPartitionTimetable``),
+the same ``--from-date`` / ``--to-date`` flags are used for all backfills.
+Airflow automatically detects whether the Dag is partitioned and interprets
+the date range as a partition-date range accordingly — one Dag run is created
+per partition within the window.
+
+Example: backfill the partitions from 2026-02-18 to 2026-02-20::
+
+    airflow backfill create --dag-id my_partitioned_dag \
+        --from-date 2026-02-18 \
+        --to-date 2026-02-20
+
+Concurrency is controlled by the same ``--max-active-runs`` option used for
+all backfills.

@@ -17,8 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from pgvector.psycopg2 import register_vector
-
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
@@ -41,6 +40,24 @@ class PgVectorIngestOperator(SQLExecuteQueryOperator):
 
     def _register_vector(self) -> None:
         """Register the vector type with your connection."""
+        from airflow.providers.postgres.hooks.postgres import USE_PSYCOPG3
+
+        if USE_PSYCOPG3:
+            try:
+                from pgvector.psycopg import register_vector
+            except (ImportError, ModuleNotFoundError) as err:
+                raise AirflowOptionalProviderFeatureException(
+                    "pgvector's psycopg (v3) integration is not installed. Please install it with "
+                    "`pip install --upgrade pgvector`."
+                ) from err
+        else:
+            try:
+                from pgvector.psycopg2 import register_vector
+            except (ImportError, ModuleNotFoundError) as err:
+                raise AirflowOptionalProviderFeatureException(
+                    "psycopg2 is not installed. Please install it with "
+                    "`pip install apache-airflow-providers-postgres[psycopg2]`."
+                ) from err
         conn = self.get_db_hook().get_conn()
         register_vector(conn)
 

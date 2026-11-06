@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.providers.amazon.aws.links.ec2 import EC2InstanceDashboardLink, EC2InstanceLink
+from airflow.providers.amazon.aws.links.ec2 import EC2InstanceDashboardLink, EC2InstanceLink, VpcEndpointLink
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 from unit.amazon.aws.links.test_base_aws import BaseAwsLinksTestCase
@@ -84,4 +84,31 @@ class TestEC2InstanceDashboardLink(BaseAwsLinksTestCase):
             region_name="eu-west-1",
             aws_partition="aws",
             instance_ids=EC2InstanceDashboardLink.format_instance_id_filter(self.INSTANCE_IDS),
+        )
+
+
+class TestVpcEndpointLink(BaseAwsLinksTestCase):
+    link_class = VpcEndpointLink
+
+    ENDPOINT_ID = "vpce-0123456789abcdef0"
+
+    def test_extra_link(self, mock_supervisor_comms):
+        if AIRFLOW_V_3_0_PLUS and mock_supervisor_comms:
+            mock_supervisor_comms.send.return_value = XComResult(
+                key=self.link_class.key,
+                value={
+                    "region_name": "us-east-1",
+                    "aws_domain": self.link_class.get_aws_domain("aws"),
+                    "aws_partition": "aws",
+                    "endpoint_id": self.ENDPOINT_ID,
+                },
+            )
+        self.assert_extra_link_url(
+            expected_url=(
+                "https://console.aws.amazon.com/vpcconsole/home"
+                f"?region=us-east-1#EndpointDetails:vpcEndpointId={self.ENDPOINT_ID}"
+            ),
+            region_name="us-east-1",
+            aws_partition="aws",
+            endpoint_id=self.ENDPOINT_ID,
         )

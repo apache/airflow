@@ -25,9 +25,10 @@ import type { DagRunTriggerParams } from "./types";
 
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;
+  readonly isPartitioned: boolean;
 };
 
-const TriggerDAGAdvancedOptions = ({ control }: TriggerDAGAdvancedOptionsProps) => {
+const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvancedOptionsProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { t: rootTranslate } = useTranslation();
 
@@ -51,29 +52,38 @@ const TriggerDAGAdvancedOptions = ({ control }: TriggerDAGAdvancedOptionsProps) 
         )}
       />
 
-      <Controller
-        control={control}
-        name="partitionKey"
-        render={({ field }) => (
-          <Field.Root mt={6} orientation="horizontal">
-            <Stack>
-              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
-                {rootTranslate("dagRun.partitionKey")}
-              </Field.Label>
-            </Stack>
-            <Stack css={{ flexBasis: "70%" }}>
-              <Input {...field} size="sm" />
-            </Stack>
-          </Field.Root>
-        )}
-      />
+      {isPartitioned ? (
+        <Controller
+          control={control}
+          name="partitionKey"
+          render={({ field }) => (
+            <Field.Root mt={6} orientation="horizontal">
+              <Stack>
+                <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                  {rootTranslate("dagRun.partitionKey")}
+                </Field.Label>
+              </Stack>
+              <Stack css={{ flexBasis: "70%" }}>
+                <Input {...field} size="sm" />
+                <Field.HelperText>{translate("components:triggerDag.partitionKeyHelp")}</Field.HelperText>
+              </Stack>
+            </Field.Root>
+          )}
+        />
+      ) : undefined}
       <Controller
         control={control}
         name="note"
         render={({ field }) => (
-          <Field.Root mt={6}>
-            <Field.Label fontSize="md">{translate("note.dagRun")}</Field.Label>
-            <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
+          <Field.Root mt={6} orientation="horizontal">
+            <Stack>
+              <Field.Label fontSize="md" style={{ flexBasis: "30%" }}>
+                {translate("note.dagRun")}
+              </Field.Label>
+            </Stack>
+            <Stack css={{ flexBasis: "70%" }}>
+              <EditableMarkdown field={field} placeholder={translate("note.placeholder")} />
+            </Stack>
           </Field.Root>
         )}
       />

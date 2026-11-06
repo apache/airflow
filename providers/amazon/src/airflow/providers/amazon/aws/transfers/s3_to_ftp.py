@@ -17,16 +17,21 @@
 # under the License.
 from __future__ import annotations
 
+import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils import validate_destination_path
 from airflow.providers.common.compat.sdk import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
+
+
+SKIPPED_SAMPLE_SIZE = 10
 
 
 class S3ToFTPOperator(BaseOperator):
@@ -44,7 +49,8 @@ class S3ToFTPOperator(BaseOperator):
         ``"/"``.
     :param s3_filenames: Only used if you want to move multiple files. You can pass
         a list with exact key suffixes present under the s3_key prefix, or a string
-        prefix that all filenames must match. Use ``"*"`` to move all objects under
+        prefix that all filenames must match. The prefix applies to the file name, the
+        last segment of each key under s3_key. Use ``"*"`` to move all objects under
         the s3_key prefix.
     :param ftp_path: The ftp remote path. For a single file it must include the file
         path. For multiple files it is the destination directory path and must end
@@ -59,7 +65,15 @@ class S3ToFTPOperator(BaseOperator):
         exist. If False, the operator logs a warning and skips the transfer. Default is True.
     """
 
-    template_fields: Sequence[str] = ("s3_bucket", "s3_key", "ftp_path", "s3_filenames", "ftp_filenames")
+    template_fields: Sequence[str] = (
+        "s3_bucket",
+        "s3_key",
+        "ftp_path",
+        "s3_filenames",
+        "ftp_filenames",
+        "aws_conn_id",
+        "ftp_conn_id",
+    )
 
     def __init__(
         self,
@@ -85,6 +99,7 @@ class S3ToFTPOperator(BaseOperator):
         self.fail_on_file_not_exist = fail_on_file_not_exist
 
     def _download_from_s3(self, s3_hook: S3Hook, ftp_hook: FTPHook, s3_key: str, ftp_path: str) -> None:
+        validate_destination_path(ftp_path, self.ftp_path, base_name="ftp_path")
         if not s3_hook.check_for_key(s3_key, self.s3_bucket):
             if self.fail_on_file_not_exist:
                 raise FileNotFoundError(f"Key {s3_key!r} not found in S3 bucket {self.s3_bucket!r}")
@@ -107,16 +122,36 @@ class S3ToFTPOperator(BaseOperator):
                 self.log.info("Getting files in s3://%s/%s", self.s3_bucket, self.s3_key)
                 all_keys = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_key) or []
                 filenames = [k[len(self.s3_key) :] for k in all_keys]
-                if self.s3_filenames == "*":
+                s3_prefix: str = self.s3_filenames
+                if s3_prefix == "*":
                     files = filenames
                 else:
-                    s3_prefix: str = self.s3_filenames
-                    files = [f for f in filenames if s3_prefix in f]
+                    # ``list_keys`` recurses, so the prefix applies to the file name, while the
+                    # substring test mirrors the old rule over the whole relative key.
+                    files = [f for f in filenames if posixpath.basename(f).startswith(s3_prefix)]
+                    dropped = [
+                        f
+                        for f in filenames
+                        if s3_prefix in f and not posixpath.basename(f).startswith(s3_prefix)
+                    ]
+                    if dropped:
+                        omitted = len(dropped) - SKIPPED_SAMPLE_SIZE
+                        self.log.warning(
+                            "%d file(s) contain %r but are not selected, because a string prefix "
+                            "matches only at the start of the filename: %s%s",
+                            len(dropped),
+                            s3_prefix,
+                            dropped[:SKIPPED_SAMPLE_SIZE],
+                            f" and {omitted} more" if omitted > 0 else "",
+                        )
 
                 for file in files:
                     self.log.info("Moving file %s", file)
                     if self.ftp_filenames and isinstance(self.ftp_filenames, str):
-                        ftp_filename = file.replace(self.s3_filenames, self.ftp_filenames)
+                        name = posixpath.basename(file)
+                        ftp_filename = posixpath.join(
+                            posixpath.dirname(file), name.replace(s3_prefix, self.ftp_filenames, 1)
+                        )
                     else:
                         ftp_filename = file
                     self._download_from_s3(

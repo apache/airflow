@@ -21,6 +21,7 @@ from datetime import datetime
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 
 
 class NextRunAssetEventResponse(BaseModel):
@@ -49,6 +50,12 @@ class NextRunAssetEventResponse(BaseModel):
 class NextRunAssetsResponse(BaseModel):
     """Response for the ``next_run_assets`` endpoint."""
 
-    asset_expression: dict | None = None
+    asset_expression: MaybeAssetExpression = None
     events: list[NextRunAssetEventResponse]
+    scheduling_asset_count: int = 0
+    """How many assets the Dag is scheduled on, before filtering ``events`` down to
+    the ones the caller may read. ``events`` is caller-scoped, so a UI that derives
+    the schedule's shape from ``len(events)`` changes what it renders with the
+    caller's permissions; this count does not. It reveals nothing new — the redacted
+    ``asset_expression`` already carries one slot per asset."""
     pending_partition_count: int | None = None

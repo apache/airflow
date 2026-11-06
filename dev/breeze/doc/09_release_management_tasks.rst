@@ -176,6 +176,20 @@ automates it.
   :alt: Breeze release-management create-minor-branch
 
 
+Start beta process
+""""""""""""""""""
+
+When we prepare a beta pre-release, we automate some of the steps we need to do.
+
+.. code-block:: bash
+
+     breeze release-management start-beta-process
+
+.. image:: ./images/output_release-management_start-beta-process.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_start-beta-process.svg
+  :width: 100%
+  :alt: Breeze release-management start-beta-process
+
 Start release candidate process
 """""""""""""""""""""""""""""""
 
@@ -447,6 +461,25 @@ You can also add ``--answer yes`` to perform non-interactive build.
   :width: 100%
   :alt: Breeze prepare-provider-documentation
 
+Classifying provider changes
+""""""""""""""""""""""""""""
+
+You can use Breeze to classify each provider's unreleased changes using hard-coded,
+high-confidence rules, flagging ambiguous commits as ``needs_llm`` for an agent or skill
+to assess. The result is emitted as JSON, providing a deterministic alternative to the
+``--non-interactive`` documentation run used purely for change discovery.
+
+The below example classifies the pending changes for all providers.
+
+.. code-block:: bash
+
+     breeze release-management classify-provider-changes
+
+.. image:: ./images/output_release-management_classify-provider-changes.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_classify-provider-changes.svg
+  :width: 100%
+  :alt: Breeze classify-provider-changes
+
 Updating provider next version
 """"""""""""""""""""""""""""""
 
@@ -659,6 +692,13 @@ Constraints are generated separately for each python version and there are separ
 * "constraints-no-providers" - those are constraints generated from only Apache Airflow, without any
   providers. If you want to manage Airflow separately and then add providers individually, you can
   use those.
+
+In the ``constraints`` mode every provider is pinned at the newest version PyPI holds for it. Pre-releases
+are only picked up with ``--allow-pre-releases`` (the constraints of a release candidate), except for the
+candidates the current constraints branch already pins: those are kept while PyPI still serves them, so a
+regular run does not undo a release candidate's constraints. ``--fail-on-pending-provider-candidates``
+(the constraints of a final release) fails instead when a provider's newest version is a candidate that
+was neither released nor yanked.
 
 These are all available flags of ``generate-constraints`` command:
 
@@ -1015,6 +1055,17 @@ To check what documents will be published to S3, you can use the ``--dry-run`` f
      breeze release-management publish-docs --source-dir-path /User/pavan/airflow-site/docs-archive
      --destination-location s3://airflow-docs/docs --dry-run
 
+After the sync the command rebuilds ``manifest/packages-metadata.json`` from a scan of every package in
+the bucket. When several publishes to one bucket can run at once, sync with ``--skip-packages-metadata``
+and rebuild the file in a separate, serialised step with ``--packages-metadata-only``, which needs no
+``--source-dir-path``. The ``Publish Docs to S3`` workflow does this so that provider and Airflow docs
+publishes can sync side by side.
+
+.. code-block:: bash
+
+     breeze release-management publish-docs-to-s3 --destination-location s3://airflow-docs/docs \
+     --packages-metadata-only
+
 These are all available flags of ``release-management publish-docs-to-s3`` command:
 
 .. image:: ./images/output_release-management_publish-docs.svg
@@ -1060,6 +1111,124 @@ These are all available flags of ``workflow-run publish-docs`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_publish-docs.svg
   :width: 100%
   :alt: Breeze workflow-run publish-docs
+
+Syncing the staging site with main
+""""""""""""""""""""""""""""""""""
+
+Before publishing release candidate docs to staging, reset the ``staging`` branches of
+``apache/airflow-site`` and ``apache/airflow-site-archive`` to ``main`` with the
+``breeze workflow-run sync-staging-to-main`` command. It triggers the ``reset-staging.yml`` workflow in both
+repositories, which force-updates each ``staging`` branch to the current ``main`` commit (``main`` itself is
+not changed); in ``apache/airflow-site`` it also rebuilds the staging site. Before asking for confirmation,
+the command lists the commits that exist only on each ``staging`` branch (and would be dropped), so you can
+tell whether the branch holds docs prepared for another release.
+
+.. warning::
+
+   Skip this step if a vote for any other release is in progress. The ``staging`` branches hold the
+   docs prepared for that vote, and resetting them to ``main`` overwrites them. The command asks for
+   confirmation before triggering the workflow.
+
+These are all available flags of ``workflow-run sync-staging-to-main`` command:
+
+.. image:: ./images/output_workflow-run_sync-staging-to-main.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_sync-staging-to-main.svg
+  :width: 100%
+  :alt: Breeze workflow-run sync-staging-to-main
+
+Resolving the constraints for a release
+"""""""""""""""""""""""""""""""""""""""
+
+To trigger the GitHub Actions workflow that resolves, publishes and tags the constraints belonging to a
+release, you can use the ``breeze workflow-run release-constraints`` command. The release commands trigger
+it themselves, so this is for redoing a candidate's constraints or producing them for a release cut before
+the workflow existed.
+
+The stage is derived from ``--version`` alone, so it cannot be set inconsistently with it. A candidate
+(``3.1.3rc1``) resolves allowing pre-releases for ``apache-airflow-providers-*`` — the providers of the wave
+being voted on are on PyPI only as ``rcN`` versions. A final (``3.1.3``) resolves without them, and fails
+while any provider's newest version on PyPI is still a candidate: each one has to be released or yanked
+first (yanked versions are skipped), so the released constraints neither pin a candidate nor silently pass
+over one. Both commit onto ``constraints-X-Y`` and tag the result ``constraints-<VERSION>``; the final's
+commit is what makes the released constraints the baseline everything downstream reads.
+
+These are all available flags of ``workflow-run release-constraints`` command:
+
+.. image:: ./images/output_workflow-run_release-constraints.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_release-constraints.svg
+  :width: 100%
+  :alt: Breeze workflow-run release-constraints
+
+Refreshing the base images before a release
+"""""""""""""""""""""""""""""""""""""""""""
+
+The images are built on hardened Python base images pinned to digests, and the legacy images on pinned
+Python patch releases. Only the "Upgrade important CI environment" upgrade moves those pins, to images the
+mirror already has, so the release manager runs it before every beta (for ``main``) and before every
+test-to-stable PR (for the release branch), with one command.
+
+``breeze workflow-run upgrade-check`` mirrors the latest hardened base images first and waits for it, then
+upgrades the branch - by default the branch breeze comes from. For ``main`` it runs the upgrade check
+workflow, which opens an upgrade PR, and waits for it. For a ``vX-Y-test`` branch it runs
+``breeze ci upgrade --push-to-target-branch`` in your checkout, which pushes the upgrade straight to the
+branch, the head of the test-to-stable PR. That runs locally, as the release branch rules let only
+committers push without CI having passed. It fails, rather than switching, resetting or cleaning anything,
+when the checkout is not at the tip of the branch or has local changes. Both need ``gh`` credentials that
+may dispatch ``apache/airflow`` workflows, and check that first.
+
+These are all available flags of ``workflow-run upgrade-check`` command:
+
+.. image:: ./images/output_workflow-run_upgrade-check.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_upgrade-check.svg
+  :width: 100%
+  :alt: Breeze workflow-run upgrade-check
+
+``breeze workflow-run mirror-base-images`` runs only the mirror on ``main`` and waits for it. The mirror is
+shared by all branches, and ``main`` mirrors every Python version an active release branch still builds
+on. The upgrade check workflow runs it in a job of its own, so the token that may dispatch workflows never
+reaches the job running the upgraded tools.
+
+These are all available flags of ``workflow-run mirror-base-images`` command:
+
+.. image:: ./images/output_workflow-run_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_workflow-run_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze workflow-run mirror-base-images
+
+Publishing the schema files to S3
+"""""""""""""""""""""""""""""""""
+
+Alongside the documentation, the ``Publish Docs to S3`` workflow also publishes generated schema artifacts
+to the same docs bucket, under the ``schemas/`` prefix (served at ``https://airflow.apache.org/schemas/``):
+
+* The Execution API OpenAPI spec ``schemas/execution-api/<version>.json``
+* The Supervisor JSON Schema ``schemas/supervisor-schema/<version>.json``
+* The YAML Dag JSON Schema ``schemas/dag/<version>.json``
+
+Each dated file is immutable, so the command uploads individual objects and skips a date that already exists
+unless ``--overwrite`` is given. Publishing is gated on the package set. The Execution API schema is published
+when ``apache-airflow`` is built; the Supervisor and YAML Dag schemas when ``task-sdk`` is built.
+
+To publish the schema files to S3, use the ``release-management publish-schemas-to-s3`` command:
+
+.. code-block:: bash
+
+     breeze release-management publish-schemas-to-s3 \
+       --execution-api execution-api.json \
+       --supervisor supervisor-schema.json \
+       --dag dag.json \
+       --destination-location s3://live-docs-airflow-apache-org/schemas/
+
+``--destination-location`` is the ``s3://<bucket>/schemas/`` location to publish under; each schema is
+written to ``<location>/<schema-type>/<version>.json``. Pass at least one of
+``--execution-api`` / ``--supervisor`` / ``--dag``.
+
+These are all available flags of ``release-management publish-schemas-to-s3`` command:
+
+.. image:: ./images/output_release-management_publish-schemas-to-s3.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-schemas-to-s3.svg
+  :width: 100%
+  :alt: Breeze release-management publish-schemas-to-s3
 
 Checking release files
 """"""""""""""""""""""
@@ -1141,7 +1310,107 @@ Example usage:
 
 .. code-block:: bash
 
-     breeze release-management constraints-version-check --python 3.10 --airflow-constraints-mode constraints-source-providers --explain-why
+     breeze release-management constraints-version-check --python 3.11 --airflow-constraints-mode constraints-source-providers --explain-why
+
+
+Mirror the hardened Python base images
+""""""""""""""""""""""""""""""""""""""
+
+The CI and PROD images are built on a Docker Hardened Image for Python. Pulling that image from
+its origin requires a Docker Hub login, so the tags Airflow builds on are mirrored to Airflow's
+own public registry and ``BASE_IMAGE`` points there - building the images then needs no registry
+credentials at all. A scheduled workflow keeps the mirror current; this command is what it runs,
+and what you run by hand when a new Python patch release needs mirroring straight away.
+
+Both the pinned tag and the floating major/minor tag are mirrored, so documentation and ad-hoc
+builds can keep referring to the floating one.
+
+These are all available flags of ``release-management mirror-base-images`` command:
+
+.. image:: ./images/output_release-management_mirror-base-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_mirror-base-images.svg
+  :width: 100%
+  :alt: Breeze mirror base images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management mirror-base-images --python 3.10
+
+Without ``--python`` every currently supported Python version is mirrored.
+
+
+Build the OS-dependencies images
+""""""""""""""""""""""""""""""""
+
+Pinning the base image to a digest does not pin the ``dhi.io`` apt repository the OS dependencies are
+installed from: it moves on - and drops the package versions it replaced - whenever Docker rebuilds its
+images, so the same commit could build today and fail tomorrow. The CI image and the PROD images built
+by CI and the release workflows therefore start from images in which ``install_os_dependencies.sh``
+already ran, one per installation type (``ci``, ``dev`` and ``runtime``). They are built from the
+``ci-os-deps``, ``dev-os-deps`` and ``runtime-os-deps`` stages of the Dockerfiles, on the base images the
+mirror serves, and pinned in ``dev/breeze/src/airflow_breeze/files/hardened_os_deps_image_digests.json``
+by the same upgrade that moves the base image pins. Only ``main`` carries pins: the images are built from
+``main``'s script and Dockerfiles, so on a release branch they would not match its own installation - the
+upgrade leaves the file empty on any other branch until there are images per branch.
+
+The "Mirror hardened base images" workflow runs this command daily, natively on an AMD and an ARM runner,
+after it mirrored the base images - also for a newer Python patch release the mirror already copied, so
+its images are published by the time the upgrade moves the base image pin to it. Its six-hourly runs only
+mirror, and the run the upgrade check dispatches
+(``breeze workflow-run mirror-base-images --no-build-os-deps-images``) builds nothing either. Every input
+of an image - the base image digest, the script, its Dockerfile stage and its build args - is part of its
+tag, so an image is built only when one of them changed.
+
+These are all available flags of ``release-management build-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_build-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_build-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze build OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management build-os-deps-images --platform linux/arm64 --python 3.13
+
+In the workflow, the build and publish jobs get the base image digests the run's own mirror job mirrored
+(``--base-image-digests``), so a mirror-only run moving the tags meanwhile does not change what they
+build and publish - the OS-dependencies jobs have concurrency groups of their own and do not hold up the
+mirror runs.
+
+The script records what it installed with in the image, and a build on it installs nothing when nothing
+differs. When a PR changes the variables the script installs with (such as the Go or Node.js versions),
+the installation runs again on top of the pinned image, so the change is still exercised; a PR that
+changes the script, the client scripts or the keys builds from ``BASE_IMAGE`` in CI instead. Builds with
+another base image, Debian version or apt dependencies do not use the pinned images at all and install
+from the apt repositories.
+
+
+Publish the OS-dependencies images
+""""""""""""""""""""""""""""""""""
+
+Once both platforms are built, this command merges them into a multi-platform image and moves the tag
+the upgrade check pins - the latest published OS-dependencies image of a Python patch release - to it.
+The merged image keeps its own tag, which has every input in it and never moves, so a pinned digest
+stays tagged. When it moves a tag, the workflow triggers the upgrade check, which pins the latest image
+of each Python patch release whatever base image digest it was built on: the image carries its own
+Python, so it need not share the digest of the base image pin, which moves several times a day.
+
+These are all available flags of ``release-management publish-os-deps-images`` command:
+
+.. image:: ./images/output_release-management_publish-os-deps-images.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_publish-os-deps-images.svg
+  :width: 100%
+  :alt: Breeze publish OS-dependencies images
+
+Example usage:
+
+.. code-block:: bash
+
+     breeze release-management publish-os-deps-images --python 3.13
 
 
 -----

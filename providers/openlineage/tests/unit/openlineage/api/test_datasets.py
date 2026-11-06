@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import dataclasses
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
@@ -24,6 +25,7 @@ from openlineage.client.event_v2 import Dataset, RunEvent, RunState
 
 from airflow.providers.openlineage.api.datasets import emit_dataset_lineage
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy
 
 _MODULE = "airflow.providers.openlineage.api.datasets"
 _CORE = "airflow.providers.openlineage.api.core"
@@ -36,15 +38,15 @@ def _make_task_instance():
         task_id="task_id",
         try_number=1,
         map_index=-1,
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
     )
     dag_run = mock.MagicMock(
-        logical_date=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        logical_date=datetime(2024, 1, 1, tzinfo=UTC),
         clear_number=0,
-        run_after=datetime(2024, 1, 1, tzinfo=timezone.utc),
+        run_after=datetime(2024, 1, 1, tzinfo=UTC),
         conf={},
-        data_interval_start=datetime(2024, 1, 1, tzinfo=timezone.utc),
-        data_interval_end=datetime(2024, 1, 2, tzinfo=timezone.utc),
+        data_interval_start=datetime(2024, 1, 1, tzinfo=UTC),
+        data_interval_end=datetime(2024, 1, 2, tzinfo=UTC),
     )
     task = mock.MagicMock(
         owner="alice,bob", doc=None, doc_md=None, doc_json=None, doc_yaml=None, doc_rst=None
@@ -234,3 +236,71 @@ def test_resolves_task_instance_from_context(patched_emit):
         emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")])
         get_ti.assert_called_once()
     patched_emit.assert_called_once()
+
+
+def test_noop_when_emission_policy_blocks_emit(patched_emit):
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    ti = _make_task_instance()
+    with mock.patch(
+        f"{_MODULE}.resolve_task_emission_policy",
+        return_value=EmissionPolicy(
+            emit=False,
+            extract_operator_metadata=True,
+            include_source_code=True,
+            hook_lineage=True,
+            include_full_task_info=False,
+        ),
+    ):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    patched_emit.assert_not_called()
+
+
+def test_passes_include_full_task_info_to_run_facets(patched_emit):
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    ti = _make_task_instance()
+    with (
+        mock.patch(
+            f"{_MODULE}.resolve_task_emission_policy",
+            return_value=EmissionPolicy(
+                emit=True,
+                extract_operator_metadata=True,
+                include_source_code=True,
+                hook_lineage=True,
+                include_full_task_info=True,
+            ),
+        ),
+        mock.patch(f"{_MODULE}.build_task_event_run_facets", return_value={}) as mock_build_run_facets,
+    ):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    mock_build_run_facets.assert_called_once()
+    assert mock_build_run_facets.call_args.kwargs["include_full_task_info"] is True
+
+
+def _policy_excluding(patterns: tuple[str, ...]) -> EmissionPolicy:
+    return dataclasses.replace(
+        EmissionPolicy.defaults(), dataset_filter=DatasetFilter(authoring_patterns=patterns)
+    )
+
+
+def test_excludes_datasets_from_event(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/drop",))):
+        emit_dataset_lineage(
+            inputs=[Dataset(namespace="ns", name="drop"), Dataset(namespace="ns", name="keep")],
+            task_instance=ti,
+        )
+
+    (event,) = patched_emit.call_args.args
+    assert event.inputs == [Dataset(namespace="ns", name="keep")]
+
+
+def test_noop_when_every_dataset_excluded(patched_emit):
+    ti = _make_task_instance()
+    with mock.patch(f"{_MODULE}.resolve_task_emission_policy", return_value=_policy_excluding(("ns/.*",))):
+        emit_dataset_lineage(inputs=[Dataset(namespace="ns", name="a")], task_instance=ti)
+
+    patched_emit.assert_not_called()

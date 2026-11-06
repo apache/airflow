@@ -82,12 +82,11 @@ class RollupMapper(PartitionMapper):
         # would otherwise be swallowed by the bare ``except`` in
         # ``_create_dagruns_for_partitioned_asset_dags`` and surface only as
         # "Failed to deserialize Dag" spam).
-        if self.upstream_mapper.expected_decoded_type is str and self.window.expected_decoded_type is not str:
+        if self.upstream_mapper.expected_decoded_type is not self.window.expected_decoded_type:
             raise TypeError(
                 f"{type(self.window).__name__} expects decoded values of type "
                 f"{self.window.expected_decoded_type.__name__!r}, but "
-                f"{type(self.upstream_mapper).__name__} decodes to 'str' (SDK PartitionMapper default). "
-                f"Pair the window with an upstream mapper whose 'expected_decoded_type' is "
-                f"{self.window.expected_decoded_type.__name__}, or use a window whose "
-                f"'expected_decoded_type' accepts str."
+                f"{type(self.upstream_mapper).__name__} decodes to "
+                f"{self.upstream_mapper.expected_decoded_type.__name__!r}. Pair a window and an "
+                f"upstream mapper whose 'expected_decoded_type' match."
             )

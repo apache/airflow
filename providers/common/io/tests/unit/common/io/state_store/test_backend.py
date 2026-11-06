@@ -1,0 +1,471 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import threading
+from unittest import mock
+from uuid import UUID, uuid4
+
+import pytest
+from fsspec.implementations.local import LocalFileOpener
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
+
+if not AIRFLOW_V_3_3_PLUS:
+    pytest.skip("Store backend requires Airflow >= 3.3", allow_module_level=True)
+
+from airflow.providers.common.io.state_store import backend
+from airflow.providers.common.io.state_store.backend import (
+    StateStoreObjectStorageBackend,
+    _build_asset_path,
+    _build_task_path,
+    _read_from_object_storage,
+    _write_to_object_storage,
+)
+from airflow.sdk import ObjectStoragePath
+from airflow.sdk.state import AssetScope, TaskScope
+
+from tests_common.test_utils.config import conf_vars
+
+
+@pytest.fixture(autouse=True)
+def clear_caches():
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
+    yield
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
+
+
+@pytest.fixture
+def base_path(tmp_path):
+    store_path = tmp_path / "store"
+    store_path.mkdir()
+    return f"file://{store_path}"
+
+
+@pytest.fixture
+def conf_overrides(base_path):
+    from tests_common.test_utils.config import conf_vars
+
+    with conf_vars(
+        {
+            ("common.io", "state_store_objectstorage_path"): base_path,
+            ("common.io", "state_store_objectstorage_compression"): "",
+        }
+    ):
+        yield base_path
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="task state store requires Airflow >= 3.3")
+class TestPathBuilders:
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    def test_region_path_cannot_collide_with_task_id(self, conf_overrides):
+        region_id = uuid4()
+        regional = TaskScope("d", "r", "t", 0, region_id=region_id)
+        sentinel = TaskScope("d", "r", f"region={region_id}", 0)
+        assert str(_build_task_path(regional, "key")).endswith(f"d/r/region={region_id}/t/0/key")
+        assert str(_build_task_path(sentinel, "key")).endswith(f"d/r/region%3D{region_id}/0/key")
+
+    def test_build_task_path_segments(self, conf_overrides):
+        scope = TaskScope(dag_id="my_dag", run_id="run_1", task_id="my_task", map_index=-1)
+        path = _build_task_path(scope, "job_id")
+        assert str(path).endswith("my_dag/run_1/my_task/-1/job_id")
+
+    def test_build_task_path_encodes_special_chars(self, conf_overrides):
+        scope = TaskScope(dag_id="a/b", run_id="r/1", task_id="t/x", map_index=0)
+        path = _build_task_path(scope, "key/name")
+        assert str(path).endswith("a%2Fb/r%2F1/t%2Fx/0/key%2Fname")
+        assert "a/b" not in str(path)
+        assert "key/name" not in str(path)
+
+    def test_build_task_path_distinct_keys_dont_collide(self, conf_overrides):
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        path_slash = _build_task_path(scope, "connector/offset")
+        path_under = _build_task_path(scope, "connector_offset")
+        assert str(path_slash) != str(path_under)
+
+    def test_build_task_path_rejects_empty_and_dots(self, conf_overrides):
+        scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        with pytest.raises(ValueError, match="Invalid path segment"):
+            _build_task_path(scope, "")
+        with pytest.raises(ValueError, match="Invalid path segment"):
+            _build_task_path(scope, "..")
+
+    def test_build_asset_path_segments(self, conf_overrides):
+        scope = AssetScope(name="my_asset")
+        path = _build_asset_path(scope, "status")
+        assert str(path).endswith("assets/my_asset/status")
+
+    def test_build_asset_path_uses_uri_when_no_name(self, conf_overrides):
+        scope = AssetScope(uri="s3://bucket/path")
+        path_slash = _build_asset_path(scope, "key")
+        scope2 = AssetScope(uri="s3://bucket_path")
+        path_under = _build_asset_path(scope2, "key")
+        assert str(path_slash) != str(path_under)
+
+    def test_compression_suffix_appended(self, tmp_path):
+        store_path = tmp_path / "store"
+        store_path.mkdir()
+
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): f"file://{store_path}",
+                ("common.io", "state_store_objectstorage_compression"): "gzip",
+            }
+        ):
+            backend._get_base_path.cache_clear()
+            backend._get_compression.cache_clear()
+            scope = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=-1)
+            path = _build_task_path(scope, "k")
+            assert str(path).endswith(".gz")
+
+
+class TestIOPrimitives:
+    def test_write_and_read_roundtrip(self, conf_overrides):
+        path = ObjectStoragePath(f"{conf_overrides}/test_key")
+        _write_to_object_storage(path, '{"value": 42}')
+        result = _read_from_object_storage(path)
+        assert result == '{"value": 42}'
+
+    def test_read_missing_returns_none(self, conf_overrides):
+        path = ObjectStoragePath(f"{conf_overrides}/nonexistent")
+        assert _read_from_object_storage(path) is None
+
+    def test_write_creates_parent_dirs(self, conf_overrides):
+        path = ObjectStoragePath(f"{conf_overrides}/a/b/c/key")
+        _write_to_object_storage(path, "hello")
+        assert path.exists()
+
+    def test_write_passes_bounded_chunks_to_the_file(self, conf_overrides, monkeypatch):
+        monkeypatch.setattr(backend, "_WRITE_CHUNK_CHARS", 4)
+        path = ObjectStoragePath(f"{conf_overrides}/chunked")
+
+        with mock.patch.object(
+            LocalFileOpener, "write", autospec=True, side_effect=LocalFileOpener.write
+        ) as mock_write:
+            _write_to_object_storage(path, "0123456789")
+
+        assert [c.args[1] for c in mock_write.call_args_list] == [b"0123", b"4567", b"89"]
+        assert _read_from_object_storage(path) == "0123456789"
+
+    def test_chunked_write_roundtrips_through_gzip(self, base_path, monkeypatch):
+        monkeypatch.setattr(backend, "_WRITE_CHUNK_CHARS", 3)
+        text = '{"weights": [1, 2, 3, 4, 5]}'
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_compression"): "gzip",
+            }
+        ):
+            # Reads infer compression from the suffix, as the backend's own paths do.
+            path = ObjectStoragePath(f"{base_path}/chunked{backend._get_compression_suffix()}")
+            _write_to_object_storage(path, text)
+
+            assert _read_from_object_storage(path) == text
+
+
+class TestStateStoreObjectStorageBackend:
+    @pytest.fixture
+    def store(self, conf_overrides):
+        return StateStoreObjectStorageBackend()
+
+    @pytest.fixture
+    def task_scope(self):
+        return TaskScope(dag_id="my_dag", run_id="run_1", task_id="my_task", map_index=-1)
+
+    @pytest.fixture
+    def asset_scope(self):
+        return AssetScope(name="my_asset")
+
+    def test_set_and_get_task(self, store, task_scope):
+        store.set(task_scope, "k", "hello")
+        assert store.get(task_scope, "k") == "hello"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    def test_region_writes_and_serialized_references_are_isolated(self, store):
+        scopes = [TaskScope("d", "r", "t", 0, region_id=region) for region in (UUID(int=0), uuid4())]
+        refs = [
+            store.serialize_task_state_store_to_ref(value={"region": index}, key="k", scope=scope)
+            for index, scope in enumerate(scopes)
+        ]
+        assert refs[0] != refs[1]
+        assert [store.deserialize_task_state_store_from_ref(ref) for ref in refs] == [
+            {"region": 0},
+            {"region": 1},
+        ]
+        store.set(scopes[1], "k", "updated")
+        assert store.get(scopes[1], "k") == "updated"
+        assert store.deserialize_task_state_store_from_ref(refs[0]) == {"region": 0}
+        store.delete(scopes[1], "k")
+        assert store.get(scopes[1], "k") is None
+        assert store.deserialize_task_state_store_from_ref(refs[0]) == {"region": 0}
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Regions require Airflow >= 3.4")
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("async_clear", [False, True])
+    @pytest.mark.parametrize("all_map_indices", [False, True])
+    @pytest.mark.parametrize("clear_sentinel", [False, True])
+    async def test_clear_isolates_region_and_index(self, store, async_clear, all_map_indices, clear_sentinel):
+        regions = [UUID(int=0), uuid4(), uuid4()]
+        scopes = [TaskScope("d", "r", "t", index, region_id=region) for region in regions for index in (0, 1)]
+        for scope in scopes:
+            store.set(scope, "key", str(scope))
+        target = TaskScope("d", "r", "t", 0, region_id=regions[0 if clear_sentinel else 1])
+        if async_clear:
+            await store.aclear(target, all_map_indices=all_map_indices)
+        else:
+            store.clear(target, all_map_indices=all_map_indices)
+        for scope in scopes:
+            removed = scope.region_id == target.region_id and (all_map_indices or scope.map_index == 0)
+            assert store.get(scope, "key") == (None if removed else str(scope))
+
+    def test_get_missing_returns_none(self, store, task_scope):
+        assert store.get(task_scope, "missing") is None
+
+    def test_delete_task(self, store, task_scope):
+        store.set(task_scope, "k", "v")
+        store.delete(task_scope, "k")
+        assert store.get(task_scope, "k") is None
+
+    def test_delete_missing_is_noop(self, store, task_scope):
+        store.delete(task_scope, "does_not_exist")
+
+    def test_clear_task_single_map_index(self, store, task_scope):
+        store.set(task_scope, "k1", "v1")
+        store.set(task_scope, "k2", "v2")
+        store.clear(task_scope)
+        assert store.get(task_scope, "k1") is None
+        assert store.get(task_scope, "k2") is None
+
+    def test_clear_task_all_map_indices(self, store):
+        scope0 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        scope1 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=1)
+        store.set(scope0, "k", "v0")
+        store.set(scope1, "k", "v1")
+        store.clear(scope0, all_map_indices=True)
+        assert store.get(scope0, "k") is None
+        assert store.get(scope1, "k") is None
+
+    def test_set_and_get_asset(self, store, asset_scope):
+        store.set(asset_scope, "status", "ok")
+        assert store.get(asset_scope, "status") == "ok"
+
+    def test_clear_asset(self, store, asset_scope):
+        store.set(asset_scope, "k1", "v1")
+        store.set(asset_scope, "k2", "v2")
+        store.clear(asset_scope)
+        assert store.get(asset_scope, "k1") is None
+        assert store.get(asset_scope, "k2") is None
+
+    def test_serialize_and_deserialize_task(self, store, task_scope):
+        ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="job_id", scope=task_scope)
+        assert ref.startswith("file://")
+        result = store.deserialize_task_state_store_from_ref(ref)
+        assert result == {"x": 1}
+
+    def test_serialize_and_deserialize_asset(self, store, asset_scope):
+        ref = store.serialize_asset_state_store_to_ref(value=[1, 2, 3], key="result", scope=asset_scope)
+        assert ref.startswith("file://")
+        result = store.deserialize_asset_state_store_from_ref(ref)
+        assert result == [1, 2, 3]
+
+    def test_deserialize_missing_ref_returns_none(self, store, conf_overrides):
+        result = store.deserialize_task_state_store_from_ref(f"{conf_overrides}/no/such/path")
+        assert result is None
+
+    def test_task_serialize_offloads_to_storage(self, task_scope, base_path):
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "0",
+            }
+        ):
+            backend._get_threshold.cache_clear()
+            store = StateStoreObjectStorageBackend()
+            ref = store.serialize_task_state_store_to_ref(value={"x": 1}, key="k", scope=task_scope)
+            assert ref.startswith("file://")
+
+    def test_asset_serialize_offloads_to_storage(self, asset_scope, base_path):
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "0",
+            }
+        ):
+            backend._get_threshold.cache_clear()
+            store = StateStoreObjectStorageBackend()
+            ref = store.serialize_asset_state_store_to_ref(value={"x": 1}, key="k", scope=asset_scope)
+            assert ref.startswith("file://")
+
+    @pytest.mark.parametrize(
+        ("scope_fixture", "serialize", "deserialize"),
+        [
+            pytest.param(
+                "task_scope",
+                "serialize_task_state_store_to_ref",
+                "deserialize_task_state_store_from_ref",
+                id="task",
+            ),
+            pytest.param(
+                "asset_scope",
+                "serialize_asset_state_store_to_ref",
+                "deserialize_asset_state_store_from_ref",
+                id="asset",
+            ),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("value", "stored_size"),
+        [
+            pytest.param("abcdefg", 9, id="ascii"),
+            # JSON escapes non-ASCII characters, so each one counts as six bytes.
+            pytest.param("é ü", 15, id="non-ascii"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("threshold_offset", "offloaded"),
+        [
+            pytest.param(1, False, id="below-threshold"),
+            pytest.param(0, True, id="at-threshold"),
+            pytest.param(-1, True, id="above-threshold"),
+        ],
+    )
+    def test_serialize_threshold_boundary_roundtrips(
+        self,
+        request,
+        base_path,
+        scope_fixture,
+        serialize,
+        deserialize,
+        value,
+        stored_size,
+        threshold_offset,
+        offloaded,
+    ):
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): str(stored_size + threshold_offset),
+            }
+        ):
+            store = StateStoreObjectStorageBackend()
+            scope = request.getfixturevalue(scope_fixture)
+            ref = getattr(store, serialize)(value=value, key="k", scope=scope)
+            result = getattr(store, deserialize)(ref)
+
+            assert result == value
+            if offloaded:
+                assert ref.startswith("file://")
+                assert len(ObjectStoragePath(ref).read_bytes()) == stored_size
+            else:
+                assert len(ref) == stored_size
+                assert not ref.startswith("file://")
+
+    def test_negative_threshold_raises(self, base_path):
+        with conf_vars(
+            {
+                ("common.io", "state_store_objectstorage_path"): base_path,
+                ("common.io", "state_store_objectstorage_threshold"): "-1",
+            }
+        ):
+            backend._get_threshold.cache_clear()
+            with pytest.raises(ValueError, match="must be non-negative"):
+                backend._get_threshold()
+
+    @pytest.mark.asyncio
+    async def test_aset_and_aget_task(self, store, task_scope):
+        await store.aset(task_scope, "k", "hello")
+        assert await store.aget(task_scope, "k") == "hello"
+        # the async round-trip is visible to the sync API and vice versa
+        assert store.get(task_scope, "k") == "hello"
+
+    @pytest.mark.asyncio
+    async def test_aget_missing_returns_none(self, store, task_scope):
+        assert await store.aget(task_scope, "missing") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_task(self, store, task_scope):
+        store.set(task_scope, "k", "v")
+        await store.adelete(task_scope, "k")
+        assert store.get(task_scope, "k") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_missing_is_noop(self, store, task_scope):
+        await store.adelete(task_scope, "does_not_exist")
+
+    @pytest.mark.asyncio
+    async def test_aclear_task_single_map_index(self, store, task_scope):
+        store.set(task_scope, "k1", "v1")
+        store.set(task_scope, "k2", "v2")
+        await store.aclear(task_scope)
+        assert store.get(task_scope, "k1") is None
+        assert store.get(task_scope, "k2") is None
+
+    @pytest.mark.asyncio
+    async def test_aclear_task_all_map_indices(self, store):
+        scope0 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=0)
+        scope1 = TaskScope(dag_id="d", run_id="r", task_id="t", map_index=1)
+        store.set(scope0, "k", "v0")
+        store.set(scope1, "k", "v1")
+        await store.aclear(scope0, all_map_indices=True)
+        assert store.get(scope0, "k") is None
+        assert store.get(scope1, "k") is None
+
+    @pytest.mark.asyncio
+    async def test_adelete_asset(self, store, asset_scope):
+        store.set(asset_scope, "watermark", "2026-05-01")
+        await store.adelete(asset_scope, "watermark")
+        assert store.get(asset_scope, "watermark") is None
+
+    @pytest.mark.asyncio
+    async def test_aclear_asset(self, store, asset_scope):
+        store.set(asset_scope, "k1", "v1")
+        store.set(asset_scope, "k2", "v2")
+        await store.aclear(asset_scope)
+        assert store.get(asset_scope, "k1") is None
+        assert store.get(asset_scope, "k2") is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("async_call", "sync_method"),
+        [
+            (lambda store, scope: store.aget(scope, "k"), "get"),
+            (lambda store, scope: store.aset(scope, "k", "v"), "set"),
+            (lambda store, scope: store.adelete(scope, "k"), "delete"),
+            (lambda store, scope: store.aclear(scope), "clear"),
+        ],
+        ids=["aget", "aset", "adelete", "aclear"],
+    )
+    async def test_async_methods_run_blocking_work_off_the_loop_thread(
+        self, store, task_scope, async_call, sync_method
+    ):
+        loop_thread = threading.get_ident()
+        call_threads = []
+        original = getattr(store, sync_method)
+
+        def record_thread(*args, **kwargs):
+            call_threads.append(threading.get_ident())
+            return original(*args, **kwargs)
+
+        with mock.patch.object(store, sync_method, record_thread):
+            await async_call(store, task_scope)
+
+        assert call_threads
+        assert loop_thread not in call_threads

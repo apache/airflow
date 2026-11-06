@@ -26,13 +26,19 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
-from airflow.cli.utils import SENSITIVE_PLACEHOLDER, print_export_output
+from airflow.cli.utils import (
+    SENSITIVE_PLACEHOLDER,
+    deprecated_for_airflowctl,
+    get_hidden_entries_warning,
+    print_export_output,
+)
 from airflow.exceptions import (
     AirflowFileParseException,
     AirflowUnsupportedFileTypeException,
     VariableNotUnique,
 )
 from airflow.models import Variable
+from airflow.secrets.environment_variables import VAR_ENV_PREFIX
 from airflow.secrets.local_filesystem import load_variables
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -63,6 +69,7 @@ class VariableDisplayMapper:
         return {"key": key, "val": val}
 
 
+@deprecated_for_airflowctl("airflowctl variables list")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_list(args):
@@ -82,6 +89,9 @@ def variables_list(args):
     def _mapper(var):
         return VariableDisplayMapper.with_values(var, hide_sensitive)
 
+    if warning := get_hidden_entries_warning("variables", VAR_ENV_PREFIX):
+        AirflowConsole(stderr=True).print(f"[bold yellow]Warning:[/bold yellow] {warning}\n")
+
     with create_session() as session:
         if show_values:
             variables = session.scalars(select(Variable)).all()
@@ -92,6 +102,7 @@ def variables_list(args):
             AirflowConsole().print_as(data=variables, output=args.output, mapper=None)
 
 
+@deprecated_for_airflowctl("airflowctl variables get")
 @suppress_logs_and_warning
 @providers_configuration_loaded
 def variables_get(args):
@@ -108,6 +119,7 @@ def variables_get(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables create")
 @providers_configuration_loaded
 def variables_set(args):
     """Create new variable with a given name, value and description."""
@@ -116,6 +128,7 @@ def variables_set(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables delete")
 @providers_configuration_loaded
 def variables_delete(args):
     """Delete variable by a given name."""
@@ -124,6 +137,7 @@ def variables_delete(args):
 
 
 @cli_utils.action_cli
+@deprecated_for_airflowctl("airflowctl variables import")
 @providers_configuration_loaded
 @provide_session
 def variables_import(args, *, session: Session = NEW_SESSION):
@@ -181,11 +195,14 @@ def variables_export(args):
 
         data = json.JSONDecoder()
         for var in qry:
+            # Mirror variables_import's reconstruction so export/import round-trips.
             try:
                 val = data.decode(var.val)
             except Exception:
                 val = var.val
-            if var.description:
+            if isinstance(val, str):
+                val = var.val
+            if var.description or (isinstance(val, dict) and "value" in val):
                 var_dict[var.key] = {
                     "value": val,
                     "description": var.description,

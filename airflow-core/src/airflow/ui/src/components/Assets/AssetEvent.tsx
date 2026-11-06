@@ -22,8 +22,10 @@ import { FiDatabase } from "react-icons/fi";
 import { Link } from "react-router-dom";
 
 import type { AssetEventResponse } from "openapi/requests/types.gen";
+
+import { Tooltip } from "src/system-components";
+
 import Time from "src/components/Time";
-import { Tooltip } from "src/components/ui";
 
 import RenderedJsonField from "../RenderedJsonField";
 import { TriggeredRuns } from "./TriggeredRuns";
@@ -71,20 +73,20 @@ export const AssetEvent = ({
             showArrow
           >
             <Link to={`/assets/${event.asset_id}`}>
-              <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+              <Box color="fg.info" overflowWrap="anywhere" padding={0}>
                 {event.name ?? ""}
               </Box>
             </Link>
           </Tooltip>
         </HStack>
       )}
-      <HStack>
+      <HStack flexWrap="wrap">
         <Box>{translate("source")}: </Box>
         {source === "" ? (
           <Link
             to={`/dags/${event.source_dag_id}/runs/${event.source_run_id}/tasks/${event.source_task_id}${event.source_map_index > -1 ? `/mapped/${event.source_map_index}` : ""}`}
           >
-            <Box color="fg.info" overflowWrap="anywhere" padding={0} wordWrap="break-word">
+            <Box color="fg.info" overflowWrap="anywhere" padding={0}>
               {event.source_dag_id}
             </Box>
           </Link>
@@ -95,13 +97,16 @@ export const AssetEvent = ({
       <HStack>
         <TriggeredRuns dagRuns={event.created_dagruns} />
       </HStack>
-      {event.partition_key === undefined ? undefined : (
-        <HStack>
-          <Text>
-            {rootTranslate("dagRun.partitionKey")}: {event.partition_key}
-          </Text>
-        </HStack>
-      )}
+      {
+        // eslint-disable-next-line no-eq-null, eqeqeq
+        event.partition_key == null ? undefined : (
+          <HStack>
+            <Text>
+              {rootTranslate("dagRun.partitionKey")}: {event.partition_key}
+            </Text>
+          </HStack>
+        )
+      }
       {Object.keys(extra).length >= 1 ? <RenderedJsonField collapsed content={extra} /> : undefined}
     </Box>
   );

@@ -40,7 +40,7 @@ from airflow.providers.fab.auth_manager.models import Role
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 # The FAB version that override.py was last aligned with.
-EXPECTED_FAB_VERSION = "5.2.1"
+EXPECTED_FAB_VERSION = "5.2.2"
 
 # FAB public methods that override.py intentionally does NOT implement.
 # Every entry must have a comment explaining why it's excluded.
@@ -346,7 +346,7 @@ class TestUpdateUserChangedOn:
         assert result is True
         assert user.changed_on is not None
         assert isinstance(user.changed_on, datetime.datetime)
-        assert user.changed_on.tzinfo == datetime.timezone.utc
+        assert user.changed_on.tzinfo == datetime.UTC
         mock_session.merge.assert_called_once_with(user)
         mock_session.commit.assert_called_once()
 
@@ -406,4 +406,4 @@ class TestUpdateUserChangedOn:
 
         assert result is True
         assert user.changed_on is not None
-        assert user.changed_on.tzinfo == datetime.timezone.utc
+        assert user.changed_on.tzinfo == datetime.UTC

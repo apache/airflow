@@ -17,7 +17,7 @@
 
 .. _howto/connection:mcp:
 
-MCP Server Connection
+MCP server connection
 =====================
 
 The MCP connection type configures access to
@@ -35,8 +35,8 @@ Configuring the Connection
 Transport (Extra field)
     The transport type: ``http`` (default), ``sse``, or ``stdio``.
 
-    - ``http``: Streamable HTTP — the recommended transport for remote servers.
-    - ``sse``: Server-Sent Events — deprecated in favor of Streamable HTTP.
+    - ``http``: Streamable HTTP, the recommended transport for remote servers.
+    - ``sse``: Server-Sent Events, deprecated in favor of Streamable HTTP.
     - ``stdio``: Run the MCP server as a subprocess communicating over stdin/stdout.
 
 Host
@@ -47,7 +47,8 @@ Host
 Auth Token (Password field)
     Optional authentication token for the MCP server. Sent as a static
     ``Authorization: Bearer <token>`` header on HTTP/SSE transports. For
-    short-lived or minted tokens, use a ``token_provider`` instead (see below).
+    short-lived or minted tokens, pass a ``token_provider`` to ``MCPToolset``
+    instead (see :doc:`../toolsets/mcp`).
 
 Command (Extra field)
     The command to run for ``stdio`` transport. Required when transport is ``stdio``.
@@ -58,6 +59,21 @@ Arguments (Extra field)
     JSON array of arguments for the stdio command.
 
     Examples: ``["mcp-run-python"]``, ``["-m", "my_mcp_server"]``
+
+Environment (Extra field)
+    JSON object of environment variables for the ``stdio`` subprocess. Ignored
+    for ``http``/``sse``. For a secret that lives in a different connection or is
+    minted fresh per call, pass an ``env_provider`` to ``MCPToolset`` instead of
+    storing it here (see :doc:`../toolsets/mcp`).
+
+    Examples: ``{"MY_SERVER_MODE": "readonly"}``
+
+Timeout (Extra field)
+    Connection init timeout in seconds for the ``stdio`` transport. Ignored
+    for ``http``/``sse``. Must be a non-negative finite number; ``0`` or ``null``
+    disables the timeout. Default: ``10``.
+
+    Examples: ``30``
 
 Examples
 --------
@@ -99,38 +115,11 @@ Examples
         "extra": "{\"transport\": \"stdio\", \"command\": \"python\", \"args\": [\"-m\", \"my_server\"], \"timeout\": 30}"
     }
 
-Short-lived or minted tokens
-----------------------------
+**Stdio with subprocess environment variables**
 
-Some MCP endpoints require a freshly minted, short-lived token rather than a
-static one. For example, `Snowflake managed MCP servers
-<https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp>`__
-are best authenticated with a `key-pair JWT
-<https://docs.snowflake.com/en/user-guide/key-pair-auth>`__: the private key never
-leaves your environment and the signed JWT expires after about an hour, so it
-cannot be stored as a static connection ``password``. The same applies to OAuth /
-refresh tokens, Workload Identity Federation, and GitHub App installation tokens.
+.. code-block:: json
 
-For these, pass a ``token_provider`` callable to ``MCPHook`` or ``MCPToolset``
-instead of a static token. It is called each time the connection is established
-and its return value is used as the bearer token, so a fresh token is minted (and
-registered with secret masking so it does not leak into task logs):
-
-.. code-block:: python
-
-    from airflow.providers.common.ai.toolsets.mcp import MCPToolset
-
-
-    def mint_snowflake_jwt() -> str:
-        # Sign a short-lived JWT from the Snowflake connection's key-pair.
-        ...
-
-
-    toolset = MCPToolset(
-        mcp_conn_id="snowflake_managed_mcp",
-        token_provider=mint_snowflake_jwt,
-    )
-
-``token_provider`` is resolved in DAG code (it is a Python callable, not a stored
-connection field), so the signing key stays in your environment and is never baked
-into the serialized DAG.
+    {
+        "conn_type": "mcp",
+        "extra": "{\"transport\": \"stdio\", \"command\": \"my-mcp-server\", \"args\": [], \"env\": {\"SERVER_MODE\": \"readonly\"}}"
+    }

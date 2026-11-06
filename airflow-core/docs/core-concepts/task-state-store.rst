@@ -22,15 +22,22 @@
    intra
    Intra
    checkpointing
+   Checkpointing
+   accessors
 
 Task State Store
 ================
 
 .. versionadded:: 3.3
 
-Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``region_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
 
-Data persisted via task state store is accessed through the task context via ``context["task_state_store"]`` and exposes four methods: ``get``, ``set``, ``delete``, and ``clear``.
+``region_id`` is the all-zero UUID for task instances outside any dynamic region. Task instances created by dynamically expanded work, such as a loop, belong to a region, and two of them can share the same ``dag_id``, ``run_id``, ``task_id`` and ``map_index``. A custom backend must therefore include ``region_id`` in its uniqueness key.
+
+Because it outlives a worker crash and stays readable by the next attempt, the task state store is the mechanism behind :ref:`durable execution <concepts-durable-execution>`, where a task continues
+from where it stopped instead of repeating work or submitting a duplicate external job. Provider operators that advertise a ``durable`` parameter are built on the API described here.
+
+Data persisted via task state store is accessed through the task context via ``context["task_state_store"]`` and exposes the synchronous methods ``get``, ``set``, ``delete``, and ``clear``, plus the async counterparts ``aget``, ``aset``, ``adelete``, and ``aclear`` for use inside ``async`` tasks.
 
 
 Accessing task state store
@@ -51,7 +58,7 @@ Inside any ``@task``-decorated function or ``BaseOperator.execute()`` method, ta
         my_value = task_state_store.get("my_key", default="my_default_key")
 
         # Set the new value
-        new_value = f"It is {random.randint(1, 12 + 1)} o'clock"
+        new_value = f"It is {random.randint(1, 12)} o'clock"
         task_state_store.set("my_key", new_value)
 
         # Delete the value
@@ -124,21 +131,28 @@ Deletes a single key. No-op if the key does not exist.
 
     task_state_store.delete("job_id")
 
-``clear(all_map_indices=False)``
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``clear()``
+~~~~~~~~~~~
 
 Deletes *all* task state store keys for this task instance.
 
-For :doc:`mapped tasks </authoring-and-scheduling/dynamic-task-mapping>`, the default clears only the current map index. Pass ``all_map_indices=True`` to wipe the store across **every** mapped instance of the task (fleet-wide reset).
+.. code-block:: python
+
+    task_state_store.clear()
+
+``aget``, ``aset``, ``adelete``, ``aclear``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Async counterparts of ``get``, ``set``, ``delete``, and ``clear`` for use inside ``async`` tasks. They take the same arguments and behave identically to their synchronous siblings, but ``await`` the round-trip to the API server instead of blocking the event loop, so a coroutine can checkpoint its progress without stalling other concurrent work.
 
 .. code-block:: python
 
-    # clear only this map index
-    task_state_store.clear()
+    value = await task_state_store.aget("job_id", default="123456789")
+    await task_state_store.aset("job_id", job_id, retention=NEVER_EXPIRE)
+    await task_state_store.adelete("job_id")
+    await task_state_store.aclear()
 
-    # clear all map indices (fleet-wide)
-    task_state_store.clear(all_map_indices=True)
-
+Calling the synchronous ``get``/``set``/``delete``/``clear`` from inside an ``async`` task blocks the event loop and defeats the concurrency the coroutine was written for. Use the ``a``-prefixed methods there instead.
 
 Some Example Use Cases
 ----------------------
@@ -175,7 +189,7 @@ the default retention window.
 
 On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_state_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_state_store.py>`_.
 
-For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablemixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
+For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -202,6 +216,30 @@ For tasks that process paginated or batched data, store the last-completed offse
 
 
 On a retry, the task reads ``last_page`` and skips pages that were already processed.
+
+Checkpointing from an async task
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+An ``async`` task gains concurrency by awaiting I/O instead of blocking on it. To keep that benefit while checkpointing, use the async accessors ``aget``/``aset`` so the task store round-trip does not stall the event loop. This is the same paginated-ingest pattern as above, written for a coroutine that paginates through an external API.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, task
+
+    with DAG("async_paginated_ingest", schedule="@daily"):
+
+        @task
+        async def ingest_pages(**context):
+            task_state_store = context["task_state_store"]
+            last_page = await task_state_store.aget("last_page")
+
+            start_page = last_page + 1 if last_page is not None else 1
+
+            for page in range(start_page, total_pages + 1):
+                await fetch_and_load(page)
+                await task_state_store.aset("last_page", page)
+
+After a crash the task resumes from the stored ``last_page`` instead of restarting at page 1, without ever blocking the event loop.
 
 Progress metadata
 ~~~~~~~~~~~~~~~~~
@@ -249,25 +287,28 @@ If the worker process crashes, the task instance is retried. Task store data wri
 Deferrable tasks
 ~~~~~~~~~~~~~~~~
 
-Once a task defers, the Triggerer handles continuity across poke cycles. Use task state store in deferrable tasks only when you need to survive an operator-initiated clear, not for normal poke continuity.
+Once a task defers, the Triggerer handles continuity across poke cycles. Clearing a deferred task does not synchronously cancel its trigger: the Triggerer only notices the trigger is orphaned on its next iteration, then cancels it via the trigger's ``on_kill``, bounded by ``[triggerer] on_kill_timeout``. A new attempt can therefore start before that cancellation finishes. Most triggers implement ``on_kill`` to cancel the external job there, so the next attempt usually finds nothing left to reconnect to, but this is not guaranteed. The state store still matters for triggers that don't implement ``on_kill`` and do rely on a stored job id to reconnect. ``GlueJobCompleteTrigger`` and ``LivyTrigger`` are not examples of that: neither writes a job id to the state store when deferred, so ``keep_task_state`` does not help there. For a deferred ``GlueJobOperator``, ``durable`` defaults to ``True``, so the next attempt reattaches by scanning for the job's task UUID regardless of state store contents; clearing it does not start it over unless the Glue run has already stopped, or you set ``durable=False``. For a deferred ``LivyOperator``, cancel the running batch yourself before clearing to avoid submitting a duplicate.
 
 
 Mapped tasks
 ------------
 
-When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` without arguments clears the store only for the current index. ``clear(all_map_indices=True)`` wipes the store across every index of the task.
+When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
+
+To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 
 .. code-block:: python
 
-    # Inside a mapped task — clear only this index
+    # Inside a mapped task — clears only this index
     task_state_store.clear()
-
-    # Wipe store for all indices of this task
-    task_state_store.clear(all_map_indices=True)
 
 
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
+
+Task state store entries are also removed when a task instance is cleared through the REST API, the
+UI, or ``airflowctl``: clearing discards them by default so the next attempt starts over, unless
+``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 

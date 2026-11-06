@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { VStack } from "@chakra-ui/react";
-import { useSearchParams, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
-import { FilterBar, type FilterValue } from "src/components/FilterBar";
+import { FilterBar } from "src/components/FilterBar";
+
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
+import { useConfig } from "src/queries/useConfig";
 import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
 
 const {
@@ -30,21 +31,26 @@ const {
   DURATION_GTE: DURATION_GTE_PARAM,
   DURATION_LTE: DURATION_LTE_PARAM,
   LOGICAL_DATE_RANGE: LOGICAL_DATE_RANGE_PARAM,
+  LOOP: LOOP_PARAM,
   MAP_INDEX: MAP_INDEX_PARAM,
   NAME_PATTERN: NAME_PATTERN_PARAM,
   OPERATOR_NAME_PATTERN: OPERATOR_NAME_PATTERN_PARAM,
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_RANGE: RUN_AFTER_RANGE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   TASK_STATE: STATE_PARAM,
+  TEAMS: TEAMS_PARAM,
   TRY_NUMBER: TRY_NUMBER_PARAM,
 }: SearchParamsKeysType = SearchParamsKeys;
 
 export const TaskInstancesFilter = () => {
   const { dagId, runId } = useParams();
+  const multiTeamEnabled = Boolean(useConfig("multi_team"));
   const paramKeys: Array<FilterableSearchParamsKeys> = [
     NAME_PATTERN_PARAM as FilterableSearchParamsKeys,
+    RUN_AFTER_RANGE_PARAM as FilterableSearchParamsKeys,
     LOGICAL_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
     ASSET_EVENT_DATE_RANGE_PARAM as FilterableSearchParamsKeys,
     DURATION_GTE_PARAM as FilterableSearchParamsKeys,
@@ -59,6 +65,15 @@ export const TaskInstancesFilter = () => {
     STATE_PARAM as FilterableSearchParamsKeys,
   ];
 
+  // A loop lives in one run, so this only makes sense once a run is in scope.
+  if (runId !== undefined) {
+    paramKeys.push(LOOP_PARAM as FilterableSearchParamsKeys);
+  }
+
+  if (multiTeamEnabled) {
+    paramKeys.push(TEAMS_PARAM as FilterableSearchParamsKeys);
+  }
+
   if (runId === undefined) {
     paramKeys.unshift(RUN_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
   }
@@ -67,35 +82,17 @@ export const TaskInstancesFilter = () => {
     paramKeys.unshift(DAG_ID_PATTERN_PARAM as FilterableSearchParamsKeys);
   }
 
-  const [searchParams] = useSearchParams();
-
-  const { filterConfigs, handleFiltersChange } = useFiltersHandler(paramKeys);
-
-  const initialValues: Record<string, FilterValue> = {};
-
-  filterConfigs.forEach((config) => {
-    const value = searchParams.get(config.key);
-
-    if (value !== null && value !== "") {
-      if (config.type === "number") {
-        const parsedValue = Number(value);
-
-        initialValues[config.key] = isNaN(parsedValue) ? value : parsedValue;
-      } else {
-        initialValues[config.key] = value;
-      }
-    }
-  });
+  // ``useFiltersHandler`` already reads each filter's value, including composite ones whose key
+  // is not a url param of its own -- the loop pill spans ``loop_id`` and ``iteration``, so
+  // reading its key alone would leave it blank whenever a pass is selected elsewhere.
+  const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(paramKeys);
 
   return (
-    <VStack align="start" justifyContent="space-between">
-      <VStack alignItems="flex-start" gap={1}>
-        <FilterBar
-          configs={filterConfigs}
-          initialValues={initialValues}
-          onFiltersChange={handleFiltersChange}
-        />
-      </VStack>
-    </VStack>
+    <FilterBar
+      configs={filterConfigs}
+      initialValues={initialValues}
+      onFiltersChange={handleFiltersChange}
+      showPresetFilters={runId === undefined}
+    />
   );
 };

@@ -51,6 +51,24 @@ not set.
     [core]
     default_impersonation = airflow
 
+What impersonation does not cover
+'''''''''''''''''''''''''''''''''
+
+Impersonation applies to task **execution**. It does not apply to Dag file **parsing**.
+
+``run_as_user`` can be set on the Dag or on the task, so it overrides ``default_impersonation``.
+Airflow cannot know which user to switch to until it has parsed the Dag file, and parsing a Dag file
+executes its module-level code. That code therefore runs as the worker's own unix user, before any
+``sudo -u`` takes place; the file is parsed a second time after the switch, as the impersonated user.
+
+So ``run_as_user`` and ``default_impersonation`` constrain what a task does once it runs. Neither
+isolates the Dag file itself, and neither can be made to without moving the setting somewhere the
+worker can read before parsing. If module-level Dag code also has to be confined, isolate the worker
+— for example by running untrusted Dag authors' workloads on separate workers — rather than relying
+on impersonation within a shared one.
+
+See :doc:`/security/security_model` for how this fits the overall trust boundaries.
+
 .. _workload-isolation:
 
 Workload Isolation and Current Limitations
@@ -67,8 +85,11 @@ Worker process memory protection (Linux)
 ''''''''''''''''''''''''''''''''''''''''
 
 On Linux, the supervisor process calls ``prctl(PR_SET_DUMPABLE, 0)`` at the start of
-``supervise_task()`` before forking the task process. This flag is inherited by the forked
-child. Marking processes as non-dumpable prevents same-UID sibling processes from reading
+``supervise_task()`` before forking the task process. A bare-forked child inherits the flag;
+a child started through ``exec`` (macOS, or ``[core] execute_tasks_new_python_interpreter``)
+restores it in its bootstrap, before importing Airflow, because ``execve`` resets it; for the remaining
+interpreter-start window, ``kernel.yama.ptrace_scope >= 1`` covers ``/proc/<pid>/mem`` and ``ptrace``
+attach. Marking processes as non-dumpable prevents same-UID sibling processes from reading
 ``/proc/<pid>/mem``, ``/proc/<pid>/environ``, or ``/proc/<pid>/maps``, and blocks
 ``ptrace(PTRACE_ATTACH)``. This is critical because each supervisor holds a distinct JWT
 token in memory — without this protection, a malicious task process running as the same

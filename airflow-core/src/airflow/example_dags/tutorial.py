@@ -87,16 +87,35 @@ with DAG(
     # [START documentation]
     t1.doc_md = textwrap.dedent(
         """\
-    #### Task Documentation
-    You can document your task using the attributes `doc_md` (markdown),
-    `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
-    rendered in the UI's Task Instance Details page.
-    ![img](https://imgs.xkcd.com/comics/fixing_problems.png)
-    **Image Credit:** Randall Munroe, [XKCD](https://xkcd.com/license.html)
+    #### Print the current date
+
+    This task runs `date` by using the `bash_command` argument on `BashOperator`.
+    In the Task Instance Details page, Airflow renders this documentation from
+    the task's `doc_md` field. After this task succeeds, Airflow can run both
+    downstream tasks: `sleep` and `templated`.
+
+    ```bash
+    date
+    ```
+
+    Math fences are rendered with KaTeX. This tutorial starts one task and then
+    branches into two downstream tasks:
+
+    ```math
+    1\\ \\text{upstream task} + 2\\ \\text{downstream tasks} = 3\\ \\text{tasks}
+    ```
+
+    The same dependency is shown as a Mermaid diagram:
+
+    ```mermaid
+    graph LR
+        print_date[print_date] --> sleep[sleep]
+        print_date --> templated[templated]
+    ```
     """
     )
 
-    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the DAG; OR
+    dag.doc_md = __doc__  # providing that you have a docstring at the beginning of the Dag; OR
     dag.doc_md = """
     This is a documentation placed anywhere
     """  # otherwise, type it like this

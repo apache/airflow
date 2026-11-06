@@ -29,6 +29,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator, ShortCircuitOperator
 
+from system.openlineage.constants import DEFAULT_DAGRUN_TIMEOUT
 from system.openlineage.expected_events import get_expected_event_file_path
 from system.openlineage.operator import OpenLineageTestOperator
 
@@ -40,14 +41,13 @@ def do_nothing():
 DAG_ID = "openlineage_short_circuit_dag"
 
 with DAG(
+    dagrun_timeout=DEFAULT_DAGRUN_TIMEOUT,
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule=None,
     catchup=False,
     default_args={"retries": 0},
 ) as dag:
-    do_nothing_task = PythonOperator(task_id="do_nothing_task", python_callable=do_nothing)
-
     skip_tasks = ShortCircuitOperator(
         task_id="skip_tasks", python_callable=lambda: False, ignore_downstream_trigger_rules=False
     )
@@ -58,7 +58,7 @@ with DAG(
         task_id="check_events", file_path=get_expected_event_file_path(DAG_ID), trigger_rule="none_failed"
     )
 
-    do_nothing_task >> skip_tasks >> should_be_skipped >> check_events
+    skip_tasks >> should_be_skipped >> check_events
 
 
 from tests_common.test_utils.system_tests import get_test_run  # noqa: E402

@@ -15,23 +15,41 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module contains a Microsoft Graph API hook and the email backend built on it.
+
+.. spelling:word-list::
+
+    dryrun
+"""
+
 from __future__ import annotations
 
 import asyncio
 import inspect
 import json
+import mimetypes
+import re
 import warnings
 from ast import literal_eval
+from base64 import b64encode
 from collections.abc import Callable
 from contextlib import suppress
+from email.utils import parseaddr
 from http import HTTPStatus
 from io import BytesIO
 from json import JSONDecodeError
-from typing import TYPE_CHECKING, Any, cast
+from pathlib import Path
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 from urllib.parse import quote, urljoin, urlparse
 
+# Stays on httpx (not httpx2): the client below is handed to kiota_http, which builds and
+# consumes httpx objects, and the two packages' classes are distinct.
+# Migrate once msgraph-core/kiota_http move to httpx2; tracked at https://github.com/apache/airflow/issues/70522
 import httpx
-from azure.identity import CertificateCredential, ClientSecretCredential
+from azure.core.credentials_async import AsyncTokenCredential
+from azure.identity.aio import CertificateCredential, ClientSecretCredential
 from httpx import AsyncHTTPTransport, Response, Timeout
 from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
@@ -49,20 +67,26 @@ from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
-from airflow.providers.common.compat.connection import get_async_connection
-from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
+from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException, BaseHook, redact
 
 if TYPE_CHECKING:
-    from azure.identity._internal.client_credential_base import ClientCredentialBase
+    from collections.abc import Coroutine, Iterable
+
+    from azure.core.pipeline.transport._requests_basic import RequestsTransport
+    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
     from kiota_abstractions.request_adapter import RequestAdapter
     from kiota_abstractions.response_handler import NativeResponseType
     from kiota_abstractions.serialization import ParsableFactory
+    from kiota_authentication_azure.azure_identity_access_token_provider import (
+        AzureIdentityAccessTokenProvider,
+    )
 
     from airflow.providers.common.compat.sdk import Connection
 
-from airflow.providers.common.compat.sdk import redact
-
 PaginationCallable = Callable[..., tuple[str, dict[str, Any] | None]]
+
+T = TypeVar("T")
 
 
 def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
@@ -88,12 +112,63 @@ def execute_callable(func: Callable, *args: Any, **kwargs: Any) -> Any:
     return func(*args, **filtered_kwargs)
 
 
+class CachedAsyncTokenCredential(AsyncTokenCredential):  # type: ignore[misc]
+    """
+    Wraps an async Azure credential to prevent ``kiota`` from closing it after each token request.
+
+    ``kiota_authentication_azure`` calls ``await credential.close()`` after every successful
+    ``get_token`` call (see ``AzureIdentityAccessTokenProvider.get_authorization_token``).  That
+    tears down the underlying ``AioHttpTransport`` session so the next request fails with
+    "HTTP transport has already been closed".  Suppressing ``close()`` keeps the session alive
+    for the lifetime of the cached ``RequestAdapter``.
+    """
+
+    def __init__(self, credential: ClientSecretCredential | CertificateCredential):
+        self._credential = credential
+
+    @property
+    def _transport(self) -> RequestsTransport:
+        return self._credential._client._pipeline._transport
+
+    @property
+    def closed(self) -> bool:
+        # _closed is set to True by AioHttpTransport.close(); check it first as it
+        # is authoritative even when _has_been_opened is still False.
+        if getattr(self._transport, "_closed", False):
+            return True
+        if not self._transport._has_been_opened and self._transport.session is None:
+            return False
+        if self._transport.session is not None:
+            return self._transport.session.closed
+        return True
+
+    async def __aenter__(self) -> AsyncTokenCredential:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ) -> None:
+        await self.close()
+
+    async def get_token(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._credential.get_token(*args, **kwargs)
+
+    async def get_token_info(self, *args: Any, **kwargs: Any) -> Any:
+        return await self._credential.get_token_info(*args, **kwargs)  # type: ignore[union-attr]
+
+    async def close(self) -> None:
+        """Intentionally a no-op — the credential session is closed when the adapter is evicted."""
+
+
 class DefaultResponseHandler(ResponseHandler):
     """DefaultResponseHandler returns JSON payload or content in bytes or response headers."""
 
     @staticmethod
     def get_value(response: Response) -> Any:
-        with suppress(JSONDecodeError):
+        with suppress(JSONDecodeError, UnicodeDecodeError):
             return response.json()
         content = response.content
         if not content:
@@ -116,6 +191,10 @@ class DefaultResponseHandler(ResponseHandler):
             status_code = HTTPStatus(resp.status_code)
             if status_code == HTTPStatus.BAD_REQUEST:
                 raise AirflowBadRequest(message)
+            if status_code in {HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN}:
+                # Power BI reports an expired access token as 403 Forbidden with error code
+                # ``TokenExpired`` rather than 401, so both must evict the cached request adapter.
+                raise PermissionError(message)
             if status_code == HTTPStatus.NOT_FOUND:
                 raise AirflowNotFoundException(message)
             raise AirflowException(message)
@@ -166,6 +245,7 @@ class KiotaRequestAdapterHook(BaseHook):
         else:
             self.scopes = scopes or [self.DEFAULT_SCOPE]
         self.api_version = self.resolve_api_version_from_value(api_version)
+        self.allowed_netloc: str | None = None
 
     def _ensure_protocol(self, host: str | None, schema: str = "https") -> str | None:
         """Ensure URL has http:// or https:// protocol prefix."""
@@ -296,12 +376,16 @@ class KiotaRequestAdapterHook(BaseHook):
             return proxies
         return None
 
-    def _build_request_adapter(self, connection) -> tuple[str, RequestAdapter]:
+    @staticmethod
+    def get_allowed_hosts(authority: str | None, config: dict) -> list[str]:
+        allowed_hosts = config.get("allowed_hosts", authority)
+        if not allowed_hosts:
+            return []
+        return [host for host in allowed_hosts.split(",") if host]
+
+    def _build_request_adapter(self, connection, config: dict[str, Any]) -> tuple[str, RequestAdapter]:
         client_id = connection.login
         client_secret = connection.password
-        # TODO (#54350): do not use connection.extra_dejson until it's fixed in Airflow otherwise expect:
-        #       RuntimeError: You cannot use AsyncToSync in the same thread as an async event loop.
-        config = json.loads(connection.extra) if connection.extra else {}
         api_version = self.get_api_version(config)
         host = self.get_host(connection)  # type: ignore[arg-type]
         base_url = self.get_base_url(host, api_version, config)
@@ -313,7 +397,7 @@ class KiotaRequestAdapterHook(BaseHook):
             scopes = scopes.split(",")
         verify = config.get("verify", True)
         trust_env = config.get("trust_env", False)
-        allowed_hosts = (config.get("allowed_hosts", authority) or "").split(",")
+        allowed_hosts = self.get_allowed_hosts(authority, config)
 
         self.log.info(
             "Creating Microsoft Graph SDK client %s for conn_id: %s",
@@ -366,7 +450,6 @@ class KiotaRequestAdapterHook(BaseHook):
             http_client=http_client,
             base_url=base_url,
         )
-        self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         return api_version, request_adapter
 
     def get_conn(self) -> RequestAdapter:
@@ -374,7 +457,7 @@ class KiotaRequestAdapterHook(BaseHook):
         Initiate a new RequestAdapter connection.
 
         .. warning::
-           This method is deprecated.
+           This method is deprecated. Use :meth:`get_async_conn` instead.
         """
         if not self.conn_id:
             raise AirflowException("Failed to create the KiotaRequestAdapterHook. No conn_id provided!")
@@ -389,9 +472,24 @@ class KiotaRequestAdapterHook(BaseHook):
 
         if not request_adapter:
             connection = self.get_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
+            api_version, request_adapter = self._build_request_adapter(connection, connection.extra_dejson)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
         self.api_version = api_version
         return request_adapter
+
+    @staticmethod
+    def _is_http_client_closed(request_adapter: RequestAdapter) -> bool:
+        """Return True when the underlying httpx AsyncClient has been closed."""
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+
+        if adapter._http_client.is_closed:
+            return True
+
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+
+        return credential.closed
 
     async def get_async_conn(self) -> RequestAdapter:
         """Initiate a new RequestAdapter connection asynchronously."""
@@ -400,10 +498,23 @@ class KiotaRequestAdapterHook(BaseHook):
 
         api_version, request_adapter = self.cached_request_adapters.get(self.conn_id, (None, None))
 
+        if request_adapter and self._is_http_client_closed(request_adapter):
+            self.log.warning(
+                "Cached request adapter for conn_id '%s' has a closed HTTP client. Rebuilding.",
+                self.conn_id,
+            )
+            self.cached_request_adapters.pop(self.conn_id, None)
+            request_adapter = None
+
         if not request_adapter:
             connection = await get_async_connection(conn_id=self.conn_id)
-            api_version, request_adapter = self._build_request_adapter(connection)
+            # Masks the extra's secrets without a synchronous call to the Task SDK on the event loop.
+            config = await get_async_extra_dejson(connection)
+            api_version, request_adapter = self._build_request_adapter(connection, config)
+            self.cached_request_adapters[self.conn_id] = (api_version, request_adapter)
+
         self.api_version = api_version
+        self.allowed_netloc = urlparse(request_adapter.base_url).netloc.lower()
         return request_adapter
 
     def get_proxies(self, config: dict) -> dict | None:
@@ -433,7 +544,7 @@ class KiotaRequestAdapterHook(BaseHook):
         authority: str | None,
         verify: bool,
         proxies: dict | None,
-    ) -> ClientCredentialBase:
+    ) -> AsyncTokenCredential:
         tenant_id = config.get("tenant_id") or config.get("tenantId")
         certificate_path = config.get("certificate_path")
         certificate_data = config.get("certificate_data")
@@ -446,25 +557,29 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.info("Disable instance discovery: %s", disable_instance_discovery)
         self.log.info("MSAL Proxies: %s", redact(msal_proxies, name="proxies"))
         if certificate_path or certificate_data:
-            return CertificateCredential(
+            return CachedAsyncTokenCredential(
+                CertificateCredential(
+                    tenant_id=tenant_id,
+                    client_id=login,  # type: ignore
+                    password=password,
+                    certificate_path=certificate_path,
+                    certificate_data=certificate_data.encode() if certificate_data else None,
+                    authority=authority,
+                    proxies=msal_proxies,
+                    disable_instance_discovery=disable_instance_discovery,
+                    connection_verify=verify,
+                )
+            )
+        return CachedAsyncTokenCredential(
+            ClientSecretCredential(
                 tenant_id=tenant_id,
                 client_id=login,  # type: ignore
-                password=password,
-                certificate_path=certificate_path,
-                certificate_data=certificate_data.encode() if certificate_data else None,
+                client_secret=password,  # type: ignore
                 authority=authority,
                 proxies=msal_proxies,
                 disable_instance_discovery=disable_instance_discovery,
                 connection_verify=verify,
             )
-        return ClientSecretCredential(
-            tenant_id=tenant_id,
-            client_id=login,  # type: ignore
-            client_secret=password,  # type: ignore
-            authority=authority,
-            proxies=msal_proxies,
-            disable_instance_discovery=disable_instance_discovery,
-            connection_verify=verify,
         )
 
     def test_connection(self):
@@ -482,6 +597,13 @@ class KiotaRequestAdapterHook(BaseHook):
         query_parameters: dict[str, Any] | None = None,
         responses: Callable[[], list[dict[str, Any]] | None] = lambda: [],
     ) -> tuple[Any, dict[str, Any] | None]:
+        """
+        Resolve the url and query parameters of the page following ``response``.
+
+        The ``$skip`` offset is derived from ``query_parameters`` rather than from ``responses``:
+        callers accumulate whatever their own callbacks produced, so the entries are not guaranteed
+        to be the raw pages this offset would have to be counted from.
+        """
         if isinstance(response, dict):
             odata_count = response.get("@odata.count")
             if odata_count and query_parameters:
@@ -489,9 +611,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
                 if top and odata_count:
                     if len(response.get("value", [])) == top:
-                        results = responses()
-                        skip = sum([len(result["value"]) for result in results]) + top if results else top  # type: ignore
-                        query_parameters["$skip"] = skip
+                        query_parameters["$skip"] = (query_parameters.get("$skip") or 0) + top
                         return url, query_parameters
             return response.get("@odata.nextLink"), query_parameters
         return None, query_parameters
@@ -506,8 +626,6 @@ class KiotaRequestAdapterHook(BaseHook):
         headers: dict[str, str] | None = None,
         data: dict[str, Any] | str | BytesIO | None = None,
     ):
-        self.log.info("Executing url '%s' as '%s'", url, method)
-
         response = await self.send_request(
             request_info=self.request_information(
                 url=url,
@@ -524,6 +642,39 @@ class KiotaRequestAdapterHook(BaseHook):
         self.log.debug("response: %s", response)
 
         return response
+
+    async def get_allowed_netlocs(self) -> set[str]:
+        """Return the endpoint's host and the connection's allowed hosts, for checking pagination links."""
+        request_adapter = await self.get_async_conn()
+        adapter = cast("HttpxRequestAdapter", request_adapter)
+        provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+        access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+        allowed_hosts = access_token_provider.get_allowed_hosts_validator().get_allowed_hosts()
+        netlocs = {host.lower() for host in allowed_hosts}
+
+        if self.allowed_netloc:
+            netlocs.add(self.allowed_netloc)
+        return netlocs
+
+    async def assert_allowed_host(self, url: str | None) -> None:
+        """
+        Refuse an absolute ``url`` whose host the connection does not allow.
+
+        A pagination link (e.g. ``@odata.nextLink``) is echoed from the API response and is re-fetched
+        with the connection's bearer token attached. That token is withheld only from hosts outside
+        ``allowed_hosts``, which defaults to empty (any host) unless configured, so a tampered response
+        could send it to an arbitrary host (CWE-918).
+        """
+        if not url or not url.startswith("http"):
+            return
+
+        allowed_netlocs = await self.get_allowed_netlocs()
+
+        if urlparse(url).netloc.lower() not in allowed_netlocs:
+            raise ValueError(
+                f"Refusing to follow pagination link {url!r}: its host is not among the allowed "
+                f"Microsoft Graph endpoints {sorted(allowed_netlocs)}."
+            )
 
     async def paginated_run(
         self,
@@ -560,7 +711,7 @@ class KiotaRequestAdapterHook(BaseHook):
                     responses.append(response)
 
                     if pagination_function:
-                        url, query_parameters = execute_callable(
+                        next_url, query_parameters = execute_callable(
                             pagination_function,
                             response=response,
                             url=url,
@@ -572,6 +723,8 @@ class KiotaRequestAdapterHook(BaseHook):
                             data=data,
                             responses=lambda: responses,
                         )
+                        await self.assert_allowed_host(next_url)
+                        url = next_url
                 else:
                     break
 
@@ -582,16 +735,68 @@ class KiotaRequestAdapterHook(BaseHook):
     async def send_request(self, request_info: RequestInformation, response_type: str | None = None):
         conn = await self.get_async_conn()
 
-        if response_type:
-            return await conn.send_primitive_async(
+        try:
+            self.log.info("Executing url '%s' as '%s'", request_info.url, request_info.http_method)
+
+            if response_type:
+                return await conn.send_primitive_async(
+                    request_info=request_info,
+                    response_type=response_type,
+                    error_map=self.error_mapping(),
+                )
+            return await conn.send_no_response_content_async(
                 request_info=request_info,
-                response_type=response_type,
                 error_map=self.error_mapping(),
             )
-        return await conn.send_no_response_content_async(
-            request_info=request_info,
-            error_map=self.error_mapping(),
-        )
+        except (PermissionError, RuntimeError, ValueError) as e:
+            self.log.warning(
+                "Request failed for conn_id '%s': %s. Invalidating cached request adapter.",
+                self.conn_id,
+                e,
+            )
+            await self.close()
+            raise
+
+    async def close(self) -> None:
+        """Close the request adapter cached for this connection and evict it from the cache."""
+        _, request_adapter = self.cached_request_adapters.pop(self.conn_id, (None, None))
+
+        if not request_adapter:
+            return
+
+        try:
+            adapter = cast("HttpxRequestAdapter", request_adapter)
+            await adapter._http_client.aclose()
+        finally:
+            provider = cast("BaseBearerTokenAuthenticationProvider", adapter._authentication_provider)
+            access_token_provider = cast("AzureIdentityAccessTokenProvider", provider.access_token_provider)
+            credential = cast("CachedAsyncTokenCredential", access_token_provider._credentials)
+            await credential._credential.close()
+
+    def run_sync(self, coroutine: Coroutine[Any, Any, T]) -> T:
+        """
+        Run a coroutine of this hook from synchronous code, such as an operator's ``execute``.
+
+        :func:`asyncio.run` tears down the event loop that the cached request adapter is bound to, so
+        the adapter is closed while that loop still runs and the next call builds a new one.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            coroutine.close()
+            raise RuntimeError(
+                "run_sync cannot be called from a running event loop, await the coroutine instead."
+            )
+
+        async def run_and_close() -> T:
+            try:
+                return await coroutine
+            finally:
+                await self.close()
+
+        return asyncio.run(run_and_close())
 
     def request_information(
         self,
@@ -653,3 +858,262 @@ class KiotaRequestAdapterHook(BaseHook):
             "4XX": APIError,  # type: ignore
             "5XX": APIError,  # type: ignore
         }
+
+
+class MSGraphMailHook(KiotaRequestAdapterHook):
+    """
+    Send mail from an Office 365 mailbox through the Microsoft Graph ``sendMail`` endpoint.
+
+    The application registration behind the connection needs the ``Mail.Send`` permission, and with
+    application permissions an administrator has to grant it access to the sending mailbox.
+
+    https://learn.microsoft.com/en-us/graph/api/user-sendmail
+
+    :param conn_id: The :ref:`Microsoft Graph API connection id <howto/connection:msgraph>`.
+    :param timeout: The HTTP timeout being used by the KiotaRequestAdapter (default is None).
+        When no timeout is specified or set to None then no HTTP timeout is applied on each request.
+    :param proxies: A Dict defining the HTTP proxies to be used (default is None).
+    :param host: The host to be used (default is "https://graph.microsoft.com").
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
+    :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
+    """
+
+    # Microsoft Graph documents 3 MB as the largest content that can ride inline on a message.
+    # Anything bigger has to go through an upload session on a draft message instead.
+    MAX_ATTACHMENTS_SIZE = 3 * 1024 * 1024
+
+    @staticmethod
+    def extract_email_addresses(addresses: str | Iterable[str] | None) -> list[str]:
+        """Split a comma or semicolon separated string, or an iterable, into a list of addresses."""
+        if not addresses:
+            return []
+        if isinstance(addresses, str):
+            addresses = re.split(r"\s*[,;]\s*", addresses)
+        return [address for address in addresses if address]
+
+    @staticmethod
+    def extract_sender(from_email: str | None) -> str:
+        """Extract the bare address of the mailbox to send from."""
+        # The mailbox is addressed in the request path, so the bare address is needed even though
+        # ``[email] from_email`` is conventionally configured as "Display name <user@example.com>".
+        sender = parseaddr(from_email or "")[1]
+        if not sender:
+            raise ValueError(
+                f"A `from_email` holding the mailbox to send from is required, got {from_email!r}."
+            )
+        return sender
+
+    @classmethod
+    def build_recipients(cls, addresses: str | Iterable[str] | None) -> list[dict[str, Any]]:
+        """Build the Microsoft Graph recipient representation for the given addresses."""
+        return [{"emailAddress": {"address": address}} for address in cls.extract_email_addresses(addresses)]
+
+    @classmethod
+    def build_attachments(cls, files: Iterable[str] | None) -> list[dict[str, Any]]:
+        """Read each file from disk and build its Microsoft Graph ``fileAttachment`` representation."""
+        attachments = []
+        total_size = 0
+        for file in files or []:
+            path = Path(file)
+            content = path.read_bytes()
+            total_size += len(content)
+            if total_size > cls.MAX_ATTACHMENTS_SIZE:
+                raise ValueError(
+                    f"The attachments add up to at least {total_size} bytes, which is more than the "
+                    f"{cls.MAX_ATTACHMENTS_SIZE} bytes Microsoft Graph accepts on a sendMail request. "
+                    f"Upload larger files to a draft message with an upload session instead."
+                )
+            attachments.append(
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": path.name,
+                    "contentType": mimetypes.guess_type(path.name)[0] or "application/octet-stream",
+                    "contentBytes": b64encode(content).decode("ascii"),
+                }
+            )
+        return attachments
+
+    @classmethod
+    def build_message(
+        cls,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Build the Microsoft Graph message body for the given email fields."""
+        recipients = cls.build_recipients(to)
+        if not recipients:
+            raise ValueError("No recipients were resolved from the `to` argument.")
+
+        message: dict[str, Any] = {
+            "subject": subject,
+            "body": {"contentType": "HTML", "content": html_content},
+            "toRecipients": recipients,
+        }
+        if cc:
+            message["ccRecipients"] = cls.build_recipients(cc)
+        if bcc:
+            message["bccRecipients"] = cls.build_recipients(bcc)
+        if files:
+            message["attachments"] = cls.build_attachments(files)
+        if custom_headers:
+            # Microsoft Graph rejects custom header names that are not prefixed with "x-".
+            message["internetMessageHeaders"] = [
+                {"name": name, "value": str(value)} for name, value in custom_headers.items()
+            ]
+        return message
+
+    async def asend_email(
+        self,
+        from_email: str,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+        save_to_sent_items: bool = True,
+        dryrun: bool = False,
+    ) -> None:
+        """
+        Send an email from the ``from_email`` mailbox (async).
+
+        :param from_email: The mailbox the message is sent from.
+        :param to: Recipient email address or list of addresses.
+        :param subject: Email subject.
+        :param html_content: Email body in HTML format.
+        :param files: List of file paths to attach to the email.
+        :param cc: Carbon copy recipient email address or list of addresses.
+        :param bcc: Blind carbon copy recipient email address or list of addresses.
+        :param custom_headers: Custom internet message headers, whose names have to start with "x-".
+        :param save_to_sent_items: Whether the message is saved in the mailbox's Sent Items folder.
+        :param dryrun: If True, the message is prepared but not sent.
+        """
+        sender = self.extract_sender(from_email)
+
+        message = self.build_message(
+            to=to,
+            subject=subject,
+            html_content=html_content,
+            files=files,
+            cc=cc,
+            bcc=bcc,
+            custom_headers=custom_headers,
+        )
+
+        if dryrun:
+            self.log.info("Dry run, not sending email with subject %r to %s", subject, to)
+            return
+
+        await self.run(
+            url="users/{user_id}/sendMail",
+            path_parameters={"user_id": sender},
+            method="POST",
+            data={"message": message, "saveToSentItems": save_to_sent_items},
+        )
+
+    def send_email(
+        self,
+        from_email: str,
+        to: str | Iterable[str],
+        subject: str,
+        html_content: str,
+        files: Iterable[str] | None = None,
+        cc: str | Iterable[str] | None = None,
+        bcc: str | Iterable[str] | None = None,
+        custom_headers: dict[str, Any] | None = None,
+        save_to_sent_items: bool = True,
+        dryrun: bool = False,
+    ) -> None:
+        """
+        Send an email from the ``from_email`` mailbox.
+
+        :param from_email: The mailbox the message is sent from.
+        :param to: Recipient email address or list of addresses.
+        :param subject: Email subject.
+        :param html_content: Email body in HTML format.
+        :param files: List of file paths to attach to the email.
+        :param cc: Carbon copy recipient email address or list of addresses.
+        :param bcc: Blind carbon copy recipient email address or list of addresses.
+        :param custom_headers: Custom internet message headers, whose names have to start with "x-".
+        :param save_to_sent_items: Whether the message is saved in the mailbox's Sent Items folder.
+        :param dryrun: If True, the message is prepared but not sent.
+        """
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "send_email cannot be called from a running event loop, await asend_email instead."
+            )
+
+        async def send_and_close() -> None:
+            try:
+                await self.asend_email(
+                    from_email=from_email,
+                    to=to,
+                    subject=subject,
+                    html_content=html_content,
+                    files=files,
+                    cc=cc,
+                    bcc=bcc,
+                    custom_headers=custom_headers,
+                    save_to_sent_items=save_to_sent_items,
+                    dryrun=dryrun,
+                )
+            finally:
+                # asyncio.run tears down the event loop that the request adapter is bound to, so the
+                # cached adapter is unusable by the time the next email is sent.  Close it here,
+                # while the loop that owns its sockets is still running.
+                await self.close()
+
+        asyncio.run(send_and_close())
+
+
+def send_email(
+    to: str | Iterable[str],
+    subject: str,
+    html_content: str,
+    files: list[str] | None = None,
+    dryrun: bool = False,
+    cc: str | Iterable[str] | None = None,
+    bcc: str | Iterable[str] | None = None,
+    mime_subtype: str = "mixed",
+    mime_charset: str = "utf-8",
+    conn_id: str | None = None,
+    from_email: str | None = None,
+    custom_headers: dict[str, Any] | None = None,
+    **kwargs,
+) -> None:
+    """
+    Email backend for Microsoft Graph.
+
+    .. note::
+        For more information, see :ref:`email-configuration-msgraph`
+    """
+    if not from_email:
+        raise ValueError(
+            "The `from_email` configuration has to be set for the Microsoft Graph emailer, as it "
+            "determines which mailbox the message is sent from."
+        )
+
+    # ``mime_subtype`` and ``mime_charset`` are part of the email backend contract but have no
+    # counterpart here: Microsoft Graph composes the MIME message itself from the JSON payload.
+    hook = MSGraphMailHook(conn_id=conn_id or MSGraphMailHook.default_conn_name)
+    hook.send_email(
+        from_email=from_email,
+        to=to,
+        subject=subject,
+        html_content=html_content,
+        files=files,
+        cc=cc,
+        bcc=bcc,
+        custom_headers=custom_headers,
+        dryrun=dryrun,
+    )

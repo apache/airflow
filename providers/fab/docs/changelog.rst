@@ -20,6 +20,356 @@
 Changelog
 ---------
 
+3.11.0
+......
+
+.. note::
+    Airflow 3.4.1 gives Dag bundles their own ``Dag Bundles`` resource, which only ``Op`` and
+    ``Admin`` get by default, so ``Viewer`` and ``User`` lose the Dag bundle pages and API they
+    reached through Dag read access. Upgrade this provider together with Airflow 3.4.1: older
+    releases deny the Dag bundle pages and API to every role, including ``Admin``, while still
+    showing the Browse menu entry. Custom roles need ``can read`` and ``menu access`` on
+    ``Dag Bundles`` added by hand.
+
+    ``POST /auth/token`` and ``POST /auth/token/cli`` now check a username and password only against
+    the configured ``AUTH_TYPE``: with ``AUTH_LDAP`` they no longer fall back to database passwords, and
+    with other authentication types (OAuth, remote user) they no longer issue tokens for a username and
+    password; use that type's own login flow instead. Passwords made only of NUL bytes are rejected.
+
+Features
+~~~~~~~~
+
+* ``Give Dag bundles their own read permission, on Airflow 3.4.1+ (#76329)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep the Dag bundles menu entry on Dag access on Airflow 3.4.0 (#76474)``
+* ``Use only the configured auth type when creating tokens in the FAB auth manager (#76231)``
+* ``Honor next when an authenticated user reaches the FAB login page (#75665)``
+
+Misc
+~~~~
+
+* ``Bump @babel/core to 8.0.9 and webpack to 5.112.2 in the FAB UI (#75807)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for GET /api/v2/triggers (#76260)``
+* ``Document the public GET /api/v2/auth/cli/metadata endpoint (#75672)``
+* ``Document the permission for GET /api/v2/providers/{provider_name} (#68854)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``[main] Upgrade important CI environment (#75270)``
+   * ``Add unit tests for auth manager login datamodels (#72265) (#75544)``
+   * ``Remove unused FAB test log assertion helpers (#75876)``
+
+3.10.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Distinguish invalid Dag access control from FAB backend failures (#74788)``
+* ``Check all names before airflow roles import writes anything (#74711)``
+* ``Keep the /auth mount path when ProxyFix applies X-Forwarded-Prefix (#74603)``
+* ``Sync Dag permissions for CustomAuthManager (#74022)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.13.0 and webpack to 5.112.0 (#75234)``
+* ``Support SQLAlchemy 2.1 typing in permission sorting (#75075)``
+* ``Bump prettier to 3.9.10 (#74765)``
+* ``Bump @babel/core, @babel/eslint-parser and @babel/preset-env to 8.0.7 (#74670)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix missing and incorrect endpoints in the API permission reference (#74871)``
+* ``Remove the asset-wide queued event deletion row from the API permission reference (#74839)``
+* ``Update remaining FAB Website permissions rows for Airflow 3 (#74653)``
+* ``Update FAB Website permissions rows for Airflow 3 views (#74630)``
+* ``Fix FAB Website permissions rows for the Grid and Graph views (#74599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Stop parallel prek hooks racing on __pycache__ cleanup (#73823)``
+   * ``Require Python 3.11+ for permission doc generators and fail on parse errors (#74654)``
+
+3.10.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop rebuilding the FAB app on every users and roles API call (#73104)``
+* ``Set 'SameSite' on the fab auth manager session cookie (#73894)``
+
+Misc
+~~~~
+
+* ``Update eslint to 10.12.0 and moment-timezone to 0.6.5 (#74418)``
+* ``Drop support for Python 3.10 (#74157)``
+* ``Bump stylelint to 17.16.0 (#74252)``
+* ``Bump prettier to 3.9.9 (#73857)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Add an API endpoint and UI tab comparing two stored Dag versions (#73322)``
+* ``Use "Airflow versions" in user-facing docs, not "cores" (#74045)``
+* ``UI: Add bulk pause, drain and unpause actions to the Dags list (#73055)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apply ruff Python 3.11 fixes to providers (#74155)``
+   * ``[main] Upgrade important CI environment (#73629)``
+
+3.10.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add Reset Password button to Edit User view (#70243)``
+* ``Add REPARSE_ALL permission for reparsing files with no registered Dag (#73274)``
+* ``Gate the Dag Bundles menu entry on the FAB DAGs resource so it appears for FAB deployments (#72909)``
+* ``Add FAB option to log users out after a maximum session lifetime (#72825)``
+* ``Add declarative configuration for FAB custom roles (#72820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Keep sync-perm going when a Dag has bad access_control (#71798)``
+* ``Fix FAB migration failing on MySQL under the pymysql driver (#73220)``
+* ``Fix airflow roles import crash on a role without permissions (#72796)``
+* ``Fix FabAuthManager.get_url_login() dropping next_url (#73134)``
+* ``Fix FAB FastAPI PATCH users to respect FAB_PASSWORD_HASH_METHOD (#73110)``
+* ``Fix invalid command path in permissions-cleanup help examples (#73028)``
+* ``Close the session after the FAB permissions collection read (#72950)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.11.0 (#73630)``
+* ``Bump the @babel packages to 8.0.6, prettier to 3.9.8, webpack to 5.111.1, moment to 2.31.0 and moment-timezone to 0.6.4 (#73207, #73467, #73566)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document the permissions for the Dag bundle detail and bundle files API endpoints (#73009)``
+* ``Render the database ERD as a searchable Mermaid diagram instead of an image (#72006)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add TypedDict type hints for AirflowPlugin list fields (#69761)``
+
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Scope asset API responses to the assets a user may read (#72682)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix FAB ignoring create_metadata_engine from local settings (#71674)``
+* ``Close database sessions after users and roles collection reads (#72578)``
+* ``Validate id_token issuer and audience in the FAB Authentik provider (#72645)``
+* ``Invalidate a user's sessions when their password is changed through the API (#72657)``
+* ``Compare session and user identifiers consistently when resetting a password (#72198)``
+* ``Reject tokens naming a deactivated account in the FAB auth manager (#72199)``
+* ``Use secrets for fab users '--use-random-password' generation (#72092)``
+
+Misc
+~~~~
+
+* ``Bump FAB UI JavaScript dependencies (#72726)``
+* ``Remove unused FAB app-init helpers that could never run (#72610)``
+* ``Bump webpack in the FAB UI (#72653)``
+* ``Bump webpack in the FAB UI (#72490)``
+* ``Pin pnpm version for FAB and Edge3 UI so bumps keep security overrides (#72390)``
+* ``Bump FAB UI JavaScript dependencies (#72383)``
+* ``Bump eslint from 10.8.1 to 10.9.0 in the FAB UI (#72065)``
+
+Doc-only
+~~~~~~~~
+
+* ``Generate fab permission table (#72230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Validate issuer and audience of Azure AD id_tokens in FAB auth manager (#71735)``
+* ``Support Azure national clouds in FAB Azure AD id_token validation (#72010)``
+* ``Fix Azure AD tenant identifier canonicalization in FAB auth manager (#71920)``
+* ``Fix FAB SSO guide's non-working OAuth configuration instructions (#71852)``
+* ``Make the FAB roles PATCH endpoint replace permissions, not just add them (#71933)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.1 (#71508)``
+* ``Add pnpm overrides after audit review in fab provider (#71448)``
+* ``Bump webpack to 5.109.2 and webpack-cli to 7.2.2 (#71005)``
+
+Doc-only
+~~~~~~~~
+
+* ``Fix SSO docs pointing at the pre-Airflow 3 OAuth redirect path (#71624)``
+* ``Document API token response details (#71583)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] CI: Upgrade important CI environment (#70501)``
+   * ``[main] Upgrade important CI environment (#71590)``
+   * ``Prepare providers release 2026-08-18 (#71794)``
+
+
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Gate audit log rows not tied to a Dag on a dedicated AccessView (#70759)``
+* ``Add IMPORT_ERRORS_ALL permission for import errors of files with no registered Dag (#69790)``
+* ``Add 'get_display_name' to 'BaseUser' interface (#70583)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix asset state store writes forbidden under FAB auth manager (#70478)``
+* ``Stop dumping every Dag to stdout when syncing FAB permissions (#70939)``
+
+Misc
+~~~~
+
+* ``Bump eslint to 10.8.0 (#70697)``
+* ``Bump prettier to 3.9.6, stylelint to 17.14.1, webpack to 5.109.0 (#70604)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.7.3
+.....
+
+.. note::
+    The Azure AD OAuth provider in the FAB auth manager now verifies the ``id_token``
+    signature by default: ``verify_signature`` now defaults to ``True`` (previously
+    ``False``), consistent with the Authentik provider. Deployments that intentionally
+    relied on skipping signature verification must set ``verify_signature: False``
+    explicitly in the Azure provider ``client_kwargs`` to keep the previous behaviour.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix AUTH_ROLE_PUBLIC returning 401 in FastAPI API server (#69773)``
+* ``Verify Azure AD OAuth id_token signatures by default in FAB auth manager (#69374)``
+
+Misc
+~~~~
+
+* ``Bump flask-appbuilder to 5.2.2 in FAB provider (#69730)``
+
+Doc-only
+~~~~~~~~
+
+* ``Clarify FAB and Auth documentation regarding external_db_managers (#69929)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky static checks caused by migration-reference hook race (#70170)``
+   * ``[main] Upgrade important CI environment (#69694)``
+   * ``Bump eslint (#69932)``
+   * ``Bump prettier (#69835)``
+   * ``Add upgrade-fab-provider skill and FAB contributing doc (#69729)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69664)``
+   * ``Bump moment-timezone from 0.6.2 to 0.6.3 in /providers/fab/src/airflow/providers/fab/www in the fab-ui-package-updates group across 1 directory (#70308)``
+
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix DAG named "DAGs" colliding with the global DAGs permission resource (#69106)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26 (#69022)``
+   * ``Prepare ad-hoc provider documentation 2026-06-26``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69344)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 2 updates (#69210)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69186)``
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#69133)``
+
+3.7.1
+.....
+
+.. note::
+    The ``get_cli_user`` method added to the FAB auth manager in 3.7.0 has been removed
+    together with the revert of the airflowctl CLI client integration in Airflow core.
+    If you relied on ``airflowctl`` CLI authentication through the FAB auth manager,
+    provide an API token via the ``AIRFLOW_CLI_TOKEN`` environment variable instead.
+
+Misc
+~~~~
+
+* ``Revert airflowctl dependency from airflow-core (#68856)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Implement 'get_cli_user' in the FAB auth manager so airflowctl CLI commands can authenticate (#68175)``
+* ``Add Browse > Deadlines menu item for compatibility with Airflow 3.3.0 (#67586)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix fab deserialize user session leak (#68100)``
+* ``Import ldap.filter in security_manager override (#68226)``
+* ``Add defensive validation for LDAP search filter configuration (#67630)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update FAB auth manager Flask config wording for Airflow 3 (#68162)``
+* ``Fix removed webserver command in FAB SSO guide for Airflow 3 (#68166)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump the fab-ui-package-updates group across 1 directory with 3 updates (#67928)``
+   * ``[main] Upgrade important CI environment (#68163)``
+   * ``Bump stylelint (#68347)``
+   * ``Bump prettier (#68576)``
+   * ``Bump eslint (#68681)``
+   * ``Load example DAGs from providers via ProvidersManager (continuation of #57320) (#66161)``
+
 3.6.5
 .....
 

@@ -42,10 +42,12 @@ configuring an Airflow environment.
     operator/index
     timetable
     custom-view-plugin
+    custom-action-plugin
     listener-plugin
     customize-ui
     custom-operator
     create-custom-decorator
+    static-type-checking
     export-more-env-vars
     connection
     variable

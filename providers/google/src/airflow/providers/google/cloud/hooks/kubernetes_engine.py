@@ -39,7 +39,7 @@ from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kube_client import configure_tcp_keepalive
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -76,17 +76,24 @@ class GKEClusterConnection:
         configuration = self._get_config()
         configuration.refresh_api_key_hook = self._refresh_api_key_hook
         if self.enable_tcp_keepalive:
-            _enable_tcp_keepalive()
+            configure_tcp_keepalive(configuration)
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
-        configuration.api_key = {"authorization": self._get_token(self._credentials)}
+        configuration.api_key = self._bearer_api_key(self._get_token(self._credentials))
+
+    @staticmethod
+    def _bearer_api_key(token: str) -> dict[str, str]:
+        # kubernetes-client 36.x renamed the bearer auth key 'authorization' -> 'BearerToken'
+        # (https://github.com/kubernetes-client/python/issues/2582). Register both so the 'Bearer'
+        # prefix is applied on client 35.x and 36.x alike; otherwise 36.x sends the raw token -> 401.
+        return {"authorization": token, "BearerToken": token}
 
     def _get_config(self) -> client.configuration.Configuration:
         configuration = client.Configuration(
             host=self._cluster_url,
-            api_key_prefix={"authorization": "Bearer"},
-            api_key={"authorization": self._get_token(self._credentials)},
+            api_key_prefix={"authorization": "Bearer", "BearerToken": "Bearer"},
+            api_key=self._bearer_api_key(self._get_token(self._credentials)),
         )
         if not self.use_dns_endpoint:
             configuration.ssl_ca_cert = FileOrData(

@@ -24,8 +24,9 @@ import logging
 import os
 import sys
 import textwrap
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 from unittest import mock
 
 import pytest
@@ -34,17 +35,19 @@ from structlog.dev import BLUE, BRIGHT, CYAN, DIM, GREEN, MAGENTA, RESET_ALL as 
 from structlog.processors import CallsiteParameter
 
 from airflow_shared.logging import structlog as structlog_module
-from airflow_shared.logging.structlog import configure_logging
+from airflow_shared.logging.structlog import (
+    NAME_TO_LEVEL,
+    configure_logging,
+    parse_namespace_log_levels,
+)
 
 # We avoid the caplog fixture for most tests here; the main purpose of this file is to capture the
 # _rendered_ output of the tests to make sure it is correct.
 
-PY_3_11 = sys.version_info >= (3, 11)
-
 
 @pytest.fixture(autouse=True)
 def set_time(time_machine):
-    time_machine.move_to(datetime(1985, 10, 26, microsecond=1, tzinfo=timezone.utc), tick=False)
+    time_machine.move_to(datetime(1985, 10, 26, microsecond=1, tzinfo=UTC), tick=False)
 
 
 @pytest.fixture
@@ -69,6 +72,34 @@ def structlog_config():
             structlog.configure(**prev_config)
 
     return configurer
+
+
+@pytest.mark.parametrize("json_output", [True, False], ids=["json", "rich"])
+@pytest.mark.parametrize(
+    "installed_modules",
+    [
+        pytest.param(("httpx2",), id="httpx2-only"),
+        pytest.param(("httpcore2",), id="httpcore2-only"),
+        pytest.param(("httpcore2", "httpx2"), id="new-stack"),
+        pytest.param(("httpcore", "httpcore2", "httpx", "httpx2"), id="both-stacks"),
+    ],
+)
+@mock.patch("structlog.dev.RichTracebackFormatter", autospec=True)
+@mock.patch("structlog.tracebacks.ExceptionDictTransformer", autospec=True)
+def test_httpx2_tracebacks_are_suppressed(
+    mock_dict_transformer, mock_rich_formatter, monkeypatch, installed_modules, json_output
+):
+    modules = {name: ModuleType(name) for name in installed_modules}
+    for name in ("httpcore", "httpcore2", "httpx", "httpx2"):
+        monkeypatch.setitem(sys.modules, name, modules.get(name))
+    monkeypatch.setenv("DEV", "1")
+
+    structlog_module.structlog_processors.__wrapped__(json_output=json_output)
+
+    formatter = mock_dict_transformer if json_output else mock_rich_formatter
+    formatter.assert_called_once()
+    suppressed = formatter.call_args.kwargs["suppress"]
+    assert {module.__name__ for module in suppressed} == {"click", "contextlib", *installed_modules}
 
 
 @pytest.mark.parametrize(
@@ -364,8 +395,7 @@ def test_precent_fmt_exc(structlog_config, get_logger, monkeypatch):
           File "{__file__}", line {lineno}, in test_precent_fmt_exc
             1 / 0
     """)
-    if PY_3_11:
-        expected += "    ~~^~~\n"
+    expected += "    ~~^~~\n"
     expected += "ZeroDivisionError: division by zero\n"
     assert written == expected
 
@@ -406,6 +436,7 @@ def test_json_exc(structlog_config, get_logger, monkeypatch):
                         "filename": __file__,
                         "lineno": lineno,
                         "name": "test_json_exc",
+                        "line": "1 / 0",
                     },
                 ],
                 "is_cause": False,
@@ -458,6 +489,34 @@ def test_logger_respects_configured_level(structlog_config):
 
     written = sio.getvalue()
     assert "[my_logger] Debug message\n" in written
+
+
+def test_alembic_runtime_plugin_setup_logs_are_suppressed(structlog_config):
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="INFO",
+    ) as sio:
+        logger = logging.getLogger("alembic.runtime.plugins")
+        logger.info("Filtered plugin setup message")
+        logger.warning("Visible warning")
+
+    assert sio.getvalue() == "[alembic.runtime.plugins] Visible warning\n"
+
+
+def test_httpx2_logs_below_warning_are_suppressed(structlog_config, monkeypatch):
+    logger = logging.getLogger("httpx2")
+    monkeypatch.setattr(logger, "level", logging.INFO)
+
+    with structlog_config(
+        colors=False,
+        log_format="[%(name)s] %(message)s",
+        log_level="INFO",
+    ) as sio:
+        logger.info("Filtered request message")
+        logger.warning("Visible warning")
+
+    assert sio.getvalue() == "[httpx2] Visible warning\n"
 
 
 def test_excepthook_installed_when_json_output_true(structlog_config):
@@ -728,3 +787,57 @@ def test_named_write_logger_preserves_name():
 
     assert NamedWriteLogger("my.logger").name == "my.logger"
     assert NamedWriteLogger().name is None
+
+
+class TestParseNamespaceLogLevels:
+    """Unit tests for the best-effort ``namespace_levels`` parser."""
+
+    @pytest.mark.parametrize("value", (None, "", "   ", " , , "))
+    def test_blank_yields_no_overrides(self, value):
+        assert parse_namespace_log_levels(value) == {}
+
+    def test_parses_string_pairs(self):
+        assert parse_namespace_log_levels("sqlalchemy=INFO sqlalchemy.engine=DEBUG") == {
+            "sqlalchemy": NAME_TO_LEVEL["info"],
+            "sqlalchemy.engine": NAME_TO_LEVEL["debug"],
+        }
+
+    def test_accepts_commas_and_mixed_separators(self):
+        expected = {"a": NAME_TO_LEVEL["info"], "b": NAME_TO_LEVEL["debug"]}
+        assert parse_namespace_log_levels("a=INFO,b=DEBUG") == expected
+        assert parse_namespace_log_levels("  a=INFO ,, b=DEBUG ") == expected
+
+    def test_level_names_are_case_insensitive(self):
+        assert parse_namespace_log_levels("a=info") == {"a": NAME_TO_LEVEL["info"]}
+
+    def test_last_value_wins(self):
+        assert parse_namespace_log_levels("a=INFO a=ERROR") == {"a": NAME_TO_LEVEL["error"]}
+
+    def test_accepts_mapping_input(self):
+        assert parse_namespace_log_levels({"my.logger": "warning"}) == {
+            "my.logger": NAME_TO_LEVEL["warning"],
+        }
+
+    def test_valid_input_logs_nothing(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            parse_namespace_log_levels("a=INFO")
+        assert not caplog.records
+
+    def test_entry_without_equals_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=INFO botocore")
+        assert result == {"sqlalchemy": NAME_TO_LEVEL["info"]}
+        assert "botocore" in caplog.text
+        assert "<logger>=<level>" in caplog.text
+
+    def test_empty_logger_name_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("=INFO a=DEBUG")
+        assert result == {"a": NAME_TO_LEVEL["debug"]}
+        assert "logger name is empty" in caplog.text
+
+    def test_unknown_level_is_skipped(self, caplog):
+        with caplog.at_level(logging.ERROR):
+            result = parse_namespace_log_levels("sqlalchemy=VERBOSE")
+        assert result == {}
+        assert "VERBOSE" in caplog.text

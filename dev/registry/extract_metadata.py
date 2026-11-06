@@ -37,20 +37,16 @@ import json
 import re
 import shutil
 import subprocess
-import sys
+import tomllib
 import urllib.request
 import zlib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-if sys.version_info >= (3, 11):
-    import tomllib  # Python 3.11+ stdlib
-else:  # pragma: no cover -- Python 3.10 fallback
-    import tomli as tomllib
-
 import yaml
 from registry_contract_models import validate_providers_catalog
+from registry_tools.uri_schemes import ReadModuleSource, collect_uri_schemes
 
 # External endpoints used by metadata extraction.
 PYPISTATS_RECENT_URL = "https://pypistats.org/api/packages/{package_name}/recent"
@@ -288,8 +284,8 @@ def fetch_provider_inventory(package_name: str, cache_dir: Path = INVENTORY_CACH
     """
     cache_path = cache_dir / package_name / "objects.inv"
     if cache_path.exists():
-        age = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.datetime.fromtimestamp(
-            cache_path.stat().st_mtime, tz=datetime.timezone.utc
+        age = datetime.datetime.now(tz=datetime.UTC) - datetime.datetime.fromtimestamp(
+            cache_path.stat().st_mtime, tz=datetime.UTC
         )
         if age < INVENTORY_TTL:
             return cache_path
@@ -373,8 +369,11 @@ class Provider:
         }
     )
     categories: list[dict] = field(default_factory=list)
-    connection_types: list[dict] = field(default_factory=list)  # {conn_type, hook_class, docs_url}
-    requires_python: str = ""  # e.g., ">=3.10"
+    connection_types: list[dict] = field(
+        default_factory=list
+    )  # {conn_type, hook_class, docs_url, external_services}
+    uri_schemes: list[dict] = field(default_factory=list)  # {scheme, filesystem?, asset?, remote_logging?}
+    requires_python: str = ""  # e.g., ">=3.11"
     dependencies: list[str] = field(default_factory=list)  # from pyproject.toml
     optional_extras: dict[str, list[str]] = field(default_factory=dict)  # {extra_name: [deps]}
     dependents: list[str] = field(default_factory=list)
@@ -449,6 +448,18 @@ def module_path_to_file_path(module_path: str, provider_path: Path) -> Path:
     parts = module_path.split(".")
     file_path = provider_path / "src" / "/".join(parts)
     return file_path.with_suffix(".py")
+
+
+def module_source_reader(provider_path: Path) -> ReadModuleSource:
+    """Return a reader for module sources in the provider's working-tree ``src/`` directory."""
+
+    def read(module_path: str) -> str | None:
+        try:
+            return module_path_to_file_path(module_path, provider_path).read_text()
+        except FileNotFoundError:
+            return None
+
+    return read
 
 
 def determine_airflow_versions(dependencies: list[str]) -> list[str]:
@@ -599,17 +610,24 @@ def main():
     # Skipped entirely when --allow-unreleased is set: staging builds and
     # local dev want to preview unreleased provider pages so maintainers
     # can verify them before tagging.
+    skipped_unreleased: list[str] = []
     if args.allow_unreleased:
         release_tags: set[str] = set()
     else:
         release_tags = load_release_tags()
         if not release_tags:
+            # registry-build.yml refuses a live build without tags; locally this is a
+            # clone without the providers-* tags, such as a fork.
             print(
                 "  Warning: no providers-* git tags found; "
-                "phantom version filter is disabled (falling back to versions[0]). "
-                "If this is a CI run, ensure the checkout step uses fetch-tags: true."
+                "phantom version filter is disabled (falling back to versions[0])."
             )
-    skipped_unreleased: list[str] = []
+        # A not-ready provider is not released yet (breeze release tooling skips it too).
+        not_ready = {pid for pid in extraction_ids if all_provider_yamls[pid].get("state") == "not-ready"}
+        for provider_id in sorted(not_ready):
+            print(f"  Skipping {provider_id}: state is not-ready")
+        skipped_unreleased.extend(not_ready)
+        extraction_ids -= not_ready
 
     # Pre-fetch PyPI download stats and release dates for every provider in
     # parallel. This used to be ~2N sequential urlopen calls inside the loop
@@ -675,7 +693,7 @@ def main():
                 )
                 continue
         else:
-            # No tag information available -- fall back to old behaviour.
+            # --allow-unreleased, or no tags found: keep every version listed in provider.yaml.
             versions = list(raw_versions)
             version = versions[0] if versions else "0.0.0"
 
@@ -782,12 +800,14 @@ def main():
         for conn in provider_yaml.get("connection-types", []):
             conn_type = conn.get("connection-type", "")
             hook_class = conn.get("hook-class-name", "")
+            external_services = conn.get("external-services", [])
             if conn_type:
                 connection_types.append(
                     {
                         "conn_type": conn_type,
                         "hook_class": hook_class,
                         "docs_url": resolve_connection_docs_url(conn_type, conn_url_map, base_docs_url),
+                        "external_services": external_services,
                     }
                 )
 
@@ -819,6 +839,7 @@ def main():
             pypi_downloads=pypi_downloads,
             categories=[asdict(c) for c in categories],
             connection_types=connection_types,
+            uri_schemes=collect_uri_schemes(provider_yaml, module_source_reader(provider_path)),
             requires_python=pyproject_data["requires_python"],
             dependencies=pyproject_data["dependencies"],
             optional_extras=pyproject_data.get("optional_extras", {}),
@@ -837,7 +858,7 @@ def main():
     if skipped_unreleased:
         print(
             f"\nSkipped {len(skipped_unreleased)} unreleased provider(s) "
-            f"(no matching git tag): {sorted(skipped_unreleased)}"
+            f"(not-ready, or no matching git tag): {sorted(skipped_unreleased)}"
         )
 
     # Find related providers
@@ -885,9 +906,8 @@ def main():
     providers_json = validate_providers_catalog({"providers": new_providers})
 
     # Write output files to all output directories.
-    # Inside breeze, registry/ is not mounted so OUTPUT_DIR writes are lost.
-    # SCRIPT_DIR (dev/registry/) is always mounted, so the other extraction
-    # scripts can pick up providers.json from there.
+    # The SCRIPT_DIR (dev/registry/) copy is the first place the other extraction
+    # scripts, which run inside breeze, look for providers.json.
     output_dirs = [OUTPUT_DIR, SCRIPT_DIR]
 
     for out_dir in output_dirs:

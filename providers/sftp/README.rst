@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-sftp``
 
-Release: ``5.8.1``
+Release: ``7.0.0``
 
 
 `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``sftp`` provider. All classes for this provider 
 are in ``airflow.providers.sftp`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.8.1/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-sftp/7.0.0/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-sftp``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -53,17 +53,16 @@ Requirements
 ==========================================  ======================================
 PIP package                                 Version required
 ==========================================  ======================================
-``aiofiles``                                ``>=23.2.0``
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-ssh``            ``>=4.0.0``
+``apache-airflow-providers-ssh``            ``>=7.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``paramiko``                                ``>=3.5.1,<4.0.0``
+``paramiko``                                ``>=4.0.0``
 ``asyncssh``                                ``>=2.12.0; python_version < "3.14"``
 ``asyncssh``                                ``>=2.22.0; python_version >= "3.14"``
 ==========================================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -72,16 +71,14 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-sftp[common.compat]
+    pip install apache-airflow-providers-sftp[openlineage]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-`apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                      ``ssh``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
 
 Optional dependencies
 ----------------------
@@ -94,4 +91,4 @@ Extra            Dependencies
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/5.8.1/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-sftp/7.0.0/changelog.html>`_.

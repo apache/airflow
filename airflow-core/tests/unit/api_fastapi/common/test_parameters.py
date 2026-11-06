@@ -18,33 +18,40 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from typing import Annotated
+from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import select
+from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
-    NullableDatetimeRangeFilter,
     RangeFilter,
     SortParam,
-    _AssetDependencyFilter,
-    _ConsumingAssetFilter,
-    _escape_like_pattern,
-    _OwnersFilter,
-    _PrefixPatternParam,
     _PrefixSearchParam,
     _SearchParam,
-    _TaskDisplayNamePrefixPatternParam,
     datetime_range_filter_factory,
     filter_param_factory,
 )
+from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
+from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.search import (
+    _escape_like_pattern,
+    _PrefixPatternParam,
+    _TaskDisplayNamePrefixPatternParam,
+    regex_param_factory,
+)
 from airflow.models import DagModel, DagRun, Log
+from airflow.models.asset import AssetEvent
 from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
+
+from tests_common.test_utils.config import conf_vars
 
 
 class TestFilterParam:
@@ -107,6 +114,28 @@ class TestFilterParam:
 
 
 class TestSortParam:
+    def test_sort_columns_and_primary_key_use_the_selected_alias(self):
+        rows = select(DagRun).subquery("filtered_runs")
+        entity = aliased(DagRun, rows)
+        param = SortParam(["run_id"], entity).set_value(["run_id"])
+
+        query = param.to_orm(select(entity))
+
+        assert all(column.table is rows for _, column, _ in param.get_resolved_columns())
+        assert "ORDER BY filtered_runs.run_id ASC, filtered_runs.id ASC" in str(query)
+
+    def test_compound_sort_requires_named_expressions_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [DagRun.id + 1]}).set_value(["position"])
+        with pytest.raises(ValueError, match="Compound sort expressions must have labels"):
+            param.get_resolved_columns()
+
+    def test_compound_sort_uses_expression_label_for_cursor_values(self):
+        param = SortParam(["id"], DagRun, {"position": [(DagRun.id + 1).label("position")]}).set_value(
+            ["position"]
+        )
+        assert [name for name, _, _ in param.get_resolved_columns()] == ["position", "id"]
+        assert param.row_value(SimpleNamespace(position=5, id=4), "position") == 5
+
     def test_sort_param_max_number_of_filers(self):
         param = SortParam([], None, None)
         n_filters = param.MAX_SORT_PARAMS + 1
@@ -164,6 +193,27 @@ class TestSortParam:
         param = SortParam(["id"], ParseImportError, {"import_error_id": "id"}).set_value(["import_error_id"])
         resolved = param.get_resolved_columns()
         assert [name for name, _col, _desc in resolved] == ["import_error_id"]
+
+    def test_dynamic_depends_returns_independent_instances(self):
+        """Each call to the inner closure must produce a separate SortParam instance.
+
+        Two concurrent requests with different order_by values must not share state —
+        a mutation on one must not affect the other.
+        """
+        sort_param = SortParam(["id", "run_id", "logical_date"], DagRun, {"dag_run_id": "run_id"})
+        inner = sort_param.dynamic_depends(default="id")
+
+        instance_a = inner(order_by=["logical_date"])
+        instance_b = inner(order_by=["run_id"])
+
+        assert instance_a is not instance_b
+        assert instance_a.value == ["logical_date"]
+        assert instance_b.value == ["run_id"]
+        # Resolving one must not affect the other.
+        cols_a = [name for name, _col, _desc in instance_a.get_resolved_columns()]
+        cols_b = [name for name, _col, _desc in instance_b.get_resolved_columns()]
+        assert cols_a[0] == "logical_date"
+        assert cols_b[0] == "run_id"
 
 
 def _compile(statement):
@@ -234,6 +284,26 @@ class TestSearchParam:
         sql = _compile(statement)
         assert _has_ilike(sql, "example_bash")
         assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is passed through literally."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "2026-01-01|us")
+        assert " or " not in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → ``%`` alias."""
+        param = _SearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert _has_ilike(sql, "%")
 
 
 class TestEscapeLikePattern:
@@ -394,6 +464,97 @@ class TestPrefixSearchParam:
         result = param.to_orm(statement)
         assert result is statement
 
+    def test_to_orm_pipe_as_or_false_treats_pipe_as_literal(self):
+        """With ``pipe_as_or=False``, the pipe character is part of the prefix and not an OR delimiter."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False).set_value("2026-01-01|us")
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        # Use " or " (with spaces) to avoid false positives from column-name substrings like "owners".
+        assert " or " not in sql
+        # Range scan uses the full composite-key value as the lower bound.
+        assert "2026-01-01|us" in sql
+
+    def test_to_orm_narrows_the_range_with_a_leading_substring(self):
+        """The index-friendly bounds are wider than the prefix, so an equality pins the prefix down."""
+        param = _PrefixSearchParam(DagModel.dag_id).set_value("dag_9")
+        statement = param.to_orm(select(DagModel))
+
+        sql = _compile(statement)
+        # '9' bumps to ':' (non-alphanumeric), so the upper bound comes from the shorter 'dag'.
+        assert "dag_id >= 'dag_9'" in sql
+        assert "dag_id < 'dah'" in sql
+        assert "substr(dag.dag_id, 1, 5) = 'dag_9'" in sql
+
+    def test_to_orm_pipe_as_or_false_tilde_alias_still_works(self):
+        """``pipe_as_or=False`` must not interfere with the ``~`` → empty alias."""
+        param = _PrefixSearchParam(DagModel.dag_id, pipe_as_or=False)
+        param.set_value(param.transform_aliases("~"))
+        statement = select(DagModel)
+        statement = param.to_orm(statement)
+
+        sql = _compile(statement)
+        assert "is not null" in sql
+
+
+class TestPrefixSearchParamOnARealEngine:
+    """
+    Run the predicate against SQLite so the rows it lets through are checked, not just the SQL.
+
+    Every term below computes an upper bound wider than the term itself, so the bounds alone
+    would also return the rows that are missing from each ``expected`` list.
+    """
+
+    NAMES = [
+        "dag_9",
+        "dag_99",
+        "dag_abc",
+        "dagz9",
+        "dagZ1",
+        "a9",
+        "aa",
+        "abz",
+        "abz1",
+        "ab~",
+        "z1",
+        "zz",
+        "{a",
+    ]
+
+    @pytest.fixture
+    def select_names(self):
+        table = Table("prefix_probe", MetaData(), Column("name", String(64), primary_key=True))
+        engine = create_engine("sqlite://")
+        table.metadata.create_all(engine)
+        with engine.connect() as conn:
+            conn.execute(table.insert(), [{"name": name} for name in self.NAMES])
+
+            def run(term: str) -> list[str]:
+                param = _PrefixSearchParam(table.c.name).set_value(term)
+                return sorted(row[0] for row in conn.execute(param.to_orm(select(table.c.name))))
+
+            yield run
+
+    @pytest.mark.parametrize(
+        ("term", "expected"),
+        [
+            # 'dagz9' pins down that the user's '_' is literal, not a single-character wildcard.
+            ("dag_9", ["dag_9", "dag_99"]),
+            # Differs from 'dagz9' only in case, which the bounds distinguish and so must the
+            # predicate narrowing them.
+            ("dagZ", ["dagZ1"]),
+            ("a9", ["a9"]),
+            ("abz", ["abz", "abz1"]),
+            # 'z' cascades down to no upper bound at all.
+            ("z", ["z1", "zz"]),
+            # Documented trade-off, unchanged: a trailing '_' is stripped, so 'dag_' means 'dag'.
+            ("dag_", ["dagZ1", "dag_9", "dag_99", "dag_abc", "dagz9"]),
+        ],
+    )
+    def test_only_values_with_the_prefix_come_back(self, select_names, term, expected):
+        assert select_names(term) == expected
+
 
 class TestTaskDisplayNamePrefixPatternParam:
     """Prefix filter splits on NULL override so ``task_id`` can use indexes."""
@@ -408,6 +569,15 @@ class TestTaskDisplayNamePrefixPatternParam:
         assert "task_id >=" in sql
         assert "task_id <" in sql
         assert "task_display_name is not null" in sql
+
+    def test_to_orm_narrows_both_branches_with_a_leading_substring(self):
+        """Both sides of the ``IS NULL`` split need the prefix predicate, not only the bounds."""
+        param = _TaskDisplayNamePrefixPatternParam().set_value("task_9")
+        statement = param.to_orm(select(TaskInstance))
+
+        sql = _compile(statement)
+        assert "substr(task_instance.task_id, 1, 6) = 'task_9'" in sql
+        assert "substr(task_instance.task_display_name, 1, 6) = 'task_9'" in sql
 
     def test_to_orm_empty_matches_all(self):
         param = _TaskDisplayNamePrefixPatternParam().set_value("")
@@ -453,16 +623,35 @@ class TestDatetimeRangeFilterFactory:
 
     def test_lower_bound_does_not_include_now(self):
         """NULL branch on lower bounds passes unconditionally — no now() call."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", lower_bound_gte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
         assert "now()" not in sql
         assert "coalesce" not in sql
 
+    @pytest.mark.parametrize("lower_bound_name", ["lower_bound_gte", "lower_bound_gt"])
+    def test_null_lower_bound_clause_is_added_to_null_branch(self, lower_bound_name):
+        """Custom NULL lower-bound clause is ANDed with the attribute IS NULL check."""
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
+        depends = datetime_range_filter_factory(
+            "start_date",
+            DagRun,
+            null_lower_bound_clause=DagRun.end_date.is_(None),
+        )
+        bounds = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+        bounds[lower_bound_name] = bound
+        rf = depends(**bounds)
+
+        sql = _compile(rf.to_orm(select(DagRun)))
+
+        assert "start_date is null" in sql
+        assert "end_date is null" in sql
+        assert "start_date is null and" in sql
+
     def test_upper_bound_includes_now_for_running_tasks(self):
         """NULL branch on upper bounds uses now() to proxy the in-progress task's current time."""
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("end_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "is null" in sql
@@ -470,7 +659,59 @@ class TestDatetimeRangeFilterFactory:
         assert "coalesce" not in sql
 
     def test_no_coalesce_for_start_date(self):
-        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=timezone.utc)
+        bound = datetime(2026, 5, 3, 12, 0, 0, tzinfo=UTC)
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql
+
+
+class TestRegexParamFactory:
+    """The regexp filter dependency must apply the query timeout itself (callers can't forget)."""
+
+    @staticmethod
+    def _depends():
+        return regex_param_factory(AssetEvent.partition_key, "partition_key_regexp_pattern")
+
+    def test_dependency_applies_timeout_when_pattern_provided(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
+                gen = self._depends()(session=session, value="^us")
+                param = next(gen)
+                apply_mock.assert_called_once_with(session)
+                assert param.value == "^us"
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_skips_timeout_without_pattern(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            with mock.patch(
+                "airflow.api_fastapi.common.parameters.search.apply_regex_query_timeout"
+            ) as apply_mock:
+                gen = self._depends()(session=session, value=None)
+                param = next(gen)
+                apply_mock.assert_not_called()
+                assert param.value is None
+                with pytest.raises(StopIteration):
+                    next(gen)
+
+    def test_dependency_rejects_pattern_when_disabled(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "0"}):
+            gen = self._depends()(session=session, value="^us")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "disabled" in exc.value.detail
+
+    def test_dependency_rejects_invalid_regex(self):
+        session = mock.MagicMock()
+        with conf_vars({("api", "regexp_query_timeout"): "30"}):
+            gen = self._depends()(session=session, value="[invalid(")
+            with pytest.raises(HTTPException) as exc:
+                next(gen)
+        assert exc.value.status_code == 400
+        assert "Invalid regular expression" in exc.value.detail

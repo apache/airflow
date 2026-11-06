@@ -20,10 +20,12 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
-from pydantic import AliasPath, Field, NonNegativeInt
+from pydantic import AliasPath, Field, NonNegativeInt, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+from airflow.api_fastapi.core_api.datamodels.common import check_conf_reserved_keys
 from airflow.models.backfill import ReprocessBehavior
+from airflow.utils.state import DagRunState
 
 
 class BackfillPostBody(StrictBaseModel):
@@ -35,7 +37,7 @@ class BackfillPostBody(StrictBaseModel):
     run_backwards: bool = False
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
-    max_active_runs: int = 10
+    max_active_runs: int = Field(default=10, ge=1)
     run_on_latest_version: bool | None = Field(
         default=None,
         description="Run on the latest bundle version of the Dag for each backfilled run. "
@@ -43,6 +45,19 @@ class BackfillPostBody(StrictBaseModel):
         "then the ``[core] rerun_with_latest_version`` config option, "
         "and finally ``True`` (the historical default for backfills).",
     )
+    drain_dag: bool = Field(
+        default=False,
+        description="Drain the Dag together with the backfill. Draining changes the whole Dag: unfinished "
+        "runs can start or resume except those held by paused backfills. No scheduled runs are created, "
+        "and the Dag pauses once all unfinished runs finish. Paused backfills must be resumed for draining "
+        "to complete. Requires the same permission as pausing the Dag. "
+        "Ignored by the dry-run endpoint.",
+    )
+
+    @field_validator("dag_run_conf")
+    @classmethod
+    def _check_reserved_keys(cls, dag_run_conf: dict | None) -> dict | None:
+        return check_conf_reserved_keys(dag_run_conf, root="dag_run_conf")
 
 
 class BackfillResponse(BaseModel):
@@ -66,6 +81,27 @@ class BackfillCollectionResponse(BaseModel):
     """Backfill Collection serializer for responses."""
 
     backfills: Iterable[BackfillResponse]
+    total_entries: int
+
+
+class BackfillDagRunResponse(BaseModel):
+    """Serializer for a single BackfillDagRun entry with joined DagRun state."""
+
+    id: NonNegativeInt
+    backfill_id: NonNegativeInt
+    dag_id: str = Field(validation_alias=AliasPath("backfill", "dag_id"))
+    dag_run_id: str | None = Field(default=None, validation_alias=AliasPath("dag_run", "run_id"))
+    logical_date: datetime | None
+    partition_key: str | None
+    sort_ordinal: int
+    exception_reason: str | None
+    dag_run_state: DagRunState | None = Field(default=None, validation_alias=AliasPath("dag_run", "state"))
+
+
+class BackfillDagRunCollectionResponse(BaseModel):
+    """BackfillDagRun Collection serializer for responses."""
+
+    backfill_dag_runs: list[BackfillDagRunResponse]
     total_entries: int
 
 

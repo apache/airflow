@@ -28,7 +28,7 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment, Exe
 
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
-from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.cloud.links.base import BASE_LINK, BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerAirflowCLICommandTrigger,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.common.compat.sdk import Context
 
-CLOUD_COMPOSER_BASE_LINK = "https://console.cloud.google.com/composer/environments"
+CLOUD_COMPOSER_BASE_LINK = BASE_LINK + "/composer/environments"
 CLOUD_COMPOSER_DETAILS_LINK = (
     CLOUD_COMPOSER_BASE_LINK + "/detail/{region}/{environment_id}/monitoring?project={project_id}"
 )
@@ -100,6 +100,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         "environment_id",
         "environment",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -276,6 +277,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -363,6 +365,7 @@ class CloudComposerGetEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -443,6 +446,7 @@ class CloudComposerListEnvironmentsOperator(GoogleCloudBaseOperator):
         "project_id",
         "region",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentsLink(),)
@@ -529,6 +533,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         "region",
         "environment_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     operator_extra_links = (CloudComposerEnvironmentLink(),)
@@ -647,6 +652,7 @@ class CloudComposerListImageVersionsOperator(GoogleCloudBaseOperator):
         "project_id",
         "region",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -725,6 +731,7 @@ class CloudComposerRunAirflowCLICommandOperator(GoogleCloudBaseOperator):
         "environment_id",
         "command",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(
@@ -868,6 +875,7 @@ class CloudComposerTriggerDAGRunOperator(GoogleCloudBaseOperator):
         "environment_id",
         "composer_dag_id",
         "impersonation_chain",
+        "gcp_conn_id",
     )
 
     def __init__(

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -24,46 +25,50 @@ from unittest import mock
 
 import pytest
 import time_machine
-from fastapi.testclient import TestClient
-from sqlalchemy import func, select, update
+import uuid6
+from fastapi import HTTPException, status
+from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
+from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
-from airflow.api_fastapi.core_api.services.public.common import resolve_run_on_latest_version
+from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.exceptions import ParamValidationError
-from airflow.models import DagModel, DagRun, Log
+from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk.definitions.asset import Asset
-from airflow.sdk.definitions.param import Param
-from airflow.settings import _configure_async_session
+from airflow.sdk import Asset, Param, result, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.timetables.interval import CronDataIntervalTimetable
-from airflow.timetables.simple import PartitionAtRuntime
+from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.api_fastapi import _check_dag_run_note, _check_last_log
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import (
     clear_db_assets,
     clear_db_connections,
-    clear_db_dag_bundles,
     clear_db_dags,
     clear_db_logs,
     clear_db_runs,
     clear_db_serialized_dags,
 )
 from tests_common.test_utils.format_datetime import from_datetime_to_zulu, from_datetime_to_zulu_without_ms
+from tests_common.test_utils.taskinstance import run_task_instance
+from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
@@ -129,6 +134,10 @@ RUN_AFTER2 = datetime(2024, 2, 20, 0, 0, tzinfo=timezone.utc)
 START_DATE2 = datetime(2024, 4, 15, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE3 = datetime(2024, 5, 16, 0, 0, tzinfo=timezone.utc)
 LOGICAL_DATE4 = datetime(2024, 5, 25, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE1 = datetime(2024, 6, 1, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE2 = datetime(2024, 6, 2, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE3 = datetime(2024, 6, 3, 0, 0, tzinfo=timezone.utc)
+PARTITION_DATE4 = datetime(2024, 6, 4, 0, 0, tzinfo=timezone.utc)
 DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
@@ -141,7 +150,6 @@ def setup(request, dag_maker, *, session=None):
     clear_db_connections()
     clear_db_runs()
     clear_db_dags()
-    clear_db_dag_bundles()
     clear_db_serialized_dags()
     clear_db_logs()
     clear_db_assets()
@@ -163,15 +171,23 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run1.triggering_user_name = "alice_admin"
+    # Set partition_key for testing partition_key_pattern / partition_key_prefix_pattern filters.
+    # The value uses the ProductMapper default delimiter (|) to form a composite key so we can
+    # verify that the filter treats | as a literal character, not an OR separator.
+    dag_run1.partition_key = "2026-01-01|us"
+    # Set a real partition_date so the GET/list responses exercise the serialized
+    # (non-None) partition_date path, not just the None case.
+    dag_run1.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
     dag_run1.note = (DAG1_RUN1_NOTE, "not_test")
     # Set end_date for testing duration filter
     dag_run1.end_date = dag_run1.start_date + timedelta(seconds=101)
     # Set conf for testing conf_contains filter (values ordered for predictable sorting)
     dag_run1.conf = {"env": "development", "version": "1.0"}
+    dag_run1.partition_date = PARTITION_DATE1
 
-    for i, task in enumerate([task1, task2], start=1):
-        ti = dag_run1.get_task_instance(task_id=task.task_id)
-        ti.task = task
+    for i, t in enumerate([task1, task2], start=1):
+        ti = dag_run1.get_task_instance(task_id=t.task_id)
+        ti.task = t
         ti.state = State.SUCCESS
         session.merge(ti)
         XComModel.set(
@@ -181,7 +197,7 @@ def setup(request, dag_maker, *, session=None):
             dag_id=ti.dag_id,
             run_id=ti.run_id,
             map_index=ti.map_index,
-            dag_result=task.returns_dag_result,
+            dag_result=t.returns_dag_result,
             session=session,
         )
 
@@ -198,6 +214,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run2.end_date = dag_run2.start_date + timedelta(seconds=201)
     # Set conf for testing conf_contains filter
     dag_run2.conf = {"env": "production", "debug": True}
+    dag_run2.partition_date = PARTITION_DATE2
 
     ti1 = dag_run2.get_task_instance(task_id=task1.task_id)
     ti1.task = task1
@@ -219,10 +236,13 @@ def setup(request, dag_maker, *, session=None):
     )
     # Set triggering_user_name for testing
     dag_run3.triggering_user_name = "service_account"
+    # Set partition_key for testing: plain single-dimension key to pair with dag_run1's composite key.
+    dag_run3.partition_key = "us"
     # Set end_date for testing duration filter
     dag_run3.end_date = dag_run3.start_date + timedelta(seconds=51)
     # Set conf for testing conf_contains filter
     dag_run3.conf = {"env": "staging", "test_mode": True}
+    dag_run3.partition_date = PARTITION_DATE3
 
     dag_run4 = dag_maker.create_dagrun(
         run_id=DAG2_RUN2_ID,
@@ -237,6 +257,7 @@ def setup(request, dag_maker, *, session=None):
     dag_run4.end_date = dag_run4.start_date + timedelta(seconds=150)
     # Set conf for testing conf_contains filter
     dag_run4.conf = {"env": "testing", "mode": "ci"}
+    dag_run4.partition_date = PARTITION_DATE4
 
     dag_maker.sync_dagbag_to_db()
     dag_maker.dag_model.has_task_concurrency_limits = True
@@ -310,8 +331,25 @@ def get_dag_run_dict(run: DagRun):
         "conf": run.conf,
         "note": run.note,
         "dag_versions": get_dag_versions_dict(run.dag_versions),
-        "partition_key": None,
+        "partition_key": run.partition_key,
+        "partition_date": (
+            from_datetime_to_zulu_without_ms(run.partition_date) if run.partition_date else None
+        ),
+        "team_name": None,
     }
+
+
+def _attach_tags_to_dag(session, dag_id: str, tag_names: list[str]) -> None:
+    """Assign Dag tags for tag-filter tests."""
+    for tag_name in tag_names:
+        session.add(DagTag(dag_id=dag_id, name=tag_name))
+    session.commit()
+
+
+def _detach_tags_from_dag(session, dag_id: str) -> None:
+    """Undo :func:`_attach_tags_to_dag`."""
+    session.execute(delete(DagTag).where(DagTag.dag_id == dag_id))
+    session.commit()
 
 
 class TestGetDagRun:
@@ -364,6 +402,14 @@ class TestGetDagRun:
         assert body["triggered_by"] == triggered_by.value
         assert body["note"] == dag_run_note
 
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_includes_team_name(self, test_client, session):
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-run", team_name="team-run"):
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}")
+            assert response.status_code == 200
+            assert response.json()["team_name"] == "team-run"
+
     def test_get_dag_run_not_found(self, test_client):
         response = test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
         assert response.status_code == 404
@@ -403,6 +449,85 @@ class TestGetDagRuns:
         body = response.json()
         assert body["detail"] == "The Dag with ID: `invalid` was not found"
 
+    def test_partition_date_day_filters_reject_all_dags_selector(self, test_client):
+        response = test_client.get("/dags/~/dagRuns", params={"partition_date_gte": "2025-01-01"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            "partition_date_gte and partition_date_lte require a specific dag_id."
+        )
+
+    def test_partition_date_day_filters_reject_non_partitioned_dag(self, test_client):
+        response = test_client.get(f"/dags/{DAG1_ID}/dagRuns", params={"partition_date_gte": "2025-01-01"})
+        assert response.status_code == 400
+        assert response.json()["detail"] == (
+            f"Dag with dag_id: '{DAG1_ID}' is not partitioned; "
+            "partition_date_gte and partition_date_lte are not supported."
+        )
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_runs_includes_team_name(self, test_client, session):
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-runs", team_name="team-runs"):
+            response = test_client.get(f"/dags/{DAG1_ID}/dagRuns")
+            assert response.status_code == 200
+            body = response.json()
+            assert body["dag_runs"]
+            assert all(run["team_name"] == "team-runs" for run in body["dag_runs"])
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_runs_filtered_by_team(self, test_client, session):
+        with attach_dag_to_team(session, DAG1_ID, bundle_name="team-bundle-filter", team_name="team-filter"):
+            response = test_client.get("/dags/~/dagRuns", params={"teams": ["team-filter"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A team with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"teams": ["nonexistent-team"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+
+    def test_get_dag_runs_filtered_by_tag(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-only"])
+        try:
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["tag-filter-only"]})
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG1_ID}
+
+            # A tag with no Dags returns nothing.
+            response = test_client.get("/dags/~/dagRuns", params={"tags": ["nonexistent-tag"]})
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 0
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+
+    def test_get_dag_runs_filtered_by_tags_match_mode(self, test_client, session):
+        _attach_tags_to_dag(session, DAG1_ID, ["tag-filter-a"])
+        _attach_tags_to_dag(session, DAG2_ID, ["tag-filter-a", "tag-filter-b"])
+        try:
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "any"},
+            )
+            assert response.status_code == 200
+            assert response.json()["total_entries"] == 4
+
+            response = test_client.get(
+                "/dags/~/dagRuns",
+                params={"tags": ["tag-filter-a", "tag-filter-b"], "tags_match_mode": "all"},
+            )
+            assert response.status_code == 200
+            body = response.json()
+            assert body["total_entries"] == 2
+            assert {run["dag_id"] for run in body["dag_runs"]} == {DAG2_ID}
+        finally:
+            _detach_tags_from_dag(session, DAG1_ID)
+            _detach_tags_from_dag(session, DAG2_ID)
+
     def test_invalid_order_by_raises_400(self, test_client):
         response = test_client.get("/dags/test_dag1/dagRuns?order_by=invalid")
         assert response.status_code == 400
@@ -427,6 +552,7 @@ class TestGetDagRuns:
             pytest.param("state", [DAG1_RUN2_ID, DAG1_RUN1_ID], id="order_by_state"),
             pytest.param("dag_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_id"),
             pytest.param("logical_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_logical_date"),
+            pytest.param("partition_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_partition_date"),
             pytest.param("dag_run_id", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_dag_run_id"),
             pytest.param("start_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_start_date"),
             pytest.param("end_date", [DAG1_RUN1_ID, DAG1_RUN2_ID], id="order_by_end_date"),
@@ -547,7 +673,8 @@ class TestGetDagRuns:
         body = response.json()
         assert body["next_cursor"] is not None
         assert body["previous_cursor"] is None
-        assert body["total_entries"] is None
+        assert body["total_entries"] == 4
+        assert body["total_entries_limit"] == 50_000
         assert len(body["dag_runs"]) == 2
 
         response2 = test_client.get(
@@ -557,7 +684,8 @@ class TestGetDagRuns:
         assert response2.status_code == 200, response2.json()
         body2 = response2.json()
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
         assert len(body2["dag_runs"]) == 2
         first_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"]}
         second_page_ids = {(r["dag_id"], r["dag_run_id"]) for r in body2["dag_runs"]}
@@ -569,14 +697,15 @@ class TestGetDagRuns:
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_returns_cursor_response(self, test_client, order_by):
-        """When cursor param is provided, response has cursor fields and no total_entries."""
+        """When cursor param is provided, response has cursor fields and a bounded total_entries."""
         response1 = test_client.get(
             "/dags/~/dagRuns",
             params={"limit": 2, "order_by": order_by, "cursor": ""},
         )
         assert response1.status_code == 200
         body1 = response1.json()
-        assert body1["total_entries"] is None
+        assert body1["total_entries"] == 4
+        assert body1["total_entries_limit"] == 50_000
         assert len(body1["dag_runs"]) == 2
         next_cursor = body1["next_cursor"]
         assert next_cursor is not None
@@ -590,7 +719,8 @@ class TestGetDagRuns:
         body2 = response2.json()
         assert body2["next_cursor"] is None
         assert body2["previous_cursor"] is not None
-        assert body2["total_entries"] is None
+        assert body2["total_entries"] == 4
+        assert body2["total_entries_limit"] == 50_000
 
     @pytest.mark.parametrize(
         "order_by",
@@ -613,7 +743,8 @@ class TestGetDagRuns:
             )
             assert response.status_code == 200, response.json()
             body = response.json()
-            assert body["total_entries"] is None
+            assert body["total_entries"] == total_runs
+            assert body["total_entries_limit"] == 50_000
             forward_pages.append(body)
             forward_ids.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
 
@@ -648,6 +779,20 @@ class TestGetDagRuns:
         all_backward = backward_ids + [(r["dag_id"], r["dag_run_id"]) for r in forward_pages[-1]["dag_runs"]]
         assert all_backward == forward_ids
 
+    @mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", 2)
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_total_entries_capped(self, test_client):
+        """With more matching runs than the cap, total_entries is reported as the cap."""
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"limit": 1, "order_by": "id", "cursor": ""},
+        )
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        # 4 runs match but the count stops scanning at the cap.
+        assert body["total_entries"] == 2
+        assert body["total_entries_limit"] == 2
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_cursor_pagination_invalid_token(self, test_client):
         response = test_client.get(
@@ -655,6 +800,57 @@ class TestGetDagRuns:
             params={"cursor": "this-is-not-valid", "order_by": "id"},
         )
         assert response.status_code == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_cursor_pagination_nullable_sort_column_returns_all_rows(self, test_client, session):
+        """Cursor pagination sorted by a nullable column must not silently drop rows.
+
+        With a NULL in the sort column, the keyset predicate and the ORDER BY can disagree
+        on NULL placement and drop every row on one side of the NULL/non-NULL boundary.
+        """
+        # Null out one run's start_date so the NULL/non-NULL boundary is crossed mid-walk.
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN1_ID))
+        run.start_date = None
+        session.commit()
+
+        full = test_client.get("/dags/~/dagRuns", params={"limit": 100})
+        assert full.status_code == 200, full.json()
+        full_ids = {(r["dag_id"], r["dag_run_id"]) for r in full.json()["dag_runs"]}
+        assert len(full_ids) == 4
+
+        collected: list[tuple[str, str]] = []
+        cursor_token: str | None = ""
+        for _ in range(20):
+            resp = test_client.get(
+                "/dags/~/dagRuns",
+                params={"limit": 1, "order_by": "start_date", "cursor": cursor_token},
+            )
+            assert resp.status_code == 200, resp.json()
+            body = resp.json()
+            collected.extend((r["dag_id"], r["dag_run_id"]) for r in body["dag_runs"])
+            cursor_token = body.get("next_cursor")
+            if cursor_token is None:
+                break
+
+        assert len(collected) == len(set(collected)), "cursor pages overlapped"
+        assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_start_date_lower_bound_excludes_finished_runs_with_null_start_date(self, test_client, session):
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN2_ID))
+        run.start_date = None
+        run.end_date = START_DATE1 + timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"start_date_gte": START_DATE2.isoformat(), "order_by": "dag_run_id"},
+        )
+
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [run["dag_run_id"] for run in body["dag_runs"]] == [DAG2_RUN1_ID, DAG2_RUN2_ID]
 
     @pytest.mark.parametrize(
         ("dag_id", "query_params", "expected_dag_id_list"),
@@ -928,6 +1124,29 @@ class TestGetDagRuns:
                 [DAG1_RUN1_ID, DAG1_RUN2_ID],
             ),  # Partial URI match
             ("~", {"consuming_asset_pattern": "nonexistent_asset"}, []),  # Non-existent asset returns empty
+            # Test partition_key_pattern filter.
+            # dag_run1 has partition_key="2026-01-01|us" (composite key with | as ProductMapper delimiter).
+            # dag_run3 has partition_key="us" (plain single-dimension key).
+            # dag_run2 and dag_run4 have partition_key=None.
+            #
+            # Composite-key literal match: the full "2026-01-01|us" matches only dag_run1 and NOT dag_run3.
+            # This verifies that | is NOT treated as an OR separator.
+            ("~", {"partition_key_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Substring "us" matches both dag_run1 (contains "|us") and dag_run3 (equals "us").
+            ("~", {"partition_key_pattern": "us"}, [DAG1_RUN1_ID, DAG2_RUN1_ID]),
+            # Substring "2026-01-01" matches only dag_run1 — NOT split on | to also match dag_run3.
+            ("~", {"partition_key_pattern": "2026-01-01"}, [DAG1_RUN1_ID]),
+            # No match → empty result.
+            ("~", {"partition_key_pattern": "nonexistent"}, []),
+            # dag_id_pattern still uses | as OR (other search params unaffected by this fix).
+            ("~", {"dag_id_pattern": f"{DAG1_ID}|{DAG2_ID}"}, DAG_RUNS_LIST),
+            # Test partition_key_prefix_pattern filter.
+            # Exact prefix "2026-01-01|us" matches dag_run1.
+            ("~", {"partition_key_prefix_pattern": "2026-01-01|us"}, [DAG1_RUN1_ID]),
+            # Prefix "us" matches only dag_run3 (dag_run1 starts with "2026", not "us").
+            ("~", {"partition_key_prefix_pattern": "us"}, [DAG2_RUN1_ID]),
+            # Prefix "2026" matches dag_run1 (starts with "2026-01-01|us").
+            ("~", {"partition_key_prefix_pattern": "2026"}, [DAG1_RUN1_ID]),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -936,6 +1155,48 @@ class TestGetDagRuns:
         assert response.status_code == 200
         body = response.json()
         assert [each["dag_run_id"] for each in body["dag_runs"]] == expected_dag_id_list
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_partition_date_day_filters_use_timetable_timezone(self, test_client, dag_maker, session):
+        dag_id = "test_partition_date_local_day"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        for run_id, partition_date in [
+            ("before_local_day", datetime(2025, 1, 1, 15, 59, 59, tzinfo=timezone.utc)),
+            ("start_local_day", datetime(2025, 1, 1, 16, 0, 0, tzinfo=timezone.utc)),
+            ("end_local_day", datetime(2025, 1, 2, 15, 59, 59, tzinfo=timezone.utc)),
+            ("after_local_day", datetime(2025, 1, 2, 16, 0, 0, tzinfo=timezone.utc)),
+        ]:
+            dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                logical_date=None,
+                partition_date=partition_date,
+                partition_key=run_id,
+            )
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/{dag_id}/dagRuns",
+            params={
+                "partition_date_gte": "2025-01-02",
+                "partition_date_lte": "2025-01-02",
+                "order_by": "partition_date",
+            },
+        )
+        assert response.status_code == 200
+        assert [each["dag_run_id"] for each in response.json()["dag_runs"]] == [
+            "start_local_day",
+            "end_local_day",
+        ]
 
     def test_bad_filters(self, test_client):
         query_params = {
@@ -1407,6 +1668,13 @@ class TestPatchDagRun:
             ),
             (
                 DAG1_ID,
+                DAG1_RUN1_ID,
+                {"note": ""},
+                {"state": DagRunState.SUCCESS, "note": None},
+                None,
+            ),
+            (
+                DAG1_ID,
                 DAG1_RUN2_ID,
                 {"note": "new note", "state": DagRunState.FAILED},
                 {"state": DagRunState.FAILED, "note": "new note"},
@@ -1520,20 +1788,153 @@ class TestPatchDagRun:
         assert body["detail"][0]["msg"] == "Input should be 'queued', 'success' or 'failed'"
 
     @pytest.mark.parametrize(
-        ("state", "listener_state"),
+        ("state", "expected_dagrun_state", "expected_msg"),
         [
-            ("queued", []),
-            ("success", [DagRunState.SUCCESS]),
-            ("failed", [DagRunState.FAILED]),
+            ("queued", [], None),
+            ("success", [DagRunState.SUCCESS], "Dag Run's state was manually set to `success`."),
+            ("failed", [DagRunState.FAILED], "Dag Run's state was manually set to `failed`."),
         ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_patch_dag_run_notifies_listeners(self, test_client, state, listener_state, listener_manager):
+    def test_patch_dag_run_notifies_listeners(
+        self, test_client, state, expected_dagrun_state, expected_msg, listener_manager
+    ):
         listener = ClassBasedListener()
         listener_manager(listener)
         response = test_client.patch(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}", json={"state": state})
         assert response.status_code == 200
-        assert listener.state == listener_state
+        assert listener.state == expected_dagrun_state
+        if expected_msg is not None:
+            assert listener.dag_run_msg == expected_msg
+            assert listener.dag_run_has_dag_attr is True
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_listener_sees_note_when_note_and_state_both_patched(
+        self, test_client, listener_manager
+    ):
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN2_ID}",
+            json={"state": "success", "note": "listener_note"},
+        )
+        assert response.status_code == 200
+        assert listener.dag_run_note_at_listener == "listener_note"
+
+    @pytest.mark.parametrize(
+        ("dag_run_state", "expected_ti_state"),
+        [
+            ("success", TaskInstanceState.SUCCESS),
+            ("failed", TaskInstanceState.FAILED),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_notifies_ti_listeners_for_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+        dag_run_state,
+        expected_ti_state,
+    ):
+        with dag_maker(dag_id="test_ti_listeners", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "t1",
+            )
+        )
+        ti.state = TaskInstanceState.RUNNING
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners/dagRuns/{dr.run_id}", json={"state": dag_run_state}
+        )
+        assert response.status_code == 200
+        assert listener.state[0] is expected_ti_state
+        assert listener.state[1] is DagRunState(dag_run_state)
+        assert len(listener.state) == 2
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_does_not_notify_ti_listeners_for_non_running_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+    ):
+        with dag_maker(dag_id="test_ti_listeners_queued", schedule=None, serialized=True):
+            EmptyOperator(task_id="t1")
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dr.dag_id,
+                TaskInstance.run_id == dr.run_id,
+                TaskInstance.task_id == "t1",
+            )
+        )
+        ti.state = TaskInstanceState.QUEUED
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners_queued/dagRuns/{dr.run_id}", json={"state": "success"}
+        )
+        assert response.status_code == 200
+        # Only the dagrun-level hook should have fired; no TI hooks for a non-running task.
+        # The list length check distinguishes "only dagrun fired" from "both fired".
+        assert listener.state == [DagRunState.SUCCESS]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_patch_dag_run_does_not_notify_ti_listeners_for_running_teardown_tasks(
+        self,
+        test_client,
+        dag_maker,
+        session,
+        listener_manager,
+    ):
+        with dag_maker(dag_id="test_ti_listeners_teardown", schedule=None, serialized=True):
+            normal = EmptyOperator(task_id="normal")
+            teardown = EmptyOperator(task_id="teardown").as_teardown(setups=normal)
+            normal >> teardown
+
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        for task_id in ("normal", "teardown"):
+            ti = session.scalar(
+                select(TaskInstance).where(
+                    TaskInstance.dag_id == dr.dag_id,
+                    TaskInstance.run_id == dr.run_id,
+                    TaskInstance.task_id == task_id,
+                )
+            )
+            ti.state = TaskInstanceState.RUNNING
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        listener = ClassBasedListener()
+        listener_manager(listener)
+
+        response = test_client.patch(
+            f"/dags/test_ti_listeners_teardown/dagRuns/{dr.run_id}", json={"state": "success"}
+        )
+        assert response.status_code == 200
+        # Normal task was killed — its TI listener fires. Teardown task is intentionally skipped.
+        assert len(listener.state) == 2
+        assert listener.state[0] is TaskInstanceState.SUCCESS
+        assert listener.state[1] is DagRunState.SUCCESS
 
 
 class TestDeleteDagRun:
@@ -1581,11 +1982,20 @@ class TestGetDagRunAssetTriggerEvents:
         ["test_partition_key", None],
         ids=["partitioned", "non-partitioned"],
     )
-    def test_should_respond_200(self, partition_key, test_client, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("state", "start_date_is_none"),
+        [
+            pytest.param(DagRunState.RUNNING, False, id="running"),
+            pytest.param(DagRunState.QUEUED, True, id="queued-without-start-date"),
+        ],
+    )
+    def test_should_respond_200(
+        self, partition_key, state, start_date_is_none, test_client, dag_maker, session
+    ):
         asset1 = Asset(name="ds1", uri="file:///da1")
 
-        # Use PartitionAtRuntime for partitioned cases so the partition_key gate does not reject the key.
-        source_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        # Use PartitionedAtRuntime for partitioned cases so the partition_key gate does not reject the key.
+        source_schedule = PartitionedAtRuntime() if partition_key is not None else timedelta(days=1)
         with dag_maker(
             dag_id="source_dag", start_date=START_DATE1, schedule=source_schedule, session=session
         ):
@@ -1604,7 +2014,7 @@ class TestGetDagRunAssetTriggerEvents:
         )
         session.add(event)
 
-        trigger_schedule = PartitionAtRuntime() if partition_key is not None else timedelta(days=1)
+        trigger_schedule = PartitionedAtRuntime() if partition_key is not None else timedelta(days=1)
         with dag_maker(
             dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=trigger_schedule, session=session
         ):
@@ -1615,16 +2025,19 @@ class TestGetDagRunAssetTriggerEvents:
             "partition_key": partition_key,
         }
         if partition_key is not None:
-            # PartitionAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
+            # PartitionedAtRuntime is a null-timetable with no scheduled runs; supply logical_date=None
             # explicitly so dag_maker does not try to infer it via next_dagrun_info (which returns None).
             create_dagrun_kwargs["logical_date"] = None
         dr = dag_maker.create_dagrun(**create_dagrun_kwargs)
+        dr.state = state
+        if start_date_is_none:
+            dr.start_date = None
         dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(3):
+        with assert_queries_count(7):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -1641,6 +2054,7 @@ class TestGetDagRunAssetTriggerEvents:
                     "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
+                    "source_task_instance_id": None,
                     "source_run_id": ti.run_id,
                     "source_task_id": ti.task_id,
                     "created_dagruns": [
@@ -1651,9 +2065,14 @@ class TestGetDagRunAssetTriggerEvents:
                             "data_interval_start": from_datetime_to_zulu_without_ms(dr.data_interval_start),
                             "end_date": None,
                             "logical_date": from_datetime_to_zulu_without_ms(dr.logical_date),
-                            "start_date": from_datetime_to_zulu_without_ms(dr.start_date),
-                            "state": "running",
+                            "start_date": (
+                                None
+                                if start_date_is_none
+                                else from_datetime_to_zulu_without_ms(dr.start_date)
+                            ),
+                            "state": state.value,
                             "partition_key": partition_key,
+                            "triggering": True,
                         }
                     ],
                     "partition_key": partition_key,
@@ -1662,6 +2081,196 @@ class TestGetDagRunAssetTriggerEvents:
             "total_entries": 1,
         }
         assert response.json() == expected_response
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize("num_events", [1, 5])
+    def test_query_count_does_not_scale_with_consumed_events(
+        self, num_events, test_client, dag_maker, session
+    ):
+        """A run consuming N asset events must not issue a query per event (guard against N+1)."""
+        asset1 = Asset(name="ds1", uri="file:///da1")
+        with dag_maker(
+            dag_id="source_dag", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            EmptyOperator(task_id="task", outlets=[asset1])
+        source_run = dag_maker.create_dagrun()
+        ti = source_run.task_instances[0]
+        asset1_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset1.uri))
+
+        events = [
+            AssetEvent(
+                asset_id=asset1_id,
+                source_task_id=ti.task_id,
+                source_dag_id=ti.dag_id,
+                source_run_id=ti.run_id,
+                source_map_index=ti.map_index,
+                timestamp=START_DATE1 + timedelta(minutes=index),
+            )
+            for index in range(num_events)
+        ]
+        session.add_all(events)
+
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        consuming_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        for event in events:
+            consuming_run.consumed_asset_events.append(event)
+        session.commit()
+
+        # Constant regardless of the number of consumed events (parametrized 1 vs 5).
+        with assert_queries_count(7):
+            response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total_entries"] == num_events
+        # Only the run's most recent consumed event triggered it; the rest were merely included.
+        triggering_by_event = {
+            event["id"]: event["created_dagruns"][0]["triggering"] for event in payload["asset_events"]
+        }
+        newest_event_id = max(event.id for event in events)
+        assert triggering_by_event[newest_event_id] is True
+        assert all(value is False for eid, value in triggering_by_event.items() if eid != newest_event_id)
+
+    def _create_consuming_run_with_events(self, dag_maker, session):
+        """
+        Create a run consuming three events: one per source Dag, one with no source Dag.
+
+        Returns the asset ids keyed by index and the event ids keyed by scenario.
+        """
+        asset_ids = {}
+        for index in (1, 2):
+            asset = AssetModel(name=f"ds{index}", uri=f"file:///da{index}", group="asset")
+            session.add(asset)
+            session.flush()
+            asset_ids[index] = asset.id
+        events = {
+            "dag_a": AssetEvent(asset_id=asset_ids[1], source_dag_id="source_dag_a", timestamp=START_DATE1),
+            "dag_b": AssetEvent(asset_id=asset_ids[2], source_dag_id="source_dag_b", timestamp=START_DATE1),
+            "dagless": AssetEvent(asset_id=asset_ids[1], timestamp=START_DATE1),
+        }
+        session.add_all(events.values())
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.extend(events.values())
+        session.commit()
+        return asset_ids, {key: event.id for key, event in events.items()}
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_events"),
+        [
+            pytest.param(["source_dag_a"], ["dag_a", "dagless"], id="one-readable-source-dag-plus-dagless"),
+            pytest.param(
+                ["source_dag_a", "source_dag_b"],
+                ["dag_a", "dag_b", "dagless"],
+                id="both-source-dags-readable",
+            ),
+            pytest.param([], ["dagless"], id="no-readable-source-dags-still-sees-dagless"),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_events_from_source_dags_the_caller_may_read(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_events
+    ):
+        """Reading the consuming run must not expose events produced by Dags the caller cannot read."""
+        mock_get_authorized_dag_ids.return_value = set(readable_dags)
+        _, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        expected_ids = [event_ids[key] for key in expected_events]
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == expected_ids
+        # The count must be scoped too, so the existence of hidden events does not leak.
+        assert body["total_entries"] == len(expected_ids)
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_returns_only_events_of_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, mock_get_authorized_dag_ids, test_client, dag_maker, session
+    ):
+        """An event of an asset the caller cannot read is hidden even when its source Dag is readable."""
+        asset_ids, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        mock_get_authorized_dag_ids.return_value = {"source_dag_a", "source_dag_b"}
+        mock_get_authorized_assets.return_value = {asset_ids[2]}
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == [event_ids["dag_b"]]
+        assert {event["uri"] for event in body["asset_events"]} == {"file:///da2"}
+        assert body["total_entries"] == 1
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"TEST_DAG_ID"}, ["TEST_DAG_ID"], id="other-consumer-dag-not-readable"),
+            pytest.param(
+                {"TEST_DAG_ID", "other_consumer"}, ["TEST_DAG_ID", "other_consumer"], id="both-readable"
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_run_dags
+    ):
+        """An event's created Dag runs are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        asset = AssetModel(name="ds1", uri="file:///da1", group="asset")
+        session.add(asset)
+        session.flush()
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(asset_id=asset.id, timestamp=START_DATE1)
+        session.add(event)
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.append(event)
+        session.merge(DagBundleModel(name="testing"))
+        session.flush()
+        session.add(DagModel(dag_id="other_consumer", bundle_name="testing"))
+        session.flush()
+        other_run = DagRun(
+            dag_id="other_consumer",
+            run_id="other_consumer_run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=START_DATE1,
+            start_date=START_DATE1,
+            data_interval=(START_DATE1, START_DATE1),
+            state=DagRunState.SUCCESS,
+        )
+        other_run.consumed_asset_events.append(event)
+        session.add(other_run)
+        session.commit()
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -1705,6 +2314,23 @@ class TestClearDagRun:
             logical_date=None,
         )
 
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
+        """A run that kept its bundle version after ``airflow db clean`` removed its Dag version."""
+        session.execute(
+            update(DagRun)
+            .where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN1_ID)
+            .values(created_dag_version_id=None, bundle_version="deleted-version")
+        )
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
+            json={"dry_run": False},
+        )
+        assert response.status_code == 200
+        assert response.json()["state"] == "queued"
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.post(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear",
@@ -1723,11 +2349,16 @@ class TestClearDagRun:
         ("body", "expected_note"),
         [
             ({"dry_run": False, "note": "cleared by test"}, "cleared by test"),
-            ({"dry_run": False, "note": ""}, ""),
+            ({"dry_run": False, "note": ""}, None),
             ({"dry_run": False, "note": None}, "test_note"),
             ({"dry_run": False}, "test_note"),
         ],
-        ids=["set-new-note", "set-empty-note", "explicit-null-leaves-existing", "omit-leaves-existing"],
+        ids=[
+            "set-new-note",
+            "empty-note-removes-existing",
+            "explicit-null-leaves-existing",
+            "omit-leaves-existing",
+        ],
     )
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_applies_note(self, test_client, session, body, expected_note):
@@ -1783,6 +2414,40 @@ class TestClearDagRun:
         assert logs == 0
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_reports_loop_coordinates(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker("dry_run_loop", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="dry_run_loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        later = TaskInstance(
+            task=dag_maker.dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=2,
+        )
+        later.state = State.SUCCESS
+        session.add(later)
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/clear", json={"dry_run": True, "only_failed": False}
+        )
+
+        assert response.status_code == 200, response.text
+        work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
+        assert {row["region_index"] for row in work} == {1, 2}
+        assert {row["map_index"] for row in work} == {-1}
+        assert all(
+            row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}
+            for row in work
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):
         """Regression test: dry-run response must include all TaskInstanceResponse fields.
 
@@ -1798,6 +2463,7 @@ class TestClearDagRun:
         assert response.status_code == 200
         body = response.json()
         assert body["total_entries"] == 2
+        assert len(body["task_instances"]) == 2
 
         for ti in body["task_instances"]:
             # Fields that require dag_run → dag_model join (previously missing)
@@ -2094,24 +2760,17 @@ class TestBulkClearDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.post(
-                "/dags/~/clearDagRuns",
-                json={
-                    "dry_run": False,
-                    "dag_runs": [
-                        {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                        {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                    ],
-                },
-            )
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={
+                "dry_run": False,
+                "dag_runs": [
+                    {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                    {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                ],
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         # The batched auth check rejects the whole request, so the authorized Dag's run is not cleared either.
@@ -2229,6 +2888,693 @@ class TestClearDagRunOnlyNew:
         )
 
 
+PARTITION_DAG_ID = "partition_test_dag"
+
+
+class TestBulkClearDagRunsPartitionSelector:
+    """
+    Tests for the partition-selector extensions to clearDagRuns (Part A).
+
+    These tests cover: partition_key selector, partition_date window, dry_run,
+    mutual-exclusion validation, wildcard rejection, and authz bypass fix (B1).
+    """
+
+    @pytest.fixture
+    def partition_dag(self, dag_maker, configure_git_connection_for_dag_bundle, session):
+        """Dag with two runs carrying partition_key and partition_date."""
+        with dag_maker(
+            PARTITION_DAG_ID,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_1 = EmptyOperator(task_id="task_1")
+
+        run_specs = [
+            ("partition_run_a", "2026-01-01|us", datetime(2026, 1, 1, tzinfo=timezone.utc)),
+            ("partition_run_b", "2026-01-02|us", datetime(2026, 1, 2, tzinfo=timezone.utc)),
+            ("partition_run_c", "2026-01-03|us", datetime(2026, 1, 3, tzinfo=timezone.utc)),
+        ]
+        for run_id, partition_key, partition_date in run_specs:
+            run = dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                run_type=DagRunType.MANUAL,
+                triggered_by=DagRunTriggeredByType.REST_API,
+                logical_date=partition_date,
+            )
+            run.partition_key = partition_key
+            run.partition_date = partition_date
+            ti = run.get_task_instance(task_id="task_1")
+            ti.task = task_1
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+        return {
+            "dag_id": PARTITION_DAG_ID,
+            "run_a_id": "partition_run_a",
+            "run_b_id": "partition_run_b",
+            "run_c_id": "partition_run_c",
+        }
+
+    def test_partition_key_selector_clears_matching_run(self, test_client, session, partition_dag):
+        """partition_key selector resolves the matching run and clears it (state → queued)."""
+        dag_id = partition_dag["dag_id"]
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={"dry_run": False, "partition_key": "2026-01-01|us"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 1
+        assert body["dag_runs"][0]["dag_run_id"] == partition_dag["run_a_id"]
+        assert body["dag_runs"][0]["state"] == "queued"
+
+        # run_b and run_c must be untouched
+        session.expire_all()
+        for run_id in (partition_dag["run_b_id"], partition_dag["run_c_id"]):
+            state = session.scalar(select(DagRun.state).where(DagRun.run_id == run_id))
+            assert state == DagRunState.SUCCESS
+
+    def test_partition_date_window_inclusive_end(self, test_client, session, partition_dag):
+        """
+        Window [Jan 1, Jan 2] must include runs with partition_date on Jan 1 and Jan 2
+        but exclude Jan 3 (cap-boundary pair: end==Jan 2 included, end+1==Jan 3 excluded).
+        """
+        dag_id = partition_dag["dag_id"]
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={
+                "dry_run": False,
+                "partition_date_start": "2026-01-01T00:00:00Z",
+                "partition_date_end": "2026-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        cleared_run_ids = sorted(r["dag_run_id"] for r in body["dag_runs"])
+        assert cleared_run_ids == sorted([partition_dag["run_a_id"], partition_dag["run_b_id"]])
+        for run in body["dag_runs"]:
+            assert run["state"] == "queued"
+
+        # Jan 3 run must be untouched
+        session.expire_all()
+        state_c = session.scalar(select(DagRun.state).where(DagRun.run_id == partition_dag["run_c_id"]))
+        assert state_c == DagRunState.SUCCESS
+
+    def test_partition_date_end_boundary_excludes_next_day(self, test_client, session, partition_dag):
+        """Upper bound is inclusive: run on end datetime is included, run after end is not."""
+        dag_id = partition_dag["dag_id"]
+        # Window: start=Jan 1, end=Jan 1T00:00Z → only run_a selected (run_b on Jan 2 excluded)
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={
+                "dry_run": True,
+                "partition_date_start": "2026-01-01T00:00:00Z",
+                "partition_date_end": "2026-01-01T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        affected_run_ids = {ti["dag_run_id"] for ti in body["task_instances"]}
+        assert affected_run_ids == {partition_dag["run_a_id"]}
+
+    def test_partition_selector_dry_run_does_not_write(self, test_client, session, partition_dag):
+        """dry_run=True returns affected TIs without modifying run state."""
+        dag_id = partition_dag["dag_id"]
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={"dry_run": True, "partition_key": "2026-01-01|us"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # dry_run returns ClearTaskInstanceCollectionResponse
+        assert "task_instances" in body
+        assert len(body["task_instances"]) > 0, "dry_run must return at least one affected TI"
+        session.expire_all()
+        state = session.scalar(select(DagRun.state).where(DagRun.run_id == partition_dag["run_a_id"]))
+        assert state == DagRunState.SUCCESS
+
+    @pytest.mark.parametrize(
+        "build_body",
+        [
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "dag_runs": [{"dag_run_id": d["run_a_id"]}],
+                    "partition_key": "2026-01-01|us",
+                },
+                id="dag_runs_and_partition_key",
+            ),
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "partition_key": "2026-01-01|us",
+                    "partition_date_start": "2026-01-01T00:00:00Z",
+                },
+                id="two_partition_selectors",
+            ),
+            pytest.param(
+                lambda d: {"dry_run": True},
+                id="no_selector",
+            ),
+            pytest.param(
+                lambda d: {
+                    "dry_run": True,
+                    "partition_date_start": "2026-01-03T00:00:00Z",
+                    "partition_date_end": "2026-01-01T00:00:00Z",
+                },
+                id="start_after_end",
+            ),
+        ],
+    )
+    def test_invalid_selector_combination_returns_422(self, test_client, partition_dag, build_body):
+        """Invalid selector combinations must be rejected with 422."""
+        response = test_client.post(
+            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
+            json=build_body(partition_dag),
+        )
+        assert response.status_code == 422
+
+    def test_wildcard_dag_id_with_partition_selector_returns_400(self, test_client, partition_dag):
+        """'~' dag_id + partition selector must be rejected with 400 (timetable unknown)."""
+        response = test_client.post(
+            "/dags/~/clearDagRuns",
+            json={"dry_run": True, "partition_key": "2026-01-01|us"},
+        )
+        assert response.status_code == 400
+
+    def test_partition_selector_unauthenticated_returns_401(self, unauthenticated_test_client, partition_dag):
+        """Unauthenticated request with partition selector must return 401."""
+        response = unauthenticated_test_client.post(
+            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
+            json={"dry_run": True, "partition_key": "2026-01-01|us"},
+        )
+        assert response.status_code == 401
+
+    def test_partition_selector_unauthorized_returns_403(self, unauthorized_test_client, partition_dag):
+        """Unauthorized user with partition selector must return 403 (authz bypass fix B1)."""
+        response = unauthorized_test_client.post(
+            f"/dags/{partition_dag['dag_id']}/clearDagRuns",
+            json={"dry_run": True, "partition_key": "2026-01-01|us"},
+        )
+        assert response.status_code == 403
+
+    def test_partition_key_no_match_returns_200_empty(self, test_client, session, partition_dag):
+        """A partition_key matching no run returns 200 with an empty result, not 404."""
+        dag_id = partition_dag["dag_id"]
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={"dry_run": False, "partition_key": "9999-12-31|none"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["total_entries"] == 0
+        assert body["dag_runs"] == []
+
+        # All runs must be untouched.
+        session.expire_all()
+        for run_id in (partition_dag["run_a_id"], partition_dag["run_b_id"], partition_dag["run_c_id"]):
+            state = session.scalar(select(DagRun.state).where(DagRun.run_id == run_id))
+            assert state == DagRunState.SUCCESS
+
+    @pytest.mark.parametrize(
+        ("window", "expected_run_keys"),
+        [
+            pytest.param(
+                {"partition_date_start": "2026-01-02T00:00:00Z"},
+                ("run_b_id", "run_c_id"),
+                id="start-only-includes-from-start-onward",
+            ),
+            pytest.param(
+                {"partition_date_end": "2026-01-02T00:00:00Z"},
+                ("run_a_id", "run_b_id"),
+                id="end-only-includes-up-to-and-including-end",
+            ),
+        ],
+    )
+    def test_partition_date_single_bound_window(
+        self, test_client, session, partition_dag, window, expected_run_keys
+    ):
+        """A window with only one bound is open-ended on the missing side."""
+        dag_id = partition_dag["dag_id"]
+        response = test_client.post(
+            f"/dags/{dag_id}/clearDagRuns",
+            json={"dry_run": False, **window},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        cleared_run_ids = sorted(r["dag_run_id"] for r in body["dag_runs"])
+        assert cleared_run_ids == sorted(partition_dag[k] for k in expected_run_keys)
+
+
+class TestClearPartitions:
+    """
+    Tests for the new clearPartitions endpoint (Part B/C).
+
+    Covers: run_id selector, partition_key selector, partition_date window,
+    clear_task_instances, dry_run, mutual-exclusion validation, and authz.
+    """
+
+    @pytest.fixture
+    def partitioned_dag_with_runs(self, dag_maker, configure_git_connection_for_dag_bundle, session):
+        """Dag with three runs carrying partition fields and task instances."""
+        dag_id = "clear_partitions_test_dag"
+        with dag_maker(
+            dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_x = EmptyOperator(task_id="task_x")
+            task_y = EmptyOperator(task_id="task_y")
+
+        run_specs = [
+            ("cp_run_a", "key-a", datetime(2026, 1, 1, tzinfo=timezone.utc)),
+            ("cp_run_b", "key-b", datetime(2026, 1, 2, tzinfo=timezone.utc)),
+            ("cp_run_c", "key-c", datetime(2026, 1, 3, tzinfo=timezone.utc)),
+        ]
+        runs = {}
+        for run_id, partition_key, partition_date in run_specs:
+            run = dag_maker.create_dagrun(
+                run_id=run_id,
+                state=DagRunState.SUCCESS,
+                run_type=DagRunType.MANUAL,
+                triggered_by=DagRunTriggeredByType.REST_API,
+                logical_date=partition_date,
+            )
+            run.partition_key = partition_key
+            run.partition_date = partition_date
+            runs[run_id] = run
+
+        # Only run_a carries task instances, for the clear_task_instances tests
+        for op in (task_x, task_y):
+            ti = runs["cp_run_a"].get_task_instance(task_id=op.task_id)
+            ti.task = op
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+        return {
+            "dag_id": dag_id,
+            "run_a_id": "cp_run_a",
+            "run_b_id": "cp_run_b",
+            "run_c_id": "cp_run_c",
+        }
+
+    def test_run_id_selector_clears_partition_fields(self, test_client, session, partitioned_dag_with_runs):
+        """run_id selector resets partition fields to None on the matching run."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"run_id": info["run_a_id"], "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["task_instances_cleared"] == 0
+        assert body["dry_run"] is False
+
+        session.expire_all()
+        run = session.scalar(select(DagRun).where(DagRun.run_id == info["run_a_id"]))
+        assert run.partition_key is None
+        assert run.partition_date is None
+        # Other runs untouched
+        run_b = session.scalar(select(DagRun).where(DagRun.run_id == info["run_b_id"]))
+        assert run_b.partition_key == "key-b"
+
+    def test_partition_key_selector_clears_partition_fields(
+        self, test_client, session, partitioned_dag_with_runs
+    ):
+        """partition_key selector resets partition fields to None on matching run."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"partition_key": "key-b", "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["dry_run"] is False
+
+        session.expire_all()
+        run_b = session.scalar(select(DagRun).where(DagRun.run_id == info["run_b_id"]))
+        assert run_b.partition_key is None
+        assert run_b.partition_date is None
+
+    def test_partition_date_window_clears_fields_within_range(
+        self, test_client, session, partitioned_dag_with_runs
+    ):
+        """partition_date window [Jan 1, Jan 2] clears run_a and run_b, leaves run_c."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={
+                "partition_date_start": "2026-01-01T00:00:00Z",
+                "partition_date_end": "2026-01-02T00:00:00Z",
+                "dry_run": False,
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 2
+        assert body["dry_run"] is False
+
+        session.expire_all()
+        for run_id in (info["run_a_id"], info["run_b_id"]):
+            run = session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+            assert run.partition_key is None
+            assert run.partition_date is None
+        # run_c (Jan 3) must be untouched
+        run_c = session.scalar(select(DagRun).where(DagRun.run_id == info["run_c_id"]))
+        assert run_c.partition_key == "key-c"
+
+    def test_dry_run_returns_counts_without_writing(self, test_client, session, partitioned_dag_with_runs):
+        """dry_run=True reports the would-be count but does not modify the DB."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"partition_key": "key-a", "dry_run": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["dry_run"] is True
+
+        session.expire_all()
+        run_a = session.scalar(select(DagRun).where(DagRun.run_id == info["run_a_id"]))
+        assert run_a.partition_key == "key-a"  # unchanged
+
+    def test_clear_task_instances_non_dry_run(self, test_client, session, partitioned_dag_with_runs):
+        """clear_task_instances=True clears TIs and reports the count."""
+        info = partitioned_dag_with_runs
+        # run_a has 2 TIs (task_x and task_y)
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"run_id": info["run_a_id"], "clear_task_instances": True, "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["task_instances_cleared"] == 2
+        assert body["dry_run"] is False
+
+    def test_clear_task_instances_dry_run_counts_tis(self, test_client, session, partitioned_dag_with_runs):
+        """dry_run + clear_task_instances reports TI count without writing."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"run_id": info["run_a_id"], "clear_task_instances": True, "dry_run": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["task_instances_cleared"] == 2
+        assert body["dry_run"] is True
+
+        session.expire_all()
+        run_a = session.scalar(select(DagRun).where(DagRun.run_id == info["run_a_id"]))
+        assert run_a.partition_key == "key-a"  # not cleared (dry_run)
+
+    @pytest.mark.parametrize(
+        "build_body",
+        [
+            pytest.param(
+                lambda d: {"run_id": d["run_a_id"], "partition_key": "key-a", "dry_run": True},
+                id="run_id_and_partition_key",
+            ),
+            pytest.param(
+                lambda d: {"dry_run": True},
+                id="no_selector",
+            ),
+            pytest.param(
+                lambda d: {
+                    "partition_date_start": "2026-01-03T00:00:00Z",
+                    "partition_date_end": "2026-01-01T00:00:00Z",
+                    "dry_run": True,
+                },
+                id="start_after_end",
+            ),
+        ],
+    )
+    def test_invalid_selector_combination_returns_422(
+        self, test_client, partitioned_dag_with_runs, build_body
+    ):
+        """Invalid selector combinations must be rejected with 422."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json=build_body(info),
+        )
+        assert response.status_code == 422
+
+    def test_unauthenticated_returns_401(self, unauthenticated_test_client, partitioned_dag_with_runs):
+        """Unauthenticated request must return 401."""
+        info = partitioned_dag_with_runs
+        response = unauthenticated_test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"partition_key": "key-a", "dry_run": True},
+        )
+        assert response.status_code == 401
+
+    def test_unauthorized_returns_403(self, unauthorized_test_client, partitioned_dag_with_runs):
+        """Unauthorized user must return 403."""
+        info = partitioned_dag_with_runs
+        response = unauthorized_test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"partition_key": "key-a", "dry_run": True},
+        )
+        assert response.status_code == 403
+
+    def test_partition_key_no_match_returns_200_zero_count(
+        self, test_client, session, partitioned_dag_with_runs
+    ):
+        """A partition_key matching no run returns 200 with zero counts, not 404."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"partition_key": "nonexistent-key", "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 0
+        assert body["task_instances_cleared"] == 0
+
+        # Existing runs keep their partition fields.
+        session.expire_all()
+        run_a = session.scalar(select(DagRun).where(DagRun.run_id == info["run_a_id"]))
+        assert run_a.partition_key == "key-a"
+
+    @pytest.mark.parametrize(
+        ("window", "expected_run_keys"),
+        [
+            pytest.param(
+                {"partition_date_start": "2026-01-02T00:00:00Z"},
+                ("run_b_id", "run_c_id"),
+                id="start-only-includes-from-start-onward",
+            ),
+            pytest.param(
+                {"partition_date_end": "2026-01-02T00:00:00Z"},
+                ("run_a_id", "run_b_id"),
+                id="end-only-includes-up-to-and-including-end",
+            ),
+        ],
+    )
+    def test_partition_date_single_bound_window(
+        self, test_client, session, partitioned_dag_with_runs, window, expected_run_keys
+    ):
+        """A window with only one bound is open-ended on the missing side."""
+        info = partitioned_dag_with_runs
+        response = test_client.post(
+            f"/dags/{info['dag_id']}/clearPartitions",
+            json={"dry_run": False, **window},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 2
+
+        session.expire_all()
+        cleared_ids = {info[k] for k in expected_run_keys}
+        for run_id in (info["run_a_id"], info["run_b_id"], info["run_c_id"]):
+            run = session.scalar(select(DagRun).where(DagRun.run_id == run_id))
+            if run_id in cleared_ids:
+                assert run.partition_key is None
+                assert run.partition_date is None
+            else:
+                assert run.partition_key is not None
+
+    def test_cross_dag_run_id_collision_does_not_clear_other_dag(
+        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+    ):
+        """Clearing by run_id only affects the target Dag; a second Dag with the same run_id is untouched."""
+        shared_run_id = "shared_run_id"
+
+        # Build target Dag with the shared run_id.
+        dag_id_target = "cp_cross_dag_target"
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_a = EmptyOperator(task_id="task_a")
+
+        run_target = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_target.partition_key = "key-target"
+        run_target.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ti_target = run_target.get_task_instance(task_id=task_a.task_id)
+        ti_target.task = task_a
+        ti_target.state = State.SUCCESS
+        session.merge(ti_target)
+
+        # Build bystander Dag with the same run_id.
+        dag_id_bystander = "cp_cross_dag_bystander"
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_b = EmptyOperator(task_id="task_b")
+
+        run_bystander = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_bystander.partition_key = "key-bystander"
+        run_bystander.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        ti_bystander = run_bystander.get_task_instance(task_id=task_b.task_id)
+        ti_bystander.task = task_b
+        ti_bystander.state = State.SUCCESS
+        session.merge(ti_bystander)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id_target}/clearPartitions",
+            json={"run_id": shared_run_id, "clear_task_instances": True, "dry_run": False},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["dag_runs_cleared"] == 1
+        assert body["task_instances_cleared"] == 1
+
+        # Target Dag's run and TI are cleared.
+        session.expire_all()
+        run_t = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+        )
+        assert run_t.partition_key is None
+        assert run_t.partition_date is None
+
+        # Bystander Dag's run and TI are completely untouched.
+        run_b = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+        )
+        assert run_b.partition_key == "key-bystander"
+        assert run_b.partition_date is not None
+
+        ti_b_after = session.scalar(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_id_bystander, TaskInstance.run_id == shared_run_id
+            )
+        )
+        assert ti_b_after.state == State.SUCCESS
+
+    def test_cross_dag_run_id_collision_dry_run_counts_only_target_dag(
+        self, test_client, session, dag_maker, configure_git_connection_for_dag_bundle
+    ):
+        """dry_run=True TI count only includes the target Dag's TIs, not a bystander sharing the same run_id."""
+        shared_run_id = "shared_dry_run_id"
+
+        dag_id_target = "cp_cross_dag_dry_target"
+        with dag_maker(
+            dag_id_target,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_a = EmptyOperator(task_id="task_a")
+            task_b = EmptyOperator(task_id="task_b")
+
+        run_target = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_target.partition_key = "key-target-dry"
+        run_target.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for op in (task_a, task_b):
+            ti = run_target.get_task_instance(task_id=op.task_id)
+            ti.task = op
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_id_bystander = "cp_cross_dag_dry_bystander"
+        with dag_maker(
+            dag_id_bystander,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            serialized=True,
+        ):
+            task_c = EmptyOperator(task_id="task_c")
+            task_d = EmptyOperator(task_id="task_d")
+            task_e = EmptyOperator(task_id="task_e")
+
+        run_bystander = dag_maker.create_dagrun(
+            run_id=shared_run_id,
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.REST_API,
+            logical_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        )
+        run_bystander.partition_key = "key-bystander-dry"
+        run_bystander.partition_date = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        for op in (task_c, task_d, task_e):
+            ti = run_bystander.get_task_instance(task_id=op.task_id)
+            ti.task = op
+            ti.state = State.SUCCESS
+            session.merge(ti)
+
+        dag_maker.sync_dagbag_to_db()
+        session.flush()
+
+        response = test_client.post(
+            f"/dags/{dag_id_target}/clearPartitions",
+            json={"run_id": shared_run_id, "clear_task_instances": True, "dry_run": True},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        # Only the 2 TIs from the target Dag count; the 3 bystander TIs must not be included.
+        assert body["task_instances_cleared"] == 2
+        assert body["dry_run"] is True
+
+        # Neither run is written to (dry_run=True).
+        session.expire_all()
+        run_t = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_target, DagRun.run_id == shared_run_id)
+        )
+        assert run_t.partition_key == "key-target-dry"
+        run_b = session.scalar(
+            select(DagRun).where(DagRun.dag_id == dag_id_bystander, DagRun.run_id == shared_run_id)
+        )
+        assert run_b.partition_key == "key-bystander-dry"
+
+
 class TestTriggerDagRun:
     def _dags_for_trigger_tests(self, session=None):
         inactive_dag = DagModel(
@@ -2342,6 +3688,8 @@ class TestTriggerDagRun:
             "triggered_by": "rest_api",
             "triggering_user_name": "test",
             "partition_key": None,
+            "partition_date": None,
+            "team_name": None,
         }
 
         assert response.json() == expected_response_json
@@ -2468,6 +3816,30 @@ class TestTriggerDagRun:
         assert response.status_code == 422
         assert response.json() == expected_detail
 
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_trigger_dag_run_rejects_reserved_conf_keys(self, test_client, session, key, conf):
+        count_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        runs_before = session.scalar(count_runs)
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(count_runs) == runs_before
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_keeps_json_string_conf_value(self, test_client):
+        conf = {"nested": json.dumps({"__type": "datetime", "__var": 0.0})}
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 200
+        assert response.json()["conf"] == conf
+
     def test_post_dag_runs_with_empty_payload(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns", data={}, headers={"Content-Type": "application/json"}
@@ -2526,12 +3898,22 @@ class TestTriggerDagRun:
             == "Dag with dag_id: 'import_errors' has import errors and cannot be triggered"
         )
 
-    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, testing_dag_bundle):
+    def test_should_respond_400_if_manual_runs_denied(self, test_client, session, dag_maker):
         now = timezone.utcnow().isoformat()
-        self._dags_for_trigger_tests(session)
-        response = test_client.post("/dags/allowed_scheduled/dagRuns", json={"logical_date": now})
+        dag_id = "allowed_scheduled"
+        with dag_maker(
+            dag_id=dag_id,
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+        session.commit()
+
+        response = test_client.post(f"/dags/{dag_id}/dagRuns", json={"logical_date": now})
         assert response.status_code == 400
-        assert response.json()["detail"] == "Dag with dag_id: 'allowed_scheduled' does not allow manual runs"
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     @time_machine.travel(timezone.utcnow(), tick=False)
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2572,6 +3954,8 @@ class TestTriggerDagRun:
             "conf": {},
             "note": note,
             "partition_key": None,
+            "partition_date": None,
+            "team_name": None,
         }
 
         assert response_2.status_code == 409
@@ -2633,6 +4017,79 @@ class TestTriggerDagRun:
         assert list(response_json["detail"].keys()) == ["reason", "statement", "orig_error", "message"]
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_state"),
+        [
+            pytest.param(True, DagSchedulingState.DRAINING, id="drain"),
+            pytest.param(False, DagSchedulingState.PAUSED, id="leave-paused"),
+        ],
+    )
+    def test_trigger_paused_dag_with_drain_dag(self, test_client, session, drain_dag, expected_state):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": drain_dag}
+        )
+
+        assert response.status_code == 200
+        assert response.json()["state"] == "queued"
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == expected_state
+
+    def test_trigger_rejects_null_drain_dag(self, test_client):
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": None}
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("drain_dag", "expected_status"),
+        [pytest.param(True, 403, id="drain"), pytest.param(False, 200, id="no-drain")],
+    )
+    def test_drain_dag_requires_dag_edit_access(
+        self, test_client, session, deny_dag_edit_access, drain_dag, expected_status
+    ):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+        count_dag_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        dag_runs_before = session.scalar(count_dag_runs)
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns", json={"logical_date": None, "drain_dag": drain_dag}
+        )
+
+        assert response.status_code == expected_status
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
+        if drain_dag:
+            assert response.json()["detail"] == f"Draining requires permission to edit Dag: {DAG1_ID}"
+            assert session.scalar(count_dag_runs) == dag_runs_before
+            assert (
+                mock.call(mock.ANY, method="PUT", details=DagDetails(id=DAG1_ID), user=mock.ANY)
+                in deny_dag_edit_access.call_args_list
+            )
+
+    def test_trigger_with_drain_dag_leaves_dag_paused_when_run_is_rejected(self, test_client, session):
+        session.execute(update(DagModel).where(DagModel.dag_id == DAG1_ID).values(is_paused=True))
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={
+                "dag_run_id": DAG1_RUN1_ID,
+                "logical_date": timezone.utcnow().isoformat(),
+                "drain_dag": True,
+            },
+        )
+
+        assert response.status_code == 409
+        session.expire_all()
+        assert session.get(DagModel, DAG1_ID).scheduling_state == DagSchedulingState.PAUSED
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_should_respond_200_with_null_logical_date(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns",
@@ -2661,6 +4118,8 @@ class TestTriggerDagRun:
             "conf": {},
             "note": None,
             "partition_key": None,
+            "partition_date": None,
+            "team_name": None,
         }
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
@@ -2697,6 +4156,25 @@ class TestTriggerDagRun:
         assert response_2.status_code == 200
 
         assert response_1.json()["dag_run_id"] != response_2.json()["dag_run_id"]
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.user.SimpleAuthManagerUser.get_display_name",
+        return_value="Jane Doe",
+    )
+    def test_trigger_records_triggering_user_display_name(
+        self, mock_display_name, dag_maker, test_client, session
+    ):
+        dag_id = "test_trigger_display_name"
+        with dag_maker(dag_id=dag_id, schedule=None, session=session, serialized=True):
+            EmptyOperator(task_id="task")
+        session.commit()
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z"},
+        )
+        assert response.status_code == 200
+        run = session.scalars(select(DagRun).where(DagRun.run_id == response.json()["dag_run_id"])).one()
+        assert run.triggering_user_name == "Jane Doe"
 
     @time_machine.travel("2025-10-02 12:00:00", tick=False)
     @pytest.mark.usefixtures("custom_timetable_plugin")
@@ -2735,6 +4213,205 @@ class TestTriggerDagRun:
 
         run = session.scalars(select(DagRun).where(DagRun.run_id == run_id_without_logical_date)).one()
         assert run.dag_id == custom_dag_id
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_with_bundle_version(self, test_client, session, dag_maker):
+        """Test triggering a DAG run with a specific bundle version."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_version_dag"
+        bundle_name = "testing_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+            EmptyOperator(task_id="task_2")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v1"
+        run_id_v1 = response.json()["dag_run_id"]
+        dr_v1 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v1)).one()
+        assert {ti.task_id for ti in dr_v1.task_instances} == {"task_1"}
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-01-02T00:00:00Z",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json()["dag_versions"][0]["bundle_version"] == "v2"
+        run_id_v2 = response.json()["dag_run_id"]
+        dr_v2 = session.scalars(select(DagRun).where(DagRun.run_id == run_id_v2)).one()
+        assert {ti.task_id for ti in dr_v2.task_instances} == {"task_1", "task_2"}
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-03T00:00:00Z", "bundle_version": "invalid_version"},
+        )
+        assert response.status_code == 404
+        assert (
+            f"DAG with dag_id: '{dag_id}' does not have a version for bundle_version 'invalid_version'"
+            in response.json()["detail"]
+        )
+
+        dag2.disable_bundle_versioning = True
+        sync_dag_to_db(dag2, bundle_name=bundle_name)
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns", json={"logical_date": "2024-01-04T00:00:00Z", "bundle_version": "v1"}
+        )
+        assert response.status_code == 400
+        assert f"DAG with dag_id: '{dag_id}' does not support bundle versioning" in response.json()["detail"]
+
+    def test_trigger_dag_run_bundle_version_validates_against_old_param_schema(
+        self, test_client, session, dag_maker
+    ):
+        """Conf is validated against the requested bundle version's param schema, not the live dag's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_param_schema_dag"
+        bundle_name = "param_schema_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            session=session,
+            params={"env": Param("staging", type="string", enum=["staging", "prod"])},
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            session=session,
+            params={"env": Param("dev", type="string", enum=["dev", "staging", "prod"])},
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        # "dev" is valid for v2 but not for v1's enum — triggering v1 should reject it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1", "conf": {"env": "dev"}},
+        )
+        assert response.status_code == 400
+
+        # "staging" is valid for both v1 and v2 — triggering v1 should accept it.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={
+                "logical_date": "2024-02-02T00:00:00Z",
+                "bundle_version": "v1",
+                "conf": {"env": "staging"},
+            },
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_bundle_version_uses_v1_timetable(self, test_client, session, dag_maker):
+        """Triggering with bundle_version='v1' must derive data_interval from v1's timetable, not v2's."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_timetable_dag"
+        bundle_name = "timetable_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule=CronDataIntervalTimetable("0 0 * * *", timezone="UTC"),
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule=None,
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-01-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["dag_versions"][0]["bundle_version"] == "v1"
+        # data_interval must come from v1's daily cron timetable, not v2's null timetable.
+        # For a "0 0 * * *" cron, logical_date is the interval END, so interval is [prev_day, logical_date].
+        assert data["data_interval_start"] == "2023-12-31T00:00:00Z"
+        assert data["data_interval_end"] == "2024-01-01T00:00:00Z"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_allowed_run_types_from_requested_version(self, test_client, session, dag_maker):
+        """allowed_run_types is enforced from the requested bundle version, not the latest."""
+        from tests_common.test_utils.dag import sync_dag_to_db
+
+        dag_id = "test_bundle_allowed_run_types_dag"
+        bundle_name = "allowed_run_types_bundle"
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v1",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.MANUAL, DagRunType.SCHEDULED],
+            session=session,
+        ) as dag1:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag1, bundle_name=bundle_name, bundle_version="v1")
+
+        with dag_maker(
+            dag_id=dag_id,
+            bundle_name=bundle_name,
+            bundle_version="v2",
+            schedule="@daily",
+            allowed_run_types=[DagRunType.SCHEDULED],
+            session=session,
+        ) as dag2:
+            EmptyOperator(task_id="task_1")
+        sync_dag_to_db(dag2, bundle_name=bundle_name, bundle_version="v2")
+
+        # Latest (v2) disallows manual runs; v1 allows them. Triggering v1 must succeed.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-01T00:00:00Z", "bundle_version": "v1"},
+        )
+        assert response.status_code == 200
+
+        # Without bundle_version the latest (v2) governs and rejects the manual run.
+        response = test_client.post(
+            f"/dags/{dag_id}/dagRuns",
+            json={"logical_date": "2024-02-02T00:00:00Z"},
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"] == f"Dag with dag_id: '{dag_id}' does not allow manual runs"
 
     def test_should_respond_400_when_partition_key_given_for_non_partitioned_dag(self, test_client):
         """Passing partition_key to a non-partitioned Dag via REST trigger must return 400, not 500.
@@ -2778,18 +4455,18 @@ class TestTriggerDagRun:
         assert response.status_code == 200
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
-    def test_should_respond_200_when_partition_key_given_for_partition_at_runtime_dag(
+    def test_should_respond_200_when_partition_key_given_for_partitioned_at_runtime_dag(
         self, dag_maker, test_client, session
     ):
-        """partition_key on a PartitionAtRuntime Dag must also be accepted (deferred validation).
+        """partition_key on a PartitionedAtRuntime Dag must also be accepted (deferred validation).
 
         partitioned_at_runtime=True means the Dag accepts runtime-discovered partition keys, so
         the REST layer must not reject it even though timetable.partitioned is False.
         """
-        runtime_dag_id = "test_partition_at_runtime_dag_trigger"
+        runtime_dag_id = "test_partitioned_at_runtime_dag_trigger"
         with dag_maker(
             dag_id=runtime_dag_id,
-            schedule=PartitionAtRuntime(),
+            schedule=PartitionedAtRuntime(),
             start_date=START_DATE1,
             session=session,
             serialized=True,
@@ -2803,6 +4480,142 @@ class TestTriggerDagRun:
             json={"logical_date": None, "partition_key": "runtime-key"},
         )
         assert response.status_code == 200
+
+    def test_should_respond_400_when_empty_partition_key(self, test_client):
+        """An empty partition_key must return 400, not 500."""
+        now = timezone.utcnow().isoformat()
+        response = test_client.post(
+            f"/dags/{DAG1_ID}/dagRuns",
+            json={"logical_date": now, "partition_key": ""},
+        )
+        assert response.status_code == 400
+        assert (
+            response.json()["detail"]
+            == "Dag 'test_dag1' is not a partitioned Dag and does not accept a partition_key."
+        )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_400_when_over_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key exceeding 250 characters must return 400, not 500."""
+        partitioned_dag_id = "test_over_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 251},
+        )
+        assert response.status_code == 400
+        assert "at most 250 characters" in response.json()["detail"]
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_should_respond_200_when_exactly_max_length_partition_key(self, dag_maker, test_client, session):
+        """A partition_key of exactly 250 characters must be accepted."""
+        partitioned_dag_id = "test_max_length_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=PartitionedAssetTimetable(assets=Asset("test")),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "a" * 250},
+        )
+        assert response.status_code == 200
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partitioned_dag_populates_partition_date(self, dag_maker, test_client, session):
+        """Triggering a CronPartitionTimetable Dag with a valid key populates partition_date on the run.
+
+        Regression guard: before this fix partition_date was NULL for manually triggered runs even
+        when partition_key was supplied, making partition-date-based filtering (e.g.
+        ``airflow dags clear --partition-date-*``) silently skip those runs.
+        """
+        partitioned_dag_id = "test_trigger_populates_partition_date"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "2025-06-01T00:00:00"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == partitioned_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "2025-06-01T00:00:00"
+        assert dag_run.partition_date == datetime(2025, 6, 1, 0, 0, 0, tzinfo=timezone.utc)
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partitioned_dag_invalid_key_returns_400(self, dag_maker, test_client, session):
+        """An invalid partition_key for a CronPartitionTimetable Dag must return HTTP 400."""
+        partitioned_dag_id = "test_trigger_invalid_partition_key"
+        with dag_maker(
+            dag_id=partitioned_dag_id,
+            schedule=CronPartitionTimetable("0 0 * * *", timezone="UTC"),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{partitioned_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "not-a-valid-date"},
+        )
+        assert response.status_code == 400
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_partitioned_at_runtime_dag_leaves_partition_date_none(
+        self, dag_maker, test_client, session
+    ):
+        """PartitionedAtRuntime Dag with an arbitrary key must produce partition_date=None."""
+        runtime_dag_id = "test_trigger_partitioned_at_runtime_none_date"
+        with dag_maker(
+            dag_id=runtime_dag_id,
+            schedule=PartitionedAtRuntime(),
+            start_date=START_DATE1,
+            session=session,
+            serialized=True,
+        ):
+            EmptyOperator(task_id="task")
+
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{runtime_dag_id}/dagRuns",
+            json={"logical_date": None, "partition_key": "arbitrary-key"},
+        )
+        assert response.status_code == 200
+
+        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == runtime_dag_id))
+        assert dag_run is not None
+        assert dag_run.partition_key == "arbitrary-key"
+        assert dag_run.partition_date is None
 
 
 class TestResolveRunOnLatestVersion:
@@ -2886,15 +4699,147 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
-    # The way we init async engine does not work well with FastAPI app init.
-    # Creating the engine implicitly creates an event loop, which Airflow does
-    # once for the entire process; creating the FastAPI app also does, but our
-    # test setup does it once for each test. I don't know how to properly fix
-    # this without rewriting how Airflow does db; re-configuring the db for each
-    # test at least makes the tests run correctly.
-    @pytest.fixture(autouse=True)
-    def reconfigure_async_db_engine(self):
-        _configure_async_session()
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.SUCCESS])
+    @pytest.mark.parametrize("explicit", [False, True])
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("has_live_tis", [False, True])
+    def test_rejects_loop_results_before_streaming(
+        self, test_client, dag_maker, session, state, explicit, mapped, has_live_tis
+    ):
+        with dag_maker("wait_loop_result", session=session):
+
+            @task
+            def value(v=1):
+                return v
+
+            @task_group
+            def body():
+                output = value.expand(v=[1, 2]) if mapped else value()
+                if not explicit:
+                    # Authoring rejects this now; a Dag serialized before that still reaches the wait API.
+                    output.operator.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+
+        run = dag_maker.create_dagrun(state=state, session=session)
+        if not has_live_tis:
+            session.execute(delete(TaskInstance).where(TaskInstance.dag_id == run.dag_id))
+        session.commit()
+        with mock.patch.object(DagRunWaiter, "wait", autospec=True, return_value=iter(())) as stream:
+            response = test_client.get(
+                f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+                params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+            )
+
+        assert response.status_code == 409
+        assert "outside the loop" in response.json()["detail"]
+        stream.assert_not_called()
+
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_loop_result_preflight_uses_pinned_definition(self, test_client, dag_maker, session, explicit):
+        with dag_maker("wait_pinned_loop", session=session):
+
+            @task_group
+            def body():
+                output = EmptyOperator(task_id="value")
+                output.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        session.commit()
+
+        with dag_maker("wait_pinned_loop", session=session):
+            EmptyOperator(task_id="body.value")
+
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+        )
+        assert response.status_code == 409
+
+    def test_loop_run_can_return_an_outside_result(self, test_client, dag_maker, session):
+        with dag_maker("wait_outside_result", session=session) as dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="value")
+
+            loop = create_loop(body, max_iterations=2)
+            outside = EmptyOperator(task_id="outside")
+            loop >> outside
+            dag.add_result(outside.output)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        XComModel.set(
+            key="return_value",
+            value=42,
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            task_id="outside",
+            dag_result=True,
+            session=session,
+        )
+        session.commit()
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"state": "success", "results": {"outside": "42"}}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mapped", [False, True])
+    async def test_result_rejects_ambiguous_loop_producers(self, dag_maker, session, mapped):
+        with dag_maker("ambiguous_loop_result") as dag:
+
+            @result
+            @task
+            def value(v=0):
+                return v
+
+            if mapped:
+                value.expand(v=[0])
+            else:
+                value()
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        loop = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(loop)
+        session.flush()
+        original = run.task_instances[0]
+        for index in range(2):
+            region = loop
+            if mapped:
+                region = DynamicRegion(
+                    dag_id=run.dag_id,
+                    run_id=run.run_id,
+                    node_id="value",
+                    parent_region_id=loop.id,
+                    parent_region_index=index,
+                )
+                session.add(region)
+                session.flush()
+            ti = (
+                original
+                if index == 0
+                else TaskInstance(
+                    dag.get_task("value"), run_id=run.run_id, dag_version_id=original.dag_version_id
+                )
+            )
+            ti.region_id, ti.region_index = region.id, 0 if mapped else index
+            session.add(ti)
+            session.flush()
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key="return_value",
+                value=index,
+                serialize=False,
+                dag_result=True,
+                session=session,
+            )
+        session.commit()
+
+        waiter = DagRunWaiter(run.dag_id, run.run_id, 1, None)
+        with pytest.raises(ValueError, match="Ambiguous current producers for task 'value'"):
+            await waiter._serialize_xcoms()
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -2981,6 +4926,32 @@ class TestWaitDagRun:
                 user=mock.ANY,
             )
 
+    @pytest.mark.parametrize("team_name", ["team_b", None])
+    def test_authorizes_xcom_against_the_dags_team(self, test_client, team_name):
+        """The XCom check must carry the Dag's team, matching what the route dependency above already
+        resolves — see the call site's comment for why."""
+        with (
+            mock.patch(
+                "airflow.api_fastapi.core_api.routes.public.dag_run.get_auth_manager",
+                autospec=True,
+            ) as mock_get_auth_manager,
+            mock.patch.object(DagModel, "get_team_name", return_value=team_name, autospec=True),
+        ):
+            mock_get_auth_manager.return_value.is_authorized_dag.return_value = True
+
+            response = test_client.get(
+                f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
+                params={"interval": "1", "result": "task_1"},
+            )
+
+            assert response.status_code == 200
+            mock_get_auth_manager.return_value.is_authorized_dag.assert_called_once_with(
+                method="GET",
+                access_entity=DagAccessEntity.XCOM,
+                details=DagDetails(id=DAG1_ID, team_name=team_name),
+                user=mock.ANY,
+            )
+
     def test_should_respond_200_without_result_when_user_lacks_xcom_permission(self, test_client):
         """Waiting without result parameter should not require XCom permissions."""
         with mock.patch(
@@ -2997,6 +4968,60 @@ class TestWaitDagRun:
         assert response.status_code == 200
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}
+
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session, explicit):
+        """XComs from a mapped @result task are aggregated into a list ordered by map_index."""
+        with dag_maker("dag_mapped_result"):
+
+            @result
+            @task(task_id="a")
+            def double(v):
+                return v * 2
+
+            mapped = double.expand(v=[1, 2])
+
+        mapped_op = mapped.operator  # MappedOperator with returns_dag_result=True
+
+        dag_run = dag_maker.create_dagrun(
+            run_id="mapped_run_1",
+            state=DagRunState.SUCCESS,
+            run_type=DagRunType.MANUAL,
+            triggered_by=DagRunTriggeredByType.UI,
+            logical_date=LOGICAL_DATE1,
+        )
+        for ti in dag_run.task_instances:
+            run_task_instance(ti, mapped_op, session=session)
+        first = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_run.dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.region_index == 0,
+            )
+        ).one()
+        archived = {column.name: getattr(first, column.key) for column in TaskInstance.__table__.columns} | {
+            "id": uuid6.uuid7(),
+            "working_set": None,
+            "archived_reason": "retry",
+            "try_number": 7,
+        }
+        session.execute(insert(TaskInstance.__table__).values(archived))
+        XComModel.set_for_attempt(
+            task_instance_id=archived["id"],
+            key="return_value",
+            value=-999,
+            serialize=False,
+            dag_result=True,
+            session=session,
+        )
+        session.commit()
+
+        response = test_client.get(
+            f"/dags/dag_mapped_result/dagRuns/{dag_run.run_id}/wait",
+            params={"interval": "1", **({"result": "a"} if explicit else {})},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"state": DagRunState.SUCCESS, "results": {"a": [2, 4]}}
 
 
 class TestBulkDagRuns:
@@ -3255,6 +5280,80 @@ class TestBulkDagRuns:
         assert dag_run.note == "bulk note"
         assert dag_run.state == DAG1_RUN1_STATE
 
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    @pytest.mark.parametrize(
+        ("existing_note", "new_note", "expected_note"),
+        [
+            pytest.param(None, "new note", "new note", id="new-note"),
+            pytest.param("old note", "new note", "new note", id="replace-stale-note"),
+            pytest.param("old note", "", None, id="empty-string-clears-note"),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_updated(
+        self, test_client, listener_manager, session, state, existing_note, new_note, expected_note
+    ):
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.state = DagRunState.RUNNING
+        if existing_note is not None:
+            dag_run.note = (existing_note, "not_test")
+        session.commit()
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": state, "note": new_note}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert body["update"]["errors"] == []
+        assert listener.state == [state]
+        assert listener.dag_run_note_at_listener == expected_note
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.dag_run.get_dag_for_run", autospec=True)
+    def test_bulk_update_dag_not_found_keeps_note_and_state(self, mock_get_dag_for_run, test_client, session):
+        mock_get_dag_for_run.side_effect = HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{DAG1_ID}` was not found"
+        )
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.note = ("old note", "not_test")
+        session.commit()
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "new note"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        assert body["update"]["errors"] == [
+            {"error": f"The Dag with ID: `{DAG1_ID}` was not found", "status_code": 404}
+        ]
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        assert dag_run.note == "old note"
+        assert dag_run.state == DAG1_RUN2_STATE
+
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""
         response = test_client.patch(
@@ -3328,28 +5427,21 @@ class TestBulkDagRuns:
                 SimpleAuthManagerUser(username="limited-user", role="user", teams=[]),
             )
         )
-        with (
-            mock.patch("airflow.models.revoked_token.RevokedToken.is_revoked", return_value=False),
-            TestClient(
-                test_client.app,
-                headers={"Authorization": f"Bearer {token}"},
-                base_url=str(test_client.base_url),
-            ) as limited_test_client,
-        ):
-            response = limited_test_client.patch(
-                self.WILDCARD_ENDPOINT,
-                json={
-                    "actions": [
-                        {
-                            "action": "delete",
-                            "entities": [
-                                {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
-                                {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
-                            ],
-                        }
-                    ]
-                },
-            )
+        response = test_client.patch(
+            self.WILDCARD_ENDPOINT,
+            json={
+                "actions": [
+                    {
+                        "action": "delete",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "dag_run_id": DAG1_RUN1_ID},
+                            {"dag_id": DAG2_ID, "dag_run_id": DAG2_RUN1_ID},
+                        ],
+                    }
+                ]
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
 
         assert response.status_code == 403
         session.expire_all()

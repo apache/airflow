@@ -19,62 +19,73 @@
 
 package org.apache.airflow.example;
 
+import static java.lang.System.Logger.Level.INFO;
+
 import java.util.Date;
 import org.apache.airflow.sdk.*;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @SuppressWarnings("DuplicatedCode")
 public class InterfaceExampleBuilder {
-  private static final Logger logger = LoggerFactory.getLogger(InterfaceExampleBuilder.class);
+  private static final System.Logger log =
+      System.getLogger(InterfaceExampleBuilder.class.getName());
 
   public static class Extract implements Task {
     public void execute(@NotNull Context context, Client client) throws Exception {
-      logger.info("Hello from task");
+      log.log(INFO, "Hello from task");
 
       var pythonInput = client.getXCom("python_task_1");
-      logger.info("Got XCom from Python Task 'python_task_1' {}", pythonInput);
+      log.log(INFO, "Got XCom from python_task_1: {0}", pythonInput);
 
       var connection = client.getConnection("test_http");
-      logger.info("Got con {}", connection);
+      log.log(INFO, "Got connection: {0}", connection);
 
       for (var i = 0; i < 3; i++) {
-        logger.info("Beep {}, next time will be {}", i, new Date());
+        log.log(INFO, "Beep {0}, next time will be {1}", i, new Date());
         Thread.sleep(2 * 1000);
       }
 
       client.setXCom(new Date().getTime());
-      logger.info("Goodbye from task");
+      log.log(INFO, "Goodbye from task");
     }
   }
 
-  public static class Transform implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var extracted = client.getXCom("extract");
-      logger.info("Got XCom from 'extract' {}", extracted);
+  public static class TransformInput implements TaskInput {
+    public long extracted;
+  }
+
+  // The Python Dag file calls transform(extracted), so the field of that name
+  // receives the extract task's XCom.
+  public static class Transform implements InputTask<TransformInput> {
+    public void execute(@NotNull Context context, Client client, TransformInput input) {
+      log.log(INFO, "Got extracted value from the bound argument: {0}", input.extracted);
 
       var variable = client.getVariable("my_variable");
-      logger.info("Got variable {}", variable);
+      log.log(INFO, "Got variable: {0}", variable);
 
-      logger.info("Push XCom to python task 2");
+      log.log(INFO, "Push XCom to python task 2");
       client.setXCom(new Date().getTime());
     }
   }
 
-  public static class Load implements Task {
-    public void execute(@NotNull Context context, Client client) {
-      var transformed = client.getXCom("transform");
-      logger.info("Got XCom from 'transform' {}", transformed);
-      throw new RuntimeException("I failed");
-    }
+  public static class SummarizeInput implements TaskInput {
+    // Pinned so the field can be called region rather than regionCode. Or drop
+    // it: public String regionCode; binds region_code with nothing declared.
+    @ArgName("region_code")
+    public String region;
+
+    public long transformed;
   }
 
-  public static Dag build() {
-    var dag = new Dag("java_interface_example");
-    dag.addTask("extract", Extract.class);
-    dag.addTask("transform", Transform.class);
-    dag.addTask("load", Load.class);
-    return dag;
+  // summarize(region_code=..., transformed=...) is called with keyword
+  // arguments, which bind to the fields by name.
+  public static class Summarize implements InputTask<SummarizeInput> {
+    public void execute(@NotNull Context context, Client client, SummarizeInput input) {
+      log.log(
+          INFO, "Summarize region {0} for transformed value {1}", input.region, input.transformed);
+      if (!"emea".equals(input.region)) {
+        throw new RuntimeException("expected region 'emea' but got " + input.region);
+      }
+    }
   }
 }

@@ -64,7 +64,25 @@ class TestMSGraphFS:
                 "client_id": "test_client_id",
                 "client_secret": "test_client_secret",
                 "tenant_id": "test_tenant_id",
+                "scope": "https://graph.microsoft.com/.default",
+                "token_endpoint": "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
             },
+        )
+        assert result == mock_fs_instance
+
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
+    @patch("msgraphfs.MSGDriveFS")
+    def test_get_fs_constructs_token_endpoint(self, mock_msgdrivefs, mock_get_connection, mock_connection):
+        """token_endpoint is auto-constructed from tenant_id when not in extras."""
+        mock_get_connection.return_value = mock_connection
+        mock_fs_instance = MagicMock()
+        mock_msgdrivefs.return_value = mock_fs_instance
+
+        result = get_fs("msgraph_default")
+
+        actual_params = mock_msgdrivefs.call_args[1]["oauth2_client_params"]
+        assert actual_params["token_endpoint"] == (
+            "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token"
         )
         assert result == mock_fs_instance
 
@@ -120,19 +138,184 @@ class TestMSGraphFS:
         mock_fs_instance = MagicMock()
         mock_msgdrivefs.return_value = mock_fs_instance
 
-        storage_options = {"drive_id": "storage_drive_id", "scope": "custom.scope"}
+        storage_options = {
+            "drive_id": "storage_drive_id",
+            "scope": "custom.scope",
+            "tenant_id": "storage_tenant_id",
+        }
         result = get_fs("msgraph_minimal", storage_options=storage_options)
 
         expected_oauth2_params = {
             "client_id": "test_client_id",
             "client_secret": "test_client_secret",
-            "tenant_id": "test_tenant_id",
+            "tenant_id": "storage_tenant_id",
+            "token_endpoint": "https://login.microsoftonline.com/storage_tenant_id/oauth2/v2.0/token",
             "scope": "custom.scope",
         }
         mock_msgdrivefs.assert_called_once_with(
             drive_id="storage_drive_id", oauth2_client_params=expected_oauth2_params
         )
         assert result == mock_fs_instance
+
+    @patch("azure.identity.CertificateCredential", autospec=True)
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection", autospec=True)
+    @patch("msgraphfs.MSGDriveFS", autospec=True)
+    def test_get_fs_with_certificate_path(
+        self, mock_msgdrivefs, mock_get_connection, mock_certificate_credential
+    ):
+        connection = Connection(
+            conn_id="msgraph_certificate",
+            conn_type="msgraph",
+            login="test_client_id",
+            password="certificate_password",
+            host="test_tenant_id",
+            extra={"drive_id": "test_drive_id", "certificate_path": "/tmp/cert.pem"},
+        )
+        mock_get_connection.return_value = connection
+        mock_fs_instance = MagicMock()
+        mock_msgdrivefs.return_value = mock_fs_instance
+        mock_access_token = MagicMock(token="certificate-token", expires_on=1234567890)
+        mock_certificate_credential.return_value.get_token.return_value = mock_access_token
+
+        result = get_fs("msgraph_certificate")
+
+        mock_certificate_credential.assert_called_once_with(
+            tenant_id="test_tenant_id",
+            client_id="test_client_id",
+            password="certificate_password",
+            certificate_path="/tmp/cert.pem",
+            certificate_data=None,
+            authority=None,
+            disable_instance_discovery=False,
+        )
+        mock_certificate_credential.return_value.get_token.assert_called_once_with(
+            "https://graph.microsoft.com/.default"
+        )
+        mock_certificate_credential.return_value.close.assert_called_once_with()
+        mock_msgdrivefs.assert_called_once_with(
+            drive_id="test_drive_id",
+            oauth2_client_params={
+                "client_id": "test_client_id",
+                "token": {
+                    "access_token": "certificate-token",
+                    "token_type": "Bearer",
+                    "expires_at": 1234567890,
+                },
+                "token_endpoint": "https://login.microsoftonline.com/test_tenant_id/oauth2/v2.0/token",
+                "scope": "https://graph.microsoft.com/.default",
+            },
+        )
+        assert result == mock_fs_instance
+
+    @patch("azure.identity.CertificateCredential", autospec=True)
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection", autospec=True)
+    @patch("msgraphfs.MSGDriveFS", autospec=True)
+    def test_get_fs_with_certificate_data_from_storage_options(
+        self, mock_msgdrivefs, mock_get_connection, mock_certificate_credential, mock_connection_minimal
+    ):
+        mock_get_connection.return_value = mock_connection_minimal
+        mock_fs_instance = MagicMock()
+        mock_msgdrivefs.return_value = mock_fs_instance
+        mock_access_token = MagicMock(token="storage-token", expires_on=1234567890)
+        mock_certificate_credential.return_value.get_token.return_value = mock_access_token
+
+        result = get_fs(
+            "msgraph_minimal",
+            storage_options={
+                "certificate_data": "certificate-data",
+                "scope": "custom.scope",
+                "token_endpoint": "https://login.microsoftonline.com/custom/oauth2/v2.0/token",
+            },
+        )
+
+        mock_certificate_credential.assert_called_once_with(
+            tenant_id="test_tenant_id",
+            client_id="test_client_id",
+            password="test_client_secret",
+            certificate_path=None,
+            certificate_data=b"certificate-data",
+            authority=None,
+            disable_instance_discovery=False,
+        )
+        mock_certificate_credential.return_value.get_token.assert_called_once_with("custom.scope")
+        mock_msgdrivefs.assert_called_once_with(
+            drive_id=None,
+            oauth2_client_params={
+                "client_id": "test_client_id",
+                "token": {
+                    "access_token": "storage-token",
+                    "token_type": "Bearer",
+                    "expires_at": 1234567890,
+                },
+                "token_endpoint": "https://login.microsoftonline.com/custom/oauth2/v2.0/token",
+                "scope": "custom.scope",
+            },
+        )
+        assert result == mock_fs_instance
+
+    @patch("azure.identity.CertificateCredential", autospec=True)
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection", autospec=True)
+    @patch("msgraphfs.MSGDriveFS", autospec=True)
+    def test_get_fs_certificate_rewrites_comma_separated_scopes(
+        self, mock_msgdrivefs, mock_get_connection, mock_certificate_credential
+    ):
+        connection = Connection(
+            conn_id="msgraph_certificate",
+            conn_type="msgraph",
+            login="test_client_id",
+            password="certificate_password",
+            host="test_tenant_id",
+            extra={
+                "drive_id": "test_drive_id",
+                "certificate_path": "/tmp/cert.pem",
+                "scopes": "User.Read,Files.Read",
+            },
+        )
+        mock_get_connection.return_value = connection
+        mock_msgdrivefs.return_value = MagicMock()
+        mock_certificate_credential.return_value.get_token.return_value = MagicMock(
+            token="certificate-token", expires_on=1234567890
+        )
+
+        get_fs("msgraph_certificate")
+
+        mock_certificate_credential.return_value.get_token.assert_called_once_with("User.Read", "Files.Read")
+        assert mock_msgdrivefs.call_args[1]["oauth2_client_params"]["scope"] == "User.Read Files.Read"
+
+    @pytest.mark.parametrize(
+        ("extra", "expected_scope"),
+        [
+            pytest.param({"scope": "explicit.scope"}, "explicit.scope", id="explicit-scope-wins"),
+            pytest.param({"scopes": "form.scope"}, "form.scope", id="falls-back-to-scopes-form-field"),
+            pytest.param(
+                {"scopes": "User.Read,Files.Read"},
+                "User.Read Files.Read",
+                id="rewrites-comma-separated-scopes-to-space-delimited",
+            ),
+            pytest.param(
+                {"scopes": ["User.Read", "Files.Read"]},
+                "User.Read Files.Read",
+                id="joins-list-scopes-into-space-delimited",
+            ),
+            pytest.param({}, "https://graph.microsoft.com/.default", id="defaults-to-graph-scope"),
+        ],
+    )
+    @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
+    @patch("msgraphfs.MSGDriveFS")
+    def test_get_fs_resolves_scope(self, mock_msgdrivefs, mock_get_connection, extra, expected_scope):
+        mock_get_connection.return_value = Connection(
+            conn_id="msgraph_scope",
+            conn_type="msgraph",
+            login="test_client_id",
+            password="test_client_secret",
+            host="test_tenant_id",
+            extra=extra,
+        )
+        mock_msgdrivefs.return_value = MagicMock()
+
+        get_fs("msgraph_scope")
+
+        assert mock_msgdrivefs.call_args[1]["oauth2_client_params"]["scope"] == expected_scope
 
     @patch("airflow.providers.microsoft.azure.fs.msgraph.BaseHook.get_connection")
     @patch("msgraphfs.MSGDriveFS")

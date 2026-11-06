@@ -16,38 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
-import { LuUserRoundPen } from "react-icons/lu";
-import { Link as RouterLink } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import type { HITLDetail } from "openapi/requests/types.gen";
-import { StateBadge } from "src/components/StateBadge";
-import { Tooltip } from "src/components/ui";
-import { SearchParamsKeys } from "src/constants/searchParams";
+
+import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
+import { NeedsReviewIndicator } from "src/components/NeedsReviewIndicator";
 
 type Props = {
-  readonly dagId: string;
   readonly pendingActions: Array<HITLDetail>;
 };
 
-export const NeedsReviewBadge = ({ dagId, pendingActions }: Props) => {
+export const NeedsReviewBadge = ({ pendingActions }: Props) => {
   const { t: translate } = useTranslation("hitl");
+  const { onClose, onOpen, open } = useDisclosure();
 
   if (pendingActions.length === 0) {
     return undefined;
   }
 
   return (
-    <Tooltip content={translate("requiredActionCount", { count: pendingActions.length })}>
-      <RouterLink
-        data-testid="needs-review-badge"
-        to={`/dags/${dagId}/required_actions?${SearchParamsKeys.RESPONSE_RECEIVED}=false`}
-      >
-        <StateBadge colorPalette="deferred" fontSize="md" variant="solid">
-          <LuUserRoundPen />
-          {pendingActions.length}
-        </StateBadge>
-      </RouterLink>
-    </Tooltip>
+    <>
+      <NeedsReviewIndicator count={pendingActions.length} onClick={onOpen} />
+      <HITLReviewModal
+        headerAction={
+          <Button asChild size="sm" variant="outline">
+            <Link onClick={onClose} to="/required_actions?response_received=false">
+              {translate("review.viewAll")}
+            </Link>
+          </Button>
+        }
+        onClose={onClose}
+        open={open}
+        pendingHitl={{ data: pendingActions, isError: false, isLoading: false }}
+      />
+    </>
   );
 };

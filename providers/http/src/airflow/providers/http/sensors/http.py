@@ -61,7 +61,7 @@ class HttpSensor(BaseSensorOperator):
         :ref:`howto/operator:HttpSensor`
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
-        sensor against
+        sensor against. (templated)
     :param method: The HTTP request method to use
     :param endpoint: The relative part of the full url
     :param request_params: The parameters to be added to the GET url
@@ -84,7 +84,7 @@ class HttpSensor(BaseSensorOperator):
         default is ``False``
     """
 
-    template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
+    template_fields: Sequence[str] = ("endpoint", "request_params", "headers", "http_conn_id")
 
     def __init__(
         self,

@@ -38,6 +38,7 @@ __all__ = [
     "TaskDecorator",
     "TaskDecoratorCollection",
     "dag",
+    "result",
     "task",
     "task_group",
     "setup",
@@ -534,6 +535,7 @@ class TaskDecoratorCollection:
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
+        xcom_sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -542,6 +544,7 @@ class TaskDecoratorCollection:
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
+        log_events_on_startup: bool = True,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
@@ -623,6 +626,8 @@ class TaskDecoratorCollection:
         :param security_context: Security options the pod should run with
             (PodSecurityContext).
         :param container_security_context: security options the container should run with.
+        :param xcom_sidecar_container_security_context: security options the xcom sidecar container
+            should run with. Overrides the value configured on the Kubernetes connection.
         :param dnspolicy: DNS policy for the pod.
         :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
         :param hostname: hostname for the pod.
@@ -631,6 +636,9 @@ class TaskDecoratorCollection:
         :param full_pod_spec: The complete podSpec
         :param init_containers: Init containers for the launched pod.
         :param log_events_on_failure: Log the pod's events if a failure occurs.
+        :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
+            Each poll makes the API server read every event in the namespace; disable on very
+            large clusters.
         :param do_xcom_push: If *True*, the content of
             ``/airflow/xcom/return.json`` in the container will also be pushed
             to an XCom when the container completes.
@@ -707,6 +715,7 @@ class TaskDecoratorCollection:
         tolerations: list[k8s.V1Toleration] | None = None,
         security_context: k8s.V1PodSecurityContext | dict | None = None,
         container_security_context: k8s.V1SecurityContext | dict | None = None,
+        xcom_sidecar_container_security_context: k8s.V1SecurityContext | dict | None = None,
         dnspolicy: str | None = None,
         dns_config: k8s.V1PodDNSConfig | None = None,
         hostname: str | None = None,
@@ -715,6 +724,7 @@ class TaskDecoratorCollection:
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
+        log_events_on_startup: bool = True,
         do_xcom_push: bool = False,
         pod_template_file: str | None = None,
         pod_template_dict: dict | None = None,
@@ -793,6 +803,8 @@ class TaskDecoratorCollection:
         :param security_context: Security options the pod should run with
             (PodSecurityContext).
         :param container_security_context: security options the container should run with.
+        :param xcom_sidecar_container_security_context: security options the xcom sidecar container
+            should run with. Overrides the value configured on the Kubernetes connection.
         :param dnspolicy: DNS policy for the pod.
         :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
         :param hostname: hostname for the pod.
@@ -801,6 +813,9 @@ class TaskDecoratorCollection:
         :param full_pod_spec: The complete podSpec
         :param init_containers: Init containers for the launched pod.
         :param log_events_on_failure: Log the pod's events if a failure occurs.
+        :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
+            Each poll makes the API server read every event in the namespace; disable on very
+            large clusters.
         :param do_xcom_push: If *True*, the content of
             ``/airflow/xcom/return.json`` in the container will also be pushed
             to an XCom when the container completes.
@@ -948,3 +963,4 @@ class TaskDecoratorCollection:
 task: TaskDecoratorCollection
 setup: Callable
 teardown: Callable
+result: Callable

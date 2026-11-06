@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "waiters": {
+
+    "import_task_cancelled":{
+        "operation": "GetImportTask",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "SUCCEEDED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "CANCELLED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "ERROR_ENCOUNTERED",
+                    "state": "error"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "FAILED",
+                    "state": "success"
+                }
+                ]
+    }
+
+
+  }}

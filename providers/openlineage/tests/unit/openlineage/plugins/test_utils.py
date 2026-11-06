@@ -20,6 +20,7 @@ import datetime
 import json
 import uuid
 from json import JSONEncoder
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -33,8 +34,10 @@ from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     DagInfo,
+    DagRunInfo,
     InfoJsonEncodable,
     OpenLineageRedactor,
+    TaskInfoComplete,
     _get_all_packages_installed,
     _is_name_redactable,
     get_airflow_debug_facet,
@@ -50,7 +53,11 @@ from airflow.utils.types import DagRunType
 from tests_common.test_utils.compat import (
     BashOperator,
 )
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
+from tests_common.test_utils.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.models.dag import get_next_data_interval
@@ -299,6 +306,31 @@ def test_redact_with_exclusions(monkeypatch):
     assert redacted_nested == NestedMixined("***", NestedMixined("passwd", None))
 
 
+@pytest.mark.enable_redact
+def test_redact_masks_items_of_info_json_encodables():
+    sm = SecretsMasker()
+    if AIRFLOW_V_3_1_PLUS:
+        sm.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+    sm.add_mask("s3cr3tvalue")
+    redactor = OpenLineageRedactor.from_masker(sm)
+
+    @define
+    class Creds:
+        user: str
+        password: str
+
+    task = BashOperator(task_id="t", bash_command="curl -u user:s3cr3tvalue x")
+    task.creds = Creds(user="u", password="unregistered")
+    dag_run = SimpleNamespace(
+        dag_id="d", run_id="r", conf={"password": "unregistered", "cmd": "x s3cr3tvalue"}
+    )
+
+    redacted_task = redactor.redact(TaskInfoComplete(task))
+    assert redacted_task["bash_command"] == "curl -u user:*** x"
+    assert redacted_task["creds"] == {"user": "u", "password": "***"}
+    assert redactor.redact(DagRunInfo(dag_run))["conf"] == {"password": "***", "cmd": "x ***"}
+
+
 def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
@@ -325,9 +357,7 @@ def test_is_operator_disabled(mock_disabled_operators):
     assert is_operator_disabled(op) is True
 
 
-@patch("airflow.providers.openlineage.conf.include_full_task_info")
-def test_includes_full_task_info(mock_include_full_task_info):
-    mock_include_full_task_info.return_value = True
+def test_includes_full_task_info():
     # There should be no 'bash_command' in excludes and it's not in includes - so
     # it's a good choice for checking TaskInfo vs TaskInfoComplete
     assert (
@@ -338,13 +368,12 @@ def test_includes_full_task_info(mock_include_full_task_info):
             MagicMock(),
             BashOperator(task_id="bash_op", bash_command="sleep 1"),
             MagicMock(),
+            include_full_task_info=True,
         )["airflow"].task
     )
 
 
-@patch("airflow.providers.openlineage.conf.include_full_task_info")
-def test_does_not_include_full_task_info(mock_include_full_task_info):
-    mock_include_full_task_info.return_value = False
+def test_does_not_include_full_task_info():
     # There should be no 'bash_command' in excludes and it's not in includes - so
     # it's a good choice for checking TaskInfo vs TaskInfoComplete
     assert (
@@ -355,7 +384,73 @@ def test_does_not_include_full_task_info(mock_include_full_task_info):
             MagicMock(),
             BashOperator(task_id="bash_op", bash_command="sleep 1"),
             MagicMock(),
+            include_full_task_info=False,
         )["airflow"].task
+    )
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS, reason="__init_kwargs is an Airflow 3 dataclass implementation detail"
+)
+def test_full_task_info_excludes_init_kwargs():
+    """TaskInfoComplete must not expose _BaseOperator__init_kwargs.
+
+    That field holds the raw DAG and TaskGroup objects passed to __init__, which are attrs
+    classes with circular references (DAG -> TaskGroup -> DAG). Including them causes
+    RecursionError in attrs.asdict during OpenLineage event emission.
+    """
+    with DAG("test_dag", start_date=datetime.datetime(2025, 1, 1)):
+        op = BashOperator(task_id="bash_op", bash_command="sleep 1")
+    task_dict = get_airflow_run_facet(
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        op,
+        MagicMock(),
+        include_full_task_info=True,
+    )["airflow"].task
+    assert "_BaseOperator__init_kwargs" not in task_dict
+
+
+@pytest.mark.skipif(
+    not AIRFLOW_V_3_0_PLUS, reason="DAG and TaskGroup are attrs classes with circular refs in Airflow 3"
+)
+def test_full_task_info_no_raw_attrs_objects_in_dag_context():
+    """No raw attrs objects may appear (recursively) in TaskInfoComplete when the operator is part of a DAG.
+
+    Attrs objects with circular back-references (DAG.task_group -> TaskGroup.dag -> ...) cause
+    RecursionError in attrs.asdict when the OL client serialises the RunEvent.
+    """
+    import attrs as _attrs
+
+    with DAG("test_dag", start_date=datetime.datetime(2025, 1, 1)):
+        op = BashOperator(task_id="bash_op", bash_command="sleep 1")
+    task_dict = get_airflow_run_facet(
+        MagicMock(),
+        MagicMock(),
+        MagicMock(),
+        op,
+        MagicMock(),
+        include_full_task_info=True,
+    )["airflow"].task
+
+    def _find_attrs_objs(obj, depth=0):
+        if depth > 10:
+            return []
+        if _attrs.has(type(obj)):
+            return [obj]
+        found = []
+        if isinstance(obj, dict):
+            for v in obj.values():
+                found.extend(_find_attrs_objs(v, depth + 1))
+        elif isinstance(obj, (list, tuple)):
+            for v in obj:
+                found.extend(_find_attrs_objs(v, depth + 1))
+        return found
+
+    raw_attrs = _find_attrs_objs(task_dict)
+    assert not raw_attrs, (
+        f"TaskInfoComplete contains raw attrs objects that would cause RecursionError: {raw_attrs}"
     )
 
 
@@ -374,7 +469,7 @@ def test_serialize_timetable_complex_with_alias():
     dag.timetable = AssetTriggeredTimetable(asset)
     dag_info = DagInfo(dag)
 
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ANY,
             "objects": [
@@ -415,38 +510,47 @@ def test_serialize_timetable_complex_with_alias():
                     ],
                 },
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_4_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info["timetable"] == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
 def test_serialize_timetable_single_asset():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=Asset("a"))
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET,
             "uri": "a",
             "name": "a",
             "group": "asset",
             "extra": {},
-        }
+        },
     }
+    if AIRFLOW_V_3_4_PLUS:
+        expected["batch_asset_events"] = False
+    assert dag_info["timetable"] == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
 def test_serialize_timetable_list_of_assets():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=[Asset("a"), Asset("b")])
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ALL,
             "objects": [
                 {"__type": DagAttributeTypes.ASSET, "uri": "a", "name": "a", "group": "asset", "extra": {}},
                 {"__type": DagAttributeTypes.ASSET, "uri": "b", "name": "b", "group": "asset", "extra": {}},
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_4_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info["timetable"] == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
@@ -458,7 +562,7 @@ def test_serialize_timetable_with_complex_logical_condition():
         & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
     )
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "asset_condition": {
             "__type": DagAttributeTypes.ASSET_ALL,
             "objects": [
@@ -501,8 +605,11 @@ def test_serialize_timetable_with_complex_logical_condition():
                     ],
                 },
             ],
-        }
+        },
     }
+    if AIRFLOW_V_3_4_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info["timetable"] == expected
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This test checks serialization only in 3.0 conditions")
@@ -520,7 +627,7 @@ def test_serialize_timetable_with_dataset_or_time_schedule():
         ),
     )
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    expected: dict = {
         "timetable": {
             Encoding.TYPE: "airflow.timetables.trigger.CronTriggerTimetable",
             Encoding.VAR: {
@@ -574,6 +681,9 @@ def test_serialize_timetable_with_dataset_or_time_schedule():
             ],
         },
     }
+    if AIRFLOW_V_3_4_PLUS:
+        expected["batch_asset_events"] = True
+    assert dag_info["timetable"] == expected
 
 
 @pytest.mark.skipif(
@@ -595,7 +705,7 @@ def test_serialize_timetable_2_10_complex_with_alias():
     dag.timetable = DatasetTriggeredTimetable(asset)
     dag_info = DagInfo(dag)
 
-    assert dag_info.timetable == {
+    assert dag_info["timetable"] == {
         "dataset_condition": {
             "__type": DagAttributeTypes.DATASET_ANY,
             "objects": [
@@ -621,7 +731,7 @@ def test_serialize_timetable_2_10_complex_with_alias():
 def test_serialize_timetable_2_10_single_asset():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=Asset("a"))
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    assert dag_info["timetable"] == {
         "dataset_condition": {"__type": DagAttributeTypes.DATASET, "uri": "a", "extra": None}
     }
 
@@ -633,7 +743,7 @@ def test_serialize_timetable_2_10_single_asset():
 def test_serialize_timetable_2_10_list_of_assets():
     dag = DAG(dag_id="test", start_date=datetime.datetime(2025, 1, 1), schedule=[Asset("a"), Asset("b")])
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    assert dag_info["timetable"] == {
         "dataset_condition": {
             "__type": DagAttributeTypes.DATASET_ALL,
             "objects": [
@@ -656,7 +766,7 @@ def test_serialize_timetable_2_10_with_complex_logical_condition():
         & (Asset("ds3") | Asset("ds4", extra={"another_extra": 345})),
     )
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    assert dag_info["timetable"] == {
         "dataset_condition": {
             "__type": DagAttributeTypes.DATASET_ALL,
             "objects": [
@@ -697,7 +807,7 @@ def test_serialize_timetable_2_10_with_dataset_or_time_schedule():
         ),
     )
     dag_info = DagInfo(dag)
-    assert dag_info.timetable == {
+    assert dag_info["timetable"] == {
         "timetable": {
             "__type": "airflow.timetables.trigger.CronTriggerTimetable",
             "__var": {"expression": "0 0 * 3 *", "timezone": "UTC", "interval": 0.0},

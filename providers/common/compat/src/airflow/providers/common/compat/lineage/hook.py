@@ -64,6 +64,14 @@ def _add_extra_polyfill(collector):
 
     from airflow.providers.common.compat.sdk import HookLineage as _BaseHookLineage
 
+    # Ensure this instance has the extra-tracking attributes. The trigger gate
+    # (`_lacks_add_extra_method`) and the wrappers below key on `_extra`. Only set them when
+    # missing so re-applying the polyfill never clears a collector that already has extras.
+    if not hasattr(collector, "_extra"):
+        collector._extra = {}
+    if not hasattr(collector, "_extra_counts"):
+        collector._extra_counts = defaultdict(int)
+
     # Add `extra` to HookLineage returned by `collected_assets` property
     @attr.define
     class ExtraLineageInfo:
@@ -86,12 +94,19 @@ def _add_extra_polyfill(collector):
         # run on AF3.2, where this other one is used, so this is fine - we can ignore.
         extra: list[ExtraLineageInfo] = attr.field(factory=list)  # type: ignore[assignment]
 
-    # Initialize extra tracking attributes on this collector instance
-    collector._extra = {}
-    collector._extra_counts = defaultdict(int)
-
-    # Overwrite the `collected_assets` property on a class
-    _original_collected_assets = collector.__class__.collected_assets
+    # Overwrite the `collected_assets` property on a class.
+    #
+    # Capture the *true* original getter once per class and always wrap that, never the wrapper a
+    # previous call installed. This polyfill is re-applied for every fresh collector instance (the
+    # trigger gate keys on instance-level `_extra`), and on Airflow 2 the asset-naming layer
+    # re-patches `collected_assets` before each call. Wrapping the *current* value would capture the
+    # prior compat wrapper as the "original" and grow the getter chain one level per call until
+    # access raises RecursionError. The stash lives in the class's own `__dict__` so a subclass that
+    # overrides the property is captured on its own rather than reusing a base class's original.
+    cls = type(collector)
+    if "_compat_original_collected_assets" not in cls.__dict__:
+        cls._compat_original_collected_assets = cls.collected_assets
+    _original_collected_assets = cls.__dict__["_compat_original_collected_assets"]
 
     def _compat_collected_assets(self) -> HookLineage:
         """Get the collected hook lineage information."""
@@ -120,8 +135,10 @@ def _add_extra_polyfill(collector):
 
     type(collector).collected_assets = property(_compat_collected_assets)
 
-    # Overwrite the `has_collected` property on a class
-    _original_has_collected = collector.__class__.has_collected
+    # Overwrite the `has_collected` property on a class (same capture-original-once rule).
+    if "_compat_original_has_collected" not in cls.__dict__:
+        cls._compat_original_has_collected = cls.has_collected
+    _original_has_collected = cls.__dict__["_compat_original_has_collected"]
 
     def _compat_has_collected(self) -> bool:
         # Defensive check since we patch the class property, but initialized _extra only on this instance.

@@ -526,17 +526,15 @@ Both commands should produce reproducible `.whl`, `.tar.gz` packages in dist fol
 file containing airflow sources in dist folder.
 
 > [!IMPORTANT]
-> Run the build with Python 3.10 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
+> Run the build with Python 3.11 — the project's `DEFAULT_PYTHON_MAJOR_MINOR_VERSION`. The
 > client generator applies the `trigger_dag_run_post_body.py` AST patch with `ast.unparse`, which
 > re-emits that file using the running interpreter's grammar, so building under a different Python
-> (e.g. the host's 3.11+/3.13) produces a non-reproducible client and the `prepare-python-client`
+> (e.g. the host's 3.13) produces a non-reproducible client and the `prepare-python-client`
 > step may not even emit the wheel/sdist. `prepare-python-client` refuses to run under any other
 > Python and exits early with this guidance, so pin the interpreter explicitly:
 >
 > ```shell
-> UV_PYTHON=3.10 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
-> # or equivalently
-> breeze --python 3.10 release-management prepare-python-client --distribution-format both --version-suffix ""
+> UV_PYTHON=3.11 breeze release-management prepare-python-client --distribution-format both --version-suffix ""
 > ```
 
 4) Change to the directory where you have the packages from svn and check if they are identical to the ones
@@ -760,8 +758,8 @@ Give the server 20-30 seconds to serialize the example Dags to DB
 
 3. In the meantime install the python client you want to test - in the terminal window in the container.
    It can be installed from `PyPI` via `pip install apache-airflow-client==X.Y.Zrc1` or installed
-   from a file (for example if you nust built the client with `breeze release-management prepare-python-client`,
-   there will be `/dist/apache_airflow_client-py*.whl` file in in your `/dist` folder (mapped from `dist`
+   from a file (for example if you just built the client with `breeze release-management prepare-python-client`,
+   there will be `/dist/apache_airflow_client-py*.whl` file in your `/dist` folder (mapped from `dist`
    folder in your checked out airflow repository and you can install it with:
    `pip install /dist/apache_airflow_client-py*.whl`.
 

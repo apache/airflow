@@ -19,14 +19,19 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, status
-from sqlalchemy import select
+from fastapi import APIRouter, Security, status
+from sqlalchemy import func, select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.common.types import UtcDateTime
+from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models.taskreschedule import TaskReschedule
 
 router = APIRouter(
+    dependencies=[
+        # Validates that the JWT sub matches the task_instance_id path parameter.
+        Security(require_auth, scopes=["ti:self"]),
+    ],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Task Instance not found"},
         status.HTTP_401_UNAUTHORIZED: {"description": "Unauthorized"},
@@ -35,13 +40,8 @@ router = APIRouter(
 
 
 @router.get("/{task_instance_id}/start_date")
-def get_start_date(task_instance_id: UUID, session: SessionDep) -> UtcDateTime | None:
+async def get_start_date(task_instance_id: UUID, session: AsyncSessionDep) -> UtcDateTime | None:
     """Get the first reschedule date if found, None if no records exist."""
-    start_date = session.scalar(
-        select(TaskReschedule.start_date)
-        .where(TaskReschedule.ti_id == task_instance_id)
-        .order_by(TaskReschedule.id.asc())
-        .limit(1)
+    return await session.scalar(
+        select(func.min(TaskReschedule.start_date)).where(TaskReschedule.ti_id == task_instance_id)
     )
-
-    return start_date

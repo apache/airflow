@@ -16,16 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useState } from "react";
-import { useHotkeys } from "react-hotkeys-hook";
+
+import type { ButtonProps } from "@chakra-ui/react";
+import { Box, HStack, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiX } from "react-icons/fi";
 import { LuCheck } from "react-icons/lu";
 
 import type { LightGridTaskInstanceSummary, TaskInstanceState } from "openapi/requests/types.gen";
+
+import { IconButton, Menu, Tooltip } from "src/system-components";
+
 import { StateBadge } from "src/components/StateBadge";
-import { IconButton, Menu, Tooltip } from "src/components/ui";
+
+import { SHORTCUTS } from "src/context/keyboardShortcuts";
+import { useShortcut } from "src/hooks/useShortcut";
 
 import { allowedStates } from "../utils";
 import MarkTaskGroupAsDialog from "./MarkTaskGroupAsDialog";
@@ -33,30 +39,30 @@ import MarkTaskGroupAsDialog from "./MarkTaskGroupAsDialog";
 type Props = {
   readonly groupTaskInstance: LightGridTaskInstanceSummary;
   readonly isHotkeyEnabled?: boolean;
-};
+} & ButtonProps;
 
-const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: Props) => {
+export const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false, ...rest }: Props) => {
   const { onClose, onOpen, open } = useDisclosure();
   const { t: translate } = useTranslation();
   const [state, setState] = useState<TaskInstanceState>("success");
 
-  useHotkeys(
-    "shift+f",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupFailed,
+    callback: () => {
       setState("failed");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
-  useHotkeys(
-    "shift+s",
-    () => {
+  useShortcut({
+    ...SHORTCUTS.runActions.markTaskGroupSuccess,
+    callback: () => {
       setState("success");
       onOpen();
     },
-    { enabled: isHotkeyEnabled },
-  );
+    options: { enabled: isHotkeyEnabled },
+  });
 
   const label = translate("dags:runAndTaskActions.markAs.button", {
     type: translate("taskGroup_one"),
@@ -66,7 +72,7 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
     <Box>
       <Menu.Root positioning={{ gutter: 0, placement: "bottom" }} tooltipLabel={label}>
         <Menu.Trigger asChild>
-          <IconButton aria-label={label}>
+          <IconButton {...rest} aria-label={label}>
             <HStack gap={1} mx={1}>
               <LuCheck />
               <span>/</span>
@@ -117,5 +123,3 @@ const MarkTaskGroupAsButton = ({ groupTaskInstance, isHotkeyEnabled = false }: P
     </Box>
   );
 };
-
-export default MarkTaskGroupAsButton;

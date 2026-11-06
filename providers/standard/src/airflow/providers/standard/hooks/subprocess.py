@@ -93,17 +93,33 @@ class SubprocessHook(BaseHook):
             line = ""
             if self.sub_process is None:
                 raise RuntimeError("The subprocess should be created here and is None!")
-            if self.sub_process.stdout is not None:
-                for raw_line in iter(self.sub_process.stdout.readline, b""):
-                    line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
-                    self.log.info("%s", line)
+            # Neither `with Popen(...)` nor a `finally` close, because both act on the
+            # execution_timeout path, where AirflowTaskTimeout (a BaseException) unwinds through here
+            # and on_kill() sends SIGTERM to the child only afterwards: __exit__ would block in
+            # wait() so that SIGTERM never arrives, and closing stdout would SIGPIPE a child that
+            # writes during its own TERM cleanup, since restore_signals=True leaves SIGPIPE at its
+            # default action. Closing on success and on Exception leaves that path as it was.
+            try:
+                if self.sub_process.stdout is not None:
+                    for raw_line in iter(self.sub_process.stdout.readline, b""):
+                        line = raw_line.decode(output_encoding, errors="backslashreplace").rstrip()
+                        self.log.info("%s", line)
 
-            self.sub_process.wait()
+                self.sub_process.wait()
+            except Exception:
+                self._close_stdout()
+                raise
+            else:
+                self._close_stdout()
 
             self.log.info("Command exited with return code %s", self.sub_process.returncode)
             return_code: int = self.sub_process.returncode
 
         return SubprocessResult(exit_code=return_code, output=line)
+
+    def _close_stdout(self) -> None:
+        if self.sub_process is not None and self.sub_process.stdout is not None:
+            self.sub_process.stdout.close()
 
     def send_sigterm(self):
         """Send SIGTERM signal to ``self.sub_process`` if one exists."""

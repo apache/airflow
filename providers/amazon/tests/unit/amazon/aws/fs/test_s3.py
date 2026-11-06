@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
@@ -59,10 +58,17 @@ class TestFilesystem:
     def test_get_s3fs_anonymous(self, s3fs, monkeypatch):
         from airflow.providers.amazon.aws.fs.s3 import get_fs
 
-        # remove all AWS_* env vars
-        for env_name in os.environ:
-            if env_name.startswith("AWS"):
-                monkeypatch.delenv(env_name, raising=False)
+        # Drop only the credentials: the autouse fixture's empty AWS_CONFIG_FILE /
+        # AWS_SHARED_CREDENTIALS_FILE must stay so the chain cannot fall back to ~/.aws, and
+        # on an EC2 host it would otherwise reach the instance role via IMDS.
+        for env_name in (
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "AWS_SECURITY_TOKEN",
+        ):
+            monkeypatch.delenv(env_name, raising=False)
+        monkeypatch.setenv("AWS_EC2_METADATA_DISABLED", "true")
 
         get_fs(conn_id=None, storage_options=None)
 

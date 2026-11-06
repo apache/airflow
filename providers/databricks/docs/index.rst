@@ -78,7 +78,7 @@ apache-airflow-providers-databricks package
 `Databricks <https://databricks.com/>`__
 
 
-Release: 7.16.0
+Release: 7.24.0
 
 Provider package
 ----------------
@@ -102,10 +102,11 @@ The minimum Apache Airflow version supported by this provider distribution is ``
 PIP package                                 Version required
 ==========================================  ==================================================================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.13.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``requests``                                ``>=2.32.0,<3``
-``databricks-sql-connector``                ``>=4.0.0``
+``tenacity``                                ``>=8.3.0``
+``databricks-sql-connector``                ``>=4.4.0``
 ``aiohttp``                                 ``>=3.14.0,<4``
 ``mergedeep``                               ``>=1.3.4``
 ``pandas``                                  ``>=2.1.2; python_version < "3.13"``
@@ -116,8 +117,8 @@ PIP package                                 Version required
 ``pyarrow``                                 ``>=22.0.0; python_version >= "3.14"``
 ==========================================  ==================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified provider distributions in order to use them.
@@ -126,17 +127,43 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-databricks[common.compat]
+    pip install apache-airflow-providers-databricks[amazon]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                ``google``
-`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_      ``openlineage``
-==================================================================================================================  =================
+==============================================================================================================  ===============
+Dependent package                                                                                               Extra
+==============================================================================================================  ===============
+`apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_            ``amazon``
+`apache-airflow-providers-common-ai <https://airflow.apache.org/docs/apache-airflow-providers-common-ai>`_      ``common.ai``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_            ``google``
+`apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_  ``openlineage``
+==============================================================================================================  ===============
+
+Optional dependencies
+---------------------
+
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
+
+.. code-block:: bash
+
+    pip install apache-airflow-providers-databricks[common.ai]
+
+
+==================  ================================================================================================================================================================
+Extra               Dependencies
+==================  ================================================================================================================================================================
+``common.ai``       ``apache-airflow-providers-common-ai>=1.0.0``
+``avro``            ``fastavro>=1.9.0; python_version<"3.14"``, ``fastavro>=1.10.0; python_version>="3.12" and python_version<"3.14"``, ``fastavro>=1.12.1; python_version>="3.14"``
+``amazon``          ``apache-airflow-providers-amazon>=9.22.0``
+``azure-identity``  ``azure-identity>=1.25.3``
+``fab``             ``apache-airflow-providers-fab>=2.2.0``
+``google``          ``apache-airflow-providers-google>=10.24.0``
+``sdk``             ``databricks-sdk==0.10.0``
+``standard``        ``apache-airflow-providers-standard``
+``openlineage``     ``apache-airflow-providers-openlineage>=2.16.0``
+``sqlalchemy``      ``databricks-sqlalchemy>=1.0.2``
+==================  ================================================================================================================================================================
 
 Downloading official packages
 -----------------------------
@@ -144,5 +171,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-databricks 7.16.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-databricks 7.16.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.16.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-databricks 7.24.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-databricks 7.24.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_databricks-7.24.0-py3-none-any.whl.sha512>`__)

@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
 import type { ReactNode, ForwardRefExoticComponent, RefAttributes } from "react";
+
+import { Box, type BoxProps, Button, Icon, type IconProps, Link, type ButtonProps } from "@chakra-ui/react";
 import type { IconType } from "react-icons";
-import { Link as RouterLink, useMatch } from "react-router-dom";
+import { Link as RouterLink, matchPath, useLocation } from "react-router-dom";
 
 const commonLabelProps: BoxProps = {
   fontSize: "2xs",
@@ -35,19 +36,16 @@ type NavButtonProps = {
   readonly isExternal?: boolean;
   readonly pluginIcon?: ReactNode;
   readonly title: string;
-  readonly to?: string;
+  // A single destination renders the button as a link; an array only affects isActive matching
+  // (used for buttons like menu triggers that should highlight for any of several routes).
+  readonly to?: Array<string> | string;
 } & ButtonProps;
 
 export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...rest }: NavButtonProps) => {
-  // Use useMatch to determine if the current route matches the button's destination
-  // This provides the same functionality as NavLink's isActive prop
-  // Only applies to buttons with a to prop (but needs to be before any return statements)
-  const match = useMatch({
-    end: to === "/", // Only exact match for root path
-    path: to ?? "",
-  });
-  // Only applies to buttons with a to prop
-  const isActive = Boolean(to) ? Boolean(match) : false;
+  const { pathname } = useLocation();
+
+  const activePaths = to === undefined ? [] : Array.isArray(to) ? to : [to];
+  const isActive = activePaths.some((path) => matchPath({ end: path === "/", path }, pathname) !== null);
 
   const commonButtonProps: ButtonProps = {
     _expanded: isActive
@@ -72,6 +70,7 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
           color: "fg",
         },
     alignItems: "center",
+    "aria-current": isActive ? "page" : undefined,
     "aria-label": title,
     bg: isActive ? "brand.solid" : undefined,
     borderRadius: "md",
@@ -92,7 +91,7 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
     ...rest,
   };
 
-  if (to === undefined) {
+  if (to === undefined || Array.isArray(to)) {
     return (
       <Button {...commonButtonProps}>
         {pluginIcon ?? <Icon as={icon} boxSize={5} />}
@@ -103,12 +102,12 @@ export const NavButton = ({ icon, isExternal = false, pluginIcon, title, to, ...
 
   if (isExternal) {
     return (
-      <Link asChild href={to} rel="noopener noreferrer" target="_blank">
-        <Button {...commonButtonProps}>
+      <Button {...commonButtonProps} asChild>
+        <a href={to} rel="noopener noreferrer" target="_blank">
           {pluginIcon ?? <Icon as={icon} boxSize={5} />}
           <Box {...commonLabelProps}>{title}</Box>
-        </Button>
-      </Link>
+        </a>
+      </Button>
     );
   }
 

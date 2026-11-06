@@ -29,6 +29,7 @@ from requests.structures import CaseInsensitiveDict
 from yarl import URL
 
 from airflow.models import Connection
+from airflow.providers.http.exceptions import HttpErrorException
 from airflow.providers.http.triggers.http import (
     HttpEventTrigger,
     HttpResponseSerializer,
@@ -36,6 +37,8 @@ from airflow.providers.http.triggers.http import (
     HttpTrigger,
 )
 from airflow.triggers.base import TriggerEvent
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
 TEST_CONN_ID = "http_default"
@@ -235,6 +238,7 @@ class TestHttpEventTrigger:
             "extra_options": TEST_EXTRA_OPTIONS,
             "response_check_path": TEST_RESPONSE_CHECK_PATH,
             "poll_interval": TEST_POLL_INTERVAL,
+            "max_consecutive_failures": 10,
         }
 
     @pytest.mark.asyncio
@@ -259,22 +263,95 @@ class TestHttpEventTrigger:
         assert event_trigger._run_response_check.call_count == 2
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("failing_call", ["request", "response_check"])
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
-    async def test_trigger_on_exception_logs_error_and_never_yields(
-        self, mock_hook, event_trigger, monkeypatch
+    async def test_trigger_keeps_polling_after_an_exception(
+        self, mock_hook, mock_sleep, failing_call, event_trigger, client_response, monkeypatch
     ):
         """
-        Tests the HttpEventTrigger logs the appropriate message and does not yield a TriggerEvent when an exception is raised.
+        Tests the HttpEventTrigger reports the failure and fires on a later poll.
         """
-        mock_hook.return_value.run.side_effect = Exception("Test exception")
+        error = HttpErrorException("503:Service Unavailable")
+        if failing_call == "request":
+            mock_hook.return_value.run.side_effect = [error, self._mock_run_result(client_response)]
+            event_trigger._run_response_check = mock.AsyncMock(return_value=True)
+        else:
+            mock_hook.return_value.run.return_value = self._mock_run_result(client_response)
+            event_trigger._run_response_check = mock.AsyncMock(side_effect=[error, True])
         mock_logger = mock.Mock()
         monkeypatch.setattr(type(event_trigger), "log", mock_logger)
+        response = await HttpEventTrigger._convert_response(client_response)
 
         generator = event_trigger.run()
-        with pytest.raises(StopAsyncIteration):
-            await generator.asend(None)
+        actual = await generator.asend(None)
 
-        mock_logger.error.assert_called_once_with("status: error, message: %s", "Test exception")
+        assert actual == TriggerEvent(
+            {
+                "status": "success",
+                "response": HttpResponseSerializer.serialize(response),
+            }
+        )
+        assert mock_hook.return_value.run.call_count == 2
+        mock_sleep.assert_awaited_once_with(TEST_POLL_INTERVAL)
+        assert mock_logger.warning.call_count == 1
+
+    @staticmethod
+    def build_trigger_with_failure_cap(max_consecutive_failures: int) -> HttpEventTrigger:
+        return HttpEventTrigger(
+            endpoint=TEST_ENDPOINT,
+            response_check_path=TEST_RESPONSE_CHECK_PATH,
+            poll_interval=TEST_POLL_INTERVAL,
+            max_consecutive_failures=max_consecutive_failures,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_trigger_gives_up_after_max_consecutive_failures(self, mock_hook, mock_sleep, monkeypatch):
+        trigger = self.build_trigger_with_failure_cap(3)
+        mock_hook.return_value.run.side_effect = HttpErrorException("503:Service Unavailable")
+        mock_logger = mock.Mock()
+        monkeypatch.setattr(type(trigger), "log", mock_logger)
+
+        with pytest.raises(HttpErrorException):
+            await trigger.run().asend(None)
+
+        assert mock_hook.return_value.run.call_count == 3
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 2
+        assert mock_logger.warning.call_count == 2
+
+    @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
+    @mock.patch(HTTP_PATH.format("HttpAsyncHook"))
+    async def test_trigger_resets_failure_count_after_a_completed_poll(
+        self, mock_hook, mock_sleep, client_response
+    ):
+        """
+        Two failures, a poll whose ``response_check`` returns False, then two more failures:
+        the count must go back to zero rather than merely drop, or the cap of 3 would trip.
+        """
+        trigger = self.build_trigger_with_failure_cap(3)
+        error = HttpErrorException("503:Service Unavailable")
+        mock_hook.return_value.run.side_effect = [
+            error,
+            error,
+            self._mock_run_result(client_response),
+            error,
+            error,
+            self._mock_run_result(client_response),
+        ]
+        trigger._run_response_check = mock.AsyncMock(side_effect=[False, True])
+
+        event = await trigger.run().asend(None)
+
+        assert event.payload["status"] == "success"
+        assert mock_hook.return_value.run.call_count == 6
+        assert mock_sleep.await_args_list == [mock.call(TEST_POLL_INTERVAL)] * 5
+
+    def test_max_consecutive_failures_must_be_positive(self):
+        with pytest.raises(ValueError, match="max_consecutive_failures"):
+            self.build_trigger_with_failure_cap(0)
 
     @pytest.mark.asyncio
     async def test_convert_response(self, client_response):
@@ -293,16 +370,100 @@ class TestHttpEventTrigger:
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
+    @mock.patch(HTTP_PATH.format("asyncio.sleep"), autospec=True)
     @mock.patch("aiohttp.client.ClientSession.post")
-    async def test_trigger_on_post_with_data(self, mock_http_post, event_trigger):
+    async def test_trigger_on_post_with_data(
+        self, mock_http_post, mock_sleep, event_trigger, client_response
+    ):
         """
         Test that HttpEventTrigger posts the correct payload when a request is made.
         """
+        mock_http_post.return_value = self._mock_run_result(client_response)
+        event_trigger._run_response_check = mock.AsyncMock(return_value=True)
+
         generator = event_trigger.run()
-        with pytest.raises(StopAsyncIteration):
-            await generator.asend(None)
+        await generator.asend(None)
+
+        mock_sleep.assert_not_awaited()
         mock_http_post.assert_called_once()
         _, kwargs = mock_http_post.call_args
         assert kwargs["data"] == TEST_DATA
         assert kwargs["json"] is None
         assert kwargs["params"] is None
+
+
+async def _single_positional_arg(resp):
+    return resp == "ok"
+
+
+async def _default_second_arg_not_overwritten(resp, threshold=5):
+    return resp == "ok" and threshold == 5
+
+
+async def _keyword_only_arg_not_passed_positionally(resp, *, strict=True):
+    return resp == "ok" and strict is True
+
+
+async def _explicit_asset_state_store_kwarg(resp, asset_state_store=None):
+    return resp == "ok" and asset_state_store == "sentinel_store"
+
+
+async def _var_keyword_kwargs(resp, **kwargs):
+    return resp == "ok" and kwargs.get("asset_state_store") == "sentinel_store"
+
+
+async def _positional_only_asset_state_store(resp, asset_state_store="default_val", /):
+    return resp == "ok" and asset_state_store == "default_val"
+
+
+class TestHttpEventTriggerResponseCheckCallableShapes:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "check",
+        [
+            pytest.param(_single_positional_arg, id="single_positional_arg"),
+            pytest.param(_default_second_arg_not_overwritten, id="default_second_arg_not_overwritten"),
+            pytest.param(
+                _keyword_only_arg_not_passed_positionally,
+                id="keyword_only_arg_not_passed_positionally",
+            ),
+            pytest.param(_explicit_asset_state_store_kwarg, id="explicit_asset_state_store_kwarg"),
+            pytest.param(_var_keyword_kwargs, id="var_keyword_kwargs"),
+            pytest.param(_positional_only_asset_state_store, id="positional_only_asset_state_store"),
+        ],
+    )
+    async def test_run_response_check_callable_shapes(self, event_trigger, check):
+        event_trigger.asset_state_store = "sentinel_store"
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=check)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="asset_state_store arrived in Airflow 3.3.0")
+    async def test_run_response_check_with_real_asset_state_store_autospec(self, event_trigger):
+        """Verify compatibility with AssetStateStoreAccessors when available on Airflow >= 3.3."""
+        from airflow.sdk.execution_time.context import AssetStateStoreAccessors
+
+        mock_store = mock.create_autospec(AssetStateStoreAccessors, instance=True)
+        event_trigger.asset_state_store = mock_store
+
+        async def check(resp, asset_state_store=None):
+            return resp == "ok" and asset_state_store is mock_store
+
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=check)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_run_response_check_without_asset_state_store_attribute(self, event_trigger):
+        """Verify behavior on Airflow versions where asset_state_store is not set on BaseEventTrigger."""
+        if hasattr(event_trigger, "asset_state_store"):
+            del event_trigger.asset_state_store
+        assert not hasattr(event_trigger, "asset_state_store")
+
+        async def mock_check_with_store(response, asset_state_store=None):
+            return response == "ok" and asset_state_store is None
+
+        event_trigger._import_from_response_check_path = mock.AsyncMock(return_value=mock_check_with_store)
+        result = await event_trigger._run_response_check("ok")
+        assert result is True

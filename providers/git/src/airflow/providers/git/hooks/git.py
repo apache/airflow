@@ -21,15 +21,39 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shlex
 import stat
 import tempfile
+import warnings
+from collections.abc import Generator
+from datetime import UTC, datetime, timedelta
 from typing import Any
-from urllib.parse import quote as urlquote
+from urllib.parse import unquote
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseHook
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException, BaseHook
 
 log = logging.getLogger(__name__)
+
+
+@contextlib.contextmanager
+def _executable_script(content: str) -> Generator[str]:
+    """
+    Write ``content`` to a private temporary file and yield its path.
+
+    git and ssh execute the askpass helpers, so the file must be closed before
+    they run: Linux refuses to exec a file that is still open for writing
+    (``ETXTBSY``, "Text file busy").
+    """
+    fd, path = tempfile.mkstemp(suffix=".sh")
+    try:
+        with os.fdopen(fd, "w") as script:
+            script.write(content)
+        os.chmod(path, stat.S_IRWXU)
+        yield path
+    finally:
+        os.unlink(path)
 
 
 class GitHook(BaseHook):
@@ -44,11 +68,19 @@ class GitHook(BaseHook):
     * ``key_file`` — path to an SSH private key file.
     * ``private_key`` — inline SSH private key string (mutually exclusive with ``key_file``).
     * ``private_key_passphrase`` — passphrase for the private key (key_file or inline).
-    * ``strict_host_key_checking`` — ``"yes"`` or ``"no"`` (default ``"no"``).
+    * ``strict_host_key_checking`` — one of ``"yes"``, ``"no"``, ``"accept-new"``, ``"off"``
+      or ``"ask"`` (default ``"accept-new"``).
     * ``known_hosts_file`` — path to a custom SSH known-hosts file.
     * ``ssh_config_file`` — path to a custom SSH config file.
     * ``host_proxy_cmd`` — SSH ProxyCommand string (e.g. for bastion/jump hosts).
     * ``ssh_port`` — non-default SSH port.
+    * ``github_app_id`` — GitHub App ID used for GitHub App authentication. Requires the GitHub App
+      private key to be provided as a PEM-encoded key via either ``private_key`` (inline) or
+      ``key_file`` (path to key file).
+    * ``github_installation_id`` — GitHub App installation ID used for GitHub App authentication.
+
+    Token authentication over http(s) configures a credential helper through ``GIT_CONFIG_COUNT``
+    and needs git version 2.31 or higher.
     """
 
     conn_name_attr = "git_conn_id"
@@ -71,11 +103,13 @@ class GitHook(BaseHook):
                         "key_file": "optional/path/to/keyfile",
                         "private_key": "optional inline private key",
                         "private_key_passphrase": "",
-                        "strict_host_key_checking": "no",
+                        "strict_host_key_checking": "accept-new",
                         "known_hosts_file": "",
                         "ssh_config_file": "",
                         "host_proxy_cmd": "",
                         "ssh_port": "",
+                        "github_app_id": "",
+                        "github_installation_id": "",
                     }
                 )
             },
@@ -89,8 +123,11 @@ class GitHook(BaseHook):
         extra = connection.extra_dejson
 
         self.repo_url = repo_url or connection.host
-        self.user_name = connection.login or "user"
-        self.auth_token = connection.password
+        if isinstance(self.repo_url, str) and not self.repo_url.startswith(("git@", "https://")):
+            self.repo_url = os.path.expanduser(self.repo_url)
+        embedded_user, embedded_token = self._strip_embedded_credentials()
+        self.user_name = connection.login or embedded_user or "user"
+        self.auth_token = connection.password or embedded_token
 
         # SSH key authentication
         self.private_key = extra.get("private_key")
@@ -98,19 +135,75 @@ class GitHook(BaseHook):
         self.private_key_passphrase = extra.get("private_key_passphrase")
 
         # SSH connection options
-        self.strict_host_key_checking = extra.get("strict_host_key_checking", "no")
+        strict_host_key_checking = extra.get("strict_host_key_checking")
+        host_key_checking_defaulted = strict_host_key_checking is None
+        self.strict_host_key_checking = strict_host_key_checking or "accept-new"
         self.known_hosts_file = extra.get("known_hosts_file")
         self.ssh_config_file = extra.get("ssh_config_file")
         self.host_proxy_cmd = extra.get("host_proxy_cmd")
         self.ssh_port: int | None = int(extra["ssh_port"]) if extra.get("ssh_port") else None
 
+        # GitHub App Auth Options
+        self.github_app_id = extra.get("github_app_id")
+        self.github_installation_id = extra.get("github_installation_id")
+        self.github_app_token_exp: datetime | None = None
+
         self.env: dict[str, str] = {}
 
         if self.key_file and self.private_key:
-            raise AirflowException("Both 'key_file' and 'private_key' cannot be provided at the same time")
-        self._process_git_auth_url()
+            raise ValueError("Both 'key_file' and 'private_key' cannot be provided at the same time")
+
+        if host_key_checking_defaulted and self._uses_ssh_transport_options():
+            warnings.warn(
+                "The git provider connection no longer disables SSH host key verification by "
+                "default: 'strict_host_key_checking' now defaults to 'accept-new' (was 'no'), so a "
+                "server's host key is trusted on first use and verified on every later connection. "
+                "A future major release of apache-airflow-providers-git will change the default to "
+                "'yes', which requires the host key to already be present in known_hosts. Set "
+                "'strict_host_key_checking' explicitly in the connection extra (and configure "
+                "'known_hosts_file') to pin the behaviour you want.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        github_app_fields = (self.github_app_id, self.github_installation_id)
+        if any(github_app_fields) and not all(github_app_fields):
+            raise ValueError(
+                "Both 'github_app_id' and 'github_installation_id' must be provided to use GitHub App Authentication"
+            )
+        if all(github_app_fields):
+            if self.auth_token:
+                raise ValueError("Password field must be empty to use GitHub App Auth")
+            if not (self.repo_url or "").startswith(("https://", "http://")):
+                raise ValueError(
+                    f"GitHub App authentication requires an HTTPS repository URL, but got: {self.repo_url!r}"
+                )
+            if self.key_file and not self.private_key:
+                with open(self.key_file, encoding="utf-8") as key_file:
+                    self.private_key = key_file.read()
 
     _VALID_STRICT_HOST_KEY_CHECKING = frozenset({"yes", "no", "accept-new", "off", "ask"})
+    _SSH_REPO_URL_PATTERN = re.compile(r"^[^/@:]+@[^/:]+:")
+
+    def _uses_ssh_transport_options(self) -> bool:
+        # Heuristic: any SSH-specific option implies SSH; otherwise fall back to the URL scheme.
+        # A bare ssh-config Host alias (no ``user@``) without SSH options is not detected.
+        if any(
+            (
+                self.key_file,
+                self.private_key,
+                self.private_key_passphrase,
+                self.known_hosts_file,
+                self.ssh_config_file,
+                self.host_proxy_cmd,
+                self.ssh_port,
+            )
+        ):
+            return True
+        if not isinstance(self.repo_url, str):
+            return False
+        return self.repo_url.startswith(("ssh://", "git+ssh://")) or bool(
+            self._SSH_REPO_URL_PATTERN.match(self.repo_url)
+        )
 
     def _build_ssh_command(self, key_path: str | None = None) -> str:
         parts = ["ssh"]
@@ -142,22 +235,129 @@ class GitHook(BaseHook):
 
         return " ".join(parts)
 
-    def _process_git_auth_url(self):
-        if not isinstance(self.repo_url, str):
+    @property
+    def uses_github_app_auth(self) -> bool:
+        """Whether the connection authenticates as a GitHub App and mints its own installation tokens."""
+        return self.github_app_id is not None and self.github_installation_id is not None
+
+    def _get_github_app_token(self):
+        try:
+            from github import Auth, GithubIntegration
+        except ImportError as exc:
+            raise AirflowOptionalProviderFeatureException(
+                "The PyGithub library is required for GitHub App authentication. Please install it with 'pip install apache-airflow-providers-git[github]'"
+            ) from exc
+
+        auth = Auth.AppAuth(self.github_app_id, self.private_key)
+        integration = GithubIntegration(auth=auth)
+        access_token = integration.get_access_token(installation_id=self.github_installation_id)
+        github_app_token_exp = access_token.expires_at
+        log.info(
+            "Successfully obtained GitHub App installation access token (expires at: %s)",
+            github_app_token_exp,
+        )
+
+        return "x-access-token", access_token.token, github_app_token_exp
+
+    def _ensure_github_app_token(self) -> None:
+        TOKEN_REFRESH_BUFFER = timedelta(minutes=5)
+        if (
+            self.github_app_token_exp is None
+            or self.github_app_token_exp < datetime.now(UTC) + TOKEN_REFRESH_BUFFER
+        ):
+            log.info(
+                "GitHub App token is missing or near expiry (expires at: %s). Refreshing token.",
+                self.github_app_token_exp,
+            )
+            self.user_name, self.auth_token, self.github_app_token_exp = self._get_github_app_token()
+
+    def _strip_embedded_credentials(self) -> tuple[str | None, str | None]:
+        """Take any ``user:password@`` out of the repo url and return what it held."""
+        if not isinstance(self.repo_url, str) or not self.repo_url.startswith(("http://", "https://")):
+            return None, None
+        scheme, separator, rest = self.repo_url.partition("://")
+        authority, slash, path = rest.partition("/")
+        userinfo, at_sign, host = authority.rpartition("@")
+        user, _, password = userinfo.partition(":")
+        # A bare ``user@`` holds no secret, so leave those urls exactly as the connection wrote
+        # them; anything git clones from a stripped url would lose the username for nothing.
+        if not at_sign or not password:
+            return None, None
+        self.repo_url = f"{scheme}{separator}{host}{slash}{path}"
+        return unquote(user) or None, unquote(password)
+
+    def _extract_credential_scope(self) -> str:
+        """Return the ``<scheme>://<host>[:port]`` git matches a credential config against."""
+        scheme, _, rest = str(self.repo_url).partition("://")
+        host = rest.partition("/")[0].rpartition("@")[2]
+        return f"{scheme}://{host}" if host else ""
+
+    @contextlib.contextmanager
+    def _token_credential_env(self) -> Generator[None]:
+        """Hand the token to git through a credential helper scoped to the repository's host."""
+        # Credential helpers only serve http(s); an SSH connection that happens to carry a
+        # password would gain nothing from one.
+        if not self.auth_token or not str(self.repo_url).startswith(("http://", "https://")):
+            yield
             return
-        if self.auth_token and self.repo_url.startswith("https://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("https://", f"https://{encoded_user}:{encoded_token}@", 1)
-        elif self.auth_token and self.repo_url.startswith("http://"):
-            encoded_user = urlquote(self.user_name, safe="")
-            encoded_token = urlquote(self.auth_token, safe="")
-            self.repo_url = self.repo_url.replace("http://", f"http://{encoded_user}:{encoded_token}@", 1)
-        elif self.repo_url.startswith("http://"):
-            # if no auth token, use the repo url as is
-            pass
-        elif not self.repo_url.startswith("git@") and not self.repo_url.startswith("https://"):
-            self.repo_url = os.path.expanduser(self.repo_url)
+
+        scope = self._extract_credential_scope()
+        if not scope:
+            yield
+            return
+
+        with tempfile.TemporaryDirectory() as helper_dir:
+            helper_path = os.path.join(helper_dir, "credential-helper.sh")
+            # git matches the configured scope against the url it parsed, then hands the helper
+            # structured fields on stdin. A submodule elsewhere never reaches this helper, and no
+            # part of the decision depends on the wording of a human-readable prompt.
+            # Written and closed before git runs: Linux refuses to exec a file that is still
+            # open for writing, which git surfaces as "cannot exec: Text file busy".
+            with open(helper_path, "w") as helper_script:
+                helper_script.write(
+                    r"""#!/bin/sh
+cat > /dev/null
+[ "$1" = get ] || exit 0
+printf 'username=%s\npassword=%s\n' "$AIRFLOW_GIT_USER" "$AIRFLOW_GIT_TOKEN"
+"""
+                )
+            os.chmod(helper_path, stat.S_IRWXU)
+
+            # Append to any GIT_CONFIG_* the deployment already exports rather than replacing it.
+            try:
+                index = int(os.environ.get("GIT_CONFIG_COUNT", "0"))
+            except ValueError:
+                index = 0
+            # System/global config loads before env-supplied config, so a deployment-wide
+            # `credential.helper` would otherwise answer `get` first and our token would never
+            # be used. git also invokes every helper on `approve`, so a `store` helper would
+            # persist it to ~/.git-credentials. Reset the scope to empty first (git help credentials).
+            values = {
+                "GIT_CONFIG_COUNT": str(index + 2),
+                f"GIT_CONFIG_KEY_{index}": f"credential.{scope}.helper",
+                f"GIT_CONFIG_VALUE_{index}": "",
+                f"GIT_CONFIG_KEY_{index + 1}": f"credential.{scope}.helper",
+                # git runs the value through a shell, so a temp dir containing a space would
+                # split into two words. ``!`` marks it as a command so the quoting survives.
+                f"GIT_CONFIG_VALUE_{index + 1}": "!" + shlex.quote(helper_path),
+                "GIT_TERMINAL_PROMPT": "0",
+                "AIRFLOW_GIT_USER": self.user_name,
+                "AIRFLOW_GIT_TOKEN": self.auth_token,
+            }
+            # ``self.env`` alone is not enough: callers only forward it on the initial clone,
+            # so fetches would run without the credential and hang on the terminal prompt.
+            envs = (os.environ, self.env)
+            saved = [(env, var, env.get(var)) for env in envs for var in values]
+            try:
+                for env in envs:
+                    env.update(values)
+                yield
+            finally:
+                for env, var, old_val in saved:
+                    if old_val is None:
+                        env.pop(var, None)
+                    else:
+                        env[var] = old_val
 
     def set_git_env(self, key: str | None = None) -> None:
         self.env["GIT_SSH_COMMAND"] = self._build_ssh_command(key)
@@ -169,20 +369,18 @@ class GitHook(BaseHook):
             yield
             return
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=True) as askpass_script:
-            askpass_script.write(f"#!/bin/sh\necho {shlex.quote(self.private_key_passphrase)}\n")
-            askpass_script.flush()
-            os.chmod(askpass_script.name, stat.S_IRWXU)
-
+        with _executable_script(
+            f"#!/bin/sh\necho {shlex.quote(self.private_key_passphrase)}\n"
+        ) as askpass_path:
             old_askpass = os.environ.get("SSH_ASKPASS")
             old_display = os.environ.get("DISPLAY")
             old_askpass_require = os.environ.get("SSH_ASKPASS_REQUIRE")
             try:
-                os.environ["SSH_ASKPASS"] = askpass_script.name
+                os.environ["SSH_ASKPASS"] = askpass_path
                 os.environ["SSH_ASKPASS_REQUIRE"] = "force"
                 # DISPLAY must be set for SSH_ASKPASS to be used
                 os.environ.setdefault("DISPLAY", ":")
-                self.env["SSH_ASKPASS"] = askpass_script.name
+                self.env["SSH_ASKPASS"] = askpass_path
                 self.env["SSH_ASKPASS_REQUIRE"] = "force"
                 self.env.setdefault("DISPLAY", os.environ["DISPLAY"])
                 yield
@@ -199,21 +397,30 @@ class GitHook(BaseHook):
 
     @contextlib.contextmanager
     def configure_hook_env(self):
-        if self.private_key:
-            with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
-                tmp_keyfile.write(self.private_key)
-                tmp_keyfile.flush()
-                os.chmod(tmp_keyfile.name, 0o600)
-                self.set_git_env(tmp_keyfile.name)
+        if self.uses_github_app_auth:
+            self._ensure_github_app_token()
+            with self._token_credential_env():
+                yield
+            return
+
+        # Wraps every branch, not just the token-only one: an http(s) connection may also carry
+        # SSH options, and the token used to reach git through the URL whichever branch ran.
+        with self._token_credential_env():
+            if self.private_key:
+                with tempfile.NamedTemporaryFile(mode="w", delete=True) as tmp_keyfile:
+                    tmp_keyfile.write(self.private_key)
+                    tmp_keyfile.flush()
+                    os.chmod(tmp_keyfile.name, 0o600)
+                    self.set_git_env(tmp_keyfile.name)
+                    with self._passphrase_askpass_env():
+                        yield
+            elif self.key_file:
+                self.set_git_env(self.key_file)
                 with self._passphrase_askpass_env():
                     yield
-        elif self.key_file:
-            self.set_git_env(self.key_file)
-            with self._passphrase_askpass_env():
+            elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
+                self.set_git_env()
                 yield
-        elif self.host_proxy_cmd or self.ssh_port or self.ssh_config_file or self.known_hosts_file:
-            self.set_git_env()
-            yield
-        else:
-            self.set_git_env(self.key_file)
-            yield
+            else:
+                self.set_git_env(self.key_file)
+                yield

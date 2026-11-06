@@ -18,14 +18,18 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
+from base64 import b64encode
+from contextlib import AbstractAsyncContextManager
 from json import JSONDecodeError
 from os.path import dirname
-from typing import TYPE_CHECKING, cast
-from unittest.mock import Mock, patch
+from typing import cast
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from httpx import Response
+from httpx import AsyncClient, Response
 from httpx._utils import URLPattern
+from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_serialization_json.json_parse_node import JsonParseNode
@@ -36,47 +40,68 @@ from opentelemetry.trace import Span
 from airflow.exceptions import AirflowBadRequest, AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowException, AirflowNotFoundException
 from airflow.providers.microsoft.azure.hooks.msgraph import (
+    CachedAsyncTokenCredential,
     DefaultResponseHandler,
     KiotaRequestAdapterHook,
+    MSGraphMailHook,
     execute_callable,
+    send_email,
 )
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.providers import get_provider_min_airflow_version
 from unit.microsoft.azure.test_utils import (
     get_airflow_connection,
+    mock_authentication_provider,
     mock_connection,
     mock_json_response,
     mock_response,
+    mock_token_credentials,
     patch_hook,
     patch_hook_and_request_adapter,
 )
 
-if TYPE_CHECKING:
-    from azure.identity._internal.msal_credentials import MsalCredential
-    from kiota_abstractions.authentication import BaseBearerTokenAuthenticationProvider
-    from kiota_abstractions.request_adapter import RequestAdapter
-    from kiota_authentication_azure.azure_identity_access_token_provider import (
-        AzureIdentityAccessTokenProvider,
+
+class TestCachedAsyncTokenCredential:
+    @pytest.mark.parametrize(
+        ("closed", "expected"),
+        (
+            pytest.param(None, False),
+            pytest.param(False, False),
+            pytest.param(True, True),
+        ),
     )
+    def test_closed(self, closed: bool | None, expected: bool):
+        actual = CachedAsyncTokenCredential(credential=mock_token_credentials(closed=closed))
+
+        assert actual.closed == expected
+
+    @pytest.mark.asyncio
+    async def test_close(self):
+        credential = mock_token_credentials()
+        actual = CachedAsyncTokenCredential(credential=credential)
+
+        await actual.close()
+        credential.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_get_token(self):
+        credential = mock_token_credentials()
+        actual = CachedAsyncTokenCredential(credential=credential)
+
+        await actual.get_token()
+        credential.get_token.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_token_info(self):
+        credential = mock_token_credentials()
+        actual = CachedAsyncTokenCredential(credential=credential)
+
+        await actual.get_token_info()
+        credential.get_token_info.assert_called_once()
 
 
 class TestKiotaRequestAdapterHook:
-    @staticmethod
-    def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
-        adapter: HttpxRequestAdapter = cast("HttpxRequestAdapter", request_adapter)
-        auth_provider: BaseBearerTokenAuthenticationProvider = cast(
-            "BaseBearerTokenAuthenticationProvider",
-            adapter._authentication_provider,
-        )
-        access_token_provider: AzureIdentityAccessTokenProvider = cast(
-            "AzureIdentityAccessTokenProvider",
-            auth_provider.access_token_provider,
-        )
-        credentials: MsalCredential = cast("MsalCredential", access_token_provider._credentials)
-        tenant_id = credentials._tenant_id
-        assert tenant_id == expected_tenant_id
-
     def test_get_conn(self):
         with patch_hook():
             hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
@@ -276,10 +301,15 @@ class TestKiotaRequestAdapterHook:
     @pytest.mark.asyncio
     async def test_tenant_id(self):
         with patch_hook():
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-            actual = await hook.get_async_conn()
+            with patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.ClientSecretCredential",
+                autospec=True,
+            ) as mock_credential_cls:
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
 
-            self.assert_tenant_id(actual, "tenant-id")
+                mock_credential_cls.assert_called_once()
+                assert mock_credential_cls.call_args.kwargs.get("tenant_id") == "tenant-id"
 
     @pytest.mark.asyncio
     async def test_azure_tenant_id(self):
@@ -289,10 +319,15 @@ class TestKiotaRequestAdapterHook:
                 azure_tenant_id="azure-tenant-id",
             )
         ):
-            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
-            actual = await hook.get_async_conn()
+            with patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.ClientSecretCredential",
+                autospec=True,
+            ) as mock_credential_cls:
+                hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+                await hook.get_async_conn()
 
-            self.assert_tenant_id(actual, "azure-tenant-id")
+                mock_credential_cls.assert_called_once()
+                assert mock_credential_cls.call_args.kwargs.get("tenant_id") == "azure-tenant-id"
 
     @pytest.mark.asyncio
     async def test_proxies(self):
@@ -413,6 +448,107 @@ class TestKiotaRequestAdapterHook:
             assert actual == [users, next_users]
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("query_parameters", "expected_skips"),
+        [
+            pytest.param(
+                {"$top": 12, "$count": True},
+                ["", "&%24skip=12", "&%24skip=24"],
+                id="from_the_start",
+            ),
+            pytest.param(
+                {"$top": 12, "$count": True, "$skip": 100},
+                ["&%24skip=100", "&%24skip=112", "&%24skip=124"],
+                id="from_a_user_supplied_offset",
+            ),
+        ],
+    )
+    async def test_paginated_run_advances_the_skip_offset_by_a_single_page(
+        self, query_parameters, expected_skips
+    ):
+        messages = load_json_from_resources(dirname(__file__), "..", "resources", "messages.json")
+        second_messages = load_json_from_resources(
+            dirname(__file__), "..", "resources", "second_messages.json"
+        )
+        third_messages = load_json_from_resources(dirname(__file__), "..", "resources", "third_messages.json")
+        response = mock_json_response(200, messages, second_messages, third_messages)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            # paginated_run mutates the query parameters it is given, so hand it a copy rather than
+            # the dict pytest built once at collection time.
+            await hook.paginated_run(url="users/messages", query_parameters=dict(query_parameters))
+
+        urls = [call.args[0].url for call in mock_get_http_response.call_args_list]
+
+        assert urls == [f"users/messages?%24top=12&%24count=true{skip}" for skip in expected_skips]
+
+    @pytest.mark.asyncio
+    async def test_paginated_run_refuses_cross_host_next_link(self):
+        first_page = {
+            "@odata.nextLink": "https://attacker.example/v1.0/users?$skiptoken=steal",
+            "value": [{"id": "1"}],
+        }
+        response = mock_json_response(200, first_page)
+
+        with patch_hook_and_request_adapter(response) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                await hook.paginated_run(url="users")
+
+            # The off-host pagination link is refused before it is fetched, so the bearer
+            # token is never sent to the attacker host.
+            assert mock_get_http_response.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_assert_allowed_host_refuses_another_host(self):
+        with patch_hook_and_request_adapter(mock_json_response(200, {})):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            with pytest.raises(ValueError, match="attacker.example"):
+                await hook.assert_allowed_host("https://attacker.example/v1.0/users")
+
+    @pytest.mark.asyncio
+    async def test_assert_allowed_host_accepts_a_relative_url(self):
+        with patch_hook_and_request_adapter(mock_json_response(200, {})):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.assert_allowed_host("users?$skip=100")
+
+    @pytest.mark.asyncio
+    async def test_assert_allowed_host_accepts_a_host_listed_in_the_connection(self):
+        with patch_hook_and_request_adapter(
+            mock_json_response(200, {}),
+            side_effect=lambda conn_id: get_airflow_connection(
+                conn_id, allowed_hosts="graph.microsoft.com,other.example"
+            ),
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.assert_allowed_host("https://other.example/v1.0/users")
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_reads_the_extra_with_get_async_extra_dejson(self):
+        """The extra comes from the async compat helper, which masks its secrets off the sync Task SDK path."""
+        with (
+            patch_hook(),
+            patch(
+                "airflow.providers.microsoft.azure.hooks.msgraph.get_async_extra_dejson",
+                new_callable=AsyncMock,
+                side_effect=lambda connection: json.loads(connection.extra),
+            ) as mock_get_async_extra_dejson,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_async_extra")
+            await hook.get_async_conn()
+
+        mock_get_async_extra_dejson.assert_awaited_once()
+        assert mock_get_async_extra_dejson.await_args.args[0].conn_id == "msgraph_async_extra"
+
+    @pytest.mark.asyncio
     async def test_build_request_adapter_masks_secrets(self):
         """Test that sensitive data is masked when building request adapter."""
         with patch_hook(
@@ -471,6 +607,268 @@ class TestKiotaRequestAdapterHook:
         result = hook.to_msal_proxies(authority, proxies)
 
         assert result == proxies
+
+    def test_get_credentials_returns_async_client_secret_credential(self):
+        """get_credentials must return an async context manager (azure.identity.aio credential)."""
+        hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+        config = {"tenant_id": "tenant-id"}
+
+        credentials = hook.get_credentials(
+            login="client_id",
+            password="client_secret",
+            config=config,
+            authority=None,
+            verify=True,
+            proxies=None,
+        )
+
+        assert isinstance(credentials, AbstractAsyncContextManager)
+
+    def test_get_credentials_returns_async_certificate_credential(self):
+        """get_credentials must return an async context manager when certificate_data is set."""
+        import datetime
+
+        from cryptography import x509
+        from cryptography.hazmat.primitives import hashes, serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.x509.oid import NameOID
+
+        private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "test")])
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(name)
+            .issuer_name(name)
+            .public_key(private_key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(datetime.datetime.now(datetime.UTC))
+            .not_valid_after(datetime.datetime.now(datetime.UTC) + datetime.timedelta(days=1))
+            .sign(private_key, hashes.SHA256())
+        )
+        pem = private_key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.TraditionalOpenSSL,
+            serialization.NoEncryption(),
+        ) + cert.public_bytes(serialization.Encoding.PEM)
+
+        hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+        config = {
+            "tenant_id": "tenant-id",
+            "certificate_data": pem.decode(),
+        }
+
+        credentials = hook.get_credentials(
+            login="client_id",
+            password=None,
+            config=config,
+            authority=None,
+            verify=True,
+            proxies=None,
+        )
+
+        assert isinstance(credentials, AbstractAsyncContextManager)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_uses_async_credentials(self):
+        """get_async_conn must build a request adapter backed by async credentials."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request_adapter = await hook.get_async_conn()
+
+            adapter: HttpxRequestAdapter = cast("HttpxRequestAdapter", request_adapter)
+            # Reach into the auth provider chain to retrieve the underlying credential object.
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credentials = access_token_provider._credentials
+
+            assert isinstance(credentials, AbstractAsyncContextManager)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_rebuilds_adapter_when_http_client_is_closed(self):
+        """get_async_conn evicts and rebuilds the adapter when the cached HTTP client is already closed."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            stale_adapter = Mock(spec=HttpxRequestAdapter)
+            stale_adapter._http_client = Mock(spec=AsyncClient, is_closed=True)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+
+            fresh_adapter = Mock(spec=HttpxRequestAdapter)
+            fresh_adapter._http_client = Mock(is_closed=False)
+            fresh_adapter.base_url = "https://graph.microsoft.com/v1.0"
+
+            with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
+                result = await hook.get_async_conn()
+
+            assert result is fresh_adapter
+            assert hook.cached_request_adapters[hook.conn_id] == ("v1.0", fresh_adapter)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_rebuilds_adapter_when_credentials_session_is_closed(self):
+        """get_async_conn evicts and rebuilds the adapter when the cached HTTP client is already closed."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            stale_adapter = Mock(spec=HttpxRequestAdapter)
+            stale_adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            stale_adapter._authentication_provider = mock_authentication_provider(closed=True)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, stale_adapter)
+
+            fresh_adapter = Mock(spec=HttpxRequestAdapter)
+            fresh_adapter._http_client = Mock(is_closed=False)
+            fresh_adapter.base_url = "https://graph.microsoft.com/v1.0"
+
+            with patch.object(hook, "_build_request_adapter", return_value=("v1.0", fresh_adapter)):
+                result = await hook.get_async_conn()
+
+            assert result is fresh_adapter
+            assert hook.cached_request_adapters[hook.conn_id] == ("v1.0", fresh_adapter)
+
+    @pytest.mark.asyncio
+    async def test_get_async_conn_does_not_rebuild_adapter_when_transport_never_opened(self):
+        """get_async_conn must keep the cached adapter when transport has never been opened (session is None)."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider()
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            result = await hook.get_async_conn()
+
+            assert result is adapter
+
+    @pytest.mark.asyncio
+    async def test_send_request_invalidates_cache_and_raises_on_any_error(self):
+        """send_request evicts the cached adapter, closes it, and re-raises on any request error."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
+            adapter.send_no_response_content_async = AsyncMock(side_effect=RuntimeError("some error"))
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
+            with pytest.raises(RuntimeError, match="some error"):
+                await hook.run(url="users")
+
+            adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param("401 Unauthorized", id="unauthorized"),
+            pytest.param("403 Forbidden: TokenExpired", id="forbidden-token-expired"),
+        ],
+    )
+    async def test_send_request_invalidates_cache_and_raises_on_permission_error(self, error: str):
+        """
+        send_request evicts the cached adapter, closes it, and re-raises when the API rejects the token.
+
+        Microsoft Graph reports an expired token as 401, Power BI as 403 with error code TokenExpired;
+        the response handler maps both to PermissionError.
+        """
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            adapter.base_url = "https://graph.microsoft.com/v1.0"
+            adapter.send_no_response_content_async = AsyncMock(side_effect=PermissionError(error))
+            hook.cached_request_adapters[hook.conn_id] = ("v1.0", adapter)
+
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
+            with pytest.raises(PermissionError, match=error):
+                await hook.run(url="users")
+
+            adapter.send_no_response_content_async.assert_called_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_close_closes_http_client_and_credential(self):
+        """close() closes the cached HTTP client and the underlying credential, then evicts the cache."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            access_token_provider = adapter._authentication_provider.access_token_provider
+            credential = access_token_provider._credentials._credential
+
+            await hook.close()
+
+            adapter._http_client.aclose.assert_awaited_once()
+            credential.close.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_close_is_a_no_op_when_nothing_is_cached(self):
+        """close() does nothing when there is no cached request adapter for the conn_id."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            await hook.close()
+
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    def test_run_sync_returns_result_and_closes_cached_adapter(self):
+        """run_sync closes the adapter before asyncio.run tears down the loop it is bound to."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            async def request():
+                return "response"
+
+            assert hook.run_sync(request()) == "response"
+            adapter._http_client.aclose.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_run_sync_refuses_a_running_event_loop(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request = AsyncMock(return_value="response")
+            coroutine = request()
+
+            with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
+                hook.run_sync(coroutine)
+
+            assert coroutine.cr_frame is None
+
+    def test_allowed_hosts_is_empty_list_when_not_configured(self):
+        """An unset allowed_hosts/authority must yield []."""
+        actual = KiotaRequestAdapterHook.get_allowed_hosts(None, {})
+
+        assert actual == []
+
+    def test_allowed_hosts_from_config(self):
+        """A configured allowed_hosts string must be split into a list."""
+        actual = KiotaRequestAdapterHook.get_allowed_hosts(
+            None, {"allowed_hosts": "api.powerbi.com,login.microsoftonline.com"}
+        )
+
+        assert actual == ["api.powerbi.com", "login.microsoftonline.com"]
 
 
 class TestKiotaRequestAdapterHookProtocol:
@@ -578,6 +976,18 @@ class TestResponseHandler:
         assert isinstance(actual, bytes)
         assert actual == users
 
+    def test_default_response_handler_when_unicode_content(self):
+        dummy = load_file_from_resources(
+            dirname(__file__), "..", "resources", "dummy.pdf", mode="rb", encoding=None
+        )
+        response = mock_response(200, dummy)
+        response.json.side_effect = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+        actual = asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert isinstance(actual, bytes)
+        assert actual == dummy
+
     def test_default_response_handler_when_no_content_but_headers(self):
         response = mock_response(200, headers={"RequestId": "ffb6096e-d409-4826-aaeb-b5d4b165dc4d"})
 
@@ -591,6 +1001,27 @@ class TestResponseHandler:
 
         with pytest.raises(AirflowBadRequest):
             asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_unauthorized(self):
+        response = mock_json_response(401, {})
+
+        with pytest.raises(PermissionError):
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+    def test_handle_response_async_when_forbidden(self):
+        """Power BI reports an expired access token as 403 Forbidden with error code TokenExpired."""
+        body = {
+            "error": {
+                "code": "TokenExpired",
+                "message": "Access token has expired, resubmit with a new access token",
+            }
+        }
+        response = mock_json_response(403, body)
+
+        with pytest.raises(PermissionError) as exc_info:
+            asyncio.run(DefaultResponseHandler().handle_response_async(response, None))
+
+        assert exc_info.value.args == (body,)
 
     def test_handle_response_async_when_not_found(self):
         response = mock_json_response(404, {})
@@ -622,4 +1053,308 @@ class TestResponseHandler:
             method_source = inspect.getsource(KiotaRequestAdapterHook.get_proxies)
             raise AirflowProviderDeprecationWarning(
                 f"Check TODO's to remove obsolete code in get_proxies method:\n\r\n\r\t\t\t{method_source}"
+            )
+
+
+class TestMSGraphMailHook:
+    FROM_EMAIL = "airflow@example.com"
+
+    @staticmethod
+    def get_request_information(mock_get_http_response) -> RequestInformation:
+        return mock_get_http_response.call_args.args[0]
+
+    @pytest.mark.parametrize(
+        ("addresses", "expected"),
+        (
+            pytest.param(None, [], id="none"),
+            pytest.param("", [], id="empty-string"),
+            pytest.param("first@example.com", ["first@example.com"], id="single-address"),
+            pytest.param(
+                "first@example.com,second@example.com",
+                ["first@example.com", "second@example.com"],
+                id="comma-separated",
+            ),
+            pytest.param(
+                "first@example.com ; second@example.com",
+                ["first@example.com", "second@example.com"],
+                id="semicolon-separated",
+            ),
+            pytest.param(
+                ["first@example.com", "second@example.com"],
+                ["first@example.com", "second@example.com"],
+                id="list",
+            ),
+        ),
+    )
+    def test_extract_email_addresses(self, addresses, expected):
+        assert MSGraphMailHook.extract_email_addresses(addresses) == expected
+
+    @pytest.mark.parametrize(
+        ("from_email", "expected"),
+        (
+            pytest.param(FROM_EMAIL, FROM_EMAIL, id="bare-address"),
+            pytest.param(f"Airflow alerts <{FROM_EMAIL}>", FROM_EMAIL, id="with-display-name"),
+        ),
+    )
+    def test_extract_sender(self, from_email, expected):
+        assert MSGraphMailHook.extract_sender(from_email) == expected
+
+    @pytest.mark.parametrize(
+        "from_email",
+        (
+            pytest.param(None, id="none"),
+            pytest.param("", id="empty"),
+            pytest.param("Airflow alerts <>", id="display-name-without-an-address"),
+        ),
+    )
+    def test_extract_sender_without_a_mailbox(self, from_email):
+        with pytest.raises(ValueError, match="mailbox to send from is required"):
+            MSGraphMailHook.extract_sender(from_email)
+
+    def test_build_message(self, tmp_path):
+        attachment = tmp_path / "report.csv"
+        attachment.write_bytes(b"a,b\n1,2\n")
+
+        actual = MSGraphMailHook.build_message(
+            to="first@example.com,second@example.com",
+            subject="Airflow alert",
+            html_content="<b>Something</b> happened",
+            files=[attachment.as_posix()],
+            cc="cc@example.com",
+            bcc=["bcc@example.com"],
+            custom_headers={"x-custom": 1},
+        )
+
+        assert actual == {
+            "subject": "Airflow alert",
+            "body": {"contentType": "HTML", "content": "<b>Something</b> happened"},
+            "toRecipients": [
+                {"emailAddress": {"address": "first@example.com"}},
+                {"emailAddress": {"address": "second@example.com"}},
+            ],
+            "ccRecipients": [{"emailAddress": {"address": "cc@example.com"}}],
+            "bccRecipients": [{"emailAddress": {"address": "bcc@example.com"}}],
+            "attachments": [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": "report.csv",
+                    "contentType": "text/csv",
+                    "contentBytes": b64encode(b"a,b\n1,2\n").decode("ascii"),
+                }
+            ],
+            "internetMessageHeaders": [{"name": "x-custom", "value": "1"}],
+        }
+
+    def test_build_message_without_recipients(self):
+        with pytest.raises(ValueError, match="No recipients"):
+            MSGraphMailHook.build_message(to=[], subject="Airflow alert", html_content="Something happened")
+
+    def test_build_attachments(self, tmp_path):
+        attachment = tmp_path / "report.csv"
+        attachment.write_bytes(b"a,b\n1,2\n")
+
+        assert MSGraphMailHook.build_attachments([attachment.as_posix()]) == [
+            {
+                "@odata.type": "#microsoft.graph.fileAttachment",
+                "name": "report.csv",
+                "contentType": "text/csv",
+                "contentBytes": b64encode(b"a,b\n1,2\n").decode("ascii"),
+            }
+        ]
+
+    def test_build_attachments_when_the_attachments_are_too_large(self, tmp_path):
+        first = tmp_path / "first.csv"
+        first.write_bytes(b"x" * MSGraphMailHook.MAX_ATTACHMENTS_SIZE)
+        second = tmp_path / "second.csv"
+        second.write_bytes(b"x")
+
+        with pytest.raises(ValueError, match="add up to at least 3145729 bytes"):
+            MSGraphMailHook.build_attachments([first.as_posix(), second.as_posix()])
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "from_email",
+        (
+            pytest.param(FROM_EMAIL, id="bare-address"),
+            pytest.param(f"Airflow alerts <{FROM_EMAIL}>", id="with-display-name"),
+        ),
+    )
+    async def test_asend_email(self, from_email):
+        with patch_hook_and_request_adapter(mock_json_response(202)) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = MSGraphMailHook(conn_id="msgraph_api")
+
+            await hook.asend_email(
+                from_email=from_email,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+                save_to_sent_items=False,
+            )
+
+            request_information = self.get_request_information(mock_get_http_response)
+            assert request_information.http_method == Method.POST
+            request_information.path_parameters["baseurl"] = "https://graph.microsoft.com/v1.0/"
+            assert (
+                request_information.url
+                == "https://graph.microsoft.com/v1.0/users/airflow%40example.com/sendMail"
+            )
+            assert json.loads(request_information.content) == {
+                "message": {
+                    "subject": "Airflow alert",
+                    "body": {"contentType": "HTML", "content": "Something happened"},
+                    "toRecipients": [{"emailAddress": {"address": "user@example.com"}}],
+                },
+                "saveToSentItems": False,
+            }
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("from_email", (pytest.param(None, id="none"), pytest.param("", id="empty")))
+    async def test_asend_email_without_a_sender_mailbox(self, from_email):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        with pytest.raises(ValueError, match="mailbox to send from is required"):
+            await hook.asend_email(
+                from_email=from_email,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+    @pytest.mark.asyncio
+    async def test_asend_email_when_dryrun(self):
+        with patch_hook_and_request_adapter(mock_json_response(202)) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = MSGraphMailHook(conn_id="msgraph_api")
+
+            await hook.asend_email(
+                from_email=self.FROM_EMAIL,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+                dryrun=True,
+            )
+
+            mock_get_http_response.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_asend_email_when_dryrun_still_builds_the_message(self):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        with pytest.raises(ValueError, match="No recipients"):
+            await hook.asend_email(
+                from_email=self.FROM_EMAIL,
+                to=[],
+                subject="Airflow alert",
+                html_content="Something happened",
+                dryrun=True,
+            )
+
+    def test_send_email(self):
+        with patch_hook_and_request_adapter(mock_json_response(202)) as mocks:
+            mock_get_http_response = mocks[-1]
+            hook = MSGraphMailHook(conn_id="msgraph_api")
+
+            hook.send_email(
+                from_email=self.FROM_EMAIL,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+            request_information = self.get_request_information(mock_get_http_response)
+            assert json.loads(request_information.content)["saveToSentItems"] is True
+            # The adapter is bound to the event loop asyncio.run just closed, so it must not be reused.
+            assert "msgraph_api" not in MSGraphMailHook.cached_request_adapters
+
+    def test_send_email_without_a_sender_mailbox(self):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        # The connection is never opened, so the cleanup in the sync wrapper has nothing to close.
+        with pytest.raises(ValueError, match="mailbox to send from is required"):
+            hook.send_email(
+                from_email=None,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+    @pytest.mark.asyncio
+    async def test_send_email_inside_a_running_event_loop(self):
+        hook = MSGraphMailHook(conn_id="msgraph_api")
+
+        with pytest.raises(RuntimeError, match="await asend_email instead"):
+            hook.send_email(
+                from_email=self.FROM_EMAIL,
+                to="user@example.com",
+                subject="Airflow alert",
+                html_content="Something happened",
+            )
+
+
+class TestSendEmail:
+    @patch("airflow.providers.microsoft.azure.hooks.msgraph.MSGraphMailHook", autospec=True)
+    def test_send_email(self, mock_hook):
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            conn_id="msgraph_api",
+            from_email="airflow@example.com",
+        )
+
+        mock_hook.assert_called_once_with(conn_id="msgraph_api")
+        mock_hook.return_value.send_email.assert_called_once_with(
+            from_email="airflow@example.com",
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            files=None,
+            cc=None,
+            bcc=None,
+            custom_headers=None,
+            dryrun=False,
+        )
+
+    @patch("airflow.providers.microsoft.azure.hooks.msgraph.MSGraphMailHook", autospec=True)
+    def test_send_email_without_conn_id(self, mock_hook):
+        mock_hook.default_conn_name = MSGraphMailHook.default_conn_name
+
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            conn_id=None,
+            from_email="airflow@example.com",
+        )
+
+        mock_hook.assert_called_once_with(conn_id="msgraph_default")
+
+    @patch("airflow.providers.microsoft.azure.hooks.msgraph.MSGraphMailHook", autospec=True)
+    def test_send_email_without_from_email(self, mock_hook):
+        with pytest.raises(ValueError, match="`from_email` configuration has to be set"):
+            send_email(to="user@example.com", subject="Airflow alert", html_content="Something happened")
+
+        mock_hook.assert_not_called()
+
+    @patch("airflow.providers.microsoft.azure.hooks.msgraph.MSGraphMailHook", autospec=True)
+    def test_send_email_when_dryrun(self, mock_hook):
+        send_email(
+            to="user@example.com",
+            subject="Airflow alert",
+            html_content="Something happened",
+            dryrun=True,
+            from_email="airflow@example.com",
+        )
+
+        assert mock_hook.return_value.send_email.call_args.kwargs["dryrun"] is True
+
+    def test_send_email_when_dryrun_reports_an_invalid_message(self):
+        with pytest.raises(ValueError, match="No recipients"):
+            send_email(
+                to=[],
+                subject="Airflow alert",
+                html_content="Something happened",
+                dryrun=True,
+                from_email="airflow@example.com",
             )

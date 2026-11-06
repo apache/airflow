@@ -67,7 +67,6 @@ MOCK_CREATE_RESPONSE: dict[str, Any] = {"ReplicationTask": MOCK_TASK_RESPONSE_DA
 MOCK_START_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "starting"}}
 MOCK_STOP_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "stopping"}}
 MOCK_DELETE_RESPONSE: dict[str, Any] = {"ReplicationTask": {**MOCK_TASK_RESPONSE_DATA, "Status": "deleting"}}
-
 MOCK_CONFIG_RESPONSE: dict[str, Any] = {
     "Marker": "xxxxx",
     "ReplicationConfigs": [
@@ -309,6 +308,12 @@ class TestDmsHook:
         mock_conn.return_value.describe_replication_tasks.assert_called_with(**expected_call_params)
         assert len(tasks) == 1
         assert tasks[0]["ReplicationTaskArn"] == MOCK_TASK_ARN
+
+    @mock.patch.object(DmsHook, "get_conn")
+    def test_get_task_description(self, mock_conn):
+        mock_conn.return_value.describe_replication_tasks.return_value = MOCK_DESCRIBE_RESPONSE
+
+        assert self.dms.get_task_description(MOCK_TASK_ARN) == MOCK_TASK_RESPONSE_DATA
 
     @mock.patch.object(DmsHook, "get_conn")
     def test_get_task_status(self, mock_conn):

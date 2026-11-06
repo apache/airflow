@@ -84,7 +84,7 @@ that Airflow can schedule and run. Here's the ``extract`` task:
 
 |
 
-The function's return value is passed to the next task — no manual use of ``XComs`` required. Under the hood, TaskFlow
+The function's return value is passed to the downstream task — no manual use of ``XComs`` required. Under the hood, TaskFlow
 uses ``XComs`` to manage data passing automatically, abstracting away the complexity of manual XCom management from the
 previous methods. You'll define ``transform`` and ``load`` tasks using the same pattern.
 
@@ -208,6 +208,11 @@ directly in the task decorator:
     def my_task(): ...
 
 This helps ensure that transient failures do not lead to task failure.
+
+Each retry runs the function again from the start. If the task works through a long list of items, such as copying
+files, make it a :ref:`resumable task <concepts-resumable-tasks-resumable>` that records its progress in the
+:doc:`task state store </core-concepts/task-state-store>` after each item, so a retry picks up where it left off
+instead of starting over.
 
 Task Parameterization
 ---------------------

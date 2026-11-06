@@ -16,16 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box } from "@chakra-ui/react";
+import { Box, Button, useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuUserRoundPen } from "react-icons/lu";
+import { Link } from "react-router-dom";
 
 import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+
+import { HITLReviewModal } from "src/components/HITLReview/HITLReviewModal.tsx";
+import { useHITLReviewModalRouteSync } from "src/components/HITLReview/useHITLReviewModalRouteSync.ts";
+
+import { HITL_PENDING_STATES } from "src/utils/hitl";
 import { useAutoRefresh } from "src/utils/query";
 
+import { NeedsReviewIndicator } from "./NeedsReviewIndicator";
 import { StatsCard } from "./StatsCard";
 
-export const NeedsReviewButton = ({
+const usePendingHitl = ({
   dagId,
   runId,
   taskId,
@@ -36,12 +43,17 @@ export const NeedsReviewButton = ({
 }) => {
   const refetchInterval = useAutoRefresh({ checkPendingRuns: true, dagId });
 
-  const { data: hitlStatsData, isLoading } = useTaskInstanceServiceGetHitlDetails(
+  const {
+    data: pendingHitlData,
+    isError,
+    isLoading,
+  } = useTaskInstanceServiceGetHitlDetails(
     {
       dagId: dagId ?? "~",
       dagRunId: runId ?? "~",
+      orderBy: ["dag_id", "run_after", "created_at", "task_display_name"],
       responseReceived: false,
-      state: ["deferred", "awaiting_input"],
+      state: HITL_PENDING_STATES,
       taskId,
     },
     undefined,
@@ -50,22 +62,168 @@ export const NeedsReviewButton = ({
     },
   );
 
-  const hitlTIsCount = hitlStatsData?.hitl_details.length ?? 0;
+  return {
+    isError,
+    isLoading,
+    pendingHitlData,
+  };
+};
+
+const useCompletedHitl = ({
+  dagId,
+  enabled,
+  runId,
+}: {
+  readonly dagId?: string;
+  readonly enabled: boolean;
+  readonly runId?: string;
+}) => {
+  const {
+    data: completedHitlData,
+    isError,
+    isLoading,
+  } = useTaskInstanceServiceGetHitlDetails(
+    {
+      dagId: dagId ?? "~",
+      dagRunId: runId ?? "~",
+      orderBy: ["dag_id", "run_after", "created_at", "task_display_name"],
+      responseReceived: true,
+    },
+    undefined,
+    {
+      enabled,
+    },
+  );
+
+  return { completedHitlData, isError, isLoading };
+};
+
+/** "card" is the stats-row presentation; "chip" is the inline header presentation. */
+type NeedsReviewVariant = "card" | "chip";
+
+const NeedsReviewContent = ({
+  hitlTIsCount,
+  isLoading,
+  link,
+  onClick,
+  variant,
+}: {
+  readonly hitlTIsCount: number;
+  readonly isLoading: boolean;
+  readonly link?: string;
+  readonly onClick?: () => void;
+  readonly variant: NeedsReviewVariant;
+}) => {
   const { i18n, t: translate } = useTranslation("hitl");
 
   const isRTL = i18n.dir() === "rtl";
 
-  return hitlTIsCount > 0 ? (
-    <Box maxW="250px">
-      <StatsCard
-        colorScheme="deferred"
-        count={hitlTIsCount}
-        icon={<LuUserRoundPen />}
+  if (hitlTIsCount <= 0) {
+    return undefined;
+  }
+
+  if (variant === "card") {
+    return (
+      <Box maxW="250px">
+        <StatsCard
+          colorScheme="awaiting_input"
+          count={hitlTIsCount}
+          icon={<LuUserRoundPen />}
+          isLoading={isLoading}
+          isRTL={isRTL}
+          label={translate("requiredAction_other")}
+          link={link}
+          onClick={onClick}
+        />
+      </Box>
+    );
+  }
+
+  return <NeedsReviewIndicator count={hitlTIsCount} onClick={onClick} to={link} />;
+};
+
+export const NeedsReviewButton = ({
+  dagId,
+  runId,
+  taskId,
+  variant = "card",
+}: {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly taskId?: string;
+  readonly variant?: NeedsReviewVariant;
+}) => {
+  const { isLoading, pendingHitlData } = usePendingHitl({ dagId, runId, taskId });
+  const hitlTIsCount = pendingHitlData?.total_entries ?? 0;
+
+  return (
+    <NeedsReviewContent
+      hitlTIsCount={hitlTIsCount}
+      isLoading={isLoading}
+      link="/required_actions?response_received=false"
+      variant={variant}
+    />
+  );
+};
+
+export const NeedsReviewButtonWithModal = ({
+  dagId,
+  runId,
+  variant = "card",
+}: {
+  readonly dagId?: string;
+  readonly runId?: string;
+  readonly variant?: NeedsReviewVariant;
+}) => {
+  const { onClose, onOpen, open } = useDisclosure();
+  const { onCloseHITLReview } = useHITLReviewModalRouteSync({
+    onClose,
+    onOpen,
+  });
+  const { isError: pendingHitlIsError, isLoading, pendingHitlData } = usePendingHitl({ dagId, runId });
+  const {
+    completedHitlData,
+    isError: completedHitlIsError,
+    isLoading: isLoadingCompletedHitl,
+  } = useCompletedHitl({
+    dagId,
+    enabled: open,
+    runId,
+  });
+  const { t: translate } = useTranslation("hitl");
+  const hitlTIsCount = pendingHitlData?.total_entries ?? 0;
+
+  return (
+    <>
+      <NeedsReviewContent
+        hitlTIsCount={hitlTIsCount}
         isLoading={isLoading}
-        isRTL={isRTL}
-        label={translate("requiredAction_other")}
-        link="required_actions?response_received=false"
+        onClick={onOpen}
+        variant={variant}
       />
-    </Box>
-  ) : undefined;
+      <HITLReviewModal
+        completedHitl={{
+          data: completedHitlData?.hitl_details ?? [],
+          isError: completedHitlIsError,
+          isLoading: isLoadingCompletedHitl,
+          total: completedHitlData?.total_entries,
+        }}
+        headerAction={
+          <Button asChild size="sm" variant="outline">
+            <Link onClick={onCloseHITLReview} to="/required_actions?response_received=false">
+              {translate("review.viewAll")}
+            </Link>
+          </Button>
+        }
+        onClose={onCloseHITLReview}
+        open={open}
+        pendingHitl={{
+          data: pendingHitlData?.hitl_details ?? [],
+          isError: pendingHitlIsError,
+          isLoading,
+          total: pendingHitlData?.total_entries,
+        }}
+      />
+    </>
+  );
 };

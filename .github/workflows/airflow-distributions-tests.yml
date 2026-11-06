@@ -75,7 +75,9 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runners) }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         python-version: "${{fromJSON(inputs.python-versions)}}"
     env:
@@ -90,7 +92,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"

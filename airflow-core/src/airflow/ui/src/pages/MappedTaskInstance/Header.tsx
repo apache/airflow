@@ -16,21 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack } from "@chakra-ui/react";
 import type { ReactNode } from "react";
+
+import { Box, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
+
 import { ClearTaskInstanceButton } from "src/components/Clear";
 import { HeaderCard } from "src/components/HeaderCard";
 import Time from "src/components/Time";
-import { getDuration } from "src/utils";
+
+import { useHasGridSelection } from "src/context/gridSelection";
+import { formatNumber, useDurationFormat } from "src/utils";
 
 export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskInstanceSummary }) => {
+  // The grid's bulk actions replace these while task instances are selected there.
+  const hasGridSelection = useHasGridSelection();
   const { dagId = "", runId = "" } = useParams();
-  const { t: translate } = useTranslation();
+  const { i18n, t: translate } = useTranslation();
+  const { formatElapsed } = useDurationFormat();
   const entries: Array<{ key?: string; label: string; value: number | ReactNode | string }> = [];
   let taskCount: number = 0;
 
@@ -48,7 +55,7 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
             height="10px"
             width="10px"
           />
-          {count}
+          {formatNumber(count, i18n.language)}
         </HStack>
       ),
     });
@@ -62,30 +69,33 @@ export const Header = ({ taskInstance }: { readonly taskInstance: LightGridTaskI
       ? [
           {
             label: translate("duration"),
-            value: getDuration(taskInstance.min_start_date, taskInstance.max_end_date),
+            value: formatElapsed(taskInstance.min_start_date, taskInstance.max_end_date),
           },
         ]
       : []),
   ];
 
   return (
-    <Box>
-      <HeaderCard
-        actions={
+    <HeaderCard
+      actions={
+        hasGridSelection ? undefined : (
           <ClearTaskInstanceButton
             allMapped
+            bg="bg"
             dagId={dagId}
             dagRunId={runId}
             isHotkeyEnabled
             taskId={taskInstance.task_id}
+            variant="outline"
           />
-        }
-        icon={<MdOutlineTask />}
-        state={taskInstance.state}
-        stats={stats}
-        subTitle={<Time datetime={taskInstance.min_start_date} />}
-        title={`${taskInstance.task_display_name} [${taskCount}]`}
-      />
-    </Box>
+        )
+      }
+      icon={<MdOutlineTask />}
+      state={taskInstance.state}
+      stats={stats}
+      subTitle={<Time datetime={taskInstance.min_start_date} />}
+      title={`${taskInstance.task_display_name} [${formatNumber(taskCount, i18n.language)}]`}
+      type="taskInstance"
+    />
   );
 };

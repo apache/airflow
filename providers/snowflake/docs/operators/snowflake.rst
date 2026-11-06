@@ -139,7 +139,7 @@ the connection metadata is structured as follows:
    * - Schema: string
      - Set schema to execute SQL operations on by default
    * - Extra: dictionary
-     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. If using OAuth must specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__)
+     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``, ``refresh_token``. For OAuth, specify ``refresh_token`` (`obtained here <https://community.snowflake.com/s/article/HOW-TO-OAUTH-TOKEN-GENERATION-USING-SNOWFLAKE-CUSTOM-OAUTH>`__). To use the ``client_credentials`` grant or ``azure_conn_id`` instead, also set ``authenticator`` to ``oauth``. See :ref:`howto/connection:snowflake`.
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 
@@ -154,3 +154,103 @@ An example usage of the SnowflakeSqlApiHook is as follows:
 
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
+
+Durable execution
+^^^^^^^^^^^^^^^^^^
+
+``SnowflakeSqlApiOperator`` submits one or more SQL statements and then polls their statement
+handles to completion on the worker. By default the operator runs in a *durable* mode that makes
+this crash-safe: the statement handles are persisted to :doc:`task state store
+<apache-airflow:core-concepts/task-state-store>` before polling begins, so if the worker crashes
+or is preempted and the task is retried, the operator reconnects to the statements that are
+already executing in Snowflake instead of resubmitting the SQL.
+
+On retry the operator checks the prior statements' state:
+
+* if any handle is still running, the operator reconnects and continues polling -- handles that
+  already finished are not re-run, only the ones still in progress are waited on
+* if every handle already succeeded, the operator returns immediately without resubmitting
+* if any handle failed, or a handle has expired past Snowflake's retention window, the operator
+  submits the SQL fresh
+
+Because Snowflake's SQL API has no way to retry or repair a single failed statement within a
+multi-statement request, a genuine failure always resubmits the whole request batch, matching the
+operator's all-or-nothing submission semantics.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
+earlier Airflow versions the flag is a no-op and the operator always submits fresh SQL on retry,
+exactly as before. If the task state store is unavailable at runtime, the operator logs that crash
+recovery is disabled and behaves the same way.
+
+Like the persisted state itself, the stored statement handles aren't deleted automatically, that
+only happens when someone runs ``airflow state-store clean``. If a task's ``retry_delay`` is
+longer than ``[state_store] default_retention_days`` (30 days by default) and cleanup runs in
+between, the handles won't be there for the next retry, and the operator will submit the SQL
+fresh instead of reconnecting. Avoid running cleanup on a schedule shorter than your longest
+``retry_delay``.
+
+Clearing a task is treated the same as a retry, which matters specifically for a task whose
+statements already succeeded: clearing does not delete the stored handles, so the next attempt
+reads them back and returns immediately without submitting the SQL again. See
+:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
+``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+
+This is most reliable for deferred tasks (``deferrable=True``); clearing a task that's actively
+polling synchronously can cancel the statements via ``on_kill`` before the next attempt gets a
+chance to reconnect -- see :doc:`apache-airflow:core-concepts/resumable-tasks` for why.
+
+To opt out and always submit fresh SQL on retry, set ``durable=False``:
+
+.. code-block:: python
+
+  api_operator = SnowflakeSqlApiOperator(
+      task_id="snowflake_sql_api",
+      snowflake_conn_id="snowflake_default",
+      sql="select * from table",
+      statement_count=1,
+      durable=False,
+  )
+
+Durable execution applies to the synchronous path. When ``deferrable=True`` is set, the Triggerer
+already tracks the statement handles across the wait, so deferrable mode takes precedence and
+``durable`` has no effect.
+
+Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. Below
+3.3, ``durable`` has no effect either way: setting it explicitly only emits a warning, and the
+operator always submits fresh SQL on retry, exactly as before this feature existed.
+
+
+SnowflakeNotebookOperator
+=========================
+
+Use the :class:`SnowflakeNotebookOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeNotebookOperator>`
+to execute a `Snowflake Notebook <https://docs.snowflake.com/en/sql-reference/sql/execute-notebook>`__
+via the Snowflake SQL API.
+
+This operator builds an ``EXECUTE NOTEBOOK`` statement and delegates execution to
+:class:`SnowflakeSqlApiOperator <airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiOperator>`.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook]
+    :end-before: [END howto_operator_snowflake_notebook]
+    :dedent: 4
+
+You can pass parameters to the notebook:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_with_params]
+    :end-before: [END howto_operator_snowflake_notebook_with_params]
+    :dedent: 4
+
+You can also run the operator in deferrable mode:
+
+.. exampleinclude:: /../../snowflake/tests/system/snowflake/example_snowflake_notebook.py
+    :language: python
+    :start-after: [START howto_operator_snowflake_notebook_deferrable]
+    :end-before: [END howto_operator_snowflake_notebook_deferrable]
+    :dedent: 4

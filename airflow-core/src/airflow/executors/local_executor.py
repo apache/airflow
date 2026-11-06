@@ -25,17 +25,21 @@ LocalExecutor.
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import multiprocessing
 import multiprocessing.sharedctypes
 import os
 import sys
+import threading
 from multiprocessing import Queue, SimpleQueue
 from typing import TYPE_CHECKING
 
 import structlog
 
 from airflow.executors.base_executor import BaseExecutor, get_execution_api_server_url
+from airflow.executors.workloads import WorkloadType
+from airflow.executors.workloads.types import state_class_for_key
 
 # add logger to parameter of setproctitle to support logging
 if sys.platform == "darwin":
@@ -47,7 +51,10 @@ else:
 
 if TYPE_CHECKING:
     from airflow.executors.workloads import ExecutorWorkload
-    from airflow.executors.workloads.types import WorkloadResultType
+    from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.taskinstance import TaskInstance
+
+    LocalResult = tuple[int, WorkloadKey, WorkloadState | None, Exception | None]
 
 
 def _get_executor_process_title_prefix(team_name: str | None) -> str:
@@ -63,7 +70,7 @@ def _get_executor_process_title_prefix(team_name: str | None) -> str:
 def _run_worker(
     logger_name: str,
     input: SimpleQueue[ExecutorWorkload | None],
-    output: Queue[WorkloadResultType],
+    output: Queue[LocalResult],
     unread_messages: multiprocessing.sharedctypes.Synchronized[int],
     team_conf,
 ):
@@ -95,8 +102,8 @@ def _run_worker(
         with unread_messages:
             unread_messages.value -= 1
 
-        if workload.running_state is not None:
-            output.put((workload.key, workload.running_state, None))
+        key = LocalExecutor.get_workload_key(workload)
+        output.put((os.getpid(), key, workload.running_state, None))
 
         try:
             BaseExecutor.run_workload(
@@ -105,10 +112,10 @@ def _run_worker(
                 proctitle=f"{_get_executor_process_title_prefix(team_conf.team_name)} {workload.display_name}",
                 subprocess_logs_to_stdout=True,
             )
-            output.put((workload.key, workload.success_state, None))
+            output.put((os.getpid(), key, workload.success_state, None))
         except Exception as e:
             log.exception("Workload execution failed.", workload_type=type(workload).__name__)
-            output.put((workload.key, workload.failure_state, e))
+            output.put((os.getpid(), key, workload.failure_state, e))
 
 
 class LocalExecutor(BaseExecutor):
@@ -121,20 +128,30 @@ class LocalExecutor(BaseExecutor):
     """
 
     is_local: bool = True
-    is_mp_using_fork: bool = multiprocessing.get_start_method() == "fork"
+    is_mp_using_fork: bool
 
     supports_multi_team: bool = True
+    supports_task_instance_uuid = True
     serve_logs: bool = True
-    supports_callbacks: bool = True
-    supports_connection_test: bool = True
+    # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``) to bound hook
+    # execution, so ``TEST_CONNECTION`` support requires a POSIX worker (LocalExecutor runs on the host).
+    supported_workload_types: frozenset[WorkloadType] = frozenset(
+        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
+    )
 
     activity_queue: SimpleQueue[ExecutorWorkload | None]
-    result_queue: SimpleQueue[WorkloadResultType]
+    result_queue: SimpleQueue[LocalResult]
     workers: dict[int, multiprocessing.Process]
     _unread_messages: multiprocessing.sharedctypes.Synchronized[int]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._worker_tasks: dict[int, WorkloadKey] = {}
+        self._dispatch_counts: dict[WorkloadKey, int] = {}
+
+        # Resolve the start method at instantiation, not at import: the component CLI entry may have
+        # set it via [<component>]/[core] mp_start_method before the executor is created.
+        self.is_mp_using_fork = multiprocessing.get_start_method() == "fork"
 
         # Check if self has the ExecutorConf set on the self.conf attribute, and if not, set it to the global
         # configuration object. This allows the changes to be backwards compatible with older versions of
@@ -154,6 +171,8 @@ class LocalExecutor(BaseExecutor):
         self.activity_queue = SimpleQueue()
         self.result_queue = SimpleQueue()
         self.workers = {}
+        self._worker_tasks.clear()
+        self._dispatch_counts.clear()
 
         # Mypy sees this value as `SynchronizedBase[c_uint]`, but that isn't the right runtime type behaviour
         # (it looks like an int to python)
@@ -166,10 +185,16 @@ class LocalExecutor(BaseExecutor):
             self._spawn_workers_with_gc_freeze(self.parallelism)
 
     def _check_workers(self):
+        self._read_results()
         # Reap any dead workers
         to_remove = set()
         for pid, proc in self.workers.items():
             if not proc.is_alive():
+                self._read_results()
+                # A worker killed between dequeue and START has no entry here; the scheduler's
+                # stuck-in-queued handling releases that workload through revoke_task.
+                if (key := self._worker_tasks.pop(pid, None)) is not None:
+                    self._finish_dispatch(key, state_class_for_key(key).FAILED)
                 to_remove.add(pid)
                 proc.close()
 
@@ -235,14 +260,23 @@ class LocalExecutor(BaseExecutor):
 
     def sync(self) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        self._read_results()
         self._check_workers()
 
     def _read_results(self):
-        while not self.result_queue.empty():
-            key, state, exc = self.result_queue.get()
-
-            self.change_state(key, state)
+        try:
+            while not self.result_queue.empty():
+                pid, key, state, exc = self.result_queue.get()
+                if pid not in self.workers or key not in self.running:
+                    continue
+                if state is None or state == "running":
+                    self._worker_tasks[pid] = key
+                    if state is not None:
+                        self.change_state(key, state, remove_running=False)
+                elif self._worker_tasks.get(pid) == key:
+                    del self._worker_tasks[pid]
+                    self._finish_dispatch(key, state)
+        except (OSError, EOFError):
+            self.log.exception("Error reading from result queue")
 
     def end(self) -> None:
         """End the executor."""
@@ -259,32 +293,146 @@ class LocalExecutor(BaseExecutor):
             if proc.is_alive():
                 self.activity_queue.put(None)
 
-        for proc in self.workers.values():
-            if proc.is_alive():
-                proc.join()
-            proc.close()
+        # To prevent deadlock, we should consume results from result_queue while waiting for processes to join.
+        # Otherwise, a worker blocked on putting results into a full result_queue pipe will never exit,
+        # and an unbounded proc.join() will hang the scheduler indefinitely.
+        try:
+            for proc in self.workers.values():
+                while proc.is_alive():
+                    self._read_results()
+                    proc.join(timeout=0.05)
+        except (KeyboardInterrupt, SystemExit):
+            self.log.error("KeyboardInterrupt received during shutdown. Force terminating workers.")
+            for proc in self.workers.values():
+                self._terminate_worker_process(proc)
+            raise
+        finally:
+            # Process any extra results before closing
+            self._read_results()
 
-        # Process any extra results before closing
-        self._read_results()
+            for proc in self.workers.values():
+                with contextlib.suppress(ValueError):
+                    proc.close()
 
-        self.activity_queue.close()
-        self.result_queue.close()
+            self.activity_queue.close()
+            self.result_queue.close()
 
     def terminate(self):
-        """Terminate the executor is not doing anything."""
+        """Terminate all worker processes under control of the executor forcefully."""
+        self.log.info("Terminating all LocalExecutor worker processes.")
+        for proc in self.workers.values():
+            self._terminate_worker_process(proc)
+
+    def _terminate_worker_process(self, proc: multiprocessing.Process) -> None:
+        """Terminate a worker process, escalating to kill if it stays alive."""
+        if not proc.is_alive():
+            return
+
+        proc.terminate()
+        proc.join(timeout=0.2)
+        if proc.is_alive():
+            self.log.warning("Worker process %s did not stop after SIGTERM. Sending SIGKILL.", proc.pid)
+            proc.kill()
+            proc.join(timeout=0.2)
 
     def _process_workloads(self, workload_list):
         for workload in workload_list:
-            self.activity_queue.put(workload)
-            # A valid workload will exist in exactly one of these dicts.
-            # One pop will succeed, the others will return None gracefully.
-            removed = (
-                self.queued_tasks.pop(workload.key, None)
-                or self.queued_callbacks.pop(workload.key, None)
-                or self.queued_connection_tests.pop(workload.key, None)
-            )
+            key = self.get_workload_key(workload)
+            removed = self.executor_queues[workload.type].pop(key, None)
             if not removed:
-                raise KeyError(f"Workload {workload.key} was not found in any queue")
-        with self._unread_messages:
-            self._unread_messages.value += len(workload_list)
+                raise KeyError(f"Workload {key} was not found in any queue")
+            # Register before the put: results read while the put is in flight are dropped for keys
+            # that are not running yet.
+            self.running.add(key)
+            self._dispatch_counts[key] = self._dispatch_counts.get(key, 0) + 1
+            # Counted before the put so a worker taking the message never decrements below zero, and so
+            # _check_workers sees it as outstanding while the put is blocked.
+            with self._unread_messages:
+                self._unread_messages.value += 1
+            self._read_results()
+            if (put_error := self._put_workload(workload)) is not None:
+                self._undo_dispatch(key, workload)
+                raise put_error
         self._check_workers()
+
+    def _undo_dispatch(self, key: WorkloadKey, workload: ExecutorWorkload) -> None:
+        """Reverse the bookkeeping of a workload whose put failed, leaving it queued as it was before."""
+        self.executor_queues[workload.type][key] = workload
+        remaining = self._dispatch_counts.pop(key, 1) - 1
+        if remaining > 0:
+            self._dispatch_counts[key] = remaining
+        else:
+            self.running.discard(key)
+        with self._unread_messages:
+            self._unread_messages.value -= 1
+
+    def _put_workload(self, workload: ExecutorWorkload) -> BaseException | None:
+        """
+        Put ``workload`` on the activity queue while continuing to drain the result queue.
+
+        The put blocks while the activity pipe is full. If the workers are at the same time blocked
+        writing to a full result pipe, a put on this thread alone would never return, so it runs on a
+        helper thread while this thread keeps reading results.
+
+        :return: the error the put itself raised, in which case the workload was not sent.
+        """
+        put_errors: list[BaseException] = []
+
+        def _put() -> None:
+            try:
+                self.activity_queue.put(workload)
+            except BaseException as e:
+                put_errors.append(e)
+
+        putter = threading.Thread(target=_put, name="local-executor-put", daemon=True)
+        try:
+            putter.start()
+            putter.join(timeout=0.05)
+            while putter.is_alive():
+                if sum(proc.is_alive() for proc in self.workers.values()) < self.parallelism:
+                    # Only a live worker can take the pending write, and workers are otherwise only
+                    # spawned or replaced after the batch: with spawn there are none before the first one,
+                    # and each call starts just one, so a single busy worker must not stop the rest.
+                    self._check_workers()
+                self._read_results()
+                putter.join(timeout=0.05)
+        except BaseException:
+            # end() sends a shutdown message on the same pipe for each live worker, so an interruption
+            # (SIGTERM raises SystemExit here) must not leave this writer blocked behind a full result
+            # pipe. Without a live worker nothing can take the pending write, and end() sends nothing.
+            while putter.is_alive() and any(proc.is_alive() for proc in self.workers.values()):
+                self._read_results()
+                putter.join(timeout=0.05)
+            raise
+        return put_errors[0] if put_errors else None
+
+    def _finish_dispatch(self, key: WorkloadKey, state: WorkloadState) -> None:
+        # A resumed attempt reuses its key, so the previous dispatch can finish while the next one is live.
+        remaining = self._dispatch_counts.pop(key, 1) - 1
+        if remaining > 0:
+            self._dispatch_counts[key] = remaining
+        super().change_state(key, state, remove_running=remaining <= 0)
+
+    def _forget_workload(self, key: WorkloadKey) -> None:
+        self._dispatch_counts.pop(key, None)
+        self._worker_tasks = {
+            pid: task_key for pid, task_key in self._worker_tasks.items() if task_key != key
+        }
+
+    def change_state(self, key, state, info=None, remove_running=True) -> None:
+        if remove_running:
+            self._forget_workload(key)
+        super().change_state(key, state, info=info, remove_running=remove_running)
+
+    def fail_connection_test(self, key) -> None:
+        self._forget_workload(key)
+        super().fail_connection_test(key)
+
+    def revoke_task(self, *, ti: TaskInstance) -> None:
+        key = self.get_task_key(ti)
+        self.executor_queues[WorkloadType.EXECUTE_TASK].pop(key, None)
+        for pid, task_key in self._worker_tasks.items():
+            if task_key == key:
+                self._terminate_worker_process(self.workers[pid])
+        self._forget_workload(key)
+        self.running.discard(key)

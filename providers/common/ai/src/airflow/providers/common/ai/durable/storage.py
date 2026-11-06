@@ -14,35 +14,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""ObjectStorage-backed durable storage for pydantic-ai agent step caching."""
+"""ObjectStorage-backed storage for the durable execution journal (Airflow < 3.3)."""
 
 from __future__ import annotations
 
-import contextlib
+import hashlib
 import json
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
-import structlog
-from pydantic_ai.messages import ModelMessagesTypeAdapter, ModelResponse
+from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
-log = structlog.get_logger(logger_name="task")
-
-# Sentinel to distinguish "cached None" from "no cache entry" for tool results.
-_SENTINEL = "__durable_cached__"
+log = get_task_logger()
 
 SECTION = "common.ai"
 
 
 @lru_cache(maxsize=1)
 def _get_base_path():
-    from airflow.providers.common.compat.sdk import conf
-    from airflow.sdk import ObjectStoragePath
+    from airflow.providers.common.compat.sdk import ObjectStoragePath, conf
 
     path = conf.get(SECTION, "durable_cache_path", fallback="")
     if not path:
         raise ValueError(
-            "durable=True requires [common.ai] durable_cache_path to be set. "
+            "Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path "
+            "to be set, to say where its journal is kept. "
             "Example: durable_cache_path = file:///tmp/airflow_durable_cache"
         )
     return ObjectStoragePath(path)
@@ -50,14 +47,16 @@ def _get_base_path():
 
 class DurableStorage:
     """
-    Stores step-level caches in a single JSON file on ObjectStorage.
+    Stores the durable journal in a single JSON file on ObjectStorage.
 
-    All step caches (model responses and tool results) are stored as entries
-    in a single JSON blob, written to a file named after the task execution:
-    ``{base_path}/{dag_id}_{task_id}_{run_id}[_{map_index}].json``.
+    All journal steps are stored as entries
+    in a single JSON blob, written to ``{base_path}/{cache_id}.json`` where
+    ``cache_id`` is a hash of the task instance's identity (dag, task, run,
+    map index) so distinct task instances never share a file.
 
     The file survives Airflow task retries since it lives outside the
-    XCom system.  It is deleted on successful task completion.
+    XCom system. :meth:`delete_steps` removes the steps of a run that succeeded, and
+    the file once nothing is left in it.
 
     :param dag_id: DAG ID of the running task.
     :param task_id: Task ID of the running task.
@@ -73,8 +72,14 @@ class DurableStorage:
         run_id: str,
         map_index: int = -1,
     ) -> None:
-        suffix = f"_{map_index}" if map_index >= 0 else ""
-        self._cache_id = f"{dag_id}_{task_id}_{run_id}{suffix}"
+        # Hash the identity components with a separator that cannot appear in
+        # them, so distinct task instances can never alias to the same cache
+        # file. A plain ``_``-joined string collides -- e.g. dag ``etl`` + task
+        # ``load_data`` and dag ``etl_load`` + task ``data`` both yield
+        # ``etl_load_data`` -- letting one task read, overwrite, or delete
+        # another's durable cache.
+        identity = "\x00".join([dag_id, task_id, run_id, str(map_index)])
+        self._cache_id = hashlib.sha256(identity.encode()).hexdigest()
         self._cache: dict[str, Any] | None = None
 
     def _get_path(self):
@@ -93,66 +98,49 @@ class DurableStorage:
 
         return self._cache
 
-    def _save_cache(self) -> None:
-        """Persist the in-memory cache blob to storage."""
+    def _write(self, text: str) -> None:
+        """Persist the encoded journal to storage."""
         path = self._get_path()
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self._cache))
+        path.write_text(text)
 
-    def save_model_response(self, key: str, response: ModelResponse) -> None:
-        """Serialize and store a ModelResponse in the cache."""
-        cache = self._load_cache()
-        cache[key] = ModelMessagesTypeAdapter.dump_json([response]).decode()
-        self._save_cache()
-
-    def load_model_response(self, key: str) -> ModelResponse | None:
-        """Load a cached ModelResponse, or return None if not cached."""
-        cache = self._load_cache()
-        raw = cache.get(key)
-        if raw is None:
-            return None
-        messages = ModelMessagesTypeAdapter.validate_json(raw)
-        return messages[0]  # type: ignore[return-value]
-
-    def save_tool_result(self, key: str, result: Any) -> None:
+    def save_step(self, key: str, entry: dict[str, Any]) -> bool:
         """
-        Store a tool call result in the cache.
+        Store one journal step and rewrite the journal file.
 
-        Non-serializable results (e.g. BinaryContent from MCP tools) are
-        skipped with a warning -- the tool call still succeeds, but won't
-        be replayed on retry.
+        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
         """
         cache = self._load_cache()
+        cache[key] = entry
         try:
-            cache[key] = json.dumps({_SENTINEL: True, "value": result})
-        except TypeError:
-            log.warning(
-                "Durable: skipping cache for non-serializable tool result",
-                key=key,
-                type=type(result).__name__,
-            )
-            return
-        self._save_cache()
+            text = json.dumps(cache)
+        except (TypeError, ValueError):
+            # Only this entry is skipped; the rest of the journal is still written.
+            del cache[key]
+            log.warning("Durable: could not store step", key=key, exc_info=True)
+            return False
+        self._write(text)
+        return True
 
-    def load_tool_result(self, key: str) -> tuple[bool, Any]:
-        """
-        Load a cached tool result.
+    def load_step(self, key: str) -> dict[str, Any] | None:
+        """Load one journal step, or ``None`` when there is none or it is not a journal entry."""
+        raw = self._load_cache().get(key)
+        return raw if isinstance(raw, dict) else None
 
-        Returns (found, value) tuple since the cached value itself could be None.
-        """
+    def delete_steps(self, keys: Iterable[str]) -> None:
+        """Remove these steps, and the journal file once nothing is left in it."""
         cache = self._load_cache()
-        raw = cache.get(key)
-        if raw is None:
-            return False, None
-        parsed = json.loads(raw)
-        if not isinstance(parsed, dict) or _SENTINEL not in parsed:
-            return False, None
-        return True, parsed["value"]
-
-    def cleanup(self) -> None:
-        """Delete the cache file after successful execution."""
-        # Best-effort cleanup
-        with contextlib.suppress(FileNotFoundError, OSError):
-            self._get_path().unlink()
-        self._cache = None
-        log.debug("Durable cache cleaned up")
+        for key in keys:
+            cache.pop(key, None)
+        # Runs after the run has already succeeded, so it must never raise; a file left
+        # behind holds only steps a retry of this run would replay.
+        try:
+            if cache:
+                self._write(json.dumps(cache))
+            else:
+                self._get_path().unlink()
+                self._cache = None
+        except FileNotFoundError:
+            self._cache = None
+        except Exception:
+            log.warning("Durable: could not clean up the journal file", exc_info=True)

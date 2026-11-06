@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { CSSProperties } from "react";
+
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
 import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
@@ -30,6 +32,7 @@ SyntaxHighlighter.registerLanguage("yaml", yaml);
 SyntaxHighlighter.registerLanguage("sql", sql);
 SyntaxHighlighter.registerLanguage("bash", bash);
 
-export { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+export type SyntaxTheme = Record<string, CSSProperties>;
 
+export { oneDark, oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 export { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";

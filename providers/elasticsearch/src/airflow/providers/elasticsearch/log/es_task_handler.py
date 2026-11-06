@@ -40,23 +40,27 @@ import elasticsearch
 import pendulum
 from elasticsearch import helpers
 from elasticsearch.exceptions import NotFoundError
+from pydantic import ValidationError
 
 import airflow.logging_config as alc
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import conf, timezone
 from airflow.providers.elasticsearch._compat import apply_compat_with
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
 from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit, resolve_nested
-from airflow.providers.elasticsearch.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
+from airflow.providers.elasticsearch.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_2_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 if AIRFLOW_V_3_2_PLUS:
     from airflow._shared.module_loading import import_string
-    from airflow.sdk import timezone
 else:
-    from airflow.utils import timezone  # type: ignore[attr-defined,no-redef]
     from airflow.utils.module_loading import import_string  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
@@ -74,6 +78,8 @@ if AIRFLOW_V_3_0_PLUS:
 else:
     EsLogMsgType = list[tuple[str, str]]  # type: ignore[assignment,misc]
 
+
+logger = logging.getLogger(__name__)
 
 LOG_LINE_DEFAULTS = {"exc_text": "", "stack_info": ""}
 # Elasticsearch hosted log type
@@ -119,11 +125,11 @@ def _format_error_detail(error_detail: Any) -> str | None:
 
 def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     """Filter an ES hit to ``TASK_LOG_FIELDS`` and ensure compatibility with StructuredLogMessage."""
-    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS or k == "@timestamp"}
+    fields = {k: v for k, v in hit_dict.items() if k.lower() in TASK_LOG_FIELDS}
 
-    # Map @timestamp to timestamp
-    if "@timestamp" in fields and "timestamp" not in fields:
-        fields["timestamp"] = fields.pop("@timestamp")
+    # Map @timestamp to timestamp but not include `@timestamp` in log fields
+    if "@timestamp" in hit_dict and "timestamp" not in fields:
+        fields["timestamp"] = hit_dict["@timestamp"]
 
     # Map levelname to level
     if "levelname" in fields and "level" not in fields:
@@ -137,6 +143,29 @@ def _build_log_fields(hit_dict: dict[str, Any]) -> dict[str, Any]:
     if "error_detail" in fields and not fields["error_detail"]:
         fields.pop("error_detail")
     return fields
+
+
+def _safe_build_structured_log_message(hit_dict: dict[str, Any]) -> StructuredLogMessage:
+    """
+    Build a StructuredLogMessage from a stored Elasticsearch hit, tolerating malformed fields.
+
+    A single malformed stored log entry (for example a non-string ``event`` produced by
+    logging a list or dict as the sole message argument) must not fail the entire
+    log-fetch request. Fall back to a stringified event, mirroring the fallback used for
+    unparsable raw log lines in ``_log_stream_to_parsed_log_stream``.
+    """
+    fields = _build_log_fields(hit_dict)
+    try:
+        return StructuredLogMessage(**fields)
+    except ValidationError:
+        logger.debug(
+            "Failed to parse stored log entry into StructuredLogMessage; falling back to "
+            "stringified event. Offending fields: %s",
+            fields,
+        )
+        return StructuredLogMessage(
+            event=str(fields.get("event", hit_dict)), timestamp=fields.get("timestamp")
+        )
 
 
 VALID_ES_CONFIG_KEYS = set(inspect.signature(elasticsearch.Elasticsearch.__init__).parameters.keys())
@@ -192,13 +221,39 @@ def _strip_userinfo(url: str) -> str:
 
 
 def _render_log_id(log_id_template: str, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    stored_index = getattr(ti, "region_index", None)
     return log_id_template.format(
         dag_id=ti.dag_id,
         task_id=ti.task_id,
         run_id=getattr(ti, "run_id", ""),
         try_number=try_number,
-        map_index=getattr(ti, "map_index", ""),
+        map_index=stored_index if stored_index is not None else getattr(ti, "map_index", ""),
     )
+
+
+def _get_ti_id_fields(ti: TaskInstance | TaskInstanceKey) -> dict[str, str]:
+    # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
+    if not AIRFLOW_V_3_4_PLUS:
+        return {}
+    return {"ti_id": str(ti_id)} if (ti_id := getattr(ti, "id", None)) else {}
+
+
+def _build_log_query(log_id: str, ti: RuntimeTI) -> list[dict[str, Any]]:
+    log_id_match = {"match_phrase": {"log_id": log_id}}
+    # Before 3.4 a cleared task instance gets a new id, which can differ from the id its logs were written under.
+    if not AIRFLOW_V_3_4_PLUS:
+        return [log_id_match]
+    return [
+        {
+            "bool": {
+                "should": [
+                    {"match_phrase": {"ti_id": str(ti.id)}},
+                    {"bool": {"must": [log_id_match], "must_not": {"exists": {"field": "ti_id"}}}},
+                ],
+                "minimum_should_match": 1,
+            }
+        }
+    ]
 
 
 def _clean_date(value: datetime | None) -> str:
@@ -388,6 +443,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                          can be used for steaming log reading and auto-tailing.
         :return: a list of tuple with host and log documents, metadata.
         """
+        # In Airflow 3 logs reach Elasticsearch only after the task finishes, so a running task
+        # has nothing to read there yet. Defer to the base handler for live worker/executor logs,
+        # as S3/GCS do. Airflow 2 has no remote-log-IO read path, so it keeps the ES-only path below.
+        if (
+            AIRFLOW_V_3_0_PLUS
+            and ti.try_number == try_number
+            and ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED)
+        ):
+            return super()._read(ti, try_number, metadata)  # type: ignore[return-value]
+
         if not metadata:
             # LogMetadata(TypedDict) is used as type annotation for log_reader; added ignore to suppress mypy error
             metadata = {"offset": 0}  # type: ignore[assignment]
@@ -461,7 +526,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
                 # Flatten all hits, filter to only desired fields, and construct StructuredLogMessage objects
                 message = header + [
-                    StructuredLogMessage(**_build_log_fields(hit.to_dict()))
+                    _safe_build_structured_log_message(hit.to_dict())
                     for hits in logs_by_host.values()
                     for hit in hits
                 ]
@@ -675,6 +740,28 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
     processors = ()
 
+    @classmethod
+    def from_config(cls) -> ElasticsearchRemoteLogIO:
+        """
+        Build the remote log IO from Airflow logging and ``[elasticsearch]`` configuration.
+
+        Mirrors the legacy branch in ``airflow_local_settings.py``. Unlike the object-storage
+        backends, this does not merge ``[logging] remote_task_handler_kwargs`` IO-kwargs, matching
+        the legacy behavior for Elasticsearch.
+        """
+        return cls(
+            base_log_folder=os.path.expanduser(conf.get_mandatory_value("logging", "base_log_folder")),
+            delete_local_copy=conf.getboolean("logging", "delete_local_logs"),
+            host=conf.get("elasticsearch", "host") or "http://localhost:9200",
+            target_index=conf.get_mandatory_value("elasticsearch", "target_index"),
+            write_stdout=conf.getboolean("elasticsearch", "write_stdout"),
+            write_to_es=conf.getboolean("elasticsearch", "write_to_es"),
+            json_format=conf.getboolean("elasticsearch", "json_format"),
+            host_field=conf.get_mandatory_value("elasticsearch", "host_field"),
+            offset_field=conf.get_mandatory_value("elasticsearch", "offset_field"),
+            log_id_template=conf.get_mandatory_value("elasticsearch", "log_id_template"),
+        )
+
     def __attrs_post_init__(self):
         es_kwargs = get_es_kwargs_from_config()
         self.client = apply_compat_with(elasticsearch.Elasticsearch(self.host, **es_kwargs))
@@ -704,21 +791,24 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             local_loc = self.base_log_folder.joinpath(path)
 
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
+        ti_id_fields = _get_ti_id_fields(ti)  # type: ignore[arg-type]
         if local_loc.is_file() and self.write_stdout:
             # Intentionally construct the log_id and offset field
 
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti_id_fields)
             for line in log_lines:
                 sys.stdout.write(json.dumps(line) + "\n")
                 sys.stdout.flush()
 
         if local_loc.is_file() and self.write_to_es:
-            log_lines = self._parse_raw_log(local_loc.read_text(), log_id)
+            log_lines = self._parse_raw_log(local_loc.read_text(), log_id, ti_id_fields)
             success = self._write_to_es(log_lines)
             if success and self.delete_local_copy:
                 shutil.rmtree(os.path.dirname(local_loc))
 
-    def _parse_raw_log(self, log: str, log_id: str) -> list[dict[str, Any]]:
+    def _parse_raw_log(
+        self, log: str, log_id: str, extra_fields: dict[str, str] | None = None
+    ) -> list[dict[str, Any]]:
         logs = log.split("\n")
         parsed_logs = []
         offset = 1
@@ -744,6 +834,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             log_dict.update(
                 {
                     "log_id": log_id,
+                    **(extra_fields or {}),
                     self.offset_field: offset,
                 }
             )
@@ -772,7 +863,10 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             self.log.exception("Unable to insert logs into Elasticsearch. Reason: %s", str(e))
             return False
 
-    def read(self, _relative_path: str, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages]:
+    def read(self, _relative_path: str, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages]:
+        if ti is None:
+            # Logs are keyed by task instance, and ``upload`` skips logs without one.
+            return [], []
         log_id = _render_log_id(self.log_id_template, ti, ti.try_number)  # type: ignore[arg-type]
         self.log.info("Reading log %s from Elasticsearch", log_id)
         offset = 0
@@ -826,7 +920,7 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
         query: dict[Any, Any] = {
             "bool": {
                 "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
-                "must": [{"match_phrase": {"log_id": log_id}}],
+                "must": _build_log_query(log_id, ti),
             }
         }
 

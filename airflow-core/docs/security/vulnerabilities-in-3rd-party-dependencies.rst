@@ -91,7 +91,7 @@ used by Airflow and you would like to get rid of those. There are a few things y
   dependency. That helps other community members to be more confident about upgrading and might make them
   aware of some of 3rd-party vulnerabilities that they were not aware of.
 
-* In case your version of Airflow or some of it's providers, prevent you from upgrading to a non-vulnerable version of the
+* In case your version of Airflow or some of its providers prevent you from upgrading to a non-vulnerable version of the
   dependency, you can see if latest versions of Airflow or providers removed any limitations - you can check
   constraint files and :doc:`sbom` we publish for all Airflow versions (industry-standard way of capturing
   inventory of dependencies). If you see that you can upgrade, upgrade - ideally - to latest versions of
@@ -141,7 +141,7 @@ used by Airflow and you would like to get rid of those. There are a few things y
       git clone git@github.com:apache/airflow.git
       cd airflow
       ./scripts/tools/setup_breeze
-      breeze release-management constraints-version-check --python 3.10 --package PACKAGE_NAME --explain-why
+      breeze release-management constraints-version-check --python 3.11 --package PACKAGE_NAME --explain-why
 
   Fragment of example output of such tool is shown below - indicating that ``apache-beam`` blocks upgrade of
   ``grpcio`` package to version 1.56.0:

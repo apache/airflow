@@ -19,8 +19,14 @@
 import {
   UseDagRunServiceGetDagRunsKeyFn,
   UseDagServiceGetDagDetailsKeyFn,
+  useDagServiceGetDagRunStateCountsUiKey,
+  useDagServiceGetDagsUiKey,
   UseDagServiceGetLatestRunInfoKeyFn,
+  useDagServiceGetRecentTaskInstanceStateCountsUiKey,
+  UseGridServiceGetDagStructureKeyFn,
   UseGridServiceGetGridRunsKeyFn,
+  UseGridServiceGetLoopHistoryKeyFn,
+  UseGridServiceGetLoopSummaryKeyFn,
   useTaskInstanceServiceGetExtraLinksKey,
   useTaskInstanceServiceGetLogKey,
   UseTaskInstanceServiceGetTaskInstancesKeyFn,
@@ -30,11 +36,22 @@ import {
 export const gridQueryKeys = (dagId: string) =>
   [
     UseGridServiceGetGridRunsKeyFn({ dagId }, [{ dagId }]),
+    UseGridServiceGetLoopSummaryKeyFn({ dagId, groupId: "", runId: "" }, [{ dagId }]),
+    UseGridServiceGetLoopHistoryKeyFn({ dagId, groupId: "" }, [{ dagId }]),
+    // Structure is topology only, so it's invalidated on run changes here rather than polled.
+    UseGridServiceGetDagStructureKeyFn({ dagId }, [{ dagId }]),
     UseDagServiceGetDagDetailsKeyFn({ dagId }, [{ dagId }]),
     UseDagServiceGetLatestRunInfoKeyFn({ dagId }, [{ dagId }]),
     UseDagRunServiceGetDagRunsKeyFn({ dagId }, [{ dagId }]),
     UseTaskInstanceServiceGetTaskInstancesKeyFn({ dagId, dagRunId: "~" }, [{ dagId, dagRunId: "~" }]),
   ] as const;
+
+/** Prefix keys for the Dag cards on the Dags list, which a change to a Dag run leaves stale. */
+export const dagListQueryKeys = [
+  [useDagServiceGetDagsUiKey],
+  [useDagServiceGetDagRunStateCountsUiKey],
+  [useDagServiceGetRecentTaskInstanceStateCountsUiKey],
+] as const;
 
 /** Prefix keys for per-attempt TI caches that become stale after any mutation. */
 export const tiPerAttemptQueryKeys = [

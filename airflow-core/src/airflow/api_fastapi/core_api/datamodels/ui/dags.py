@@ -18,18 +18,22 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 from airflow.api_fastapi.core_api.datamodels.dags import DAGResponse
 from airflow.api_fastapi.core_api.datamodels.hitl import HITLDetail
 from airflow.api_fastapi.core_api.datamodels.ui.dag_runs import DAGRunLightResponse
+from airflow.utils.state import DagRunState
 
 
 class DAGWithLatestDagRunsResponse(DAGResponse):
     """DAG with latest dag runs response serializer."""
 
-    asset_expression: dict | None
+    asset_expression: MaybeAssetExpression
     latest_dag_runs: list[DAGRunLightResponse]
+    has_unfinished_runs: bool
     pending_actions: list[HITLDetail]
     is_favorite: bool
+    team_name: str | None = None
 
 
 class DAGWithLatestDagRunsCollectionResponse(BaseModel):
@@ -37,3 +41,58 @@ class DAGWithLatestDagRunsCollectionResponse(BaseModel):
 
     total_entries: int
     dags: list[DAGWithLatestDagRunsResponse]
+
+
+class DagTimetableTypeCollectionResponse(BaseModel):
+    """Timetable types used by Dags."""
+
+    timetable_types: list[str]
+    total_entries: int
+
+
+class DAGRunStateCountsResponse(BaseModel):
+    """Per-Dag counts of DagRuns grouped by state."""
+
+    dag_id: str
+    state_counts: dict[DagRunState, int]
+
+
+class DAGRecentTaskInstanceStateCountsResponse(BaseModel):
+    """
+    Task-instance state counts for a Dag's recent runs.
+
+    The counts cover every running Dag run, or the latest run when none is running;
+    ``run_ids`` lists those runs. ``state_counts`` only carries states present in them;
+    task instances without a state yet are keyed as ``no_status``.
+    """
+
+    dag_id: str
+    run_ids: list[str]
+    state_counts: dict[str, int]
+
+
+class DAGsRecentTaskInstanceStateCountsCollectionResponse(BaseModel):
+    """Collection of per-Dag recent task-instance state counts for the Dag list page."""
+
+    dags: list[DAGRecentTaskInstanceStateCountsResponse]
+
+
+class DAGsRunStateCountsCollectionResponse(BaseModel):
+    """Collection of per-Dag DagRun-state counts for the Dag list page."""
+
+    dags: list[DAGRunStateCountsResponse]
+    state_count_limit: int
+
+
+class DagFolderResponse(BaseModel):
+    """A distinct Dag folder (directory of ``relative_fileloc``) within a bundle."""
+
+    bundle_name: str
+    folder: str
+
+
+class DagFolderCollectionResponse(BaseModel):
+    """Collection of distinct Dag folders, each scoped to the bundle it belongs to."""
+
+    folders: list[DagFolderResponse]
+    total_entries: int

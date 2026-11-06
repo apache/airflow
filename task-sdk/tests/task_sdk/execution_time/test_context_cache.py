@@ -97,6 +97,8 @@ class TestConnectionCacheIntegration:
             port=3306,
             login="user",
             password="pass",
+            schema=None,
+            extra=None,
         )
 
         mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
@@ -281,6 +283,10 @@ class TestAsyncConnectionCache:
             conn_type="mysql",
             host="host",
             port=3306,
+            schema=None,
+            login=None,
+            password=None,
+            extra=None,
         )
 
         # Configure asend to return the conn_result when awaited
@@ -296,6 +302,35 @@ class TestAsyncConnectionCache:
         cached_conn = Connection.from_uri(cached_uri, conn_id=conn_id)
         assert cached_conn.conn_type == "mysql"
         assert cached_conn.host == "host"
+
+    @pytest.mark.asyncio
+    @patch("airflow.sdk.execution_time.context.amask_secret")
+    async def test_async_get_connection_masks_secrets(self, mock_amask_secret):
+        """Test that async connection secrets are masked from logs using amask_secret."""
+        from airflow.sdk.execution_time.context import _async_get_connection
+
+        conn_id = "test_conn"
+        conn = Connection(
+            conn_id=conn_id, conn_type="mysql", login="user", password="password", extra='{"key": "value"}'
+        )
+
+        mock_backend = MagicMock(spec=["aget_connection"])
+        mock_backend.aget_connection = AsyncMock(return_value=conn)
+
+        with patch(
+            "airflow.sdk.execution_time.supervisor.ensure_secrets_backend_loaded", return_value=[mock_backend]
+        ):
+            result = await _async_get_connection(conn_id)
+
+            assert result.conn_id == conn_id
+            # Check that password and extra were masked using amask_secret (async version)
+            mock_amask_secret.assert_has_calls(
+                [
+                    call("password"),
+                    call('{"key": "value"}'),
+                ],
+                any_order=True,
+            )
 
 
 class TestCacheDisabled:
@@ -315,7 +350,16 @@ class TestCacheDisabled:
     def test_get_connection_no_cache_when_disabled(self, mock_ensure_backends, mock_supervisor_comms):
         """Test that cache is not used when disabled."""
         conn_id = "test_conn"
-        conn_result = ConnectionResult(conn_id=conn_id, conn_type="mysql", host="host")
+        conn_result = ConnectionResult(
+            conn_id=conn_id,
+            conn_type="mysql",
+            host="host",
+            schema=None,
+            login=None,
+            password=None,
+            port=None,
+            extra=None,
+        )
 
         mock_ensure_backends.return_value = [ExecutionAPISecretsBackend()]
 

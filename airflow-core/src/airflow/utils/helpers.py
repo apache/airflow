@@ -22,7 +22,6 @@ import itertools
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
-from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urljoin
 
@@ -38,8 +37,6 @@ if TYPE_CHECKING:
     import jinja2
     from typing_extensions import TypeIs
 
-    from airflow.models.taskinstance import TaskInstance
-
     CT = TypeVar("CT", str, datetime)
 
 KEY_REGEX = re.compile(r"^[\w.-]+$")
@@ -54,17 +51,15 @@ def validate_key(k: str, max_length: int = 250):
     """Validate value used as a key."""
     if not isinstance(k, str):
         raise TypeError(f"The key has to be a string and is {type(k)}:{k}")
-    if len(k) > max_length:
-        raise AirflowException(f"The key: {k} has to be less than {max_length} characters")
+    if (length := len(k)) > max_length:
+        raise ValueError(f"The key has to be less than {max_length} characters, not {length}")
     if not KEY_REGEX.match(k):
-        raise AirflowException(
+        raise ValueError(
             f"The key {k!r} has to be made of alphanumeric characters, dashes, "
             f"dots and underscores exclusively"
         )
     if ".." in k and not conf.getboolean("core", "allow_double_dot_in_ids", fallback=False):
-        raise AirflowException(
-            f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal"
-        )
+        raise ValueError(f"The key {k!r} must not contain consecutive dots ('..') to prevent path traversal")
 
 
 def ask_yesno(question: str, default: bool | None = None, output_fn=print) -> bool:
@@ -141,26 +136,6 @@ def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None
     if "{{" in template_string:  # jinja mode
         return None, jinja2.Template(template_string)
     return template_string, None
-
-
-@cache
-def log_filename_template_renderer() -> Callable[..., str]:
-    template = conf.get("logging", "log_filename_template")
-
-    if "{{" in template:
-        import jinja2
-
-        return jinja2.Template(template).render
-
-    def f_str_format(ti: TaskInstance, try_number: int | None = None):
-        return template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
-            try_number=try_number or ti.try_number,
-        )
-
-    return f_str_format
 
 
 def convert_camel_to_snake(camel_str: str) -> str:
@@ -313,6 +288,7 @@ def __getattr__(name: str):
     except KeyError:
         raise AttributeError(f"module '{__name__}' has no attribute '{name}'") from None
 
+    import importlib
     import warnings
 
     warnings.warn(
@@ -320,4 +296,5 @@ def __getattr__(name: str):
         DeprecationWarning,
         stacklevel=2,
     )
-    return getattr(__import__(modpath), name)
+    mod = importlib.import_module(modpath)
+    return getattr(mod, name)

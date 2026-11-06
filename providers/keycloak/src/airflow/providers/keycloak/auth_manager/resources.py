@@ -22,6 +22,11 @@ from enum import Enum
 class KeycloakResource(Enum):
     """Enum of Keycloak resources."""
 
+    # Views over records that carry no per-Dag or per-team key to authorize on (audit log rows not
+    # tied to a Dag, import errors for files with no registered Dag, ...). In multi-team mode they
+    # are checked against this resource rather than ``VIEW`` so that they are not granted along
+    # with the views every team role can read.
+    ADMIN_VIEW = "AdminView"
     ASSET = "Asset"
     ASSET_ALIAS = "AssetAlias"
     BACKFILL = "Backfill"

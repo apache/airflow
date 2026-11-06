@@ -47,7 +47,11 @@ from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.docker_command_utils import remove_docker_networks, remove_docker_volumes
+from airflow_breeze.utils.docker_command_utils import (
+    remove_docker_networks,
+    remove_docker_volumes,
+    remove_stale_worktree_containers,
+)
 from airflow_breeze.utils.path_utils import AIRFLOW_HOME_PATH, BUILD_CACHE_PATH
 from airflow_breeze.utils.provider_dependencies import generate_provider_dependencies_if_needed
 from airflow_breeze.utils.run_utils import run_command
@@ -124,7 +128,8 @@ def main(ctx: click.Context, **kwargs: dict[str, Any]):
 
     check_for_rosetta_environment()
     check_for_python_emulation()
-    generate_provider_dependencies_if_needed()
+    if not any(argument in {"-h", "--help"} for argument in sys.argv[1:]):
+        generate_provider_dependencies_if_needed()
 
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
@@ -211,7 +216,7 @@ def check_for_rosetta_environment():
 
 @main.command(
     name="cleanup",
-    help="Cleans the cache of parameters, docker cache and optionally built CI/PROD images.",
+    help="Cleans caches, deleted-worktree containers, unused Breeze volumes and optionally CI/PROD images.",
 )
 @click.option(
     "--all",
@@ -258,14 +263,15 @@ def cleanup(all: bool):
                 sys.exit(0)
         else:
             console_print("[info]No locally downloaded images to remove[/]\n")
+    given_answer = user_confirm("Remove containers, including running ones, belonging to deleted worktrees?")
+    if given_answer == Answer.YES:
+        remove_stale_worktree_containers()
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)
     console_print("Removing networks created by breeze")
     given_answer = user_confirm("Are you sure with the removal of docker networks created by breeze?")
     if given_answer == Answer.YES:
         remove_docker_networks()
-    console_print("Removing volumes created by breeze")
-    given_answer = user_confirm("Are you sure with the removal of docker volumes created by breeze?")
-    if given_answer == Answer.YES:
-        remove_docker_volumes()
     console_print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal of docker images?")
     if given_answer == Answer.YES:
@@ -274,6 +280,12 @@ def cleanup(all: bool):
             system_prune_command_to_execute,
             check=False,
         )
+    elif given_answer == Answer.QUIT:
+        sys.exit(0)
+    console_print("Removing unused volumes created by breeze across all projects")
+    given_answer = user_confirm("Are you sure with the removal of unused docker volumes created by breeze?")
+    if given_answer == Answer.YES:
+        remove_docker_volumes()
     elif given_answer == Answer.QUIT:
         sys.exit(0)
     console_print(f"Removing build cache dir {BUILD_CACHE_PATH}")

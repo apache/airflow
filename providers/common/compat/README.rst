@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-compat``
 
-Release: ``1.15.0``
+Release: ``1.23.1``
 
 
 Common Compatibility Provider - providing compatibility code for previous Airflow versions
@@ -36,7 +36,7 @@ This is a provider package for ``common.compat`` provider. All classes for this 
 are in ``airflow.providers.common.compat`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.15.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.23.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-compat``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -58,8 +58,8 @@ PIP package         Version required
 ``asgiref``         ``>=3.11.1; python_version >= "3.14"``
 ==================  ======================================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -88,4 +88,4 @@ Extra            Dependencies
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.15.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-compat/1.23.1/changelog.html>`_.

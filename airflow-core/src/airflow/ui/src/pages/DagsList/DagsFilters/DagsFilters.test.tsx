@@ -16,11 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeAll, describe, it, expect, vi } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
+import { server } from "src/mocks/server";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+
+beforeAll(() => preloadAppRoutes(["/dags"]));
 
 const mockConfig: Record<string, unknown> = {
   auto_refresh_interval: 3,
@@ -38,25 +42,90 @@ vi.mock("src/queries/useConfig", () => ({
   useConfig: (key: string) => mockConfig[key],
 }));
 
+// Only the draining assertions need a fourth Dag, and every extra row is re-rendered by each
+// test that leans on the default fixture, so it is served per-test rather than globally.
+
+const withDrainingDag = () => server.use(dagsListHandler([...defaultDags, drainingDag]));
+
+const addFilter = async (key: string) => {
+  fireEvent.click(screen.getByTestId("add-filter-button"));
+  fireEvent.click(await screen.findByTestId(`add-filter-${key}`));
+};
+
+const selectPillOption = async (key: string, value: string) => {
+  fireEvent.click(await screen.findByTestId(`${key}-pill`));
+  fireEvent.click(await screen.findByTestId(`${key}-filter`));
+  fireEvent.click(await screen.findByTestId(`${key}-filter-${value}`));
+};
+
 describe("Paused filter with hide_paused_dags_by_default enabled", () => {
+  afterEach(() => {
+    mockConfig.multi_team = false;
+  });
+
   it("defaults to showing only active dags", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
-    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
-    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
   });
 
-  it("shows all dags after clicking All filter", async () => {
+  it("keeps draining dags under the default, since they are not paused yet", async () => {
+    withDrainingDag();
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("draining_dag")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows the default as a pill rather than filtering invisibly", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
-    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
-    // There are two "All" buttons (StateFilters and PausedFilter).
-    // The second one belongs to PausedFilter.
-    const allButtons = screen.getAllByText("filters.paused.all");
+    const pill = await screen.findByTestId("paused-pill");
 
-    allButtons[1]?.click();
+    expect(pill).toHaveTextContent("filters.paused.active");
+  });
+
+  it("restores the draining choice from a scheduling_state url", async () => {
+    withDrainingDag();
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=draining"]} />);
+
+    const pill = await screen.findByTestId("paused-pill");
+
+    // Draining is narrower than not-paused, so the shared pill has to report the narrower one.
+    expect(pill).toHaveTextContent("draining.label");
+    await waitFor(() => expect(screen.getByText("draining_dag")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+  });
+
+  it("offers one state pill rather than a separate scheduling state", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByTestId("paused-pill")).toBeInTheDocument());
+    expect(screen.queryByTestId("scheduling_state-pill")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+
+    expect(screen.queryByTestId("add-filter-scheduling_state")).not.toBeInTheDocument();
+  });
+
+  it("shows all dags after removing the paused filter", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    });
+
+    // There is no "All" option any more; removing the pill is how you ask for every Dag.
+    fireEvent.click(screen.getByTestId("paused-pill-remove"));
+
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });
@@ -66,8 +135,151 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
 
-    screen.getByText("filters.paused.paused").click();
+    await selectPillOption("paused", "paused");
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
+  });
+
+  it("filters dags by a timetable type picked from the menu", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+
+    await addFilter("timetable_type");
+
+    const input = await screen.findByLabelText("filters.timetableType");
+
+    // The editor takes focus a frame after opening; typing before that lands nowhere.
+    await waitFor(() => expect(input).toHaveFocus());
+    fireEvent.change(input, { target: { value: "Cron" } });
+
+    expect(screen.queryByText("NullTimetable")).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByText("CronTriggerTimetable"));
+
+    await waitFor(() => {
+      expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+  });
+
+  it("shows every dag again once the timetable type filter is removed", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type=CronTriggerTimetable"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument());
+    expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument();
+
+    fireEvent.click(await screen.findByTestId("timetable_type-pill-remove"));
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+  });
+
+  it("restores timetable types from the URL", async () => {
+    render(
+      <AppWrapper
+        initialEntries={["/dags?timetable_type=CronTriggerTimetable&timetable_type=NullTimetable"]}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+      expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+    });
+    // The collapsed pill lists its values as a single joined string.
+    const pill = screen.getByTestId("timetable_type-pill");
+
+    expect(pill).toHaveTextContent("CronTriggerTimetable");
+    expect(pill).toHaveTextContent("NullTimetable");
+  });
+
+  it("ignores an empty timetable type from the URL", async () => {
+    render(<AppWrapper initialEntries={["/dags?timetable_type="]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_failed")).toBeInTheDocument();
+  });
+
+  it("renders the team filter when multi-team is enabled", async () => {
+    mockConfig.multi_team = true;
+
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+
+    expect(await screen.findByTestId("add-filter-teams")).toBeInTheDocument();
+  });
+
+  it("renders the preset filters menu", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    expect(await screen.findByTestId("preset-filters-button")).toBeInTheDocument();
+  });
+});
+
+describe("Links written before draining moved into the pill", () => {
+  it.each([
+    {
+      entries: "/dags?paused=false",
+      expected: "filters.paused.active",
+      shown: "tutorial_taskflow_api_success",
+    },
+    { entries: "/dags?paused=true", expected: "filters.paused.paused", shown: "paused_dag" },
+    { entries: "/dags?scheduling_state=paused", expected: "filters.paused.paused", shown: "paused_dag" },
+  ])("restores $entries onto the Paused state pill", async ({ entries, expected, shown }) => {
+    render(<AppWrapper initialEntries={[entries]} />);
+
+    const pill = await screen.findByTestId("paused-pill");
+
+    expect(pill).toHaveTextContent(expected);
+    await waitFor(() => expect(screen.getByText(shown)).toBeInTheDocument());
+  });
+
+  it("restores the dashboard Active Dags filter and excludes paused and draining Dags", async () => {
+    withDrainingDag();
+    render(<AppWrapper initialEntries={["/dags?scheduling_state=active"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    expect(screen.getByTestId("paused-pill")).toHaveTextContent("stats.activeDags");
+    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+    expect(screen.queryByText("draining_dag")).not.toBeInTheDocument();
+
+    await selectPillOption("paused", "not_paused");
+    await waitFor(() => expect(screen.getByTestId("paused-pill")).toHaveTextContent("filters.paused.active"));
+    await waitFor(() => expect(screen.getByText("draining_dag")).toBeInTheDocument());
+    expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+
+    await selectPillOption("paused", "active");
+    await waitFor(() => expect(screen.getByTestId("paused-pill")).toHaveTextContent("stats.activeDags"));
+    await waitFor(() => expect(screen.queryByText("draining_dag")).not.toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("paused-pill-remove"));
+    await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
+    expect(screen.getByText("draining_dag")).toBeInTheDocument();
+  });
+});
+
+const withBrokenDag = () => server.use(dagsListHandler([...defaultDags, brokenDag]));
+
+describe("Import errors filter", () => {
+  it.each([
+    { expected: "broken_dag", param: "true", unexpected: "tutorial_taskflow_api_success" },
+    { expected: "tutorial_taskflow_api_success", param: "false", unexpected: "broken_dag" },
+  ])("filters dags by has_import_errors=$param", async ({ expected, param, unexpected }) => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={[`/dags?has_import_errors=${param}`]} />);
+
+    await waitFor(() => expect(screen.getByText(expected)).toBeInTheDocument());
+    expect(screen.queryByText(unexpected)).not.toBeInTheDocument();
+  });
+
+  it("shows both when the filter is unset", async () => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("broken_dag")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });
 });

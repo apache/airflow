@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import ValidationError
@@ -27,6 +28,7 @@ from airflow.api_fastapi.core_api.datamodels.asset_state_store import AssetState
 from airflow.models.asset import AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_assets
 
 pytestmark = pytest.mark.db_test
@@ -85,6 +87,60 @@ class TestAssetNotFound(TestAssetStateEndpoint):
 
 
 class TestListAssetState(TestAssetStateEndpoint):
+    @pytest.mark.parametrize("exact", [False, True])
+    def test_readers_preserve_recorded_writer_identity_without_task_lookup(self, test_client, exact):
+        identity = dict(task_instance_id=uuid4(), region_id=uuid4(), region_index=2, try_number=3)
+        fields = {f"last_updated_by_{name}": value for name, value in identity.items()} if exact else {}
+        row = AssetStateStoreModel(
+            asset_id=self.asset.id,
+            key="watermark",
+            value='"v"',
+            last_updated_by_kind="task",
+            last_updated_by_dag_id="removed_dag",
+            last_updated_by_run_id="removed_run",
+            last_updated_by_task_id="work",
+            last_updated_by_map_index=-1,
+            **fields,
+        )
+        self._session.add(row)
+        self._session.commit()
+
+        detail = test_client.get(f"{self._base_url}/watermark")
+        listed = test_client.get(self._base_url)
+
+        assert detail.status_code == listed.status_code == 200
+        expected = {name: str(value) if name.endswith("_id") else value for name, value in identity.items()}
+        for response in (detail.json(), listed.json()["asset_state_store"][0]):
+            assert {name: response["last_updated_by"].get(name) for name in identity} == (
+                expected if exact else dict.fromkeys(identity)
+            )
+
+    @pytest.mark.parametrize("region_id", [None, UUID(int=0)])
+    def test_writer_outside_a_region_has_no_region_fields(self, test_client, region_id):
+        self._session.add(
+            AssetStateStoreModel(
+                asset_id=self.asset.id,
+                key="watermark",
+                value='"v"',
+                last_updated_by_kind="task",
+                last_updated_by_dag_id="d",
+                last_updated_by_run_id="r",
+                last_updated_by_task_id="work",
+                last_updated_by_map_index=-1,
+                last_updated_by_task_instance_id=uuid4(),
+                last_updated_by_region_id=region_id,
+                last_updated_by_region_index=-1,
+                last_updated_by_try_number=1,
+            )
+        )
+        self._session.commit()
+
+        writer = test_client.get(f"{self._base_url}/watermark").json()["last_updated_by"]
+
+        assert "region_id" not in writer
+        assert "region_index" not in writer
+        assert writer["try_number"] == 1
+
     def test_returns_empty_list_when_no_state(self, test_client):
         response = test_client.get(self._base_url)
         assert response.status_code == 200
@@ -226,8 +282,15 @@ class TestSetAssetState(TestAssetStateEndpoint):
     def test_null_value_returns_422(self, test_client):
         assert test_client.put(f"{self._base_url}/watermark", json={"value": None}).status_code == 422
 
-    def test_oversized_value_returns_422(self, test_client):
-        assert test_client.put(f"{self._base_url}/watermark", json={"value": "x" * 65536}).status_code == 422
+    def test_put_value_over_limit_returns_422(self, test_client):
+        # default is 65535 bytes
+        big = "x" * 70000
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": big}).status_code == 422
+
+    @conf_vars({("state_store", "max_value_storage_bytes"): "0"})
+    def test_put_value_over_limit_accepted_when_limit_disabled(self, test_client):
+        big = "x" * 70000
+        assert test_client.put(f"{self._base_url}/watermark", json={"value": big}).status_code == 204
 
     @pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), {"a": float("nan")}, [float("inf")]])
     def test_non_finite_float_rejected_by_validator(self, bad_value):
@@ -359,7 +422,7 @@ class TestClearAssetState(TestAssetStateEndpoint):
 
 
 class TestRoutesNeverCallCustomBackend(TestAssetStateEndpoint):
-    """Tests to validate that core API routes must use MetastoreStateBackend directly."""
+    """Tests to validate that core API routes must use MetastoreBackend directly."""
 
     @pytest.mark.parametrize(
         ("method", "path_suffix", "kwargs"),

@@ -17,10 +17,13 @@
  * under the License.
  */
 import { useEffect, useState } from "react";
+
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 
 import type { GridRunsResponse } from "openapi/requests";
+
 import type { GridTask } from "src/layouts/Details/Grid/utils";
+
 import { buildTaskInstanceUrl } from "src/utils/links";
 
 import {
@@ -40,11 +43,10 @@ const detectModeFromUrl = (pathname: string): NavigationMode => {
   if (pathname.includes("/runs/") && !pathname.includes("/tasks/")) {
     return NavigationModes.RUN;
   }
-  if (pathname.includes("/tasks/") && !pathname.includes("/runs/")) {
-    return NavigationModes.TASK;
-  }
 
-  return NavigationModes.TI;
+  return pathname.includes("/tasks/") && !pathname.includes("/runs/")
+    ? NavigationModes.TASK
+    : NavigationModes.TI;
 };
 
 const isValidDirection = (direction: NavigationDirection, mode: NavigationMode): boolean => {

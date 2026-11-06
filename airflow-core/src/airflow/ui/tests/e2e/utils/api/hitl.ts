@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /**
  * HITL (Human-in-the-Loop) API helpers and end-to-end scenario.
  */
@@ -188,6 +187,28 @@ export async function setupHITLFlowViaAPI(
     expectedState: "success",
     runId: dagRunId,
     timeout: 120_000,
+  });
+
+  return dagRunId;
+}
+
+export async function setupPendingHITLFlowViaAPI(source: RequestLike, dagId: string): Promise<string> {
+  const request = getRequestContext(source);
+
+  await waitForDagReady(request, dagId);
+  const response = await request.patch(`${baseUrl}/api/v2/dags/${dagId}`, { data: { is_paused: false } });
+
+  if (!response.ok()) {
+    throw new Error(`Failed to unpause Dag ${dagId} (${response.status()})`);
+  }
+
+  const { dagRunId } = await apiTriggerDagRun(request, dagId);
+
+  await waitForTaskInstanceState(request, {
+    dagId,
+    expectedState: "awaiting_input",
+    runId: dagRunId,
+    taskId: "wait_for_input",
   });
 
   return dagRunId;

@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -39,17 +38,19 @@ import { Box, Text } from "@chakra-ui/react";
 import dayjs from "dayjs";
 import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
 import { useTranslation } from "react-i18next";
+import { useParams } from "react-router-dom";
 
 import type { CalendarTimeRangeResponse } from "openapi/requests/types.gen";
 
 import { CalendarCell } from "./CalendarCell";
 import { generateHourlyCalendarData } from "./calendarUtils";
-import type { CalendarScale, CalendarColorMode } from "./types";
+import type { CalendarScale, CalendarColorMode, DeadlineCounts } from "./types";
 
 dayjs.extend(isSameOrBefore);
 
 type Props = {
   readonly data: Array<CalendarTimeRangeResponse>;
+  readonly deadlineMap?: Map<string, DeadlineCounts>;
   readonly scale: CalendarScale;
   readonly selectedMonth: number;
   readonly selectedYear: number;
@@ -59,6 +60,7 @@ type Props = {
 
 export const HourlyCalendarView = ({
   data,
+  deadlineMap,
   scale,
   selectedMonth,
   selectedYear,
@@ -66,7 +68,13 @@ export const HourlyCalendarView = ({
   viewMode = "total",
 }: Props) => {
   const { t: translate } = useTranslation("dag");
-  const hourlyData = generateHourlyCalendarData(data, { selectedMonth, selectedYear, timezone });
+  const { dagId = "" } = useParams();
+  const hourlyData = generateHourlyCalendarData(data, {
+    deadlineMap,
+    selectedMonth,
+    selectedYear,
+    timezone,
+  });
 
   return (
     <Box data-testid="calendar-hourly-view" mb={4}>
@@ -167,7 +175,15 @@ export const HourlyCalendarView = ({
                 const hourData = day.hours.find((hourItem) => hourItem.hour === hour);
 
                 if (!hourData) {
-                  const emptyCounts = { failed: 0, planned: 0, queued: 0, running: 0, success: 0, total: 0 };
+                  const emptyCounts = {
+                    backfill: 0,
+                    failed: 0,
+                    planned: 0,
+                    queued: 0,
+                    running: 0,
+                    success: 0,
+                    total: 0,
+                  };
                   const emptyData = {
                     counts: emptyCounts,
                     date: `${dayjs(day.day).format("MMM DD")}, ${hour.toString().padStart(2, "0")}:00`,
@@ -178,6 +194,7 @@ export const HourlyCalendarView = ({
                     <CalendarCell
                       backgroundColor={scale.getColor(emptyCounts)}
                       cellData={emptyData}
+                      dagId={dagId}
                       index={index}
                       key={`${day.day}-${hour}`}
                       viewMode={viewMode}
@@ -194,6 +211,7 @@ export const HourlyCalendarView = ({
                   <CalendarCell
                     backgroundColor={scale.getColor(hourData.counts)}
                     cellData={formattedHourData}
+                    dagId={dagId}
                     index={index}
                     key={`${day.day}-${hour}`}
                     viewMode={viewMode}

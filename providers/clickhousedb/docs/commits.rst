@@ -29,7 +29,7 @@ Package apache-airflow-providers-clickhousedb
 `ClickHouse <https://clickhouse.com/>`__
 
 
-This is detailed commit list of changes for versions provider package: ``clickhouse``.
+This is detailed commit list of changes for versions provider package: ``clickhousedb``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 .. airflow-providers-commits::

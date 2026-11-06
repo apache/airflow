@@ -17,7 +17,9 @@
  * under the License.
  */
 import { expect, type Locator, type Page } from "@playwright/test";
+
 import { BasePage } from "tests/e2e/pages/BasePage";
+import { DATA_ROWS } from "tests/e2e/utils/ui/selectors";
 
 export class DagRunsTabPage extends BasePage {
   public readonly markRunAsButton: Locator;
@@ -29,7 +31,7 @@ export class DagRunsTabPage extends BasePage {
     super(page);
     this.markRunAsButton = page.getByTestId("mark-run-as-button").first();
     this.runsTable = page.getByTestId("table-list");
-    this.tableRows = this.runsTable.locator("tbody").getByRole("row");
+    this.tableRows = this.runsTable.locator(DATA_ROWS);
     this.triggerButton = page.getByTestId("trigger-dag-button");
   }
 
@@ -53,18 +55,6 @@ export class DagRunsTabPage extends BasePage {
     await runsTab.click();
     await expect(this.page).toHaveURL(/.*\/dags\/[^/]+\/runs/, { timeout: 15_000 });
     await this.waitForRunsTableToLoad();
-  }
-
-  public async filterByState(state: string): Promise<void> {
-    const currentUrl = new URL(this.page.url());
-
-    currentUrl.searchParams.set("state", state.toLowerCase());
-
-    await expect(async () => {
-      await this.navigateTo(currentUrl.pathname + currentUrl.search);
-      await expect(this.page).toHaveURL(/.*state=.*/);
-      await this.waitForRunsTableToLoad();
-    }).toPass({ intervals: [2000], timeout: 30_000 });
   }
 
   public async navigateToDag(dagId: string): Promise<void> {
@@ -121,20 +111,6 @@ export class DagRunsTabPage extends BasePage {
     return responseJson.dag_run_id;
   }
 
-  public async verifyFilteredByState(expectedState: string): Promise<void> {
-    await this.waitForRunsTableToLoad();
-
-    const rows = this.tableRows;
-
-    await expect(rows).not.toHaveCount(0);
-
-    const nonMatchingRows = rows.filter({
-      hasNot: this.page.getByTestId("state-badge").getByText(new RegExp(expectedState, "i")),
-    });
-
-    await expect(nonMatchingRows).toHaveCount(0);
-  }
-
   public async verifyRunDetailsDisplay(): Promise<void> {
     const firstRow = this.tableRows.first();
 
@@ -152,13 +128,6 @@ export class DagRunsTabPage extends BasePage {
     const timeElements = firstRow.locator("time");
 
     await expect(timeElements.first()).toBeVisible();
-  }
-
-  public async verifyRunsExist(): Promise<void> {
-    const firstRow = this.tableRows.first();
-
-    await expect(firstRow).toBeVisible({ timeout: 30_000 });
-    await expect(this.tableRows).not.toHaveCount(0);
   }
 
   public async verifySearchResults(pattern: string): Promise<void> {

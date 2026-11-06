@@ -51,7 +51,9 @@ from __future__ import annotations
 import asyncio
 import itertools
 import threading
+import traceback
 from collections.abc import Iterator
+from contextlib import suppress
 from datetime import datetime
 from functools import cached_property
 from pathlib import Path
@@ -76,7 +78,9 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
+    HITLDetailResponse,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -116,6 +120,39 @@ if TYPE_CHECKING:
 
 SendMsgType = TypeVar("SendMsgType", bound=BaseModel)
 ReceiveMsgType = TypeVar("ReceiveMsgType", bound=BaseModel)
+
+
+class DeadlockImminentError(BaseException):
+    """
+    Raised when ``send()`` is called from the event loop thread while an ``asend()`` is in flight.
+
+    An in-flight ``asend()`` holds (or is waiting to take) the channel's thread lock and can only
+    release it once its event loop runs again. That loop runs on the calling thread, so a blocking
+    ``send()`` there can never be satisfied: the loop cannot run while the thread is blocked. This
+    holds whether the loop is currently running (a sync SDK call from inside a coroutine) or paused
+    between two ``run_until_complete`` calls (a sync SDK call from the code that drives the loop).
+
+    Inherits from :class:`BaseException` so it escapes ``contextlib.suppress(Exception)``
+    and always surfaces to the caller.
+    """
+
+    def __init__(self, msg: object) -> None:
+        self.msg_type = type(msg).__name__
+        self.stack = "".join(traceback.format_stack())
+        super().__init__()
+
+    def __str__(self) -> str:
+        return (
+            f"comms.send() called from the event loop thread for message '{self.msg_type}' "
+            "— deadlock is imminent (asend() is concurrently in-flight and can only complete once "
+            "the event loop runs again on this thread). "
+            "Likely cause: BaseHook.get_hook() or BaseHook.get_connection() was called "
+            "from inside an async task, or a synchronous SDK call was made from the thread driving "
+            "the event loop while it was paused between two run_until_complete() calls. "
+            "Use the async equivalents instead: "
+            "await BaseHook.aget_hook() or await BaseHook.aget_connection()."
+            f"\nOffending call stack:\n{self.stack}"
+        )
 
 
 def _msgpack_enc_hook(obj: Any) -> Any:
@@ -173,6 +210,11 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
     rather than under the supervisor's own span.
     """
+    ti_id: UUID | None = None
+    """Id of the task instance whose trigger made this request, set only by the triggerer's trigger runner.
+
+    The supervisor forwards it so the API can act as that task instance.
+    """
 
 
 class _ResponseFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, omit_defaults=True):  # type: ignore[call-arg]
@@ -204,23 +246,56 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
     err_decoder: TypeAdapter[ErrorResponse] = attrs.field(factory=lambda: TypeAdapter(ToTask), repr=False)
 
-    # Threading lock for sync operations
     _thread_lock: threading.Lock = attrs.field(factory=threading.Lock, repr=False)
-    # Async lock for async operations
     _async_lock: asyncio.Lock = attrs.field(factory=asyncio.Lock, repr=False)
+    _loop_thread_id: int | None = attrs.field(default=None, repr=False, init=False)
 
     def _make_frame(self, msg: SendMsgType) -> _RequestFrame:
         carrier: dict[str, str] = {}
         _trace_propagator.inject(carrier)
         return _RequestFrame(id=next(self.id_counter), body=msg.model_dump(), context_carrier=carrier or None)
 
+    @property
+    def _is_on_loop_thread(self) -> bool:
+        if threading.get_ident() == self._loop_thread_id:
+            with suppress(RuntimeError):
+                return bool(asyncio.get_running_loop())
+        return False
+
+    @property
+    def _asend_in_flight_on_this_thread(self) -> bool:
+        """
+        Whether an ``asend()`` coroutine of a loop that runs on the current thread is in flight.
+
+        ``asend()`` holds ``_async_lock`` for its whole duration, from before it takes
+        ``_thread_lock`` (in an executor thread) until after it releases it, so the async lock
+        being held is the reliable signal that the thread lock is, or is about to be, held by a
+        coroutine. Such a coroutine only makes progress when its loop runs, and that loop runs on
+        this thread. This is thread-scoped on purpose: a loop running on *another* thread keeps
+        going while this one blocks, so ``send()`` from there can safely wait for the lock.
+        """
+        return threading.get_ident() == self._loop_thread_id and self._async_lock.locked()
+
     def send(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """Send a request to the parent and block until the response is received."""
         frame_bytes = self._make_frame(msg).as_bytes()
 
-        # We must make sure sockets aren't intermixed between sync and async calls,
-        # thus we need a dual locking mechanism to ensure that.
-        with self._thread_lock:
+        # An asend() in flight on this thread's loop can only release _thread_lock once that loop
+        # runs again, and the loop cannot run while this thread blocks in send(). Raise instead of
+        # blocking. This covers the loop being paused between two run_until_complete() calls, where
+        # the running-loop check below does not apply: asyncio.get_running_loop() raises, so send()
+        # would otherwise fall through to a blocking acquire and freeze the process with every
+        # thread idle (seen with a sync XCom read pulling the next iterated sub-task's input while a
+        # sub-task's asend() was parked mid-I/O).
+        if self._asend_in_flight_on_this_thread:
+            raise DeadlockImminentError(msg)
+
+        # When called from the event loop thread while the loop is running, use non-blocking
+        # acquire to detect an imminent deadlock: an asend() coroutine currently holds
+        # _thread_lock and is waiting for the event loop to complete its I/O.
+        if not self._thread_lock.acquire(blocking=not self._is_on_loop_thread):
+            raise DeadlockImminentError(msg)
+        try:
             self.socket.sendall(frame_bytes)
             if isinstance(msg, ResendLoggingFD):
                 if recv_fds is None:
@@ -232,11 +307,13 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
                 if TYPE_CHECKING:
                     assert isinstance(resp, SentFDs)
                 resp.fds = fds
-                # Since we know this is an expliclt SendFDs, and since this class is generic SendFDs might not
+                # Since we know this is an explicit ResendLoggingFD, and since this class is generic SentFDs might not
                 # always be in the return type union
                 return resp  # type: ignore[return-value]
 
             return self._get_response()
+        finally:
+            self._thread_lock.release()
 
     async def asend(self, msg: SendMsgType) -> ReceiveMsgType | None:
         """
@@ -244,6 +321,8 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
 
         Uses async lock for coroutine safety and thread lock for socket safety.
         """
+        self._loop_thread_id = threading.get_ident()
+
         frame_bytes = self._make_frame(msg).as_bytes()
 
         async with self._async_lock:
@@ -291,10 +370,18 @@ class CommsDecoder(Generic[ReceiveMsgType, SendMsgType]):
         else:
             len_bytes = self.socket.recv(4)
 
-        if len_bytes == b"":
+        if not len_bytes:
             raise EOFError("Request socket closed before length")
 
-        length = int.from_bytes(len_bytes, byteorder="big")
+        # Stream sockets may return fewer bytes than requested; accumulate the header.
+        len_buf = bytearray(len_bytes)
+        while len(len_buf) < 4:
+            chunk = self.socket.recv(4 - len(len_buf))
+            if not chunk:
+                raise EOFError(f"Request socket closed mid-length after {len(len_buf)} of 4 bytes")
+            len_buf.extend(chunk)
+
+        length = int.from_bytes(len_buf, byteorder="big")
 
         buffer = bytearray(length)
         mv = memoryview(buffer)
@@ -754,6 +841,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """Add the discriminator field the tagged union needs to the HITLDetailResponse API response."""
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
+
+
 class DagResult(DagResponse):
     type: Literal["DagResult"] = "DagResult"
 
@@ -798,6 +896,7 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
+    | HITLDetailResponseResult
     | OKResponse
     | PreviousDagRunResult,
     Field(discriminator="type"),
@@ -821,6 +920,8 @@ class TaskState(BaseModel):
     end_date: datetime | None = None
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
+    retry_reason: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
@@ -860,6 +961,7 @@ class SkipDownstreamTasks(TISkippedDownstreamTasksStatePayload):
 
 
 class GetXCom(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -872,6 +974,7 @@ class GetXCom(BaseModel):
 class GetXComCount(BaseModel):
     """Get the number of (mapped) XCom values available."""
 
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -880,6 +983,7 @@ class GetXComCount(BaseModel):
 
 
 class GetXComSequenceItem(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -889,6 +993,7 @@ class GetXComSequenceItem(BaseModel):
 
 
 class GetXComSequenceSlice(BaseModel):
+    previous_iteration: bool = False
     key: str
     dag_id: str
     run_id: str
@@ -943,7 +1048,6 @@ class DeleteTaskStateStore(BaseModel):
 
 class ClearTaskStateStore(BaseModel):
     ti_id: UUID
-    all_map_indices: bool = False
     type: Literal["ClearTaskStateStore"] = "ClearTaskStateStore"
 
 
@@ -1045,6 +1149,13 @@ class SetRenderedMapIndex(BaseModel):
     type: Literal["SetRenderedMapIndex"] = "SetRenderedMapIndex"
 
 
+class SetExecutionTimeout(BaseModel):
+    """Tell the supervisor the task's ``execution_timeout`` so it can enforce it from outside the task process."""
+
+    timeout_seconds: Annotated[float, Field(gt=0)]
+    type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1061,6 +1172,12 @@ class GetDagRunState(BaseModel):
     dag_id: str
     run_id: str
     type: Literal["GetDagRunState"] = "GetDagRunState"
+
+
+class UpdateDagRunNote(BaseModel):
+    ti_id: UUID
+    note: str | None
+    type: Literal["UpdateDagRunNote"] = "UpdateDagRunNote"
 
 
 class GetPreviousDagRun(BaseModel):
@@ -1103,6 +1220,9 @@ class GetAssetEventByAsset(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    partition_key: str | None = None
+    partition_key_regexp_pattern: str | None = None
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAsset"] = "GetAssetEventByAsset"
 
 
@@ -1112,6 +1232,9 @@ class GetAssetEventByAssetAlias(BaseModel):
     before: AwareDatetime | None = None
     limit: int | None = None
     ascending: bool = True
+    partition_key: str | None = None
+    partition_key_regexp_pattern: str | None = None
+    extra: dict[str, str] | None = None
     type: Literal["GetAssetEventByAssetAlias"] = "GetAssetEventByAssetAlias"
 
 
@@ -1242,10 +1365,12 @@ ToSupervisor = Annotated[
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | SetExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState
     | TriggerDagRun
+    | UpdateDagRunNote
     | DeleteVariable
     | ResendLoggingFD
     | CreateHITLDetailPayload

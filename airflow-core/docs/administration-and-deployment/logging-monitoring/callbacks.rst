@@ -51,7 +51,7 @@ There are three different places where callbacks can be defined.
 Callback Types
 --------------
 
-There are six types of events that can trigger a callback:
+There are five types of callbacks triggered on specific events:
 
 =========================================== ======================================================================= =================
 Name                                        Description                                                             Availability
@@ -75,6 +75,8 @@ Context Mapping
 
 A context mapping that contains runtime information about a task instance is passed to every callback.
 Full list of variables available in ``context`` are in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/task-sdk/src/airflow/sdk/definitions/context.py>`_.
+
+Every callback context also includes a ``callback`` key whose ``source`` field tells you whether the callback ran at the Dag level or the task level.
 
 
 Dag Callbacks

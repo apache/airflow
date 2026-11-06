@@ -192,9 +192,9 @@ class CacheableChoice(click.Choice):
         if not current_value:
             current_choices = self.choices
         else:
-            current_choices = [
+            current_choices = tuple(
                 f">{choice}<" if choice == current_value else choice for choice in self.choices
-            ]
+            )
         choices_str = " | ".join(current_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":

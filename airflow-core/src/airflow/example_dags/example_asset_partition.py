@@ -28,9 +28,10 @@ from airflow.sdk import (
     FanOutMapper,
     FixedKeyMapper,
     IdentityMapper,
+    MinimumCount,
     MonthWindow,
-    PartitionAtRuntime,
     PartitionedAssetTimetable,
+    PartitionedAtRuntime,
     ProductMapper,
     RollupMapper,
     SegmentWindow,
@@ -39,8 +40,11 @@ from airflow.sdk import (
     StartOfMonthMapper,
     StartOfWeekMapper,
     StartOfYearMapper,
+    WaitForAll,
     WeekWindow,
+    Window,
     asset,
+    get_current_context,
     task,
 )
 
@@ -103,7 +107,7 @@ with DAG(
         """Merge the aligned hourly partitions into a combined dataset."""
         if TYPE_CHECKING:
             assert dag_run
-        print(dag_run.partition_key)
+        print(dag_run.partition_key, dag_run.partition_date)
 
     combine_player_stats()
 
@@ -157,15 +161,17 @@ regional_sales = Asset(uri="file://incoming/sales/regional.csv", name="regional_
 
 with DAG(
     dag_id="ingest_regional_sales",
-    schedule=CronPartitionTimetable("0 * * * *", timezone="UTC"),
+    schedule=PartitionedAtRuntime(),
     tags=["example", "sales", "ingestion"],
 ):
-    """Produce hourly regional sales data with composite partition keys."""
+    """Produce regional sales data with composite ``region|timestamp`` partition keys at runtime."""
 
     @task(outlets=[regional_sales])
-    def ingest_sales():
-        """Ingest regional sales data partitioned by region and time."""
-        pass
+    def ingest_sales(*, outlet_events=None):
+        """Emit one composite ``region|timestamp`` partition per region."""
+        timestamp = "2026-06-14T03:00:00"
+        for region in ("us", "eu", "apac"):
+            outlet_events[regional_sales].add_partitions(f"{region}|{timestamp}")
 
     ingest_sales()
 
@@ -202,7 +208,7 @@ region_raw_stats = Asset(uri="file://incoming/player-stats/by-region.csv", name=
 
 with DAG(
     dag_id="ingest_region_stats",
-    schedule=None,
+    schedule=PartitionedAtRuntime(),
     tags=["example", "player-stats", "regional"],
 ):
     """
@@ -212,9 +218,14 @@ with DAG(
     """
 
     @task(outlets=[region_raw_stats])
-    def ingest_region():
+    def ingest_region(dag_run=None):
         """Materialize player statistics for a single region partition."""
-        pass
+        context = get_current_context()
+        if TYPE_CHECKING:
+            assert dag_run
+        print(
+            f"dag_run partition key {dag_run.partition_key} context partition key {context['partition_key']}"
+        )
 
     ingest_region()
 
@@ -239,14 +250,14 @@ def regional_stats_breakdown():
 
 @asset(
     uri="file://incoming/player-stats/live-region.csv",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["player-stats", "runtime"],
 )
 def live_region_player_stats(self, outlet_events):
     """
     Produce a single region partition whose key is decided at runtime.
 
-    This asset demonstrates PartitionAtRuntime, which records the partition key on the
+    This asset demonstrates PartitionedAtRuntime, which records the partition key on the
     emitted event with ``add_partitions`` while the task runs rather than from a timetable.
     """
     outlet_events[self].add_partitions("us")
@@ -276,7 +287,7 @@ with DAG(
 
 @asset(
     uri="file://incoming/player-stats/multi-region.csv",
-    schedule=PartitionAtRuntime(),
+    schedule=PartitionedAtRuntime(),
     tags=["player-stats", "runtime"],
 )
 def multi_region_player_stats(self, outlet_events):
@@ -291,7 +302,7 @@ def multi_region_player_stats(self, outlet_events):
 
 daily_sales = Asset(uri="s3://sales/daily", name="daily_sales")
 daily_costs = Asset(uri="s3://costs/daily", name="daily_costs")
-# --- Chained rollup: hourly → daily → monthly --------------------------------
+# --- Chained rollup: hourly -> daily -> monthly --------------------------------
 # The hourly source asset already exists above (``team_a_player_stats``).
 # Each rollup Dag publishes its own asset so the next level can consume it.
 
@@ -306,13 +317,17 @@ with DAG(
         default_partition_mapper=RollupMapper(
             upstream_mapper=StartOfDayMapper(),
             window=DayWindow(),
+            # Explicit default wait policy: hold the run until all 24 hourly
+            # partitions arrive. Identical to omitting wait_policy entirely; shown
+            # here as the counterpart to the early-firing MinimumCount example below.
+            wait_policy=WaitForAll(),
         ),
     ),
     catchup=False,
     tags=["example", "player-stats", "rollup"],
 ):
     """
-    First rollup level: 24 hourly partitions of ``team_a_player_stats`` → one daily summary.
+    First rollup level: 24 hourly partitions of ``team_a_player_stats`` -> one daily summary.
 
     ``StartOfDayMapper`` normalizes each upstream hourly timestamp (``%Y-%m-%dT%H:%M:%S``)
     to its day-start (``%Y-%m-%d``); ``DayWindow`` declares the downstream run needs
@@ -345,7 +360,7 @@ with DAG(
     tags=["example", "player-stats", "rollup"],
 ):
     """
-    Chained rollup: every day of ``daily_team_a`` (itself a rollup) → one monthly summary.
+    Chained rollup: every day of ``daily_team_a`` (itself a rollup) -> one monthly summary.
 
     Demonstrates how a rollup output can feed another rollup. ``StartOfMonthMapper``
     is configured with ``input_format="%Y-%m-%d"`` so it can parse the day keys
@@ -364,7 +379,7 @@ with DAG(
     summarise_team_a_month()
 
 
-# --- Fan-out: one weekly upstream → seven daily downstream Dag runs ----------
+# --- Fan-out: one weekly upstream -> seven daily downstream Dag runs ----------
 
 weekly_model_artifact = Asset(uri="file://artifacts/models/weekly.bin", name="weekly_model_artifact")
 
@@ -396,6 +411,13 @@ with DAG(
         default_partition_mapper=FanOutMapper(
             upstream_mapper=StartOfWeekMapper(),
             window=WeekWindow(),
+            # Safety cap on how many downstream keys one upstream event may create.
+            # WeekWindow has exactly seven members, so max_downstream_keys=7 sits at
+            # the boundary and never blocks. A smaller value would skip queuing the
+            # runs for that event and record a "partition fan-out exceeded" audit log
+            # entry instead. Omitting it falls back to the global
+            # ``[scheduler] partition_mapper_max_downstream_keys`` (default 1000).
+            max_downstream_keys=7,
         ),
     ),
     catchup=False,
@@ -411,6 +433,38 @@ with DAG(
         print(dag_run.partition_key)
 
     run_inference()
+
+
+# --- Fan-out over a trailing window (Window.Direction.BACKWARD) --------------
+# ``daily_inference`` above fans the weekly artifact FORWARD: the seven days
+# *starting* at the upstream key. The same artifact can drive a trailing window —
+# the seven days *ending* at the key — e.g. to score the week leading up to a
+# model release. Direction is the only difference between the two Dags.
+
+with DAG(
+    dag_id="trailing_week_inference",
+    schedule=PartitionedAssetTimetable(
+        assets=weekly_model_artifact,
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=StartOfWeekMapper(),
+            # BACKWARD yields the trailing period ending at the upstream key — the
+            # mirror of the default FORWARD that daily_inference uses.
+            window=WeekWindow(direction=Window.Direction.BACKWARD),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "model", "inference"],
+):
+    """Run inference over the trailing week: the seven days ending at the weekly key."""
+
+    @task
+    def run_trailing_inference(dag_run=None):
+        """Run inference for one daily partition in the trailing week."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    run_trailing_inference()
 
 
 # --- Segment (categorical) rollup -------------------------------------------
@@ -449,3 +503,77 @@ with DAG(
         print(f"All region partitions received. Partition: {dag_run.partition_key}")
 
     aggregate_all_regions()
+
+
+# --- Segment rollup with an early-fire wait policy (MinimumCount) ------------
+# ``segment_region_stats_rollup`` above waits for all three regions (WaitForAll).
+# This sibling fires as soon as any two of the three have arrived, tolerating one
+# slow or missing region rather than holding the downstream run indefinitely.
+
+with DAG(
+    dag_id="segment_region_stats_early_rollup",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="multi_region_player_stats"),
+        default_partition_mapper=RollupMapper(
+            upstream_mapper=FixedKeyMapper("all_regions"),
+            window=SegmentWindow(["us", "eu", "apac"]),
+            # Fire once at least two of the three declared regions have arrived.
+            # MinimumCount(-1) ("at most one missing") is equivalent for this window.
+            wait_policy=MinimumCount(2),
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "rollup", "segment"],
+):
+    """
+    Categorical rollup that fires early.
+
+    Produces the cross-region summary once two of the three regions have arrived
+    instead of waiting for all of them — the early-firing counterpart to
+    ``segment_region_stats_rollup``.
+    """
+
+    @task
+    def aggregate_available_regions(dag_run=None):
+        """Produce the cross-region summary once the minimum region count is met."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(f"Minimum region partitions received. Partition: {dag_run.partition_key}")
+
+    aggregate_available_regions()
+
+
+# --- Segment fan-out: one upstream event scatters across the segment set -----
+# The 1 -> N mirror of ``segment_region_stats_rollup``: a single upstream event
+# fans OUT to one downstream run per declared region. ``SegmentWindow`` has no
+# default-table entry, so an explicit ``downstream_mapper`` is required.
+
+with DAG(
+    dag_id="scatter_live_region_to_segments",
+    schedule=PartitionedAssetTimetable(
+        assets=Asset.ref(name="live_region_player_stats"),
+        default_partition_mapper=FanOutMapper(
+            upstream_mapper=IdentityMapper(),
+            window=SegmentWindow(["us", "eu", "apac"]),
+            downstream_mapper=IdentityMapper(),  # required: SegmentWindow has no default-table entry
+        ),
+    ),
+    catchup=False,
+    tags=["example", "player-stats", "fan-out", "segment"],
+):
+    """
+    Categorical fan-out: scatter one upstream event across a fixed segment set.
+
+    One ``live_region_player_stats`` event fans out to one downstream run per
+    declared region (``us``, ``eu``, ``apac``) — the 1->N counterpart to the
+    segment rollup above.
+    """
+
+    @task
+    def process_region_segment(dag_run=None):
+        """Process one region segment produced by the fan-out."""
+        if TYPE_CHECKING:
+            assert dag_run
+        print(dag_run.partition_key)
+
+    process_region_segment()

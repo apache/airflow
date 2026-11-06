@@ -22,7 +22,8 @@ from unittest import mock
 import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
+from airflow.models.dag import DAG
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
@@ -67,6 +68,96 @@ class TestDatabricksSQLStatementsSensor:
 
         assert op.statement_id == STATEMENT_ID
         assert op.warehouse_id == WAREHOUSE_ID
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            (STATEMENT, STATEMENT_ID),
+            (STATEMENT, ""),
+            ("", ""),
+        ],
+    )
+    def test_both_statements_included_validated_at_init(self, statement, statement_id):
+        with pytest.raises(ValueError, match="Provide exactly one of"):
+            DatabricksSQLStatementsSensor(
+                statement=statement,
+                statement_id=statement_id,
+                task_id=TASK_ID,
+                warehouse_id=WAREHOUSE_ID,
+            )
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            ("{{ None }}", STATEMENT_ID),
+            (STATEMENT, "{{ None }}"),
+            ("{{ None }}", "{{ None }}"),
+        ],
+    )
+    def test_both_provided_with_template_renders_to_none_validated_at_init(self, statement, statement_id):
+        """
+        Both statement and statement_id are provided; at least one is a template that
+        would render to None under render_template_as_native_obj=True. The constructor
+        must raise before any rendering occurs, so the check is pinned to __init__.
+        If the exclusivity check were moved to execute(), this test would fail because
+        the constructor would succeed and if rendered before execute() the template
+        would render to None making it appear only one value was provided so the moved
+        check would not catch the exclusivity violation
+        """
+        dag = DAG(
+            dag_id="test_native_obj_dag",
+            start_date=timezone.datetime(2025, 1, 1),
+            schedule=None,
+            render_template_as_native_obj=True,
+        )
+        with pytest.raises(ValueError, match="Provide exactly one of"):
+            DatabricksSQLStatementsSensor(
+                task_id=TASK_ID,
+                warehouse_id=WAREHOUSE_ID,
+                statement=statement,
+                statement_id=statement_id,
+                dag=dag,
+            )
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            (None, None),
+            ("", None),
+        ],
+    )
+    def test_both_statements_missing_validated_at_execute(self, statement, statement_id):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, warehouse_id=WAREHOUSE_ID, statement=statement, statement_id=statement_id
+        )
+        with pytest.raises(ValueError, match="One of either statement or statement_id"):
+            op.execute(None)
+
+    @pytest.mark.parametrize(
+        ("statement", "statement_id"),
+        [
+            (None, "{{ None }}"),
+            ("{{ None }}", None),
+        ],
+    )
+    def test_both_missing_after_template_rendered_validated_at_execute(self, statement, statement_id):
+        dag = DAG(
+            dag_id="test_native_obj_dag",
+            start_date=timezone.datetime(2025, 1, 1),
+            schedule=None,
+            render_template_as_native_obj=True,
+        )
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            warehouse_id=WAREHOUSE_ID,
+            statement=statement,
+            statement_id=statement_id,
+            dag=dag,
+        )
+        context = {"dag": dag}
+        op.render_template_fields(context)
+        with pytest.raises(ValueError, match="One of either statement or statement_id"):
+            op.execute(context)
 
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
@@ -235,3 +326,93 @@ class TestDatabricksSQLStatementsSensor:
 
         with pytest.raises(AirflowException, match="^SQL Statement execution failed with terminal state: .*"):
             op.execute_complete(context=None, event=event)
+
+    def test_query_tags_defaults(self):
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID
+        )
+        assert sensor.query_tags == {}
+        assert sensor.include_airflow_query_tags is True
+
+    def test_query_tags_in_template_fields(self):
+        assert "query_tags" in DatabricksSQLStatementsSensor.template_fields
+
+    def test_query_tags_stored(self):
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID, query_tags={"env": "prod"}
+        )
+        assert sensor.query_tags == {"env": "prod"}
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_passes_query_tags_to_post_sql_statement(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"team": "data"},
+            include_airflow_query_tags=False,
+        )
+        sensor.execute(context=None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert posted_json["query_tags"] == [{"key": "team", "value": "data"}]
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_omits_query_tags_when_none(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            include_airflow_query_tags=False,
+        )
+        sensor.execute(context=None)
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        assert "query_tags" not in posted_json
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_includes_airflow_query_tags(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"custom": "value"},
+        )
+        mock_ti = mock.MagicMock(spec=["dag_id", "task_id", "run_id", "try_number", "map_index", "xcom_push"])
+        mock_ti.dag_id = "my_dag"
+        mock_ti.task_id = "my_task"
+        mock_ti.run_id = "run_1"
+        mock_ti.try_number = 1
+        mock_ti.map_index = -1
+
+        sensor.execute(context={"ti": mock_ti})
+
+        posted_json = db_mock.post_sql_statement.call_args[0][0]
+        tag_keys = {t["key"] for t in posted_json["query_tags"]}
+        assert "airflow_dag_id" in tag_keys
+        assert "custom" in tag_keys
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_execute_skips_query_tags_when_statement_id_provided(self, db_mock_class):
+        db_mock = db_mock_class.return_value
+
+        sensor = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement_id=STATEMENT_ID,
+            warehouse_id=WAREHOUSE_ID,
+            query_tags={"env": "test"},
+            include_airflow_query_tags=False,
+            wait_for_termination=False,
+        )
+        sensor.execute(context=None)
+
+        db_mock.post_sql_statement.assert_not_called()

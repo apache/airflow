@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import functools
 import json
+from datetime import datetime
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -27,6 +28,7 @@ from google.cloud.bigquery import DEFAULT_RETRY, Table
 from google.cloud.exceptions import Conflict
 from sqlalchemy import select
 
+from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.trigger import Trigger
 from airflow.providers.common.compat.openlineage.facet import (
@@ -809,6 +811,33 @@ class TestGCSToBigQueryOperator:
             },
         )
         gcs_hook.return_value.download.assert_called_once_with(SCHEMA_BUCKET, SCHEMA_OBJECT)
+
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_schema_object_bucket_defaults_to_bucket_when_omitted(self, bq_hook, gcs_hook):
+        # The schema_object_bucket -> bucket fallback now runs in execute() after rendering; when
+        # schema_object_bucket is omitted the schema download must still target the bucket.
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+        gcs_hook.return_value.download.return_value = bytes(json.dumps(SCHEMA_FIELDS), "utf-8")
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            schema_object=SCHEMA_OBJECT,
+            write_disposition=WRITE_DISPOSITION,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
+
+        gcs_hook.return_value.download.assert_called_once_with(TEST_BUCKET, SCHEMA_OBJECT)
 
     @mock.patch(GCS_TO_BQ_PATH.format("GCSHook"))
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
@@ -1740,23 +1769,23 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                schema_fields=SCHEMA_FIELDS,
-                write_disposition=WRITE_DISPOSITION,
-                external_table=True,
-                project_id=JOB_PROJECT_ID,
-                source_format="PARQUET",
-                src_fmt_configs={
-                    "enableListInference": True,
-                },
-            )
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            schema_fields=SCHEMA_FIELDS,
+            write_disposition=WRITE_DISPOSITION,
+            external_table=True,
+            project_id=JOB_PROJECT_ID,
+            source_format="PARQUET",
+            src_fmt_configs={
+                "enableListInference": True,
+            },
+        )
 
-        operator.execute(context=MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator.execute(context=MagicMock())
 
         hook.return_value.create_table.assert_called_once_with(
             exists_ok=True,
@@ -1843,22 +1872,22 @@ class TestGCSToBigQueryOperator:
         ]
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
-        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                write_disposition=WRITE_DISPOSITION,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                external_table=False,
-                project_id=JOB_PROJECT_ID,
-                source_format="PARQUET",
-                src_fmt_configs={
-                    "enableListInference": True,
-                },
-            )
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            write_disposition=WRITE_DISPOSITION,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            external_table=False,
+            project_id=JOB_PROJECT_ID,
+            source_format="PARQUET",
+            src_fmt_configs={
+                "enableListInference": True,
+            },
+        )
 
-        operator.execute(context=MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator.execute(context=MagicMock())
 
         calls = [
             call(
@@ -2052,18 +2081,18 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                write_disposition=WRITE_DISPOSITION,
-                project_id=JOB_PROJECT_ID,
-                src_fmt_configs={"skipLeadingRows": 1},
-            )
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            src_fmt_configs={"skipLeadingRows": 1},
+        )
 
-        operator.execute(context=MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator.execute(context=MagicMock())
 
         config = hook.return_value.insert_job.call_args[1]["configuration"]
         assert config["load"]["skipLeadingRows"] == 1
@@ -2074,24 +2103,177 @@ class TestGCSToBigQueryOperator:
         hook.return_value.generate_job_id.return_value = REAL_JOB_ID
         hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
-            operator = GCSToBigQueryOperator(
-                task_id=TASK_ID,
-                bucket=TEST_BUCKET,
-                source_objects=TEST_SOURCE_OBJECTS,
-                destination_project_dataset_table=TEST_EXPLICIT_DEST,
-                write_disposition=WRITE_DISPOSITION,
-                project_id=JOB_PROJECT_ID,
-                src_fmt_configs={"skipLeadingRows": 1},
-                extra_config={"skipLeadingRows": 5, "columnNameCharacterMap": "STRICT"},
-            )
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            src_fmt_configs={"skipLeadingRows": 1},
+            extra_config={"skipLeadingRows": 5, "columnNameCharacterMap": "STRICT"},
+        )
 
-        operator.execute(context=MagicMock())
+        with pytest.warns(AirflowProviderDeprecationWarning, match="src_fmt_configs"):
+            operator.execute(context=MagicMock())
 
         config = hook.return_value.insert_job.call_args[1]["configuration"]
         # extra_config wins for overlapping key
         assert config["load"]["skipLeadingRows"] == 5
         assert config["load"]["columnNameCharacterMap"] == "STRICT"
+
+    def test_schema_fields_is_templated(self):
+        """Regression test for #31481.
+
+        ``schema_fields`` must be a template field so a value supplied at runtime
+        (the issue used ``.expand()``) is resolved before the operator runs. Before
+        the fix the field was absent from ``template_fields``, so the value was never
+        rendered and reached BigQuery verbatim.
+        """
+        assert "schema_fields" in GCSToBigQueryOperator.template_fields
+        assert GCSToBigQueryOperator.template_fields_renderers["schema_fields"] == "json"
+
+        with DAG(
+            dag_id="test_gcs_to_bq_schema_fields_templating",
+            start_date=datetime(2024, 1, 1),
+            render_template_as_native_obj=True,
+        ) as dag:
+            operator = GCSToBigQueryOperator(
+                task_id=TASK_ID,
+                bucket=TEST_BUCKET,
+                source_objects=TEST_SOURCE_OBJECTS,
+                destination_project_dataset_table=TEST_EXPLICIT_DEST,
+                schema_fields="{{ var.value.schema_fields }}",
+                dag=dag,
+            )
+
+        operator.render_template_fields({"var": {"value": {"schema_fields": SCHEMA_FIELDS}}})
+
+        assert operator.schema_fields == SCHEMA_FIELDS
+
+    @pytest.mark.parametrize(
+        ("operator_kwargs", "expects_warning"),
+        [
+            pytest.param({"ignore_unknown_values": True}, True, id="autodetect_defaults_to_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": True}, True, id="autodetect_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": None}, False, id="autodetect_none"),
+            pytest.param(
+                {"ignore_unknown_values": True, "autodetect": False, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="autodetect_false",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="schema_fields_supplied",
+            ),
+            pytest.param({"ignore_unknown_values": False}, False, id="ignore_unknown_values_off"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"autodetect": None}},
+                False,
+                id="autodetect_cleared_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"schema": {"fields": SCHEMA_FIELDS}}},
+                False,
+                id="schema_supplied_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": False, "extra_config": {"ignoreUnknownValues": True}},
+                True,
+                id="ignore_unknown_values_set_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "NEWLINE_DELIMITED_JSON"},
+                True,
+                id="json_source",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "PARQUET"}, False, id="parquet_source"
+            ),
+            pytest.param({"ignore_unknown_values": True, "source_format": "AVRO"}, False, id="avro_source"),
+            pytest.param({"ignore_unknown_values": True, "source_format": "ORC"}, False, id="orc_source"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"sourceFormat": "PARQUET"}},
+                False,
+                id="source_format_set_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_ADDITION"]},
+                False,
+                id="field_addition_allowed",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_RELAXATION"]},
+                True,
+                id="only_field_relaxation_allowed",
+            ),
+        ],
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_autodetect_warning(self, bq_hook, operator_kwargs, expects_warning):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            **operator_kwargs,
+        )
+
+        with mock.patch.object(operator.log, "warning", autospec=True) as mock_warning:
+            operator.execute(context=MagicMock())
+
+        if expects_warning:
+            mock_warning.assert_called_once()
+        else:
+            mock_warning.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("force_delete", "expected_fix", "unexpected_fix"),
+        [
+            pytest.param(False, "autodetect=None", None, id="existing_table"),
+            pytest.param(True, "schema_fields", "autodetect=None", id="force_delete"),
+        ],
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_autodetect_warning_names_the_fix(
+        self, bq_hook, force_delete, expected_fix, unexpected_fix
+    ):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            ignore_unknown_values=True,
+            force_delete=force_delete,
+        )
+
+        with mock.patch.object(operator.log, "warning", autospec=True) as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_called_once()
+        message = mock_warning.call_args.args[0] % mock_warning.call_args.args[1:]
+        assert expected_fix in message
+        if unexpected_fix:
+            assert unexpected_fix not in message
 
 
 @pytest.fixture

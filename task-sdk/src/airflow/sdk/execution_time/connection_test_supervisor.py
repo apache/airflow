@@ -44,6 +44,7 @@ def supervise_connection_test(
     timeout: int,
     token: str,
     server: str,
+    team_name: str | None = None,
 ) -> int:
     """Execute a connection test on the worker and report the result via the Execution API."""
     client = Client(base_url=server, token=token)
@@ -51,6 +52,7 @@ def supervise_connection_test(
     bind_contextvars(connection_test_id=str(connection_test_id), connection_id=connection_id)
     log.info("Starting connection test", timeout=timeout)
     start = time.monotonic()
+    tags = {"team_name": team_name} if team_name else {}
 
     try:
         r = client.connection_tests.get_connection(connection_test_id)
@@ -75,7 +77,7 @@ def supervise_connection_test(
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         try:
             with (
-                stats.timer("connection_test.hook_duration"),
+                stats.timer("connection_test.hook_duration", tags=tags),
                 TimeoutPosix(
                     seconds=timeout,
                     error_message=f"Connection test timed out after {timeout}s",
@@ -95,7 +97,10 @@ def supervise_connection_test(
 
         state = ConnectionTestState.SUCCESS if success else ConnectionTestState.FAILED
         client.connection_tests.update_state(connection_test_id, state, message)
-        stats.incr("connection_test.success" if success else "connection_test.failed")
+        stats.incr(
+            "connection_test.success" if success else "connection_test.failed",
+            tags=tags,
+        )
         log.info(
             "Connection test finished",
             state=state.value,
@@ -107,7 +112,7 @@ def supervise_connection_test(
             timeout=timeout,
             duration=round(time.monotonic() - start, 3),
         )
-        stats.incr("connection_test.failed")
+        stats.incr("connection_test.failed", tags=tags)
         client.connection_tests.update_state(
             connection_test_id,
             ConnectionTestState.FAILED,
@@ -118,7 +123,7 @@ def supervise_connection_test(
             "Connection test failed unexpectedly",
             duration=round(time.monotonic() - start, 3),
         )
-        stats.incr("connection_test.failed")
+        stats.incr("connection_test.failed", tags=tags)
         client.connection_tests.update_state(
             connection_test_id,
             ConnectionTestState.FAILED,

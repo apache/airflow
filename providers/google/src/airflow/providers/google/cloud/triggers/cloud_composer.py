@@ -80,9 +80,12 @@ class CloudComposerExecutionTrigger(BaseTrigger):
         while True:
             operation = await self.gcp_hook.get_operation(operation_name=self.operation_name)
             if operation.done:
+                # A long-running operation signals failure as done=True with ``error`` set; while
+                # it is still running neither ``error`` nor ``response`` is populated. Checking
+                # ``error`` only in the not-done branch would therefore never see a failure.
+                if operation.error.message:
+                    raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
                 break
-            elif operation.error.message:
-                raise AirflowException(f"Cloud Composer Environment error: {operation.error.message}")
             await asyncio.sleep(self.pooling_period_seconds)
         yield TriggerEvent(
             {

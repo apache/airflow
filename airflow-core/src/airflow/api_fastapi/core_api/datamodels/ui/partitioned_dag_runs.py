@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
 
 
 class PartitionedDagRunResponse(BaseModel):
@@ -37,15 +38,21 @@ class PartitionedDagRunCollectionResponse(BaseModel):
 
     partitioned_dag_runs: list[PartitionedDagRunResponse]
     total: int
-    asset_expressions: dict[str, dict | None] | None = None
+    asset_expressions: dict[str, MaybeAssetExpression] | None = None
 
 
 class PartitionedDagRunAssetResponse(BaseModel):
     """Asset info within a partitioned Dag run detail."""
 
-    asset_id: int
-    asset_name: str
-    asset_uri: str
+    asset_id: int | None
+    asset_name: str | None
+    asset_uri: str | None
+    hidden: bool = False
+    """True when the caller may not read this asset: ``asset_id``, ``asset_name`` and ``asset_uri``
+    are blanked and the UI must not link to the asset. The counts and partition keys stay, so the
+    run's progress is still readable -- they describe the Dag's own schedule, which the caller can
+    already read, rather than the asset's identity. Mirrors the redaction
+    ``redact_asset_expression`` applies to the sibling ``asset_expression`` field."""
     received: bool
     received_count: int
     required_count: int
@@ -75,4 +82,4 @@ class PartitionedDagRunDetailResponse(BaseModel):
     assets: list[PartitionedDagRunAssetResponse]
     total_required: int
     total_received: int
-    asset_expression: dict | None = None
+    asset_expression: MaybeAssetExpression = None

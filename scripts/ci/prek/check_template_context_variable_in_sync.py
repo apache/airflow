@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 # /// script
-# requires-python = ">=3.10,<3.11"
+# requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "rich>=13.6.0",
 # ]
@@ -51,6 +51,8 @@ IGNORE = {
     # AIP-103: task_state_store/asset_state_store aren't documented in templates-ref yet. Will be done in a later PR.
     "task_state_store",
     "asset_state_store",
+    # Only available inside private loop groups.
+    "loop",
 }
 
 
@@ -161,8 +163,8 @@ def _compare_keys(retn_keys: set[str], hint_keys: set[str], docs_keys: set[str])
     retn_keys.add("test_mode")
 
     # Only present in callbacks. Not listed in templates-ref (that doc is for task execution).
-    retn_keys.update(("exception", "reason", "try_number"))
-    docs_keys.update(("exception", "reason", "try_number"))
+    retn_keys.update(("callback", "exception", "reason", "try_number"))
+    docs_keys.update(("callback", "exception", "reason", "try_number"))
 
     # Airflow 3 added:
     retn_keys.add("task_reschedule_count")

@@ -19,7 +19,7 @@ from __future__ import annotations
 import importlib.util
 import sys
 import types
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -56,7 +56,7 @@ def mod():
 
 # A recent timestamp — well inside the stale window — used by fixture PRs.
 FRESH_ISO = "2099-01-01T12:00:00Z"
-STALE_CUT = datetime(1970, 1, 1, tzinfo=timezone.utc)
+STALE_CUT = datetime(1970, 1, 1, tzinfo=UTC)
 SHORT_SHA = "abc1234"
 
 
@@ -113,11 +113,11 @@ class TestPrNumberRegex:
 class TestParseUpdatedAt:
     def test_handles_zulu_suffix(self, mod):
         dt = mod.parse_updated_at("2025-04-24T10:20:30Z")
-        assert dt == datetime(2025, 4, 24, 10, 20, 30, tzinfo=timezone.utc)
+        assert dt == datetime(2025, 4, 24, 10, 20, 30, tzinfo=UTC)
 
     def test_handles_explicit_offset(self, mod):
         dt = mod.parse_updated_at("2025-04-24T10:20:30+00:00")
-        assert dt == datetime(2025, 4, 24, 10, 20, 30, tzinfo=timezone.utc)
+        assert dt == datetime(2025, 4, 24, 10, 20, 30, tzinfo=UTC)
 
 
 class TestClassify:
@@ -126,7 +126,7 @@ class TestClassify:
         assert kind == "drafts" and entry is None
 
     def test_stale(self, mod):
-        cutoff = datetime.now(tz=timezone.utc) - timedelta(days=14)
+        cutoff = datetime.now(tz=UTC) - timedelta(days=14)
         old_pr = make_pr(updated_at="2000-01-01T00:00:00Z")
         kind, entry = mod.classify(old_pr, cutoff, SHORT_SHA)
         assert kind == "stale" and entry is None
@@ -159,6 +159,35 @@ class TestClassify:
         assert kind == "conflicting"
         assert entry is not None
         assert entry["existing"] == {"id": "C1", "body": f"{mod.MARKER}\nolder notice for deadbee"}
+
+
+class TestAvoidBacklink:
+    @pytest.mark.parametrize(
+        "url,expected",
+        [
+            (
+                "https://github.com/apache/airflow/pull/42",
+                "https://redirect.github.com/apache/airflow/pull/42",
+            ),
+            (
+                "https://github.com/apache/airflow/commit/deadbeef",
+                "https://redirect.github.com/apache/airflow/commit/deadbeef",
+            ),
+        ],
+    )
+    def test_rewrites_github_com(self, mod, url, expected):
+        assert mod.avoid_backlink(url) == expected
+
+    def test_leaves_non_github_url_untouched(self, mod):
+        url = "https://example.com/pull/42"
+        assert mod.avoid_backlink(url) == url
+
+    def test_only_rewrites_leading_occurrence(self, mod):
+        """Only the URL's own host is rewritten, not incidental later occurrences."""
+        url = "https://github.com/apache/airflow/pull/42#see-https://github.com/other"
+        assert mod.avoid_backlink(url) == (
+            "https://redirect.github.com/apache/airflow/pull/42#see-https://github.com/other"
+        )
 
 
 class TestBuildBody:
@@ -208,9 +237,9 @@ class TestScanOpenPrs:
     def test_early_exit_on_stale(self, mod):
         """A stale PR stops pagination even if hasNextPage is True."""
         client = MagicMock()
-        recent_cut = datetime.now(tz=timezone.utc) - timedelta(days=1)
-        fresh = (datetime.now(tz=timezone.utc)).isoformat().replace("+00:00", "Z")
-        stale = (datetime.now(tz=timezone.utc) - timedelta(days=30)).isoformat().replace("+00:00", "Z")
+        recent_cut = datetime.now(tz=UTC) - timedelta(days=1)
+        fresh = (datetime.now(tz=UTC)).isoformat().replace("+00:00", "Z")
+        stale = (datetime.now(tz=UTC) - timedelta(days=30)).isoformat().replace("+00:00", "Z")
         client.call.return_value = self._page(
             [
                 make_pr(number=1, updated_at=fresh, mergeable="CONFLICTING"),

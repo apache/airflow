@@ -26,6 +26,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     DagRun as DRDataModel,
     TaskInstance as TIDataModel,
     TIRunContext,
+    task_instance_to_runtime,
 )
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
@@ -74,7 +75,10 @@ class TestCallbackRequest:
             ti.start_date = timezone.utcnow()
 
             input = TaskCallbackRequest(
-                filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None
+                filepath="filepath",
+                ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
+                bundle_name="testing",
+                bundle_version=None,
             )
         json_str = input.to_json()
         result = request_class.from_json(json_str)
@@ -86,7 +90,12 @@ class TestCallbackRequest:
         ti.end_date = timezone.utcnow()
         session.merge(ti)
         session.flush()
-        input = TaskCallbackRequest(filepath="filepath", ti=ti, bundle_name="testing", bundle_version=None)
+        input = TaskCallbackRequest(
+            filepath="filepath",
+            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=-1),
+            bundle_name="testing",
+            bundle_version=None,
+        )
         json_str = input.to_json()
         result = TaskCallbackRequest.from_json(json_str)
         assert input == result
@@ -117,6 +126,33 @@ class TestCallbackRequest:
         )
 
         assert request.is_failure_callback == expected_is_failure
+
+    def test_version_data_round_trips_and_defaults_none(self):
+        """version_data survives JSON serialization and defaults to None when omitted."""
+        version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
+        request = DagCallbackRequest(
+            filepath="filepath",
+            dag_id="fake_dag",
+            run_id="fake_run",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version="abc123",
+            version_data=version_data,
+        )
+        result = DagCallbackRequest.from_json(request.to_json())
+        assert result.version_data == version_data
+
+        # Omitted -> defaults to None and round-trips as None.
+        unpinned = DagCallbackRequest(
+            filepath="filepath",
+            dag_id="fake_dag",
+            run_id="fake_run",
+            is_failure_callback=False,
+            bundle_name="testing",
+            bundle_version=None,
+        )
+        assert unpinned.version_data is None
+        assert DagCallbackRequest.from_json(unpinned.to_json()).version_data is None
 
 
 class TestDagRunContext:

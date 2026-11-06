@@ -1,0 +1,1 @@
+Fix asset event ``extra`` filtering silently matching the wrong events on SQLite when a filter key contains JSON-path metacharacters such as dots

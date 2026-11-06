@@ -16,8 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { Node as ReactFlowNode } from "@xyflow/react";
 import { useMemo } from "react";
+
+import type { Node as ReactFlowNode } from "@xyflow/react";
 
 import type { CustomNodeProps } from "src/components/Graph/reactflowUtils";
 
@@ -51,11 +52,7 @@ const getTaskDurationSeconds = (
   const start = new Date(minStartDate).getTime();
   const end = new Date(maxEndDate).getTime();
 
-  if (Number.isNaN(start) || Number.isNaN(end)) {
-    return undefined;
-  }
-
-  return (end - start) / 1000;
+  return Number.isNaN(start) || Number.isNaN(end) ? undefined : (end - start) / 1000;
 };
 
 const isNodeFiltered = (node: ReactFlowNode<CustomNodeProps>, filters: GraphFilterValues): boolean => {

@@ -154,6 +154,8 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
     :param trino_conn_id: Reference to a specific Trino hook.
     """
 
+    template_fields: Sequence[str] = (*BaseSQLToGCSOperator.template_fields, "trino_conn_id")
+
     ui_color = "#a0e08c"
 
     type_map = {

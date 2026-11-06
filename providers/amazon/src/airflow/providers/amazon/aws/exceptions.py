@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.providers.common.compat.sdk import AirflowException
 
 # Note: Any AirflowException raised is expected to cause the TaskInstance
@@ -32,7 +34,7 @@ class EcsTaskFailToStart(Exception):
 
     def __reduce__(self):
         """Return ECSTask state and its message."""
-        return EcsTaskFailToStart, (self.message)
+        return EcsTaskFailToStart, (self.message,)
 
 
 class EcsOperatorError(Exception):
@@ -50,3 +52,80 @@ class EcsOperatorError(Exception):
 
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""
+
+
+class S3HookPathTraversalError(AirflowException):
+    """Raise when an S3 object key resolves outside the target local directory."""
+
+
+class NeptuneGraphCreationFailedError(AirflowException):
+    """Raised when a Neptune Analytics graph fails to reach the available state."""
+
+
+class NeptunePrivateEndpointCreationFailedError(AirflowException):
+    """Raised when a Neptune Analytics private graph endpoint fails to be created."""
+
+
+class NeptunePrivateEndpointDeletionFailedError(AirflowException):
+    """Raised when a Neptune Analytics private graph endpoint fails to be deleted."""
+
+
+class NeptuneGraphDeletionFailedError(AirflowException):
+    """Raised when a Neptune Analytics graph deletion encounters an unexpected AWS error."""
+
+
+class NeptuneImportTaskCancellationFailedError(AirflowException):
+    """Raised when a Neptune Analytics import task cancellation fails or returns an unexpected status."""
+
+
+class NeptuneImportTaskFailedError(AirflowException):
+    """Raised when a Neptune Analytics import task fails to complete successfully."""
+
+
+class GlueJobRunStoppedError(AirflowException):
+    """Raised when a Glue job run finishes in a state that is not a real success."""
+
+
+class DataSyncTaskNotFoundError(AirflowException):
+    """Raised when a DataSync task could not be identified or created for the requested locations."""
+
+
+class DataSyncMultipleTasksError(AirflowException):
+    """Raised when multiple DataSync tasks match and random task choice is not allowed."""
+
+
+class DataSyncMultipleLocationsError(AirflowException):
+    """Raised when multiple DataSync locations match and random location choice is not allowed."""
+
+
+class DataSyncLocationNotFoundError(AirflowException):
+    """Raised when a DataSync location could not be determined or created."""
+
+
+class DataSyncTaskCreationError(AirflowException):
+    """Raised when DataSync task creation did not return a task ARN."""
+
+
+class DataSyncTaskExecutionFailedError(AirflowException):
+    """Raised when a DataSync task execution could not be started or did not complete successfully."""
+
+
+class WaiterTerminalFailure(AirflowException):
+    """Raised when an AWS waiter reaches a terminal failure state."""
+
+    def __init__(self, message: str, last_response: dict[str, Any]):
+        super().__init__(message)
+        self.message = message
+        self.last_response = last_response
+
+    def __reduce__(self):
+        """Return the waiter failure state as its message and the last waiter response."""
+        return WaiterTerminalFailure, (self.message, self.last_response)
+
+
+class WaiterMaxAttemptsError(AirflowException):
+    """Raised when an AWS waiter exhausts its configured attempts."""
+
+
+class WaiterNoCredentialsError(WaiterMaxAttemptsError):
+    """Raised when an AWS waiter exhausts all attempts due to missing credentials."""

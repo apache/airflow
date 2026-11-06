@@ -26,6 +26,8 @@ from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     NONE_TEST_TYPE,
+    PROVIDER_TEST_SPLIT_OTHER_PART,
+    PROVIDER_TEST_SPLITS,
     GroupOfTests,
     SelectiveCoreTestType,
     all_helm_test_packages,
@@ -61,6 +63,11 @@ IGNORE_WARNING_OUTPUT_FOR_TEST_GROUPS = [
     GroupOfTests.HELM,
     GroupOfTests.PYTHON_API_CLIENT,
 ]
+
+# Floor for pytest setup/teardown timeouts. Container-backed fixtures (testcontainers) pull an image
+# and boot a container during setup; on slower runners this can exceed the regular per-test timeout.
+# Execution-timeout is kept at the per-test value so hung tests are still caught quickly.
+MIN_SETUP_TEARDOWN_TIMEOUT = 180
 
 
 def verify_an_image(
@@ -196,7 +203,8 @@ def run_docker_compose_tests(
 
 def file_name_from_test_type(test_type: str):
     test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
-    return re.sub("[,.]", "_", test_type_no_brackets)[:30]
+    # Also names the docker compose project, which allows only lowercase letters, digits, "-" and "_".
+    return re.sub("[^a-z0-9_-]", "_", test_type_no_brackets)[:30]
 
 
 def test_paths(test_type: str, backend: str) -> tuple[str, str, str]:
@@ -236,6 +244,42 @@ def get_excluded_test_provider_folders(python_version: str) -> list[str]:
     return get_test_folders(excluded_folders)
 
 
+def get_selected_test_paths(
+    *,
+    test_group: GroupOfTests,
+    test_type: str,
+    skip_db_tests: bool = False,
+    parallel_test_types_list: list[str] | None = None,
+    integration: tuple | None = None,
+) -> list[str]:
+    """The test paths generate_args_for_pytest selects for the test type, without the pytest options.
+
+    Empty when test_type is "None": the user then provides explicit paths via extra_pytest_args.
+    """
+    if skip_db_tests and parallel_test_types_list:
+        initial_paths = convert_parallel_types_to_folders(
+            test_group=test_group,
+            parallel_test_types_list=parallel_test_types_list,
+        )
+    else:
+        initial_paths = convert_test_type_to_pytest_args(
+            test_group=test_group,
+            test_type=test_type,
+            integration=integration,
+        )
+    # Only the test folders: test suites such as "All-Postgres" add pytest options with values too
+    return [p for p in initial_paths if is_path_under_any(p, get_all_test_group_folders())]
+
+
+def get_all_test_group_folders() -> list[str]:
+    return [folder for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values() for folder in group_folders]
+
+
+def is_path_under_any(path: str, folders: list[str]) -> bool:
+    path = path.rstrip("/")
+    return any(path == folder.rstrip("/") or path.startswith(f"{folder.rstrip('/')}/") for folder in folders)
+
+
 def are_all_test_paths_excluded(
     *,
     test_group: GroupOfTests,
@@ -254,24 +298,20 @@ def are_all_test_paths_excluded(
     Returns False when test_type is "None" (user provides explicit paths via extra_pytest_args)
     or when any test path remains after exclusions.
     """
-    if skip_db_tests and parallel_test_types_list:
-        initial_paths = convert_parallel_types_to_folders(
-            test_group=test_group,
-            parallel_test_types_list=parallel_test_types_list,
-        )
-    else:
-        initial_paths = convert_test_type_to_pytest_args(
-            test_group=test_group,
-            test_type=test_type,
-            integration=integration,
-        )
-    # Filter to only actual test directory paths (not pytest flags like -m, --include-quarantined)
-    test_dir_paths = [p for p in initial_paths if not p.startswith("-")]
+    test_dir_paths = get_selected_test_paths(
+        test_group=test_group,
+        test_type=test_type,
+        skip_db_tests=skip_db_tests,
+        parallel_test_types_list=parallel_test_types_list,
+        integration=integration,
+    )
     if not test_dir_paths:
         return False
-    excluded = set(get_excluded_test_provider_folders(python_version))
-    suspended = set(get_suspended_test_provider_folders())
-    return all(p in excluded | suspended for p in test_dir_paths)
+    excluded_or_suspended = [
+        *get_excluded_test_provider_folders(python_version),
+        *get_suspended_test_provider_folders(),
+    ]
+    return all(is_path_under_any(p, excluded_or_suspended) for p in test_dir_paths)
 
 
 TEST_TYPE_CORE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
@@ -365,6 +405,30 @@ PROVIDERS_LIST_PREFIX = "Providers["
 PROVIDERS_LIST_EXCLUDE_PREFIX = "Providers[-"
 
 
+def is_provider_selected_in_test_types(provider_id: str, test_types: list[str]) -> bool:
+    """Whether a provider's tests are included by any of the given pytest test-type selectors.
+
+    A bare selector such as ``Providers`` (no bracket) runs every provider; ``Providers[a,b]`` runs
+    only the listed ones; ``Providers[-a,b]`` runs all except the listed ones.
+    """
+    for test_type in test_types:
+        if test_type.startswith(PROVIDERS_LIST_EXCLUDE_PREFIX):
+            excluded = test_type[len(PROVIDERS_LIST_EXCLUDE_PREFIX) : -1].split(",")
+            if provider_id not in excluded:
+                return True
+        elif test_type.startswith(PROVIDERS_LIST_PREFIX):
+            included = [
+                included_id.partition(":")[0]
+                for included_id in test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
+            ]
+            if provider_id in included:
+                return True
+        else:
+            # A non-bracketed selector (e.g. "Providers", "All") runs every provider.
+            return True
+    return False
+
+
 def convert_test_type_to_pytest_args(
     *,
     test_group: GroupOfTests,
@@ -421,6 +485,8 @@ def convert_test_type_to_pytest_args(
                     )
                     providers_with_exclusions.remove(provider_test_to_exclude)
             return providers_with_exclusions
+        if test_type.startswith(PROVIDERS_LIST_PREFIX) and ":" in test_type:
+            return convert_provider_part_to_pytest_args(test_type[len(PROVIDERS_LIST_PREFIX) : -1])
         if test_type.startswith(PROVIDERS_LIST_PREFIX):
             provider_list = test_type[len(PROVIDERS_LIST_PREFIX) : -1].split(",")
             providers_to_test = []
@@ -456,6 +522,22 @@ def convert_test_type_to_pytest_args(
     sys.exit(1)
 
 
+def convert_provider_part_to_pytest_args(provider_part: str) -> list[str]:
+    """Pytest args for one part of a split provider, given as ``<provider_id>:<part>``."""
+    provider_id, _, part = provider_part.partition(":")
+    parts = PROVIDER_TEST_SPLITS.get(provider_id, {})
+    tests_folder = f"providers/{provider_id.replace('.', '/')}/tests"
+    if part == PROVIDER_TEST_SPLIT_OTHER_PART and parts:
+        return [
+            tests_folder,
+            *(f"--ignore={tests_folder}/{path}" for paths in parts.values() for path in paths),
+        ]
+    if part not in parts:
+        console_print(f"[error]Unknown part {part!r} of the {provider_id!r} provider tests[/]")
+        sys.exit(1)
+    return [f"{tests_folder}/{path}" for path in parts[part]]
+
+
 def generate_args_for_pytest(
     *,
     test_group: GroupOfTests,
@@ -475,6 +557,12 @@ def generate_args_for_pytest(
     integration: tuple | None = None,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend)
+    # Container-backed fixtures (e.g. the testcontainers MongoDB used by provider tests) pull their
+    # image and boot the container in the *setup* phase of the first test that uses them. On slower
+    # runners -- notably the GitHub-hosted ARM canary, where the image cache is cold -- that can exceed
+    # the regular per-test timeout. Give setup/teardown a higher floor so the bring-up fits, while
+    # keeping execution-timeout tight so a genuinely hung test is still caught quickly.
+    setup_teardown_timeout = max(test_timeout, MIN_SETUP_TEARDOWN_TIMEOUT)
     if skip_db_tests and parallel_test_types_list:
         args = convert_parallel_types_to_folders(
             test_group=test_group,
@@ -496,9 +584,9 @@ def generate_args_for_pytest(
             f"--junitxml={result_log_file}",
             # timeouts in seconds for individual tests
             "--timeouts-order=moi",
-            f"--setup-timeout={test_timeout}",
+            f"--setup-timeout={setup_teardown_timeout}",
             f"--execution-timeout={test_timeout}",
-            f"--teardown-timeout={test_timeout}",
+            f"--teardown-timeout={setup_teardown_timeout}",
             "--disable-warnings",
             # Only display summary for non-expected cases
             #
@@ -586,6 +674,12 @@ def generate_args_for_pytest(
 
 
 def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_types_list: list[str]):
+    # All test types share one pytest here, where the --ignore of a "<provider>:other" part would also drop
+    # the provider's other parts, so a split provider runs as a whole: Providers[<provider>].
+    split_parts = [test_type for test_type in parallel_test_types_list if ":" in test_type]
+    if split_parts:
+        console_print(f"[error]Split provider test types cannot run in one pytest process: {split_parts}[/]")
+        sys.exit(1)
     args = []
     for _test_type in parallel_test_types_list:
         args.extend(
@@ -594,9 +688,6 @@ def convert_parallel_types_to_folders(test_group: GroupOfTests, parallel_test_ty
                 test_type=_test_type,
             )
         )
-    all_test_prefixes: list[str] = []
+    all_test_prefixes = get_all_test_group_folders()
     # leave only folders, strip --pytest-args that exclude some folders with `-` prefix
-    for group_folders in TEST_GROUP_TO_TEST_FOLDERS.values():
-        for group_folder in group_folders:
-            all_test_prefixes.append(group_folder)
     return [arg for arg in args if any(arg.startswith(prefix) for prefix in all_test_prefixes)]

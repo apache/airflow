@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``0.4.0``
+Release: ``1.1.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-common-ai``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -53,14 +53,15 @@ Requirements
 ==========================================  ==================
 PIP package                                 Version required
 ==========================================  ==================
-``apache-airflow``                          ``>=3.0.0``
-``apache-airflow-providers-common-compat``  ``>=1.14.1``
-``apache-airflow-providers-standard``       ``>=1.12.1``
-``pydantic-ai-slim``                        ``>=1.99.0``
+``apache-airflow``                          ``>=2.11.0``
+``apache-airflow-providers-common-compat``  ``>=1.22.0``
+``apache-airflow-providers-standard``       ``>=1.20.0``
+``pydantic-ai-slim``                        ``>=2.36.0``
+``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
+Optional cross provider package dependencies
+--------------------------------------------
 
 Those are dependencies that might be needed in order to use all the features of the package.
 You need to install the specified providers in order to use them.
@@ -69,40 +70,48 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-common-ai[common.compat]
+    pip install apache-airflow-providers-common-ai[common.sql]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-`apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                      ``git``
-`apache-airflow-providers-standard <https://airflow.apache.org/docs/apache-airflow-providers-standard>`_            ``standard``
-==================================================================================================================  =================
+============================================================================================================  ==============
+Dependent package                                                                                             Extra
+============================================================================================================  ==============
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_  ``common.sql``
+`apache-airflow-providers-git <https://airflow.apache.org/docs/apache-airflow-providers-git>`_                ``git``
+`apache-airflow-providers-modal <https://airflow.apache.org/docs/apache-airflow-providers-modal>`_            ``modal``
+============================================================================================================  ==============
 
 Optional dependencies
 ----------------------
 
-==============  ==========================================================================================================
-Extra           Dependencies
-==============  ==========================================================================================================
-``anthropic``   ``pydantic-ai-slim[anthropic]``
-``bedrock``     ``pydantic-ai-slim[bedrock]``
-``google``      ``pydantic-ai-slim[google]``
-``openai``      ``pydantic-ai-slim[openai]``
-``mcp``         ``pydantic-ai-slim[mcp]``
-``skills``      ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=0.11.0``
-``avro``        ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
-``parquet``     ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``         ``apache-airflow-providers-common-sql``, ``sqlglot>=30.0.0``
-``common.sql``  ``apache-airflow-providers-common-sql``
-``langchain``   ``langchain>=1.0.0``
-``llamaindex``  ``llama-index-core>=0.13.0``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.0``
-``pdf``         ``pypdf>=4.0.0``
-``docx``        ``python-docx>=1.0.0``
-``git``         ``apache-airflow-providers-git``
-==============  ==========================================================================================================
+====================  =======================================================================================================================================
+Extra                 Dependencies
+====================  =======================================================================================================================================
+``anthropic``         ``pydantic-ai-slim[anthropic]>=2.36.0``, ``anthropic>=1.1.0,<2``
+``bedrock``           ``pydantic-ai-slim[bedrock]>=2.36.0``
+``google``            ``pydantic-ai-slim[google]>=2.36.0``
+``openai``            ``pydantic-ai-slim[openai]>=2.36.0``, ``openai>=2.47.0``
+``typesafe``          ``typesafe-sdk>=0.6.0``
+``mcp``               ``pydantic-ai-slim[mcp]>=2.36.0``
+``modal``             ``apache-airflow-providers-modal``, ``modal>=1.5.2``
+``opensandbox``       ``opensandbox>=1.1.0``
+``boat``              ``boat-sdk>=1.9.3``
+``openshell``         ``openshell>=0.1.2,<0.2``, ``grpcio>=1.78.0``, ``protobuf>=6.31.1``
+``code-mode``         ``pydantic-ai-harness[codemode]>=0.35.0``
+``shields``           ``pydantic-ai-shields>=0.3.4``
+``skills``            ``apache-airflow-providers-git>=0.4.0``, ``pydantic-ai-skills>=1.2.0,<2``
+``islo``              ``islo>=0.3.19``
+``avro``              ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
+``parquet``           ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
+``sql``               ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``
+``common.sql``        ``apache-airflow-providers-common-sql>=2.2.0``
+``langchain``         ``langchain>=1.0.0``
+``llamaindex``        ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
+``pdf``               ``pypdf>=4.0.0``
+``docx``              ``python-docx>=1.0.0``
+``git``               ``apache-airflow-providers-git``
+``claude-agent-sdk``  ``claude-agent-sdk>=0.2.160``
+====================  =======================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/0.4.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/changelog.html>`_.

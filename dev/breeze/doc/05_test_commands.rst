@@ -108,6 +108,20 @@ For example this will run API and WWW tests in parallel:
 
     breeze testing core-tests --parallel-test-types "API WWW" --run-in-parallel
 
+When testing separate worktrees concurrently, give each invocation a different
+``--project-name``. This isolates its containers, networks, and database volumes.
+The option also applies to ``breeze testing providers-tests``.
+
+.. code-block:: bash
+
+    breeze testing core-tests --project-name breeze-history --backend postgres
+    breeze testing core-tests --project-name breeze-clearing --backend postgres
+
+If you use this mode you will have to clean up old projects manually:
+
+.. code-block:: bash
+    breeze down --project-name breeze-history
+    breeze down --project-name breeze-clearing
 Here is the detailed set of options for the ``breeze testing core-tests`` command.
 
 .. image:: ./images/output_testing_core-tests.svg
@@ -371,7 +385,15 @@ a local venv. You can build the prod image with breeze and that will be used by 
 You can override the ``DOCKER_IMAGE`` environment variable to point to the image to test using the
 ``breeze testing airflow-e2e-tests`` command.
 
-The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo.
+The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
+``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
+``openlineage``, ``yaml_dag``, ...); the mode selects a docker-compose overlay and the matching test package under
+``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
+deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
+emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
+Pass ``--airflow-version`` (openlineage mode only) to run against an older released Airflow version
+with the current providers from main, instead of the default PROD image; CI runs this compat matrix
+on canary only. See ``airflow-e2e-tests/tests/airflow_e2e_tests/openlineage_tests/README.md``.
 
 Running Airflow UI E2E tests
 .............................
@@ -565,6 +587,23 @@ All parameters of the command are here:
   :width: 100%
   :alt: Breeze k8s deploy-airflow
 
+Setting up the lang-SDK coordinator system test
+...............................................
+
+``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
+system tests: it builds the Go, Java and TypeScript example bundles (mixed-language and
+native), deploys an in-cluster localstack S3, uploads the artifacts and the Dag files to
+their buckets, builds and loads the shared runtime image (prod + JRE + Node), and installs
+the Helm release configured for the ``golang``, ``java``, ``java-native`` and ``typescript``
+queues. After it completes, run the tests with ``breeze k8s tests``.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_setup-lang-sdk-test.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_setup-lang-sdk-test.svg
+  :width: 100%
+  :alt: Breeze k8s setup-lang-sdk-test
+
 Hot-reloading Dags and core sources
 ...................................
 
@@ -650,6 +689,53 @@ output during test execution.
 
     breeze k8s tests -- test_kubernetes_executor.py -s
 
+Smoke-testing a kustomize overlay
+.................................
+
+You can run ``breeze k8s smoke-test-overlay <name>`` to apply one of the
+overlays in ``chart/kustomize-overlays/`` to the current KinD cluster,
+wait for every resource declared in that overlay's ``STATUS.yaml``
+``verify:`` block, and run the optional per-overlay pytest module under
+``chart/tests/overlay_tests/``. An overlay's ``STATUS`` may only advance to
+``tested`` once this command exits 0.
+
+The runner is overlay-agnostic. For every overlay it:
+
+* renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
+* **auto-preloads every ``image:`` referenced by the rendered manifest**
+  into the kind node via ``docker pull`` (with retry on Docker Hub
+  rate limits) + ``kind load docker-image``, so the test does not flake
+  on registry availability,
+* applies the overlay,
+* polls each ``verify:`` resource for its declared success state while
+  **failing fast on terminal pod waiting reasons**
+  (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
+  ``CreateContainerConfigError``, …) rather than waiting out the full
+  ``timeout_seconds``,
+* runs the optional per-overlay pytest module,
+* deletes the overlay (skip with ``--skip-cleanup``).
+
+See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
+lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``
+to ``tested``.
+
+.. code-block:: bash
+
+    breeze k8s deploy-cluster --rebuild-base-image
+    breeze k8s deploy-airflow
+    breeze k8s smoke-test-overlay kerberos
+
+.. note::
+
+   ``--rebuild-base-image`` flag is only required during the first run of the command.
+
+All parameters of the command are here:
+
+.. image:: ./images/output_k8s_smoke-test-overlay.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_k8s_smoke-test-overlay.svg
+  :width: 100%
+  :alt: Breeze k8s smoke-test-overlay
+
 Running k8s complete tests
 ..........................
 
@@ -707,7 +793,7 @@ as executor you use, similar to:
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)>
 
 
 The shell automatically activates the virtual environment that has all appropriate dependencies
@@ -716,9 +802,9 @@ be created and Airflow deployed to it before running the tests):
 
 .. code-block:: bash
 
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
-    platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
+    platform linux -- Python 3.11.16, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/kubernetes-tests/.venv/bin/python
     cachedir: .pytest_cache
     rootdir: /home/jarek/code/airflow, configfile: pytest.ini
     plugins: anyio-3.6.1
@@ -728,14 +814,14 @@ be created and Airflow deployed to it before running the tests):
     test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
-    kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
-      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.10/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
+    kubernetes-tests/.venv/lib/python3.11/site-packages/_pytest/config/__init__.py:1233
+      /home/jarek/code/airflow/kubernetes-tests/.venv/lib/python3.11/site-packages/_pytest/config/__init__.py:1233: PytestConfigWarning: Unknown config option: asyncio_mode
 
         self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
 
     -- Docs: https://docs.pytest.org/en/stable/warnings.html
     ============================================ 2 passed, 1 warning in 38.62s ============================================
-    (kind-airflow-python-3.10-v1.24.0:KubernetesExecutor)>
+    (kind-airflow-python-3.11-v1.24.0:KubernetesExecutor)>
 
 
 All parameters of the command are here:

@@ -17,15 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from time import sleep
 from typing import TYPE_CHECKING, Any
 
-from deprecated.classic import deprecated
 from packaging.version import Version
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import AirflowSkipException, BaseSensorOperator, conf, timezone
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.providers.standard.version_compat import AIRFLOW_V_3_0_PLUS
@@ -47,7 +45,7 @@ class TimeDeltaSensor(BaseSensorOperator):
     The delta will be evaluated against data_interval_end if present for the dag run,
     otherwise run_after will be used.
 
-    :param delta: time to wait before succeeding.
+    :param delta: time to wait before succeeding. If a templated value is provided, it will be cast to an integer representing the duration in minutes.
     :param deferrable: Run sensor in deferrable mode. If set to True, task will defer itself to avoid taking up a worker slot while it is waiting.
 
     .. seealso::
@@ -56,10 +54,12 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     """
 
+    template_fields: Sequence[str] = ("delta",)
+
     def __init__(
         self,
         *,
-        delta: timedelta,
+        delta: timedelta | int,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         end_from_trigger: bool = False,
         **kwargs,
@@ -68,6 +68,12 @@ class TimeDeltaSensor(BaseSensorOperator):
         self.delta = delta
         self.deferrable = deferrable
         self.end_from_trigger = end_from_trigger
+
+    def _resolve_delta(self) -> timedelta:
+        value = self.delta
+        if isinstance(value, timedelta):
+            return value
+        return timedelta(minutes=int(value))
 
     def _derive_base_time(self, context: Context) -> datetime:
         """
@@ -92,8 +98,9 @@ class TimeDeltaSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         base_time = self._derive_base_time(context=context)
-        target_dttm = base_time + self.delta
-        self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, self.delta)
+        delta = self._resolve_delta()
+        target_dttm = base_time + delta
+        self.log.info("Checking if the delta has elapsed base_time=%s, delta=%s", base_time, delta)
         return timezone.utcnow() > target_dttm
 
     """
@@ -112,7 +119,7 @@ class TimeDeltaSensor(BaseSensorOperator):
 
         # Deferrable path
         base_time = self._derive_base_time(context=context)
-        target_dttm: datetime = base_time + self.delta
+        target_dttm: datetime = base_time + self._resolve_delta()
 
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
@@ -146,26 +153,6 @@ class TimeDeltaSensor(BaseSensorOperator):
         return None
 
 
-# TODO: Remove in the next major release
-@deprecated(
-    "Use `TimeDeltaSensor` with `deferrable=True` instead", category=AirflowProviderDeprecationWarning
-)
-class TimeDeltaSensorAsync(TimeDeltaSensor):
-    """
-    Deprecated. Use TimeDeltaSensor with deferrable=True instead.
-
-    :sphinx-autoapi-skip:
-    """
-
-    def __init__(self, *, end_from_trigger: bool = False, delta, **kwargs) -> None:
-        warnings.warn(
-            "TimeDeltaSensorAsync is deprecated and will be removed in a future version. Use `TimeDeltaSensor` with `deferrable=True` instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(delta=delta, deferrable=True, end_from_trigger=end_from_trigger, **kwargs)
-
-
 class WaitSensor(BaseSensorOperator):
     """
     A sensor that waits a specified period of time before completing.
@@ -177,6 +164,8 @@ class WaitSensor(BaseSensorOperator):
     :param deferrable: Run sensor in deferrable mode
     """
 
+    template_fields: Sequence[str] = ("time_to_wait",)
+
     def __init__(
         self,
         time_to_wait: timedelta | int,
@@ -185,20 +174,24 @@ class WaitSensor(BaseSensorOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.deferrable = deferrable
-        if isinstance(time_to_wait, int):
-            self.time_to_wait = timedelta(minutes=time_to_wait)
-        else:
-            self.time_to_wait = time_to_wait
+        self.time_to_wait = time_to_wait
+
+    def _resolve_time_to_wait(self) -> timedelta:
+        value = self.time_to_wait
+        if isinstance(value, timedelta):
+            return value
+        return timedelta(minutes=int(value))
 
     def execute(self, context: Context) -> None:
+        time_to_wait = self._resolve_time_to_wait()
         if self.deferrable:
             self.defer(
                 trigger=(
-                    TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True)
+                    TimeDeltaTrigger(time_to_wait, end_from_trigger=True)
                     if AIRFLOW_V_3_0_PLUS
-                    else TimeDeltaTrigger(self.time_to_wait)
+                    else TimeDeltaTrigger(time_to_wait)
                 ),
                 method_name="execute_complete",
             )
         else:
-            sleep(int(self.time_to_wait.total_seconds()))
+            sleep(int(time_to_wait.total_seconds()))

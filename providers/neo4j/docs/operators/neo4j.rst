@@ -23,7 +23,7 @@ Neo4jOperator
 =============
 
 Use the :class:`~airflow.providers.neo4j.operators.Neo4jOperator` to execute
-SQL commands in a `Neo4j <https://neo4j.com/>`__ database.
+Cypher queries in a `Neo4j <https://neo4j.com/>`__ database.
 
 
 Using the Operator
@@ -70,8 +70,8 @@ concatenate strings. This is particularly useful when you want to execute
 the same query with different values, or use values from the Airflow
 context, such as task instance parameters or variables.
 
-.. exampleinclude:: /../../neo4j/tests/system/neo4j/example_neo4j_query.py
+.. exampleinclude:: /../../neo4j/tests/system/neo4j/example_neo4j.py
     :language: python
     :dedent: 4
-    :start-after: [START run_query_neo4j_operator]
-    :end-before: [END run_query_neo4j_operator]
+    :start-after: [START run_query_neo4j_operator_with_parameters]
+    :end-before: [END run_query_neo4j_operator_with_parameters]

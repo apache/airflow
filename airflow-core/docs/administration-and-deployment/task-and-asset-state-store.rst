@@ -60,6 +60,10 @@ Number of days after which task state store rows expire. When a key is written w
 ``clear_on_success``
 ~~~~~~~~~~~~~~~~~~~~
 
+Retention and ``clear_on_success`` are not the only ways task state store entries get removed:
+clearing a task instance through the REST API, the UI, or ``airflowctl`` also discards them by
+default unless ``keep_task_state`` is set. See :doc:`/core-concepts/resumable-tasks`.
+
 When ``True``, all task state store keys for a task instance are automatically deleted when that task instance moves to the ``success`` state. Defaults to ``False``, which preserves task state store entries after success for observability (e.g. the submitted job ID or the last row count is still readable from the UI or REST API after the run completes).
 
 .. important::
@@ -83,29 +87,29 @@ Number of rows deleted per batch during garbage collection cleanup. Set to ``0``
 
 .. _task-and-asset-state-store:worker-backends:
 
-Worker-side backend (``[workers] state_backend``)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Worker-side backend (``[workers] state_store_backend``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A separate, optional config key under ``[workers]`` lets you route task state store and asset state store values through a worker-side backend before they reach the API server.
 
 .. code-block:: ini
 
     [workers]
-    state_backend = mypackage.state.S3StateBackend
+    state_store_backend = mypackage.state.S3StateBackend
 
-When this is set, ``TaskStoreAccessor.set()`` calls ``serialize_task_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
+When this is set, ``TaskStateStoreAccessor.set()`` calls ``serialize_task_state_store_to_ref()`` on the worker-side backend before sending the returned value (a reference to the actual storage) to the Execution API, and ``get()`` calls ``deserialize_task_state_store_from_ref()`` after receiving the stored reference from the Execution API. See `Custom worker-side backends`_ below.
 
 
 Garbage collection semantics
 -----------------------------
 
-The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store cleanup-task-state-store``. This process removes store rows according to the following rules:
+The cleanup task, also known as "garbage collection" is triggered using the Airflow CLI. The command to trigger the cleanup task is ``airflow state-store clean``. This process removes store rows according to the following rules:
 
 **Time-based expiry (task state store only)**
   Rows whose ``expires_at < now()`` are deleted. ``expires_at`` is computed on the *worker* at write time, not by the server.
 
 **``default_retention_days`` fallback (task state store only)**
-  Keys written with no explicit retention get an ``expires_at`` of now + default_retention_days computed at write time. Garbage collection deletes rows where ``expires_at < now()``."
+  Keys written with no explicit retention get an ``expires_at`` of now + default_retention_days computed at write time. Garbage collection deletes rows where ``expires_at < now()``.
 
 **``NEVER_EXPIRE`` keys**
   Keys set with ``retention=NEVER_EXPIRE`` are stored with ``expires_at = NULL`` and a flag that tells the garbage collection to skip them unconditionally. They are never deleted by time-based cleanup, regardless of ``default_retention_days``.
@@ -115,7 +119,7 @@ The cleanup task, also known as "garbage collection" is triggered using the Airf
 
 .. important::
 
-   Garbage collection only works for the ``MetastoreStateBackend``. Custom backends are explicitly skipped.
+   Garbage collection only works for the ``MetastoreBackend``. Custom backends are explicitly skipped.
 
 
 
@@ -124,7 +128,9 @@ Custom backends
 
 A custom backend must subclass :class:`~airflow.sdk.state.BaseStoreBackend` and implement its abstract methods: ``get``, ``set``, ``delete``, and ``clear`` for synchronous callers and the ``aget``, ``aset``, ``adelete``, and ``aclear`` async equivalents. Refer to :class:`~airflow.sdk.state.BaseStoreBackend` for the full API.
 
-Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. Use ``isinstance`` to dispatch:
+Values are passed to :meth:`~airflow.sdk.state.BaseStoreBackend.set` and returned from :meth:`~airflow.sdk.state.BaseStoreBackend.get` as JSON encoded strings, and are never the JSON ``null``. The Execution API reads values through :meth:`~airflow.sdk.state.BaseStoreBackend.get_value` (:meth:`~airflow.sdk.state.BaseStoreBackend.aget_value` is the async equivalent); a backend that stores values natively can override them to skip decoding on reads.
+
+Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.state.TaskScope` or an :class:`~airflow.sdk.state.AssetScope`. The union of the two is exported as ``airflow.sdk.state.StoreScope`` for type annotations. Use ``isinstance`` to dispatch:
 
 .. code-block:: python
 
@@ -137,6 +143,26 @@ Each method receives a ``scope`` argument that is either a :class:`~airflow.sdk.
                 return self._task_store.get(scope, key)
             elif isinstance(scope, AssetScope):
                 return self._asset_store.get(scope, key)
+
+If the storage client is synchronous, implement the async methods by offloading the sync work to a worker thread rather than calling it inline, so callers on an event loop (``async`` tasks and watcher triggers) are not blocked:
+
+.. code-block:: python
+
+    import asyncio
+
+
+    class MyBackend(BaseStoreBackend):
+        async def aget(self, scope, key, *, session=None):
+            return await asyncio.to_thread(self.get, scope, key)
+
+        async def aset(self, scope, key, value, *, expires_at=None, session=None):
+            await asyncio.to_thread(self.set, scope, key, value, expires_at=expires_at)
+
+        async def adelete(self, scope, key, *, session=None):
+            await asyncio.to_thread(self.delete, scope, key)
+
+        async def aclear(self, scope, *, all_map_indices=False, session=None):
+            await asyncio.to_thread(self.clear, scope, all_map_indices=all_map_indices)
 
 :class:`~airflow.sdk.state.AssetScope` has three optional fields: ``asset_id`` (integer, server-side only), ``name``, and ``uri``. At least one must be set. Server-side operations (REST API calls) provide ``asset_id``. Worker-side operations provide ``name`` or ``uri`` (workers do not have access to the integer ``asset_id``).
 
@@ -151,14 +177,14 @@ Configure the class via ``[state_store] backend``:
 Custom worker-side backends
 ----------------------------
 
-Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
+Worker-side backends extend ``BaseStoreBackend`` with two pairs of serialization hooks. They are configured separately via ``[workers] state_store_backend`` and run *on the worker process*, not on the API server. This lets you store large payloads or credentialed data directly using worker infrastructure while only a compact reference string is kept in the database.
 
 Override four serialization hooks from :class:`~airflow.sdk.state.BaseStoreBackend`:
 
-* ``serialize_task_store_to_ref``: called by ``TaskStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
-* ``deserialize_task_store_from_ref``: called by ``TaskStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
-* ``serialize_asset_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
-* ``deserialize_asset_store_from_ref``: called by ``AssetStoreAccessor.get()`` to resolve the stored reference back to the actual value.
+* ``serialize_task_state_store_to_ref``: called by ``TaskStateStoreAccessor.set()`` before the value is sent to the Execution API; return a compact reference string (e.g. an S3 key) to be stored in the database instead of the raw value.
+* ``deserialize_task_state_store_from_ref``: called by ``TaskStateStoreAccessor.get()`` after retrieving the reference from the backend; return the actual value.
+* ``serialize_asset_state_store_to_ref``: same as the task variant but for asset state store; receives the asset scope as ``scope`` (an :class:`~airflow.sdk.state.AssetScope` with ``name`` and/or ``uri``).
+* ``deserialize_asset_state_store_from_ref``: called by ``AssetStateStoreAccessor.get()`` to resolve the stored reference back to the actual value.
 
 .. important::
 
@@ -179,7 +205,9 @@ Example skeleton:
     class S3StateBackend(BaseStoreBackend):
 
         def _task_ref(self, scope: TaskScope, key: str) -> str:
-            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{scope.task_id}/{scope.map_index}/{key}"
+            # Two regions can hold the same task_id and map_index, so region_id must be part of the ref.
+            region = f"region={scope.region_id}/" if scope.region_id.int else ""
+            return f"airflow/task-store/{scope.dag_id}/{scope.run_id}/{region}{scope.task_id}/{scope.map_index}/{key}"
 
         def _asset_ref(self, scope: AssetScope, key: str) -> str:
             import hashlib
@@ -188,24 +216,24 @@ Example skeleton:
             safe = hashlib.sha256(asset_identifier.encode()).hexdigest()[:16]
             return f"airflow/asset-store/{safe}/{key}"
 
-        def serialize_task_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
+        def serialize_task_state_store_to_ref(self, *, value: JsonValue, key: str, scope: TaskScope) -> str:
             s3_key = self._task_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_task_store_from_ref(self, stored: str) -> JsonValue:
+        def deserialize_task_state_store_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
-        def serialize_asset_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
+        def serialize_asset_state_store_to_ref(self, *, value: JsonValue, key: str, scope: AssetScope) -> str:
             s3_key = self._asset_ref(scope, key)
             s3_client.put_object(Bucket=BUCKET, Key=s3_key, Body=json.dumps(value).encode())
             return s3_key
 
-        def deserialize_asset_store_from_ref(self, stored: str) -> JsonValue:
+        def deserialize_asset_state_store_from_ref(self, stored: str) -> JsonValue:
             s3_object = s3_client.get_object(Bucket=BUCKET, Key=stored)
             return json.loads(s3_object["Body"].read().decode())
 
         # Implement the remaining abstract methods as pass-throughs or delegating to the
-        # default MetastoreStateBackend for the DB side
+        # default MetastoreBackend for the DB side
         ...

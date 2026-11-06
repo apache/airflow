@@ -547,169 +547,6 @@ class TestWorkerSets:
 
         assert jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0]) == {"foo": "bar"}
 
-    def test_overwrite_kerberos_init_container_enabled(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [{"name": "test", "kerberosInitContainer": {"enabled": True}}],
-                    },
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init']", docs[0]) is not None
-        )
-
-    def test_overwrite_kerberos_init_container_disable(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "kerberosInitContainer": {"enabled": True},
-                        "sets": [{"name": "test", "kerberosInitContainer": {"enabled": False}}],
-                    }
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert (
-            jmespath.search("spec.template.spec.initContainers[?name=='kerberos-init'] | [0]", docs[0])
-            is None
-        )
-
-    def test_overwrite_kerberos_init_container_resources(self):
-        docs = render_chart(
-            values={
-                "workers": {
-                    "celery": {
-                        "enableDefault": False,
-                        "sets": [
-                            {
-                                "name": "test",
-                                "kerberosInitContainer": {
-                                    "enabled": True,
-                                    "resources": {
-                                        "limits": {"cpu": "3m", "memory": "4Mi"},
-                                    },
-                                },
-                            }
-                        ],
-                    }
-                }
-            },
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].resources", docs[0]
-        ) == {
-            "limits": {"cpu": "3m", "memory": "4Mi"},
-        }
-
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "sets": [
-                        {
-                            "name": "test",
-                            "kerberosInitContainer": {
-                                "enabled": True,
-                                "securityContexts": {"container": {"runAsUser": 10}},
-                            },
-                        }
-                    ],
-                }
-            },
-            {
-                "celery": {
-                    "kerberosInitContainer": {
-                        "securityContexts": {
-                            "container": {"allowPrivilegeEscalation": False},
-                        }
-                    },
-                    "enableDefault": False,
-                    "sets": [
-                        {
-                            "name": "test",
-                            "kerberosInitContainer": {
-                                "enabled": True,
-                                "securityContexts": {"container": {"runAsUser": 10}},
-                            },
-                        }
-                    ],
-                },
-            },
-        ],
-    )
-    def test_overwrite_kerberos_init_container_security_context(self, workers_values):
-        docs = render_chart(
-            values={"workers": workers_values},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].securityContext", docs[0]
-        ) == {"runAsUser": 10}
-
-    @pytest.mark.parametrize(
-        "workers_values",
-        [
-            {
-                "celery": {
-                    "enableDefault": False,
-                    "sets": [
-                        {
-                            "name": "test",
-                            "kerberosInitContainer": {
-                                "enabled": True,
-                                "containerLifecycleHooks": {
-                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
-                                },
-                            },
-                        }
-                    ],
-                }
-            },
-            {
-                "celery": {
-                    "kerberosInitContainer": {
-                        "containerLifecycleHooks": {"preStop": {"exec": {"command": ["echo", "test"]}}}
-                    },
-                    "enableDefault": False,
-                    "sets": [
-                        {
-                            "name": "test",
-                            "kerberosInitContainer": {
-                                "enabled": True,
-                                "containerLifecycleHooks": {
-                                    "postStart": {"exec": {"command": ["echo", "{{ .Release.Name }}"]}},
-                                },
-                            },
-                        }
-                    ],
-                },
-            },
-        ],
-    )
-    def test_overwrite_kerberos_init_container_lifecycle_hooks(self, workers_values):
-        docs = render_chart(
-            values={"workers": workers_values},
-            show_only=["templates/workers/worker-deployment.yaml"],
-        )
-
-        assert jmespath.search(
-            "spec.template.spec.initContainers[?name=='kerberos-init'] | [0].lifecycle", docs[0]
-        ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
-
     @pytest.mark.parametrize(
         "workers_values",
         [
@@ -1568,7 +1405,11 @@ class TestWorkerSets:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[?name=='worker-kerberos']", docs[0]) is not None
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
 
     def test_overwrite_kerberos_sidecar_disable(self):
         docs = render_chart(
@@ -1585,8 +1426,90 @@ class TestWorkerSets:
         )
 
         assert (
-            jmespath.search("spec.template.spec.containers[?name=='worker-kerberos'] | [0]", docs[0]) is None
+            jmespath.search("spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0])
+            is None
         )
+
+    @pytest.mark.parametrize(
+        ("startup_probe", "worker_set_startup_probe", "expected"),
+        [
+            (
+                {"enabled": False},
+                {"enabled": True},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 5,
+                    "initialDelaySeconds": 0,
+                    "periodSeconds": 10,
+                    "failureThreshold": 6,
+                },
+            ),
+            (
+                {
+                    "timeoutSeconds": 1,
+                    "initialDelaySeconds": 2,
+                    "periodSeconds": 3,
+                    "failureThreshold": 4,
+                },
+                {"timeoutSeconds": 11},
+                {
+                    "exec": {"command": ["klist", "-s"]},
+                    "timeoutSeconds": 11,
+                    "initialDelaySeconds": 2,
+                    "periodSeconds": 3,
+                    "failureThreshold": 4,
+                },
+            ),
+        ],
+        ids=["enabled", "custom"],
+    )
+    def test_overwrite_kerberos_sidecar_startup_probe(
+        self, startup_probe, worker_set_startup_probe, expected
+    ):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "kerberosSidecar": {"enabled": True, "startupProbe": startup_probe},
+                        "sets": [
+                            {
+                                "name": "test",
+                                "kerberosSidecar": {"startupProbe": worker_set_startup_probe},
+                            }
+                        ],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert sidecar["restartPolicy"] == "Always"
+        assert sidecar["startupProbe"] == expected
+
+    def test_overwrite_kerberos_sidecar_startup_probe_disabled(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "celery": {
+                        "enableDefault": False,
+                        "kerberosSidecar": {"enabled": True, "startupProbe": {"enabled": True}},
+                        "sets": [{"name": "test", "kerberosSidecar": {"startupProbe": {"enabled": False}}}],
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        sidecar = jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0]", docs[0]
+        )
+        assert sidecar is not None
+        assert "startupProbe" not in sidecar
 
     @pytest.mark.parametrize(
         "values",
@@ -1637,7 +1560,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].resources", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].resources", docs[0]
         ) == {
             "limits": {"cpu": "3m", "memory": "4Mi"},
         }
@@ -1691,7 +1614,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].securityContext", docs[0]
         ) == {"runAsUser": 10}
 
     @pytest.mark.parametrize(
@@ -1741,7 +1664,7 @@ class TestWorkerSets:
         )
 
         assert jmespath.search(
-            "spec.template.spec.containers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
         ) == {"postStart": {"exec": {"command": ["echo", "release-name"]}}}
 
     @pytest.mark.parametrize(

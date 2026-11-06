@@ -18,17 +18,15 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import closing
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeAlias, cast, overload
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, Protocol, TypeAlias, cast, overload
 
 from more_itertools import chunked
-from psycopg2 import connect as ppg2_connect
-from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor, execute_values
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
     Connection,
     conf,
@@ -54,9 +52,35 @@ if USE_PSYCOPG3:
     from psycopg.rows import dict_row, namedtuple_row
     from psycopg.types.json import register_default_adapters
 
+try:
+    import psycopg2 as _psycopg2
+    import psycopg2.extras as _psycopg2_extras
+except (ImportError, ModuleNotFoundError):
+    _psycopg2 = None
+    _psycopg2_extras = None
+
+ppg2_connect: Callable[..., Any] | None = _psycopg2.connect if _psycopg2 else None
+DictCursor: type | None = _psycopg2_extras.DictCursor if _psycopg2_extras else None
+NamedTupleCursor: type | None = _psycopg2_extras.NamedTupleCursor if _psycopg2_extras else None
+RealDictCursor: type | None = _psycopg2_extras.RealDictCursor if _psycopg2_extras else None
+execute_values: Callable[..., Any] | None = _psycopg2_extras.execute_values if _psycopg2_extras else None
+
+
+def _require_psycopg2() -> NoReturn:
+    raise AirflowOptionalProviderFeatureException(
+        "psycopg2 is not installed. Please install it with "
+        "`pip install apache-airflow-providers-postgres[psycopg2]`."
+    )
+
+
 if TYPE_CHECKING:
     from pandas import DataFrame as PandasDataFrame
     from polars import DataFrame as PolarsDataFrame
+    from psycopg2.extras import (
+        DictCursor as _DictCursorType,
+        NamedTupleCursor as _NamedTupleCursorType,
+        RealDictCursor as _RealDictCursorType,
+    )
     from sqlalchemy.engine import URL
 
     from airflow.providers.common.sql.dialects.dialect import Dialect
@@ -65,34 +89,18 @@ if TYPE_CHECKING:
     if USE_PSYCOPG3:
         from psycopg.errors import Diagnostic
 
-    CursorType: TypeAlias = DictCursor | RealDictCursor | NamedTupleCursor
+    CursorType: TypeAlias = _DictCursorType | _RealDictCursorType | _NamedTupleCursorType
     CursorRow: TypeAlias = dict[str, Any] | tuple[Any, ...]
 
 
 class CompatConnection(Protocol):
-    """Protocol for type hinting psycopg2 and psycopg3 connection objects."""
+    """Protocol for the common interface shared by psycopg2 and psycopg3 connection objects."""
 
     def cursor(self, *args, **kwargs) -> Any: ...
     def commit(self) -> None: ...
     def close(self) -> None: ...
-
-    # Context manager support
-    def __enter__(self) -> CompatConnection: ...
+    def __enter__(self) -> Any: ...
     def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None: ...
-
-    # Common properties
-    @property
-    def notices(self) -> list[Any]: ...
-
-    # psycopg3 specific (optional)
-    @property
-    def adapters(self) -> Any: ...
-
-    @property
-    def row_factory(self) -> Any: ...
-
-    # Optional method for psycopg3
-    def add_notice_handler(self, handler: Any) -> None: ...
 
 
 class PostgresHook(DbApiHook):
@@ -128,6 +136,11 @@ class PostgresHook(DbApiHook):
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
         sets the session's value of the ``search_path`` to ``myschema``.
+    :param sqlalchemy_scheme: Optional. The SQLAlchemy ``drivername`` used for the URLs the hook
+        builds (``get_uri``, ``get_sqlalchemy_engine``), e.g. ``postgresql+psycopg2``. Must be
+        ``postgresql`` or ``postgresql+<driver>``. Defaults to ``postgresql+psycopg`` when
+        psycopg (v3) serves SQLAlchemy 2.x and to ``postgresql`` otherwise. Can also be set via
+        the connection extra ``sqlalchemy_scheme``; this parameter takes precedence.
     :param enable_log_db_messages: Optional. If enabled logs database messages sent to the client
         during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
         For details, see: `PostgreSQL logging configuration parameters
@@ -157,17 +170,38 @@ class PostgresHook(DbApiHook):
     default_azure_oauth_scope = "https://ossrdbms-aad.database.windows.net/.default"
 
     def __init__(
-        self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
+        self,
+        *args,
+        options: str | None = None,
+        enable_log_db_messages: bool = False,
+        sqlalchemy_scheme: str | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.conn: CompatConnection | None = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
         self.enable_log_db_messages = enable_log_db_messages
+        self._sqlalchemy_scheme = sqlalchemy_scheme
 
     @staticmethod
     def __cast_nullable(value, dst_type: type) -> Any:
         return dst_type(value) if value is not None else None
+
+    @property
+    def sqlalchemy_scheme(self) -> str:
+        """SQLAlchemy ``drivername`` used for the URLs built by this hook."""
+        scheme = self._sqlalchemy_scheme or self.connection.extra_dejson.get("sqlalchemy_scheme")
+        if not scheme:
+            return "postgresql+psycopg" if USE_PSYCOPG3 else "postgresql"
+        if ":" in scheme or "/" in scheme:
+            raise ValueError("The parameter 'sqlalchemy_scheme' must not contain ':' or '/' characters!")
+        if scheme != "postgresql" and not scheme.startswith("postgresql+"):
+            raise ValueError(
+                f"The parameter 'sqlalchemy_scheme' must be 'postgresql' or 'postgresql+<driver>', "
+                f"got: {scheme!r}"
+            )
+        return scheme
 
     @property
     def sqlalchemy_url(self) -> URL:
@@ -181,11 +215,11 @@ class PostgresHook(DbApiHook):
         conn = self.connection
         query = conn.extra_dejson.get("sqlalchemy_query", {})
         if not isinstance(query, dict):
-            raise AirflowException("The parameter 'sqlalchemy_query' must be of type dict!")
+            raise TypeError("The parameter 'sqlalchemy_query' must be of type dict!")
         if conn.extra_dejson.get("iam", False):
             conn.login, conn.password, conn.port = self.get_iam_token(conn)
         return URL.create(
-            drivername="postgresql+psycopg" if USE_PSYCOPG3 else "postgresql",
+            drivername=self.sqlalchemy_scheme,
             username=self.__cast_nullable(conn.login, str),
             password=self.__cast_nullable(conn.password, str),
             host=self.__cast_nullable(conn.host, str),
@@ -198,7 +232,7 @@ class PostgresHook(DbApiHook):
     def dialect_name(self) -> str:
         return "postgresql"
 
-    @property
+    @cached_property
     def dialect(self) -> Dialect:
         return PostgresDialect(self)
 
@@ -214,11 +248,12 @@ class PostgresHook(DbApiHook):
             if _cursor == "namedtuplecursor":
                 return namedtuple_row
             if _cursor == "realdictcursor":
-                raise AirflowException(
-                    "realdictcursor is not supported with psycopg3. Use dictcursor instead."
-                )
+                raise ValueError("realdictcursor is not supported with psycopg3. Use dictcursor instead.")
             valid_cursors = "dictcursor, namedtuplecursor"
             raise ValueError(f"Invalid cursor passed {_cursor}. Valid options are: {valid_cursors}")
+
+        if DictCursor is None:
+            _require_psycopg2()
 
         cursor_types = {
             "dictcursor": DictCursor,
@@ -251,13 +286,10 @@ class PostgresHook(DbApiHook):
 
             return connection
 
+        if ppg2_connect is None:
+            _require_psycopg2()
+
         return ppg2_connect(**conn_args)
-
-    def _generate_cursor_name(self):
-        """Generate a unique name for server-side cursor."""
-        import uuid
-
-        return f"airflow_cursor_{uuid.uuid4().hex}"
 
     def get_conn(self) -> CompatConnection:
         """Establish a connection to a postgres database."""
@@ -573,7 +605,7 @@ class PostgresHook(DbApiHook):
         """
         return self.dialect.get_primary_keys(table=table, schema=schema)
 
-    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+    def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return Postgres/Redshift specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -707,6 +739,8 @@ class PostgresHook(DbApiHook):
             )
 
         # if fast_executemany is enabled with psycopg2, use optimized execute_values from psycopg
+        if execute_values is None:
+            _require_psycopg2()
         self._insert_statement_format = "INSERT INTO {} {} VALUES %s"
 
         nb_rows = 0
@@ -741,3 +775,42 @@ class PostgresHook(DbApiHook):
 
         self.log.info("Done loading. Loaded a total of %s rows into %s", nb_rows, table)
         return None
+
+    def upsert_rows(
+        self,
+        table: str,
+        rows: Iterable[tuple[Any, ...]],
+        target_fields: list[str],
+        conflict_fields: list[str],
+        update_fields: list[str] | None = None,
+        commit_every: int = 1000,
+        *,
+        fast_executemany: bool = False,
+        autocommit: bool = False,
+    ) -> None:
+        """
+        Upsert rows into a PostgreSQL table using ``ON CONFLICT``.
+
+        :param table: Name of the target table.
+        :param rows: Rows to upsert.
+        :param target_fields: Non-empty column names used in the ``INSERT`` statement.
+        :param conflict_fields: Non-empty column names used in the ``ON CONFLICT`` clause.
+        :param update_fields: Columns updated on conflict. If omitted, all
+            non-conflict columns are updated. If an empty list is provided,
+            conflicting rows are ignored via ``DO NOTHING``.
+        :param commit_every: Maximum number of rows per transaction. Default value is 1000.
+        :param fast_executemany: Use ``psycopg2.extras.execute_batch`` for improved
+            batch performance.
+        :param autocommit: Connection autocommit setting.
+        """
+        return self.insert_rows(
+            table=table,
+            rows=rows,
+            target_fields=target_fields,
+            replace_index=conflict_fields,
+            replace_target=update_fields,
+            commit_every=commit_every,
+            replace=True,
+            fast_executemany=fast_executemany,
+            autocommit=autocommit,
+        )

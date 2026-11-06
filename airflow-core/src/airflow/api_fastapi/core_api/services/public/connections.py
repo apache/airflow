@@ -32,7 +32,10 @@ from airflow.api_fastapi.core_api.datamodels.common import (
     BulkDeleteAction,
     BulkUpdateAction,
 )
-from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
+from airflow.api_fastapi.core_api.datamodels.connections import (
+    ConnectionBody,
+    restore_provider_sensitive_extra,
+)
 from airflow.api_fastapi.core_api.services.public.common import BulkService
 from airflow.models.connection import Connection
 
@@ -41,6 +44,7 @@ def update_orm_from_pydantic(
     orm_conn: Connection, pydantic_conn: ConnectionBody, update_mask: list[str] | None = None
 ) -> None:
     """Update ORM object from Pydantic object."""
+    stored_conn_type = orm_conn.conn_type
     # Not all fields match and some need setters, therefore copy partly manually via setters
     non_update_fields = {"connection_id", "conn_id"}
     setter_fields = {"password", "extra"}
@@ -71,7 +75,11 @@ def update_orm_from_pydantic(
             orm_conn.set_extra(pydantic_conn.extra)
             return
         try:
-            merged_extra = merge(json.loads(pydantic_conn.extra), json.loads(orm_conn.extra))
+            old_extra = json.loads(orm_conn.extra)
+            merged_extra = merge(json.loads(pydantic_conn.extra), old_extra)
+            # A secret declared by one provider must not be handed to another type's hook.
+            if orm_conn.conn_type == stored_conn_type:
+                merged_extra = restore_provider_sensitive_extra(merged_extra, old_extra)
             orm_conn.set_extra(json.dumps(merged_extra))
         except json.JSONDecodeError:
             # We can't merge fields in an unstructured `extra`
@@ -121,7 +129,12 @@ class BulkConnectionService(BulkService[ConnectionBody]):
                 if connection.connection_id in create_connection_ids:
                     if connection.connection_id in matched_connection_ids:
                         existed_connection = existed_connections_dict[connection.connection_id]
-                        for key, val in connection.model_dump(by_alias=True).items():
+                        # Only overwrite fields the request actually provided (see pools.py for the
+                        # full rationale). Plain ``model_dump()`` resets omitted fields to their
+                        # defaults on the existing connection — e.g. silently nulling ``team_name``
+                        # multi-team ownership. ``exclude_unset=True`` writes only the fields present
+                        # in the request body.
+                        for key, val in connection.model_dump(by_alias=True, exclude_unset=True).items():
                             setattr(existed_connection, key, val)
                     else:
                         self.session.add(Connection(**connection.model_dump(by_alias=True)))

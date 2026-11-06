@@ -20,7 +20,8 @@
 Templates reference
 ===================
 
-Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section)
+Variables, macros and filters can be used in templates (see the :ref:`concepts:jinja-templating` section).
+
 Asset-triggered DAGs
 --------------------
 
@@ -60,9 +61,10 @@ Variable                                    Type                  Description
 ``{{ logical_date }}``                      `pendulum.DateTime`_  | A date-time that logically identifies the current Dag run. This value does not contain any semantics, but is simply a value for identification.
                                                                   | Use ``data_interval_start`` and ``data_interval_end`` instead if you want a value that has real-world semantics,
                                                                   | such as to get a slice of rows from the database based on timestamps.
-``{{ exception }}``                         None | str |          | Error occurred while running task instance.
-                                            Exception             |
-                                            KeyboardInterrupt     |
+``{{ exception }}``                         None                  Error occurred while running task instance.
+                                            | str
+                                            | Exception
+                                            | KeyboardInterrupt
 ``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
                                             | ``None``            | Added in version 2.2.
 ``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful :class:`~airflow.models.dagrun.DagRun`.
@@ -87,6 +89,9 @@ Variable                                    Type                  Description
                                                                   | is enabled in ``airflow.cfg``.
 ``{{ partition_key }}``                     str | None            | The partition key from the current :class:`~airflow.models.dagrun.DagRun`.
                                                                   | Returns ``None`` if no partition key was set. Added in version 3.3.0.
+``{{ partition_date }}``                    datetime | None       | The partition datetime from the current :class:`~airflow.models.dagrun.DagRun`.
+                                                                  | Use ``{{ partition_date | ds }}`` and related filters for formatting.
+                                                                  | Returns ``None`` if no partition date was set. Added in version 3.3.0.
 ``{{ var.value }}``                                               Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ var.json }}``                                                Airflow variables. See `Airflow Variables in Templates`_ below.
 ``{{ conn }}``                                                    Airflow connections. See `Airflow Connections in Templates`_ below.

@@ -16,124 +16,127 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pytest
-from pydantic_ai.messages import (
-    ModelResponse,
-    TextPart,
-)
 
+from airflow.providers.common.ai.durable import storage as storage_module
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.sdk import ObjectStoragePath
+from airflow.providers.common.compat.sdk import ObjectStoragePath
+
+from tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
 def tmp_cache_path(tmp_path):
-    """Return a file:// path to a temporary directory for cache files."""
+    """Return a file:// path to a temporary directory for journal files."""
     return f"file://{tmp_path.as_posix()}"
 
 
 @pytest.fixture
 def storage(tmp_cache_path):
-    with patch("airflow.providers.common.ai.durable.storage._get_base_path") as mock_base:
+    with patch("airflow.providers.common.ai.durable.storage._get_base_path", autospec=True) as mock_base:
         mock_base.return_value = ObjectStoragePath(tmp_cache_path)
         yield DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
 
 
-@pytest.fixture
-def sample_response():
-    return ModelResponse(parts=[TextPart(content="Hello!")])
+ENTRY = {"name": "agent__model.request", "kind": "model", "fingerprint": "fp", "payload": {"parts": []}}
 
 
 class TestDurableStorageInit:
-    def test_cache_id_format(self, storage):
-        assert storage._cache_id == "test_dag_my_task_run_1"
+    def test_cache_id_is_deterministic(self):
+        """The same task identity always maps to the same cache file (so retries resume)."""
+        a = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        b = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        assert a._cache_id == b._cache_id
 
-    def test_cache_id_with_map_index(self):
-        s = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=3)
-        assert s._cache_id == "d_t_r_3"
+    def test_cache_id_differs_by_map_index(self):
+        base = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        mapped = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=3)
+        assert base._cache_id != mapped._cache_id
 
-    def test_cache_id_without_map_index(self):
-        s = DurableStorage(dag_id="d", task_id="t", run_id="r", map_index=-1)
-        assert "_-1" not in s._cache_id
-
-
-class TestSaveLoadModelResponse:
-    def test_save_and_load_roundtrips(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
-
-        # Reset in-memory cache to force read from file
-        storage._cache = None
-        loaded = storage.load_model_response("model_step_0")
-
-        assert loaded is not None
-        assert loaded.parts[0].content == "Hello!"
-
-    def test_load_returns_none_when_no_cache(self, storage):
-        assert storage.load_model_response("model_step_0") is None
+    def test_cache_id_no_collision_across_tasks(self):
+        """Distinct (dag, task) pairs that concatenate to the same string must not
+        share a cache file -- e.g. dag ``etl`` + task ``load_data`` vs dag
+        ``etl_load`` + task ``data``. A plain ``_``-join aliased them, letting one
+        task read, overwrite, or delete another task's durable cache."""
+        a = DurableStorage(dag_id="etl", task_id="load_data", run_id="r")
+        b = DurableStorage(dag_id="etl_load", task_id="data", run_id="r")
+        assert a._cache_id != b._cache_id
 
 
-class TestSaveLoadToolResult:
-    def test_save_and_load_roundtrips(self, storage):
-        storage.save_tool_result("tool_step_0", {"rows": [1, 2, 3]})
+class TestSaveLoad:
+    def test_entry_roundtrips(self, storage):
+        assert storage.save_step("k", ENTRY)
 
-        storage._cache = None
-        found, value = storage.load_tool_result("tool_step_0")
+        assert storage.load_step("k") == ENTRY
 
-        assert found is True
-        assert value == {"rows": [1, 2, 3]}
+    def test_a_retry_reads_what_the_previous_attempt_wrote(self, storage):
+        storage.save_step("k", ENTRY)
 
-    def test_load_returns_false_when_no_cache(self, storage):
-        found, value = storage.load_tool_result("tool_step_0")
-        assert found is False
-        assert value is None
+        retry = DurableStorage(dag_id="test_dag", task_id="my_task", run_id="run_1", map_index=-1)
 
-    def test_none_result_roundtrips(self, storage):
-        storage.save_tool_result("tool_step_0", None)
+        assert retry.load_step("k") == ENTRY
 
-        storage._cache = None
-        found, value = storage.load_tool_result("tool_step_0")
+    def test_missing_key_is_none(self, storage):
+        assert storage.load_step("missing") is None
 
-        assert found is True
-        assert value is None
+    def test_an_entry_that_cannot_be_encoded_is_skipped_and_the_rest_kept(self, storage):
+        circular: dict = {}
+        circular["self"] = circular
+        storage.save_step("good", ENTRY)
+
+        assert not storage.save_step("bad", {"payload": circular})
+        assert storage.load_step("good") == ENTRY
+        assert storage.load_step("bad") is None
+
+    def test_a_non_dict_value_is_a_miss(self, storage):
+        storage._load_cache()["k"] = "legacy string entry"
+
+        assert storage.load_step("k") is None
+
+    def test_every_save_rewrites_one_file(self, storage, tmp_path):
+        storage.save_step("a", ENTRY)
+        storage.save_step("b", ENTRY)
+
+        files = list(tmp_path.iterdir())
+        assert len(files) == 1
+        assert set(json.loads(files[0].read_text())) == {"a", "b"}
 
 
-class TestCleanup:
-    def test_cleanup_deletes_file(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
-        path = storage._get_path()
-        assert path.exists()
+class TestDeleteSteps:
+    def test_deleting_the_last_steps_removes_the_file(self, storage, tmp_path):
+        storage.save_step("a", ENTRY)
 
-        storage.cleanup()
-        assert not path.exists()
+        storage.delete_steps(["a"])
 
-    def test_cleanup_on_nonexistent_file(self, storage):
-        storage.cleanup()  # Should not raise
+        assert list(tmp_path.iterdir()) == []
+
+    def test_other_steps_are_kept(self, storage):
+        storage.save_step("a", ENTRY)
+        storage.save_step("b", ENTRY)
+
+        storage.delete_steps(["a"])
+
+        assert storage.load_step("a") is None
+        assert storage.load_step("b") == ENTRY
+
+    def test_deleting_when_there_is_no_file_does_not_raise(self, storage):
+        storage.delete_steps(["a"])
 
 
-class TestInMemoryCaching:
-    def test_multiple_saves_write_single_file(self, storage, sample_response):
-        storage.save_model_response("model_step_0", sample_response)
-        storage.save_tool_result("tool_step_1", "result")
-        storage.save_model_response("model_step_2", sample_response)
+class TestMissingConfig:
+    def test_a_missing_cache_path_names_the_option_without_naming_durable_true(self):
+        """run_durably() callers reach this too, and they never pass durable=True."""
+        storage_module._get_base_path.cache_clear()
+        try:
+            with conf_vars({("common.ai", "durable_cache_path"): ""}):
+                with pytest.raises(
+                    ValueError, match=r"^Durable execution .* needs \[common.ai\] durable_cache_path"
+                ) as exc_info:
+                    DurableStorage(dag_id="d", task_id="t", run_id="r").load_step("k")
 
-        assert "model_step_0" in storage._cache
-        assert "tool_step_1" in storage._cache
-        assert "model_step_2" in storage._cache
-
-    def test_cache_survives_reload(self, storage, sample_response):
-        """Simulate retry: save cache, reset in-memory, reload from file."""
-        storage.save_model_response("model_step_0", sample_response)
-        storage.save_tool_result("tool_step_1", "tool result")
-
-        # Simulate new DurableStorage instance (as on retry)
-        storage._cache = None
-
-        loaded_response = storage.load_model_response("model_step_0")
-        assert loaded_response is not None
-        assert loaded_response.parts[0].content == "Hello!"
-
-        found, value = storage.load_tool_result("tool_step_1")
-        assert found is True
-        assert value == "tool result"
+            assert "durable=True" not in str(exc_info.value)
+        finally:
+            storage_module._get_base_path.cache_clear()

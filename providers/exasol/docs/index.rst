@@ -75,7 +75,7 @@ apache-airflow-providers-exasol package
 `Exasol <https://www.exasol.com/>`__
 
 
-Release: 4.10.3
+Release: 5.0.0
 
 Provider package
 ----------------
@@ -107,25 +107,22 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ==========================================  =================================================================
 
-Cross provider package dependencies
------------------------------------
+Optional dependencies
+---------------------
 
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
+These extras install optional third-party libraries that enable additional features of the provider.
+Install them when installing from PyPI. For example:
 
 .. code-block:: bash
 
-    pip install apache-airflow-providers-exasol[common.compat]
+    pip install apache-airflow-providers-exasol[sqlalchemy]
 
 
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_        ``common.sql``
-==================================================================================================================  =================
+==============  ==============================
+Extra           Dependencies
+==============  ==============================
+``sqlalchemy``  ``sqlalchemy>=1.4.54,!=2.1.0``
+==============  ==============================
 
 Downloading official packages
 -----------------------------
@@ -133,5 +130,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-exasol 4.10.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3.tar.gz.sha512>`__)
-* `The apache-airflow-providers-exasol 4.10.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-4.10.3-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-exasol 5.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-exasol 5.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_exasol-5.0.0-py3-none-any.whl.sha512>`__)

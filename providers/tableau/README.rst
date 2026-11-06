@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-tableau``
 
-Release: ``5.5.0``
+Release: ``5.7.1``
 
 
 `Tableau <https://www.tableau.com/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``tableau`` provider. All classes for this provid
 are in ``airflow.providers.tableau`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.5.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.7.1/>`_.
 
 Installation
 ------------
@@ -45,7 +45,7 @@ You can install this package on top of an existing Airflow installation (see ``R
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-tableau``
 
-The package supports the following python versions: 3.10,3.11,3.12,3.13,3.14
+The package supports the following python versions: 3.11,3.12,3.13,3.14
 
 Requirements
 ------------
@@ -58,24 +58,5 @@ PIP package                                 Version required
 ``tableauserverclient``                     ``>=0.27``
 ==========================================  ==================
 
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified providers in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-tableau[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.5.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-tableau/5.7.1/changelog.html>`_.

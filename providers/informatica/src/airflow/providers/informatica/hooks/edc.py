@@ -22,6 +22,7 @@ import re
 from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlencode
 
 from requests.exceptions import RequestException
 
@@ -171,17 +172,8 @@ class InformaticaEDCHook(HttpHook):
             f"Informatica EDC request to {endpoint} returned {response.status_code}: {message}"
         )
 
-    def _encode_id(self, object_id, tilde=False):
-        """
-        Encode an ID to be safe. Return String.
-
-        Parameters
-        ----------
-        object_id : String
-            ID of object
-        tilde : Boolean, optional (default=False)
-            Whether to encode with a tilde or percent sign.
-        """
+    def _encode_id(self, object_id: str, tilde: bool = False) -> str:
+        """Encode an object ID for safe use in EDC URLs using tilde-prefix or percent encoding."""
         if ":___" in object_id:
             object_id = object_id.replace(":___", "://")
 
@@ -190,12 +182,14 @@ class InformaticaEDCHook(HttpHook):
         id_lst = list(object_id)
         idx = 0
 
-        while regex.search(object_id, idx) is not None:
-            idx = regex.search(object_id, idx).span()[1]
+        match = regex.search(object_id, idx)
+        while match is not None:
+            idx = match.span()[1]
             if tilde:
                 id_lst[idx - 1] = "~" + str(bytes(id_lst[idx - 1], "utf-8").hex()) + "~"
             else:
                 id_lst[idx - 1] = "%" + str(bytes(id_lst[idx - 1], "utf-8").hex())
+            match = regex.search(object_id, idx)
 
         return "".join(id_lst)
 
@@ -208,6 +202,55 @@ class InformaticaEDCHook(HttpHook):
 
         response = self._request("GET", url)
         return response.json()
+
+    def _search(self, **fq_parts: str) -> dict:
+        """Execute a catalog data search with the given ``fq`` filter parts."""
+        params: list[tuple[str, str]] = [
+            ("defaultFacets", "true"),
+            ("disableSemanticSearch", "false"),
+            ("enableLegacySearch", "false"),
+            ("facet", "false"),
+            ("fl", "core.name"),
+            ("highlight", "false"),
+            ("includeRefObjects", "false"),
+        ]
+        for key, value in fq_parts.items():
+            params.append(("fq", f"{key}:{value}"))
+
+        query_string = urlencode(params)
+        response = self._request("GET", f"/access/2/catalog/data/search?{query_string}")
+        return response.json()
+
+    def search_database(self, database_name: str) -> dict:
+        """Search for a relational Database or DatabaseServer object by name."""
+        result = self._search(
+            **{"core.classType": "com.infa.ldm.relational.Database", "core.name": database_name}
+        )
+        if result.get("hits"):
+            return result
+        return self._search(
+            **{"core.classType": "com.infa.ldm.relational.DatabaseServer", "core.name": database_name}
+        )
+
+    def search_schema(self, schema_name: str) -> dict:
+        """Search for a relational Schema or DatabaseSchema object by name."""
+        result = self._search(
+            **{"core.classType": "com.infa.ldm.relational.Schema", "core.name": schema_name}
+        )
+        if result.get("hits"):
+            return result
+        return self._search(
+            **{"core.classType": "com.infa.ldm.relational.DatabaseSchema", "core.name": schema_name}
+        )
+
+    def search_table(self, table_name: str) -> dict:
+        """Search for a relational Table or View object by name."""
+        return self._search(
+            **{
+                "core.classType": "com.infa.ldm.relational.Table OR core.classType:com.infa.ldm.relational.View",
+                "core.name": table_name,
+            }
+        )
 
     def create_lineage_link(self, source_object_id: str, target_object_id: str) -> dict[str, Any]:
         """Create a lineage relationship between source and target objects."""

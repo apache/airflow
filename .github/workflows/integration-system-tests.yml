@@ -75,10 +75,12 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         integration: ${{ fromJSON(inputs.testable-core-integrations) }}
     env:
@@ -98,7 +100,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -126,10 +128,12 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
     name: "Integration: providers ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         integration: ${{ fromJSON(inputs.testable-providers-integrations) }}
     env:
@@ -149,7 +153,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
@@ -176,7 +180,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}
@@ -194,7 +198,7 @@ jobs:
         shell: bash
         run: sudo rm -rf ${GITHUB_WORKSPACE}/*
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"

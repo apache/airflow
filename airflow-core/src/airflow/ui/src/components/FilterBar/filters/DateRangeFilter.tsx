@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Box, HStack, Text, VStack } from "@chakra-ui/react";
+import { Box, HStack, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { MdCalendarToday, MdClose } from "react-icons/md";
 
-import { Popover } from "src/components/ui";
+import { Popover } from "src/system-components";
+
 import { useDateRangeFilter } from "src/hooks/useDateRangeFilter";
 
 import { FilterPill } from "../FilterPill";
@@ -39,6 +40,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
   const hasValue = isValidFilterValue(filter.config.type, filter.value);
 
   const {
+    commitEditingState,
     editingState,
     endDateValue,
     formatDisplayValue,
@@ -59,26 +61,35 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
       filter={filter}
       hasValue={hasValue}
       onRemove={onRemove}
-      renderInput={() => (
+      renderInput={(_props, { onRequestClose }) => (
         <Popover.Root
           defaultOpen={!hasValue}
           key={filter.id}
           lazyMount
+          // The popover owns dismissal, so the pill never sees a blur. Deferring lets a range
+          // picked in the same tick commit first, so the pill collapses instead of being dropped.
+          // Typed input is only kept local while editing, so commit it on dismissal too.
+          onOpenChange={({ open }) => {
+            if (!open) {
+              commitEditingState();
+              setTimeout(onRequestClose, 0);
+            }
+          }}
           positioning={{ placement: "bottom-start" }}
           unmountOnExit
         >
           <Popover.Trigger asChild>
             <Box
               alignItems="center"
-              bg={hasValue ? "blue.muted" : "gray.muted"}
+              bg={hasValue ? "brand.emphasized" : "gray.muted"}
               border="0.5px solid"
               borderColor="border"
               borderRadius="full"
               color="colorPalette.fg"
-              colorPalette={hasValue ? "blue" : "gray"}
+              colorPalette={hasValue ? "brand" : "gray"}
               cursor="pointer"
               display="flex"
-              h="10"
+              h="9"
               maxWidth="600px"
               minWidth="300px"
               overflow="hidden"
@@ -86,7 +97,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
             >
               <HStack
                 alignItems="center"
-                bg={hasValue ? "blue.muted" : "gray.muted"}
+                bg={hasValue ? "brand.emphasized" : "gray.muted"}
                 borderLeftRadius="full"
                 fontSize="sm"
                 fontWeight="medium"
@@ -97,17 +108,18 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                 whiteSpace="nowrap"
               >
                 <MdCalendarToday />
-                <Text>{filter.config.label}:</Text>
+                <div>{filter.config.label}:</div>
               </HStack>
-              <HStack flex="1" gap={2} px={2.5} py={0.5}>
-                <Text
+              <HStack flex="1" gap={2} py={0.5}>
+                <Box
                   color={hasValue ? "inherit" : "gray.500"}
                   flexShrink={0}
                   fontSize="sm"
+                  fontWeight={hasValue ? "bold" : undefined}
                   whiteSpace="nowrap"
                 >
                   {hasValue ? formatDisplayValue() : translate("common:filters.selectDateRange")}
-                </Text>
+                </Box>
                 <Box
                   _hover={{
                     bg: "gray.100",
@@ -142,6 +154,7 @@ export const DateRangeFilter = ({ filter, onChange, onRemove }: FilterPluginProp
                 getFieldError={getFieldError}
                 handleInputChange={handleInputChange}
                 onChange={onChange}
+                onCommit={commitEditingState}
                 setEditingState={setEditingState}
                 startDateValue={startDateValue}
                 translate={translate}

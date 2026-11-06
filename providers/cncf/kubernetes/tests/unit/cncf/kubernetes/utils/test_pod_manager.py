@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone as dt_timezone
+from datetime import UTC, datetime, timedelta
 from json.decoder import JSONDecodeError
 from typing import TYPE_CHECKING, cast
 from unittest import mock
@@ -26,12 +26,15 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pendulum
 import pytest
 import time_machine
+from kubernetes.client import CoreV1Event, CoreV1EventList, V1ObjectMeta, V1ObjectReference, V1Pod
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import HTTPError as BaseHTTPError
 
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiError
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     AsyncPodManager,
+    PodCommandException,
     PodLogsConsumer,
     PodManager,
     PodPhase,
@@ -47,6 +50,16 @@ from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallbac
 
 if TYPE_CHECKING:
     from pendulum import DateTime
+
+POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
+
+
+def _build_event_list() -> CoreV1EventList:
+    event = CoreV1Event(
+        involved_object=V1ObjectReference(),
+        metadata=V1ObjectMeta(uid="event-uid", resource_version="1"),
+    )
+    return CoreV1EventList(items=[event])
 
 
 @pytest.fixture
@@ -465,6 +478,32 @@ class TestPodManager:
             resource_version=None,
             resource_version_match=None,
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("read_result", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="reading-events"),
+            pytest.param(_build_event_list(), "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    @mock.patch.object(PodManager, "read_pod_events", autospec=True)
+    async def test_watch_pod_events_stops_on_error(
+        self, mock_read, mock_log_event, read_result, error, caplog
+    ):
+        mock_read.side_effect = [read_result]
+
+        await self.pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod")), check_interval=1
+        )
+
+        mock_read.assert_called_once()
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            f"Stopped watching events of pod test-pod: {error}",
+        ) in caplog.record_tuples
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep", new_callable=mock.AsyncMock)
@@ -1131,7 +1170,7 @@ class TestPodManager:
     def test_fetch_container_with_valid_since_time(self, logs_available, container_running):
         """Test that since_seconds is calculated correctly when since_time is a valid datetime."""
         mock_pod = MagicMock()
-        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=dt_timezone.utc) - timedelta(seconds=30)
+        since_time = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC) - timedelta(seconds=30)
         logs_available.return_value = True
         container_running.return_value = False
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.MagicMock(
@@ -1231,6 +1270,46 @@ class TestPodManager:
         "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
         return_value=True,
     )
+    def test_extract_xcom_returns_result_when_sidecar_kill_fails(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
+        """A failure to kill the sidecar must not discard the XCom value already read."""
+        xcom_json = """{"a": "true"}"""
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
+        mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
+        ret = self.pod_manager.extract_xcom(pod=MagicMock())
+        assert ret == xcom_json
+        assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
+    def test_extract_xcom_reraises_kill_failure_when_not_ignored(
+        self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
+    ):
+        """With ignore_kill_failure=False the kill failure still propagates to the caller."""
+        xcom_json = """{"a": "true"}"""
+        mock_client = MagicMock()
+        mock_client.peek_stderr.return_value = ""
+        mock_client.read_all.return_value = xcom_json
+        mock_kubernetes_stream.return_value = mock_client
+        mock_exec_xcom_kill.side_effect = PodCommandException("Command failed with stderr: Permission denied")
+        with pytest.raises(PodCommandException, match="Permission denied"):
+            self.pod_manager.extract_xcom(pod=MagicMock(), ignore_kill_failure=False)
+        assert mock_exec_xcom_kill.call_count == 1
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
+        return_value=True,
+    )
     def test_extract_xcom_failure(
         self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream
     ):
@@ -1301,8 +1380,8 @@ class TestPodManager:
         mock_pod = MagicMock()
         mock_container_is_running.return_value = False
         mock_container_is_terminated.return_value = False
-        with pytest.raises(AirflowException):
-            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=10, log_interval=5)
+        with pytest.raises(AirflowException), mock.patch("time.sleep"):
+            self.pod_manager.await_xcom_sidecar_container_start(pod=mock_pod, timeout=0, log_interval=5)
         mock_container_is_running.assert_any_call(mock_pod, "airflow-xcom-sidecar")
         mock_container_is_terminated.assert_any_call(mock_pod, "airflow-xcom-sidecar")
 
@@ -1488,6 +1567,37 @@ class TestAsyncPodManager:
 
         # Verify hook was called
         self.mock_async_hook.watch_pod_events.assert_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("watched", "error"),
+        [
+            pytest.param(ApiException(status=504), str(ApiException(status=504)), id="watching-events"),
+            pytest.param(_build_event_list().items[0], "bad event", id="logging-an-event"),
+        ],
+    )
+    @mock.patch(f"{POD_MANAGER_MODULE}.log_pod_event", autospec=True, side_effect=ValueError("bad event"))
+    async def test_watch_pod_events_stops_on_error(self, mock_log_event, watched, error, caplog):
+        async def event_stream(*_, **__):
+            if isinstance(watched, Exception):
+                raise watched
+            yield watched
+
+        hook = mock.create_autospec(AsyncKubernetesHook, instance=True)
+        hook.watch_pod_events.side_effect = event_stream
+        self.async_pod_manager._hook = hook
+
+        await self.async_pod_manager.watch_pod_events(
+            V1Pod(metadata=V1ObjectMeta(name="test-pod", namespace="test-namespace")),
+            startup_check_interval=30,
+        )
+
+        hook.watch_pod_events.assert_called_once()
+        assert (
+            mock.ANY,
+            logging.WARNING,
+            f"Stopped watching events of pod test-pod: {error}",
+        ) in caplog.record_tuples
 
     @pytest.mark.asyncio
     async def test_watch_pod_events_tracks_resource_version(self):
@@ -1721,54 +1831,33 @@ class TestAsyncPodManager:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("log_lines", "now", "expected_log_messages", "not_expected_log_messages"),
+        ("log_line_offsets", "expected_log_messages", "not_expected_log_messages"),
         [
             # Case 1: No logs
-            ([], pendulum.now(), [], []),
+            ([], [], []),
             # Case 2: One log line with timestamp before now
-            (
-                [f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} message"],
-                pendulum.now(),
-                ["message"],
-                [],
-            ),
+            ([(-2, "message")], ["message"], []),
             # Case 3: Log line with timestamp equal to now (should be skipped, so last_time is None)
-            ([f"{pendulum.now().to_iso8601_string()} message"], pendulum.now(), [], ["message"]),
+            ([(0, "message")], [], ["message"]),
             # Case 4: Multiple log lines, last before now
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=3).to_iso8601_string()} msg1",
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1", "msg2"],
-                [],
-            ),
+            ([(-3, "msg1"), (-2, "msg2")], ["msg1", "msg2"], []),
             # Case 5: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    "continued line",
-                ],
-                pendulum.now(),
-                ["msg1\ncontinued line"],
-                [],
-            ),
-            # Case 6: Log lines with continuation (no timestamp)
-            (
-                [
-                    f"{pendulum.now().subtract(seconds=2).to_iso8601_string()} msg1",
-                    f"{pendulum.now().to_iso8601_string()} msg2",
-                ],
-                pendulum.now(),
-                ["msg1"],
-                ["msg2"],
-            ),
+            ([(-2, "msg1"), (None, "continued line")], ["msg1\ncontinued line"], []),
+            # Case 6: Log line followed by one at the current second (the latter should be skipped)
+            ([(-2, "msg1"), (0, "msg2")], ["msg1"], ["msg2"]),
         ],
     )
     async def test_fetch_container_logs_before_current_sec_various_logs(
-        self, log_lines, now, expected_log_messages, not_expected_log_messages
+        self, log_line_offsets, expected_log_messages, not_expected_log_messages
     ):
+        # Use a fixed reference instant instead of real wall-clock time: building the
+        # log-line timestamps from separate `pendulum.now()` calls made the "equal to
+        # the current second" cases flaky whenever those calls straddled a second boundary.
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        log_lines = [
+            message if offset is None else f"{now.add(seconds=offset).to_iso8601_string()} {message}"
+            for offset, message in log_line_offsets
+        ]
         pod = mock.MagicMock()
         container_name = "base"
         since_time = now.subtract(minutes=1)
@@ -1808,6 +1897,26 @@ class TestAsyncPodManager:
             await self.async_pod_manager.fetch_container_logs_before_current_sec(
                 pod=pod, container_name=container_name, since_time=since_time
             )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.to_thread", new_callable=mock.AsyncMock)
+    async def test_fetch_container_logs_offloads_parse_off_the_event_loop(self, mock_to_thread):
+        """The CPU-bound per-line parse/emit loop is offloaded to a worker thread, not run on the loop."""
+        now = pendulum.datetime(2024, 1, 1, 12, 0, 0)
+        pod = mock.MagicMock()
+        container_name = "base"
+        log_lines = [f"{now.subtract(seconds=2).to_iso8601_string()} hello"]
+        self.mock_async_hook.read_logs.return_value = log_lines
+
+        with mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.pendulum.now", return_value=now):
+            result = await self.async_pod_manager.fetch_container_logs_before_current_sec(
+                pod=pod, container_name=container_name, since_time=now.subtract(minutes=1)
+            )
+
+        assert result == now
+        mock_to_thread.assert_awaited_once_with(
+            self.async_pod_manager._emit_container_logs, log_lines, now, container_name
+        )
 
 
 class TestPodLogsConsumer:

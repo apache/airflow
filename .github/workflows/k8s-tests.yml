@@ -48,16 +48,26 @@ on:  # yamllint disable-line rule:truthy
         description: "Whether to debug resources"
         required: true
         type: string
+      java-sdk-version:
+        description: "JDK version used to build the lang-SDK Java artifacts natively in CI"
+        required: true
+        type: string
+      lang-sdk-kubernetes-combo:
+        description: "Single Python-Kubernetes combo (<python>-<k8s-version>) for the dedicated lang-SDK job"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
   tests-kubernetes:
     timeout-minutes: 60
     name: "K8S System:${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-${{ matrix.use-standard-naming }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         executor: [KubernetesExecutor, CeleryExecutor, LocalExecutor]
         use-standard-naming: [true, false]
@@ -81,7 +91,7 @@ jobs:
           echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
           echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous
@@ -96,6 +106,9 @@ jobs:
           make-mnt-writeable-and-cleanup: true
         id: breeze
       # preparing k8s environment with uv takes < 15 seconds with `uv` - there is no point in caching it.
+      # The lang-SDK coordinator system test is intentionally NOT run in this matrix. It has its own
+      # dedicated single-combo job (tests-kubernetes-lang-sdk below), so it no longer adds the ~6 minutes
+      # of Go/Java/TypeScript build + coordinator run to each of these system-test jobs.
       - name: "\
           Run complete K8S tests ${{ matrix.executor }}-${{ env.PYTHON_MAJOR_MINOR_VERSION }}-\
           ${{env.KUBERNETES_VERSION}}-${{ matrix.use-standard-naming }}"
@@ -117,11 +130,132 @@ jobs:
       - name: "\
           Upload KinD logs ${{ matrix.executor }}-${{ matrix.kubernetes-combo }}-\
           ${{ matrix.use-standard-naming }}"
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: "\
             kind-logs-${{ matrix.kubernetes-combo }}-${{ matrix.executor }}-\
             ${{ matrix.use-standard-naming }}"
+          path: /tmp/kind_logs_*
+          retention-days: '7'
+        if: failure() || cancelled() || inputs.include-success-outputs == 'true'
+      - name: "Delete clusters just in case they are left"
+        run: breeze k8s delete-cluster --all
+        if: always()
+
+  # The lang-SDK KubernetesExecutor coordinator system tests build a Go bundle, Java jars and
+  # TypeScript bundles and run them as workers under KubernetesExecutor. They are
+  # executor/naming/version-independent, so instead of bolting them onto all six
+  # ``KubernetesExecutor``/``use-standard-naming == false`` system-test jobs above (which ran them
+  # redundantly and added several minutes each), they run once here on a single default combo and
+  # execute only the lang-SDK tests (``-k TestLangSdk``) - not the full suite.
+  tests-kubernetes-lang-sdk:
+    timeout-minutes: 60
+    name: "K8S Lang-SDK:${{ inputs.lang-sdk-kubernetes-combo }}"
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    env:
+      DEBUG_RESOURCES: ${{ inputs.debug-resources }}
+      INCLUDE_SUCCESS_OUTPUTS: ${{ inputs.include-success-outputs }}
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      VERBOSE: "true"
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Prepare PYTHON_MAJOR_MINOR_VERSION and KUBERNETES_VERSION"
+        id: prepare-versions
+        env:
+          KUBERNETES_COMBO: ${{ inputs.lang-sdk-kubernetes-combo }}
+        run: |
+          echo "PYTHON_MAJOR_MINOR_VERSION=${KUBERNETES_COMBO}" | sed 's/-.*//' >> $GITHUB_ENV
+          echo "KUBERNETES_VERSION=${KUBERNETES_COMBO}" | sed 's/=[^-]*-/=/'  >> $GITHUB_ENV
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      # env.PYTHON_MAJOR_MINOR_VERSION, env.KUBERNETES_VERSION are set in the previous
+      # step id: prepare-versions
+      - name: "Prepare breeze & PROD image: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+        with:
+          platform: ${{ inputs.platform }}
+          image-type: "prod"
+          python: ${{ env.PYTHON_MAJOR_MINOR_VERSION }}
+          use-uv: ${{ inputs.use-uv }}
+          make-mnt-writeable-and-cleanup: true
+        id: breeze
+      # Provision the lang-SDK Go/Java/Node toolchains on the host so breeze builds the artifacts natively
+      # (LANG_SDK_NATIVE_TOOLCHAIN=true) instead of in throwaway toolchain containers, skipping the image
+      # pulls and reusing the caches restored below. The module/build and Gradle caches are keyed
+      # explicitly (rather than via the setup-* built-in caching) so the key carries an ``-vN-`` salt:
+      # bump it to force-invalidate a poisoned cache without waiting for a dependency change to rotate it.
+      # keep go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
+      - name: "Setup Go for lang-SDK build"
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        with:
+          go-version: 1.25
+          cache: false
+      - name: "Cache lang-SDK Go module + build cache"
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: lang-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('kubernetes-tests/lang_sdk/go_example/go.sum') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            lang-sdk-go-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: "Setup Java for lang-SDK build"
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad  # v6.1.0
+        with:
+          distribution: 'temurin'
+          java-version: ${{ inputs.java-sdk-version }}
+      - name: "Cache lang-SDK Gradle distribution + dependencies"
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: lang-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('java-sdk/**/*.gradle*', 'java-sdk/**/gradle-wrapper.properties', 'kubernetes-tests/lang_sdk/java_example/**/*.gradle*', 'airflow-e2e-tests/java-native-bundle/**/*.gradle*') }}  # yamllint disable-line rule:line-length
+          restore-keys: |
+            lang-sdk-gradle-v1-${{ runner.os }}-${{ runner.arch }}-
+      - name: "Setup pnpm for the lang-SDK TypeScript build"
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413  # v6.1.0
+        with:
+          package_json_file: ts-sdk/package.json
+          run_install: false
+      - name: "Setup Node for the lang-SDK TypeScript build"
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: |
+            ts-sdk/pnpm-lock.yaml
+            kubernetes-tests/lang_sdk/ts_example/pnpm-lock.yaml
+      # No --upgrade here: the redeploy/upgrade path is already exercised across the main matrix above;
+      # this job only needs a single deploy to validate the lang-SDK coordinators, saving ~1.5 minutes.
+      - name: "Run lang-SDK K8S tests ${{ inputs.lang-sdk-kubernetes-combo }}"
+        run: >-
+          breeze k8s run-complete-tests --no-copy-local-sources
+          -- -k TestLangSdk
+        env:
+          EXECUTOR: "KubernetesExecutor"
+          USE_STANDARD_NAMING: "false"
+          RUN_LANG_SDK_K8S_TESTS: "true"
+          LANG_SDK_NATIVE_TOOLCHAIN: "true"
+          VERBOSE: "false"
+      - name: "Print logs lang-sdk-${{ inputs.lang-sdk-kubernetes-combo }}"
+        run: |
+          for file in `find /tmp/kind_logs_*/ -type f` ; do
+            echo "::group::${file}"
+            cat $file
+            echo "::endgroup::"
+          done
+        if: failure() || cancelled() || inputs.include-success-outputs == 'true'
+      - name: "Upload KinD logs lang-sdk-${{ inputs.lang-sdk-kubernetes-combo }}"
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: "kind-logs-lang-sdk-${{ inputs.lang-sdk-kubernetes-combo }}"
           path: /tmp/kind_logs_*
           retention-days: '7'
         if: failure() || cancelled() || inputs.include-success-outputs == 'true'

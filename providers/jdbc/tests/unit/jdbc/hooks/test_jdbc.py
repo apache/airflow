@@ -31,7 +31,7 @@ import jaydebeapi
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, suppress_and_warn
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
@@ -217,7 +217,7 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(hook_params=hook_params)
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError, match="'sqlalchemy_scheme' must be defined"):
             hook.sqlalchemy_url
 
     def test_sqlalchemy_url_with_sqlalchemy_scheme(self):
@@ -243,8 +243,19 @@ class TestJdbcHook:
         hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
         hook = get_hook(conn_params=conn_params, hook_params=hook_params)
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError, match="'sqlalchemy_query' must be of type dict"):
             hook.sqlalchemy_url
+
+    def test_sqlalchemy_url_raises_when_sqlalchemy_is_not_installed(self):
+        conn_params = dict(extra=json.dumps(dict(sqlalchemy_scheme="mssql")))
+        hook = get_hook(conn_params=conn_params)
+
+        with patch.dict("sys.modules", {"sqlalchemy.engine": None}):
+            with pytest.raises(
+                AirflowOptionalProviderFeatureException,
+                match=r"apache-airflow-providers-jdbc\[sqlalchemy\]",
+            ):
+                hook.sqlalchemy_url
 
     def test_get_sqlalchemy_engine_verify_creator_is_being_used(self):
         jdbc_hook = get_hook(

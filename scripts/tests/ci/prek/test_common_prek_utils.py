@@ -27,11 +27,17 @@ from ci.prek.common_prek_utils import (
     get_imports_from_file,
     get_provider_base_dir_from_path,
     get_provider_id_from_path,
+    get_provider_namespace_from_path,
     initialize_breeze_prek,
     insert_documentation,
+    is_duplicated_namespace_init,
+    is_hidden_within_root,
     pre_process_mypy_files,
     read_airflow_version,
     read_allowed_kubernetes_versions,
+    read_allowed_python_major_minor_versions,
+    read_current_mysql_versions,
+    read_current_postgres_versions,
     read_default_python_major_minor_version_for_images,
     resolve_github_token,
     retrieve_gh_token,
@@ -168,6 +174,21 @@ class TestPreProcessMypyFiles:
         files = [PROVIDERS_AMAZON_S3_PATH]
         result = pre_process_mypy_files(files)
         assert PROVIDERS_AMAZON_S3_PATH in result
+
+
+class TestIsHiddenWithinRoot:
+    @pytest.mark.parametrize(
+        ("relative_path", "expected"),
+        [
+            ("airflow-core/src/airflow/models/dag.py", False),
+            (".build/mypy-venvs/foo.py", True),
+            ("airflow-core/.venv/lib/foo.py", True),
+            (".hidden.py", True),
+        ],
+    )
+    def test_only_components_below_root_count(self, tmp_path, relative_path, expected):
+        root = tmp_path / ".claude" / "worktrees"
+        assert is_hidden_within_root(root / relative_path, root) is expected
 
 
 class TestGetImportsFromFile:
@@ -370,6 +391,43 @@ class TestReadDefaultPythonMajorMinorVersionForImages:
         assert parts[1].isdigit()
 
 
+class TestReadAllowedPythonMajorMinorVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_allowed_python_major_minor_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_look_like_major_minor(self):
+        for version in read_allowed_python_major_minor_versions():
+            parts = version.split(".")
+            assert len(parts) == 2, f"Version {version!r} should be major.minor"
+            assert parts[0].isdigit()
+            assert parts[1].isdigit()
+
+
+class TestReadCurrentPostgresVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_postgres_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_versions_are_numeric_major_versions(self):
+        for version in read_current_postgres_versions():
+            assert version.isdigit(), f"Postgres version {version!r} should be a numeric major version"
+
+
+class TestReadCurrentMysqlVersions:
+    def test_returns_list_of_versions(self):
+        versions = read_current_mysql_versions()
+        assert isinstance(versions, list)
+        assert len(versions) > 0
+
+    def test_reads_annotated_assignment(self):
+        # MYSQL_LTS_RELEASES is an annotated assignment (``NAME: list[str] = [...]``);
+        # the reader must handle it, so its value must show up here.
+        assert "8.4" in read_current_mysql_versions()
+
+
 class TestConsoleDiff:
     def test_dump_added_lines(self):
         diff = ConsoleDiff()
@@ -485,6 +543,95 @@ class TestGetProviderBaseDirFromPath:
         assert result == outer
 
 
+class TestGetProviderNamespaceFromPath:
+    @pytest.mark.parametrize(
+        ("provider_path", "expected"),
+        [
+            pytest.param("providers/apache/hive", "apache", id="nested-provider"),
+            pytest.param("providers/acme/widget", "acme", id="unknown-nested-provider"),
+            pytest.param("providers/amazon", None, id="top-level-provider"),
+        ],
+    )
+    def test_namespace_comes_from_the_directory_tree(self, create_provider_tree, provider_path, expected):
+        assert get_provider_namespace_from_path(create_provider_tree(provider_path)) == expected
+
+    def test_returns_none_outside_any_provider(self, tmp_path):
+        unrelated = tmp_path / "file.py"
+        unrelated.touch()
+        assert get_provider_namespace_from_path(unrelated) is None
+
+
+class TestIsDuplicatedNamespaceInit:
+    @staticmethod
+    def _make_provider(tmp_path, provider_path: str, init_relative_path: str):
+        provider_dir = tmp_path / provider_path
+        provider_dir.mkdir(parents=True)
+        (provider_dir / "provider.yaml").touch()
+        init_file = provider_dir / init_relative_path
+        init_file.parent.mkdir(parents=True, exist_ok=True)
+        init_file.touch()
+        return init_file
+
+    @pytest.mark.parametrize(
+        ("provider_path", "init_relative_path", "expected"),
+        [
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/__init__.py",
+                True,
+                id="src-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive", "tests/unit/apache/__init__.py", True, id="unit-namespace-init"
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "tests/integration/apache/__init__.py",
+                True,
+                id="integration-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive", "tests/system/apache/__init__.py", True, id="system-namespace-init"
+            ),
+            pytest.param(
+                "providers/acme/widget",
+                "src/airflow/providers/acme/__init__.py",
+                True,
+                id="unknown-namespace-init",
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/hive/__init__.py",
+                False,
+                id="provider-own-init-is-unique",
+            ),
+            pytest.param(
+                "providers/amazon",
+                "src/airflow/providers/amazon/__init__.py",
+                False,
+                id="top-level-provider-init-is-unique",
+            ),
+            pytest.param(
+                "providers/apache/hive",
+                "src/airflow/providers/apache/hive/hooks/hive.py",
+                False,
+                id="not-an-init-file",
+            ),
+        ],
+    )
+    def test_only_repeated_namespace_inits_are_reported(
+        self, tmp_path, provider_path, init_relative_path, expected
+    ):
+        init_file = self._make_provider(tmp_path, provider_path, init_relative_path)
+        assert is_duplicated_namespace_init(init_file) is expected
+
+    def test_returns_false_outside_any_provider(self, tmp_path):
+        unrelated = tmp_path / "airflow" / "providers" / "apache" / "__init__.py"
+        unrelated.parent.mkdir(parents=True)
+        unrelated.touch()
+        assert is_duplicated_namespace_init(unrelated) is False
+
+
 class TestInitializeBreezePrek:
     def test_raises_when_not_main(self):
         with pytest.raises(SystemExit, match="intended to be executed"):
@@ -502,6 +649,53 @@ class TestInitializeBreezePrek:
         with pytest.raises(SystemExit) as exc_info:
             initialize_breeze_prek("__main__", "script.py")
         assert exc_info.value.code == 1
+
+
+class TestDescribeBreezeNotRunningFromLock:
+    @staticmethod
+    def _install(tmp_path, monkeypatch, breeze_body: str, setup_version: str = "2"):
+        breeze_bin = tmp_path / "breeze"
+        breeze_bin.write_text(breeze_body)
+        setup_breeze = tmp_path / "setup_breeze"
+        setup_breeze.write_text(f'SHIM_VERSION="{setup_version}"\n')
+        monkeypatch.setattr(common_prek_utils, "SETUP_BREEZE_PATH", setup_breeze)
+        monkeypatch.setattr(common_prek_utils, "BREEZE_LOCKED_VENV_PATH", tmp_path / "locked" / ".venv")
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: str(breeze_bin))
+        return breeze_bin
+
+    def _shim(self, version: int | None) -> str:
+        version_line = f"# breeze-shim-version: {version}\n" if version is not None else ""
+        return f"#!/usr/bin/env bash\n# {common_prek_utils.BREEZE_SHIM_MARKER}\n{version_line}"
+
+    def test_reports_an_outdated_shim(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(1))
+        assert "needs to be upgraded" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_reports_a_shim_predating_versioning(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(None))
+        assert "pre-versioning" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_reports_a_legacy_global_install(self, tmp_path, monkeypatch):
+        self._install(
+            tmp_path, monkeypatch, "#!/usr/bin/env python\nfrom airflow_breeze.breeze import main\n"
+        )
+        assert "legacy global install" in common_prek_utils.describe_breeze_not_running_from_lock()
+
+    def test_accepts_a_current_shim(self, tmp_path, monkeypatch):
+        self._install(tmp_path, monkeypatch, self._shim(2))
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
+
+    def test_accepts_the_locked_venv_ci_syncs(self, tmp_path, monkeypatch):
+        venv_bin = tmp_path / "locked" / ".venv" / "bin"
+        venv_bin.mkdir(parents=True)
+        (venv_bin / "breeze").write_text("#!/usr/bin/env python\n")
+        monkeypatch.setattr(common_prek_utils, "BREEZE_LOCKED_VENV_PATH", tmp_path / "locked" / ".venv")
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: str(venv_bin / "breeze"))
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
+
+    def test_accepts_a_missing_breeze(self, monkeypatch):
+        monkeypatch.setattr(common_prek_utils.shutil, "which", lambda _: None)
+        assert common_prek_utils.describe_breeze_not_running_from_lock() is None
 
 
 class TestTemporaryTscProject:

@@ -17,7 +17,7 @@
 # under the License.
 
 """
-add dag versioning.
+Add dag versioning.
 
 Revision ID: 2b47dc6bc8df
 Revises: d03e4a635aa3

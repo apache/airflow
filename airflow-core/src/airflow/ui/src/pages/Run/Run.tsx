@@ -18,15 +18,16 @@
  */
 import { ReactFlowProvider } from "@xyflow/react";
 import { useTranslation } from "react-i18next";
-import { FiCode, FiDatabase, FiUser } from "react-icons/fi";
+import { FiCode, FiDatabase, FiPhoneCall } from "react-icons/fi";
 import { MdDetails, MdOutlineEventNote, MdOutlineTask } from "react-icons/md";
 import { useParams } from "react-router-dom";
 
-import { useDagRunServiceGetDagRun } from "openapi/queries";
-import { usePluginTabs } from "src/hooks/usePluginTabs";
-import { useRequiredActionTabs } from "src/hooks/useRequiredActionTabs";
+import { useDagRunServiceGetDagRun, useDeadlinesServiceGetDeadlines } from "openapi/queries";
+
 import { DetailsLayout } from "src/layouts/Details/DetailsLayout";
-import { isStatePending, useAutoRefresh } from "src/utils";
+
+import { usePluginTabs } from "src/hooks/usePluginTabs";
+import { isStatePending, useAutoRefresh, useDocumentTitle } from "src/utils";
 
 import { Header } from "./Header";
 
@@ -34,18 +35,10 @@ export const Run = () => {
   const { t: translate } = useTranslation(["dag", "hitl"]);
   const { dagId = "", runId = "" } = useParams();
 
+  useDocumentTitle(runId);
+
   // Get external views with dag_run destination
   const externalTabs = usePluginTabs("dag_run");
-
-  const tabs = [
-    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
-    { icon: <FiUser />, label: translate("tabs.requiredActions"), value: "required_actions" },
-    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
-    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
-    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
-    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
-    ...externalTabs,
-  ];
 
   const refetchInterval = useAutoRefresh({ dagId });
 
@@ -60,17 +53,35 @@ export const Run = () => {
     },
     undefined,
     {
-      refetchInterval: (query) => (isStatePending(query.state.data?.state) ? refetchInterval : false),
+      refetchInterval: (query) => isStatePending(query.state.data?.state) && refetchInterval,
     },
   );
 
-  const { tabs: displayTabs } = useRequiredActionTabs({ dagId, dagRunId: runId }, tabs, {
-    refetchInterval: isStatePending(dagRun?.state) ? refetchInterval : false,
-  });
+  // Like Required Actions, the Callbacks tab only shows when the run has callbacks (one per deadline).
+  const { data: deadlines } = useDeadlinesServiceGetDeadlines(
+    { dagId, dagRunId: runId, limit: 1 },
+    undefined,
+    {
+      refetchInterval: isStatePending(dagRun?.state) && refetchInterval,
+    },
+  );
+  const hasCallbacks = (deadlines?.total_entries ?? 0) > 0;
+
+  const tabs = [
+    { icon: <MdOutlineTask />, label: translate("tabs.taskInstances"), value: "" },
+    { icon: <FiDatabase />, label: translate("tabs.assetEvents"), value: "asset_events" },
+    ...(hasCallbacks
+      ? [{ icon: <FiPhoneCall />, label: translate("tabs.callbacks"), value: "callbacks" }]
+      : []),
+    { icon: <MdOutlineEventNote />, label: translate("tabs.auditLog"), value: "events" },
+    { icon: <FiCode />, label: translate("tabs.code"), value: "code" },
+    { icon: <MdDetails />, label: translate("tabs.details"), value: "details" },
+    ...externalTabs,
+  ];
 
   return (
     <ReactFlowProvider>
-      <DetailsLayout error={error} isLoading={isLoading} tabs={displayTabs}>
+      <DetailsLayout error={error} isLoading={isLoading} tabs={tabs}>
         {dagRun === undefined ? undefined : <Header dagRun={dagRun} />}
       </DetailsLayout>
     </ReactFlowProvider>

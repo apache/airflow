@@ -21,24 +21,23 @@ from abc import ABC
 from collections.abc import Callable
 
 
-def _accepts_team_name(method: Callable) -> bool:
+def accepts_kwarg(method: Callable, name: str) -> bool:
     """
-    Return whether a secrets-backend method accepts the ``team_name`` keyword.
+    Return whether a secrets-backend method accepts the keyword *name*.
 
-    Backends written before Airflow 3.2 override ``get_conn_value`` / ``get_variable`` /
-    ``get_connection`` with the legacy ``(self, conn_id)`` / ``(self, key)`` signature.
-    AIP-67 (multi-team) added a ``team_name`` keyword; forwarding it to those raises
-    ``TypeError``. A method accepts it if it declares a ``team_name`` parameter or a
-    ``**kwargs`` catch-all.
+    Backends override ``get_conn_value`` / ``get_variable`` / ``get_connection`` with
+    whatever signature was current when they were written, so a keyword added later cannot
+    be forwarded blindly: it raises ``TypeError`` inside the backend, which callers swallow
+    per-backend and report as a missing secret.  ``team_name`` (added by AIP-67 in 3.2) is
+    one example.  A method is considered to accept *name* if it explicitly declares the
+    parameter or has a ``**kwargs`` catch-all.
     """
     try:
         parameters = inspect.signature(method).parameters
     except (TypeError, ValueError):
-        # Un-introspectable callable (e.g. C-implemented): assume the 3.2+ signature.
+        # Un-introspectable callable (e.g. C-implemented): assume the current signature.
         return True
-    return "team_name" in parameters or any(
-        p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters.values()
-    )
+    return name in parameters or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in parameters.values())
 
 
 def call_secrets_backend_method(method: Callable, *, team_name: str | None, **kwargs):
@@ -52,7 +51,7 @@ def call_secrets_backend_method(method: Callable, *, team_name: str | None, **kw
     rather than retried without ``team_name``, which could mask the error and resolve a
     team-scoped lookup against the global scope.
     """
-    if _accepts_team_name(method):
+    if accepts_kwarg(method, "team_name"):
         return method(team_name=team_name, **kwargs)
     return method(**kwargs)
 
@@ -122,6 +121,13 @@ class BaseSecretsBackend(ABC):
     def _deserialize_connection_value(conn_class: type, conn_id: str, value: str):
         value = value.strip()
         if value[0] == "{":
+            # JSON secrets stored by Airflow 2 backends may lack both "conn_type"
+            # and "uri" (e.g. {"host": ..., "login": ..., "password": ...}). This is
+            # valid: conn_type is intentionally optional on the SDK Connection model
+            # for Airflow 2 -> 3 migration compatibility.
+            # Check: https://github.com/apache/airflow/pull/61728
+            # TODO: Remove this compatibility once the minimum supported Airflow
+            #   version in providers is 3.0.
             return conn_class.from_json(value=value, conn_id=conn_id)  # type: ignore[attr-defined]
 
         # TODO: Only sdk has from_uri defined on it. Is it worthwhile developing the core path or not?

@@ -8,8 +8,60 @@
     },
     "filters": {
       "eventType": "Type d'événement"
+    }
+  },
+  "dagBundles": {
+    "active": "Actif",
+    "columns": {
+      "active": "Actif",
+      "importErrors": "Erreurs d'import",
+      "lastRefreshed": "Dernier rafraîchissement",
+      "name": "Nom",
+      "version": "Version"
     },
-    "title": "Journal d'Audit"
+    "detail": {
+      "status": "Statut"
+    },
+    "files": {
+      "columns": {
+        "file": "Fichier",
+        "lastParsed": "Dernière analyse",
+        "parseDuration": "Durée d'analyse"
+      },
+      "importErrorForbidden": "Vous n'avez pas l'autorisation de lire cette erreur d'import.",
+      "importErrorGone": "Cette erreur d'import n'est plus enregistrée. Elle a probablement été corrigée par une nouvelle analyse.",
+      "neverParsed": "Jamais",
+      "parsedFile_many": "Fichiers analysés",
+      "parsedFile_one": "Fichier analysé",
+      "parsedFile_other": "Fichiers analysés",
+      "parsedFilesNote": "Seuls les fichiers qui définissent un Dag ou dont l'import a échoué sont listés.",
+      "showImportError_many": "Voir {{count, number}} erreurs",
+      "showImportError_one": "Voir {{count, number}} erreur",
+      "showImportError_other": "Voir {{count, number}} erreurs"
+    },
+    "inactive": "Inactif",
+    "neverRefreshed": "Jamais",
+    "notRefreshedYet": "Pas encore rafraîchi",
+    "notVersioned": "Non versionné"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nom de l'alerte",
+      "deadlineTime": "Heure de l'échéance",
+      "status": "Statut"
+    },
+    "deadline_many": "Échéances",
+    "deadline_one": "Échéance",
+    "deadline_other": "Échéances",
+    "filters": {
+      "status": "Statut",
+      "statusOptions": {
+        "all": "Toutes",
+        "missed": "Manquée",
+        "pending": "En attente"
+      }
+    },
+    "title": "Échéances"
   },
   "xcom": {
     "add": {
@@ -22,6 +74,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clé",
+      "timestamp": "Horodatage",
       "value": "Valeur"
     },
     "delete": {
@@ -39,6 +92,9 @@
       "successTitle": "XCom mis à jour",
       "title": "Modifier le XCom"
     },
+    "entry_many": "Entrées XCom",
+    "entry_one": "Entrée XCom",
+    "entry_other": "Entrées XCom",
     "key": "Clé",
     "title": "XCom",
     "value": "Valeur"

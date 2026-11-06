@@ -23,11 +23,218 @@ Common Data Models for Airflow REST API.
 from __future__ import annotations
 
 import enum
+import json
+import logging
+from collections.abc import Mapping
 from typing import Annotated, Any, Generic, Literal, TypeVar, Union
 
-from pydantic import Discriminator, Field, Tag
+from pydantic import BeforeValidator, Discriminator, Field, Tag, TypeAdapter, ValidationError
 
+from airflow._shared.serialization import FORBIDDEN_XCOM_KEYS
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
+
+log = logging.getLogger(__name__)
+
+
+def find_reserved_keys(
+    value: Any,
+    *,
+    root: str = "value",
+    decode_json_strings: bool = False,
+) -> tuple[str, list[str]] | None:
+    """
+    Find the first mapping under ``value`` that holds one of ``FORBIDDEN_XCOM_KEYS``.
+
+    Returns the dotted path to that mapping and the reserved keys it holds, or ``None`` if there
+    are none.
+
+    Write paths that take arbitrary user data use this to turn away bad input while there is still
+    a request to fail. Storing it instead pushes the failure into whatever reads the value back,
+    where the error surfaces far from the person who submitted it.
+
+    Pass ``decode_json_strings`` when the read path parses stored strings back into containers, the
+    way XCom's does. Without it, a payload sent as ``json.dumps({...})`` slips through and comes
+    back out as a dict holding the reserved key. Leave it off where a string stays a string, as
+    with ``serde.serialize``.
+    """
+
+    def walk(obj: Any, path: str) -> tuple[str, list[str]] | None:
+        if isinstance(obj, str):
+            if not decode_json_strings:
+                return None
+            try:
+                decoded = json.loads(obj)
+            except (ValueError, TypeError):
+                return None
+            return walk(decoded, path) if isinstance(decoded, (dict, list)) else None
+        if isinstance(obj, Mapping):
+            found = FORBIDDEN_XCOM_KEYS & obj.keys()
+            if found:
+                return path, sorted(found)
+            for key, item in obj.items():
+                if hit := walk(item, f"{path}.{key}"):
+                    return hit
+        elif isinstance(obj, (list, tuple)):
+            for index, item in enumerate(obj):
+                if hit := walk(item, f"{path}[{index}]"):
+                    return hit
+        return None
+
+    return walk(value, root)
+
+
+def check_conf_reserved_keys(conf: dict | None, *, root: str) -> dict | None:
+    """Reject a Dag run conf holding reserved serialization keys, as XCom and HITL values do."""
+    # Conf reaches code that runs a full serde decode (e.g. the Deadline callback context). Unlike
+    # XCom, nothing parses a string conf value back into a container, so strings stay unchecked.
+    found = find_reserved_keys(conf, root=root)
+    if found is not None:
+        path, keys = found
+        raise ValueError(
+            f"{path} contains reserved serialization keys: {', '.join(keys)}. "
+            "These keys are reserved for internal use."
+        )
+    return conf
+
+
+# Asset Scheduling Expression Data Models
+#
+# These mirror the JSON produced by ``BaseAsset.as_expression()`` (see
+# ``airflow.serialization.definitions.assets``), which is stored verbatim in
+# ``DagModel.asset_expression``. Declaring them gives the REST API -- and the
+# TypeScript client generated from its OpenAPI spec -- a real type instead of an
+# opaque ``dict``. The shape is a recursive boolean tree whose leaves are assets,
+# asset aliases, or asset references.
+
+
+class AssetExpressionAssetInfo(BaseModel):
+    """
+    Body of an ``asset`` leaf node.
+
+    ``id`` is injected by ``DagModelOperation.update_dag_asset_expression`` when the expression is
+    persisted; ``BaseAsset.as_expression()`` itself only emits ``uri``/``name``/``group``. It is left
+    optional so a row persisted before id-enrichment (or migrated from the pre-3.0 dataset format)
+    degrades gracefully instead of failing response validation.
+
+    A leaf the caller is not authorized to read is served with ``hidden`` set and ``uri``, ``name``
+    and ``id`` blanked (see ``airflow.api_fastapi.common.asset_expression``), so the shape of the
+    schedule stays visible without revealing which asset it waits on.
+    """
+
+    uri: str | None
+    name: str | None
+    group: str
+    id: int | None = None
+    hidden: bool = False
+
+
+class AssetExpressionAliasInfo(BaseModel):
+    """Body of an ``alias`` leaf node."""
+
+    name: str
+    group: str
+
+
+class AssetExpressionAsset(BaseModel):
+    """An asset leaf: ``{"asset": {"uri": ..., "name": ..., "group": ...}}``."""
+
+    asset: AssetExpressionAssetInfo
+
+
+class AssetExpressionAlias(BaseModel):
+    """An asset alias leaf: ``{"alias": {"name": ..., "group": ...}}``."""
+
+    alias: AssetExpressionAliasInfo
+
+
+class AssetExpressionRef(BaseModel):
+    """An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}`` or ``{"asset_ref": {"uri": ...}}``."""
+
+    asset_ref: dict[str, str]
+
+
+class AssetExpressionAny(BaseModel):
+    """An "or" node: ``{"any": [...]}`` -- satisfied when any child is satisfied."""
+
+    any: list[AssetExpression]
+
+
+class AssetExpressionAll(BaseModel):
+    """An "and" node: ``{"all": [...]}`` -- satisfied when all children are satisfied."""
+
+    all: list[AssetExpression]
+
+
+def _asset_expression_discriminator(value: Any) -> str | None:
+    """Select an expression variant by the single key that is present."""
+    keys = ("asset", "alias", "asset_ref", "any", "all")
+    if isinstance(value, dict):
+        present = [key for key in keys if key in value]
+    else:
+        present = [key for key in keys if getattr(value, key, None) is not None]
+    return present[0] if len(present) == 1 else None
+
+
+AssetExpression = Annotated[
+    Union[
+        Annotated[AssetExpressionAsset, Tag("asset")],
+        Annotated[AssetExpressionAlias, Tag("alias")],
+        Annotated[AssetExpressionRef, Tag("asset_ref")],
+        Annotated[AssetExpressionAny, Tag("any")],
+        Annotated[AssetExpressionAll, Tag("all")],
+    ],
+    Discriminator(_asset_expression_discriminator),
+]
+"""A nested asset scheduling expression; see ``BaseAsset.as_expression()``."""
+
+AssetExpressionAny.model_rebuild()
+AssetExpressionAll.model_rebuild()
+
+_asset_expression_adapter: TypeAdapter = TypeAdapter(AssetExpression)
+
+
+def _coerce_unrecognized_expression_to_none(value: Any) -> Any:
+    """
+    Degrade an unrecognized ``asset_expression`` to ``None`` instead of failing response validation.
+
+    ``DagModel.asset_expression`` is stored verbatim from ``BaseAsset.as_expression()`` and is rewritten
+    to the current shape whenever a Dag is parsed (``DagModelOperation.update_dag_asset_expression``). A
+    row written by the pre-3.0 dataset scheduler and not yet re-parsed can still hold a legacy shape --
+    a bare uri string, ``{"any": ["s3://..."]}``, or ``{"alias": "<name>"}`` -- that the typed model does
+    not recognise. Serving such a row as ``None`` reproduces the blank render the UI showed while this
+    field was an untyped ``dict``, rather than turning stored data into an HTTP 500.
+    """
+    if value is None:
+        return None
+    try:
+        _asset_expression_adapter.validate_python(value)
+    except ValidationError:
+        log.warning("Dropping unrecognized asset_expression shape to None: %r", value)
+        return None
+    return value
+
+
+MaybeAssetExpression = Annotated[
+    Union[AssetExpression, None],
+    BeforeValidator(_coerce_unrecognized_expression_to_none),
+]
+"""``AssetExpression | None`` that degrades a legacy/unrecognized stored shape to ``None``."""
+
+
+_maybe_asset_expression_adapter: TypeAdapter[Union[AssetExpression, None]] = TypeAdapter(MaybeAssetExpression)
+
+
+def validate_asset_expression(value: Any) -> AssetExpression | None:
+    """
+    Validate a raw ``asset_expression`` tree into the typed model, the way a response field does.
+
+    A route that rewrites the tree after its response model is built -- redacting the assets the
+    caller may not read, for instance -- must assign the result of this rather than the raw tree.
+    FastAPI does not validate the nested models of an already-built response, so a raw tree would
+    bypass ``MaybeAssetExpression`` and reach the client verbatim, legacy shapes included.
+    """
+    return _maybe_asset_expression_adapter.validate_python(value)
+
 
 # Common Bulk Data Models
 T = TypeVar("T")
@@ -98,8 +305,16 @@ class BulkDeleteAction(BulkBaseAction[T]):
     action_on_non_existence: BulkActionNotOnExistence = BulkActionNotOnExistence.FAIL
 
 
-def _action_discriminator(action: Any) -> str:
-    return BulkAction(action["action"]).value
+def _action_discriminator(action: Any) -> str | None:
+    """Select a bulk action variant, returning ``None`` for anything unrecognised."""
+    value = action.get("action") if isinstance(action, Mapping) else getattr(action, "action", None)
+    try:
+        return BulkAction(value).value
+    except ValueError:
+        return None
+
+
+_BULK_ACTION_TAGS = ", ".join(repr(action.value) for action in BulkAction)
 
 
 class BulkBody(StrictBaseModel, Generic[T]):
@@ -112,7 +327,11 @@ class BulkBody(StrictBaseModel, Generic[T]):
                 Annotated[BulkUpdateAction[T], Tag(BulkAction.UPDATE.value)],
                 Annotated[BulkDeleteAction[T], Tag(BulkAction.DELETE.value)],
             ],
-            Discriminator(_action_discriminator),
+            Discriminator(
+                _action_discriminator,
+                custom_error_type="bulk_action_invalid",
+                custom_error_message=f"Each entry needs an 'action' of {_BULK_ACTION_TAGS}",
+            ),
         ]
     ]
 

@@ -25,7 +25,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
-from airflow.utils import timezone
+from airflow.providers.common.compat.sdk import timezone
 
 try:
     from airflow.providers.apache.hive.transfers.mysql_to_hive import MySqlToHiveOperator

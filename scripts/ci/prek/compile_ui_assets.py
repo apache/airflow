@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -40,17 +39,16 @@ SIMPLE_AUTH_MANAGER_UI_DIRECTORY = (
 SIMPLE_AUTH_MANAGER_UI_HASH_FILE = AIRFLOW_ROOT_PATH / ".build" / "ui" / "simple-auth-manager-hash.txt"
 
 INTERNAL_SERVER_ERROR = "500 Internal Server Error"
+SKIPPED_DIRECTORY_NAMES = frozenset({"node_modules", ".pnpm-store"})
 
 
-def get_directory_hash(directory: Path, skip_path_regexp: str | None = None) -> str:
-    files = sorted(directory.rglob("*"))
-    if skip_path_regexp:
-        matcher = re.compile(skip_path_regexp)
-        files = [file for file in files if not matcher.match(os.fspath(file.resolve()))]
+def get_directory_hash(directory: Path) -> str:
     sha = hashlib.sha256()
-    for file in files:
-        if file.is_file() and not file.name.startswith("."):
-            sha.update(file.read_bytes())
+    for root, directory_names, file_names in os.walk(directory):
+        directory_names[:] = sorted(name for name in directory_names if name not in SKIPPED_DIRECTORY_NAMES)
+        for file_name in sorted(file_names):
+            if not file_name.startswith("."):
+                sha.update((Path(root) / file_name).read_bytes())
     return sha.hexdigest()
 
 
@@ -60,7 +58,7 @@ def compile_assets(ui_directory: Path, hash_file: Path):
     hash_file.parent.mkdir(exist_ok=True, parents=True)
     if node_modules_directory.exists() and dist_directory.exists():
         old_hash = hash_file.read_text() if hash_file.exists() else ""
-        new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
+        new_hash = get_directory_hash(ui_directory)
         if new_hash == old_hash:
             print(f"The UI directory '{ui_directory}' has not changed! Skip regeneration.")
             return
@@ -87,7 +85,7 @@ def compile_assets(ui_directory: Path, hash_file: Path):
             print(result.stdout + "\n" + result.stderr)
             sys.exit(result.returncode)
     subprocess.check_call(["pnpm", "run", "build"], cwd=os.fspath(ui_directory), env=env)
-    new_hash = get_directory_hash(ui_directory, skip_path_regexp=r".*node_modules.*")
+    new_hash = get_directory_hash(ui_directory)
     hash_file.write_text(new_hash)
 
 

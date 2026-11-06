@@ -25,8 +25,12 @@ import {
   useTaskStateStoreServiceGetTaskStateStoreKey,
   useTaskStateStoreServiceListTaskStateStoreKey,
 } from "openapi/queries";
+
+import { IconButton } from "src/system-components";
+
 import DeleteDialog from "src/components/DeleteDialog";
-import { IconButton } from "src/components/ui";
+
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useStoreMutation } from "src/queries/useStoreMutation";
 
 type Props = {
@@ -38,6 +42,7 @@ type Props = {
 };
 
 export const DeleteTaskStateStoreButton = ({ dagId, mapIndex, runId, storeKey, taskId }: Props) => {
+  const coordinates = useTaskInstanceCoordinates();
   const { t: translate } = useTranslation("dag");
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -62,7 +67,7 @@ export const DeleteTaskStateStoreButton = ({ dagId, mapIndex, runId, storeKey, t
       <DeleteDialog
         isDeleting={isPending}
         onClose={onClose}
-        onDelete={() => mutate({ dagId, dagRunId: runId, key: storeKey, mapIndex, taskId })}
+        onDelete={() => mutate({ ...coordinates, dagId, dagRunId: runId, key: storeKey, mapIndex, taskId })}
         open={open}
         resourceName={storeKey}
         title={translate("taskStateStore.delete")}

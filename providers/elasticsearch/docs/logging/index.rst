@@ -37,6 +37,17 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
     [elasticsearch]
     host = <host>:<port>
 
+On Airflow 3.3.0 or above you can also route remote logging to Elasticsearch through the provider dispatch mechanism by adding an ``elasticsearch://`` scheme to ``[logging] remote_base_log_folder``:
+
+.. code-block:: ini
+
+    [logging]
+    remote_logging = True
+    remote_base_log_folder = elasticsearch://
+
+    [elasticsearch]
+    host = <host>:<port>
+
 To output task logs to stdout in JSON format, the following config could be used:
 
 .. code-block:: ini
@@ -283,6 +294,11 @@ The following fields are recognized and displayed by the Airflow UI when present
    * - ``host``
      - The hostname of the worker that produced the log. Used to group log lines by source.
      - Field name can be customized with the ``host_field`` handler parameter.
+   * - ``ti_id``
+     - UUID of the task try that produced the log line.
+     - Written by the Airflow 3 task process, so a log shipper forwards it from the task's JSON output
+       without extra configuration. From Airflow 3.4 logs are read by this field, falling back to
+       ``log_id`` for documents that lack it.
 
 **Field mappings**
 

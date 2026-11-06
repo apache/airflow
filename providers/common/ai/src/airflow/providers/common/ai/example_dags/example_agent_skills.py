@@ -35,8 +35,12 @@ from pathlib import Path
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.skills import GitSkills
 from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
-from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import dag
+
+try:
+    from airflow.providers.common.ai.toolsets.sql import SQLToolset
+except Exception:
+    SQLToolset = None  # type: ignore[assignment,misc]
 
 # Skills ship next to this DAG file; resolve relative to __file__ so the path
 # holds regardless of the dag-processor's working directory.
@@ -49,27 +53,28 @@ SKILLS_DIR = Path(__file__).parent / "skills"
 
 
 # [START howto_operator_agent_skills_local]
-@dag(tags=["example"])
-def example_agent_skills_local():
-    AgentOperator(
-        task_id="reporter",
-        prompt="How many orders did our top 5 customers place last month?",
-        llm_conn_id="pydanticai_default",
-        system_prompt="You are a data analyst. Consult your skills before writing SQL.",
-        toolsets=[
-            AgentSkillsToolset(sources=[str(SKILLS_DIR)]),
-            SQLToolset(
-                db_conn_id="postgres_default",
-                allowed_tables=["customers", "orders"],
-                max_rows=50,
-            ),
-        ],
-    )
+if SQLToolset is not None:
 
+    @dag(tags=["example"])
+    def example_agent_skills_local():
+        AgentOperator(
+            task_id="reporter",
+            prompt="How many orders did our top 5 customers place last month?",
+            llm_conn_id="pydanticai_default",
+            system_prompt="You are a data analyst. Consult your skills before writing SQL.",
+            toolsets=[
+                AgentSkillsToolset(sources=[str(SKILLS_DIR)]),
+                SQLToolset(
+                    db_conn_id="postgres_default",
+                    allowed_tables=["customers", "orders"],
+                    max_rows=50,
+                ),
+            ],
+        )
 
-# [END howto_operator_agent_skills_local]
+    # [END howto_operator_agent_skills_local]
 
-example_agent_skills_local()
+    example_agent_skills_local()
 
 
 # ---------------------------------------------------------------------------
@@ -104,3 +109,34 @@ def example_agent_skills_git():
 # [END howto_operator_agent_skills_git]
 
 example_agent_skills_git()
+
+
+# ---------------------------------------------------------------------------
+# 3. Skills the model can read but not run
+# ---------------------------------------------------------------------------
+
+
+# [START howto_operator_agent_skills_restricted]
+@dag(tags=["example"])
+def example_agent_skills_restricted():
+    AgentOperator(
+        task_id="report_writer",
+        prompt="Review this query against our SQL reporting conventions: SELECT * FROM orders",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            AgentSkillsToolset(
+                sources=[str(SKILLS_DIR)],
+                # Hide the tool that runs a skill's scripts on the worker.
+                exclude_tools={"run_skill_script"},
+                # Keep matching files out of the resources the model can list and read.
+                exclude_resources=["*.env", "secrets/*"],
+                # Allow up to 3 corrections per skills tool; a successful call resets the count.
+                max_retries=3,
+            )
+        ],
+    )
+
+
+# [END howto_operator_agent_skills_restricted]
+
+example_agent_skills_restricted()

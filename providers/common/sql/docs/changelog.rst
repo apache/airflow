@@ -25,6 +25,172 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+.. note::
+  ``@task.sql`` and ``@task.analytics`` now render only the SQL returned by the decorated function
+  inside ``execute()``. Their other template fields (``parameters``, ``op_args``, ``op_kwargs``, ...)
+  are rendered once before ``execute()`` and are no longer rendered a second time.
+
+.. warning::
+  The deprecated ``DbApiHook.get_pandas_df`` and ``DbApiHook.get_pandas_df_by_chunks`` methods have been removed. Use ``DbApiHook.get_df(..., df_type="pandas")`` and ``DbApiHook.get_df_by_chunks(..., df_type="pandas")`` instead.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove deprecated get_pandas_df methods from SQL hooks (#76130)``
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'SqlSensor' (#76270)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Render only the returned value in TaskFlow decorators that template it (#76244)``
+* ``Surface errors from OpenLineage database info lookups without losing lineage (#74805)``
+* ``Fix ''DbApiHook.inspector'' keeping a database connection open until process exit (#75327)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support 'abfs://' and 'abfss://' URIs in DataFusion Azure Blob Storage (#74228)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove unused mypy suppressions in common providers (#75257)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Azure Blob Storage support to the DataFusion object storage layer (#73374)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude SQLAlchemy 2.1.0 (#73865)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Template every connection id accepted by provider operators (#73286)``
+* ``Add GCS support to the DataFusion object storage layer (#73370)``
+* ``Allow DataSourceConfig to represent a plain database table (#73273)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Read the legacy extra__google_cloud_platform__ prefix for GCS credentials (#73613)``
+* ``Fix DataFusion storage-type error message on Python 3.11+ (#73413)``
+* ``Reject a DataSourceConfig with no uri or format in DataFusionEngine (#73287)``
+* ``Fix exception messages rendering as a tuple instead of the value (#73296)``
+
+Doc-only
+~~~~~~~~
+
+* ``Rewrite the 'common.sql' connections guide and fix the dialect extra name (#73605)``
+* ``Fix grammar in the dialects documentation (#73145)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Add tests for DataFusion base classes (#71983)``
+   * ``Use common.compat.sdk for the remaining provider timezone imports (#71209)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Add type annotations to sql hooks (#70815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Adopt flit 4 as the provider distribution build backend (#71186)``
+   * ``Update changelog with better wording (#71161)``
+
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add SQLBulkLoadOperator to Common SQL Provider (#69362)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SQLColumnCheckOperator crash on non-numeric column bounds (#70895)``
+* ``Fix SQL check tolerance for negative expected values (#69736)``
+* ``Fix SQL value checks for negative expected values (#69893)``
+
+Misc
+~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use common.compat.sdk for timezone imports in providers (#70492)``
+   * ``Limit pandas to < 3 for DataFrame XComs (#70791)``
+   * ``Revert "Limit pandas to < 3 for DataFrame XComs (#70791)" (#71100)``
+
+2.0.3
+.....
+
+Misc
+~~~~
+
+* ``Make psycopg (v3) the default synchronous Postgres driver (#69526)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+
+2.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Align hook run() annotations with None-able handler results (#69230)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Document each provider's optional extras in its docs index (#69478)``
+   * ``Fix inconsistency between generated provider docs and pyproject.toml (#68991)``
+
 2.0.1
 .....
 
@@ -528,7 +694,7 @@ Misc
 ......
 
 .. note::
-  This version has no code changes. It's released due to yank of previous version due to packaging issues.
+  This version contains no code changes. It was released to replace a previous version that was yanked due to a packaging issue.
 
 1.22.0
 ......
@@ -765,7 +931,6 @@ Misc
 .. note::
   This release of provider is only available for Airflow 2.7+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
-
 
 
 Features

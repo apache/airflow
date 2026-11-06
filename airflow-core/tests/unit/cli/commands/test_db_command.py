@@ -534,6 +534,23 @@ class TestCliDb:
         with pytest.raises(AirflowException, match=r"Unknown driver: invalid\+psycopg"):
             db_command.shell(self.parser.parse_args(["db", "shell"]))
 
+    @mock.patch(
+        "airflow.cli.commands.db_command.settings.engine.url",
+        make_url("postgresql+psycopg2://postgres:airflow@postgres/"),
+    )
+    @pytest.mark.parametrize(
+        "conn_uri",
+        [
+            pytest.param("postgresql://postgres:postgres@postgres:5432", id="db-name-none"),
+            pytest.param("postgresql://postgres:postgres@postgres:5432/", id="db-name-empty"),
+        ],
+    )
+    def test_db_shell_missing_database_name(self, conn_uri):
+        """Assert that an explicit ValueError is raised when the database name is missing."""
+        with mock.patch("airflow.cli.commands.db_command.settings.engine.url", make_url(conn_uri)):
+            with pytest.raises(ValueError, match="The metadata database name is missing"):
+                db_command.shell(self.parser.parse_args(["db", "shell"]))
+
     def test_run_db_downgrade_command_success_and_messages(self, capsys):
         class Args:
             to_revision = "abc"
@@ -627,6 +644,28 @@ class TestCliDb:
             (
                 {
                     "to_revision": None,
+                    "to_version": "abc",
+                    "from_revision": None,
+                    "from_version": None,
+                    "show_sql_only": False,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--to-version`",
+            ),
+            (
+                {
+                    "to_revision": "abc1",
+                    "to_version": None,
+                    "from_revision": None,
+                    "from_version": "abc",
+                    "show_sql_only": True,
+                    "yes": True,
+                },
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
+            (
+                {
+                    "to_revision": None,
                     "to_version": None,
                     "from_revision": "abc",
                     "from_version": None,
@@ -709,7 +748,12 @@ class TestCliDb:
                 ["-y", "--to-revision", "abc", "--from-version", "2.2.0", "--from-revision", "abc"],
                 "may not be combined",
             ),
-            (["-y", "--to-version", "abc"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "2.1.25"], r"Downgrading to .* not supported\."),
+            (["-y", "--to-version", "abc"], "Invalid version 'abc' supplied as `--to-version`"),
+            (
+                ["-y", "--to-revision", "abc1", "--from-version", "abc", "-s"],
+                "Invalid version 'abc' supplied as `--from-version`",
+            ),
             (["-y"], "Must provide either"),
         ],
     )
@@ -785,6 +829,19 @@ class TestCliDb:
             always_fail.assert_has_calls([call()] * (retry + 1))
             sleep.assert_has_calls([call(retry_delay)] * retry)
 
+    def test_check_warns_about_the_retries_that_are_actually_left(self, caplog):
+        args = self.parser.parse_args(["db", "check", "--retry", "3", "--retry-delay", "9"])
+        always_fail = Mock(side_effect=OperationalError("", None, None))
+
+        with patch("time.sleep", new=MagicMock()), patch("airflow.utils.db.check", new=always_fail):
+            with pytest.raises(OperationalError):
+                db_command.check(args)
+
+        assert "3 retries remain. Will retry in 9 seconds" in caplog
+        assert "2 retries remain. Will retry in 9 seconds" in caplog
+        assert "1 retries remain. Will retry in 9 seconds" in caplog
+        assert "0 retries remain. Will retry in 9 seconds" not in caplog
+
 
 class TestCLIDBClean:
     @classmethod
@@ -808,6 +865,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
             verbose=False,
@@ -832,6 +890,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse(timestamp),
             verbose=False,
@@ -862,6 +921,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -892,6 +952,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -922,6 +983,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=expected,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -954,6 +1016,7 @@ class TestCLIDBClean:
             table_names=expected,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -984,6 +1047,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=expected,
@@ -1014,6 +1078,7 @@ class TestCLIDBClean:
             table_names=None,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             dry_run=False,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
@@ -1047,6 +1112,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=expected,
             exclude_dag_ids=None,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,
@@ -1054,6 +1120,79 @@ class TestCLIDBClean:
             batch_size=None,
             error_on_cleanup_failure=False,
         )
+
+    @patch("airflow.cli.commands.db_command.run_cleanup", autospec=True)
+    def test_asset_ids(self, run_cleanup_mock):
+        args = self.parser.parse_args(
+            [
+                "db",
+                "clean",
+                "--clean-before-timestamp",
+                "2021-01-01",
+                "--tables",
+                "asset_event",
+                "--asset-ids",
+                " 1, 2 ",
+                "--dag-ids",
+                "producer",
+                "--exclude-dag-ids",
+                "excluded",
+            ]
+        )
+        db_command.cleanup_tables(args)
+        run_cleanup_mock.assert_called_once_with(
+            table_names=["asset_event"],
+            asset_ids=[1, 2],
+            dag_ids=["producer"],
+            exclude_dag_ids=["excluded"],
+            clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
+            dry_run=False,
+            verbose=False,
+            confirm=True,
+            skip_archive=False,
+            batch_size=None,
+            error_on_cleanup_failure=False,
+        )
+
+    @pytest.mark.parametrize("asset_ids", ["", " ", ",", "1,", ",1", "1,,2", "0", "-1", "1.5", "abc", "1, 0"])
+    @patch("airflow.cli.commands.db_command.run_cleanup", autospec=True)
+    def test_invalid_asset_ids(self, run_cleanup_mock, asset_ids, capsys):
+        with pytest.raises(SystemExit) as exc_info:
+            db_command.cleanup_tables(
+                self.parser.parse_args(
+                    [
+                        "db",
+                        "clean",
+                        "--clean-before-timestamp",
+                        "2021-01-01",
+                        "--tables",
+                        "asset_event",
+                        f"--asset-ids={asset_ids}",
+                    ]
+                )
+            )
+        assert exc_info.value.code == 2
+        assert "argument --asset-ids: invalid positive int value:" in capsys.readouterr().err
+        run_cleanup_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "tables",
+        [[], ["--tables", "log"], ["--tables", "asset_event,log"], ["--tables", "asset_event,invalid"]],
+    )
+    @patch("airflow.utils.db_cleanup.reflect_tables", autospec=True)
+    @patch("airflow.utils.db_cleanup._cleanup_table", autospec=True)
+    @patch("airflow.utils.db_cleanup._confirm_delete", autospec=True)
+    def test_asset_ids_require_only_asset_event(self, confirm_mock, cleanup_mock, reflect_mock, tables):
+        args = self.parser.parse_args(
+            ["db", "clean", "--clean-before-timestamp", "2021-01-01", "--asset-ids", "1,2", *tables]
+        )
+        with pytest.raises(
+            SystemExit, match="--asset-ids requires explicitly selecting only --tables asset_event"
+        ):
+            db_command.cleanup_tables(args)
+        confirm_mock.assert_not_called()
+        cleanup_mock.assert_not_called()
+        reflect_mock.assert_not_called()
 
     @pytest.mark.parametrize(
         ("extra_args", "expected"), [(["--exclude-dag-ids", "dag1, dag2"], ["dag1", "dag2"]), ([], None)]
@@ -1079,6 +1218,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=None,
             exclude_dag_ids=expected,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,
@@ -1109,6 +1249,7 @@ class TestCLIDBClean:
             dry_run=False,
             dag_ids=None,
             exclude_dag_ids=None,
+            asset_ids=None,
             clean_before_timestamp=pendulum.parse("2021-01-01 00:00:00Z"),
             verbose=False,
             confirm=True,

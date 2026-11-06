@@ -86,15 +86,17 @@ BASIC_SPHINX_EXTENSIONS = [
     "removemarktransform",
     "sphinx_copybutton",
     "airflow_intersphinx",
+    "python_builtin_xrefs",
     "common_compat_alias",
-    "sphinxcontrib.mermaid",
-    "sphinxcontrib.spelling",
+    "mermaid_svg",
+    "airflow_spelling",
     "sphinx_airflow_theme",
     "redirects",
     "substitution_extensions",
     "sphinx_design",
     "pagefind_search",
     "metrics_tables_from_registry",
+    "suggest_change_button",
 ]
 
 # Properties for Swagger OpenAPI generation:
@@ -294,6 +296,7 @@ def get_intersphinx_mapping() -> dict[str, tuple[str, tuple[str]]]:
         [
             "boto3",
             "celery",
+            "dateutil",
             "docker",
             "hdfs",
             "jinja2",

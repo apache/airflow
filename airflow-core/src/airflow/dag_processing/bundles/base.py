@@ -292,9 +292,14 @@ class BaseDagBundle(ABC):
     :param refresh_interval: How often the bundle should be refreshed from the source in seconds
         (Optional - defaults to [dag_processor] refresh_interval)
     :param version: Version of the DAG bundle (Optional)
+    :param version_data: Structured metadata for this bundle version, e.g. an S3 manifest.
+        Only populated for pinned runs (where dag_run.bundle_version is not None). (Optional)
     """
 
     supports_versioning: bool = False
+
+    is_initialized: bool = False
+    """Set by ``super().initialize()``; overrides must call it last."""
 
     _locked: bool = False
 
@@ -304,12 +309,13 @@ class BaseDagBundle(ABC):
         name: str,
         refresh_interval: int = conf.getint("dag_processor", "refresh_interval"),
         version: str | None = None,
+        version_data: dict[str, Any] | None = None,
         view_url_template: str | None = None,
     ) -> None:
         self.name = name
         self.version = version
+        self.version_data = version_data
         self.refresh_interval = refresh_interval
-        self.is_initialized: bool = False
 
         self.base_dir = get_bundle_base_folder(bundle_name=self.name)
         """Base directory for all bundle files for this bundle."""

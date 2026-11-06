@@ -16,11 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { ExternalViewResponse } from "openapi/requests/types.gen";
+
 import { Wrapper } from "src/utils/Wrapper";
 
 import { PluginMenus } from "./PluginMenus";

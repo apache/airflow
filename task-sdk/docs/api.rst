@@ -67,11 +67,14 @@ Task Decorators:
 
 .. autoapifunction:: airflow.sdk.task_group
 
+.. autoapifunction:: airflow.sdk.task_handler
+
 .. autoapifunction:: airflow.sdk.setup
 
 .. autoapifunction:: airflow.sdk.teardown
 
 .. autofunction:: airflow.sdk.task
+.. autofunction:: airflow.sdk.result
 .. autofunction:: airflow.sdk.setup
 .. autofunction:: airflow.sdk.teardown
 .. autofunction:: airflow.sdk.asset
@@ -93,6 +96,8 @@ Bases
 
 .. autoapiclass:: airflow.sdk.BaseXCom
 
+.. autoapiclass:: airflow.sdk.bases.xcom.XComCoordinate
+
 .. autoapiclass:: airflow.sdk.BranchMixIn
 
 .. autoapiclass:: airflow.sdk.PokeReturnValue
@@ -109,11 +114,19 @@ Callbacks
 
 .. autoclass:: airflow.sdk.SyncCallback
 
+.. autoclass:: airflow.sdk.CallbackSource
+
+.. autoclass:: airflow.sdk.CallbackMeta
+
 Deadline Alerts
 ---------------
 .. autoclass:: airflow.sdk.DeadlineAlert
 
 .. autoclass:: airflow.sdk.DeadlineReference
+
+.. autoclass:: airflow.sdk.BaseDeadlineReference
+
+.. autofunction:: airflow.sdk.deadline_reference
 
 Connections & Variables
 -----------------------
@@ -124,6 +137,8 @@ Connections & Variables
 Tasks & Operators
 -----------------
 .. autoapiclass:: airflow.sdk.TaskGroup
+
+.. autoapiclass:: airflow.sdk.LoopDecision
 
 .. autoclass:: airflow.sdk.TaskInstance
 
@@ -150,6 +165,8 @@ Tasks page in the core docs for usage and design rationale.
 .. autoapiclass:: airflow.sdk.RetryPolicy
 
 .. autoapiclass:: airflow.sdk.ExceptionRetryPolicy
+
+.. autoapiclass:: airflow.sdk.ChainRetryPolicy
 
 .. autoapiclass:: airflow.sdk.RetryRule
 
@@ -197,7 +214,11 @@ Assets
 
 Timetables
 ----------
+.. autoapiclass:: airflow.sdk.AssetAndTimeSchedule
+
 .. autoapiclass:: airflow.sdk.AssetOrTimeSchedule
+
+.. autoapiclass:: airflow.sdk.AssetTriggeredTimetable
 
 .. autoapiclass:: airflow.sdk.CronDataIntervalTimetable
 
@@ -213,7 +234,7 @@ Timetables
 
 .. autoapiclass:: airflow.sdk.MultipleCronTriggerTimetable
 
-.. autoapiclass:: airflow.sdk.PartitionAtRuntime
+.. autoapiclass:: airflow.sdk.PartitionedAtRuntime
 
 .. autoapiclass:: airflow.sdk.PartitionedAssetTimetable
 
@@ -296,6 +317,45 @@ See :doc:`apache-airflow:authoring-and-scheduling/language-sdks/index` for a con
 .. rubric:: Native executable (e.g. Go)
 
 .. autoapiclass:: airflow.sdk.coordinators.executable.ExecutableCoordinator
+
+.. rubric:: Node.js (TypeScript)
+
+.. autoapiclass:: airflow.sdk.coordinators.node.NodeCoordinator
+
+Dag Importers
+-------------
+
+|experimental|
+
+Dag importers turn the contents of a Dag bundle into Dags. This interface may still change in a minor
+release while it is being stabilized. See :doc:`apache-airflow:administration-and-deployment/dag-importers` for how
+importers are configured and how to write one.
+
+.. autoapiclass:: airflow.sdk.importers.AbstractDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.DagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FileDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.FilesystemDagDefinition
+
+.. autoapiclass:: airflow.sdk.importers.DagImportResult
+
+.. autoapiclass:: airflow.sdk.importers.DagImportError
+
+.. autoapiclass:: airflow.sdk.importers.DagImportWarning
+
+.. autoapiclass:: airflow.sdk.importers.DagSourceCode
+
+.. autoapifunction:: airflow.sdk.importers.find_file_dag_definitions
+
+.. autoapifunction:: airflow.sdk.importers.get_file_suffix
+
+.. rubric:: Built-in importers
+
+.. autoapiclass:: airflow.sdk.importers.PythonDagImporter
+
+.. autoapiclass:: airflow.sdk.importers.ZipImporter
 
 Execution Time Components
 -------------------------

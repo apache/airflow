@@ -164,87 +164,43 @@ class TestPipelineJobWithoutDefaultProjectIdHook:
         ):
             self.hook = PipelineJobHook(gcp_conn_id=TEST_GCP_CONN_ID)
 
-    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
-    def test_create_pipeline_job(self, mock_client) -> None:
-        self.hook.create_pipeline_job(
+    @pytest.mark.parametrize(
+        "reserved_ip_ranges", [None, [], ["range-1", "range-2"]], ids=["none", "empty", "multiple"]
+    )
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_run_pipeline_job_forwards_reserved_ip_ranges(
+        self, mock_get_pipeline_job_object, reserved_ip_ranges
+    ) -> None:
+        self.hook.run_pipeline_job(
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
-            pipeline_job=TEST_PIPELINE_JOB,
-            pipeline_job_id=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.create_pipeline_job.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                pipeline_job=TEST_PIPELINE_JOB,
-                pipeline_job_id=TEST_PIPELINE_JOB_ID,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
-
-    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
-    def test_delete_pipeline_job(self, mock_client) -> None:
-        self.hook.delete_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job_id=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.delete_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
+            display_name="display-name",
+            template_path="gs://bucket/template.json",
+            reserved_ip_ranges=reserved_ip_ranges,
         )
 
-    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
-    def test_get_pipeline_job(self, mock_client) -> None:
-        self.hook.get_pipeline_job(
-            project_id=TEST_PROJECT_ID,
-            region=TEST_REGION,
-            pipeline_job_id=TEST_PIPELINE_JOB_ID,
-        )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.get_pipeline_job.assert_called_once_with(
-            request=dict(
-                name=mock_client.return_value.pipeline_job_path.return_value,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
-        )
-        mock_client.return_value.pipeline_job_path.assert_called_once_with(
-            TEST_PROJECT_ID, TEST_REGION, TEST_PIPELINE_JOB_ID
+        assert mock_get_pipeline_job_object.return_value.submit.call_args.kwargs["reserved_ip_ranges"] == (
+            reserved_ip_ranges
         )
 
-    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_service_client"))
-    def test_list_pipeline_jobs(self, mock_client) -> None:
-        self.hook.list_pipeline_jobs(
+    @pytest.mark.parametrize(
+        "reserved_ip_ranges", [None, [], ["range-1", "range-2"]], ids=["none", "empty", "multiple"]
+    )
+    @mock.patch(PIPELINE_JOB_STRING.format("PipelineJobHook.get_pipeline_job_object"))
+    def test_submit_pipeline_job_forwards_reserved_ip_ranges(
+        self, mock_get_pipeline_job_object, reserved_ip_ranges
+    ) -> None:
+        self.hook.submit_pipeline_job(
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
+            display_name="display-name",
+            template_path="gs://bucket/template.json",
+            reserved_ip_ranges=reserved_ip_ranges,
         )
-        mock_client.assert_called_once_with(TEST_REGION)
-        mock_client.return_value.list_pipeline_jobs.assert_called_once_with(
-            request=dict(
-                parent=mock_client.return_value.common_location_path.return_value,
-                page_size=None,
-                page_token=None,
-                filter=None,
-                order_by=None,
-            ),
-            metadata=(),
-            retry=DEFAULT,
-            timeout=None,
+
+        assert mock_get_pipeline_job_object.return_value.submit.call_args.kwargs["reserved_ip_ranges"] == (
+            reserved_ip_ranges
         )
-        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
 
 class TestPipelineJobAsyncHook:

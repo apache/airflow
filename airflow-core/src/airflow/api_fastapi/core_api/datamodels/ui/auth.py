@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from enum import Enum
 
+from pydantic import Field
+
 from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
 from airflow.api_fastapi.core_api.base import BaseModel
 
@@ -35,6 +37,10 @@ class AuthenticatedMeResponse(BaseModel):
 
     id: str
     username: str
+    teams: list[str] | None = Field(
+        default=None,
+        description="Teams the user has access to. Null when the environment does not run in multi-team mode.",
+    )
 
 
 class TokenType(str, Enum):

@@ -134,10 +134,6 @@ class TestDagStatsEndpoint:
         session.add_all(entities)
         session.commit()
 
-    @pytest.fixture(autouse=True)
-    def setup(self) -> None:
-        self._clear_db()
-
     def teardown_method(self) -> None:
         self._clear_db()
 

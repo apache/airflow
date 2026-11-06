@@ -17,18 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from sqlalchemy import Integer, MetaData, String, text
-from sqlalchemy.orm import Mapped, mapped_column, registry
+from sqlalchemy import Integer, MetaData, String, event, text
+from sqlalchemy.orm import Mapped, Mapper, mapped_column, registry
 
 from airflow.configuration import conf
+from airflow.models import import_all_models
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
 # For more information about what the tokens in the naming convention
 # below mean, see:
-# https://docs.sqlalchemy.org/en/14/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
+# https://docs.sqlalchemy.org/en/20/core/metadata.html#sqlalchemy.schema.MetaData.params.naming_convention
 naming_convention = {
     "ix": "idx_%(column_0_N_label)s",
     "uq": "%(table_name)s_%(column_0_N_name)s_uq",
@@ -48,13 +49,16 @@ metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 
-if TYPE_CHECKING:
-    Base = Any
-else:
-    Base = mapper_registry.generate_base()
-    # TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
-    # unblock the development of SQLA2 support.
-    Base.__allow_unmapped__ = True
+# Models refer to each other by class name, such as relationship("DagBundleModel"), and a name resolves
+# only once its module is imported. Import every model before SQLAlchemy first configures mappers,
+# whether or not this process has a database engine. SQLAlchemy 2.0 offers this event only on the
+# Mapper class (2.1 adds one per registry), so it fires on whichever registry configures first.
+event.listen(Mapper, "before_configured", import_all_models, once=True)
+
+Base: Any = mapper_registry.generate_base()
+# TEMPORARY workaround to allow using unmapped (v1.4) models in SQLAlchemy 2.0. It is intended only to
+# unblock the development of SQLA2 support.
+Base.__allow_unmapped__ = True
 
 ID_LEN = 250
 

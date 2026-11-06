@@ -111,6 +111,14 @@ to check the current state of the job:
    If the worker crashes in that gap, the next retry does not have the identifier and will
    submit a fresh job. For most workloads this window is negligible.
 
+.. note::
+
+   The stored identifier expires after ``[state_store] default_retention_days`` (30 days by
+   default), but nothing deletes it automatically, that only happens when someone runs
+   ``airflow state-store clean``. Do not run that command while a task's ``retry_delay`` is
+   longer than ``default_retention_days``, the identifier could be gone by the next retry,
+   causing the operator to submit a fresh job instead of reconnecting.
+
 Example
 -------
 
@@ -120,7 +128,7 @@ Example
     from pydantic import JsonValue
 
 
-    class MyBatchOperator(BaseOperator, ResumableJobMixin):
+    class MyBatchOperator(ResumableJobMixin, BaseOperator):
 
         external_id_key = "batch_job_id"
 
@@ -144,6 +152,27 @@ Example
 
         def get_job_result(self, external_id: JsonValue, context):
             return None
+
+.. _sdk-resumable-job-mixin-resume-on-retry:
+
+Disabling crash recovery per task
+----------------------------------
+
+Set ``durable=False`` on a task to opt out of crash recovery for that specific instance.
+The operator will always submit a fresh job on retry, with no ``task_state_store`` interaction:
+
+.. code-block:: python
+
+    run_spark = MyBatchOperator(
+        task_id="run_spark",
+        durable=False,
+    )
+
+This is useful when the external job is not idempotent and you want Airflow to always submit a
+clean run rather than reconnect to a prior submission.
+
+The default is ``True``. ``durable`` is owned by the mixin — operators do not need to
+redeclare it. ``default_args`` injection and ``.partial()`` work automatically.
 
 .. _sdk-resumable-job-mixin-external-id-key:
 

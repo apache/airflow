@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import dataclasses
+import functools
 import tempfile
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -35,13 +37,17 @@ from airflow.providers.common.compat.lineage.entities import Column, File, Table
 from airflow.providers.common.compat.sdk import BaseOperator, Context, ObjectStoragePath
 from airflow.providers.common.sql.hooks.lineage import SqlJobHookLineageExtra
 from airflow.providers.openlineage.extractors import OperatorLineage
-from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.providers.openlineage.extractors.manager import (
+    ExtractorManager,
+    _is_hook_lineage_collector_created,
+)
+from airflow.providers.openlineage.utils.emission_policy import DatasetFilter, EmissionPolicy, Rule
 from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State, TaskInstanceState
 
 from tests_common.test_utils.compat import DateTimeSensor, PythonOperator
-from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker, skip_if_not_installed
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_2_PLUS
 
 if TYPE_CHECKING:
     try:
@@ -316,6 +322,120 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(
     assert metadata.outputs == []
 
 
+@pytest.mark.parametrize("hook_lineage", [True, False])
+def test_extract_metadata_extractor_empty_result_uses_hook_lineage_when_enabled(hook_lineage):
+    """
+    Extractor found but returned empty inputs/outputs: hook lineage should be merged when
+    ``hook_lineage=True`` and skipped (falling back to inlets/outlets) when ``hook_lineage=False``.
+    """
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    class FakeSupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_complete(self, task_instance):
+            return OperatorLineage()
+
+    hook_input = OpenLineageDataset(namespace="s3://bucket", name="hook_input")
+    dagrun = MagicMock()
+    task = FakeSupportedOperator(task_id="test_task_hook_lineage_policy")
+    ti = MagicMock()
+
+    controls = EmissionPolicy(
+        emit=True,
+        extract_operator_metadata=True,
+        include_source_code=True,
+        hook_lineage=hook_lineage,
+        include_full_task_info=False,
+    )
+
+    with mock.patch.object(
+        ExtractorManager, "get_hook_lineage", return_value=OperatorLineage(inputs=[hook_input])
+    ):
+        extractor_manager = ExtractorManager()
+        metadata = extractor_manager.extract_metadata(
+            dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti, controls=controls
+        )
+
+    if hook_lineage:
+        assert hook_input in metadata.inputs
+    else:
+        assert hook_input not in metadata.inputs
+
+
+@pytest.mark.parametrize("hook_lineage", [True, False])
+def test_extract_metadata_no_extractor_emits_unknown_source_and_inlets_outlets(
+    hook_lineage, hook_lineage_collector
+):
+    """
+    Regression: when no extractor matches and no hook lineage is collected, the no-extractor
+    fallback must still emit the ``unknownSourceAttribute`` run facet AND extract manually
+    declared inlets/outlets — for both ``hook_lineage=True`` (default) and ``hook_lineage=False``.
+    """
+    from airflow.providers.openlineage.utils.emission_policy import EmissionPolicy
+
+    inlets = [OpenLineageDataset(namespace="namespace1", name="name1")]
+    outlets = [OpenLineageDataset(namespace="namespace2", name="name2")]
+
+    class FakeUnsupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+    dagrun = MagicMock()
+    task = FakeUnsupportedOperator(task_id="unsupported_task", inlets=inlets, outlets=outlets)
+    ti = MagicMock()
+
+    controls = EmissionPolicy(
+        emit=True,
+        extract_operator_metadata=True,
+        include_source_code=True,
+        hook_lineage=hook_lineage,
+        include_full_task_info=False,
+    )
+
+    extractor_manager = ExtractorManager()
+    metadata = extractor_manager.extract_metadata(
+        dagrun=dagrun, task=task, task_instance_state=None, task_instance=ti, controls=controls
+    )
+
+    assert "unknownSourceAttribute" in metadata.run_facets
+    assert metadata.inputs == inlets
+    assert metadata.outputs == outlets
+
+
+def test_get_extractor_supports_legacy_custom_extractor_signature():
+    """
+    Regression: custom extractors may use the historically-public ``__init__(self, operator)``
+    signature. ``_get_extractor`` must construct them without passing ``source_code_enabled`` as
+    a constructor kwarg (which would raise ``TypeError`` and drop the whole task event), and set
+    the flag afterward.
+    """
+    from airflow.providers.openlineage.extractors.base import BaseExtractor
+
+    class LegacyExtractor(BaseExtractor):
+        def __init__(self, operator):  # legacy signature - no source_code_enabled kwarg
+            self.operator = operator
+
+        @classmethod
+        def get_operator_classnames(cls):
+            return ["LegacyOperator"]
+
+        def _execute_extraction(self):
+            return OperatorLineage()
+
+    task = MagicMock()
+    task.task_type = "LegacyOperator"
+
+    extractor_manager = ExtractorManager()
+    extractor_manager.add_extractor("LegacyOperator", LegacyExtractor)
+
+    extractor = extractor_manager._get_extractor(task, source_code_enabled=False)
+    assert isinstance(extractor, LegacyExtractor)
+    assert extractor.operator is task
+    assert extractor.source_code_enabled is False
+
+
 @pytest.mark.skipif(
     AIRFLOW_V_3_0_PLUS,
     reason="Test for hook level lineage in Airflow < 3.0",
@@ -418,7 +538,9 @@ def test_get_hook_lineage_with_sql_extras_only(hook_lineage_collector):
         )
 
     assert result is None
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
@@ -446,7 +568,9 @@ def test_get_hook_lineage_with_assets_and_sql_extras(hook_lineage_collector):
             task_instance_state=TaskInstanceState.SUCCESS,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert (
@@ -481,7 +605,9 @@ def test_get_hook_lineage_sql_extras_multiple_queries(hook_lineage_collector):
             task_instance_state=TaskInstanceState.SUCCESS,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=True, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 2
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT a from src1"
@@ -503,6 +629,69 @@ def test_get_hook_lineage_returns_none_when_nothing_collected(hook_lineage_colle
     mock_sql_fn.assert_not_called()
 
 
+@patch("airflow.providers.common.compat.lineage.hook.get_hook_lineage_collector", autospec=True)
+@patch(
+    "airflow.providers.openlineage.extractors.manager._is_hook_lineage_collector_created",
+    autospec=True,
+    return_value=False,
+)
+def test_get_hook_lineage_does_not_create_collector(mock_created, mock_get_collector):
+    """Creating the collector only to read it back empty imports every provider's asset URI handlers."""
+    result = ExtractorManager().get_hook_lineage(
+        task_instance=MagicMock(spec=TaskInstance), task_instance_state=TaskInstanceState.SUCCESS
+    )
+
+    assert result is None
+    mock_get_collector.assert_not_called()
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="Airflow 3.2+ caches the collector getter")
+class TestIsHookLineageCollectorCreatedAirflow32:
+    def test_real_getter_is_cached(self):
+        from airflow.sdk import lineage
+
+        assert hasattr(lineage.get_hook_lineage_collector, "cache_info")
+
+    def test_tracks_whether_cached_getter_was_called(self):
+        # A test-local cache instead of clearing the real one: clearing it would let the next caller,
+        # possibly under ``mock_plugin_manager`` with no readers, cache a NoOpCollector for later tests.
+        getter = functools.cache(lambda: object())
+        with patch("airflow.sdk.lineage.get_hook_lineage_collector", new=getter):
+            assert _is_hook_lineage_collector_created() is False
+            getter()
+            assert _is_hook_lineage_collector_created() is True
+
+    def test_true_when_getter_is_not_cached(self):
+        with patch("airflow.sdk.lineage.get_hook_lineage_collector", new=lambda: None):
+            assert _is_hook_lineage_collector_created() is True
+
+
+@pytest.mark.skipif(AIRFLOW_V_3_2_PLUS, reason="Airflow before 3.2 keeps the collector in a module global")
+class TestIsHookLineageCollectorCreatedBeforeAirflow32:
+    def test_false_when_collector_never_created(self):
+        with patch("airflow.lineage.hook._hook_lineage_collector", None):
+            assert _is_hook_lineage_collector_created() is False
+
+    def test_true_when_collector_created(self):
+        with patch("airflow.lineage.hook._hook_lineage_collector", object()):
+            assert _is_hook_lineage_collector_created() is True
+
+    def test_true_when_getter_is_replaced(self):
+        from airflow.lineage import hook
+
+        # On Airflow 3.0 and 3.1 the shared ``hook_lineage_collector`` fixture replaces the getter with a
+        # mock. A spec'd mock also passes ``isinstance`` checks against a function, so it is the harder
+        # case to treat as created.
+        with (
+            patch("airflow.lineage.hook._hook_lineage_collector", None),
+            patch(
+                "airflow.lineage.hook.get_hook_lineage_collector",
+                new=MagicMock(spec=hook.get_hook_lineage_collector),
+            ),
+        ):
+            assert _is_hook_lineage_collector_created() is True
+
+
 def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
     hook = MagicMock()
     hook_lineage_collector.add_extra(
@@ -519,7 +708,9 @@ def test_get_hook_lineage_passes_failed_state(hook_lineage_collector):
             task_instance_state=TaskInstanceState.FAILED,
         )
 
-    mock_sql_fn.assert_called_once_with(task_instance=mock_ti, sql_extras=mock.ANY, is_successful=False)
+    mock_sql_fn.assert_called_once_with(
+        task_instance=mock_ti, sql_extras=mock.ANY, is_successful=False, dataset_filter=DatasetFilter()
+    )
     sql_extras = mock_sql_fn.call_args.kwargs["sql_extras"]
     assert len(sql_extras) == 1
     assert sql_extras[0].value[SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value] == "SELECT 1"
@@ -726,3 +917,173 @@ def test_convert_to_ol_dataset_asset_returns_none_when_translation_fails():
         return_value=None,
     ):
         assert ExtractorManager.convert_to_ol_dataset(asset) is None
+
+
+class _FakeStorageHook:
+    pass
+
+
+class _FakeWarehouseHook:
+    pass
+
+
+def _hook_fqcn(hook_cls) -> str:
+    return f"{hook_cls.__module__}.{hook_cls.__name__}"
+
+
+def _controls(dataset_filter: DatasetFilter) -> EmissionPolicy:
+    return dataclasses.replace(EmissionPolicy.defaults(), dataset_filter=dataset_filter)
+
+
+def _hook_exclusion(hook_cls, patterns: list[str]) -> DatasetFilter:
+    return DatasetFilter(
+        tiers=((Rule(scope={"hook": _hook_fqcn(hook_cls)}, controls={"exclude_datasets": patterns}),),)
+    )
+
+
+# file:// because translating an asset needs the converter of the provider owning the scheme, and
+# common.io is a dev dependency of this provider; other providers' converters are tested only when installed.
+def _collect_file_parts(collector):
+    storage_hook, warehouse_hook = _FakeStorageHook(), _FakeWarehouseHook()
+    collector.add_output_asset(context=storage_hook, uri="file://host/staging/part_0")
+    collector.add_output_asset(context=storage_hook, uri="file://host/final/summary")
+    collector.add_output_asset(context=warehouse_hook, uri="file://host/staging/part_1")
+
+
+def test_get_hook_lineage_excludes_datasets_per_reporting_hook(hook_lineage_collector):
+    _collect_file_parts(hook_lineage_collector)
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(_hook_exclusion(_FakeStorageHook, ["file://host/staging/.*"]))
+    )
+
+    assert result == OperatorLineage(
+        outputs=[
+            OpenLineageDataset(namespace="file://host", name="/final/summary"),
+            OpenLineageDataset(namespace="file://host", name="/staging/part_1"),
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "scheme",
+    [
+        pytest.param("gs", marks=skip_if_not_installed("airflow.providers.google"), id="google"),
+        pytest.param("s3", marks=skip_if_not_installed("airflow.providers.amazon"), id="amazon"),
+    ],
+)
+def test_get_hook_lineage_excludes_datasets_translated_by_provider_converter(hook_lineage_collector, scheme):
+    storage_hook = _FakeStorageHook()
+    hook_lineage_collector.add_output_asset(context=storage_hook, uri=f"{scheme}://bucket/staging/part_0")
+    hook_lineage_collector.add_output_asset(context=storage_hook, uri=f"{scheme}://bucket/final/summary")
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(_hook_exclusion(_FakeStorageHook, [f"{scheme}://bucket/staging/.*"]))
+    )
+
+    assert result == OperatorLineage(
+        outputs=[OpenLineageDataset(namespace=f"{scheme}://bucket", name="final/summary")]
+    )
+
+
+def test_get_hook_lineage_returns_empty_lineage_when_everything_excluded(hook_lineage_collector):
+    _collect_file_parts(hook_lineage_collector)
+
+    result = ExtractorManager().get_hook_lineage(
+        controls=_controls(DatasetFilter(authoring_patterns=(".*",)))
+    )
+
+    assert result == OperatorLineage()
+
+
+def test_get_hook_lineage_passes_dataset_filter_to_sql_extras(hook_lineage_collector):
+    hook_lineage_collector.add_extra(
+        context=MagicMock(),
+        key=SqlJobHookLineageExtra.KEY.value,
+        value={SqlJobHookLineageExtra.VALUE__SQL_STATEMENT.value: "SELECT 1"},
+    )
+    dataset_filter = DatasetFilter(authoring_patterns=("x",))
+
+    with patch(_SQL_FN_PATH, return_value=None) as mock_sql_fn:
+        ExtractorManager().get_hook_lineage(
+            task_instance=MagicMock(),
+            task_instance_state=TaskInstanceState.SUCCESS,
+            controls=_controls(dataset_filter),
+        )
+
+    assert mock_sql_fn.call_args.kwargs["dataset_filter"] is dataset_filter
+
+
+def test_extract_metadata_excluded_hook_lineage_does_not_fall_back_to_inlets(hook_lineage_collector):
+    class FakeUnsupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+    _collect_file_parts(hook_lineage_collector)
+    task = FakeUnsupportedOperator(
+        task_id="unsupported_task", inlets=[OpenLineageDataset(namespace="ns", name="inlet")]
+    )
+
+    metadata = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=task,
+        task_instance_state=None,
+        task_instance=MagicMock(),
+        controls=_controls(DatasetFilter(authoring_patterns=("file://.*",))),
+    )
+
+    assert metadata.inputs == []
+    assert metadata.outputs == []
+
+
+def test_extract_metadata_excludes_extractor_datasets():
+    class FakeSupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_complete(self, task_instance):
+            return OperatorLineage(
+                inputs=[OpenLineageDataset(namespace="ns", name="keep")],
+                outputs=[OpenLineageDataset(namespace="ns", name="drop")],
+            )
+
+    metadata = ExtractorManager().extract_metadata(
+        dagrun=MagicMock(),
+        task=FakeSupportedOperator(task_id="supported_task"),
+        task_instance_state=None,
+        task_instance=MagicMock(),
+        controls=_controls(DatasetFilter(authoring_patterns=("ns/drop",))),
+    )
+
+    assert metadata.inputs == [OpenLineageDataset(namespace="ns", name="keep")]
+    assert metadata.outputs == []
+
+
+def test_extract_inlets_and_outlets_excludes_static_and_runtime_datasets():
+    task = PythonOperator(
+        task_id="t",
+        python_callable=lambda: 1,
+        inlets=[
+            OpenLineageDataset(namespace="ns", name="drop_in"),
+            OpenLineageDataset(namespace="ns", name="in"),
+        ],
+        outlets=[OpenLineageDataset(namespace="ns", name="out")],
+    )
+    lineage = OperatorLineage()
+
+    with (
+        patch(
+            "airflow.providers.openlineage.extractors.manager.get_runtime_outlet_assets",
+            return_value=[(Asset(uri="s3://bucket/runtime.txt", extra={}), None)],
+        ),
+        patch(
+            "airflow.providers.openlineage.extractors.manager.translate_airflow_asset",
+            return_value=OpenLineageDataset(namespace="ns", name="drop_runtime"),
+        ),
+    ):
+        ExtractorManager().extract_inlets_and_outlets(
+            lineage, task, MagicMock(), _controls(DatasetFilter(authoring_patterns=("ns/drop_.*",)))
+        )
+
+    assert lineage.inputs == [OpenLineageDataset(namespace="ns", name="in")]
+    assert lineage.outputs == [OpenLineageDataset(namespace="ns", name="out")]

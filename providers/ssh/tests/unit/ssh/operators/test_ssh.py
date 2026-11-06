@@ -186,6 +186,38 @@ class TestSSHOperator:
                 command=None,
             ).execute(None)
 
+    def test_init_does_not_mutate_injected_ssh_hook_remote_host(self):
+        """
+        __init__ must not push remote_host onto an injected ssh_hook: at construction time
+        remote_host is the raw, un-rendered Jinja expression (e.g. "{{ dag_run.conf['host'] }}"),
+        not the real value, so mutating the hook here would poison it with the wrong host.
+        """
+        original_remote_host = self.hook.remote_host
+        SSHOperator(
+            task_id="test_init_no_mutate",
+            ssh_hook=self.hook,
+            command=COMMAND,
+            remote_host="{{ dag_run.conf['host'] }}",
+        )
+        assert self.hook.remote_host == original_remote_host
+
+    def test_execute_applies_remote_host_to_injected_ssh_hook(self):
+        """
+        execute() must push remote_host onto the injected ssh_hook using its final
+        (post-templating) value, before the hook is used to connect.
+        """
+        task = SSHOperator(
+            task_id="test_execute_applies_remote_host",
+            ssh_hook=self.hook,
+            command=COMMAND,
+            remote_host="{{ dag_run.conf['host'] }}",
+        )
+        task.remote_host = "rendered.host.internal"
+
+        task.execute(None)
+
+        assert task.ssh_hook.remote_host == "rendered.host.internal"
+
     @pytest.mark.parametrize(
         ("command", "get_pty_in", "get_pty_out"),
         [

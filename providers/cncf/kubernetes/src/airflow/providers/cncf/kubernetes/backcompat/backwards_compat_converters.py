@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from kubernetes.client import ApiClient, models as k8s
+from kubernetes.client import ApiClient, Configuration, models as k8s
 
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -36,7 +36,7 @@ def _convert_from_dict(obj, new_class):
     if isinstance(obj, new_class):
         return obj
     if isinstance(obj, dict):
-        api_client = ApiClient()
+        api_client = ApiClient(configuration=Configuration())
         return api_client._ApiClient__deserialize_model(obj, new_class)
     raise AirflowException(f"Expected dict or {new_class}, got {type(obj)}")
 

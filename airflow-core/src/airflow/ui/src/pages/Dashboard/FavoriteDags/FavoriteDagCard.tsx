@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import type { DAGRunLightResponse } from "openapi/requests/types.gen";
+
 import { RecentRuns } from "src/pages/DagsList/RecentRuns";
 
 type FavoriteDagProps = {

@@ -17,8 +17,10 @@
  * under the License.
  */
 import type { TFunction } from "i18next";
+import type { ApiError } from "openapi-gen/requests/core/ApiError";
+import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
 
-import { toaster } from "src/components/ui";
+import { toaster } from "src/system-components";
 
 /**
  * Type guard to check if an error has a status property
@@ -42,6 +44,27 @@ export const getErrorStatus = (error: unknown): number | undefined => {
   const errorObj = error as ErrorWithStatus;
 
   return errorObj.status ?? errorObj.response?.status;
+};
+
+type ApiErrorWithBody = {
+  body?: HTTPExceptionResponse | HTTPValidationError;
+} & Partial<ApiError>;
+
+/** The error's own detail, however the API phrased it: a string, validation entries, or a mapping. */
+export const getApiErrorDetail = (error: unknown): Array<string> | string | undefined => {
+  const details = (error as ApiErrorWithBody | undefined)?.body?.detail;
+
+  if (details === undefined) {
+    return undefined;
+  }
+
+  if (typeof details === "string") {
+    return details;
+  }
+
+  return Array.isArray(details)
+    ? details.map((detail) => `${detail.loc.join(".")} ${detail.msg}`)
+    : Object.keys(details).map((key) => `${key}: ${(details as Record<string, string>)[key]}`);
 };
 
 /**

@@ -36,6 +36,7 @@ from tenacity import (
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.common.compat.sdk import AirflowException
 
 DEFAULT_LOG_SUFFIX = "output"
@@ -485,6 +486,8 @@ class GlueJobHook(AwsBaseHook):
         :return: True if job was updated and false otherwise
         """
         job_name = job_kwargs.pop("Name")
+        # Glue ``update_job`` does not accept ``Tags`` in ``JobUpdate``; reconcile them separately.
+        tags_updated = self.update_tags(job_name, job_kwargs.pop("Tags")) if "Tags" in job_kwargs else False
         current_job = self.conn.get_job(JobName=job_name)["Job"]
 
         update_config = {
@@ -495,7 +498,34 @@ class GlueJobHook(AwsBaseHook):
             self.conn.update_job(JobName=job_name, JobUpdate=job_kwargs)
             self.log.info("Updated configurations: %s", update_config)
             return True
-        return False
+        return tags_updated
+
+    def update_tags(self, job_name: str, job_tags: dict) -> bool:
+        """
+        Reconcile a job's tags with the desired set.
+
+        Glue manages tags outside of ``update_job``, so adds/updates go through
+        ``tag_resource`` and removals through ``untag_resource``.
+
+        .. seealso::
+            - :external+boto3:py:meth:`Glue.Client.tag_resource`
+            - :external+boto3:py:meth:`Glue.Client.untag_resource`
+
+        :param job_name: Name of the job for which to update tags
+        :param job_tags: Desired tags. Keys absent from this mapping are removed from the job.
+        :return: True if any tag was added, changed, or removed, False otherwise
+        """
+        account_number = StsHook(aws_conn_id=self.aws_conn_id).get_account_number()
+        job_arn = f"arn:{self.conn_partition}:glue:{self.conn_region_name}:{account_number}:job/{job_name}"
+        current_tags: dict = self.conn.get_tags(ResourceArn=job_arn)["Tags"]
+
+        if tags_to_add := {key: value for key, value in job_tags.items() if current_tags.get(key) != value}:
+            self.log.info("Updating job tags: %s", job_name)
+            self.conn.tag_resource(ResourceArn=job_arn, TagsToAdd=tags_to_add)
+        if tags_to_remove := [key for key in current_tags if key not in job_tags]:
+            self.log.info("Removing job tags: %s", job_name)
+            self.conn.untag_resource(ResourceArn=job_arn, TagsToRemove=tags_to_remove)
+        return bool(tags_to_add or tags_to_remove)
 
     def get_or_create_glue_job(self) -> str | None:
         """

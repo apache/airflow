@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from airflow.providers.asana.hooks.asana import AsanaHook
@@ -45,6 +46,8 @@ class AsanaCreateTaskOperator(BaseOperator):
         You must specify at least one of 'workspace', 'parent', or 'projects'
         either here or in the connection.
     """
+
+    template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,
@@ -85,6 +88,8 @@ class AsanaUpdateTaskOperator(BaseOperator):
         See https://developers.asana.com/docs/update-a-task for a complete list.
     """
 
+    template_fields: Sequence[str] = ("conn_id",)
+
     def __init__(
         self,
         *,
@@ -116,6 +121,8 @@ class AsanaDeleteTaskOperator(BaseOperator):
     :param conn_id: The Asana connection to use.
     :param asana_task_gid: Asana Task ID to delete.
     """
+
+    template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,
@@ -152,6 +159,8 @@ class AsanaFindTaskOperator(BaseOperator):
         specify at least one of `project`, `section`, `tag`, `user_task_list`, or both
         `assignee` and `workspace` either here or in the connection.
     """
+
+    template_fields: Sequence[str] = ("conn_id",)
 
     def __init__(
         self,

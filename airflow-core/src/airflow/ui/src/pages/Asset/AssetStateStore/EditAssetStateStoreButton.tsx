@@ -20,7 +20,7 @@ import { useDisclosure } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiEdit2 } from "react-icons/fi";
 
-import { IconButton } from "src/components/ui";
+import { IconButton } from "src/system-components";
 
 import { AssetStateStoreModal } from "./AssetStateStoreModal";
 

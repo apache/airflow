@@ -102,7 +102,7 @@ a ``Asset``, which is ``@attr.define`` decorated, together with TaskFlow.
 
 .. note::
 
-    An additional benefit of using ``Asset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``Asset`` or a ``list[Asset]]``.
+    An additional benefit of using ``Asset`` is that it automatically registers as an ``inlet`` in case it is used as an input argument. It also auto registers as an ``outlet`` if the return value of your task is a ``Asset`` or a ``list[Asset]``.
 
 
 .. code-block:: python
@@ -177,7 +177,7 @@ yourself. To do so add the ``serialize()`` method to your class and the staticme
         @staticmethod
         def deserialize(data: dict, version: int):
             if version > 1:
-                raise TypeError(f"version > {MyCustom.version}")
+                raise TypeError(f"version > {MyCustom.__version__}")
             return MyCustom(data["x"])
 
 Object Versioning

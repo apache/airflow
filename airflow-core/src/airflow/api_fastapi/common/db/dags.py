@@ -17,19 +17,22 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from airflow.api_fastapi.common.db.common import (
     apply_filters_to_select,
 )
 from airflow.api_fastapi.common.parameters import BaseParam, RangeFilter, SortParam
+from airflow.configuration import conf
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.strategy_options import _AbstractLoad
     from sqlalchemy.sql import Select
 
 
@@ -70,9 +73,14 @@ def generate_dag_with_latest_run_query(
             break
 
     requested_order_by_set = set(order_by.value) if order_by.value is not None else set()
-    dag_run_order_by_set = set(
-        ["last_run_state", "last_run_start_date", "-last_run_state", "-last_run_start_date"],
-    )
+    dag_run_order_by_set = {
+        "last_run_state",
+        "-last_run_state",
+        "last_run_start_date",
+        "-last_run_start_date",
+        "last_run_run_after",
+        "-last_run_run_after",
+    }
 
     if has_max_run_filter or (requested_order_by_set & dag_run_order_by_set):
         query = query.join(
@@ -88,3 +96,25 @@ def generate_dag_with_latest_run_query(
         )
 
     return query
+
+
+def eager_load_teams(*path: Any) -> tuple[_AbstractLoad, ...]:
+    """
+    Eager loading options for the team owning a Dag, for serializing ``team_name``.
+
+    ``DagModel.bundle`` is ``lazy="raise"``, so any endpoint whose response exposes
+    ``team_name`` must apply these options. Nothing is loaded when multi-team mode is
+    off: :attr:`DagModel.team_name` short-circuits to ``None`` without touching the
+    relationship, so single-team deployments pay for no extra join.
+
+    :param path: relationship attributes leading to ``DagModel``, empty when selecting it
+        directly. For example, ``eager_load_teams(DagRun.dag_model)`` for a Dag run query.
+    """
+    if not conf.getboolean("core", "multi_team"):
+        return ()
+
+    loader: Any = None
+    for attribute in path:
+        loader = joinedload(attribute) if loader is None else loader.joinedload(attribute)
+    bundle_loader = joinedload(DagModel.bundle) if loader is None else loader.joinedload(DagModel.bundle)
+    return (bundle_loader.selectinload(DagBundleModel.teams),)
