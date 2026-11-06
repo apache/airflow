@@ -32,17 +32,35 @@
   "group": "Группа",
   "health": {
     "dagProcessor": "Процессор Dag-а",
+    "degraded": "Частично исправный",
+    "degradedHint": {
+      "dagProcessor": "У некоторых настроенных пакетов Dag-ов нет процессора Dag-а, который бы их разбирал.",
+      "triggerer": "У некоторых команд нет триггерера, выполняющего для них отложенные задачи."
+    },
+    "down": "Не работает",
     "health": "Состояние",
     "healthy": "Исправный",
+    "instances": {
+      "bundles": "Пакеты",
+      "hostname": "Хост",
+      "team": "Команда",
+      "title_few": "{{title}} — {{status}} ({{count, number}} экземпляра)",
+      "title_many": "{{title}} — {{status}} ({{count, number}} экземпляров)",
+      "title_one": "{{title}} — {{status}} ({{count, number}} экземпляр)",
+      "title_other": "{{title}} — {{status}} ({{count, number}} экземпляров)",
+      "unknownHostname": "Неизвестный хост"
+    },
     "lastHeartbeat": "Последний heartbeat-сигнал",
     "metaDatabase": "Метабаза данных",
     "scheduler": "Планировщик",
     "status": "Статус",
     "triggerer": "Триггерер",
-    "unhealthy": "Неисправный"
+    "unhealthy": "Неисправный",
+    "unknownStatus": "Неизвестно"
   },
   "history": "История",
   "importErrors": {
+    "bundle": "Пакет",
     "dagImportError_few": "Ошибки импорта Dag-ов",
     "dagImportError_many": "Ошибки импорта Dag-ов",
     "dagImportError_one": "Ошибка импорта Dag-ов",
