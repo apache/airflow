@@ -44,14 +44,6 @@ def _extract_archive(archive_path: Path, unpack_dir: Path) -> None:
         tar.extractall(unpack_dir, filter="data")
 
 
-def _archive_state_dir(bundle_dir: Path, bundle_name: str) -> Path:
-    return bundle_dir.parent / f".{bundle_name}"
-
-
-def _archive_etag_path(bundle_dir: Path, bundle_name: str) -> Path:
-    return _archive_state_dir(bundle_dir, bundle_name) / "etag"
-
-
 class _GCSDagBundleBase(BaseDagBundle):
     """
     GCS connection, local directory, and console URL shared by the GCS bundle classes.
@@ -211,9 +203,6 @@ class GCSDagBundle(_GCSDagBundleBase):
         self._reject_version_refresh()
 
         with self.lock():
-            # Same bundle name may previously have been a GCSArchiveDagBundle. Drop its
-            # ETag so switching back to the archive restages instead of keeping these files.
-            _archive_etag_path(self.gcs_dags_dir, self.name).unlink(missing_ok=True)
             self._log.debug(
                 "Downloading Dags from gs://%s/%s to %s", self.bucket_name, self.prefix, self.gcs_dags_dir
             )
@@ -273,13 +262,18 @@ class GCSArchiveDagBundle(_GCSDagBundleBase):
         )
 
     def _archive_state_dir(self) -> Path:
-        return _archive_state_dir(self.gcs_dags_dir, self.name)
+        return self.gcs_dags_dir.parent / f".{self.name}"
 
     def _archive_etag_path(self) -> Path:
-        return _archive_etag_path(self.gcs_dags_dir, self.name)
+        """Return the ETag marker path inside the staged Dag tree."""
+        return self.gcs_dags_dir / ".archive_etag"
 
     def _bundle_dir_has_files(self) -> bool:
-        return self.gcs_dags_dir.is_dir() and any(path.is_file() for path in self.gcs_dags_dir.rglob("*"))
+        """Return whether the staged tree has files other than the ETag marker."""
+        marker = self._archive_etag_path()
+        return self.gcs_dags_dir.is_dir() and any(
+            path.is_file() and path != marker for path in self.gcs_dags_dir.rglob("*")
+        )
 
     def _remove_stale_archive_staging_dirs(self) -> None:
         state_dir = self._archive_state_dir()
