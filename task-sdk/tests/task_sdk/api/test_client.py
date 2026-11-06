@@ -1042,6 +1042,34 @@ class TestVariableOperations:
         result = client.variables.delete(key="test_key")
         assert result == OKResponse(ok=True)
 
+    @pytest.mark.parametrize("operation", ["get", "set", "delete"])
+    def test_variable_key_is_quoted_in_request_path(self, operation):
+        """Reserved URL characters in a variable key must stay part of the key."""
+        request_paths = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            request_paths.append(request.url.raw_path)
+            if request.method == "GET":
+                return httpx2.Response(
+                    status_code=200,
+                    json={"key": "special/segment?name#fragment", "value": "test_value"},
+                )
+            if request.method == "PUT":
+                return httpx2.Response(status_code=201, json={"message": "Variable successfully set"})
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        key = "special/segment?name#fragment"
+
+        if operation == "get":
+            client.variables.get(key)
+        elif operation == "set":
+            client.variables.set(key, "test_value")
+        else:
+            client.variables.delete(key)
+
+        assert request_paths == [b"/variables/special/segment%3Fname%23fragment"]
+
 
 class TestXCOMOperations:
     """
