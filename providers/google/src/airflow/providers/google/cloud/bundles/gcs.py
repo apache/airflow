@@ -148,6 +148,16 @@ class _GCSDagBundleBase(BaseDagBundle):
         if self.version:
             raise ValueError("Refreshing a specific version is not supported")
 
+    def refresh(self) -> None:
+        """Refresh the Dag bundle by updating the local Dag files from GCS."""
+        self._reject_version_refresh()
+        with self.lock():
+            self._refresh_locked()
+
+    def _refresh_locked(self) -> None:
+        """Stage the bundle while the bundle lock is held."""
+        raise NotImplementedError
+
 
 class GCSDagBundle(_GCSDagBundleBase):
     """
@@ -201,20 +211,16 @@ class GCSDagBundle(_GCSDagBundleBase):
             f")>"
         )
 
-    def refresh(self) -> None:
-        """Refresh the Dag bundle by re-downloading the Dags from GCS."""
-        self._reject_version_refresh()
-
-        with self.lock():
-            self._log.debug(
-                "Downloading Dags from gs://%s/%s to %s", self.bucket_name, self.prefix, self.gcs_dags_dir
-            )
-            self.gcs_hook.sync_to_local_dir(
-                bucket_name=self.bucket_name,
-                prefix=self.prefix,
-                local_dir=self.gcs_dags_dir,
-                delete_stale=True,
-            )
+    def _refresh_locked(self) -> None:
+        self._log.debug(
+            "Downloading Dags from gs://%s/%s to %s", self.bucket_name, self.prefix, self.gcs_dags_dir
+        )
+        self.gcs_hook.sync_to_local_dir(
+            bucket_name=self.bucket_name,
+            prefix=self.prefix,
+            local_dir=self.gcs_dags_dir,
+            delete_stale=True,
+        )
 
 
 class GCSArchiveDagBundle(_GCSDagBundleBase):
@@ -287,65 +293,59 @@ class GCSArchiveDagBundle(_GCSDagBundleBase):
             if leftover.is_dir() and leftover.name.startswith("archive-staging-"):
                 shutil.rmtree(leftover, ignore_errors=True)
 
-    def refresh(self) -> None:
-        """Refresh the Dag bundle by downloading and unpacking the archive object."""
-        self._reject_version_refresh()
+    def _refresh_locked(self) -> None:
+        self._remove_stale_archive_staging_dirs()
+        blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(self.archive_object)
+        try:
+            blob.reload()
+        except NotFound:
+            raise ValueError(f"GCS archive 'gs://{self.bucket_name}/{self.archive_object}' does not exist.")
+        etag = blob.etag or ""
 
-        with self.lock():
-            self._remove_stale_archive_staging_dirs()
-            blob = self.gcs_hook.get_conn().bucket(self.bucket_name).blob(self.archive_object)
+        marker = self._archive_etag_path()
+        if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
+            self._log.debug(
+                "Dag bundle archive 'gs://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.bucket_name,
+                self.archive_object,
+                etag,
+            )
+            return
+
+        state_dir = self._archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            download_kwargs = {}
+            if blob.generation is not None:
+                download_kwargs["if_generation_match"] = blob.generation
+            blob.download_to_filename(os.fspath(archive_path), **download_kwargs)
+
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            _extract_archive(archive_path, unpack_dir)
+            archive_path.unlink()
+
+            backup_dir = staging_dir / "previous"
+            if self.gcs_dags_dir.exists():
+                self.gcs_dags_dir.rename(backup_dir)
             try:
-                blob.reload()
-            except NotFound:
-                raise ValueError(
-                    f"GCS archive 'gs://{self.bucket_name}/{self.archive_object}' does not exist."
-                )
-            etag = blob.etag or ""
+                unpack_dir.rename(self.gcs_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.gcs_dags_dir)
+                raise
 
-            marker = self._archive_etag_path()
-            if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
-                self._log.debug(
-                    "Dag bundle archive 'gs://%s/%s' is unchanged (ETag %s), skipping staging",
-                    self.bucket_name,
-                    self.archive_object,
-                    etag,
-                )
-                return
+            if etag:
+                self._archive_etag_path().write_text(etag)
 
-            state_dir = self._archive_state_dir()
-            state_dir.mkdir(parents=True, exist_ok=True)
-            staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
-            try:
-                archive_path = staging_dir / "_bundle_archive"
-                download_kwargs = {}
-                if blob.generation is not None:
-                    download_kwargs["if_generation_match"] = blob.generation
-                blob.download_to_filename(os.fspath(archive_path), **download_kwargs)
-
-                unpack_dir = staging_dir / "unpacked"
-                unpack_dir.mkdir()
-                _extract_archive(archive_path, unpack_dir)
-                archive_path.unlink()
-
-                backup_dir = staging_dir / "previous"
-                if self.gcs_dags_dir.exists():
-                    self.gcs_dags_dir.rename(backup_dir)
-                try:
-                    unpack_dir.rename(self.gcs_dags_dir)
-                except Exception:
-                    if backup_dir.exists():
-                        backup_dir.rename(self.gcs_dags_dir)
-                    raise
-
-                if etag:
-                    self._archive_etag_path().write_text(etag)
-
-                self._log.debug(
-                    "Staged Dag bundle from archive 'gs://%s/%s' (%s bytes) to %s",
-                    self.bucket_name,
-                    self.archive_object,
-                    blob.size,
-                    self.gcs_dags_dir,
-                )
-            finally:
-                shutil.rmtree(staging_dir, ignore_errors=True)
+            self._log.debug(
+                "Staged Dag bundle from archive 'gs://%s/%s' (%s bytes) to %s",
+                self.bucket_name,
+                self.archive_object,
+                blob.size,
+                self.gcs_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
