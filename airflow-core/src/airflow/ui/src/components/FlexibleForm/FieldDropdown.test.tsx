@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 import { Wrapper } from "src/utils/Wrapper";
@@ -131,6 +131,62 @@ describe("FieldDropdown", () => {
     });
 
     expect(screen.getByRole("combobox")).toBeDefined();
+  });
+
+  it("renders the selected object enum value by its JSON form", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: { enum: envs, type: "object" },
+      value: envs[1],
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText(JSON.stringify(envs[1]))).toBeDefined();
+  });
+
+  it("labels object enum options via values_display keyed by their JSON form", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: {
+        enum: envs,
+        type: "object",
+        values_display: { [JSON.stringify(envs[0])]: "Development" },
+      },
+      value: envs[0],
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByText("Development")).toBeDefined();
+  });
+
+  it("stores the original object when an object enum option is selected", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: { enum: envs, type: "object" },
+      value: null,
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    fireEvent.keyDown(screen.getByRole("combobox"), { key: "ArrowDown" });
+    fireEvent.click(screen.getByText(JSON.stringify(envs[1])));
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    expect(mockParamsDict.test_param.value).toStrictEqual(envs[1]);
   });
 
   it("preserves numeric type when selecting a number enum value (prevents 400 Bad Request)", () => {

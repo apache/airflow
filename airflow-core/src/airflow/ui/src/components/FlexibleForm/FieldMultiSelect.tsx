@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
+import { getEnumValueKey } from "./getEnumValueKey";
 
 const labelLookup = (key: string, valuesDisplay: Record<string, string> | undefined): string =>
   valuesDisplay && typeof valuesDisplay === "object" ? (valuesDisplay[key] ?? key) : key;
@@ -33,14 +34,16 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
   const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
+  const choices = (param.schema.examples ?? param.schema.enum)?.filter((value) => value !== null) ?? [];
+
+  const toOption = (value: unknown) => ({
+    label: labelLookup(getEnumValueKey(value), param.schema.values_display),
+    value: getEnumValueKey(value),
+  });
+
   // Initialize `selectedOptions` directly from `paramsDict`
   const [selectedOptions, setSelectedOptions] = useState(
-    Array.isArray(param.value)
-      ? (param.value as Array<string>).map((value) => ({
-          label: labelLookup(value, param.schema.values_display),
-          value,
-        }))
-      : [],
+    Array.isArray(param.value) ? (param.value as Array<unknown>).map(toOption) : [],
   );
 
   // Handle changes to the select field
@@ -55,13 +58,18 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
     setSelectedOptions(updatedOptions);
 
     // "undefined" values are removed from params, so we set it to null to avoid falling back to DAG defaults.
-    const newValueArray = updatedOptions.length ? updatedOptions.map((option) => option.value) : null;
+    // Map option keys back to the original typed choices so backend validation receives the correct types.
+    const newValueArray = updatedOptions.length
+      ? updatedOptions.map(
+          (option) => choices.find((choice) => getEnumValueKey(choice) === option.value) ?? option.value,
+        )
+      : null;
 
     if (paramsDict[name]) {
       paramsDict[name].value = newValueArray;
     }
     setParamsDict(paramsDict);
-    onUpdate(String(newValueArray));
+    onUpdate(String(updatedOptions.map((option) => option.value)));
   };
 
   return (
@@ -78,14 +86,7 @@ export const FieldMultiSelect = ({ name, namespace = "default", onUpdate }: Flex
       menuPosition="fixed"
       name={`element_${name}`}
       onChange={handleChange}
-      options={
-        (param.schema.examples ?? param.schema.enum)
-          ?.filter((value): value is boolean | number | string => value !== null)
-          .map((value) => ({
-            label: labelLookup(String(value), param.schema.values_display),
-            value: String(value),
-          })) ?? []
-      }
+      options={choices.map(toOption)}
       placeholder={translate("flexibleForm.placeholderMulti")}
       size="sm"
       value={selectedOptions}
