@@ -32,8 +32,10 @@ from google.adk.models.llm_response import LlmResponse
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools.adk import AirflowTools
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 
 from unit.common.ai.toolsets.test_sql import _make_mock_db_hook
@@ -119,6 +121,10 @@ class TestAirflowTools:
 
         assert tool._detect_error_in_response({"error": "Unknown column"}) == "TOOL_ERROR"
         assert tool._detect_error_in_response({"result": "ok"}) is None
+
+    def test_an_mcp_toolset_points_to_adks_mcp_toolset(self):
+        with pytest.raises(MCPToolsetNotSupportedError, match="ADK's McpToolset"):
+            AirflowTools(MCPToolset("mcp_default"))
 
 
 class TestAgentRun:
