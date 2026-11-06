@@ -16,7 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+import requests
 
 from airflow_breeze.utils import release_constraints
 
@@ -90,3 +93,80 @@ def test_the_prompt_names_the_stage_the_version_implies(monkeypatch, version, ex
     release_constraints.publish_constraints(version=version, ref="v3-1-stable")
 
     assert expected_stage in prompts[0]
+
+
+def _file(yanked: bool = False) -> dict:
+    return {"yanked": yanked}
+
+
+@pytest.mark.parametrize(
+    ("releases", "expected"),
+    [
+        pytest.param({"1.0.0": [_file()], "2.0.0rc1": [_file()]}, "2.0.0rc1", id="candidate-newest"),
+        pytest.param({"1.0.0rc1": [_file()], "1.0.0": [_file()]}, "1.0.0", id="candidate-released"),
+        pytest.param({"1.0.0": [_file()], "2.0.0rc1": [_file(yanked=True)]}, "1.0.0", id="candidate-yanked"),
+        pytest.param({"1.0.0": [_file()], "2.0.0": []}, "1.0.0", id="no-files"),
+        pytest.param({"not-a-version": [_file()]}, None, id="nothing-usable"),
+    ],
+)
+def test_find_newest_published_version(monkeypatch, releases, expected):
+    response = mock.create_autospec(requests.Response, instance=True)
+    response.status_code = 200
+    response.json.return_value = {"releases": releases}
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: response)
+
+    assert release_constraints.find_newest_published_version("apache-airflow-providers-x") == expected
+
+
+def test_find_newest_published_version_unpublished(monkeypatch):
+    response = mock.create_autospec(requests.Response, instance=True)
+    response.status_code = 404
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: response)
+
+    assert release_constraints.find_newest_published_version("apache-airflow-providers-x") is None
+
+
+@mock.patch("airflow_breeze.utils.provider_dependencies.get_provider_dependencies")
+def test_find_pending_provider_candidates_checks_only_ready_providers(get_deps, monkeypatch):
+    get_deps.return_value = {
+        "amazon": {"state": "ready"},
+        "apache.hive": {"state": "ready"},
+        "google": {"state": "ready"},
+        "old": {"state": "suspended"},
+        "new": {"state": "not-ready"},
+    }
+    newest = {
+        "apache-airflow-providers-amazon": "10.0.0rc1",
+        "apache-airflow-providers-apache-hive": "9.0.0",
+        "apache-airflow-providers-google": None,
+    }
+    looked_up: list[str] = []
+
+    def fake_lookup(distribution):
+        looked_up.append(distribution)
+        return newest[distribution]
+
+    monkeypatch.setattr(release_constraints, "find_newest_published_version", fake_lookup)
+
+    assert release_constraints.find_pending_provider_candidates() == [
+        ("apache-airflow-providers-amazon", "10.0.0rc1")
+    ]
+    assert sorted(looked_up) == sorted(newest)
+
+
+def test_exit_on_pending_provider_candidates_exits_when_pending(monkeypatch):
+    monkeypatch.setattr(
+        release_constraints,
+        "find_pending_provider_candidates",
+        lambda: [("apache-airflow-providers-amazon", "10.0.0rc1")],
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        release_constraints.exit_on_pending_provider_candidates()
+    assert exc.value.code == 1
+
+
+def test_exit_on_pending_provider_candidates_passes_when_clear(monkeypatch):
+    monkeypatch.setattr(release_constraints, "find_pending_provider_candidates", lambda: [])
+
+    release_constraints.exit_on_pending_provider_candidates()
