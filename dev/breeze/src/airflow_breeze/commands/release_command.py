@@ -351,11 +351,10 @@ def regenerate_constraints(version):
     major, minor = version.split(".")[:2]
     # By default a final fails if any provider's newest PyPI version is a pending rc (an unresolved
     # provider wave). The release manager can pin the currently-released providers instead, to ship a
-    # final through an overlapping, independent provider wave.
+    # final through an overlapping, independent provider wave. The safe default (no) keeps the guard.
     fail_on_pending_provider_candidates = None
-    if not confirm_action(
-        "Fail if a provider wave is still in rc (recommended)? Answer 'n' only to pin the "
-        "currently-released providers and proceed through an overlapping provider wave."
+    if confirm_action(
+        "Pin the currently-released providers and proceed even if a provider wave is still in rc?"
     ):
         fail_on_pending_provider_candidates = False
     publish_constraints(

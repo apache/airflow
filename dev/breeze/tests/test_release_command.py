@@ -544,18 +544,46 @@ def test_regenerate_constraints_resolves_from_the_stable_branch(monkeypatch, rel
     """The final release resolves from the branch it is cut from, not from main."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
 
     release_cmd.regenerate_constraints("3.3.0")
 
-    assert calls == {"version": "3.3.0", "ref": "v3-3-stable"}
+    assert calls == {
+        "version": "3.3.0",
+        "ref": "v3-3-stable",
+        "fail_on_pending_provider_candidates": None,
+    }
 
 
 def test_regenerate_constraints_passes_a_final_version(monkeypatch, release_cmd):
     """No rc suffix reaches the workflow, which is what makes it refuse pre-releases."""
     calls: dict[str, object] = {}
     monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
 
     release_cmd.regenerate_constraints("3.0.5")
 
     assert "rc" not in str(calls["version"])
     assert calls["ref"] == "v3-0-stable"
+
+
+def test_regenerate_constraints_keeps_the_guard_by_default(monkeypatch, release_cmd):
+    """Declining the prompt leaves the pending-candidate guard on (the workflow derives it)."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: False)
+
+    release_cmd.regenerate_constraints("3.3.0")
+
+    assert calls["fail_on_pending_provider_candidates"] is None
+
+
+def test_regenerate_constraints_override_pins_released_providers(monkeypatch, release_cmd):
+    """Accepting the prompt pins the currently-released providers through an overlapping wave."""
+    calls: dict[str, object] = {}
+    monkeypatch.setattr(release_cmd, "publish_constraints", lambda **kw: calls.update(kw))
+    monkeypatch.setattr(release_cmd, "confirm_action", lambda *a, **k: True)
+
+    release_cmd.regenerate_constraints("3.3.0")
+
+    assert calls["fail_on_pending_provider_candidates"] is False
