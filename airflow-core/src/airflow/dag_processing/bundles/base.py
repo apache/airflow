@@ -200,7 +200,8 @@ class BundleUsageTrackingManager:
                 recently_used,
             )
 
-    def _remove_stale_bundle_versions_for_bundle(self, bundle_name: str):
+    def remove_stale_bundle_versions_for_bundle(self, bundle_name: str):
+        """Remove one bundle's stale versions without constructing the bundle."""
         log.info("checking bundle for stale versions. bundle_name=%s", bundle_name)
         found = self._find_all_tracking_files(bundle_name=bundle_name)
         if not found:
@@ -226,7 +227,7 @@ class BundleUsageTrackingManager:
         for bundle in bundles:
             if not bundle.supports_versioning:
                 continue
-            self._remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
+            self.remove_stale_bundle_versions_for_bundle(bundle_name=bundle.name)
 
 
 @dataclass(frozen=True)

@@ -277,6 +277,42 @@ def clear_db():
     clear_db_dag_bundles()
 
 
+@pytest.mark.parametrize("operation", ["get", "list", "sync"])
+@pytest.mark.db_test
+@conf_vars({("core", "load_examples"): "False"})
+def test_bundle_construction_and_url_resolution_use_the_bundle_context(clear_db, operation):
+    active = []
+    seen = []
+
+    @contextlib.contextmanager
+    def bundle_context(name):
+        active.append(name)
+        try:
+            yield
+        finally:
+            active.pop()
+
+    def read_secret(*args, **kwargs):
+        seen.append(active[-1])
+
+    config = [*BASIC_BUNDLE_CONFIG, {"name": "excluded", "classpath": "missing.Bundle", "kwargs": {}}]
+    with (
+        conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(config)}),
+        patch.object(BasicBundle, "__init__", autospec=True, side_effect=read_secret),
+        patch.object(BasicBundle, "view_url_template", autospec=True, side_effect=read_secret),
+    ):
+        manager = DagBundlesManager(bundle_names=["my-test-bundle"], bundle_context=bundle_context)
+        if operation == "get":
+            manager.get_bundle("my-test-bundle")
+        elif operation == "list":
+            list(manager.get_all_dag_bundles())
+        else:
+            manager.sync_bundles_to_db(deactivate_missing=False)
+    assert seen
+    assert set(seen) == {"my-test-bundle"}
+    assert active == []
+
+
 @pytest.mark.db_test
 @conf_vars({("core", "LOAD_EXAMPLES"): "False"})
 def test_sync_bundles_to_db(clear_db, session):
