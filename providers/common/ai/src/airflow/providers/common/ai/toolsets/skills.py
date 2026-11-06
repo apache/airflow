@@ -167,7 +167,8 @@ class AgentSkillsToolset(AbstractToolset):
         self._messages: Sequence[ModelMessage] = ()
         # The agent run this instance serves, set by get_tools. ``async with agent:`` also enters
         # the instance passed to the agent, which never serves a run and so never publishes. Not
-        # set in for_run: a DynamicToolset builds this toolset per run without calling its for_run.
+        # set in for_run: a DynamicToolset builds this toolset on every model step, unless given
+        # per_run_step=False, without calling its for_run.
         self._run_id: str | None = None
 
     @property

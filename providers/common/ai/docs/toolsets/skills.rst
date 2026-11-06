@@ -149,7 +149,9 @@ calls that a history processor or compaction removes from the transcript are not
 ``calls`` totals ``calls_by_run``, which keeps the calls of each agent run that made any
 under its pydantic-ai run id.
 A run resumed from a tool-approval pause and a human-review regeneration each clone the
-repository again, so the source shows the commit the latest run cloned.
+repository again, so the source shows the commit the latest run cloned. A toolset built by
+a function, which the agent wraps in pydantic-ai's ``DynamicToolset``, is built and cloned
+again on every model step unless you pass ``DynamicToolset(fn, per_run_step=False)``.
 Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
 names apart, share the same list. Nothing is published when the task sets
 ``do_xcom_push=False``.
