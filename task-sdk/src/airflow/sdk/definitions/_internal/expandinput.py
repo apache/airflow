@@ -98,6 +98,25 @@ class MappedArgument(ResolveMixin):
                 if isinstance(value, MappedArgument):
                     raise ValueError("Nested Mapped TaskGroups are not yet supported")
 
+    def __str__(self) -> str:
+        """
+        Render as a Jinja expression that resolves to the real value at runtime.
+
+        An f-string inside a task group function formats this stub at parse time, so
+        returning a template lets templated operator fields resolve it per map index,
+        mirroring ``XComArg.__str__``.
+
+        **Example**: to use a mapped task group argument in BashOperator::
+
+            @task_group
+            def my_group(table):
+                BashOperator(task_id="t", bash_command=f"echo {table}")
+
+
+            my_group.expand(table=["a", "b"])
+        """
+        return f"{{{{ task.get_closest_mapped_task_group().resolve_mapped_argument({self._key!r}, ti) }}}}"
+
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         yield from self._input.iter_references()
 
