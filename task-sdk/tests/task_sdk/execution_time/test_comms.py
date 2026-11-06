@@ -26,6 +26,7 @@ import pytest
 import structlog
 
 from airflow.sdk import timezone
+from airflow.sdk.exceptions import AirflowSupervisorCommsOutOfSync
 from airflow.sdk.execution_time.comms import (
     BundleInfo,
     CommsDecoder,
@@ -215,6 +216,36 @@ class TestCommsDecoder:
             assert errors[idx] is None, f"Thread {idx} error: {errors[idx]}"
             assert results[idx].key == f"key{idx}", f"Out-of-order or missing response for thread {idx}"
             assert results[idx].value == f"value{idx}", f"Incorrect value for thread {idx}"
+
+    @staticmethod
+    def _queue_stray_ack(sock, frame_id: int) -> None:
+        # An empty acknowledgement for a request this decoder never sent, e.g. one written to the
+        # shared socket by a forked child process that was killed before reading its response.
+        data = msgspec.msgpack.encode(_ResponseFrame(frame_id, None, None))
+        sock.sendall(len(data).to_bytes(4, byteorder="big") + data)
+
+    def test_send_rejects_response_for_another_request(self, socket_pair):
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        self._queue_stray_ack(w, frame_id=7)
+
+        # Without the id check this returned None, and callers failed later with
+        # "'NoneType' object has no attribute ..."
+        with pytest.raises(
+            AirflowSupervisorCommsOutOfSync, match="response for request 7 while waiting for .* request 0"
+        ):
+            decoder.send(GetVariable(key="a"))
+
+    @pytest.mark.asyncio
+    async def test_asend_rejects_response_for_another_request(self, socket_pair):
+        r, w = socket_pair
+        decoder = CommsDecoder(socket=r, log=structlog.get_logger())
+        self._queue_stray_ack(w, frame_id=7)
+
+        with pytest.raises(
+            AirflowSupervisorCommsOutOfSync, match="response for request 7 while waiting for .* request 0"
+        ):
+            await asyncio.wait_for(decoder.asend(GetVariable(key="a")), timeout=5)
 
     @pytest.mark.asyncio
     async def test_send_from_event_loop_raises_deadlock_imminent_error_when_asend_in_flight(

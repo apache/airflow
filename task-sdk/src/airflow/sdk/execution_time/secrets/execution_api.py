@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
-from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync
 
 if TYPE_CHECKING:
     from airflow.sdk import Connection
@@ -92,7 +92,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
-        except AirflowSecretsBackendAccessDenied:
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
             # Re-raise so the dispatcher does NOT fall through.
             raise
         except Exception:
@@ -128,7 +128,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             if isinstance(msg, VariableResult):
                 return msg.value  # Already a string | None
             return None
-        except AirflowSecretsBackendAccessDenied:
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None
@@ -158,7 +158,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
 
             # Convert ExecutionAPI response to SDK Connection
             return _process_connection_result_conn(msg)
-        except AirflowSecretsBackendAccessDenied:
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None
@@ -189,7 +189,7 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
             if isinstance(msg, VariableResult):
                 return msg.value  # Already a string | None
             return None
-        except AirflowSecretsBackendAccessDenied:
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
             raise
         except Exception:
             # If SUPERVISOR_COMMS fails for any non-authz reason, return None

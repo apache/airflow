@@ -68,6 +68,16 @@ class AirflowSecretsBackendAccessDenied(PermissionError):
     """
 
 
+class AirflowSupervisorCommsOutOfSync(RuntimeError):
+    """
+    The supervisor connection returned a response for a different request.
+
+    Callers that turn a failed supervisor call into "not found" (the secrets backend and its
+    dispatchers) must re-raise this one, or the caller sees a missing connection or variable
+    instead of the real problem.
+    """
+
+
 class AirflowDagCycleException(AirflowException):
     """Raise when there is a cycle in Dag definition."""
 
