@@ -92,7 +92,6 @@
   "dagRun_other": "Dag 执行",
   "dagRunId": "Dag 执行 ID",
   "dagRunState": "Dag 执行状态",
-  "dagWarnings": "Dag 警告 / 错误",
   "delete": "删除",
   "diff": "差异对比",
   "diffCompareWith": "比较对象",

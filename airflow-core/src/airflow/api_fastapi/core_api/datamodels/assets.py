@@ -38,6 +38,7 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.base import BaseModel, StrictBaseModel
 from airflow.api_fastapi.core_api.datamodels.dag_run import TriggerDAGRunPostBody
 from airflow.models.base import ID_LEN
+from airflow.models.trigger import TriggerStatus
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.dag import SerializedDAG
 
 
-class DagScheduleAssetReference(StrictBaseModel):
+class DagScheduleAssetReference(BaseModel):
     """Dag schedule reference serializer for assets."""
 
     dag_id: str
@@ -54,7 +55,7 @@ class DagScheduleAssetReference(StrictBaseModel):
     team_name: str | None = None
 
 
-class TaskInletAssetReference(StrictBaseModel):
+class TaskInletAssetReference(BaseModel):
     """Task inlet reference serializer for assets."""
 
     dag_id: str
@@ -63,7 +64,7 @@ class TaskInletAssetReference(StrictBaseModel):
     updated_at: datetime
 
 
-class TaskOutletAssetReference(StrictBaseModel):
+class TaskOutletAssetReference(BaseModel):
     """Task outlet reference serializer for assets."""
 
     dag_id: str
@@ -84,8 +85,9 @@ class AssetWatcherResponse(BaseModel):
     """Asset watcher serializer for responses."""
 
     name: str
-    trigger_id: int
+    trigger_id: int = Field(description="The watcher's trigger; `GET /triggers/{trigger_id}` has its state.")
     created_date: datetime
+    status: TriggerStatus = Field(description="Status of the watcher's trigger, as in `GET /triggers`.")
 
 
 class AssetResponse(BaseModel):
@@ -137,6 +139,7 @@ class AssetResponse(BaseModel):
                 "name": watcher.name,
                 "trigger_id": watcher.trigger_id,
                 "created_date": watcher.trigger.created_date,
+                "status": watcher.trigger.status(),
             }
             for watcher in asset.watchers
         ]
@@ -178,7 +181,7 @@ class AssetAliasCollectionResponse(BaseModel):
     total_entries: int
 
 
-class DagRunAssetReference(StrictBaseModel):
+class DagRunAssetReference(BaseModel):
     """DagRun serializer for asset responses."""
 
     run_id: str

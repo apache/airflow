@@ -54,6 +54,7 @@
   },
   "history": "Historie",
   "importErrors": {
+    "bundle": "Bündel",
     "dagImportError_one": "Fehler beim Laden des Dags",
     "dagImportError_other": "Fehler beim Laden der Dags",
     "searchByFile": "Nach Datei suchen",

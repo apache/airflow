@@ -836,6 +836,8 @@ class BaseExecutor(LoggingMixin):
         Send callback for execution.
 
         Provides a default implementation which sends the callback to the `callback_sink` object.
+        The scheduler's database sink adds the request to the calling thread's scoped session
+        without committing, so the caller must commit that session.
 
         :param request: Callback request to be executed.
         """
