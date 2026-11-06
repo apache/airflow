@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any
 from celery import Celery, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
 from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
-from celery.signals import import_modules as celery_import_modules, worker_ready
+from celery.signals import import_modules as celery_import_modules
 from sqlalchemy import select
 
 from airflow.executors.base_executor import BaseExecutor
@@ -224,14 +224,9 @@ def on_celery_import_modules(*args, **kwargs):
     with contextlib.suppress(ImportError):
         import kubernetes.client  # noqa: F401
 
-    # To prevent memory increase by COW in celery's ForkPoolWorker.
+    # To prevent memory increase by COW in celery's ForkPoolWorker. Kept frozen for the worker's lifetime: pool
+    # processes forked later (replacing a recycled one, or added by autoscaling) would otherwise copy these objects.
     gc.freeze()
-
-
-@worker_ready.connect
-def on_celery_worker_ready(*args, **kwargs):
-    # Unfreeze the objects from gc freeze when the ForkPoolWorker is all loaded.
-    gc.unfreeze()
 
 
 # Once Celery 5.5 is out of beta, we can pass `pydantic=True` to the decorator and it will handle the validation
