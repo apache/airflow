@@ -281,7 +281,7 @@ Some caveats:
   :ref:`config:dag_processor__bundle_refresh_check_interval` and doubles the wait after each further
   failure, up to the bundle's ``refresh_interval``. A successful listing resets the wait.
   Parsing also stays paused until the API server accepts the new listing. While the server cannot
-  be reached or answers 408, 429 or a 5xx error, the processor resends it with a backoff of up to
+  be reached or answers 408, 429 or a 5xx error, the processor sends it again with a backoff of up to
   :ref:`config:workers__execution_api_retry_wait_max`. If the listing is too large to send, or the
   server rejects it as too large, the processor waits for the bundle's ``refresh_interval`` before
   refreshing and listing it again.
