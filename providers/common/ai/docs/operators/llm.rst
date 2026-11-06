@@ -171,7 +171,7 @@ the matching ``@task.*`` decorators) the same way it does for ``AgentOperator``:
 the initial run and every retry add to one running total, including the implicit
 ``request_limit=50``. A pause for approval, and a retry after a reviewer rejects the
 output, share the same total. The total is cleared only once the task succeeds -- a
-reviewer approval, or a ``LLMBranchOperator`` skip, counts as success -- and a
+reviewer approval, or a rejection with ``fail_on_reject=False``, counts as success -- and a
 cleared task instance starts a fresh one. A ``cost_limit`` of ``Decimal("0.50")``
 therefore bounds what the task spends across every attempt combined (best-effort,
 like the rest of ``cost_limit`` above -- a SIGKILL loses the spend of the attempt
@@ -322,6 +322,12 @@ Parameters
   ``{"id": ..., "name": ...}`` dicts where ``id`` is the auth manager's user id.
   ``None`` (default) lets any user with the permission respond.  Fixed at first
   run on Airflow 3.1 to 3.3; replaced on clear or retry from 3.4.  Needs Airflow 3.1+.
+- ``fail_on_reject``: If ``False``, a rejected review skips the direct downstream
+  tasks except teardowns and the task succeeds, as ``ApprovalOperator`` does.
+  Default ``True``: a rejection fails the task.
+- ``ignore_downstream_trigger_rules``: If ``True``, a rejection that does not fail
+  the task skips every downstream task except teardowns rather than only the
+  direct ones.  Default ``False``.
 
 Logging
 -------

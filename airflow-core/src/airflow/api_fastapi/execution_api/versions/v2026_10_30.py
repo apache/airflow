@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 from cadwyn import (
     ResponseInfo,
     VersionChange,
@@ -35,6 +37,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TISuccessStatePayload,
     TITerminalStatePayload,
 )
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams, GetXComSliceFilterParams
 
 
 class AddLoopContext(VersionChange):
@@ -72,9 +75,14 @@ class AddStoppedTaskReport(VersionChange):
 
 
 class IdentifyArchivedTaskStateUpdates(VersionChangeWithSideEffects):
-    """Reject every mutation from an archived attempt with 410; older clients keep each endpoint's own response."""
+    """
+    Reject mutations from an archived attempt with 410.
 
-    description = __doc__
+    Variable writes and asset-watcher writes to asset state are exempt. Older
+    clients keep each endpoint's own response.
+    """
+
+    description = inspect.cleandoc(__doc__)
     instructions_to_migrate_to_previous_version = ()
 
 
@@ -91,20 +99,6 @@ class AddArgBindingsToTIRunContext(VersionChangeWithSideEffects):
     def remove_arg_bindings_field(response: ResponseInfo) -> None:
         """Strip ``arg_bindings`` from the run context for older clients."""
         response.body.pop("arg_bindings", None)
-
-
-class AddExecutionTimeoutToTIRunContext(VersionChange):
-    """Add ``execution_timeout`` so the supervisor can enforce it."""
-
-    description = __doc__
-    instructions_to_migrate_to_previous_version = (
-        schema(TIRunContext).field("execution_timeout").didnt_exist,
-    )
-
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``execution_timeout`` from the run context for older clients."""
-        response.body.pop("execution_timeout", None)
 
 
 class AddCallbackRunEndpoint(VersionChange):
@@ -182,4 +176,15 @@ class AddFirstTaskRescheduleStartDateField(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("first_task_reschedule_start_date").didnt_exist,
+    )
+
+
+class AddPreviousIterationToXComFilterParams(VersionChange):
+    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
+        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
     )
