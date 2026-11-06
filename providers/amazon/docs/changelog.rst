@@ -26,6 +26,12 @@
 Changelog
 ---------
 
+.. warning::
+  ``BedrockCreateGuardrailOperator``, ``BedrockUpdateGuardrailOperator`` and
+  ``BedrockCreateGuardrailVersionOperator`` now wait for the guardrail to reach ``READY`` before
+  returning, so the task role needs the ``bedrock:GetGuardrail`` permission. Pass
+  ``wait_for_completion=False`` to restore the previous behaviour.
+
 9.40.0
 ......
 
