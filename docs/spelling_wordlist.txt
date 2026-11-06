@@ -20,6 +20,7 @@ acyclic
 adb
 adbc
 additionalProperties
+adelete
 adf
 adhoc
 adls
@@ -33,6 +34,7 @@ AgentDetails
 agentic
 AgentResult
 AgentVersionDetails
+aget
 ai
 aio
 aiobotocore
@@ -49,6 +51,7 @@ airflowignore
 ajax
 Akeyless
 akeyless
+akeys
 aks
 AlertApi
 alertPolicies
@@ -107,6 +110,7 @@ ascii
 asciiart
 asctime
 asend
+aset
 asia
 AspectType
 AspectTypes
@@ -286,6 +290,7 @@ cmake
 cmd
 cmdlet
 cmds
+CN
 cncf
 cnf
 CNI
@@ -470,6 +475,7 @@ Decrypt
 decrypt
 decrypted
 Decrypts
+Dedent
 deduplicate
 deduplicated
 deduplication
@@ -513,6 +519,7 @@ devel
 DevOps
 devtools
 df
+dialogs
 dictConfig
 dicts
 Dingding
@@ -649,6 +656,7 @@ ExaConnection
 Exasol
 exasol
 exc
+exec'd
 execd
 executables
 exitcode
@@ -813,6 +821,7 @@ hdfs
 hdfscli
 heartrate
 heatmap
+Heimdal
 HITL
 hitl
 hiveconf
@@ -1008,6 +1017,8 @@ kinesis
 kinit
 kms
 knownHosts
+Ko
+ko
 krb
 Kube
 kube
@@ -1103,6 +1114,7 @@ MCP
 md
 mem
 memcached
+memoizing
 Memorystore
 memorystore
 memray
@@ -1296,6 +1308,7 @@ params
 parsers
 passthrough
 passwd
+passwordToggle
 pathlib
 pathType
 Paxos
@@ -1334,6 +1347,7 @@ polars
 poller
 polyfill
 pooler
+poolers
 Popen
 positionally
 POSIX
@@ -1482,6 +1496,7 @@ RefreshError
 regexes
 reidentify
 reinit
+Relatedly
 relativedelta
 Remoting
 remoting
@@ -1599,6 +1614,7 @@ ser
 serde
 serialisation
 serialise
+serialised
 serializable
 SerializedDAG
 serializer
@@ -1651,6 +1667,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 sp
+spanish
 Spark
 sparkappinfo
 sparkApplication
@@ -1831,6 +1848,7 @@ texttospeech
 TextToSpeechClient
 Tez
 tez
+theming
 theService
 thirdparty
 TicketAudit
@@ -1881,6 +1899,7 @@ TTU
 Ttu
 TTY
 tunables
+TW
 twitterHandle
 txt
 TZ
@@ -1942,6 +1961,7 @@ urlencoded
 urlparse
 urls
 useHCatalog
+useLogGroups
 useQueryCache
 userguide
 userId
@@ -1975,6 +1995,7 @@ Vespa
 vespa
 Vianet
 videointelligence
+viewport
 views
 virtualenv
 virtualenvs
@@ -2052,6 +2073,8 @@ Zendesk
 zendesk
 Zenpy
 zenpy
+zh
 Zhong
 Zsh
 zsh
+值
