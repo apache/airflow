@@ -337,6 +337,15 @@ class TestBedrockBatchInferenceSensor:
                 assert op.poke({}) is False
 
     @mock.patch.object(BedrockHook, "conn")
+    def test_poke_in_progress_when_waiting_for_scheduled(self, mock_conn):
+        op = self.SENSOR(
+            **self.default_op_kwargs, success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED
+        )
+        mock_conn.get_model_invocation_job.return_value = {"status": "InProgress"}
+
+        assert op.poke({}) is True
+
+    @mock.patch.object(BedrockHook, "conn")
     def test_poke_failure_states(self, mock_conn, success_state, is_deferrable):
         op = self.SENSOR(**self.default_op_kwargs, success_state=success_state)
 
@@ -349,3 +358,15 @@ class TestBedrockBatchInferenceSensor:
             else:
                 with pytest.raises(TaskDeferred):
                     op.execute({})
+
+    @mock.patch.object(BedrockHook, "conn")
+    def test_success_state_not_shared_between_instances(self, mock_conn):
+        op = self.SENSOR(
+            **self.default_op_kwargs, success_state=BedrockBatchInferenceSensor.SuccessState.COMPLETED
+        )
+        self.SENSOR(
+            **self.default_op_kwargs, success_state=BedrockBatchInferenceSensor.SuccessState.SCHEDULED
+        )
+        mock_conn.get_model_invocation_job.return_value = {"status": "Scheduled"}
+
+        assert op.poke({}) is False

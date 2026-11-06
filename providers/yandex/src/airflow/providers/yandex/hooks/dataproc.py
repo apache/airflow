@@ -18,9 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
 
 if TYPE_CHECKING:
@@ -41,15 +38,3 @@ class DataprocHook(YandexCloudBaseHook):
             default_folder_id=self.default_folder_id,
             default_public_ssh_key=self.default_public_ssh_key,
         )
-
-    @property
-    @deprecated(
-        reason="`client` deprecated and will be removed in the future. Use `dataproc_client` instead",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def client(self):
-        return self.dataproc_client
-
-    @client.setter
-    def client(self, value):
-        self.dataproc_client = value

@@ -621,79 +621,27 @@ class TestSparkKubernetesSensor:
             version="v1beta2",
         )
 
+    @pytest.mark.parametrize(
+        "application",
+        [
+            pytest.param(TEST_NOT_PROCESSED_APPLICATION, id="not-processed"),
+            pytest.param(TEST_NEW_APPLICATION, id="new"),
+            pytest.param(TEST_RUNNING_APPLICATION, id="running"),
+            pytest.param(TEST_SUBMITTED_APPLICATION, id="submitted"),
+            pytest.param(TEST_PENDING_RERUN_APPLICATION, id="pending-rerun"),
+        ],
+    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_NOT_PROCESSED_APPLICATION,
+        autospec=True,
     )
-    def test_not_processed_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
+    def test_waiting_application(self, mock_get_namespaced_crd, mock_kubernetes_hook, application):
+        mock_get_namespaced_crd.return_value = application
         sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
         assert not sensor.poke({})
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
-            group="sparkoperator.k8s.io",
-            name="spark_pi",
-            namespace="default",
-            plural="sparkapplications",
-            version="v1beta2",
-        )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_NEW_APPLICATION,
-    )
-    def test_new_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke({})
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
-            group="sparkoperator.k8s.io",
-            name="spark_pi",
-            namespace="default",
-            plural="sparkapplications",
-            version="v1beta2",
-        )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_RUNNING_APPLICATION,
-    )
-    def test_running_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke({})
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
-            group="sparkoperator.k8s.io",
-            name="spark_pi",
-            namespace="default",
-            plural="sparkapplications",
-            version="v1beta2",
-        )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_SUBMITTED_APPLICATION,
-    )
-    def test_submitted_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke({})
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
-            group="sparkoperator.k8s.io",
-            name="spark_pi",
-            namespace="default",
-            plural="sparkapplications",
-            version="v1beta2",
-        )
-
-    @patch(
-        "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
-        return_value=TEST_PENDING_RERUN_APPLICATION,
-    )
-    def test_pending_rerun_application(self, mock_get_namespaced_crd, mock_kubernetes_hook):
-        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
-        assert not sensor.poke({})
-        mock_kubernetes_hook.assert_called_once_with()
-        mock_get_namespaced_crd.assert_called_once_with(
+            ANY,
             group="sparkoperator.k8s.io",
             name="spark_pi",
             namespace="default",

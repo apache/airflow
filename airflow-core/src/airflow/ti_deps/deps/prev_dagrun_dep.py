@@ -24,6 +24,7 @@ from sqlalchemy import func, or_, select
 from airflow.models.backfill import BackfillDagRun
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
+from airflow.models.xcom import LazyXComSelectSequence
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import exists_query
 from airflow.utils.session import provide_session
@@ -35,6 +36,19 @@ if TYPE_CHECKING:
     from airflow.serialization.definitions.mappedoperator import Operator
 
 _SUCCESSFUL_STATES = (TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)
+
+
+def is_past_depends_met(ti: TI, *, session: Session) -> bool:
+    """Return whether this task instance recorded that its past depends were met."""
+    value = ti.xcom_pull(
+        task_ids=ti.task_id, key=PAST_DEPENDS_MET, session=session, default=False, full=False
+    )
+    # XCom is read as plain JSON here, so only the literal ``True`` this dep pushes counts; a
+    # non-empty mapping or other truthy value does not. A mapped task instance's read returns
+    # the value of every map index.
+    if isinstance(value, LazyXComSelectSequence):
+        return any(item is True for item in value)
+    return value is True
 
 
 class PrevDagrunDep(BaseTIDep):

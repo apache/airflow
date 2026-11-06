@@ -272,7 +272,6 @@
     "title": "Magazyn stanu zadania"
   },
   "versions": {
-    "aboutThisComparison": "O tym porównaniu",
     "base": "Porównaj od",
     "categories": {
       "asset": "Zasób",
@@ -293,7 +292,6 @@
       "before": "Przed",
       "category": "Kategoria",
       "impact": "Wpływ",
-      "occurrences": "Wystąpienia",
       "operation": "Operacja",
       "path": "Ścieżka"
     },
@@ -308,8 +306,6 @@
     "maxChanges": "Maksymalna liczba zmian",
     "maxChangesDefault": "Domyślna",
     "noChanges": "Te wersje mają ten sam stan.",
-    "observedState": "Zaobserwowany stan",
-    "observedStateBoundary": "Porównuje aktualnie zapisany stan, a nie dane z chwili utworzenia. Porównanie kodu źródłowego nie jest dostępne dla wersji historycznych; aby porównać kod źródłowy, użyj zakładki Kod.",
     "operations": {
       "added": "Dodano",
       "changed": "Zmieniono",
@@ -320,21 +316,16 @@
     "record_one": "Rekord",
     "record_other": "Rekordy",
     "selectPrompt": "Wybierz dwie wersje, aby zobaczyć, co się między nimi zmieniło.",
-    "summary_few": "{{count, number}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
-    "summary_many": "{{count, number}} zmian · schemat serializacji {{baseSchema}} → {{targetSchema}}",
-    "summary_one": "{{count, number}} zmiana · schemat serializacji {{baseSchema}} → {{targetSchema}}",
-    "summary_other": "{{count, number}} zmiany · schemat serializacji {{baseSchema}} → {{targetSchema}}",
+    "summary_few": "{{count, number}} zmiany",
+    "summary_many": "{{count, number}} zmian",
+    "summary_one": "{{count, number}} zmiana",
+    "summary_other": "{{count, number}} zmiany",
     "target": "Porównaj z",
-    "truncated": {
-      "description": "Zmiany w niepokazanych ścieżkach zostały pominięte, aby zmieścić się w limicie, więc liczba zmian jest dolnym oszacowaniem.",
-      "title": "Nie zwrócono niektórych zmian"
-    },
     "unavailable": {
       "description": "Nie udało się porównać tych wersji. Przyczyna:",
       "title": "Porównanie niedostępne",
       "withoutReason": "Nie udało się porównać tych wersji."
     },
-    "valuesHidden": "Wartości ukryte",
-    "valuesShown": "Wartości widoczne"
+    "valuesHidden": "Wartości ukryte"
   }
 }

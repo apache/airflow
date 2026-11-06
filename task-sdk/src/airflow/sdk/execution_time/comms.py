@@ -78,7 +78,9 @@ from airflow.sdk.api.datamodels._generated import (
     DagRun,
     DagRunStateResponse,
     HITLDetailRequest,
+    HITLDetailResponse,
     InactiveAssetsResponse,
+    LoopDecisionPayload,
     PreviousTIResponse,
     PrevSuccessfulDagRunResponse,
     TaskBreadcrumbsResponse,
@@ -207,6 +209,11 @@ class _RequestFrame(_FrameMixin, msgspec.Struct, array_like=True, frozen=True, o
     The supervisor extracts this to restore the task runner's trace context before making outbound HTTP
     calls, so that server-side spans (e.g. POST /xcoms/…) appear as children of the correct task span
     rather than under the supervisor's own span.
+    """
+    ti_id: UUID | None = None
+    """Id of the task instance whose trigger made this request, set only by the triggerer's trigger runner.
+
+    The supervisor forwards it so the API can act as that task instance.
     """
 
 
@@ -834,6 +841,17 @@ class HITLDetailRequestResult(HITLDetailRequest):
         return cls(**hitl_request.model_dump(exclude_defaults=True), type="HITLDetailRequestResult")
 
 
+class HITLDetailResponseResult(HITLDetailResponse):
+    """Response to GetHITLDetailResponse request."""
+
+    type: Literal["HITLDetailResponseResult"] = "HITLDetailResponseResult"
+
+    @classmethod
+    def from_api_response(cls, response: HITLDetailResponse) -> HITLDetailResponseResult:
+        """Add the discriminator field the tagged union needs to the HITLDetailResponse API response."""
+        return cls(**response.model_dump(exclude_defaults=True), type="HITLDetailResponseResult")
+
+
 class DagResult(DagResponse):
     type: Literal["DagResult"] = "DagResult"
 
@@ -878,6 +896,7 @@ ToTask = Annotated[
     | InactiveAssetsResult
     | CreateHITLDetailPayload
     | HITLDetailRequestResult
+    | HITLDetailResponseResult
     | OKResponse
     | PreviousDagRunResult,
     Field(discriminator="type"),
@@ -902,6 +921,7 @@ class TaskState(BaseModel):
     type: Literal["TaskState"] = "TaskState"
     rendered_map_index: str | None = None
     retry_reason: str | None = None
+    loop_decision: LoopDecisionPayload | None = None
 
 
 class SucceedTask(TISuccessStatePayload):
@@ -1098,7 +1118,7 @@ class GetVariableKeys(BaseModel):
 
 class PutVariable(BaseModel):
     key: str
-    value: str | None
+    value: str
     description: str | None
     type: Literal["PutVariable"] = "PutVariable"
 
@@ -1340,12 +1360,12 @@ ToSupervisor = Annotated[
     | RetryTask
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
-    | SetExecutionTimeout
     | SetRenderedFields
     | SetRenderedMapIndex
     | SetTaskStateStore
     | SetXCom
     | SkipDownstreamTasks
+    | SetExecutionTimeout
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState

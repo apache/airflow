@@ -105,6 +105,9 @@ def test_mapped_task_loop_iteration_is_separate_from_map_index(dag_maker, sessio
 
     assert resolver.loop_iterations(ti) == [("body", 3)]
     assert resolver.public_map_index(ti) == 1
+    loop = resolver.get_loop_context(ti)
+    assert loop is not None
+    assert (loop.index, loop.region_id, loop.trajectory) == (3, loop_region.id, 1)
 
 
 @pytest.mark.parametrize("run_count", [1, 3])
@@ -163,6 +166,85 @@ def test_loop_context_reuses_ancestry_loaded_by_loop_iterations(loop_coordinates
         group, index = resolver.loop_context(previous)
 
     assert (group.group_id, index) == ("body", 1)
+
+
+def test_loop_context_describes_the_region_holding_the_iteration(forked_loop_coordinates, session):
+    _, producer, consumer, _, outside = forked_loop_coordinates
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    common = {
+        "node_id": "body",
+        "index": 2,
+        "max_iterations": 3,
+        "terminal_task_id": "body.consumer",
+        "terminal_is_mapped": False,
+    }
+
+    original = resolver.get_loop_context(producer)
+    fork = resolver.get_loop_context(consumer)
+
+    assert original is not None
+    assert fork is not None
+    assert original.model_dump(exclude_unset=True) == {
+        **common,
+        "region_id": producer.region_id,
+        "trajectory": 1,
+    }
+    assert fork.model_dump(exclude_unset=True) == {
+        **common,
+        "region_id": consumer.region_id,
+        "trajectory": 2,
+        "forked_from_region_id": producer.region_id,
+        "resumes_from_index": 2,
+    }
+    assert resolver.get_loop_context(outside) is None
+
+
+def test_expanded_ti_count_counts_live_instances_of_the_expansion(loop_coordinates, dag_maker, session):
+    with dag_maker("mapped-expansion", serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
+    mapped = sorted(dag_maker.create_dagrun().task_instances, key=lambda ti: ti.map_index)
+    mapped[2].state = TaskInstanceState.REMOVED
+    _, _, consumer, _, outside = loop_coordinates
+    session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+    resolver.get_expanded_ti_count(mapped[0])
+
+    with assert_queries_count(1):
+        assert resolver.get_expanded_ti_count(mapped[1]) == 2
+    assert resolver.get_expanded_ti_count(consumer) is None
+    assert resolver.get_expanded_ti_count(outside) is None
+
+
+def test_expanded_ti_count_counts_each_instance_of_one_loop_iteration_once(dag_maker, session):
+    @task_group
+    def body():
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+
+    with dag_maker(serialized=True):
+        create_loop(body, max_iterations=3)
+    dr = dag_maker.create_dagrun()
+    first, second = sorted(
+        (ti for ti in dr.task_instances if ti.task_id == "body.mapped"), key=lambda ti: ti.map_index
+    )
+    first.prepare_db_for_next_try(session)
+    next_expansion = DynamicRegion.get_or_create(
+        dag_id=dr.dag_id,
+        run_id=dr.run_id,
+        node_id=first.task_id,
+        parent_region_id=session.get(DynamicRegion, first.region_id).parent_region_id,
+        parent_region_index=2,
+        session=session,
+    )
+    session.add(next_expansion)
+    session.flush()
+    next_iteration = TaskInstance(task=first.task, run_id=dr.run_id, dag_version_id=first.dag_version_id)
+    next_iteration.region_id, next_iteration.region_index = next_expansion.id, 0
+    session.add(next_iteration)
+    session.flush()
+    resolver = TaskCoordinateResolver(DBDagBag(), session)
+
+    assert resolver.get_expanded_ti_count(second) == 2
+    assert resolver.get_expanded_ti_count(next_iteration) == 1
 
 
 def test_removed_task_coordinates_degrade_to_stored_region_data(dag_maker, session):

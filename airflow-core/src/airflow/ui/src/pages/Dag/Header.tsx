@@ -24,6 +24,7 @@ import type { DAGDetailsResponse, DagRunState } from "openapi/requests/types.gen
 
 import { RouterLink } from "src/system-components";
 
+import { BackfillInProgressBadge } from "src/components/BackfillInProgressBadge";
 import { DeleteDagButton } from "src/components/DagActions/DeleteDagButton";
 import { FavoriteDagButton } from "src/components/DagActions/FavoriteDagButton";
 import { ParseDagButton } from "src/components/DagActions/ParseDagButton";
@@ -33,9 +34,11 @@ import DisplayMarkdownButton from "src/components/DisplayMarkdownButton";
 import { DrainingBadge } from "src/components/DrainingBadge";
 import { HeaderCard } from "src/components/HeaderCard";
 import { NeedsReviewButtonWithModal } from "src/components/NeedsReviewButton";
+import { PluginActions } from "src/components/PluginActions";
 import { TeamName } from "src/components/TeamName";
 
 import { DagIcon } from "src/assets/DagIcon";
+import { usePluginActions } from "src/hooks/usePluginActions";
 import { useShowTeam } from "src/hooks/useShowTeam";
 import { formatNumber } from "src/utils";
 
@@ -65,6 +68,7 @@ export const Header = ({
   // We would still like to show the dagId even if the dag object hasn't loaded yet
   const { dagId } = useParams();
   const showTeam = useShowTeam(dag?.team_name);
+  const pluginActions = usePluginActions("dag");
   const isStale = dag?.is_stale;
 
   const nextRunStat = isStale
@@ -73,7 +77,7 @@ export const Header = ({
         {
           label: translate("dagDetails.nextRun"),
           value: dag?.is_paused ? undefined : dag?.scheduling_state === "draining" ? (
-            <DrainingBadge />
+            <DrainingBadge dagId={dag.dag_id} />
           ) : Boolean(dag?.next_dagrun_run_after) ? (
             <DagRunInfo
               logicalDate={dag?.next_dagrun_logical_date}
@@ -150,7 +154,7 @@ export const Header = ({
         dag === undefined ? undefined : (
           <>
             <DeadlineAlertsBadge dagId={dag.dag_id} />
-            <NeedsReviewButtonWithModal dagId={dag.dag_id} />
+            <NeedsReviewButtonWithModal dagId={dag.dag_id} variant="chip" />
             {dag.doc_md === null ? undefined : (
               <DisplayMarkdownButton
                 bg="bg"
@@ -162,20 +166,26 @@ export const Header = ({
               />
             )}
             <FavoriteDagButton bg="bg" dagId={dag.dag_id} isFavorite={dag.is_favorite} variant="outline" />
-            {isStale ? undefined : (
-              <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
-            )}
+            {/* Deliberately shown while stale: a Dag that failed to parse or vanished from
+                its file is exactly when reparsing is worth offering. */}
+            <ParseDagButton bg="bg" dagId={dag.dag_id} fileToken={dag.file_token} variant="outline" />
             <DeleteDagButton
               bg="bg"
               dagDisplayName={dag.dag_display_name}
               dagId={dag.dag_id}
               variant="outline"
             />
+            <PluginActions
+              {...pluginActions}
+              buttonProps={{ bg: "bg", variant: "outline" }}
+              entity={{ dag, dagDetails: dag, destination: "dag" }}
+            />
           </>
         )
       }
       icon={<DagIcon />}
       stats={stats}
+      statusBadge={<BackfillInProgressBadge dagId={dagId ?? ""} />}
       title={dag?.dag_display_name ?? dagId}
       type="dag"
     />

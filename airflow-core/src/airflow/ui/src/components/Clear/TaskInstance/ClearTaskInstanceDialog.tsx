@@ -155,7 +155,8 @@ const ClearTaskInstanceDialog = (props: Props) => {
 
   // The Dag details and run versions behind the run-on-latest option are read for one run.
   const singleRun = groups.length === 1;
-  const dagId = groups[0]?.dagId ?? "";
+  // Undefined while there is nothing to clear: the bulk actions keep this dialog mounted.
+  const dagId = groups[0]?.dagId;
   const dagRunId = groups[0]?.dagRunId ?? "";
   const loopMode = targets.some((target) => target.in_loop);
   const initialNote = targets.length === 1 ? (targets[0]?.note ?? null) : null;
@@ -201,10 +202,11 @@ const ClearTaskInstanceDialog = (props: Props) => {
     closeDialog();
   };
 
-  // Get current DAG's bundle version to compare with task instance's DAG version bundle version
-  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId }, undefined, { enabled: singleRun });
+  const { data: dagDetails } = useDagServiceGetDagDetails({ dagId: dagId ?? "" }, undefined, {
+    enabled: singleRun,
+  });
 
-  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId, dagRunId }, undefined, {
+  const { data: dagRun } = useDagRunServiceGetDagRun({ dagId: dagId ?? "", dagRunId }, undefined, {
     enabled: openDialog && singleRun,
   });
 
@@ -227,7 +229,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
     getRunOnLatestVersionState({
       latestBundleVersion: dagDetails?.bundle_version,
       latestDagVersionNumber: dagDetails?.latest_dag_version?.version_number,
-      selectedBundleVersion: selectedVersion?.bundle_version,
+      selectedBundleVersion: dagRun?.bundle_version,
       selectedDagVersionNumber: selectedVersion?.version_number,
       selectedVersionMissing: dagRun?.dag_versions.length === 0,
     });
@@ -374,18 +376,23 @@ const ClearTaskInstanceDialog = (props: Props) => {
     <>
       <Modal
         footerActions={
+          <Button
+            disabled={
+              (singleRun && (!dagRun || !dagDetails)) ||
+              data.total_entries === 0 ||
+              keptTaskInstances.length === 0
+            }
+            loading={isPending}
+            onClick={gateRequest === undefined ? confirmClear : onOpen}
+          >
+            <CgRedo /> {translate("modal.confirm")}
+          </Button>
+        }
+        footerOptions={
           <>
-            <Button
-              disabled={data.total_entries === 0 || keptTaskInstances.length === 0}
-              loading={isPending}
-              onClick={gateRequest === undefined ? confirmClear : onOpen}
-            >
-              <CgRedo /> {translate("modal.confirm")}
-            </Button>
             <Checkbox
               checked={keepTaskState}
               onCheckedChange={(event) => setKeepTaskState(Boolean(event.checked))}
-              style={{ marginRight: "auto" }}
             >
               {translate("dags:runAndTaskActions.options.keepTaskState")}
             </Checkbox>

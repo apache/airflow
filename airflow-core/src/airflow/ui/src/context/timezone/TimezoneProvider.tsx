@@ -24,10 +24,25 @@ import { TIMEZONE_KEY } from "src/constants/localStorage";
 
 import { TimezoneContext, type TimezoneContextType } from "./Context";
 
+const isValidTimezone = (tz: string | undefined): boolean => {
+  if (tz === undefined || tz === "") {
+    return false;
+  }
+
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
   const systemTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-  const [selectedTimezone, setSelectedTimezone] = useLocalStorage(TIMEZONE_KEY, systemTimezone);
+  const [storedTimezone, setSelectedTimezone] = useLocalStorage(TIMEZONE_KEY, systemTimezone);
+  const selectedTimezone = isValidTimezone(storedTimezone) ? storedTimezone : "UTC";
 
   const value: TimezoneContextType = { selectedTimezone, setSelectedTimezone };
 

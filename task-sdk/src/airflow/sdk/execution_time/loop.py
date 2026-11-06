@@ -16,19 +16,23 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import attrs
 
+from airflow.sdk._shared.secrets_masker import redact
+from airflow.sdk.api.datamodels._generated import LoopDecisionPayload
 from airflow.sdk.bases.decorator import determine_kwargs
-from airflow.sdk.definitions._internal.loop import LOOP_DECISION_KEY
+from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
+from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowFailException
-from airflow.sdk.execution_time.comms import SetXCom
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.xcom import XCom
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from airflow.sdk.api.datamodels._generated import LoopContext
     from airflow.sdk.definitions._internal.loop import LoopGateOperator
     from airflow.sdk.definitions.context import Context
@@ -53,8 +57,25 @@ class LoopContextAccessor:
         return self._descriptor.max_iterations
 
     @property
+    def region_id(self) -> UUID:
+        return self._descriptor.region_id
+
+    @property
+    def trajectory(self) -> int:
+        return self._descriptor.trajectory
+
+    @property
+    def forked_from_region_id(self) -> UUID | None:
+        return self._descriptor.forked_from_region_id
+
+    @property
+    def resumes_from_index(self) -> int | None:
+        return self._descriptor.resumes_from_index
+
+    @property
     def previous(self) -> Any:
-        return None if self.index == 0 else self._result(previous_iteration=True)
+        # Iterations count from one, so the first pass has no previous result.
+        return None if self.index == 1 else self._result(previous_iteration=True)
 
     @property
     def result(self) -> Any:
@@ -76,29 +97,53 @@ class LoopContextAccessor:
 
 
 def execute_loop_gate(gate: LoopGateOperator, context: Context) -> None:
-    # task_runner imports LoopContextAccessor from this module.
-    from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
-
     loop = context["loop"]
+    ti = cast("RuntimeTaskInstance", context["ti"])
+    reason: str | None = None
     if gate.until is None:
-        stop = loop.index + 1 >= loop.max_iterations
+        stop = loop.index >= loop.max_iterations
     else:
-        stop = gate.until(**determine_kwargs(gate.until, (), context))
-        if not isinstance(stop, bool):
-            raise AirflowFailException(f"until must return a bool, got {type(stop).__name__}")
-        if not stop and loop.index + 1 >= loop.max_iterations:
-            raise LoopMaxIterationsExceeded(
-                f"Loop condition remained false at max_iterations={loop.max_iterations}"
+        match result := gate.until(**determine_kwargs(gate.until, (), context)):
+            case bool():
+                stop = result
+            case LoopDecision(stop=bool(), reason=None | str()):
+                stop, reason = result.stop, result.reason or None
+            case LoopDecision(stop=bool()):
+                raise AirflowFailException(
+                    f"LoopDecision reason must be a str or None, got {type(result.reason).__name__}"
+                )
+            case LoopDecision():
+                raise AirflowFailException(
+                    f"LoopDecision stop must be a bool, got {type(result.stop).__name__}"
+                )
+            case _:
+                raise AirflowFailException(
+                    f"until must return a bool or LoopDecision, got {type(result).__name__}"
+                )
+    if reason is not None:
+        # Mask here, where we can know what the task has masked.
+        reason = cast("str", redact(reason))
+        try:
+            encoded = reason.encode()
+        except UnicodeEncodeError:
+            raise AirflowFailException("LoopDecision reason must be valid UTF-8")
+        size = len(encoded)
+        if size > LOOP_DECISION_REASON_MAX_BYTES:
+            raise AirflowFailException(
+                f"LoopDecision reason must be at most {LOOP_DECISION_REASON_MAX_BYTES} bytes of UTF-8"
             )
-    decision = "stop" if stop else "continue"
-    gate.log.info("Loop iteration %s: %s (max_iterations=%s)", loop.index, decision, loop.max_iterations)
-    ti = context["ti"]
-    SUPERVISOR_COMMS.send(
-        SetXCom(
-            dag_id=ti.dag_id,
-            run_id=ti.run_id,
-            task_id=ti.task_id,
-            key=LOOP_DECISION_KEY,
-            value=decision,
+        if "\x00" in reason:
+            raise AirflowFailException("LoopDecision reason cannot contain NUL bytes")
+    ti._loop_decision = LoopDecisionPayload(stop=stop, reason=reason)
+    suffix = "" if reason is None else f": {reason}"
+    if not stop and loop.index >= loop.max_iterations:
+        raise LoopMaxIterationsExceeded(
+            f"Loop condition remained false at max_iterations={loop.max_iterations}{suffix}"
         )
+    gate.log.info(
+        "Loop iteration %s: %s (max_iterations=%s)%s",
+        loop.index,
+        "stop" if stop else "continue",
+        loop.max_iterations,
+        suffix,
     )

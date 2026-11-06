@@ -25,8 +25,9 @@ import org.apache.airflow.sdk.internal.Refs
  * Vocabulary for declaring a Dag's task graph in Java, and the base of every
  * generated `<Dag>Deps` wiring view.
  *
- * A [Builder.Deps] class inherits [lit] and [Flow] by simple name, so it needs
+ * An [Airflow.Deps] class inherits [lit] and [Flow] by simple name, so it needs
  * no import and `Flow` does not collide with `java.util.concurrent.Flow`.
+ * [Label] is not inherited, so the class has to import it.
  */
 interface Deps {
   /**
@@ -56,12 +57,16 @@ interface Deps {
      *
      * Variadic, so one call fans out, and it returns its own receiver: a
      * fan-out has no single next task to hand back. Declaring an edge that
-     * already exists changes nothing.
+     * already exists changes nothing. The only exception is a label put on
+     * the edge with [Label.on], which replaces the label the edge had.
      *
      * @param next Tasks that run after the ones here.
      * @return This point in the flow.
+     * @throws IllegalArgumentException if [Label.on] returned this point in
+     *    the flow, or returned a point that this one holds.
      */
     fun before(vararg next: Flow): Flow {
+      requireUnlabeled(this, "before")
       next.forEach { link(this, it) }
       return this
     }
@@ -75,8 +80,11 @@ interface Deps {
      *
      * @param previous Tasks that run before the ones here.
      * @return This point in the flow.
+     * @throws IllegalArgumentException if [Label.on] returned this point in
+     *    the flow, or returned a point that this one holds.
      */
     fun after(vararg previous: Flow): Flow {
+      requireUnlabeled(this, "after")
       previous.forEach { link(it, this) }
       return this
     }
@@ -99,7 +107,7 @@ interface Deps {
    * One task group of the Dag being wired: a point in the flow, and the
    * namespace of the tasks and groups declared inside it.
    *
-   * The generated wiring view nests one of these per [Builder.TaskGroup]
+   * The generated wiring view nests one of these per [Airflow.TaskGroup]
    * class, so a group is reached by calling it and its contents by calling on
    * through:
    *
@@ -143,6 +151,47 @@ internal class FlowSet(
   override fun endpoints(): List<Endpoint> = flows.flatMap { it.endpoints() }
 }
 
+/** A point in the flow whose edges [Label.on] labels with [text]. */
+internal class LabeledFlow(
+  internal val flow: Deps.Flow,
+  internal val text: String,
+) : Deps.Flow {
+  override fun nodes(): List<TaskDef> = flow.nodes()
+
+  override fun endpoints(): List<Endpoint> = flow.endpoints()
+}
+
+/**
+ * Each endpoint of this flow, paired with the label that [Label.on] put on
+ * it, or with null when no label is on it. When a labeled flow is labeled
+ * again, the outer label replaces the inner label.
+ */
+private val Deps.Flow.labeledEndpoints: List<Pair<Endpoint, String?>>
+  get() =
+    when (this) {
+      is LabeledFlow -> flow.endpoints().map { it to text }
+      is FlowSet -> flows.flatMap { it.labeledEndpoints }
+      else -> endpoints().map { it to null }
+    }
+
+/**
+ * Rejects a call of [verb] on a flow that [Label.on] returned, or on a flow
+ * that holds such a flow. A label goes on the edges between the receiver of
+ * [verb] and the flows passed to [Label.on]. A label on the receiver would
+ * therefore label no edge.
+ */
+private fun requireUnlabeled(
+  receiver: Deps.Flow,
+  verb: String,
+) {
+  val labeled = receiver.labeledEndpoints.filter { (_, text) -> text != null }
+  require(labeled.isEmpty()) {
+    "Cannot call $verb on ${labeled.joinToString { (end, text) -> "${end.diagnosticName} labeled \"$text\"" }}: " +
+      "a label goes on the edges between the receiver of before or after and the flows it is put on, so pass " +
+      "Label.of(...).on(...) to before or after as an argument instead"
+  }
+}
+
 /**
  * Draws an ordering edge from each endpoint of [upstream] to each of
  * [downstream]. An edge between two tasks is recorded on the downstream task;
@@ -153,18 +202,26 @@ private fun link(
   upstream: Deps.Flow,
   downstream: Deps.Flow,
 ) {
-  for (up in upstream.endpoints()) {
-    for (down in downstream.endpoints()) {
+  for ((up, upLabel) in upstream.labeledEndpoints) {
+    for ((down, downLabel) in downstream.labeledEndpoints) {
+      // `before` and `after` reject a labeled receiver. So a label always
+      // comes from the flow passed as an argument, whichever end of the edge
+      // that flow is.
+      val label = upLabel ?: downLabel
       if (up is TaskDef && down is TaskDef) {
         down.dependsOn(up)
+        label?.let { down.upstreamLabels[up] = EdgeLabel(it) }
       } else {
         val upDag = up.owningDag
         val downDag = down.owningDag
         require(upDag == null || downDag == null || upDag === downDag) {
-          "Cannot order ${up.label} of Dag '${upDag?.id}' before ${down.label} of " +
+          "Cannot order ${up.diagnosticName} of Dag '${upDag?.id}' before ${down.diagnosticName} of " +
             "Dag '${downDag?.id}'; an edge stays inside one Dag"
         }
-        (upDag ?: downDag)?.let { it.groupEdges += up to down }
+        (upDag ?: downDag)?.let { dag ->
+          dag.groupEdges += up to down
+          label?.let { dag.groupEdgeLabels[up to down] = EdgeLabel(it) }
+        }
       }
     }
   }
@@ -179,7 +236,7 @@ internal val Endpoint.owningDag: DagDef?
     }
 
 /** How an endpoint is named in a diagnostic. */
-internal val Endpoint.label: String
+internal val Endpoint.diagnosticName: String
   get() =
     when (this) {
       is TaskDef -> "task '$id'"

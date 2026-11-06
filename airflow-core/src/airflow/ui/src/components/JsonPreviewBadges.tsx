@@ -24,6 +24,9 @@ import { Tooltip } from "src/system-components";
 import type { JsonPreviewEntry } from "src/utils/jsonPreview";
 
 const MAX_VALUE_CHARS = 40;
+// Below this a shortened value says nothing, so a narrow cap spends its width on fewer badges
+// rather than on unreadable ones.
+const MIN_VALUE_CHARS = 12;
 // Widest advance of one glyph in the 12px badge font, measured across real payloads. Estimating
 // high costs a little column width; estimating low wraps the preview onto a second line.
 const CHAR_WIDTH = 7.3;
@@ -36,10 +39,12 @@ const MAX_WIDTH = 380;
 
 type Props = {
   readonly entries: Array<JsonPreviewEntry>;
+  /** Lower cap for a table that carries more than one of these side by side. */
+  readonly maxWidth?: number;
   readonly onExpand: () => void;
 };
 
-export const JsonPreviewBadges = ({ entries, onExpand }: Props) => {
+export const JsonPreviewBadges = ({ entries, maxWidth = MAX_WIDTH, onExpand }: Props) => {
   const { t: translate } = useTranslation(["components", "common"]);
 
   const previews = entries.map((entry) => {
@@ -47,7 +52,12 @@ export const JsonPreviewBadges = ({ entries, onExpand }: Props) => {
       entry.itemCount === undefined
         ? entry.value.replaceAll(/\s+/gu, " ")
         : translate("jsonPreview.items", { count: entry.itemCount });
-    const text = full.length > MAX_VALUE_CHARS ? `${full.slice(0, MAX_VALUE_CHARS)}…` : full;
+    // A badge sets its value on one line, so one long entry — a dotted class path, a URL — would
+    // carry the whole preview past the cap on its own, whatever the loop below decides to show.
+    const labelChars = entry.label === undefined ? 0 : entry.label.length + 1;
+    const roomChars = Math.floor((maxWidth - BADGE_CHROME) / CHAR_WIDTH) - labelChars;
+    const valueChars = Math.max(MIN_VALUE_CHARS, Math.min(MAX_VALUE_CHARS, roomChars));
+    const text = full.length > valueChars ? `${full.slice(0, valueChars)}…` : full;
 
     // A summarised or shortened value only hints at what it stands for, so the editor still has
     // something to add even when every entry is on screen.
@@ -67,7 +77,7 @@ export const JsonPreviewBadges = ({ entries, onExpand }: Props) => {
 
     if (
       visibleEntries.length > 0 &&
-      usedWidth + badgeWidth + (needsButton ? MORE_BUTTON_WIDTH : 0) > MAX_WIDTH
+      usedWidth + badgeWidth + (needsButton ? MORE_BUTTON_WIDTH : 0) > maxWidth
     ) {
       break;
     }
@@ -79,19 +89,39 @@ export const JsonPreviewBadges = ({ entries, onExpand }: Props) => {
   const hiddenCount = previews.length - visibleEntries.length;
   // Nothing left to reveal means nothing to expand.
   const canExpand = hiddenCount > 0 || visibleEntries.some((preview) => preview.isElided);
-  const previewWidth = Math.min(usedWidth + (canExpand ? MORE_BUTTON_WIDTH : 0), MAX_WIDTH);
+  const previewWidth = Math.min(usedWidth + (canExpand ? MORE_BUTTON_WIDTH : 0), maxWidth);
+  // The expand button shares the line, so a badge that filled the cap on its own would still carry
+  // the preview — and the column around it — past that cap.
+  const badgeMaxWidth = maxWidth - (canExpand ? MORE_BUTTON_WIDTH : 0);
 
   return (
     <HStack data-testid="json-preview-badges" gap={1} minW={`${previewWidth}px`}>
       {visibleEntries.map(({ full, id, isComplex, label, text }) => (
         <Tooltip content={full} disabled={text === full} key={id} portalled>
-          <Badge colorPalette="gray" gap={1} size="sm" variant="surface" whiteSpace="nowrap">
+          {/* The character budget above only estimates how wide a badge will be, and a font that
+              runs wider than the estimate would carry the badge — and the column holding it — past
+              the cap. maxW is what actually holds the line. */}
+          <Badge
+            colorPalette="gray"
+            gap={1}
+            maxW={`${badgeMaxWidth}px`}
+            overflow="hidden"
+            size="sm"
+            variant="surface"
+            whiteSpace="nowrap"
+          >
             {label === undefined ? undefined : (
               <Text as="span" color="fg.muted">
                 {label}:
               </Text>
             )}
-            <Text as="span" color={isComplex ? "fg.muted" : "fg"} fontFamily="mono">
+            <Text
+              as="span"
+              color={isComplex ? "fg.muted" : "fg"}
+              fontFamily="mono"
+              overflow="hidden"
+              textOverflow="ellipsis"
+            >
               {text}
             </Text>
           </Badge>

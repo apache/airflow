@@ -16,32 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useParams, useSearchParams } from "react-router-dom";
-
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { useIsLoopGroup } from "src/queries/useIsLoopGroup";
-import { useLoopSummary } from "src/queries/useLoopSummary";
-
 import { TaskInstances } from "../TaskInstances";
-import { IterationSelect } from "./LoopIterations";
-import { getSelectedIteration, ITERATION_ALL } from "./LoopIterations/loopUtils";
 
-export const GroupTaskInstances = () => {
-  const { dagId = "", groupId = "", runId = "" } = useParams();
-  const [searchParams] = useSearchParams();
-  const isLoopGroup = useIsLoopGroup(groupId);
-  const { data: summary, isError } = useLoopSummary({ dagId, groupId, runId });
-  const param = searchParams.get(SearchParamsKeys.ITERATION);
-  const iteration =
-    summary === undefined
-      ? (param ?? (isError ? ITERATION_ALL : undefined))
-      : getSelectedIteration(param, summary);
-
-  return (
-    <TaskInstances
-      extraFilter={summary === undefined ? undefined : <IterationSelect summary={summary} />}
-      iteration={iteration}
-      loopGroupId={isLoopGroup ? groupId : undefined}
-    />
-  );
-};
+/** The group's task instances; the loop strip and filter above the table scope them to a pass. */
+export const GroupTaskInstances = () => <TaskInstances />;

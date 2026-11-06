@@ -89,7 +89,7 @@ This file contains several service definitions:
 - ``airflow-scheduler`` - The :doc:`scheduler </administration-and-deployment/scheduler>` monitors all tasks and Dags, then triggers the
   task instances once their dependencies are complete.
 - ``airflow-dag-processor`` - The Dag processor parses Dag files.
-- ``airflow-api-server`` - The api server is available at ``http://localhost:8080``.
+- ``airflow-api-server`` - The API server is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-triggerer`` - The triggerer runs an event loop for deferrable tasks.
 - ``airflow-init`` - The initialization service.
@@ -278,7 +278,7 @@ Accessing the web interface
 
 Once the cluster has started up, you can log in to the web interface and begin experimenting with Dags.
 
-The webserver is available at: ``http://localhost:8080``.
+The webserver is available at: ``http://localhost:8080`` (or the port set in ``AIRFLOW_API_SERVER_PORT``).
 The default account has the login ``airflow`` and the password ``airflow``.
 
 Sending requests to the REST API
@@ -465,6 +465,8 @@ runtime user id which is unknown at the time of building the image.
 |   Variable                     | Description                                         | Default                  |
 +================================+=====================================================+==========================+
 | ``AIRFLOW_IMAGE_NAME``         | Airflow Image to use.                               | apache/airflow:|version| |
++--------------------------------+-----------------------------------------------------+--------------------------+
+| ``AIRFLOW_API_SERVER_PORT``    | Host port the API server is published on.           | ``8080``                 |
 +--------------------------------+-----------------------------------------------------+--------------------------+
 | ``AIRFLOW_UID``                | UID of the user to run Airflow containers as.       | ``50000``                |
 |                                | Override if you want to use non-default Airflow     |                          |

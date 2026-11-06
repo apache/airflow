@@ -29,6 +29,9 @@ export type ModalProps = {
   readonly children?: ReactNode;
   readonly contentProps?: ComponentProps<typeof Dialog.Content>;
   readonly footerActions?: ReactNode;
+  // Toggles that change what the action does, rather than actions themselves. They sit at the
+  // far left of the footer so the buttons stay together at the right, where they are looked for.
+  readonly footerOptions?: ReactNode;
   readonly footerProps?: ChakraDialog.FooterProps;
   readonly headerProps?: ChakraDialog.HeaderProps;
   readonly hideCancelAction?: boolean;
@@ -53,6 +56,7 @@ export const Modal = ({
   children,
   contentProps,
   footerActions,
+  footerOptions,
   footerProps,
   headerProps,
   hideCancelAction = false,
@@ -67,18 +71,23 @@ export const Modal = ({
   const titleContent = title === undefined ? undefined : <Dialog.Title>{title}</Dialog.Title>;
   const headerContent = headerProps?.children ?? titleContent;
   const actionsContent =
-    footerActions === undefined ? undefined : (
-      // `row-reverse` renders the first action rightmost, so the primary action is
-      // written first and therefore reached first when tabbing.
-      <Flex flexDirection="row-reverse" gap={2} w="100%">
-        {footerActions}
-        {hideCancelAction ? undefined : (
-          <Dialog.ActionTrigger asChild>
-            <Button variant="outline" {...cancelActionProps}>
-              {cancelActionProps?.children ?? translate("modal.cancel")}
-            </Button>
-          </Dialog.ActionTrigger>
-        )}
+    footerActions === undefined && footerOptions === undefined ? undefined : (
+      <Flex alignItems="center" gap={4} justifyContent="space-between" w="100%">
+        <Flex alignItems="center" flexWrap="wrap" gap={4}>
+          {footerOptions}
+        </Flex>
+        {/* `row-reverse` renders the first action rightmost, so the primary action is
+            written first and therefore reached first when tabbing. */}
+        <Flex flexDirection="row-reverse" flexShrink={0} gap={2}>
+          {footerActions}
+          {hideCancelAction ? undefined : (
+            <Dialog.ActionTrigger asChild>
+              <Button variant="outline" {...cancelActionProps}>
+                {cancelActionProps?.children ?? translate("modal.cancel")}
+              </Button>
+            </Dialog.ActionTrigger>
+          )}
+        </Flex>
       </Flex>
     );
   const footerContent = footerProps?.children ?? actionsContent;
