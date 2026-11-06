@@ -96,13 +96,14 @@ jobs:
         uses: ./.github/actions/breeze
         with:
           free-space: "false"
-      # The upgrade for main is the one the mirror would otherwise start a second time.
+      # The upgrade for main is the one the mirror would otherwise start a second time. The upgrade pins
+      # the OS-dependencies images the daily build published, so this run does not build new ones.
       - name: >-
           [${{ inputs.target-branch }}] Mirror the base images and wait for the run
         env:
           TRIGGER_UPGRADE_CHECK_FLAG: >-
             ${{ inputs.target-branch == 'main' && '--no-trigger-upgrade-check' || '--trigger-upgrade-check' }}
-        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}"
+        run: breeze workflow-run mirror-base-images "${TRIGGER_UPGRADE_CHECK_FLAG}" --no-build-os-deps-images
   createupgrade-check:
     timeout-minutes: 45
     name: >-
