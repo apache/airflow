@@ -382,7 +382,6 @@
       "scrollBottom": "맨 아래로 스크롤",
       "scrollTop": "맨 위로 스크롤",
       "searchDags": "$t(dag_other) 검색",
-      "selectGridCellRange": "TODO: translate: Select a range of $t(taskInstance_other) or $t(taskGroup_other)",
       "showHelp": "$t(shortcuts.title) 보기",
       "toggleExpand": "모든 그룹 펼치기/접기",
       "toggleFullscreen": "전체 화면 전환",
