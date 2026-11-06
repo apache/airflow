@@ -209,8 +209,8 @@ than 310 job-minutes, that change at most 100 lines of source code and that do n
 approves the runs and they start, the ``mark-workflow-runs-approved`` workflow removes the label and
 turns the status green. PRs whose CI runs in
 the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
-approved whatever their size unless they change CI definition files; such a PR also gets a comment
-explaining that its CI change needs a maintainer. The runs of PRs from the repositories of trusted
+approved whatever their size unless they change CI definition files; such a PR gets a comment
+instead of the label, explaining that its CI change needs a maintainer. The runs of PRs from the repositories of trusted
 stakeholders (Amazon, Google, Astronomer) are always approved. For every PR it also
 estimates the CI jobs selective checks will run and how long they take, and writes them to the job
 summary. Use ``--report-only`` to see the decisions without approving runs or changing labels or

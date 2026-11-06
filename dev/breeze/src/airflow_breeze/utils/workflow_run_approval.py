@@ -168,6 +168,8 @@ class ApprovalDecision:
     estimate: CiMinutesEstimate | None = None
     # Posted on the PR once, when the runs are left for a maintainer.
     comment: str | None = None
+    # Whether a PR whose runs are left for a maintainer gets the ``need workflow approval`` label.
+    add_approval_label: bool = True
     # The labels the decision depends on: runs started before one of them changed are not approved.
     decision_labels: frozenset[str] = TEST_SELECTION_LABELS
     # Runs started before this are not approved either.
@@ -253,6 +255,8 @@ def decide_gated_approval(*, changed_files: list[ChangedFile]) -> ApprovalDecisi
             approve=False,
             reasons=[f"its CI runs in the fork, but it changes CI definition files: {', '.join(ci_files)}"],
             comment=ci_change_approval_comment(ci_files=ci_files),
+            # Approving does not start project CI; a maintainer adds `use project ci` for that.
+            add_approval_label=False,
         )
     return ApprovalDecision(
         approve=True,
@@ -871,15 +875,18 @@ def apply_decision(
         return
     # Reasons can contain contributor-chosen file names, which must not be read as Rich markup.
     console_print(f"[warning]PR #{pr_number} needs a maintainer: {escape('; '.join(decision.reasons))}[/]")
-    if not has_label:
+    label_added = decision.add_approval_label and not has_label
+    if label_added:
         api.add_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
+    elif has_label and not decision.add_approval_label:
+        api.remove_label(pr_number, NEED_WORKFLOW_APPROVAL_LABEL)
     status_changed = update_approval_status(
         api,
         sha=pr["head"]["sha"],
         state="pending",
         description=build_status_description("Waits for a maintainer", decision.reasons),
     )
-    if (not has_label or status_changed) and clear_if_runs_were_approved(api, pr=pr, run_ids=run_ids):
+    if (label_added or status_changed) and clear_if_runs_were_approved(api, pr=pr, run_ids=run_ids):
         return
     # Once per PR: every later push would otherwise repeat it while the change stays.
     if decision.comment is not None and not api.has_bot_comment(pr_number, CI_CHANGE_MARKER):
@@ -917,8 +924,10 @@ def write_step_summary(results: list[PullRequestResult], github_repository: str)
             decision = "failed"
         elif result.decision.approve:
             decision = "approved"
-        else:
+        elif result.decision.add_approval_label:
             decision = f"`{NEED_WORKFLOW_APPROVAL_LABEL}`"
+        else:
+            decision = "waits for a maintainer"
         lines.append(
             f"| [#{result.pr_number}](https://github.com/{github_repository}/pull/{result.pr_number}) "
             f"| `{result.head_sha[:10]}` | {decision} | {format_estimate(result.decision.estimate)} "
