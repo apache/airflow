@@ -151,6 +151,8 @@ jobs:
         with:
           platform: ${{ inputs.platform }}
           save-cache: false
+          # The hatch_build.py files of the fab, edge3 and common.ai providers run these hooks.
+          hooks: compile-fab-assets compile-edge-assets compile-common-ai-provider-assets
         if: inputs.upload-package-artifact == 'true'
       - name: "Prepare providers packages - all providers built from sources"
         shell: bash
