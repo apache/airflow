@@ -348,14 +348,14 @@
     },
     "graph": {
       "defaultDirection": {
-        "helper": "Direção do layout para grafos de Dag e de Asset que você ainda não definiu individualmente.",
-        "label": "Direção padrão do grafo"
+        "helper": "Direção do layout para gráficos de Dag e de Asset que você ainda não definiu individualmente.",
+        "label": "Direção padrão do gráfico"
       },
       "taskGroupsExpanded": {
         "helper": "Expandir grupos de tarefas em Dags nos quais você não salvou uma seleção de grupo. As seleções existentes são mantidas.",
         "label": "Expandir grupos de tarefas por padrão"
       },
-      "title": "Grafo"
+      "title": "Gráfico"
     },
     "marking": {
       "taskSelection": {
@@ -405,7 +405,7 @@
       "markTaskGroupSuccess": "Marcar $t(taskGroup_one) como sucesso",
       "markTaskSuccess": "Marcar $t(task_one) como sucesso",
       "navigateTasks": "Navegar $t(task_other)",
-      "openGraphFilters": "Abrir filtros do grafo",
+      "openGraphFilters": "Abrir filtros do gráfico",
       "scrollBottom": "Rolar até o fim",
       "scrollTop": "Rolar até o topo",
       "searchDags": "Pesquisar $t(dag_other)",
@@ -413,7 +413,7 @@
       "showHelp": "Mostrar $t(shortcuts.title)",
       "toggleExpand": "Expandir ou recolher todos os grupos",
       "toggleFullscreen": "Alternar tela cheia",
-      "toggleGraphGrid": "Alternar visualização de grafo / grade",
+      "toggleGraphGrid": "Alternar visualização de gráfico / grade",
       "toggleGridCellSelection": "Adicionar ou remover $t(taskInstance_one) ou $t(taskGroup_one) da seleção",
       "toggleLogLevel": "Alternar níveis de log",
       "toggleSource": "Alternar fonte",
