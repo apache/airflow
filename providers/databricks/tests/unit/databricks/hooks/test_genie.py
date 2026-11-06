@@ -19,7 +19,6 @@ from __future__ import annotations
 import builtins
 import importlib.util
 import json
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -27,6 +26,7 @@ import requests
 
 from airflow.providers.common.ai.toolsets import ManagedAgentToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
+from airflow.providers.databricks.hooks import genie as genie_module
 from airflow.providers.databricks.hooks.genie import (
     DatabricksGenieError,
     DatabricksGenieHook,
@@ -68,6 +68,7 @@ class TestDatabricksGenieHook:
         assert capped_columns["truncated"] is True
 
     def test_direct_hook_works_without_common_ai(self):
+        """Reload from the installed module path so wheel/compat layouts work."""
         original_import = builtins.__import__
 
         def block_common_ai(name, *args, **kwargs):
@@ -75,8 +76,10 @@ class TestDatabricksGenieHook:
                 raise ImportError("common.ai is unavailable")
             return original_import(name, *args, **kwargs)
 
-        path = Path(__file__).parents[4] / "src/airflow/providers/databricks/hooks/genie.py"
-        spec = importlib.util.spec_from_file_location("_genie_without_common_ai", path)
+        # Prefer module.__file__ over a hardcoded src/ tree path: Compat matrix
+        # installs the provider from a wheel, so the editable src tree is absent.
+        assert genie_module.__file__ is not None
+        spec = importlib.util.spec_from_file_location("_genie_without_common_ai", genie_module.__file__)
         assert spec is not None
         assert spec.loader is not None
         module = importlib.util.module_from_spec(spec)
