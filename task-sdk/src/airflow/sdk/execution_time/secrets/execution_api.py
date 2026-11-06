@@ -24,7 +24,27 @@ from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
 from airflow.sdk.exceptions import AirflowRuntimeError, AirflowSecretsBackendAccessDenied, ErrorType
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.sdk import Connection
+    from airflow.sdk.api.client import ServerResponseError
+    from airflow.sdk.execution_time.comms import GetConnection, GetVariable
+
+
+def _api_server_error(error: ServerResponseError) -> AirflowRuntimeError:
+    """Report an Execution API failure raised in-process (``dag.test()``) like the subprocess supervisor does."""
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    return AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.detail,
+            },
+        )
+    )
 
 
 class ExecutionAPISecretsBackend(BaseSecretsBackend):
@@ -63,6 +83,26 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 "to a less-restrictive secrets backend."
             )
 
+    @staticmethod
+    def _send(request: GetConnection | GetVariable) -> BaseModel | None:
+        from airflow.sdk.api.client import ServerResponseError
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            return SUPERVISOR_COMMS.send(request)
+        except ServerResponseError as error:
+            raise _api_server_error(error) from error
+
+    @staticmethod
+    async def _asend(request: GetConnection | GetVariable) -> BaseModel | None:
+        from airflow.sdk.api.client import ServerResponseError
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            return await SUPERVISOR_COMMS.asend(request)
+        except ServerResponseError as error:
+            raise _api_server_error(error) from error
+
     def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
         Return connection object by routing through SUPERVISOR_COMMS.
@@ -78,9 +118,8 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
+        msg = self._send(GetConnection(conn_id=conn_id))
 
         self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
 
@@ -106,9 +145,8 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :raises AirflowRuntimeError: when the Execution API fails to answer for any other reason.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
+        msg = self._send(GetVariable(key=key))
 
         self._raise_if_authz_denied(msg, resource="variable", key=key)
 
@@ -134,9 +172,8 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+        msg = await self._asend(GetConnection(conn_id=conn_id))
 
         self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
 
@@ -157,9 +194,8 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :raises AirflowSecretsBackendAccessDenied: see :meth:`get_variable`.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        msg = await SUPERVISOR_COMMS.asend(GetVariable(key=key))
+        msg = await self._asend(GetVariable(key=key))
 
         self._raise_if_authz_denied(msg, resource="variable", key=key)
 

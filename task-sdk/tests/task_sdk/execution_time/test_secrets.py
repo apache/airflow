@@ -22,9 +22,11 @@ import sys
 import textwrap
 from unittest import mock
 
+import httpx2
 import pytest
 
 from airflow.sdk import Connection, SecretCache
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import ConnectionResponse
 from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
 from airflow.sdk.configuration import clear_secrets_backends_cache, ensure_secrets_loaded
@@ -229,13 +231,15 @@ class TestDispatcherBackendErrors:
     @pytest.mark.parametrize("is_async", [False, True], ids=["sync", "async"])
     @pytest.mark.parametrize("found_later", [False, True], ids=["missing-later", "found-later"])
     @pytest.mark.parametrize(
-        ("error_type", "raised"),
+        ("error_type", "delivery"),
         [
             # How the supervisor reports a failed API call: an error frame that comms raises.
-            pytest.param(ErrorType.API_SERVER_ERROR, True, id="api-server-error-frame"),
-            pytest.param(ErrorType.GENERIC_ERROR, True, id="generic-error-frame"),
-            pytest.param(ErrorType.API_SERVER_ERROR, False, id="api-server-error-response"),
-            pytest.param(ErrorType.GENERIC_ERROR, False, id="generic-error-response"),
+            pytest.param(ErrorType.API_SERVER_ERROR, "frame", id="api-server-error-frame"),
+            pytest.param(ErrorType.GENERIC_ERROR, "frame", id="generic-error-frame"),
+            pytest.param(ErrorType.API_SERVER_ERROR, "response", id="api-server-error-response"),
+            pytest.param(ErrorType.GENERIC_ERROR, "response", id="generic-error-response"),
+            # The in-process supervisor behind dag.test() lets the client's error through unchanged.
+            pytest.param(ErrorType.API_SERVER_ERROR, "in-process", id="in-process-server-error"),
         ],
     )
     @pytest.mark.asyncio
@@ -247,12 +251,20 @@ class TestDispatcherBackendErrors:
         is_async: bool,
         found_later: bool,
         error_type: ErrorType,
-        raised: bool,
+        delivery: str,
     ) -> None:
         response = ErrorResponse(error=error_type, detail={"status_code": 500})
         for method in (mock_supervisor_comms.send, mock_supervisor_comms.asend):
-            if raised:
+            if delivery == "frame":
                 method.side_effect = AirflowRuntimeError(response)
+            elif delivery == "in-process":
+                method.side_effect = ServerResponseError.from_response(
+                    httpx2.Response(
+                        500,
+                        json={"detail": {"reason": "Database error"}},
+                        request=httpx2.Request("GET", "http://in-process.invalid./variables/target"),
+                    )
+                )
             else:
                 method.return_value = response
         value = (
@@ -266,7 +278,10 @@ class TestDispatcherBackendErrors:
         else:
             with pytest.raises(AirflowRuntimeError) as error:
                 await self.lookup(kind, is_async)
-            assert error.value.error == response
+            assert error.value.error.error == response.error
+            detail = error.value.error.detail
+            assert detail is not None
+            assert detail["status_code"] == 500
         # A failing Execution API must not stop a later backend from answering.
         assert later.calls == 1
 
