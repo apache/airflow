@@ -81,8 +81,24 @@ class TestLogsApiRoutes:
         ("task_id", "sent_ti_id", "stored_ti_id"),
         [
             pytest.param("nonexistent_task", None, None, id="unknown-task"),
-            pytest.param(TASK_ID, UNKNOWN_TI_ID, None, id="unknown-sent-task-instance-id"),
-            pytest.param("nonexistent_task", None, UNKNOWN_TI_ID, id="unknown-stored-task-instance-id"),
+            pytest.param(
+                TASK_ID,
+                UNKNOWN_TI_ID,
+                None,
+                id="unknown-sent-task-instance-id",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_4_PLUS, reason="Task instance ids are sent only on Airflow 3.4+"
+                ),
+            ),
+            pytest.param(
+                "nonexistent_task",
+                None,
+                UNKNOWN_TI_ID,
+                id="unknown-stored-task-instance-id",
+                marks=pytest.mark.skipif(
+                    not AIRFLOW_V_3_4_PLUS, reason="Task instance ids are stored only on Airflow 3.4+"
+                ),
+            ),
         ],
     )
     @conf_vars({("api_auth", "jwt_secret"): "edge-log-test-secret"})
