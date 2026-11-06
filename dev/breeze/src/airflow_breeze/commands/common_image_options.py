@@ -150,6 +150,14 @@ option_docker_cache = click.option(
     type=BetterChoice(ALLOWED_BUILD_CACHE),
     envvar="DOCKER_CACHE",
 )
+option_use_pinned_os_deps_images = click.option(
+    "--use-pinned-os-deps-images/--no-use-pinned-os-deps-images",
+    help="Start the build from the pinned OS-dependencies images (hardened flavor, default base image and "
+    "apt dependencies) instead of installing the OS dependencies from the apt repositories.",
+    default=True,
+    show_default=True,
+    envvar="USE_PINNED_OS_DEPS_IMAGES",
+)
 option_install_mysql_client_type = click.option(
     "--install-mysql-client-type",
     help="Which client to choose when installing.",

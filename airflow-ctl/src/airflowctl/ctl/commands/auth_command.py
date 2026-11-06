@@ -32,6 +32,7 @@ from airflowctl.api.client import (
     NEW_API_CLIENT,
     ClientKind,
     Credentials,
+    _is_token_in_keyring,
     _read_api_url,
     get_default_api_url,
     provide_api_client,
@@ -206,7 +207,7 @@ def list_envs(args) -> None:
                         debug_creds = json.load(f)
                         if Credentials.token_key_for_environment(env_name) in debug_creds:
                             token_status = "authenticated"
-            else:
+            elif _is_token_in_keyring(config_path):
                 # Check keyring
                 token = keyring.get_password("airflowctl", Credentials.token_key_for_environment(env_name))
                 if token:

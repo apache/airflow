@@ -112,6 +112,7 @@ from airflow.sdk.definitions.retry_policy import (
     RetryPolicy as RetryPolicy,
     RetryRule as RetryRule,
 )
+from airflow.sdk.definitions.task_handlers.registry import task_handler as task_handler
 from airflow.sdk.definitions.taskgroup import TaskGroup as TaskGroup
 from airflow.sdk.definitions.template import literal as literal
 from airflow.sdk.definitions.timetables.assets import (
@@ -238,6 +239,7 @@ __all__ = [
     "setup",
     "task",
     "task_group",
+    "task_handler",
     "teardown",
     "conf",
 ]

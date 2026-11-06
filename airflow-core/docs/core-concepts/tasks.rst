@@ -215,8 +215,11 @@ How it works
 ~~~~~~~~~~~~
 
 The policy runs in the **task worker process** (never the scheduler) between catching the
-exception and deciding the task's next state. Each policy decision is logged in the task
-logs as ``Retry policy decision action=<action> reason=<reason>``.
+exception and deciding the task's next state. A decision that has a reason is logged in the
+task logs as ``Retry policy decision action=<action> reason=<reason>``. A matching
+``RetryRule`` always gives one (its ``reason``, or ``Matched rule for <exception type>``), and
+so does ``ChainRetryPolicy``. When no rule matches, or a custom policy returns a decision
+without a reason, no line is logged.
 
 When a task fails, the policy evaluates the exception and returns one of four actions:
 
@@ -263,15 +266,15 @@ Composition with existing parameters
        A reschedule without its own delay waits ``retry_delay``, without backoff.
    * - ``on_retry_callback``
      - Fires on retries only, including policy-driven retries.
-   * - ``AirflowFailException``
-     - Always takes precedence. The policy is never consulted for this exception.
+   * - ``AirflowFailException``, ``AirflowSensorTimeout``, ``AirflowTaskTerminated``
+     - Always take precedence. The task fails without consulting the policy.
 
 .. _concepts:retry-policies-reschedule:
 
 Rescheduling without using a retry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. versionadded:: 3.5.0
+.. versionadded:: 3.4.0
 
 Some failures mean "not yet" rather than "this went wrong": the system the task drives is
 out of capacity, such as a Kubernetes namespace whose resource quota is full or a warehouse
@@ -355,11 +358,15 @@ Mapped tasks
 ~~~~~~~~~~~~
 
 Policies work with task mapping. The policy applies per mapped task
-instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently:
+instance -- if instance 2 of 10 hits FAIL, the other 9 continue independently. Using
+``STANDARD_RETRY_POLICY`` from the previous example:
 
 .. code-block:: python
 
-    @task(retry_policy=my_policy)
+    from airflow.sdk import task
+
+
+    @task(retry_policy=STANDARD_RETRY_POLICY)
     def my_mapped_task(input): ...
 
 
@@ -369,7 +376,9 @@ For a classic operator, pass the policy to ``.partial()``:
 
 .. code-block:: python
 
-    BashOperator.partial(task_id="run", retry_policy=my_policy).expand(
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    BashOperator.partial(task_id="run", retry_policy=STANDARD_RETRY_POLICY).expand(
         bash_command=["echo 1", "echo 2", "echo 3"],
     )
 
@@ -409,9 +418,11 @@ Two consequences of "DEFAULT means next" to keep in mind:
 A policy that raises an ordinary exception, or returns something other than a
 ``RetryDecision``, is logged and treated as DEFAULT, so one broken policy does not take the
 rules after it down with it. The winning decision's reason names the policy that decided and
-then what the earlier ones said (``HTTPStatusRetryPolicy: HTTP 503 (after ExceptionRetryPolicy:
-no decision)``). That string is the task's ``retry_reason`` on a FAIL as well as a RETRY; when
-no policy decided, it appears only in the task log as the ``Retry policy decision`` line.
+then what the earlier ones said, for example ``HTTPStatusRetryPolicy: HTTP 404 (after
+ExceptionRetryPolicy: no decision)``. A decision with no reason of its own shows its action
+instead, such as ``HTTPStatusRetryPolicy: retry``. That string is the task's ``retry_reason``
+on a FAIL as well as a RETRY; when no policy decided, it appears only in the task log as the
+``Retry policy decision`` line.
 
 Custom retry policies
 ~~~~~~~~~~~~~~~~~~~~~

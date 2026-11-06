@@ -105,6 +105,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -155,6 +156,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -827,6 +829,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -2431,6 +2434,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -3137,6 +3141,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3174,7 +3179,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",
