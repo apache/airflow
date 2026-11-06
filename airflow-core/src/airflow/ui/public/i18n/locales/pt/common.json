@@ -540,7 +540,7 @@
       "class": "Classe do Trigger",
       "createdAt": "Tempo de criação do Trigger",
       "id": "ID do Trigger",
-      "job": "Job do Triggerer",
+      "job": "Tarefa do Disparador",
       "latestHeartbeat": "Último heartbeat do Trigger",
       "title": "Informações do Trigger"
     },
