@@ -207,7 +207,7 @@
     "buttons": {
       "options": "Opções",
       "showGantt": "Mostrar Gantt",
-      "showGraphShortcut": "Mostrar Gráfico (Pressione g)",
+      "showGraphShortcut": "Mostrar Grafo (Pressione g)",
       "showGridShortcut": "Mostrar Grade (Pressione g)"
     },
     "dagRuns": {
@@ -217,7 +217,7 @@
       "allDagDependencies": "Todas as dependências do Dag"
     },
     "graphDirection": {
-      "label": "Direção do Gráfico"
+      "label": "Direção do Grafo"
     },
     "graphFilters": {
       "clearFilters": "Limpar filtros",
