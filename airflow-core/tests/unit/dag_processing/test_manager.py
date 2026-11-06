@@ -853,6 +853,59 @@ class TestDagFileProcessorManager:
 
         assert manager._file_stats == {}
 
+    def test_callback_only_parse_preserves_scan_stats_for_unversioned_file(self):
+        manager = DagFileProcessorManager(max_runs=3)
+        file = _get_file_infos(["file_1.py"])[0]
+        last_finish_time = timezone.datetime(2020, 1, 5)
+        manager._file_stats[file] = DagFileStat(
+            num_dags=3,
+            import_errors=1,
+            last_finish_time=last_finish_time,
+            last_duration=1.0,
+            run_count=2,
+            last_num_of_db_queries=4,
+        )
+        processor, _ = self.mock_processor(start_time=7.0)
+        processor.had_callbacks = True
+        processor.parsing_result = None
+
+        with mock.patch("airflow.dag_processing.manager.time.monotonic", return_value=10.0):
+            manager.handle_parsing_result(file, processor)
+
+        stat = manager._file_stats[file]
+        assert stat.num_dags == 3
+        assert stat.import_errors == 1
+        assert stat.last_finish_time == last_finish_time
+        assert stat.run_count == 2
+        assert stat.last_num_of_db_queries == 4
+        assert stat.last_duration == 3.0
+
+    def test_callback_only_parse_keeps_versioned_stats_distinct(self):
+        manager = DagFileProcessorManager(max_runs=3)
+        scan_file = _get_file_infos(["file_1.py"])[0]
+        callback_file = _get_versioned_file_info("file_1.py")
+        scan_stat = DagFileStat(
+            num_dags=3,
+            import_errors=1,
+            last_finish_time=timezone.datetime(2020, 1, 5),
+            run_count=2,
+        )
+        manager._file_stats[scan_file] = scan_stat
+        processor, _ = self.mock_processor(start_time=7.0)
+        processor.had_callbacks = True
+        processor.parsing_result = None
+
+        with mock.patch("airflow.dag_processing.manager.time.monotonic", return_value=10.0):
+            manager.handle_parsing_result(callback_file, processor)
+
+        assert manager._file_stats[scan_file] is scan_stat
+        callback_stat = manager._file_stats[callback_file]
+        assert callback_stat.num_dags == 0
+        assert callback_stat.import_errors == 0
+        assert callback_stat.last_finish_time is None
+        assert callback_stat.run_count == 0
+        assert callback_stat.last_duration == 3.0
+
     @conf_vars({("dag_processor", "file_parsing_sort_mode"): "alphabetical"})
     def test_files_in_queue_sorted_alphabetically(self):
         """Test dag files are sorted alphabetically"""
