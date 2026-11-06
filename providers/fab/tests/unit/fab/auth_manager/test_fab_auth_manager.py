@@ -26,7 +26,7 @@ from urllib.parse import urlencode
 
 import pytest
 from flask import g
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from sqlalchemy.orm import Session
 
@@ -439,6 +439,11 @@ class TestFabAuthManager:
             ["", ""],
             ["test", ""],
             ["", "test"],
+            ["test", "\x00"],
+            ["test", "\x00" * 64],
+            ["test", 123],
+            ["test", ["password"]],
+            [123, "test"],
         ],
     )
     def test_create_token_wrong_values(self, username, password, auth_manager_with_appbuilder):
@@ -446,6 +451,33 @@ class TestFabAuthManager:
             auth_manager_with_appbuilder.create_token(
                 headers={}, body={"username": username, "password": password}
             )
+
+    @pytest.mark.parametrize("auth_type", [AUTH_OAUTH, AUTH_REMOTE_USER])
+    def test_create_token_other_auth_types(self, auth_type, auth_manager_with_appbuilder):
+        security_manager = Mock(spec=FabAirflowSecurityManagerOverride)
+        security_manager.auth_type = auth_type
+        auth_manager_with_appbuilder.security_manager = security_manager
+
+        result = auth_manager_with_appbuilder.create_token(
+            headers={}, body={"username": "username", "password": "password"}
+        )
+
+        assert result is None
+        security_manager.auth_user_db.assert_not_called()
+        security_manager.auth_user_ldap.assert_not_called()
+
+    def test_create_token_ldap_does_not_fall_back_to_db(self, auth_manager_with_appbuilder):
+        security_manager = Mock()
+        security_manager.auth_type = AUTH_LDAP
+        security_manager.auth_user_ldap.return_value = None
+        auth_manager_with_appbuilder.security_manager = security_manager
+
+        result = auth_manager_with_appbuilder.create_token(
+            headers={}, body={"username": "username", "password": "password"}
+        )
+
+        assert result is None
+        security_manager.auth_user_db.assert_not_called()
 
     @pytest.mark.parametrize(
         ("api_name", "method", "user_permissions", "expected_result"),
@@ -914,18 +946,19 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
-            # The menu entry follows the bundle resource, not Dag access.
+            # The menu entry follows the bundle resource where Airflow has the bundles view, and Dag
+            # access on Airflow 3.4.0, which has only the menu item.
             *(
                 [
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_BUNDLE)],
-                        [MenuItem.DAG_BUNDLES],
+                        [MenuItem.DAG_BUNDLES] if DAG_BUNDLES_ACCESS_VIEW is not None else [],
                     ),
                     (
                         [MenuItem.DAG_BUNDLES],
                         [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
-                        [],
+                        [] if DAG_BUNDLES_ACCESS_VIEW is not None else [MenuItem.DAG_BUNDLES],
                     ),
                 ]
                 if hasattr(MenuItem, "DAG_BUNDLES")

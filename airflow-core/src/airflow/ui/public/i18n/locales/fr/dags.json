@@ -22,6 +22,7 @@
     },
     "favoriteState": "État favori",
     "favoriteStatePlaceholder": "Sélectionner l'état favori…",
+    "hasImportErrors": "Avec erreurs d'import",
     "noTimetableTypesFound": "Aucun type de calendrier trouvé",
     "paused": {
       "active": "Actif",
@@ -44,6 +45,12 @@
     "title": "Dossiers"
   },
   "ownerLink": "Lien du propriétaire pour {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "État des tâches de toutes les exécutions de Dag en cours ou, si aucune n'est en cours, de l'exécution la plus récente. Vous pouvez désactiver cet affichage dans vos paramètres utilisateur.",
+    "label": "Tâches récentes",
+    "loading": "Chargement du décompte des états des tâches récentes",
+    "tooltip": "{{state}} : {{formattedCount}} — cliquez pour filtrer les tâches"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "Aucune tâche trouvée.",
@@ -83,6 +90,7 @@
         "failed": "Appuyez sur Maj+f pour marquer comme échoué",
         "success": "Appuyez sur Maj+s pour marquer comme réussi"
       },
+      "skippedInfo": "Marquer une instance de tâche comme ignorée enregistre qu'elle n'a volontairement pas été exécutée. Les tâches en aval restent évaluées selon leurs règles de déclenchement : avec la règle par défaut \"all_success\", elles seront également ignorées. Seules les instances de tâche qui n'ont pas commencé à s'exécuter peuvent être ignorées, et seule cette instance de tâche est concernée.",
       "title": "Marquer {{type}} comme {{state}}"
     },
     "options": {
@@ -90,13 +98,15 @@
       "existingTasks": "Réinitialiser les tâches existantes",
       "future": "Futur",
       "keepTaskState": "Conserver l'état des tâches et reprendre",
+      "laterIterations": "Itérations suivantes",
       "onlyFailed": "Réinitialiser uniquement les tâches échouées",
       "past": "Passé",
       "preventRunningTasks": "Empêcher la réexécution si la tâche est en cours",
       "queueNew": "Ajouter de nouvelles tâches en file d'attente",
       "runOnLatestVersion": "Exécuter avec la dernière version du bundle",
       "runOnLatestVersionForced": "Utilise toujours la plus récente — il n'y a pas de version antérieure vers laquelle revenir",
-      "upstream": "En amont"
+      "upstream": "En amont",
+      "wholeExpansion": "Expansion complète"
     }
   },
   "runStateCounts": {
@@ -117,8 +127,10 @@
   "search": {
     "advanced": "Recherche avancée",
     "clear": "Effacer la recherche",
+    "dagRuns": "Rechercher des $t(common:dagRun_other)",
     "dags": "Rechercher des Dags",
     "hotkey": "+K",
+    "mapIndexes": "Rechercher un $t(common:mapIndex)",
     "tasks": "Rechercher des tâches"
   },
   "sort": {

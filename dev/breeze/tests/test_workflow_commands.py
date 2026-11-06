@@ -395,18 +395,27 @@ class TestSyncStagingToMain:
 
 
 @pytest.mark.parametrize(
-    ("args", "trigger_upgrade_check"),
+    ("args", "trigger_upgrade_check", "build_os_deps_images"),
     [
-        pytest.param([], True, id="default"),
-        pytest.param(["--no-trigger-upgrade-check"], False, id="called-by-the-main-upgrade"),
+        pytest.param([], True, True, id="default"),
+        pytest.param(
+            ["--no-trigger-upgrade-check", "--no-build-os-deps-images"],
+            False,
+            False,
+            id="called-by-the-main-upgrade",
+        ),
     ],
 )
 @patch("airflow_breeze.commands.workflow_commands.mirror_hardened_base_images", autospec=True)
-def test_mirror_base_images_runs_the_mirror(mock_mirror, args, trigger_upgrade_check):
+def test_mirror_base_images_runs_the_mirror(mock_mirror, args, trigger_upgrade_check, build_os_deps_images):
     result = CliRunner().invoke(workflow_run_mirror_base_images, args, catch_exceptions=False)
 
     assert result.exit_code == 0
-    mock_mirror.assert_called_once_with("apache/airflow", trigger_upgrade_check=trigger_upgrade_check)
+    mock_mirror.assert_called_once_with(
+        "apache/airflow",
+        trigger_upgrade_check=trigger_upgrade_check,
+        build_os_deps_images=build_os_deps_images,
+    )
 
 
 @patch("airflow_breeze.commands.workflow_commands.run_command", autospec=True)

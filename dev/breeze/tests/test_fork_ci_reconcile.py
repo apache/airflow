@@ -42,6 +42,7 @@ from airflow_breeze.utils.fork_ci_messages import (
 )
 from airflow_breeze.utils.fork_ci_reconcile import (
     JOB_STATUSES_DEFERRED_NOTE,
+    JOB_STATUSES_FAILED_REASON,
     RATE_LIMITED_NOTE,
     BaseGateConfigs,
     BypassFinder,
@@ -78,6 +79,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     pull_request_changes_ci_files,
     read_ci_run_at,
     read_head_status,
+    read_job_status_failure_runs,
     read_project_ci_run_url,
     report_project_ci_runs_started,
     run_reconcile,
@@ -275,7 +277,7 @@ def test_green_is_not_trusted_when_ci_files_change():
     plan, _, changes = _classify(pr, GREEN, changes_ci_files=True)
 
     assert plan.state == ForkState.GREEN_UNVERIFIED
-    assert plan.draft is True
+    assert plan.draft is None
     assert plan.add_labels == ["needs project ci"]
     assert plan.remove_labels == ["ready for maintainer review"]
     assert plan.status == (
@@ -286,6 +288,21 @@ def test_green_is_not_trusted_when_ci_files_change():
     assert plan.attention == []
     assert plan.ci_passed is None
     changes.assert_called_once_with()
+
+
+@pytest.mark.parametrize(
+    ("last_draft_actor", "expected_draft"),
+    [
+        pytest.param("github-actions[bot]", False, id="bot-draft-undrafted"),
+        pytest.param("someone", None, id="author-draft-kept"),
+    ],
+)
+def test_green_unverified_does_not_keep_a_bot_draft(last_draft_actor, expected_draft):
+    plan, _, _ = _classify(_pr(last_draft_actor=last_draft_actor), GREEN, changes_ci_files=True)
+
+    assert plan.state == ForkState.GREEN_UNVERIFIED
+    assert plan.draft is expected_draft
+    assert plan.add_labels == ["needs project ci"]
 
 
 LABELLED = ("fork ci required", "needs project ci")
@@ -472,11 +489,18 @@ def test_find_heads_shared_across_bases():
         pytest.param([".github/workflows/ci-amd.yml"], True, id="workflow"),
         pytest.param([".github/actions/breeze/action.yml"], True, id="action"),
         pytest.param(["dev/breeze/src/airflow_breeze/utils/selective_checks.py"], True, id="breeze"),
-        pytest.param(["scripts/ci/prek/check_x.py"], True, id="ci-scripts"),
-        pytest.param(["Dockerfile.ci"], True, id="dockerfile"),
-        pytest.param(["scripts/in_container/run_ci_tests.sh"], True, id="in-container-scripts"),
-        pytest.param([".pre-commit-config.yaml"], True, id="root-prek-config"),
-        pytest.param(["dev/.pre-commit-config.yaml"], True, id="nested-prek-config"),
+        pytest.param(["dev/breeze/pyproject.toml"], True, id="breeze-project"),
+        pytest.param(["dev/breeze/uv.lock"], True, id="breeze-lock"),
+        pytest.param(["scripts/ci/install_breeze.sh"], True, id="breeze-install"),
+        pytest.param(["scripts/ci/prek/update_providers_dependencies.py"], True, id="provider-deps-script"),
+        pytest.param(["scripts/ci/prek/yaml.py"], True, id="module-next-to-provider-deps-script"),
+        pytest.param(["dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md"], False, id="breeze-doc"),
+        pytest.param(["dev/breeze/tests/test_selective_checks.py"], False, id="breeze-tests"),
+        pytest.param(["scripts/ci/testing/run_unit_tests.sh"], False, id="ci-scripts"),
+        pytest.param(["Dockerfile.ci"], False, id="dockerfile"),
+        pytest.param(["scripts/docker/entrypoint_ci.sh"], False, id="docker-scripts"),
+        pytest.param(["scripts/in_container/run_ci_tests.sh"], False, id="in-container-scripts"),
+        pytest.param([".pre-commit-config.yaml"], False, id="prek-config"),
         pytest.param([f"airflow-core/f{i}.py" for i in range(3000)], True, id="too-many-files-to-list"),
     ],
 )
@@ -2230,6 +2254,7 @@ def test_drop_reported_reports_everything_without_a_readable_previous_run(tmp_pa
         "notes": [],
         "deferred_runs": 0,
         "rate_limited_runs": 0,
+        "job_status_failure_runs": {},
     }
 
 
@@ -2624,10 +2649,63 @@ def test_run_reconcile_classifies_when_reporting_job_statuses_fails(
     mock_reporter.return_value.deferred = []
     mock_reporter.return_value.delayed = []
 
-    assert _reconcile_with_reporter(client, tmp_path) is True
+    _reconcile_with_reporter(client, tmp_path)
 
     assert mock_classify.call_args.kwargs["jobs_reported"] is None
-    assert "reporting job statuses failed" in (tmp_path / "s.json").read_text()
+
+
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
+@mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
+def test_run_reconcile_reports_failing_job_statuses_once_when_failing_persists(
+    mock_classify, mock_reporter, client, tmp_path
+):
+    mock_classify.return_value = Plan(state=ForkState.RUNNING)
+    mock_reporter.return_value.deferred = []
+    mock_reporter.return_value.delayed = []
+    client.dry_run = False
+    reported_file = tmp_path / "reported.json"
+    reported_file.write_text("{}")
+    alerts = []
+    errors = [
+        GitHubError("HTTP 502"),
+        GitHubError("HTTP 502"),
+        None,
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+        GitHubError("HTTP 502"),
+        GitHubError("stream ID 1; CANCEL"),
+    ]
+    for error in errors:
+        mock_reporter.return_value.report.side_effect = error
+        mock_reporter.return_value.report.return_value = None
+        alerts.append(_reconcile_with_reporter(client, tmp_path, reported_file=reported_file))
+
+    assert alerts == [False, False, False, False, False, True, False]
+    assert JOB_STATUSES_FAILED_REASON in (tmp_path / "s.json").read_text()
+    assert json.loads(reported_file.read_text())["job_status_failure_runs"] == {"1": 4}
+
+
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        pytest.param(None, {}, id="missing"),
+        pytest.param("not json", {}, id="not-json"),
+        pytest.param("[]", {}, id="not-a-dict"),
+        pytest.param('{"deferred_runs": 1}', {}, id="recorded-before-the-count"),
+        pytest.param('{"job_status_failure_runs": []}', {}, id="malformed-counts"),
+        pytest.param(
+            '{"job_status_failure_runs": {"1": 2, "x": 3, "4": true, "5": "6"}}',
+            {1: 2},
+            id="malformed-entries",
+        ),
+    ],
+)
+def test_read_job_status_failure_runs(tmp_path, content, expected):
+    reported_file = tmp_path / "reported.json"
+    if content is not None:
+        reported_file.write_text(content)
+
+    assert read_job_status_failure_runs(reported_file) == expected
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)
