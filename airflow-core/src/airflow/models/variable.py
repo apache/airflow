@@ -26,7 +26,9 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, delete, or_, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, reconstructor, synonym
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow._shared.secrets_backend.base import accepts_kwarg, call_secrets_backend_method
 from airflow._shared.secrets_masker import mask_secret
@@ -515,6 +517,7 @@ class Variable(Base, LoggingMixin):
             pass  # continue business
 
         var_val = None
+        database_error: DBAPIError | StaleDataError | None = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             # Only the metastore Variable backend touches the metadata database, so it is the only
@@ -540,13 +543,17 @@ class Variable(Base, LoggingMixin):
             except AirflowSecretsBackendAccessDenied:
                 # Authoritative deny — must NOT fall through to a less-restrictive backend.
                 raise
-            except Exception:
+            except Exception as error:
+                if isinstance(error, (DBAPIError, StaleDataError)):
+                    database_error = error
                 log.exception(
                     "Unable to retrieve variable from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
 
+        if var_val is None and database_error is not None:
+            raise database_error
         SecretCache.save_variable(key, var_val, team_name=team_name)  # we save None as well
         return var_val
 

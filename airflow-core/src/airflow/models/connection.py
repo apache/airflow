@@ -28,7 +28,9 @@ from typing import Any
 from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import ForeignKey, Integer, String, Text, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Mapped, mapped_column, reconstructor, validates
+from sqlalchemy.orm.exc import StaleDataError
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.secrets_backend.base import call_secrets_backend_method
@@ -575,6 +577,7 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
         except SecretCache.NotPresentException:
             pass  # continue business
 
+        database_error: DBAPIError | StaleDataError | None = None
         # iterate over backends if not in cache (or expired)
         for secrets_backend in ensure_secrets_loaded():
             try:
@@ -587,13 +590,17 @@ class Connection(Base, FernetFieldsMixin, LoggingMixin):
             except AirflowSecretsBackendAccessDenied:
                 # Authoritative deny — must NOT fall through to a less-restrictive backend.
                 raise
-            except Exception:
+            except Exception as error:
+                if isinstance(error, (DBAPIError, StaleDataError)):
+                    database_error = error
                 log.debug(
                     "Unable to retrieve connection from secrets backend (%s). "
                     "Checking subsequent secrets backend.",
                     type(secrets_backend).__name__,
                 )
 
+        if database_error is not None:
+            raise database_error
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
     def to_dict(self, *, prune_empty: bool = False, validate: bool = True) -> dict[str, Any]:
