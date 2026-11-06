@@ -68,7 +68,7 @@ class AzureBatchOperator(BaseOperator):
         The Task runs when the Compute Node is added to the Pool or
         when the Compute Node is restarted.
     :param batch_max_retries: The maximum number of retries for the batch operation.
-        If ``None``, the Azure SDK default is used.
+        Defaults to 3. If ``None``, the Azure SDK default is used.
     :param batch_task_resource_files: A list of files that the Batch service will
         download to the Compute Node before running the command line.
     :param batch_task_output_files: A list of files that the Batch service will upload
@@ -138,7 +138,7 @@ class AzureBatchOperator(BaseOperator):
         batch_task_display_name: str | None = None,
         batch_task_container_settings: batch_models.BatchTaskContainerSettings | None = None,
         batch_start_task: batch_models.BatchStartTask | None = None,
-        batch_max_retries: int | None = None,
+        batch_max_retries: int | None = 3,
         batch_task_resource_files: list[batch_models.ResourceFile] | None = None,
         batch_task_output_files: list[batch_models.OutputFile] | None = None,
         batch_task_user_identity: batch_models.UserIdentity | None = None,
@@ -325,6 +325,7 @@ class AzureBatchOperator(BaseOperator):
                     azure_batch_conn_id=self.azure_batch_conn_id,
                     end_time=end_time,
                     poll_interval=self.poll_interval,
+                    retry_total=self.batch_max_retries,
                 ),
                 method_name="execute_complete",
             )
