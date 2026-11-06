@@ -20,6 +20,8 @@
 TypeScript SDK
 ==============
 
+|experimental|
+
 The TypeScript SDK lets you write Airflow Dags and tasks in TypeScript, or plain JavaScript, and run them on
 Node.js. There are two ways to use it:
 
@@ -30,7 +32,7 @@ Node.js. There are two ways to use it:
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
-The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only).
+The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). Its API may change.
 
 .. warning::
 
@@ -889,5 +891,6 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
+* **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.
