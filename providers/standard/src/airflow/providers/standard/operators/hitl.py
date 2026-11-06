@@ -31,6 +31,7 @@ from airflow.providers.standard.version_compat import (
 if not AIRFLOW_V_3_1_PLUS:
     raise AirflowOptionalProviderFeatureException("Human in the loop functionality needs Airflow 3.1+.")
 
+import time
 from collections.abc import Collection, Mapping, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, NoReturn
@@ -57,7 +58,9 @@ from airflow.providers.standard.utils.hitl import (
 from airflow.providers.standard.version_compat import BaseOperator, is_arg_set
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
-from airflow.sdk.execution_time.hitl import upsert_hitl_detail
+from airflow.sdk.exceptions import AirflowRuntimeError
+from airflow.sdk.execution_time import comms as sdk_comms
+from airflow.sdk.execution_time.hitl import get_hitl_detail_content_detail, upsert_hitl_detail
 from airflow.sdk.timezone import utcnow
 
 if AIRFLOW_V_3_3_PLUS:
@@ -65,8 +68,13 @@ if AIRFLOW_V_3_3_PLUS:
     # deferring to a trigger. On older Airflow versions this name is absent and the defer() fallback is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
+# A running task can read its own Human-in-the-loop response only with a Task SDK whose supervisor
+# serves that request; the reply type ships with it. On older Task SDKs response_poll_window is ignored.
+TASK_SDK_SERVES_HITL_RESPONSE = hasattr(sdk_comms, "HITLDetailResponseResult")
+
 if TYPE_CHECKING:
     from datetime import datetime
+    from uuid import UUID
 
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
@@ -91,6 +99,46 @@ def _request_input_and_wait(
     kwargs: dict[str, Any] | None = None,
 ) -> NoReturn:
     """Write the Human-in-the-loop request, notify, and stop the task until a response arrives."""
+    ti_id = _write_request(
+        task,
+        context,
+        options=options,
+        subject=subject,
+        body=body,
+        defaults=defaults,
+        multiple=multiple,
+        params=params,
+        assigned_users=assigned_users,
+        notifiers=notifiers,
+    )
+    _stop_until_response(
+        task,
+        ti_id=ti_id,
+        options=options,
+        defaults=defaults,
+        multiple=multiple,
+        params=params,
+        timeout=timeout,
+        timeout_datetime=timeout_datetime,
+        method_name=method_name,
+        kwargs=kwargs,
+    )
+
+
+def _write_request(
+    task: BaseOperator,
+    context: Context,
+    *,
+    options: list[str],
+    subject: str,
+    body: str | None,
+    defaults: list[str] | None,
+    multiple: bool,
+    params: dict[str, Any],
+    assigned_users: list[HITLUser] | None,
+    notifiers: Sequence[BaseNotifier],
+) -> UUID:
+    """Write the Human-in-the-loop request and notify; return the task instance id it belongs to."""
     ti_id = context["task_instance"].id
     upsert_hitl_detail(
         ti_id=ti_id,
@@ -106,7 +154,23 @@ def _request_input_and_wait(
     task.log.info("Waiting for response")
     for notifier in notifiers:
         notifier(context)
+    return ti_id
 
+
+def _stop_until_response(
+    task: BaseOperator,
+    *,
+    ti_id: UUID,
+    options: list[str],
+    defaults: list[str] | None,
+    multiple: bool,
+    params: dict[str, Any],
+    timeout: timedelta | None,
+    timeout_datetime: datetime | None,
+    method_name: str,
+    kwargs: dict[str, Any] | None = None,
+) -> NoReturn:
+    """Stop the task until the response to its request arrives, resuming it in ``method_name``."""
     if AIRFLOW_V_3_3_PLUS:
         # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
         # is resumed by the Core API response handler or the scheduler timeout sweep, so the
@@ -248,9 +312,18 @@ class HITLOperator(BaseOperator):
         enforced by the scheduler's ``awaiting_input`` timeout sweep; on older versions it is passed
         to the triggerer. This is separate from ``execution_timeout``, which controls the execution
         phase before the task starts waiting. If not set, no timeout is applied to the human response wait.
+    :param response_poll_window: How long the task keeps running and checking for a response before
+        it frees its worker slot and waits for the response in ``awaiting_input``. A response that
+        arrives inside the window is used straight away, without the task being scheduled again.
+        The window holds a worker slot and a pool slot, counts against ``execution_timeout``, and
+        is part of ``response_timeout``, not added to it. If not set, the task stops running as soon
+        as the request is written. Needs Airflow 3.5+; older versions ignore it with a warning.
     """
 
     template_fields: Collection[str] = ("subject", "body")
+
+    # Seconds between response checks during ``response_poll_window``.
+    _response_poll_interval: float = 1.0
 
     def __init__(
         self,
@@ -264,6 +337,7 @@ class HITLOperator(BaseOperator):
         notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
         assigned_users: HITLUser | list[HITLUser] | None = None,
         response_timeout: timedelta | None = None,
+        response_poll_window: timedelta | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -283,6 +357,7 @@ class HITLOperator(BaseOperator):
             self.execution_timeout = None
 
         self.response_timeout = response_timeout
+        self.response_poll_window = response_poll_window
         self.subject = subject
         self.body = body
 
@@ -308,6 +383,7 @@ class HITLOperator(BaseOperator):
         self.validate_options()
         self.validate_params()
         self.validate_defaults()
+        self.validate_response_poll_window()
 
         # Runtime/subclass additions to the summary; config-derived entries live in the property.
         self.hitl_summary_extra: dict[str, Any] = {}
@@ -366,6 +442,24 @@ class HITLOperator(BaseOperator):
         """
         validate_defaults(self.defaults, self.options, self.multiple)
 
+    def validate_response_poll_window(self) -> None:
+        """
+        Validate the `response_poll_window` attribute of the instance.
+
+        Raises:
+            ValueError: If `response_poll_window` is negative, or not shorter than `execution_timeout`,
+                which would kill the task inside the window instead of letting it wait for the response.
+        """
+        if self.response_poll_window is None:
+            return
+        if self.response_poll_window < timedelta(0):
+            raise ValueError('"response_poll_window" cannot be negative.')
+        if self.execution_timeout is not None and self.response_poll_window >= self.execution_timeout:
+            raise ValueError(
+                f'"response_poll_window" ({self.response_poll_window}) must be shorter than '
+                f'"execution_timeout" ({self.execution_timeout}).'
+            )
+
     def execute(self, context: Context):
         """
         Write the Human-in-the-loop request, then wait for a user response.
@@ -384,7 +478,7 @@ class HITLOperator(BaseOperator):
             timeout_datetime.isoformat() if timeout_datetime else None
         )
 
-        _request_input_and_wait(
+        ti_id = _write_request(
             self,
             context,
             options=self.options,
@@ -395,10 +489,67 @@ class HITLOperator(BaseOperator):
             params=self.serialized_params,
             assigned_users=self.assigned_users,
             notifiers=self.notifiers,
-            timeout=self.response_timeout,
+        )
+
+        response_timeout = self.response_timeout
+        if self.response_poll_window and not TASK_SDK_SERVES_HITL_RESPONSE:
+            self.log.warning(
+                "Ignoring response_poll_window: this Task SDK does not let a running task read its "
+                "Human-in-the-loop response. Upgrade Airflow to use it."
+            )
+        elif self.response_poll_window:
+            poll_window = self.response_poll_window
+            if timeout_datetime:
+                poll_window = min(poll_window, timeout_datetime - utcnow())
+            if event := self._poll_for_response(ti_id=ti_id, poll_window=poll_window):
+                return self.execute_complete(context, event)
+            if timeout_datetime:
+                # The window used up part of the response time; wait only for what is left of it.
+                response_timeout = max(timeout_datetime - utcnow(), timedelta(0))
+
+        # A response that lands after the last poll is picked up when the task parks.
+        _stop_until_response(
+            self,
+            ti_id=ti_id,
+            options=self.options,
+            defaults=self.defaults,
+            multiple=self.multiple,
+            params=self.serialized_params,
+            timeout=response_timeout,
             timeout_datetime=timeout_datetime,
             method_name="execute_complete",
         )
+
+    def _poll_for_response(self, *, ti_id: UUID, poll_window: timedelta) -> dict[str, Any] | None:
+        """
+        Check for a response until ``poll_window`` has passed, while the task is still running.
+
+        Returns the event a resumed task hands ``execute_complete`` (the keys of
+        ``HITLTriggerEventSuccessPayload``), or ``None`` when no response arrived in time or it could
+        not be read; the task then waits for it as usual.
+        """
+        self.log.info("Checking for a response for up to %s before freeing the worker slot", poll_window)
+        deadline = time.monotonic() + poll_window.total_seconds()
+        while True:
+            try:
+                response = get_hitl_detail_content_detail(ti_id)
+            except AirflowRuntimeError:
+                self.log.warning("Could not check for a response; waiting for it instead", exc_info=True)
+                return None
+            if (responded_at := response.responded_at) is not None:
+                return {
+                    "chosen_options": list(response.chosen_options or []),
+                    "params_input": response.params_input or {},
+                    "responded_at": responded_at,
+                    "responded_by_user": HITLTrigger._get_responder(response),
+                    "timedout": False,
+                }
+            if (remaining := deadline - time.monotonic()) <= 0:
+                self.log.info(
+                    "No response within %s; waiting for it without holding the worker slot", poll_window
+                )
+                return None
+            time.sleep(min(self._response_poll_interval, remaining))
 
     @property
     def serialized_params(self) -> dict[str, dict[str, Any]]:

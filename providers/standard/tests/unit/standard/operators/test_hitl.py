@@ -43,13 +43,17 @@ from airflow.providers.common.compat.sdk import AirflowException, DownstreamTask
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.hitl import (
+    TASK_SDK_SERVES_HITL_RESPONSE,
     ApprovalOperator,
     HITLBranchOperator,
     HITLEntryOperator,
     HITLOperator,
 )
 from airflow.sdk import Param, timezone
+from airflow.sdk.api.datamodels._generated import HITLDetailResponse, HITLUser as APIHITLUser
 from airflow.sdk.definitions.param import ParamsDict
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse
 from airflow.sdk.execution_time.hitl import HITLUser
 from airflow.utils.state import TaskInstanceState
 
@@ -60,7 +64,10 @@ if AIRFLOW_V_3_3_PLUS:
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from sqlalchemy.orm import Session
+    from time_machine import TimeMachineFixture
 
     from airflow.sdk import Context
     from airflow.sdk.types import Operator
@@ -1426,3 +1433,249 @@ class TestHITLSummaryForListeners:
             "responded_by_user": {"id": "admin", "name": "Admin"},
             "approved": True,
         }
+
+
+UNANSWERED = HITLDetailResponse(response_received=False, responded_at=None, chosen_options=None)
+
+
+def _answered(chosen_options: list[str]) -> HITLDetailResponse:
+    return HITLDetailResponse(
+        response_received=True,
+        responded_by_user=APIHITLUser(id="alice", name="Alice"),
+        responded_at=DEFAULT_DATE,
+        chosen_options=chosen_options,
+        params_input={},
+    )
+
+
+class _FakeClock:
+    """Stands in for the operator's ``time`` module so poll-window sleeps advance time instantly."""
+
+    def __init__(self, time_machine: TimeMachineFixture) -> None:
+        self.time_machine = time_machine
+        self.elapsed = 0.0
+        # How far the wall clock moves per second slept; above 1 simulates time lost outside the sleeps.
+        self.wall_clock_rate = 1.0
+
+    def monotonic(self) -> float:
+        return self.elapsed
+
+    def sleep(self, seconds: float) -> None:
+        self.elapsed += seconds
+        self.time_machine.shift(seconds * self.wall_clock_rate)
+
+
+@pytest.fixture
+def fake_clock(time_machine: TimeMachineFixture) -> Iterator[_FakeClock]:
+    time_machine.move_to(DEFAULT_DATE, tick=False)
+    with patch("airflow.providers.standard.operators.hitl.time", autospec=True) as mock_time:
+        clock = _FakeClock(time_machine)
+        mock_time.monotonic.side_effect = clock.monotonic
+        mock_time.sleep.side_effect = clock.sleep
+        yield clock
+
+
+requires_hitl_response_in_task = pytest.mark.skipif(
+    not TASK_SDK_SERVES_HITL_RESPONSE, reason="Task SDK cannot read a HITL response from a running task"
+)
+
+
+class TestHITLOperatorResponsePollWindow:
+    @requires_hitl_response_in_task
+    def test_response_inside_window_completes_without_parking(
+        self, mock_supervisor_comms: Any, fake_clock: _FakeClock
+    ) -> None:
+        op = ApprovalOperator(
+            task_id="approve",
+            subject="Ship it?",
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        mock_supervisor_comms.send.side_effect = [UNANSWERED, UNANSWERED, _answered(["Approve"])]
+
+        with patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"):
+            result = op.execute({"task_instance": MagicMock(id=uuid4())})
+
+        assert result == {
+            "chosen_options": ["Approve"],
+            "params_input": {},
+            "responded_at": DEFAULT_DATE,
+            "responded_by_user": {"id": "alice", "name": "Alice"},
+        }
+        assert op.hitl_summary["approved"] is True
+        assert mock_supervisor_comms.send.call_count == 3
+        assert fake_clock.elapsed == 2
+
+    @requires_hitl_response_in_task
+    def test_response_inside_window_goes_through_execute_complete_checks(
+        self, mock_supervisor_comms: Any, fake_clock: _FakeClock
+    ) -> None:
+        op = ApprovalOperator(
+            task_id="approve",
+            subject="Ship it?",
+            fail_on_reject=True,
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        mock_supervisor_comms.send.side_effect = [_answered(["Reject"])]
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            pytest.raises(HITLRejectException),
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})
+
+    @requires_hitl_response_in_task
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input parking needs Airflow >= 3.3")
+    @pytest.mark.parametrize(
+        ("response_timeout", "expected_elapsed", "expected_park_timeout"),
+        [
+            pytest.param(
+                datetime.timedelta(minutes=10),
+                120,
+                datetime.timedelta(minutes=8),
+                id="window-spent-from-response-timeout",
+            ),
+            pytest.param(
+                datetime.timedelta(seconds=30),
+                30,
+                datetime.timedelta(0),
+                id="window-capped-at-response-timeout",
+            ),
+            pytest.param(None, 120, None, id="no-response-timeout"),
+        ],
+    )
+    def test_no_response_inside_window_parks_with_remaining_response_timeout(
+        self,
+        mock_supervisor_comms: Any,
+        fake_clock: _FakeClock,
+        response_timeout: datetime.timedelta | None,
+        expected_elapsed: int,
+        expected_park_timeout: datetime.timedelta | None,
+    ) -> None:
+        op = HITLOperator(
+            task_id="hitl",
+            subject="Pick one",
+            options=["1", "2"],
+            response_timeout=response_timeout,
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        mock_supervisor_comms.send.return_value = UNANSWERED
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            pytest.raises(TaskAwaitingInput) as exc_info,
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})
+
+        assert fake_clock.elapsed == expected_elapsed
+        assert exc_info.value.timeout == expected_park_timeout
+
+    def test_without_window_parks_without_checking_for_a_response(self, mock_supervisor_comms: Any) -> None:
+        op = HITLOperator(task_id="hitl", subject="Pick one", options=["1", "2"])
+
+        _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
+
+        mock_supervisor_comms.send.assert_not_called()
+
+    def test_window_ignored_when_task_sdk_cannot_read_the_response(
+        self, mock_supervisor_comms: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        op = HITLOperator(
+            task_id="hitl",
+            subject="Pick one",
+            options=["1", "2"],
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+
+        with patch("airflow.providers.standard.operators.hitl.TASK_SDK_SERVES_HITL_RESPONSE", False):
+            _run_execute_until_park(op, {"task_instance": MagicMock(id=uuid4())})
+
+        mock_supervisor_comms.send.assert_not_called()
+        assert any(message.startswith("Ignoring response_poll_window") for message in caplog.messages)
+
+    @requires_hitl_response_in_task
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input parking needs Airflow >= 3.3")
+    def test_unreadable_response_parks_instead_of_failing(
+        self, mock_supervisor_comms: Any, fake_clock: _FakeClock
+    ) -> None:
+        op = HITLOperator(
+            task_id="hitl",
+            subject="Pick one",
+            options=["1", "2"],
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        mock_supervisor_comms.send.side_effect = AirflowRuntimeError(
+            ErrorResponse(error=ErrorType.API_SERVER_ERROR, detail={"status_code": 503})
+        )
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            pytest.raises(TaskAwaitingInput),
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})
+
+        assert mock_supervisor_comms.send.call_count == 1
+        assert fake_clock.elapsed == 0
+
+    @requires_hitl_response_in_task
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input parking needs Airflow >= 3.3")
+    def test_window_overrunning_response_timeout_parks_with_no_time_left(
+        self, mock_supervisor_comms: Any, fake_clock: _FakeClock
+    ) -> None:
+        op = HITLOperator(
+            task_id="hitl",
+            subject="Pick one",
+            options=["1", "2"],
+            response_timeout=datetime.timedelta(seconds=30),
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        mock_supervisor_comms.send.return_value = UNANSWERED
+        fake_clock.wall_clock_rate = 2.0
+
+        with (
+            patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"),
+            pytest.raises(TaskAwaitingInput) as exc_info,
+        ):
+            op.execute({"task_instance": MagicMock(id=uuid4())})
+
+        assert exc_info.value.timeout == datetime.timedelta(0)
+
+    @requires_hitl_response_in_task
+    def test_params_input_from_inside_window_is_validated_and_applied(
+        self, mock_supervisor_comms: Any, fake_clock: _FakeClock
+    ) -> None:
+        op = HITLEntryOperator(
+            task_id="entry",
+            subject="Why?",
+            params={"comment": Param("", type="string")},
+            response_poll_window=datetime.timedelta(minutes=2),
+        )
+        answer = _answered(["OK"])
+        answer.params_input = {"comment": "looks good"}
+        mock_supervisor_comms.send.side_effect = [answer]
+
+        with patch("airflow.providers.standard.operators.hitl.upsert_hitl_detail"):
+            result = op.execute({"task_instance": MagicMock(id=uuid4())})
+
+        assert result["params_input"] == {"comment": "looks good"}
+        assert op.params["comment"] == "looks good"
+
+    @pytest.mark.parametrize(
+        ("extra_kwargs", "match"),
+        [
+            pytest.param(
+                {"response_poll_window": datetime.timedelta(seconds=-1)}, "cannot be negative", id="negative"
+            ),
+            pytest.param(
+                {
+                    "response_poll_window": datetime.timedelta(minutes=5),
+                    "response_timeout": datetime.timedelta(hours=1),
+                    "execution_timeout": datetime.timedelta(minutes=5),
+                },
+                "must be shorter than",
+                id="not-shorter-than-execution-timeout",
+            ),
+        ],
+    )
+    def test_invalid_response_poll_window(self, extra_kwargs: dict[str, Any], match: str) -> None:
+        with pytest.raises(ValueError, match=match):
+            HITLOperator(task_id="hitl", subject="Pick one", options=["1", "2"], **extra_kwargs)
