@@ -54,7 +54,6 @@
   },
   "history": "기록",
   "importErrors": {
-    "bundle": "TODO: translate: Bundle",
     "dagImportError_one": "Dag 가져오기 오류",
     "dagImportError_other": "Dag 가져오기 오류들",
     "searchByFile": "파일로 검색",
