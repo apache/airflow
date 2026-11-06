@@ -23,7 +23,7 @@ import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
-migration = import_module("airflow.migrations.versions.0154_3_5_0_add_deadline_alert_run_type_filter")
+migration = import_module("airflow.migrations.versions.0155_3_5_0_add_deadline_alert_run_type_filter")
 
 
 @pytest.mark.db_test
