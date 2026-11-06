@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 import ssl
 import sys
 from unittest import mock
@@ -133,6 +134,18 @@ class TestCliApiServer(_CommonCLIUvicornTestClass):
 
             # Verify that the environment variable was set and cleaned up correctly
             mock_environ.__setitem__.assert_has_calls(expected_setitem_calls)
+
+    @pytest.mark.parametrize("dev_mode", [True, False])
+    @mock.patch("airflow.cli.commands.api_server_command.run_command_with_daemon_option", autospec=True)
+    @mock.patch("fastapi_cli.cli._run", autospec=True)
+    def test_unknown_apps_fail_before_server_starts(self, mock_dev_run, mock_run_with_daemon, dev_mode):
+        args = ["api-server", "--apps", "foo"] + (["--dev"] if dev_mode else [])
+
+        with pytest.raises(ValueError, match=re.escape("Unknown API apps ['foo']")):
+            api_server_command.api_server(self.parser.parse_args(args))
+
+        mock_dev_run.assert_not_called()
+        mock_run_with_daemon.assert_not_called()
 
     @pytest.mark.parametrize(
         ("cli_args", "expected_additional_kwargs"),

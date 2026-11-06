@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import threading
 from contextlib import asynccontextmanager
 from unittest import mock
@@ -181,6 +182,26 @@ def test_all_apps(mock_create_task_exec_api, mock_init_plugins, mock_init_views)
 
     # Assert that execution-related functions were also called
     mock_create_task_exec_api.assert_called_once_with(dag_bag=test_app.state.dag_bag)
+
+
+@pytest.mark.parametrize(
+    ("apps", "unknown_apps"),
+    [
+        ("webhook", ["webhook"]),
+        ("core,foo", ["foo"]),
+        ("core, execution", [" execution"]),
+        ("core,", [""]),
+    ],
+)
+def test_create_app_rejects_unknown_apps(apps, unknown_apps):
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            f"Unknown API apps {unknown_apps} in --apps / AIRFLOW_API_APPS; "
+            "valid values are: core, execution, all"
+        ),
+    ):
+        app_module.create_app(apps=apps)
 
 
 @pytest.mark.parametrize("apps", ["all", "core", "execution"])

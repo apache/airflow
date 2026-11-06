@@ -228,6 +228,12 @@ def api_server(args: Namespace):
     worker_timeout = args.worker_timeout
     proxy_headers = args.proxy_headers
 
+    # create_app also validates, but only inside the server process, where a failure is retried by
+    # uvicorn's multi-worker supervisor and the --dev reloader, or hidden in the --daemon log.
+    from airflow.api_fastapi.app import validate_apps
+
+    validate_apps(apps)
+
     # Ensure we set this now, so that each subprocess gets the same value
     from airflow.api_fastapi.auth.tokens import get_signing_args
 
