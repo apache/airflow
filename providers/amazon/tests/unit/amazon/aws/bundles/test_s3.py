@@ -319,7 +319,7 @@ class TestS3ArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "subproject1" / "dag_a.py").is_file()
-        assert bundle._archive_etag_path().is_file()
+        assert bundle._get_archive_etag_path().is_file()
         assert sorted(path.relative_to(bundle.path).as_posix() for path in bundle.path.rglob("*")) == [
             "dag_01.py",
             "subproject1",
@@ -353,7 +353,7 @@ class TestS3ArchiveDagBundle:
 
         bundle = self._archive_bundle()
         bundle.initialize()
-        marker = bundle._archive_etag_path()
+        marker = bundle._get_archive_etag_path()
         etag = marker.read_text()
         assert (bundle.path / "dag_01.py").is_file()
 
@@ -383,7 +383,7 @@ class TestS3ArchiveDagBundle:
 
         archive_bundle = self._archive_bundle()
         archive_bundle.initialize()
-        marker = archive_bundle._archive_etag_path()
+        marker = archive_bundle._get_archive_etag_path()
         assert marker.is_file()
         assert (archive_bundle.path / "archive_only.py").is_file()
 
@@ -424,7 +424,7 @@ class TestS3ArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").is_file()
-        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+        assert not list(bundle._get_archive_state_dir().glob("archive-staging-*"))
 
     def test_archive_staging_restores_previous_bundle_when_swap_fails(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
@@ -454,7 +454,7 @@ class TestS3ArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").read_text() == "old"
-        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+        assert not list(bundle._get_archive_state_dir().glob("archive-staging-*"))
 
     def test_refresh_removes_only_this_bundles_stale_staging_dir(self, s3_bucket, s3_client):
         archive = _make_archive({"dag_01.py": b"test data"})
@@ -463,7 +463,7 @@ class TestS3ArchiveDagBundle:
         bundle.initialize()
 
         storage_root = bundle.path.parent
-        state_dir = bundle._archive_state_dir()
+        state_dir = bundle._get_archive_state_dir()
         stale = state_dir / "archive-staging-dead"
         stale.mkdir()
         (stale / "orphan.txt").write_text("left by a killed process")
@@ -484,7 +484,7 @@ class TestS3ArchiveDagBundle:
         )
         bundle = self._archive_bundle()
         bundle.initialize()
-        marker = bundle._archive_etag_path()
+        marker = bundle._get_archive_etag_path()
         etag = marker.read_text()
         marker.unlink()
 
@@ -508,7 +508,7 @@ class TestS3ArchiveDagBundle:
         )
         bundle = self._archive_bundle()
         bundle.initialize()
-        bundle._archive_etag_path().unlink()
+        bundle._get_archive_etag_path().unlink()
 
         error = ClientError(
             {"Error": {"Code": "PreconditionFailed", "Message": "precondition failed"}},
@@ -519,7 +519,7 @@ class TestS3ArchiveDagBundle:
             bundle.refresh()
 
         assert (bundle.path / "dag_01.py").is_file()
-        assert not list(bundle._archive_state_dir().glob("archive-staging-*"))
+        assert not list(bundle._get_archive_state_dir().glob("archive-staging-*"))
 
     def test_refresh_rejects_archive_member_that_escapes_bundle(self, mocked_s3_resource, s3_client):
         mocked_s3_resource.create_bucket(Bucket=S3_BUCKET_NAME)
