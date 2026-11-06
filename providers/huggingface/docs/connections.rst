@@ -17,8 +17,9 @@ explicit non-default connection ID is provided but cannot be resolved, the
 hook raises Airflow's connection-not-found exception. An existing connection
 with no password disables SDK authentication fallback by passing ``token=False``.
 
-Public dataset loads can use anonymous access. Private or gated reads need a
-token with read permission. Publishing needs write permission to the target
+Public dataset loads can use anonymous access, but passing a token can provide
+better rate limits on the Hugging Face Hub. Private or gated reads need a token
+with read permission. Publishing needs write permission to the target
 repository. Prefer separate least-privilege tokens and store them in an Airflow
 secrets backend or encrypted connection. Do not put tokens in DAG code or
 operator parameters. The provider does not log token values; Airflow masks the
