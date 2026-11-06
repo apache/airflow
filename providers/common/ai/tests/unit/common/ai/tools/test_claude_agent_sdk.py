@@ -20,6 +20,7 @@ import asyncio
 import copy
 import importlib
 import json
+import re
 import sys
 from collections.abc import AsyncIterator
 from typing import Any
@@ -32,8 +33,10 @@ pytest.importorskip("claude_agent_sdk")
 from claude_agent_sdk import AssistantMessage, Message, ResultMessage, TextBlock, UserMessage
 from pydantic_ai.exceptions import ModelRetry
 
+from airflow.providers.common.ai.exceptions import MCPToolsetNotSupportedError
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult, collect_tools
 from airflow.providers.common.ai.tools.claude_agent_sdk import AirflowTools
+from airflow.providers.common.ai.toolsets.mcp import MCPToolset
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 
@@ -179,6 +182,13 @@ async def _request_real_server(tools: AirflowTools, method: str, params: dict[st
 
 
 class TestTools:
+    def test_an_mcp_toolset_points_to_the_sdks_mcp_servers(self):
+        with pytest.raises(
+            MCPToolsetNotSupportedError,
+            match=re.escape("build_options(mcp_servers=...) and its tools (mcp__<name>__*) to allowed_tools"),
+        ):
+            AirflowTools(MCPToolset("mcp_default"))
+
     def test_each_toolset_tool_becomes_an_mcp_tool_with_its_schema(self):
         tools, handlers = _build_tools(_tool(ToolResult("ok")), SQLToolset("pg_default"))
 

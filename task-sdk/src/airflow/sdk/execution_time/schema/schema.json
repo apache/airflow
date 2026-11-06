@@ -3156,6 +3156,78 @@
       "title": "HITLDetailRequestResult",
       "type": "object"
     },
+    "HITLDetailResponseResult": {
+      "description": "Response to GetHITLDetailResponse request.",
+      "properties": {
+        "response_received": {
+          "title": "Response Received",
+          "type": "boolean"
+        },
+        "responded_by_user": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HITLUser"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "responded_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Responded At"
+        },
+        "chosen_options": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Chosen Options"
+        },
+        "params_input": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Params Input"
+        },
+        "type": {
+          "const": "HITLDetailResponseResult",
+          "default": "HITLDetailResponseResult",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "response_received",
+        "responded_at",
+        "chosen_options"
+      ],
+      "title": "HITLDetailResponseResult",
+      "type": "object"
+    },
     "HITLUser": {
       "description": "Schema for a Human-in-the-loop users.",
       "properties": {
