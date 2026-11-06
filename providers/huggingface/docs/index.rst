@@ -34,7 +34,7 @@ Install into an Airflow environment with Python 3.11 through 3.14:
 
    pip install apache-airflow-providers-huggingface
 
-The provider requires Apache Airflow 3.0 or later, ``datasets>=3.4.0,<5``,
+The provider requires Apache Airflow 3.0 or later, ``datasets>=4.0.0,<5``,
 and ``huggingface-hub>=0.24,<2``. For ``s3://`` and ``gs://`` artifacts,
 install the corresponding storage provider and filesystem dependency. Select
 the matching Airflow connection in the URI's user-info section, for example
@@ -112,41 +112,6 @@ PIP package          Version required
 ``huggingface-hub``  ``>=0.24,<2``
 ===================  ==================
 
-Optional cross provider package dependencies
---------------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider distributions in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-huggingface[common.compat]
-
-
-==================================================================================================================  =================
-Dependent package                                                                                                   Extra
-==================================================================================================================  =================
-`apache-airflow-providers-common-compat <https://airflow.apache.org/docs/apache-airflow-providers-common-compat>`_  ``common.compat``
-==================================================================================================================  =================
-
-Optional dependencies
----------------------
-
-These extras install optional third-party libraries that enable additional features of the provider.
-Install them when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-huggingface[common.compat]
-
-
-=================  ==========================================
-Extra              Dependencies
-=================  ==========================================
-``common.compat``  ``apache-airflow-providers-common-compat``
-=================  ==========================================
 
 Downloading official packages
 -----------------------------

@@ -14,4 +14,4 @@ Initial public release of the Hugging Face provider for Apache Airflow.
 * Set the artifact contract to JSON manifests and per-split Parquet objects.
   Direct streaming publication is included; standalone filtering and split
   assembly operators are not included in the v1 public API.
-* Documented the minimum supported "datasets>=3.4.0,<5" version for Hub commit metadata support.
+* Documented the minimum supported "datasets>=4.0.0,<5" version for Hub commit metadata support.

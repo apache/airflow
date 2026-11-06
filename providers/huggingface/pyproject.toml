@@ -59,15 +59,9 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
   "apache-airflow>=3.0,<4",
-  "datasets>=3.4.0,<5",
+  "apache-airflow-providers-common-compat>=1.8.0",
+  "datasets>=4.0.0,<5",
   "huggingface-hub>=0.24,<2",
-]
-
-# The optional dependencies should be modified in place in the generated file
-# Any change in the dependencies is preserved when the file is regenerated
-[project.optional-dependencies]
-"common.compat" = [
-    "apache-airflow-providers-common-compat"
 ]
 
 [dependency-groups]
