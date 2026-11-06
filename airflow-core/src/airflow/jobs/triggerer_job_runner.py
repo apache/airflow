@@ -663,7 +663,13 @@ class _CappedBytesLogger(structlog.BytesLogger):
                         os.replace(self._path, self.rotated_path)
                     self.ensure_open()
                     if self._on_rotate is not None:
-                        self._on_rotate()
+                        try:
+                            self._on_rotate()
+                        except Exception:
+                            # The line is written: the caller, reading the runner's logs, must not see this.
+                            log.exception(
+                                "Failed to upload a rotated trigger log", path=str(self.rotated_path)
+                            )
             except OSError:
                 # Reopened by the next line: a file removed meanwhile (to free a full disk) frees its space.
                 with suppress(OSError):
@@ -1080,28 +1086,31 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         return upload is None or upload.done()
 
     def _upload_rotated(self, trigger_id: int, log_path: str) -> None:
-        from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
-
-        if (handler := load_remote_log_handler()) is None:
-            return
+        # Called by the line that rotated the file: the rest runs in the pool, not to hold up the runner's logs.
         if self._rotated_pool is None:
             self._rotated_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="trigger-log-rotated")
-        path = rotated = trigger_log_rotated_path(log_path)
-        base = Path(conf.get("logging", "base_log_folder"))
-        if not _handler_keeps_no_copy(handler):
-            # A handler that stores files gets each rotated file as its own object (see trigger_log_part_path),
-            # numbered by this triggerer, the only one writing to the directory. Counted here, not from the disk:
-            # a watcher that comes back gets a new file, and the parts it uploaded before are gone locally.
-            for done in (base / rotated).parent.glob("*.log"):
-                if done.name != TRIGGER_LOG_FILE_NAME:
-                    with suppress(OSError):
-                        done.unlink()  # the previous one, its upload done: one rotated file at a time
-            self._rotated_parts[trigger_id] = part = self._rotated_parts.get(trigger_id, 0) + 1
-            path = trigger_log_part_path(log_path, part)
+        rotated = trigger_log_rotated_path(log_path)
+        # Numbered here: a watcher's next rotation waits for this upload (see _rotated_upload_done).
+        part = self._rotated_parts.get(trigger_id, 0) + 1
 
         def upload() -> None:
+            from airflow.sdk.log import load_remote_log_handler  # noqa: SDK001
+
+            path = rotated
             try:
-                if path != rotated:
+                if (handler := load_remote_log_handler()) is None:
+                    return
+                if not _handler_keeps_no_copy(handler):
+                    # A handler that stores files gets each rotated file as its own object (see
+                    # trigger_log_part_path), numbered by this triggerer, the only one writing to the directory.
+                    # Counted, not read from the disk: a watcher that comes back gets a new file, and the parts
+                    # it uploaded before are gone locally.
+                    base = Path(conf.get("logging", "base_log_folder"))
+                    for done in (base / rotated).parent.glob("*.log"):
+                        if done.name != TRIGGER_LOG_FILE_NAME:
+                            with suppress(OSError):
+                                done.unlink()  # the previous one, its upload done: one rotated file at a time
+                    path = trigger_log_part_path(log_path, part)
                     # Named only now: until then the triggerer's log server serves it as the rotated file.
                     os.replace(base / rotated, base / path)
                 handler.upload(path, None)
@@ -1109,6 +1118,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 log.exception("Failed to upload a rotated trigger log", trigger_id=trigger_id, path=path)
 
         self._pending_rotated_uploads[trigger_id] = self._rotated_pool.submit(upload)
+        self._rotated_parts[trigger_id] = part
 
     def _upload_and_close(self, trigger_id: int, factory: TriggerLoggingFactory) -> None:
         if (rotated_upload := self._pending_rotated_uploads.pop(trigger_id, None)) is not None:

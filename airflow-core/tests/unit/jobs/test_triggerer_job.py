@@ -1944,6 +1944,50 @@ class TestWatcherLogFile:
             f"{job_dir}/trigger.log",
         ]
 
+    def test_a_rotation_that_fails_leaves_the_line_written(self, tmp_path, mocker):
+        # E.g. no thread left for the pool: raised out of the line, it stops the reading of the runner's logs.
+        triggerer_log = mocker.patch("airflow.jobs.triggerer_job_runner.log")
+        on_rotate = mocker.Mock(side_effect=RuntimeError("can't start new thread"))
+        with conf_vars({("logging", "base_log_folder"): str(tmp_path)}):
+            factory = self._factory(200, on_rotate=on_rotate)
+            logger = factory(self._processors())
+            n = 0
+            while not on_rotate.called:
+                logger.log(logging.INFO, "line", n=n)
+                n += 1
+            logger.log(logging.INFO, "line", n=n)
+            factory.close()
+
+        files = [tmp_path / "triggers/1/5/rotated/trigger.log", tmp_path / "triggers/1/5/trigger.log"]
+        numbers = [json.loads(line)["n"] for f in files for line in f.read_text().splitlines()]
+        assert numbers == list(range(n + 1))
+        assert on_rotate.call_count == 1
+        assert triggerer_log.exception.call_count == 1
+        triggerer_log.log.assert_not_called()  # not sent to the triggerer's output as a line the file lost
+
+    def test_a_rotation_only_queues_its_upload(self, jobless_supervisor, mocker, tmp_path):
+        # The line that rotated the file was read from the runner's log socket: nothing more is done there.
+        store = self._Store(tmp_path)
+        threads = []
+
+        def load_remote_log_handler():
+            threads.append(threading.current_thread().name)
+            return store
+
+        mocker.patch("airflow.sdk.log.load_remote_log_handler", side_effect=load_remote_log_handler)
+        with conf_vars(
+            {("logging", "base_log_folder"): str(tmp_path), ("triggerer", "trigger_log_max_bytes"): "400"}
+        ):
+            self._create(jobless_supervisor, self._watcher_trigger(mocker, 42), mocker)
+            self._log(jobless_supervisor, 42, range(100))
+
+        assert len(threads) >= 4
+        assert all(name.startswith("trigger-log-rotated") for name in threads)
+        job_dir = f"triggers/42/{jobless_supervisor.id}"
+        assert [path for path, _, _ in store.uploads] == [
+            f"{job_dir}/rotated/trigger.{n:06d}.log" for n in range(1, len(threads) + 1)
+        ]
+
     def test_at_most_max_open_files_stay_open(self, jobless_supervisor, mocker, tmp_path):
         mocker.patch("airflow.sdk.log.configure_logging")
         jobless_supervisor.watcher_log_max_open_files = 2
