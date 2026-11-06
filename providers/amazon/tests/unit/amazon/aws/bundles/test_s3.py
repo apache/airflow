@@ -319,8 +319,13 @@ class TestS3ArchiveDagBundle:
 
         assert (bundle.path / "dag_01.py").is_file()
         assert (bundle.path / "subproject1" / "dag_a.py").is_file()
+        assert bundle._get_archive_etag_path() == bundle.path / ".archive_etag"
         assert bundle._get_archive_etag_path().is_file()
-        assert sorted(path.relative_to(bundle.path).as_posix() for path in bundle.path.rglob("*")) == [
+        assert sorted(
+            path.relative_to(bundle.path).as_posix()
+            for path in bundle.path.rglob("*")
+            if path != bundle._get_archive_etag_path()
+        ) == [
             "dag_01.py",
             "subproject1",
             "subproject1/dag_a.py",
@@ -355,12 +360,10 @@ class TestS3ArchiveDagBundle:
         bundle.initialize()
         marker = bundle._get_archive_etag_path()
         etag = marker.read_text()
-        assert (bundle.path / "dag_01.py").is_file()
+        assert marker == bundle.path / ".archive_etag"
+        assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
 
         shutil.rmtree(bundle.path)
-        assert not bundle.path.exists()
-        assert marker.is_file()
-        assert marker.read_text() == etag
 
         client = bundle.s3_hook.get_conn()
         recorded: list[dict] = []
@@ -375,6 +378,31 @@ class TestS3ArchiveDagBundle:
 
         assert recorded
         assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
+        assert bundle._get_archive_etag_path().read_text() == etag
+
+    def test_refresh_restages_when_only_etag_marker_remains(self, s3_bucket, s3_client):
+        archive = _make_archive({"dag_01.py": b"test data"})
+        s3_client.put_object(Bucket=S3_BUCKET_NAME, Key=S3_ARCHIVE_KEY, Body=archive)
+
+        bundle = self._archive_bundle()
+        bundle.initialize()
+        (bundle.path / "dag_01.py").unlink()
+        assert bundle._get_archive_etag_path().is_file()
+        assert not bundle._bundle_dir_has_files()
+
+        client = bundle.s3_hook.get_conn()
+        recorded: list[dict] = []
+        original = client.get_object
+
+        def record_get_object(**kwargs):
+            recorded.append(kwargs)
+            return original(**kwargs)
+
+        with mock.patch.object(client, "get_object", record_get_object):
+            bundle.refresh()
+
+        assert recorded
+        assert (bundle.path / "dag_01.py").read_bytes() == b"test data"
 
     def test_prefix_refresh_drops_archive_etag_marker(self, s3_bucket, s3_client):
         archive = _make_archive({"archive_only.py": b"from archive"})
@@ -382,8 +410,7 @@ class TestS3ArchiveDagBundle:
 
         archive_bundle = self._archive_bundle()
         archive_bundle.initialize()
-        marker = archive_bundle._get_archive_etag_path()
-        assert marker.is_file()
+        assert (archive_bundle.path / ".archive_etag").is_file()
         assert (archive_bundle.path / "archive_only.py").is_file()
 
         prefix_bundle = S3DagBundle(
@@ -393,7 +420,8 @@ class TestS3ArchiveDagBundle:
             bucket_name=S3_BUCKET_NAME,
         )
         prefix_bundle.initialize()
-        assert not marker.exists()
+        assert archive_bundle.path == prefix_bundle.path
+        assert not (prefix_bundle.path / ".archive_etag").exists()
         assert (prefix_bundle.path / "dag_01.py").is_file()
         assert not (prefix_bundle.path / "archive_only.py").exists()
 
@@ -401,6 +429,7 @@ class TestS3ArchiveDagBundle:
         archive_bundle.initialize()
         assert (archive_bundle.path / "archive_only.py").read_bytes() == b"from archive"
         assert not (archive_bundle.path / "dag_01.py").exists()
+        assert (archive_bundle.path / ".archive_etag").is_file()
 
     def test_initialize_fails_when_archive_is_missing(self, s3_bucket, s3_client):
         bundle = self._archive_bundle()
