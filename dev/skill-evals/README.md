@@ -143,6 +143,12 @@ prek clean                # prek-provisioned node envs
 Cases live in `cases/*.yaml`. Add entries to an existing file or
 create a new one — no config changes needed.
 
+Each case file needs a sibling `<name>.schema.json` with the JSON
+schema of the answer its assertions read, e.g. `newsfragment.yaml`
+pairs with `newsfragment.schema.json`. The agent is asked to reply in
+that shape, so different files can test different decisions. The eval
+refuses to start if a case file has no schema.
+
 ```yaml
 - description: "Scheduler bugfix (#64322): no newsfragment"
   vars:
@@ -155,8 +161,8 @@ create a new one — no config changes needed.
       value: 'output.should_create === false'
 ```
 
-The agent returns structured JSON (`{should_create, type, rationale}`).
-Use `output.should_create` directly in assertions.
+For `newsfragment.yaml` the agent returns `{should_create, type, rationale}`,
+so assertions read `output.should_create` directly.
 
 ## How it works
 
@@ -165,14 +171,16 @@ Use `output.should_create` directly in assertions.
 2. Generates a [promptfoo](https://github.com/promptfoo/promptfoo)
    config for the selected runtime. Claude uses promptfoo's
    `anthropic:claude-agent-sdk` provider; Codex uses its `openai:codex-sdk`
-   provider. Both request schema-constrained structured output.
+   provider. Both request schema-constrained structured output: each
+   case file becomes its own prompt carrying its schema, and a promptfoo
+   scenario runs that file's cases against that prompt only.
 3. Runs each case against all arms in parallel.
 4. Reports pass/fail diff. Worktrees cleaned up on exit.
 
 ## Eval-run hash gate
 
 After every completed run, `eval.py` records a hash of its inputs
-(`AGENTS.md` + `cases/*.yaml`) in `last-eval-hash.txt`. The
+(`AGENTS.md` + `cases/*.yaml` + `cases/*.schema.json`) in `last-eval-hash.txt`. The
 `check-eval-hash` prek hook — enforced locally and in CI — recomputes
 the hash and fails when guidance changed without a re-run. Commit the
 updated hash file together with your change.

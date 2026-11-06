@@ -45,7 +45,7 @@ HASH_FILE_HEADER = """\
 
 
 def compute_guidance_hash(agents_file: Path, cases_dir: Path) -> str:
-    """Hash the skill-eval inputs: AGENTS.md plus every case file.
+    """Hash the skill-eval inputs: AGENTS.md plus every case file and its output schema.
 
     Labels are hashed alongside contents so renaming a case file changes
     the hash. SKILL.md files are intentionally excluded — no skill cases
@@ -54,7 +54,8 @@ def compute_guidance_hash(agents_file: Path, cases_dir: Path) -> str:
     """
     digest = hashlib.sha256()
     entries = [("AGENTS.md", agents_file)]
-    entries += [(f"cases/{path.name}", path) for path in sorted(cases_dir.glob("*.yaml"))]
+    case_files = [*cases_dir.glob("*.yaml"), *cases_dir.glob("*.schema.json")]
+    entries += [(f"cases/{path.name}", path) for path in sorted(case_files)]
     for label, path in entries:
         digest.update(label.encode())
         digest.update(b"\0")

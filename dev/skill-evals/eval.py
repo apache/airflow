@@ -74,26 +74,40 @@ RESULTS_FILE = REPO_ROOT / "files" / "skill-evals" / "results.json"
 sys.path.insert(0, str(REPO_ROOT / "scripts" / "ci" / "prek"))
 from check_eval_hash import compute_guidance_hash, write_recorded_hash  # noqa: E402
 
-OUTPUT_FORMAT = {
-    "type": "json_schema",
-    "schema": {
-        "type": "object",
-        "required": ["should_create", "type", "rationale"],
-        "additionalProperties": False,
-        "properties": {
-            "should_create": {"type": "boolean"},
-            "type": {
-                "type": "string",
-                "enum": ["bugfix", "feature", "improvement", "doc", "misc", "significant"],
-            },
-            "rationale": {"type": "string"},
-        },
-    },
-}
+SCHEMA_SUFFIX = ".schema.json"
 
 
 def run(cmd: list[str], **kwargs) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, capture_output=True, text=True, check=False, **kwargs)
+
+
+def load_case_suites() -> list[tuple[str, Path, dict]]:
+    """Pair each ``cases/<name>.yaml`` with the output schema in ``cases/<name>.schema.json``.
+
+    Each case file asks the agent a different question, so each one declares the
+    shape of the answer its assertions read. A missing schema is an error rather
+    than a fallback: a shared default would judge a new case file against an
+    answer shape it never asked for.
+    """
+    suites = []
+    for cases_file in sorted(CASES_DIR.glob("*.yaml")):
+        schema_file = cases_file.with_name(cases_file.stem + SCHEMA_SUFFIX)
+        try:
+            schema = json.loads(schema_file.read_text())
+        except FileNotFoundError:
+            raise ValueError(
+                f"{cases_file.relative_to(REPO_ROOT)} has no output schema — add {schema_file.name} next to it"
+            ) from None
+        except ValueError as error:
+            raise ValueError(f"{schema_file.relative_to(REPO_ROOT)} is not valid JSON: {error}") from None
+        if not isinstance(schema, dict) or schema.get("type") != "object":
+            raise ValueError(
+                f'{schema_file.relative_to(REPO_ROOT)} must be a JSON schema with "type": "object"'
+            )
+        suites.append((cases_file.stem, cases_file, schema))
+    if not suites:
+        raise ValueError(f"no case files found in {CASES_DIR.relative_to(REPO_ROOT)}")
+    return suites
 
 
 def find_sdk_modules(runtime: str) -> Path:
@@ -235,7 +249,6 @@ def build_provider(label: str, working_dir: Path, model: str | None, skill_name:
         "setting_sources": ["project"],
         "append_allowed_tools": ["Read", "Grep", "Glob"],
         "working_dir": str(working_dir),
-        "output_format": OUTPUT_FORMAT,
     }
     if model:
         config["model"] = model
@@ -254,7 +267,6 @@ def build_codex_provider(
             "project_doc_max_bytes": CODEX_PROJECT_DOC_MAX_BYTES,
         },
         "network_access_enabled": False,
-        "output_schema": OUTPUT_FORMAT["schema"],
         "sandbox_mode": "read-only",
         "web_search_mode": "disabled",
         "working_dir": str(working_dir),
@@ -295,6 +307,11 @@ def main() -> int:
         print(f"Error: {error}", file=sys.stderr)
         return 1
     sdk_modules = find_sdk_modules(runtime)
+    try:
+        suites = load_case_suites()
+    except ValueError as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
 
     model = os.environ.get("MODEL")
     if not model and runtime == "claude":
@@ -400,11 +417,25 @@ def main() -> int:
         if skill_name:
             default_test["assert"] = [{"type": "skill-used", "value": skill_name}]
 
+        # One prompt per case file carries that file's output schema (both providers
+        # merge prompt config over their own), and one scenario per file routes its
+        # cases to that prompt only.
+        def output_config(schema: dict) -> dict:
+            if runtime == "codex":
+                return {"output_schema": schema}
+            return {"output_format": {"type": "json_schema", "schema": schema}}
+
         config = {
-            "prompts": ["{{request}}"],
+            "prompts": [
+                {"raw": "{{request}}", "label": name, "config": output_config(schema)}
+                for name, _, schema in suites
+            ],
             "providers": providers,
             "defaultTest": default_test,
-            "tests": f"file://{SCRIPT_DIR}/cases/*.yaml",
+            "scenarios": [
+                {"description": name, "config": [{"prompts": [name]}], "tests": f"file://{cases_file}"}
+                for name, cases_file, _ in suites
+            ],
         }
         config_path = work_dir / "promptfooconfig.json"
         config_path.write_text(json.dumps(config, indent=2))
