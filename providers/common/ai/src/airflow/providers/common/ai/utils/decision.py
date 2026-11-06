@@ -94,7 +94,7 @@ def _choice_types() -> tuple[Any, Any]:
     global Choice, Choices
     if Choice is _NOT_LOADED or Choices is _NOT_LOADED:
         try:
-            from pydantic_ai import (  # type: ignore[attr-defined]
+            from pydantic_ai import (
                 Choice as loaded_choice,
                 Choices as loaded_choices,
             )

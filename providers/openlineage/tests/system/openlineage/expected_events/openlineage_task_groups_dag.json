@@ -1,4 +1,5 @@
 [
+    {"eventType": "START", "job": {"name": "openlineage_task_groups_dag"}},
     {
         "eventType": "START",
         "run": {
@@ -9,11 +10,19 @@
                             "downstream_group_ids": "['tg2']",
                             "downstream_task_ids": "[]",
                             "group_id": "tg1",
+                            "unique_group_id": "tg1",
                             "prefix_group_id": true,
                             "tooltip": "",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "['task_0']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -32,11 +41,19 @@
                             "downstream_group_ids": "['tg2']",
                             "downstream_task_ids": "[]",
                             "group_id": "tg1",
+                            "unique_group_id": "tg1",
                             "prefix_group_id": true,
                             "tooltip": "",
                             "upstream_group_ids": "[]",
                             "upstream_task_ids": "['task_0']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -55,11 +72,19 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "['check_events']",
                             "group_id": "tg2",
+                            "unique_group_id": "tg2",
                             "prefix_group_id": true,
                             "tooltip": "",
                             "upstream_group_ids": "['tg1']",
                             "upstream_task_ids": "['tg1.task_1']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }
@@ -78,11 +103,19 @@
                             "downstream_group_ids": "[]",
                             "downstream_task_ids": "['check_events']",
                             "group_id": "tg2",
+                            "unique_group_id": "tg2",
                             "prefix_group_id": true,
                             "tooltip": "",
                             "upstream_group_ids": "['tg1']",
                             "upstream_task_ids": "['tg1.task_1']"
                         }
+                    },
+                    "taskInstance": {
+                        "try_number": 1,
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     }
                 }
             }

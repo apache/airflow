@@ -26,14 +26,17 @@ import { ClipboardRoot, ClipboardIconButton } from "src/system-components";
 import { SqlParserProvider } from "src/components/SqlParserProvider";
 
 import { useColorMode } from "src/context/colorMode";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { detectLanguage } from "src/utils/detectLanguage";
 import { oneDark, oneLight, SyntaxHighlighter } from "src/utils/syntaxHighlighter";
 
 const RenderedTemplatesContent = () => {
   const { dagId = "", mapIndex = "-1", runId = "", taskId = "" } = useParams();
   const { colorMode } = useColorMode();
+  const coordinates = useTaskInstanceCoordinates();
 
   const { data: taskInstance } = useTaskInstanceServiceGetMappedTaskInstance({
+    ...coordinates,
     dagId,
     dagRunId: runId,
     mapIndex: parseInt(mapIndex, 10),

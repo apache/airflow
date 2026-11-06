@@ -21,10 +21,14 @@ package org.apache.airflow.sdk.internal
 
 import org.apache.airflow.sdk.Arg
 import org.apache.airflow.sdk.Client
+import org.apache.airflow.sdk.ConditionRef
+import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
 import org.apache.airflow.sdk.Deps
 import org.apache.airflow.sdk.LiteralArg
+import org.apache.airflow.sdk.SwitchRef
+import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
 import org.apache.airflow.sdk.TaskRef
@@ -45,6 +49,27 @@ private class NoopRefTask : Task {
     context: Context,
     client: Client,
   ) = Unit
+}
+
+private class NoopCondition : ConditionTask {
+  override fun decide(
+    context: Context,
+    client: Client,
+  ) = true
+}
+
+private class OtherNoopRefTask : Task {
+  override fun execute(
+    context: Context,
+    client: Client,
+  ) = Unit
+}
+
+private class NoopSwitch : SwitchTask {
+  override fun choose(
+    context: Context,
+    client: Client,
+  ): Class<out Task> = NoopRefTask::class.java
 }
 
 internal class RefsTest {
@@ -100,7 +125,7 @@ internal class RefsTest {
 
     assertEquals(
       "Wiring for Dag 'd' did not register task(s) 'x', 'y': " +
-        "every @Builder.Task method must be called in the @Builder.Deps class",
+        "every @Airflow.Task method must be called in the @Airflow.Deps class",
       error.message,
     )
   }
@@ -114,7 +139,7 @@ internal class RefsTest {
       }
 
     assertEquals(
-      "Task 't' was wired outside a @Builder.Deps class; the wiring view's methods " +
+      "Task 't' was wired outside an @Airflow.Deps class; the wiring view's methods " +
         "only record while the generated builder is running depends()",
       error.message,
     )
@@ -202,5 +227,45 @@ internal class RefsTest {
       }
 
     assertEquals("Dag 'd' has no task group 'staging'", error.message)
+  }
+
+  @Test
+  @DisplayName("Should let a view name a condition's sides in separate statements")
+  fun shouldNameConditionSidesAcrossStatements() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("has_rows", "load", "report_empty"), emptyList()) {
+      fun hasRows() = ConditionRef.of(Refs.node<Boolean>("", TaskDef("has_rows", NoopCondition::class.java)))
+      hasRows().Then(Refs.node<Unit>("", TaskDef("load", NoopRefTask::class.java)))
+      hasRows().Else(Refs.node<Unit>("", TaskDef("report_empty", NoopRefTask::class.java)))
+    }
+
+    assertEquals(
+      listOf("load", "report_empty"),
+      dag.tasks
+        .getValue("has_rows")
+        .decider!!
+        .cases
+        .map { it.id },
+    )
+  }
+
+  @Test
+  @DisplayName("Should let a view name a switch's cases in separate statements")
+  fun shouldNameSwitchCasesAcrossStatements() {
+    val dag = DagDef("d")
+    Refs.record(dag, listOf("pick", "long", "short"), emptyList()) {
+      fun pick() = SwitchRef.of(Refs.node<Unit>("", TaskDef("pick", NoopSwitch::class.java)))
+      pick().Case(Refs.node<Unit>("", TaskDef("long", NoopRefTask::class.java)))
+      pick().Case(Refs.node<Unit>("", TaskDef("short", OtherNoopRefTask::class.java)))
+    }
+
+    assertEquals(
+      listOf("long", "short"),
+      dag.tasks
+        .getValue("pick")
+        .decider!!
+        .cases
+        .map { it.id },
+    )
   }
 }

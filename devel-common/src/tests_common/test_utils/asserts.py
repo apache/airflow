@@ -41,6 +41,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.orm import ORMExecuteState
 
+    from airflow.models.taskinstance import TaskInstance
+
 log = logging.getLogger(__name__)
 
 
@@ -101,7 +103,7 @@ class QueriesTraceInfo(NamedTuple):
 
 class CountQueries:
     """
-    Counts the number of queries sent to Airflow Database in a given context.
+    Counts the number of queries sent to Airflow Database in a given context, on both the sync and async engines.
 
     Does not support multiple processes. When a new process is started in context, its queries will
     not be included.
@@ -123,14 +125,20 @@ class CountQueries:
         if self.session:
             event.listen(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.listen(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            self.engines = [airflow.settings.engine]
+            # Absent before Airflow 3, which provider tests still run against.
+            if async_engine := getattr(airflow.settings, "async_engine", None):
+                self.engines.append(async_engine.sync_engine)
+            for engine in self.engines:
+                event.listen(engine, "after_cursor_execute", self.after_cursor_execute)
         return self.result
 
     def __exit__(self, type_, value, tb):
         if self.session:
             event.remove(self.session, "do_orm_execute", self.after_cursor_execute)
         else:
-            event.remove(airflow.settings.engine, "after_cursor_execute", self.after_cursor_execute)
+            for engine in self.engines:
+                event.remove(engine, "after_cursor_execute", self.after_cursor_execute)
         log.debug("Queries count: %d", sum(self.result.values()))
 
     def after_cursor_execute(self, *args, **kwargs):
@@ -282,3 +290,21 @@ def assert_no_cartesian_products() -> Generator[list[Select], None, None]:
                 for element in joined - set(linter.froms)
             )
     assert not problems, "Cartesian product in generated SQL:\n" + "\n".join(sorted(set(problems)))
+
+
+@contextmanager
+def count_loaded_task_instances(task_id: str) -> Generator[list[TaskInstance], None, None]:
+    """Collect the ``task_id`` task instance rows the ORM loads inside the block."""
+    from airflow.models.taskinstance import TaskInstance
+
+    loaded: list[TaskInstance] = []
+
+    def listener(target: TaskInstance, _context: object) -> None:
+        if target.task_id == task_id:
+            loaded.append(target)
+
+    event.listen(TaskInstance, "load", listener)
+    try:
+        yield loaded
+    finally:
+        event.remove(TaskInstance, "load", listener)

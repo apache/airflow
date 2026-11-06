@@ -124,7 +124,7 @@ def find_files(directory: Path, glob_pattern: str) -> Iterator[tuple[Path, str]]
 
 def resolve_file(filepath: Path, directory: Path | None = None) -> Iterator[tuple[Path, str]]:
     if not filepath.is_file():
-        raise SystemExit("Provided path {filepath} is not a file.")
+        raise SystemExit(f"Provided path {filepath} is not a file.")
     if directory:
         source_path = filepath.relative_to(directory).as_posix()
     else:

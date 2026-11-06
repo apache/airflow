@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-jdbc``
 
-Release: ``5.6.0``
+Release: ``5.6.1``
 
 
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
@@ -36,7 +36,7 @@ This is a provider package for ``jdbc`` provider. All classes for this provider 
 are in ``airflow.providers.jdbc`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.6.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.6.1/>`_.
 
 Installation
 ------------
@@ -92,8 +92,8 @@ Optional dependencies
 Extra            Dependencies
 ===============  ========================================
 ``openlineage``  ``apache-airflow-providers-openlineage``
-``sqlalchemy``   ``sqlalchemy>=1.4.54``
+``sqlalchemy``   ``sqlalchemy>=1.4.54,!=2.1.0``
 ===============  ========================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.6.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-jdbc/5.6.1/changelog.html>`_.

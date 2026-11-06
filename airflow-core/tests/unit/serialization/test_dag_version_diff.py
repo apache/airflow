@@ -37,6 +37,7 @@ from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTim
 from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
 from airflow.sdk import DAG, Asset, ExceptionRetryPolicy, Param, TaskGroup, task as sdk_task, task_group
 from airflow.sdk.bases.operator import BaseOperator
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.serialization import dag_version_diff
 from airflow.serialization.dag_version_diff import (
@@ -1220,6 +1221,36 @@ def test_build_diff_classifies_mapped_group_inputs_as_execution(include_values, 
     assert change["path"] == f"{path}/expand_input"
     assert change["category"] == "task"
     if not include_values:
+        assert "secret_" not in json.dumps(result)
+
+
+@pytest.mark.parametrize("include_values", [False, True])
+def test_build_diff_classifies_loop_bound_changes_as_execution(include_values):
+    @task_group(group_id="secret_loop")
+    def body():
+        BashOperator(task_id="secret_task", bash_command="echo hello")
+
+    payloads = []
+    for max_iterations in (3, 5):
+        with DAG("task_group_diff", schedule=None) as dag:
+            create_loop(body, max_iterations=max_iterations)
+        payloads.append(DagSerialization.to_dict(dag))
+
+    result = build_serialized_dag_diff(
+        base_data=payloads[0], target_data=payloads[1], include_values=include_values
+    )
+
+    group_changes = [change for change in result["changes"] if change["path"].startswith("/dag/task_group/")]
+    assert len(group_changes) == 1
+    change = group_changes[0]
+    group_id = "secret_loop" if include_values else "*"
+    assert change["path"] == f"/dag/task_group/children/{group_id}/1/loop"
+    assert change["category"] == "task"
+    assert change["impact"] == "execution"
+    if include_values:
+        assert change["before_value"]["max_iterations"] == 3
+        assert change["after_value"]["max_iterations"] == 5
+    else:
         assert "secret_" not in json.dumps(result)
 
 

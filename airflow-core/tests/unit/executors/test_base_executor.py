@@ -161,6 +161,16 @@ def test_get_event_buffer_releases_metadata_for_discarded_tasks():
     assert executor._task_coordinates == {}
 
 
+def test_log_task_event_preserves_archived_identity_without_coordinates():
+    executor = BaseExecutor()
+    archived_id = uuid4()
+
+    executor.log_task_event(event="failed", extra="late executor event", ti_key=TaskInstanceUuid(archived_id))
+
+    assert executor._task_event_logs[0].task_instance_id == archived_id
+    assert executor._task_event_logs[0].dag_id is None
+
+
 def test_log_task_event_branches_on_key_type():
     executor = BaseExecutor()
     ti_key = TaskInstanceUuid(uuid4())
@@ -175,6 +185,7 @@ def test_log_task_event_branches_on_key_type():
     executor.log_task_event(event="task_event", extra="extra", ti_key=ti_key)
     assert len(executor._task_event_logs) == 1
     log = executor._task_event_logs[0]
+    assert log.task_instance_id == ti_key.id
     assert (log.dag_id, log.task_id, log.run_id, log.try_number) == ("my_dag", "my_task", "run", 1)
 
     callback_key = CallbackKey(id=str(UUID("00000000-0000-0000-0000-000000000001")))
@@ -666,7 +677,7 @@ def test_queued_tasks_setter_emits_warning_and_writes_through():
     executor = BaseExecutor()
     new_queue = {"k": "v"}
     with pytest.warns(RemovedInAirflow4Warning, match="queued_tasks is deprecated"):
-        executor.queued_tasks = new_queue  # type: ignore[misc]
+        executor.queued_tasks = new_queue
     assert executor.executor_queues[WorkloadType.EXECUTE_TASK] is new_queue
 
 
@@ -674,7 +685,7 @@ def test_queued_callbacks_setter_emits_warning_and_writes_through():
     executor = BaseExecutor()
     new_queue = {"k": "v"}
     with pytest.warns(RemovedInAirflow4Warning, match="queued_callbacks is deprecated"):
-        executor.queued_callbacks = new_queue  # type: ignore[misc]
+        executor.queued_callbacks = new_queue
     assert executor.executor_queues[WorkloadType.EXECUTE_CALLBACK] is new_queue
 
 
@@ -732,7 +743,7 @@ def test_unknown_workload_type_sorts_last_without_crashing():
     unknown_workload.type = "SomeFutureType"
     unknown_workload.sort_key = 0
     executor.executor_queues[WorkloadType.EXECUTE_TASK][known_key] = known_workload
-    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload  # type: ignore[index]
+    executor.executor_queues["SomeFutureType"]["unk"] = unknown_workload
 
     scheduled = executor._get_workloads_to_schedule(open_slots=10)
 
@@ -928,6 +939,52 @@ def test_run_workload_passes_team_name_to_connection_test_supervisor(mock_superv
         server="http://localhost:8080/execution/",
         team_name="team_a",
     )
+
+
+@mock.patch("airflow.sdk.execution_time.supervisor.supervise_task")
+@pytest.mark.parametrize(
+    ("config_overrides", "explicit_arg", "expected"),
+    [
+        pytest.param({}, None, False, id="unset-defaults-to-false"),
+        pytest.param({("logging", "task_logs_to_stdout"): "True"}, None, True, id="logging-conf-true"),
+        pytest.param({("logging", "task_logs_to_stdout"): "False"}, None, False, id="logging-conf-false"),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "True"}, False, False, id="explicit-false-overrides-conf"
+        ),
+        pytest.param(
+            {("logging", "task_logs_to_stdout"): "False"}, True, True, id="explicit-true-overrides-conf"
+        ),
+    ],
+)
+def test_run_workload_subprocess_logs_to_stdout(
+    mock_supervise_task, config_overrides, explicit_arg, expected
+):
+    """An omitted subprocess_logs_to_stdout falls back to [logging] task_logs_to_stdout; an explicit one wins."""
+    mock_supervise_task.return_value = 0
+    wl = workloads.ExecuteTask(
+        ti=workloads.TaskInstance(
+            id="00000000-0000-0000-0000-000000000001",
+            dag_version_id="00000000-0000-0000-0000-000000000002",
+            task_id="test_task",
+            dag_id="test_dag",
+            run_id="test_run",
+            try_number=1,
+            map_index=-1,
+            pool_slots=1,
+            queue="default",
+            priority_weight=1,
+        ),
+        dag_rel_path="test_dag.py",
+        bundle_info=BundleInfo(name="test-bundle", version=None),
+        token="test-token",
+        log_path="test.log",
+    )
+    kwargs = {} if explicit_arg is None else {"subprocess_logs_to_stdout": explicit_arg}
+
+    with conf_vars(config_overrides):
+        BaseExecutor.run_workload(wl, server="http://localhost:8080/execution/", **kwargs)
+
+    assert mock_supervise_task.call_args.kwargs["subprocess_logs_to_stdout"] is expected
 
 
 @mock.patch.dict("os.environ", {}, clear=True)

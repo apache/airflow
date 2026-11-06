@@ -44,6 +44,7 @@
   "dagBundle_other": "Dag 套件包",
   "dagDetails": {
     "activeRuns": "活躍執行數",
+    "bundleVersion": "套件包版本",
     "catchup": "自動回填",
     "dagRunTimeout": "Dag 執行超時",
     "defaultArgs": "預設參數",
@@ -92,7 +93,6 @@
   "dagRun_other": "Dag 執行",
   "dagRunId": "Dag 執行 ID",
   "dagRunState": "Dag 執行狀態",
-  "dagWarnings": "Dag 警告 / 錯誤",
   "delete": "刪除",
   "diff": "差異",
   "diffCompareWith": "與以下版本比較",
@@ -139,18 +139,25 @@
     "all": "全部",
     "and": "且",
     "any": "任何",
+    "hiddenAsset": "隱藏的資源",
     "or": "或"
   },
   "filter": "篩選",
   "filters": {
     "addFilter": "新增篩選",
+    "allIterations": "全部",
     "completedAt": "完成時間",
     "date": "日期",
     "durationFrom": "從執行時間",
     "durationTo": "到執行時間",
     "endTime": "結束時間",
+    "iteration": "迭代",
     "logicalDateFrom": "從邏輯日期",
     "logicalDateTo": "到邏輯日期",
+    "loop": "迴圈",
+    "loopAllIterations": "{{loop}} 全部迭代",
+    "loopIteration": "{{loop}} 第 {{index}} 次迭代",
+    "loopPlaceholder": "選擇迴圈",
     "maxActiveRunsFrom": "活躍執行數上限（最小值）",
     "maxActiveRunsTo": "活躍執行數上限（最大值）",
     "removeFilter": "移除篩選",
@@ -160,6 +167,7 @@
     "selectDateRange": "選擇日期範圍",
     "selectDateTime": "選擇日期與時間",
     "startTime": "起始時間",
+    "switchIteration": "切換迭代",
     "time": "時間"
   },
   "fullscreen": {
@@ -168,6 +176,7 @@
   "generateToken": "產生權杖",
   "includedIn": "包含於",
   "key": "鍵",
+  "loading": "載入中...",
   "logLevel": {
     "hide": "隱藏日誌層級",
     "hotkey": "l",
@@ -212,6 +221,10 @@
     "write": "撰寫"
   },
   "overallStatus": "整體狀態",
+  "pagination": {
+    "nextPage": "下一頁",
+    "previousPage": "上一頁"
+  },
   "partition_one": "資源分區",
   "partition_other": "資源分區",
   "partitionedDagRun_one": "分區的 Dag 執行",
@@ -220,8 +233,8 @@
     "receivedAssetEvents": "收到的資源事件"
   },
   "pause": "暫停",
-  "pendingDagRun_one": "{{count}} 個待執行的 Dag 執行",
-  "pendingDagRun_other": "{{count}} 個待執行的 Dag 執行",
+  "pendingDagRun_one": "1 個待執行的 Dag 執行",
+  "pendingDagRun_other": "{{count, number}} 個待執行的 Dag 執行",
   "presetFilters": {
     "deleteTitle": "刪除預設篩選條件",
     "deleteWarning": "預設篩選條件僅儲存在此瀏覽器中。",
@@ -258,7 +271,8 @@
   "search": {
     "advanced": {
       "description": "在值中任意位置進行匹配 (子字串搜尋)。在大型部署上會較慢，因為無法使用預設的 B-tree 索引。詳情請參閱文件中關於自訂中繼資料索引的章節。",
-      "title": "任意位置匹配"
+      "title": "任意位置匹配",
+      "toggleLabel": "切換任意位置匹配"
     }
   },
   "security": {
@@ -289,6 +303,13 @@
         "label": "預設任務清除選項"
       },
       "title": "清除"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "在 Dag 列表中顯示每個 Dag 的近期任務狀態。關閉後將不載入這些資料，有助於改善 Dag 數量眾多的部署環境效能。",
+        "label": "顯示近期任務"
+      },
+      "title": "Dag 列表"
     },
     "description": "這些偏好設定僅會儲存在此瀏覽器中，並套用至整個應用程式。",
     "general": {
@@ -365,10 +386,12 @@
       "scrollBottom": "捲動至最下方",
       "scrollTop": "捲動至最上方",
       "searchDags": "搜尋 $t(dag_other)",
+      "selectGridCellRange": "選取範圍 $t(taskInstance_other) 或 $t(taskGroup_other)",
       "showHelp": "顯示$t(shortcuts.title)",
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
+      "toggleGridCellSelection": "選取或取消選取 $t(taskInstance_one) 或 $t(taskGroup_one)",
       "toggleLogLevel": "切換日誌層級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
@@ -399,6 +422,7 @@
     "no_status": "無狀態",
     "none": "無狀態",
     "open": "開放",
+    "pending": "待處理",
     "planned": "已計劃",
     "queued": "排隊中",
     "removed": "已移除",
@@ -412,6 +436,8 @@
     "upstream_failed": "上游任務失敗"
   },
   "switchDag": "切換 $t(dag_one)",
+  "switchDagRun": "切換 $t(dagRun_one)",
+  "switchMapIndex": "切換 $t(mapIndex)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -457,6 +483,9 @@
     "executorConfig": "執行器設定",
     "hostname": "主機名稱",
     "id": "ID",
+    "iteration": "迭代",
+    "loopDecision": "決策",
+    "loopIterations": "已執行迭代次數",
     "maxTries": "最大嘗試次數",
     "pid": "PID",
     "pool": "資源池",
@@ -465,6 +494,7 @@
     "queue": "排隊",
     "queuedWhen": "開始排隊時間",
     "renderedMapIndex": "渲染後的映射索引",
+    "retryAt": "重試時間",
     "scheduledWhen": "開始排程時間",
     "stateReason": "狀態原因",
     "stateReasonSummary": {
@@ -486,8 +516,8 @@
   "taskInstance_one": "任務實例",
   "taskInstance_other": "任務實例",
   "teams": {
-    "more_one": "還有 {{count}} 個",
-    "more_other": "還有 {{count}} 個",
+    "more_one": "及其他 1 個團隊",
+    "more_other": "及其他 {{count, number}} 個團隊",
     "none": "沒有團隊",
     "title": "團隊"
   },
@@ -518,21 +548,21 @@
     "bulkClear": {
       "error": "批次清除 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功清除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功清除 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次清除 {{resourceName}} 請求"
       }
     },
     "bulkDelete": {
       "error": "批次刪除 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功刪除 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功刪除 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次刪除 {{resourceName}} 請求"
       }
     },
     "bulkUpdate": {
       "error": "批次更新 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功更新 {{count}} 個 {{resourceName}}。鍵：{{keys}}",
+        "description": "已成功更新 {{count, number}} 個 {{resourceName}}。鍵：{{keys}}",
         "title": "已提交批次更新 {{resourceName}} 請求"
       }
     },
@@ -553,7 +583,7 @@
     "import": {
       "error": "匯入 {{resourceName}} 請求失敗",
       "success": {
-        "description": "已成功匯入 {{count}} 個 {{resourceName}}。",
+        "description": "已成功匯入 {{count, number}} 個 {{resourceName}}。",
         "title": "已提交匯入 {{resourceName}} 請求"
       }
     },
