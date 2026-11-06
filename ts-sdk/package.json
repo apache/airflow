@@ -21,8 +21,7 @@
     "url": "https://github.com/apache/airflow/issues"
   },
   "publishConfig": {
-    "access": "public",
-    "tag": "beta"
+    "access": "public"
   },
   "exports": {
     ".": {
