@@ -317,6 +317,12 @@ export function createCoordinatorClient(
     },
 
     async setVariable(key: string, value: string, description?: string | null): Promise<void> {
+      // The supervisor can't decode a non-string value and never replies.
+      if (typeof value !== "string") {
+        throw new TypeError(
+          `variable value must be a string, got ${value === null ? "null" : typeof value}`,
+        );
+      }
       // `description` is a required wire field the supervisor validates, so it
       // is always sent; null is what Python's `Variable.set` stores by default.
       const msg: PutVariable = {

@@ -122,6 +122,17 @@ describe("setVariable", () => {
       description: null,
     });
   });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["number", 42],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setVariable("threshold", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
+  });
 });
 
 describe("deleteVariable", () => {
