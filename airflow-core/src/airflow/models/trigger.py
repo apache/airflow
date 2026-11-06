@@ -236,7 +236,7 @@ class Trigger(Base):
     def _encrypt_serialized_kwargs(serialized_kwargs: dict[str, Any]) -> str:
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
 
         return get_fernet().encrypt(json.dumps(serialized_kwargs).encode("utf-8")).decode("utf-8")
 
@@ -245,7 +245,7 @@ class Trigger(Base):
         """Decrypt the kwargs of the trigger."""
         import json
 
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
         from airflow.sdk.serde import deserialize
 
         # We weren't able to encrypt the kwargs in all migration paths,
@@ -271,7 +271,7 @@ class Trigger(Base):
 
     def rotate_fernet_key(self):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
-        from airflow.models.crypto import get_fernet
+        from airflow.crypto import get_fernet
 
         self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
