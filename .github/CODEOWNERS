@@ -91,7 +91,7 @@ airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/ @Lee-W @jason810496 @guan
 /providers/anthropic/ @kaxil @gopidesupavan
 /providers/apache/iceberg/ @Fokko
 /providers/celery/ @hussein-awala @dheerajturaga
-/providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl
+/providers/cncf/kubernetes @jedcunningham @hussein-awala @jscheffl @henry3260 @shahar1
 /providers/common/messaging/ @vincbeck
 /providers/common/ai/ @gopidesupavan @kaxil @Lee-W @ashb
 /providers/dbt/cloud/ @josh-fell
