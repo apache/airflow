@@ -1864,20 +1864,25 @@ def _clear_task_state_store_on_success(context: Context, log: Logger) -> None:
         # task_state_store, and @cache does not cache the raise.
         if _get_worker_state_store_backend() is None:
             return
+        scope = context["task_state_store"]._scope
+        # Logged before the delete: if it hangs past task_success_overtime, the supervisor
+        # kills the task and this line is the only record of which entries were left.
         log.info(
-            "Clearing task state from custom backend as clear_on_success is enabled. The database references will be cleared by the API server."
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
         )
-        context["task_state_store"]._clear_backend_only()
+        # clear() rather than a backend-only delete: success callbacks and listeners run
+        # before this and can set() new keys, whose DB refs must go before the objects do.
+        context["task_state_store"].clear()
     except Exception:
-        ti = context["ti"]
         log.exception(
             "Failed to clear task state from custom backend; the task stays successful. Nothing in Airflow "
             "reclaims these entries -- the database references are already gone and the next run uses a "
-            "different run_id -- so only the storage's own lifecycle or TTL policy will remove them.",
-            dag_id=ti.dag_id,
-            run_id=ti.run_id,
-            task_id=ti.task_id,
-            map_index=ti.map_index,
+            "different run_id -- so only the storage's own lifecycle or TTL policy will remove them."
         )
 
 

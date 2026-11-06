@@ -873,17 +873,6 @@ class TaskStateStoreAccessor:
         if backend is not None:
             await backend.aclear(self._scope)
 
-    def _clear_backend_only(self) -> None:
-        """
-        Clear external storage via the worker backend without sending a comms message.
-
-        Used by clear_on_success: the server already clears DB rows as part of SucceedTask,
-        so the comms round-trip is redundant.
-        """
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.clear(self._scope)
-
 
 class AssetStateStoreAccessor:
     """

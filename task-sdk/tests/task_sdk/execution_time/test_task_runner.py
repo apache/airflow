@@ -7448,31 +7448,8 @@ class TestTaskInstanceStateOperations:
         return state, msg, error
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_clears_backend_without_comms_roundtrip(
-        self, create_runtime_ti, mock_supervisor_comms
-    ):
-        """clear_on_success calls backend.clear() directly without sending ClearTaskStateStore comms."""
-        backend = mock.create_autospec(BaseStoreBackend, instance=True)
-
-        class MyOperator(BaseOperator):
-            def execute(self, context):
-                pass
-
-        runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
-
-        with self._patch_state_backend(backend):
-            self._run_and_finalize(runtime_ti, mock.MagicMock())
-
-        backend.clear.assert_called_once()
-        sent_types = [
-            type(call.kwargs.get("msg") or (call.args[0] if call.args else None))
-            for call in mock_supervisor_comms.send.call_args_list
-        ]
-        assert ClearTaskStateStore not in sent_types
-
-    @conf_vars({("state_store", "clear_on_success"): "True"})
-    def test_clear_on_success_runs_after_success_is_reported(self, create_runtime_ti, mock_supervisor_comms):
-        """The backend is only cleared once SucceedTask has been reported to the supervisor."""
+    def test_clear_on_success_clears_db_refs_before_backend(self, create_runtime_ti, mock_supervisor_comms):
+        """clear_on_success sends ClearTaskStateStore before deleting from the backend."""
         backend = mock.create_autospec(BaseStoreBackend, instance=True)
         order = []
         mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
@@ -7485,10 +7462,31 @@ class TestTaskInstanceStateOperations:
         runtime_ti = create_runtime_ti(task=MyOperator(task_id="t"))
 
         with self._patch_state_backend(backend):
+            self._run_and_finalize(runtime_ti, mock.MagicMock())
+
+        backend.clear.assert_called_once()
+        assert order.index("ClearTaskStateStore") < order.index("clear")
+
+    @conf_vars({("state_store", "clear_on_success"): "True"})
+    def test_clear_on_success_runs_after_success_is_reported(self, create_runtime_ti, mock_supervisor_comms):
+        """The backend is cleared only after SucceedTask is reported and the success callbacks have run."""
+        backend = mock.create_autospec(BaseStoreBackend, instance=True)
+        order = []
+        mock_supervisor_comms.send.side_effect = lambda msg, **kwargs: order.append(type(msg).__name__)
+        backend.clear.side_effect = lambda *a, **kw: order.append("clear")
+
+        class MyOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        task = MyOperator(task_id="t", on_success_callback=lambda context: order.append("callback"))
+        runtime_ti = create_runtime_ti(task=task)
+
+        with self._patch_state_backend(backend):
             state, _, _ = self._run_and_finalize(runtime_ti, mock.MagicMock())
 
         assert state == TaskInstanceState.SUCCESS
-        assert order.index("SucceedTask") < order.index("clear")
+        assert order.index("SucceedTask") < order.index("callback") < order.index("clear")
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
     def test_clear_on_success_failure_does_not_fail_the_task(self, create_runtime_ti, mock_supervisor_comms):
@@ -7512,12 +7510,15 @@ class TestTaskInstanceStateOperations:
         assert isinstance(msg, SucceedTask)
         assert runtime_ti._terminal_state_send_failed is False
         log.exception.assert_called_once()
-        assert log.exception.call_args.kwargs == {
-            "dag_id": runtime_ti.dag_id,
-            "run_id": runtime_ti.run_id,
-            "task_id": runtime_ti.task_id,
-            "map_index": runtime_ti.map_index,
-        }
+        scope = runtime_ti.get_template_context()["task_state_store"]._scope
+        log.info.assert_any_call(
+            "Clearing task state as clear_on_success is enabled.",
+            dag_id=scope.dag_id,
+            run_id=scope.run_id,
+            task_id=scope.task_id,
+            region_id=str(scope.region_id),
+            region_index=scope.region_index,
+        )
 
     @conf_vars({("state_store", "clear_on_success"): "True"})
     @pytest.mark.parametrize("outcome", ["task_raised", "success_send_raised"])
