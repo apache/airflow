@@ -15,21 +15,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
-
-# These models live next to the routes that use them, and the routes import this version package, so the
-# changes that touch them cannot sit in ``v2026_10_30`` without a circular import.
-from airflow.api_fastapi.execution_api.routes.xcoms import GetXcomFilterParams, GetXComSliceFilterParams
+from airflowctl.utils.helpers import partition
 
 
-class AddPreviousIterationToXComFilterParams(VersionChange):
-    """Add the `previous_iteration` field to GetXComSliceFilterParams and GetXcomFilterParams."""
+def test_partition_splits_false_and_true_entries():
+    false_entries, true_entries = partition(lambda value: value % 2 == 0, [0, 1, 2, 3, 4])
 
-    description = __doc__
+    assert list(false_entries) == [1, 3]
+    assert list(true_entries) == [0, 2, 4]
 
-    instructions_to_migrate_to_previous_version = (
-        schema(GetXComSliceFilterParams).field("previous_iteration").didnt_exist,
-        schema(GetXcomFilterParams).field("previous_iteration").didnt_exist,
-    )
+
+def test_partition_handles_empty_iterable():
+    false_entries, true_entries = partition(bool, [])
+
+    assert list(false_entries) == []
+    assert list(true_entries) == []
+
+
+def test_partition_works_with_one_shot_iterators():
+    source = (value for value in range(4))
+
+    false_entries, true_entries = partition(lambda value: value >= 2, source)
+
+    # Consume the true group first; tee must still let both sides see the full input.
+    assert list(true_entries) == [2, 3]
+    assert list(false_entries) == [0, 1]
