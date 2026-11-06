@@ -9,7 +9,9 @@
   "config": {
     "columns": {
       "section": "सेक्शन"
-    }
+    },
+    "config_one": "विन्यास",
+    "config_other": "विन्यास"
   },
   "connections": {
     "add": "कनेक्शन जोड़ें",
@@ -23,7 +25,7 @@
     "connection_other": "कनेक्शन्स",
     "delete": {
       "deleteConnection_one": "1 कनेक्शन हटाएं",
-      "deleteConnection_other": "{{count}} कनेक्शन्स हटाएं",
+      "deleteConnection_other": "{{count, number}} कनेक्शन्स हटाएं",
       "firstConfirmMessage_one": "आप निम्नलिखित कनेक्शन को हटाने वाले हैं:",
       "firstConfirmMessage_other": "आप निम्नलिखित कनेक्शन्स को हटाने वाले हैं:",
       "title": "कनेक्शन हटाएं"
@@ -32,8 +34,8 @@
     "form": {
       "connectionIdRequired": "कनेक्शन ID आवश्यक है",
       "connectionIdRequirement": "कनेक्शन ID में केवल अंतरिक्ष कुंजियाँ नहीं हो सकते",
+      "connectionTypeFields": "{{connectionType}} फ़ील्ड",
       "connectionTypeRequired": "कनेक्शन प्रकार आवश्यक है",
-      "extraFields": "अतिरिक्त फ़ील्ड",
       "extraFieldsJson": "अतिरिक्त फ़ील्ड JSON",
       "helperText": "कनेक्शन प्रकार गायब है? सुनिश्चित करें कि आपने संबंधित Airflow Providers Package इंस्टॉल किया है।",
       "helperTextForRedactedFields": "संपादित फ़ील्ड ('***') अपरिवर्तित रहेंगे यदि संशोधित नहीं किए गए।",
@@ -95,7 +97,9 @@
       "dagProcessorJob": "DagProcessorJob",
       "schedulerJob": "SchedulerJob",
       "triggererJob": "TriggererJob"
-    }
+    },
+    "job_one": "जॉब",
+    "job_other": "जॉब्स"
   },
   "plugins": {
     "columns": {
@@ -103,6 +107,8 @@
     },
     "importError_one": "प्लगइन आयात त्रुटि",
     "importError_other": "प्लगइन आयात त्रुटियां",
+    "plugin_one": "प्लगइन",
+    "plugin_other": "प्लगइन",
     "searchPlaceholder": "फ़ाइल द्वारा खोजें"
   },
   "pools": {
@@ -136,7 +142,9 @@
     "columns": {
       "packageName": "पैकेज नाम",
       "version": "संस्करण"
-    }
+    },
+    "provider_one": "प्रोवाइडर",
+    "provider_other": "प्रोवाइडर्स"
   },
   "variables": {
     "add": "वेरिएबल जोड़ें",
@@ -145,7 +153,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 वेरिएबल हटाएं",
-      "deleteVariable_other": "{{count}} वेरिएबल्स हटाएं",
+      "deleteVariable_other": "{{count, number}} वेरिएबल्स हटाएं",
       "firstConfirmMessage_one": "आप निम्नलिखित वेरिएबल को हटाने वाले हैं:",
       "firstConfirmMessage_other": "आप निम्नलिखित वेरिएबल्स को हटाने वाले हैं:",
       "title": "वेरिएबल हटाएं",

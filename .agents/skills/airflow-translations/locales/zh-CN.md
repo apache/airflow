@@ -28,11 +28,11 @@ both `_one` and `_other` suffixes:
 ```
 
 For phrases that express a quantity with a measure word, use literal `1` in
-`_one` and `{{count}}` in `_other`, followed by the appropriate measure word:
+`_one` and `{{count, number}}` in `_other`, followed by the appropriate measure word:
 
 ```json
 "showMoreAlerts_one": "+1 个警告",
-"showMoreAlerts_other": "+{{count}} 个警告"
+"showMoreAlerts_other": "+{{count, number}} 个警告"
 ```
 
 ## Spacing Rules
@@ -46,7 +46,7 @@ English words, numbers, or symbols:
 "Dag 执行"        // space between English and Chinese
 "最近 12 小时"     // space around numbers
 "连接 ID"          // space before abbreviation
-"{{count}} 个连接" // space after placeholder
+"{{count, number}} 个连接" // space after placeholder
 ```
 
 **Incorrect:**
@@ -83,9 +83,9 @@ appropriate measure word for each context:
 
 | Measure Word | Usage | Example |
 |---|---|---|
-| `个` | General objects (connections, variables, errors) | `删除 {{count}} 个连接` |
-| `次` | Occurrences (runs, executions, attempts) | `最近 {{count}} 次 Dag 执行` |
-| `项` | List items | `+ 其他 {{count}} 项` |
+| `个` | General objects (connections, variables, errors) | `删除 {{count, number}} 个连接` |
+| `次` | Occurrences (runs, executions, attempts) | `最近 {{count, number}} 次 Dag 执行` |
+| `项` | List items | `+ 其他 {{count, number}} 项` |
 
 ## Tone and Formality
 

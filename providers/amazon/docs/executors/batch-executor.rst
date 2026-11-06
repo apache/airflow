@@ -341,3 +341,7 @@ To configure Airflow to utilize the Batch Executor and leverage the resources we
 .. include:: general.rst
    :start-after: .. BEGIN INIT_DB
    :end-before: .. END INIT_DB
+
+.. include:: general.rst
+  :start-after: .. BEGIN TASK_INSTANCE_IDENTITY
+  :end-before: .. END TASK_INSTANCE_IDENTITY

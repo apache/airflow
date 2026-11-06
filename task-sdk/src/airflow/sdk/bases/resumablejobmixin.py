@@ -191,14 +191,8 @@ class ResumableJobMixin(ABC):
         )
 
     def _stats_tags(self, context: Context) -> dict[str, str]:
-        stats_tags = {"operator": type(self).__name__}
-        # The task is team-scoped in multi-team deployments; surface team_name on the
-        # resumable_job metrics via the running task instance's stats tags (omitted when
-        # not multi-team or the task has no team).
         ti = context.get("ti") if context is not None else None
-        if ti is not None and (team_name := ti.stats_tags.get("team_name")):
-            stats_tags["team_name"] = team_name
-        return stats_tags
+        return {**(ti.stats_tags if ti is not None else {}), "operator": type(self).__name__}
 
     @abstractmethod
     def submit_job(self, context: Context) -> JsonValue:

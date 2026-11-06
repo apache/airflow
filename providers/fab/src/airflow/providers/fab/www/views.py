@@ -146,9 +146,11 @@ def redirect(*args, **kwargs):
         # See https://github.com/apache/airflow/pull/55506
         cookie_path = get_cookie_path()
         if AIRFLOW_V_3_1_1_PLUS:
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, httponly=True)
+            response.set_cookie(
+                COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, httponly=True, samesite="Lax"
+            )
         else:
-            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure)
+            response.set_cookie(COOKIE_NAME_JWT_TOKEN, token, path=cookie_path, secure=secure, samesite="Lax")
 
         return response
     return flask_redirect(*args, **kwargs)

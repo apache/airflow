@@ -885,11 +885,11 @@ class TestSerializedDagModel:
         Test that dynamic DAG update gracefully handles case where SerializedDagModel doesn't exist.
         This preserves the null-check fix from PR #56422 and tests the direct UPDATE path.
         """
-        with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session) as dag:
+        with dag_maker(dag_id="test_missing_serdag", serialized=True, session=session):
             EmptyOperator(task_id="task1")
 
         # Write the DAG first
-        lazy_dag = LazyDeserializedDAG.from_dag(dag)
+        lazy_dag = LazyDeserializedDAG.from_dag(dag_maker.dag)
         SDM.write_dag(
             dag=lazy_dag,
             bundle_name="test_bundle",

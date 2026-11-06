@@ -43,6 +43,7 @@ class MockExecutor(BaseExecutor):
     """TestExecutor is used for unit testing purposes."""
 
     supports_pickling = False
+    supports_task_instance_uuid = True
     mock_module_path = "mock.executor.path"
     mock_alias = "mock_executor"
 
@@ -94,7 +95,7 @@ class MockExecutor(BaseExecutor):
             # for tests!
             def sort_by(item):
                 key, workload = item
-                (dag_id, task_id, date, try_number, map_index) = key
+                (dag_id, task_id, date, try_number, map_index) = workload.ti.key
                 # For workloads, use the task instance priority if available
                 prio = getattr(workload.ti, "priority_weight", 1) if hasattr(workload, "ti") else 1
                 # Sort by priority (DESC), then date,task, try
@@ -104,7 +105,7 @@ class MockExecutor(BaseExecutor):
             sorted_queue = sorted(task_queue.items(), key=sort_by)
             for key, workload in sorted_queue[:open_slots]:
                 task_queue.pop(key)
-                state = self.mock_task_results[key]
+                state = self.mock_task_results[workload.ti.key]
                 ti = TaskInstance.get_task_instance(
                     task_id=workload.ti.task_id,
                     run_id=workload.ti.run_id,

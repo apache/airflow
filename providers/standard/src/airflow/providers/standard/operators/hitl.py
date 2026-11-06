@@ -25,6 +25,7 @@ from airflow.providers.standard.version_compat import (
     AIRFLOW_V_3_1_3_PLUS,
     AIRFLOW_V_3_1_PLUS,
     AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
 )
 
 if not AIRFLOW_V_3_1_PLUS:
@@ -32,13 +33,28 @@ if not AIRFLOW_V_3_1_PLUS:
 
 from collections.abc import Collection, Mapping, Sequence
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 from urllib.parse import ParseResult, urlencode, urlparse, urlunparse
 
-from airflow.providers.common.compat.sdk import BranchMixIn, SkipMixin, conf
-from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError, HITLTriggerEventError
+from airflow.providers.common.compat.sdk import BranchMixIn, SkipMixin, conf, get_current_context
+from airflow.providers.standard.exceptions import (  # noqa: F401 - kept importable from this module
+    HITLRejectException,
+    HITLTimeoutError,
+    HITLTriggerEventError,
+)
+from airflow.providers.standard.operators.python import PythonOperator, _BasePythonVirtualenvOperator
 from airflow.providers.standard.triggers.hitl import HITLTrigger, HITLTriggerEventSuccessPayload
-from airflow.providers.standard.version_compat import BaseOperator
+from airflow.providers.standard.utils.hitl import (
+    InputResponse,
+    answer_log_var,
+    raise_for_error_event,
+    validate_chosen_options,
+    validate_defaults,
+    validate_options,
+    validate_params,
+    validate_params_input,
+)
+from airflow.providers.standard.version_compat import BaseOperator, is_arg_set
 from airflow.sdk.bases.notifier import BaseNotifier
 from airflow.sdk.definitions.param import ParamsDict
 from airflow.sdk.execution_time.hitl import upsert_hitl_detail
@@ -46,13 +62,174 @@ from airflow.sdk.timezone import utcnow
 
 if AIRFLOW_V_3_3_PLUS:
     # On Airflow 3.3+ the operator parks the task in the first-class AWAITING_INPUT state instead of
-    # deferring to a trigger. On older cores this name is absent and the defer() fallback is used.
+    # deferring to a trigger. On older Airflow versions this name is absent and the defer() fallback is used.
     from airflow.sdk.exceptions import TaskAwaitingInput
 
 if TYPE_CHECKING:
+    from datetime import datetime
+
     from airflow.providers.common.compat.sdk import Context
     from airflow.sdk.execution_time.hitl import HITLUser
     from airflow.sdk.types import RuntimeTaskInstanceProtocol
+
+
+def _request_input_and_wait(
+    task: BaseOperator,
+    context: Context,
+    *,
+    options: list[str],
+    subject: str,
+    body: str | None,
+    defaults: list[str] | None,
+    multiple: bool,
+    params: dict[str, Any],
+    assigned_users: list[HITLUser] | None,
+    notifiers: Sequence[BaseNotifier],
+    timeout: timedelta | None,
+    timeout_datetime: datetime | None,
+    method_name: str,
+    kwargs: dict[str, Any] | None = None,
+) -> NoReturn:
+    """Write the Human-in-the-loop request, notify, and stop the task until a response arrives."""
+    ti_id = context["task_instance"].id
+    upsert_hitl_detail(
+        ti_id=ti_id,
+        options=options,
+        subject=subject,
+        body=body,
+        defaults=defaults,
+        multiple=multiple,
+        params=params,
+        assigned_users=assigned_users,
+    )
+
+    task.log.info("Waiting for response")
+    for notifier in notifiers:
+        notifier(context)
+
+    if AIRFLOW_V_3_3_PLUS:
+        # Airflow 3.3+: park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
+        # is resumed by the Core API response handler or the scheduler timeout sweep, so the
+        # triggerer no longer needs to run for Human-in-the-loop tasks to make progress.
+        raise TaskAwaitingInput(method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    # Fallback for Airflow versions < 3.3: defer the response check to HITLTrigger on the triggerer.
+    task.defer(
+        trigger=HITLTrigger(
+            ti_id=ti_id,
+            options=options,
+            defaults=defaults,
+            params=params,
+            multiple=multiple,
+            timeout_datetime=timeout_datetime,
+        ),
+        method_name=method_name,
+        kwargs=kwargs,
+    )
+
+
+def request_input(
+    *,
+    subject: str,
+    options: list[str],
+    body: str | None = None,
+    defaults: str | list[str] | None = None,
+    multiple: bool = False,
+    params: ParamsDict | dict[str, Any] | None = None,
+    notifiers: Sequence[BaseNotifier] | BaseNotifier | None = None,
+    assigned_users: HITLUser | list[HITLUser] | None = None,
+    timeout: timedelta | None = None,
+    key: str | None = None,
+) -> InputResponse:
+    """
+    Ask a person for input from inside a running Python task, and return their answer.
+
+    The first time a question is asked, the request appears on the Required Actions page, the same
+    as one from :class:`HITLOperator`, and the task stops there: it waits in the ``awaiting_input``
+    state without holding a worker slot. Once the request is answered, the task runs again from the
+    start of its callable, and this call returns the answer instead of asking again. Save anything
+    the second run should not redo (for example an agent framework's run state) to
+    ``task_state_store`` before calling this.
+
+    It works in ``@task`` and ``PythonOperator`` callables (sync or async), including ``@task.branch``
+    and ``@task.short_circuit``. It can't pause tasks that run their callable in another process, such
+    as ``@task.virtualenv``, ``@task.external_python``, ``@task.docker`` or ``@task.kubernetes``.
+    Ask one question at a time from the task's own code, not from worker threads or from several
+    ``async`` calls running at once: a task instance has a single Required Actions request.
+
+    Needs Airflow 3.4+. Earlier versions keep the first request's subject, body and options when a
+    task asks again, after a resume or on a retry, so the reviewer would answer a question they were
+    not shown.
+
+    :param subject: Headline shown to the reviewer.
+    :param options: Options the reviewer chooses from.
+    :param body: Details the reviewer needs to decide (Markdown).
+    :param defaults: Options applied if ``timeout`` passes without an answer. Without defaults, the
+        task fails with :class:`~airflow.providers.standard.exceptions.HITLTimeoutError` at the timeout.
+    :param multiple: Whether the reviewer can choose more than one option.
+    :param params: Form fields for the reviewer to fill in, defined like Dag params.
+    :param notifiers: Notifiers called with the task context once the request is written.
+    :param assigned_users: Users allowed to answer. Anyone with access can answer if not set.
+    :param timeout: How long to wait for an answer. Waits indefinitely if not set.
+    :param key: Which question this is, so a resumed task gets each answer back at the right call.
+        Defaults to ``subject``. Each key is asked at most once per try. Set it when the subject can
+        change between runs, or when the task can ask the same subject more than once, for example
+        one approval per agent tool call (use the call's id).
+    """
+    if not AIRFLOW_V_3_4_PLUS:
+        raise AirflowOptionalProviderFeatureException("request_input() needs Airflow 3.4+.")
+    context = get_current_context()
+    task = context["task"]
+    if not isinstance(task, PythonOperator) or isinstance(task, _BasePythonVirtualenvOperator):
+        raise TypeError(
+            f"request_input() was called from {type(task).__name__}, which cannot resume it. It works "
+            "only in tasks that run their Python callable in the task's own process, such as @task "
+            "and PythonOperator."
+        )
+    defaults = [defaults] if isinstance(defaults, str) else defaults
+    params = params if isinstance(params, ParamsDict) else ParamsDict(params or {})
+    validate_options(options)
+    validate_params(params)
+    validate_defaults(defaults, options, multiple)
+    key = subject if key is None else key
+    answer_log = answer_log_var.get()
+    if answer_log is not None and (answer := answer_log.take(key)) is not None:
+        # The code may have changed since the reviewer answered; never hand back an option it no
+        # longer offers.
+        validate_chosen_options(answer["chosen_options"], options)
+        return answer
+    serialized_params = {name: params.get_param(name).serialize() for name in params}
+
+    _request_input_and_wait(
+        task,
+        context,
+        options=options,
+        subject=subject,
+        body=body,
+        defaults=defaults,
+        multiple=multiple,
+        params=serialized_params,
+        assigned_users=[assigned_users] if isinstance(assigned_users, dict) else assigned_users,
+        notifiers=[notifiers] if isinstance(notifiers, BaseNotifier) else notifiers or [],
+        timeout=timeout,
+        timeout_datetime=None,
+        method_name="resume_with_input",
+        kwargs={
+            "key": key,
+            # What the resume checks the answer against.
+            "options": options,
+            # A param without a default serializes its value as NOTSET, which can't be stored with
+            # the paused task. The resume only checks the answer against each schema, so None will do.
+            "params": {
+                name: {**spec, "value": spec["value"] if is_arg_set(spec["value"]) else None}
+                for name, spec in serialized_params.items()
+            },
+            # Earlier answers travel with the task so each run can replay every one of them.
+            "answered": [[answered_key, earlier] for answered_key, earlier in answer_log.answers.items()]
+            if answer_log is not None
+            else [],
+        },
+    )
 
 
 class HITLOperator(BaseOperator):
@@ -163,8 +340,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If `options` is empty.
         """
-        if not self.options:
-            raise ValueError('"options" cannot be empty.')
+        validate_options(self.options)
 
     def validate_params(self) -> None:
         """
@@ -179,8 +355,7 @@ class HITLOperator(BaseOperator):
         Raises:
             ValueError: If ``"_options"`` key is present in ``params``, which is not allowed.
         """
-        if "_options" in self.params:
-            raise ValueError('"_options" is not allowed in params')
+        validate_params(self.params)
 
     def validate_defaults(self) -> None:
         """
@@ -189,12 +364,7 @@ class HITLOperator(BaseOperator):
         1. Default options should be the subset of options.
         2. When multiple is False, there should only be one option.
         """
-        if self.defaults is not None:
-            if not set(self.defaults).issubset(self.options):
-                raise ValueError(f'defaults "{self.defaults}" should be a subset of options "{self.options}"')
-
-            if self.multiple is False and len(self.defaults) > 1:
-                raise ValueError('More than one defaults given when "multiple" is set to False.')
+        validate_defaults(self.defaults, self.options, self.multiple)
 
     def execute(self, context: Context):
         """
@@ -204,19 +374,6 @@ class HITLOperator(BaseOperator):
         involved; on older versions it defers to :class:`HITLTrigger`. Either way it resumes in
         ``execute_complete`` once a response (or timeout default) arrives.
         """
-        ti_id = context["task_instance"].id
-        # Write Human-in-the-loop input request to DB
-        upsert_hitl_detail(
-            ti_id=ti_id,
-            options=self.options,
-            subject=self.subject,
-            body=self.body,
-            defaults=self.defaults,
-            multiple=self.multiple,
-            params=self.serialized_params,
-            assigned_users=self.assigned_users,
-        )
-
         if self.response_timeout:
             timeout_datetime = utcnow() + self.response_timeout
         else:
@@ -227,29 +384,19 @@ class HITLOperator(BaseOperator):
             timeout_datetime.isoformat() if timeout_datetime else None
         )
 
-        self.log.info("Waiting for response")
-        for notifier in self.notifiers:
-            notifier(context)
-
-        if AIRFLOW_V_3_3_PLUS:
-            # New core (3.3+): park the task in AWAITING_INPUT -- no trigger, no triggerer. The task
-            # is resumed by the Core API response handler or the scheduler timeout sweep, so the
-            # triggerer no longer needs to run for Human-in-the-loop tasks to make progress.
-            raise TaskAwaitingInput(
-                method_name="execute_complete",
-                timeout=self.response_timeout,
-            )
-
-        # Fallback for cores < 3.3: defer the response check to HITLTrigger on the triggerer.
-        self.defer(
-            trigger=HITLTrigger(
-                ti_id=ti_id,
-                options=self.options,
-                defaults=self.defaults,
-                params=self.serialized_params,
-                multiple=self.multiple,
-                timeout_datetime=timeout_datetime,
-            ),
+        _request_input_and_wait(
+            self,
+            context,
+            options=self.options,
+            subject=self.subject,
+            body=self.body,
+            defaults=self.defaults,
+            multiple=self.multiple,
+            params=self.serialized_params,
+            assigned_users=self.assigned_users,
+            notifiers=self.notifiers,
+            timeout=self.response_timeout,
+            timeout_datetime=timeout_datetime,
             method_name="execute_complete",
         )
 
@@ -286,23 +433,15 @@ class HITLOperator(BaseOperator):
         )
 
     def process_trigger_event_error(self, event: dict[str, Any]) -> None:
-        if event["error_type"] == "timeout":
-            raise HITLTimeoutError(event)
-
-        raise HITLTriggerEventError(event)
+        raise_for_error_event(event)
 
     def validate_chosen_options(self, chosen_options: list[str]) -> None:
         """Check whether user provide valid response."""
-        if diff := set(chosen_options) - set(self.options):
-            raise ValueError(f"Responses {diff} not in {self.options}")
+        validate_chosen_options(chosen_options, self.options)
 
     def validate_params_input(self, params_input: Mapping) -> None:
         """Check whether user provide valid params input."""
-        if self.params and params_input and set(self.serialized_params.keys()) ^ set(params_input):
-            raise ValueError(f"params_input {params_input} does not match params {self.params}")
-
-        for key, value in params_input.items():
-            self.params[key] = value
+        validate_params_input(params_input, self.params)
 
     def generate_link_to_ui(
         self,

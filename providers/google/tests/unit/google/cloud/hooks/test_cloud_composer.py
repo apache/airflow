@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from aiohttp import ClientSession, ClientTimeout
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.orchestration.airflow.service_v1 import EnvironmentsAsyncClient
 
@@ -343,6 +344,29 @@ class TestCloudComposerAsyncHook:
     def setup_method(self, method):
         with mock.patch(BASE_STRING.format("GoogleBaseAsyncHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("timeout", [30.0, None])
+    @mock.patch(COMPOSER_STRING.format("ClientSession"), spec=True)
+    async def test_make_composer_airflow_api_request_passes_client_timeout(
+        self, mock_client_session, timeout
+    ) -> None:
+        self.hook._credentials = mock.MagicMock(valid=True, token="test-token")
+        session = mock.MagicMock(spec=ClientSession)
+        mock_client_session.return_value.__aenter__.return_value = session
+        response = session.request.return_value.__aenter__.return_value
+        response.json = AsyncMock(return_value={"key": "value"})
+        response.status = 200
+
+        result = await self.hook.make_composer_airflow_api_request(
+            method="GET",
+            airflow_uri=TEST_COMPOSER_AIRFLOW_URI,
+            path="/api/v1/dags",
+            timeout=timeout,
+        )
+
+        assert result == ({"key": "value"}, 200)
+        assert session.request.call_args.kwargs["timeout"] == ClientTimeout(total=timeout)
 
     @pytest.mark.asyncio
     @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))

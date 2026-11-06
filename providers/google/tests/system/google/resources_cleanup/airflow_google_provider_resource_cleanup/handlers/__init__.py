@@ -30,6 +30,7 @@ def get_delete_handlers() -> dict[str, type[BaseDeleteHandler]]:
     from airflow_google_provider_resource_cleanup.handlers.compute import ComputeDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataflow import DataflowDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataform import DataformDeleteHandler
+    from airflow_google_provider_resource_cleanup.handlers.datafusion import DataFusionDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataplex import DataplexDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataproc import DataprocDeleteHandler
     from airflow_google_provider_resource_cleanup.handlers.dataproc_metastore import (
@@ -53,6 +54,7 @@ def get_delete_handlers() -> dict[str, type[BaseDeleteHandler]]:
         "dataflow": DataflowDeleteHandler,
         "sqladmin": CloudSQLDeleteHandler,
         "dataform": DataformDeleteHandler,
+        "datafusion": DataFusionDeleteHandler,
         "dataplex": DataplexDeleteHandler,
         "dataproc": DataprocDeleteHandler,
         "dataproc_metastore": DataprocMetastoreDeleteHandler,

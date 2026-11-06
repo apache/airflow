@@ -32,6 +32,7 @@ from airflow.api_fastapi.common.parameters import (
     SortParam,
     datetime_range_filter_factory,
     filter_param_factory,
+    float_range_filter_factory,
     int_range_filter_factory,
 )
 from airflow.api_fastapi.common.router import AirflowRouter
@@ -60,6 +61,7 @@ def list_backfills_ui(
     created_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("created_at", Backfill))],
     completed_at: Annotated[RangeFilter, Depends(datetime_range_filter_factory("completed_at", Backfill))],
     max_active_runs: Annotated[RangeFilter, Depends(int_range_filter_factory("max_active_runs", Backfill))],
+    duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", Backfill))],
     reprocess_behavior: Annotated[
         FilterParam, Depends(filter_param_factory(Backfill.reprocess_behavior, ReprocessBehavior | None))
     ],
@@ -86,6 +88,7 @@ def list_backfills_ui(
             created_at,
             completed_at,
             max_active_runs,
+            duration_range,
             reprocess_behavior,
         ],
         order_by=order_by,

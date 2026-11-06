@@ -17,7 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Validation helpers for the conn-fields ↔ get_connection_form_widgets() check.
+Validation helpers for the checks that compare connection UI metadata in provider.yaml with the hook.
+
+``conn-fields`` is compared with ``get_connection_form_widgets()``, and ``ui-field-behaviour``
+with ``get_ui_field_behaviour()``.
 
 These functions have no third-party dependencies so they can be unit-tested
 outside of the Breeze container without any stubbing.
@@ -27,6 +30,7 @@ Used by ``scripts/in_container/run_provider_yaml_files_check.py``.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 
 
@@ -120,3 +124,120 @@ def build_mismatch_error(
         )
         lines.append("[yellow]How to fix it[/]: Add the missing key(s) to conn-fields in provider.yaml.")
     return "\n".join(lines)
+
+
+def normalize_behaviour_value(value: object) -> str:
+    """
+    Equality-normalize a relabeling/placeholder value.
+
+    Placeholder values are display examples, so insignificant formatting must not count as
+    drift: surrounding whitespace is stripped, and values that parse as JSON on both sides
+    are compared structurally (hooks often build them with ``json.dumps`` at a different
+    indent than the YAML block scalar, and ``|`` block scalars add a trailing newline).
+    """
+    text = str(value).strip()
+    try:
+        return json.dumps(json.loads(text), sort_keys=True)
+    except (ValueError, TypeError):
+        return text
+
+
+def normalize_placeholder_key(key: str, connection_type: str) -> str:
+    """
+    Prefix a custom-field placeholder key the way ``_ensure_prefix_for_placeholders`` does at runtime.
+
+    Airflow accepts both ``keyfile_dict`` and ``extra__<conn_type>__keyfile_dict`` for the same
+    field, so the two spellings must not count as drift.
+    """
+    if key in {"host", "schema", "login", "password", "port", "extra"} or key.startswith("extra__"):
+        return key
+    return f"extra__{connection_type}__{key}"
+
+
+def check_ui_field_behaviour_for_entry(
+    conn_type_entry: dict,
+    yaml_file_path: str,
+    get_behaviour: Callable[[str], dict | None],
+) -> list[str]:
+    """
+    Validate a connection-type entry's ``ui-field-behaviour`` against ``get_ui_field_behaviour()``.
+
+    *get_behaviour(hook_class_name)* is a callable supplied by the caller that returns the
+    hook's ``get_ui_field_behaviour()`` dict, or ``None`` to skip the entry (hook not
+    importable, or it does not override the method). Any other exception is converted to an
+    error string here so callers never need to catch it.
+
+    Airflow 3.2+ builds the connection form from the provider YAML and skips the hook method
+    once the YAML declares connection metadata, while the older Airflow versions a provider
+    still supports call ``get_ui_field_behaviour()``. The two must agree, or the same form
+    looks different depending on the Airflow version. A missing ``ui-field-behaviour``
+    section is flagged too, since the hook method is deprecated in favour of it.
+    """
+    hook_class_name: str = conn_type_entry["hook-class-name"]
+    connection_type: str = conn_type_entry.get("connection-type", "?")
+
+    try:
+        hook_behaviour = get_behaviour(hook_class_name)
+    except Exception as exc:
+        return [
+            f"Failed to call `{hook_class_name}.get_ui_field_behaviour()` "
+            f"while checking {yaml_file_path}: {exc}"
+        ]
+
+    if hook_behaviour is None:
+        return []
+
+    header = (
+        f"Mismatch between `ui-field-behaviour` in {yaml_file_path} and "
+        f"`{hook_class_name}.get_ui_field_behaviour()` "
+        f"for connection-type '{connection_type}':"
+    )
+
+    yaml_behaviour = conn_type_entry.get("ui-field-behaviour")
+    if yaml_behaviour is None:
+        return [
+            f"{header}\n"
+            "  The hook overrides get_ui_field_behaviour(), which is deprecated in favour of "
+            "ui-field-behaviour in provider.yaml, but provider.yaml has no such section.\n"
+            "[yellow]How to fix it[/]: Declare ui-field-behaviour for this connection-type "
+            "in provider.yaml, matching get_ui_field_behaviour()."
+        ]
+
+    problems = []
+
+    yaml_hidden = set(yaml_behaviour.get("hidden-fields") or [])
+    hook_hidden = set(hook_behaviour.get("hidden_fields") or [])
+    if yaml_hidden != hook_hidden:
+        problems.append(
+            "  hidden-fields differ."
+            f" Only in provider.yaml: {sorted(yaml_hidden - hook_hidden) or '-'};"
+            f" only in the hook: {sorted(hook_hidden - yaml_hidden) or '-'}"
+        )
+
+    key_normalizers: dict[str, Callable[[str], str]] = {
+        "relabeling": lambda key: key,
+        "placeholders": lambda key: normalize_placeholder_key(key, connection_type),
+    }
+    for section, normalize_key in key_normalizers.items():
+        yaml_section = {
+            normalize_key(k): normalize_behaviour_value(v)
+            for k, v in (yaml_behaviour.get(section) or {}).items()
+        }
+        hook_section = {
+            normalize_key(k): normalize_behaviour_value(v)
+            for k, v in (hook_behaviour.get(section) or {}).items()
+        }
+        if yaml_section == hook_section:
+            continue
+        diff_keys = sorted(
+            k for k in yaml_section.keys() | hook_section.keys() if yaml_section.get(k) != hook_section.get(k)
+        )
+        problems.append(f"  {section} differ for: {', '.join(diff_keys)}")
+
+    if not problems:
+        return []
+    problems.append(
+        "[yellow]How to fix it[/]: Make ui-field-behaviour in provider.yaml say the same "
+        "thing as get_ui_field_behaviour(); Airflow 3.2+ shows the YAML, older versions the hook method."
+    )
+    return ["\n".join([header, *problems])]

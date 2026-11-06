@@ -22,7 +22,7 @@ Airflow® is tested with:
 
  .. Beginning of the auto-generated tested versions
 
-* Python: 3.10, 3.11, 3.12, 3.13, 3.14
+* Python: 3.11, 3.12, 3.13, 3.14
 
 * Databases:
 
@@ -30,7 +30,7 @@ Airflow® is tested with:
   * MySQL: 8.0, 8.4, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
   * SQLite: 3.15.0+
 
-* Kubernetes: 1.30, 1.31, 1.32, 1.33, 1.34, 1.35
+* Kubernetes: 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37
 
  .. End of the auto-generated tested versions
 

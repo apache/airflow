@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GridRunsResponse } from "openapi/requests/types.gen";
 
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
+import { GridSelectionProvider } from "src/context/gridSelection";
 import { GroupsProvider } from "src/context/groups";
 import { Wrapper } from "src/utils/Wrapper";
 
@@ -73,13 +74,15 @@ describe("Grid", () => {
     const { container } = render(
       <Wrapper>
         <GroupsProvider dagId="example_dag">
-          <Grid
-            limit={10}
-            offset={0}
-            onJumpToLatest={vi.fn()}
-            setOffset={vi.fn()}
-            showVersionIndicatorMode={VersionIndicatorOptions.ALL}
-          />
+          <GridSelectionProvider>
+            <Grid
+              limit={10}
+              offset={0}
+              onJumpToLatest={vi.fn()}
+              setOffset={vi.fn()}
+              showVersionIndicatorMode={VersionIndicatorOptions.ALL}
+            />
+          </GridSelectionProvider>
         </GroupsProvider>
       </Wrapper>,
     );

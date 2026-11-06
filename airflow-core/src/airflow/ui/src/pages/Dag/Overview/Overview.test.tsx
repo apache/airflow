@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import "@testing-library/jest-dom";
+import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -37,7 +37,7 @@ vi.mock("openapi/queries", () => ({
             { bundle_url: "/dag.js", destination: "dag_overview", name: "Dag overview plugin" },
             { bundle_url: "/task.js", destination: "task_overview", name: "Task overview plugin" },
             {
-              applies_to: { dag_tags: ["finance"] },
+              applies_to: { "dag.tags.name": ["finance"] },
               bundle_url: "/scoped.js",
               destination: "dag_overview",
               name: "Scoped overview plugin",

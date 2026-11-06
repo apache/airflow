@@ -123,11 +123,7 @@ export class ConnectionsPage extends BasePage {
   public async connectionExists(connectionId: string): Promise<boolean> {
     const emptyState = await this.emptyState.isVisible({ timeout: 1000 }).catch(() => false);
 
-    if (emptyState) {
-      return false;
-    }
-
-    return (await this.findConnectionRow(connectionId)) !== undefined;
+    return !emptyState && (await this.findConnectionRow(connectionId)) !== undefined;
   }
 
   public async createConnection(details: ConnectionDetails): Promise<void> {
@@ -338,11 +334,9 @@ export class ConnectionsPage extends BasePage {
             return false;
           }
 
-          if (searchTerm === "") {
-            return ids.length > 0;
-          }
-
-          return ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
+          return searchTerm === ""
+            ? ids.length > 0
+            : ids.every((id) => id.toLowerCase().includes(searchTerm.toLowerCase()));
         },
         { message: "Search results did not match search term", timeout: 30_000 },
       )
@@ -365,11 +359,7 @@ export class ConnectionsPage extends BasePage {
   private async findConnectionRow(connectionId: string): Promise<Locator | undefined> {
     const hasSearch = await this.searchInput.isVisible({ timeout: 500 }).catch(() => false);
 
-    if (hasSearch) {
-      return await this.findConnectionRowUsingSearch(connectionId);
-    }
-
-    return undefined;
+    return hasSearch ? await this.findConnectionRowUsingSearch(connectionId) : undefined;
   }
 
   private async findConnectionRowUsingSearch(connectionId: string): Promise<Locator | undefined> {
@@ -385,11 +375,7 @@ export class ConnectionsPage extends BasePage {
 
     const rowExists = await row.isVisible({ timeout: 3000 }).catch(() => false);
 
-    if (!rowExists) {
-      return undefined;
-    }
-
-    return row;
+    return rowExists ? row : undefined;
   }
 
   private async waitForConnectionsListLoad(): Promise<void> {

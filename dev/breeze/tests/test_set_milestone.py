@@ -18,14 +18,13 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from airflow_breeze.commands.ci_commands import (
     _determine_milestone_version,
-    _find_latest_milestone,
     _find_matching_milestone,
     _get_backport_version_from_labels,
     _get_mention,
@@ -34,7 +33,6 @@ from airflow_breeze.commands.ci_commands import (
     _get_milestone_prefix,
     _get_removed_backport_labels_from_events,
     _has_bug_fix_indicators,
-    _parse_milestone_version,
     _parse_version_from_backport_label,
     _parse_version_from_branch,
     _should_skip_milestone_tagging,
@@ -140,28 +138,6 @@ class TestGetMilestonePrefix:
         assert _get_milestone_prefix(major, minor) == expected
 
 
-class TestParseMilestoneVersion:
-    """Test cases for _parse_milestone_version."""
-
-    @pytest.mark.parametrize(
-        ("title", "expected"),
-        [
-            ("Airflow 3.1.8", (3, 1, 8)),
-            ("Airflow 3.2", (3, 2, 0)),
-            ("Airflow 2.10.5", (2, 10, 5)),
-        ],
-    )
-    def test_valid_milestone_version(self, title, expected):
-        assert _parse_milestone_version(title) == expected
-
-    @pytest.mark.parametrize(
-        "title",
-        ["Something else", "Airflow", "Airflow 3"],
-    )
-    def test_invalid_milestone_version(self, title):
-        assert _parse_milestone_version(title) is None
-
-
 class TestHasBugFixIndicators:
     """Test cases for _has_bug_fix_indicators."""
 
@@ -202,21 +178,13 @@ class TestShouldSkipMilestoneTagging:
 
     def test_skip_when_backport_unlabeled_with_no_replacement(self):
         # Events show backport removal, no backport on PR now → skip (check 2).
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _should_skip_milestone_tagging(["kind:bug"], events=events)
 
     def test_no_skip_when_backport_replaced(self):
         # Events show backport-to-v3-1 removal but v3-2 remains on the PR → no skip.
         # The caller's regular evaluation will pick up the new label.
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert not _should_skip_milestone_tagging(["backport-to-v3-2-test", "kind:bug"], events=events)
 
     def test_no_skip_when_no_removal_event(self):
@@ -224,20 +192,14 @@ class TestShouldSkipMilestoneTagging:
         assert not _should_skip_milestone_tagging(["backport-to-v3-1-test", "kind:bug"], events=[])
 
     def test_no_skip_when_unrelated_label_removed(self):
-        events = [
-            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
-        ]
+        events = [_unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert not _should_skip_milestone_tagging(["kind:bug"], events=events)
 
     def test_events_check_takes_precedence_over_static_labels(self):
         # Both check 2 (events) and check 3 (static label) would fire here;
         # the function returns True on the first one — events — and never logs
         # the static-label reason.
-        events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            )
-        ]
+        events = [_unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _should_skip_milestone_tagging(["area:CI"], events=events)
 
     def test_events_none_disables_events_check(self):
@@ -251,10 +213,8 @@ class TestGetRemovedBackportLabelsFromEvents:
 
     def test_returns_all_unlabel_events_for_backports(self):
         events = [
-            _unlabel_event(
-                "backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc)
-            ),
-            _unlabel_event("backport-to-v3-2-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=timezone.utc)),
+            _unlabel_event("backport-to-v3-1-test", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC)),
+            _unlabel_event("backport-to-v3-2-test", "bob", datetime(2026, 5, 23, 14, 0, tzinfo=UTC)),
         ]
         assert _get_removed_backport_labels_from_events(events) == {
             "backport-to-v3-1-test",
@@ -262,9 +222,7 @@ class TestGetRemovedBackportLabelsFromEvents:
         }
 
     def test_ignores_unrelated_label_unlabel_events(self):
-        events = [
-            _unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=timezone.utc))
-        ]
+        events = [_unlabel_event("kind:documentation", "alice", datetime(2026, 5, 23, 12, 0, tzinfo=UTC))]
         assert _get_removed_backport_labels_from_events(events) == set()
 
     def test_ignores_non_unlabeled_events(self):
@@ -379,30 +337,6 @@ class TestFindMatchingMilestone:
         mock_repo.get_milestones.return_value = [mock_milestone]
 
         result = _find_matching_milestone(mock_repo, "Airflow 3.1")
-        assert result is None
-
-
-class TestFindLatestMilestone:
-    """Test cases for _find_latest_milestone."""
-
-    def test_find_latest_milestone(self):
-        mock_repo = MagicMock()
-        mock_milestone1 = MagicMock()
-        mock_milestone1.title = "Airflow 3.1.8"
-        mock_milestone2 = MagicMock()
-        mock_milestone2.title = "Airflow 3.2"
-        mock_milestone3 = MagicMock()
-        mock_milestone3.title = "Airflow 2.10.5"
-        mock_repo.get_milestones.return_value = [mock_milestone1, mock_milestone2, mock_milestone3]
-
-        result = _find_latest_milestone(mock_repo)
-        assert result.title == "Airflow 3.2"  # Should get the highest version
-
-    def test_no_milestone_found(self):
-        mock_repo = MagicMock()
-        mock_repo.get_milestones.return_value = []
-
-        result = _find_latest_milestone(mock_repo)
         assert result is None
 
 
@@ -733,7 +667,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-2-test",
                 "shahar1",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=UTC),
             ),
         ]
         mock_get_client.return_value = mock_gh
@@ -785,7 +719,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-2-test",
                 "testuser",
-                datetime(2026, 5, 23, 20, 32, 17, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 32, 17, tzinfo=UTC),
             ),
         ]
         mock_get_client.return_value = mock_gh
@@ -834,7 +768,7 @@ However, **no open milestone was found** matching: {expected_search_criteria}
             _unlabel_event(
                 "backport-to-v3-1-test",
                 "testuser",
-                datetime(2026, 5, 23, 20, 30, 0, tzinfo=timezone.utc),
+                datetime(2026, 5, 23, 20, 30, 0, tzinfo=UTC),
             ),
         ]
         mock_milestone = MagicMock()

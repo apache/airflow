@@ -20,10 +20,10 @@ from __future__ import annotations
 import time
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, BinaryIO, Literal, overload
+from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar, overload
 
 from deprecated import deprecated
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.auth import (
     azure_managed_identity_token_provider,
     gcp_id_token_provider,
@@ -33,6 +33,7 @@ from openai.auth import (
 if TYPE_CHECKING:
     from openai.auth import SubjectTokenProvider, WorkloadIdentity
     from openai.types import (
+        CreateEmbeddingResponse,
         FileDeleted,
         FileObject,
         VectorStore,
@@ -50,13 +51,18 @@ if TYPE_CHECKING:
         ChatCompletionUserMessageParam,
     )
     from openai.types.conversations import Conversation, ConversationDeletedResource
-    from openai.types.responses import Response
+    from openai.types.responses import ParsedResponse, Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
+    from pydantic import BaseModel
+
+    from airflow.providers.common.compat.sdk import Connection
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
-from airflow.providers.common.compat.sdk import BaseHook
+from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
     OpenAIAgentSessionError,
+    OpenAIBatchCancelled,
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
@@ -70,6 +76,11 @@ _ASSISTANTS_DEPRECATION_REASON = (
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
+
+#: Generic type variable for the Pydantic model used as the ``text_format`` in structured-output
+#: Responses API calls. Mirrors the SDK's ``TextFormatT`` so ``parse_response`` returns a
+#: ``ParsedResponse[T]`` — callers get ``output_parsed`` typed as ``T | None``.
+_TextFormatT = TypeVar("_TextFormatT", bound="BaseModel")
 
 
 class BatchStatus(str, Enum):
@@ -95,6 +106,42 @@ class BatchStatus(str, Enum):
 
 #: Statuses the provider's trigger emits in its terminal event.
 TRIGGER_EVENT_STATUSES = frozenset({"success", "error", "cancelled"})
+
+
+class TerminationReason(str, Enum):
+    """Enum for the ``termination_reason`` field of a trigger's terminal event."""
+
+    TIMEOUT = "timeout"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+    FAILED = "failed"
+    EXPIRED = "expired"
+    UNEXPECTED_STATUS = "unexpected_status"
+    POLLING_ERROR = "polling_error"
+
+
+# Maps the trigger's ``termination_reason`` field to the exception ``execute_complete``
+# should raise. Keyed on the reason field, never on the message text, so that a
+# rewording of the trigger's message never silently changes which exception a
+# downstream task can catch.
+_TERMINATION_REASON_EXCEPTIONS: dict[str, type[AirflowException]] = {
+    TerminationReason.TIMEOUT: OpenAIBatchTimeout,
+    TerminationReason.CANCELLED: OpenAIBatchCancelled,
+}
+
+
+def build_batch_error(message: str, termination_reason: str | None) -> AirflowException:
+    """
+    Build (but do not raise) the exception matching a trigger event's termination reason.
+
+    ``termination_reason`` is ``None`` when the event was produced by a trigger
+    serialized before this field existed (a rolling upgrade in flight); that case
+    falls back to ``OpenAIBatchJobException``, matching today's behavior.
+    """
+    if termination_reason is None:
+        return OpenAIBatchJobException(message)
+    exception_class = _TERMINATION_REASON_EXCEPTIONS.get(termination_reason, OpenAIBatchJobException)
+    return exception_class(message)
 
 
 def validate_execute_complete_event(event: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -164,8 +211,25 @@ class OpenAIHook(BaseHook):
           OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
         """
         conn = self.get_connection(self.conn_id)
-        extras = conn.extra_dejson
-        openai_client_kwargs = extras.get("openai_client_kwargs", {})
+        return OpenAI(**self._client_kwargs(conn, conn.extra_dejson))
+
+    async def aget_conn(self) -> AsyncOpenAI:
+        """
+        Return an ``AsyncOpenAI`` client configured like :meth:`get_conn`.
+
+        From Airflow 3.3.2 the connection is resolved without a blocking call to the
+        supervisor, so this is safe on an event loop with other async calls in flight.
+
+        Each call builds a new client: close it with ``async with`` or ``await client.close()``.
+        With ``workload_identity`` each client exchanges its own token, so reuse one client
+        for many calls.
+        """
+        conn = await get_async_connection(self.conn_id, hook=self)
+        return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
+
+    def _client_kwargs(self, conn: Connection, extras: dict[str, Any]) -> dict[str, Any]:
+        """Build the ``OpenAI`` / ``AsyncOpenAI`` constructor kwargs from the connection."""
+        openai_client_kwargs = dict(extras.get("openai_client_kwargs", {}))
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
         # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
         # (the OpenAI client rejects both being set at once).
@@ -173,14 +237,14 @@ class OpenAIHook(BaseHook):
         auth_type = extras.get("auth_type", "api_key")
 
         if auth_type == "api_key":
-            return OpenAI(api_key=api_key or conn.password, base_url=base_url, **openai_client_kwargs)
+            return {"api_key": api_key or conn.password, "base_url": base_url, **openai_client_kwargs}
 
         if auth_type == "workload_identity":
-            return OpenAI(
-                workload_identity=self._build_workload_identity(extras),
-                base_url=base_url,
+            return {
+                "workload_identity": self._build_workload_identity(extras),
+                "base_url": base_url,
                 **openai_client_kwargs,
-            )
+            }
 
         raise ValueError(
             f"Unsupported auth_type {auth_type!r} for OpenAI connection {self.conn_id!r}; "
@@ -272,6 +336,31 @@ class OpenAIHook(BaseHook):
         :param model: ID of the model to use.
         """
         return self.conn.responses.create(model=model, input=input, **kwargs)
+
+    def parse_response(
+        self,
+        input: Any,
+        model: str = "gpt-4o-mini",
+        *,
+        text_format: type[_TextFormatT],
+        **kwargs: Any,
+    ) -> ParsedResponse[_TextFormatT]:
+        """
+        Create a model response and parse it into a Pydantic model via the Responses API.
+
+        Wraps :py:meth:`openai.resources.responses.Responses.parse`. The SDK converts
+        ``text_format`` into a JSON schema, sends it as a structured-output request, and
+        returns a :class:`~openai.types.responses.ParsedResponse` whose ``output_parsed``
+        attribute is an instance of ``text_format``, or ``None`` when the response carries no
+        parsed output (for example a refusal).
+
+        :param input: Text, image, or file input(s) to the model.
+        :param model: ID of the model to use.
+        :param text_format: A Pydantic ``BaseModel`` subclass describing the expected
+            structured output. Keyword-only, as in the SDK. The SDK converts it to a JSON schema
+            and sends the structured-output request.
+        """
+        return self.conn.responses.parse(input=input, model=model, text_format=text_format, **kwargs)
 
     def get_response(self, response_id: str, **kwargs: Any) -> Response:
         """
@@ -525,6 +614,48 @@ class OpenAIHook(BaseHook):
         :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
+        return self._embeddings_result(text, response)
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
+    async def acreate_embeddings(
+        self,
+        text: str | list[str] | list[int] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float] | list[list[float]]:
+        """
+        Async version of :meth:`create_embeddings`.
+
+        Each call opens and closes its own client, so for many inputs pass one batched ``text`` list.
+
+        :param text: The text to generate embeddings for.
+        :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
+        """
+        async with await self.aget_conn() as client:
+            response = await client.embeddings.create(model=model, input=text, **kwargs)
+        return self._embeddings_result(text, response)
+
+    @staticmethod
+    def _embeddings_result(
+        text: str | list[str] | list[int] | list[list[int]], response: CreateEmbeddingResponse
+    ) -> list[float] | list[list[float]]:
+        """Return one vector for a single text or token array, one vector per item in input order for a batch."""
         if isinstance(text, str) or (text and isinstance(text[0], int)):
             return response.data[0].embedding
         return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]
@@ -685,7 +816,12 @@ class OpenAIHook(BaseHook):
         start = time.monotonic()
         while True:
             if start + timeout < time.monotonic():
-                self.cancel_batch(batch_id=batch_id)
+                try:
+                    self.cancel_batch(batch_id=batch_id)
+                except Exception as e:
+                    self.log.warning(
+                        "Failed to request cancellation of batch %s after timeout: %s", batch_id, e
+                    )
                 raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             batch = self.get_batch(batch_id=batch_id)
 
@@ -697,10 +833,10 @@ class OpenAIHook(BaseHook):
             if batch.status == BatchStatus.FAILED:
                 raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
             if batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
-                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
+                raise OpenAIBatchCancelled(f"Batch failed - batch was cancelled:\n{batch_id}")
             if batch.status == BatchStatus.EXPIRED:
                 raise OpenAIBatchJobException(
-                    f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
+                    f"Batch failed - batch couldn't be completed within its completion window:\n{batch_id}"
                 )
 
             raise OpenAIBatchJobException(

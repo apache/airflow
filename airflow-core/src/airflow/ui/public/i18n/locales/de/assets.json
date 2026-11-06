@@ -49,6 +49,7 @@
   "events": "Ereignisse",
   "filters": {
     "groupPlaceholder": "Gruppe suchen",
+    "hasEvents": "Hat Ereignisse",
     "lastEventDateRange": "Datum des letzten Ereignisses"
   },
   "group": "Gruppe",

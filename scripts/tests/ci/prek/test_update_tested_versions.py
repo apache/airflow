@@ -59,7 +59,7 @@ class TestUpdateReadme:
 
         |            | Main version (dev) | Stable version (3.2.0) | Stable version (2.11.2) |
         |------------|--------------------|------------------------|-------------------------|
-        | Python     | WRONG              | 3.10, 3.11             | 3.10                    |
+        | Python     | WRONG              | 3.11, 3.12             | 3.11                    |
         | Platform   | AMD64/ARM64        | AMD64/ARM64            | AMD64/ARM64             |
         | PostgreSQL | WRONG              | 14, 15                 | 12, 13                  |
         | SQLite     | 3.15.0+            | 3.15.0+                | 3.15.0+                 |
@@ -86,7 +86,7 @@ class TestUpdateReadme:
         assert _dev_cell(rows["PostgreSQL"]) == expected_postgres
 
         # Stable columns are untouched.
-        assert _stable_cells(rows["Python"]) == ["3.10, 3.11", "3.10"]
+        assert _stable_cells(rows["Python"]) == ["3.11, 3.12", "3.11"]
         assert _stable_cells(rows["PostgreSQL"]) == ["14, 15", "12, 13"]
 
         # A non-target row keeps its dev value verbatim.

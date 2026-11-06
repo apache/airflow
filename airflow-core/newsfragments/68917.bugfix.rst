@@ -1,0 +1,1 @@
+A deadline alert that cannot be decoded, or whose interval or reference fails to resolve, no longer aborts creation of the Dag run it belongs to. The failing alert is logged and skipped, the remaining alerts still get their deadlines, and a new ``deadline_alerts.deadline_creation_failed`` counter is emitted for it.

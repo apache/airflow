@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointOp
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_MODEL_PARAMS: dict = {
@@ -166,15 +167,20 @@ class TestSageMakerEndpointOperator:
         self.sagemaker.config["Endpoint"]["Tags"] = {"Key": "k", "Value": "v"}
         self.sagemaker.execute(None)
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False])
     @mock.patch.object(SageMakerHook, "create_model")
     @mock.patch.object(SageMakerHook, "create_endpoint_config")
     @mock.patch.object(SageMakerHook, "create_endpoint")
-    def test_deferred(self, mock_create_endpoint, _, __):
+    def test_deferred(self, mock_create_endpoint, _, __, wait_for_completion):
         self.sagemaker.deferrable = True
+        self.sagemaker.wait_for_completion = wait_for_completion
 
         mock_create_endpoint.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
-        with pytest.raises(TaskDeferred) as defer:
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as defer,
+        ):
             self.sagemaker.execute(None)
 
         assert isinstance(defer.value.trigger, SageMakerTrigger)
@@ -187,6 +193,7 @@ class TestSageMakerEndpointOperator:
     def test_deferred_trigger_receives_hook_configuration(self, mock_create_endpoint, _, __):
         mock_create_endpoint.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
         self.sagemaker.deferrable = True
+        self.sagemaker.wait_for_completion = True
         self.sagemaker.region_name = REGION_NAME
         self.sagemaker.verify = VERIFY
         self.sagemaker.botocore_config = BOTOCORE_CONFIG

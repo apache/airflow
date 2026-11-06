@@ -1,17 +1,28 @@
 {
   "backfill": {
     "affected_one": "ריצה אחת תופעל.",
-    "affected_other": "{{count}} ריצות יופעלו.",
-    "affected_two": "שתי ריצות יופעלו.",
+    "affected_other": "{{count, number}} ריצות יופעלו.",
+    "affected_two": "{{count, number}} ריצות יופעלו.",
     "affectedNone": "לא נמצאו ריצות התואמות לקריטריונים שנבחרו.",
     "allRuns": "כל ההרצות",
     "backwards": "הרץ לאחור",
     "dateRange": "טווח תאריכים",
     "errorStartDateBeforeEndDate": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
+    "exceptionReason": {
+      "alreadyExists": "כבר קיים",
+      "inFlight": "בתהליך",
+      "unknown": "לא ידוע"
+    },
     "maxRuns": "מספר ריצות מקבילות מירבי",
     "missingAndErroredRuns": "הרצות חסרות ושגויות",
     "missingRuns": "הרצות חסרות",
+    "notCreatedReason": "סיבת אי-היצירה",
     "overrideExistingParams": "דרוס פרמטרים בהרצות קיימות",
+    "partitionRange": "טווח מחיצות",
+    "partitionsAffected_one": "מחיצה אחת תושלם למפרע:",
+    "partitionsAffected_other": "{{count, number}} מחיצות יושלמו למפרע:",
+    "partitionsAffected_two": "{{count, number}} מחיצות יושלמו למפרע:",
+    "partitionsNone": "לא נמצאו מחיצות התואמות לטווח שנבחר.",
     "permissionDenied": "הרצה יבשה (Dry Run) נכשלה: למשתמש אין הרשאה ליצור Backfills.",
     "reprocessBehavior": "התנהגות עיבוד מחדש",
     "run": "הרץ Backfill",
@@ -26,11 +37,11 @@
         "title": "Backfill נוצר"
       }
     },
-    "unpause": "הפעל את {{dag_display_name}} בעת הריצה",
     "validation": {
       "datesRequired": "יש להזין גם תאריך התחלה וגם תאריך סיום של מרווח הנתונים.",
       "startBeforeEnd": "תאריך התחלת מרווח הנתונים חייב להיות קטן או שווה לתאריך סיום מרווח הנתונים."
-    }
+    },
+    "viewSlots": "הצגת חריצים להשלמה למפרע #{{id}}"
   },
   "banner": {
     "backfillInProgress": "Backfill בתהליך",
@@ -43,16 +54,22 @@
   },
   "close": "סגור",
   "configForm": {
-    "advancedOptions": "אפשרויות מתקדמות",
     "configJson": "הגדרות JSON",
     "invalidJson": "מבנה ה-JSON אינו תקין: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "שגיאה",
     "errorAndWarning": "שגיאה אחת ו-{{warningText}}",
+    "types": {
+      "asset conflict": "התנגשות בנכס",
+      "duplicate dag id": "Dag ID כפול",
+      "non-existent pool": "מאגר משאבים לא קיים",
+      "runtime varying value": "ערך משתנה בזמן ריצה",
+      "task group cycle": "מעגל בקבוצת המשימות"
+    },
     "warning_one": "אזהרה אחת",
-    "warning_other": "{{count}} אזהרות",
-    "warning_two": "שתי אזהרות"
+    "warning_other": "{{count, number}} אזהרות",
+    "warning_two": "{{count, number}} אזהרות"
   },
   "dateRangeFilter": {
     "validation": {
@@ -64,11 +81,11 @@
   "durationChart": {
     "duration": "משך זמן (שניות)",
     "lastDagRun_one": "ריצת Dag אחרונה",
-    "lastDagRun_other": "{{count}} ריצות Dag אחרונות",
-    "lastDagRun_two": "שתי ריצות Dag אחרונות",
+    "lastDagRun_other": "{{count, number}} ריצות Dag אחרונות",
+    "lastDagRun_two": "{{count, number}} ריצות Dag אחרונות",
     "lastTaskInstance_one": "מופע משימה אחרונה",
-    "lastTaskInstance_other": "{{count}} מופעי משימות אחרונות",
-    "lastTaskInstance_two": "שני מופעי משימות אחרונות",
+    "lastTaskInstance_other": "{{count, number}} מופעי משימות אחרונות",
+    "lastTaskInstance_two": "{{count, number}} מופעי משימות אחרונות",
     "medianTotalDuration": "סה״כ: {{duration}}",
     "queuedDuration": "זמן המתנה בתור",
     "runAfter": "הרץ אחרי",
@@ -76,8 +93,8 @@
   },
   "fileUpload": {
     "files_one": "קובץ אחד",
-    "files_other": "{{count}} קבצים",
-    "files_two": "שני קבצים"
+    "files_other": "{{count, number}} קבצים",
+    "files_two": "{{count, number}} קבצים"
   },
   "flexibleForm": {
     "durationPlaceholder": "הזן משך זמן בפורמט ISO 8601",
@@ -101,27 +118,53 @@
     "downloadImageErrorTitle": "ההורדה נכשלה",
     "otherDagRuns": "+ ריצות Dag נוספות",
     "taskCount_one": "משימה אחת",
-    "taskCount_other": "{{count}} משימות",
-    "taskCount_two": "שתי משימות",
+    "taskCount_other": "{{count, number}} משימות",
+    "taskCount_two": "{{count, number}} משימות",
     "taskGroup": "קבוצת משימות",
     "zoomToTask": "התמקד במשימה שנבחרה"
   },
-  "limitedList": "+ {{count}} נוספים",
-  "limitedList.allItems": "כל {{count}} הפריטים:",
+  "jsonPreview": {
+    "items_one": "פריט אחד",
+    "items_other": "{{count, number}} פריטים",
+    "items_two": "{{count, number}} פריטים"
+  },
+  "limitedList": "+ {{count, number}} נוספים",
+  "limitedList.allItems": "כל {{count, number}} הפריטים:",
   "limitedList.allTags_one": "כל התגיות (1)",
-  "limitedList.allTags_other": "כל התגיות ({{count}})",
-  "limitedList.allTags_two": "כל התגיות (2)",
+  "limitedList.allTags_other": "כל התגיות ({{count, number}})",
+  "limitedList.allTags_two": "כל התגיות ({{count, number}})",
   "limitedList.clickToInteract": "לחץ על תגית כדי לסנן Dags",
-  "limitedList.clickToOpenFull": "לחץ על \"+{{count}} נוספים\" כדי לפתוח את התצוגה המלאה",
+  "limitedList.clickToOpenFull": "לחץ על \"+{{count, number}} נוספים\" כדי לפתוח את התצוגה המלאה",
   "limitedList.copyPasteText": "ניתן להעתיק ולהדביק את הטקסט שמעל",
   "limitedList.showingItems_one": "מציג פריט אחד",
-  "limitedList.showingItems_other": "מציג {{count}} פריטים",
-  "limitedList.showingItems_two": "מציג שני פריטים",
+  "limitedList.showingItems_other": "מציג {{count, number}} פריטים",
+  "limitedList.showingItems_two": "מציג {{count, number}} פריטים",
   "logs": {
     "file": "קובץ",
     "location": "שורה {{line}} ב{{name}}"
   },
+  "passwordToggle": {
+    "hide": "הסתרת ערך",
+    "show": "הצגת ערך"
+  },
+  "pausedDag": {
+    "drain": "השהיה לאחר סיום",
+    "drainDescription": "הרצות שלא הסתיימו יימשכו, אך לא ייווצרו הרצות מתוזמנות. השלמות למפרע שהושהו יישארו מושהות. ה-Dag יושהה שוב לאחר שכל ההרצות יסתיימו.",
+    "keepPaused": "השאר מושהה",
+    "keepPausedDescription": "הרצות חדשות והרצות שלא הסתיימו ימתינו עד לביטול השהיית ה-Dag.",
+    "title": "ה-Dag מושהה",
+    "unfinishedRunsWillRun_one": "הרצת Dag אחת שלא הסתיימה תתחיל או תתחדש.",
+    "unfinishedRunsWillRun_other": "{{count, number}} הרצות Dag שלא הסתיימו יתחילו או יתחדשו.",
+    "unfinishedRunsWillRun_two": "{{count, number}} הרצות Dag שלא הסתיימו יתחילו או יתחדשו.",
+    "unpause": "בטל השהיה",
+    "unpauseDescription": "ה-Dag יהפוך לפעיל: הרצות שלא הסתיימו יימשכו והתזמון יתחדש. השלמות למפרע שהושהו יישארו מושהות."
+  },
   "reparseDag": "נתח Dag מחדש",
+  "slowestTaskInstances": {
+    "empty": "אין מופעי משימה שהסתיימו בטווח הזה",
+    "title": "מופעי המשימה האיטיים ביותר"
+  },
+  "sortMultiColumnHint": "לחץ תוך כדי החזקת Shift כדי למיין לפי כמה עמודות",
   "sortedAscending": "ממוין בסדר עולה",
   "sortedDescending": "ממוין בסדר יורד",
   "sortedUnsorted": "לא ממוין",
@@ -141,12 +184,15 @@
     "dataInterval": "מרווח נתונים",
     "dataIntervalAuto": "מוסק מתוך התאריך הלוגי וטבלת הזמנים",
     "dataIntervalManual": "הגדר ידנית",
+    "editConfigAndTrigger": "ערוך הגדרות והפעל",
     "intervalEnd": "סיום",
     "intervalStart": "התחלה",
     "loading": "טוען מידע Dag...",
     "loadingFailed": "טעינת מידע ה-Dag נכשלה. אנא נסו שוב.",
     "manualRunDenied": "הרצות ידניות אינן מותרות עבור Dag זה",
     "partitionKeyHelp": "אופציונלי - רלוונטי רק ל-Dags מחולקים",
+    "recentConfig": "הגדרות אחרונות",
+    "recentConfigPlaceholder": "בחר הגדרה אחרונה",
     "runIdHelp": "אופציונלי - ייווצר אוטומטית אם לא יסופק",
     "selectDescription": "הפעל ריצה בודדת של Dag זה",
     "selectLabel": "ריצה בודדת",
@@ -161,7 +207,7 @@
       }
     },
     "triggerAgainWithConfig": "הפעל שוב עם התצורה הזו",
-    "unpause": "הפעל את {{dagDisplayName}} בעת ההרצה"
+    "triggerOptions": "אפשרויות הפעלה"
   },
   "trimText": {
     "details": "פרטים",
@@ -178,6 +224,7 @@
   "versionSelect": {
     "allVersions": "כל הגרסאות",
     "dagVersion": "גרסת Dag",
+    "placeholder": "בחר גרסה",
     "versionCode": "גרסה {{versionCode}}"
   }
 }

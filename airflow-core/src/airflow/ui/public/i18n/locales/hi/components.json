@@ -1,16 +1,26 @@
 {
   "backfill": {
     "affected_one": "1 रन ट्रिगर किया जाएगा।",
-    "affected_other": "{{count}} रन्स ट्रिगर किए जाएंगे।",
+    "affected_other": "{{count, number}} रन्स ट्रिगर किए जाएंगे।",
     "affectedNone": "चयनित मापदंड से मेल खाने वाले कोई रन्स नहीं।",
     "allRuns": "सभी रन्स",
     "backwards": "पीछे की ओर चलाएं",
     "dateRange": "तिथि रेंज",
     "errorStartDateBeforeEndDate": "प्रारंभ तिथि समाप्ति तिथि से पहले होनी चाहिए",
+    "exceptionReason": {
+      "alreadyExists": "पहले से मौजूद है",
+      "inFlight": "प्रगति में",
+      "unknown": "अज्ञात"
+    },
     "maxRuns": "अधिकतम सक्रिय रन्स",
     "missingAndErroredRuns": "गुम और त्रुटि वाले रन्स",
     "missingRuns": "गुम रन्स",
+    "notCreatedReason": "न बनाए जाने का कारण",
     "overrideExistingParams": "मौजूदा रन पर पैरामीटर ओवरराइड करें",
+    "partitionRange": "पार्टीशन रेंज",
+    "partitionsAffected_one": "1 पार्टीशन बैकफ़िल किया जाएगा:",
+    "partitionsAffected_other": "{{count, number}} पार्टीशन बैकफ़िल किए जाएंगे:",
+    "partitionsNone": "चयनित रेंज से मेल खाने वाले कोई पार्टीशन नहीं।",
     "permissionDenied": "ड्राई रन विफल: उपयोगकर्ता के पास बैकफ़िल बनाने की अनुमति नहीं है।",
     "reprocessBehavior": "पुनः प्रक्रिया व्यवहार",
     "run": "बैकफ़िल चलाएं",
@@ -25,11 +35,11 @@
         "title": "बैकफ़िल जेनरेट किया गया"
       }
     },
-    "unpause": "ट्रिगर पर {{dag_display_name}} को अनपॉज़ करें",
     "validation": {
       "datesRequired": "डेटा अंतराल प्रारंभ तिथि और समाप्ति तिथि दोनों प्रदान की जानी चाहिए।",
       "startBeforeEnd": "डेटा अंतराल प्रारंभ तिथि समाप्ति तिथि से कम या उसके बराबर होनी चाहिए।"
-    }
+    },
+    "viewSlots": "बैकफ़िल #{{id}} के लिए स्लॉट देखें"
   },
   "banner": {
     "backfillInProgress": "बैकफ़िल प्रगति में है",
@@ -42,15 +52,21 @@
   },
   "close": "बंद करें",
   "configForm": {
-    "advancedOptions": "उन्नत विकल्प",
     "configJson": "विन्यास JSON",
     "invalidJson": "अमान्य JSON प्रारूप: {{errorMessage}}"
   },
   "dagWarnings": {
     "error_one": "1 त्रुटि",
     "errorAndWarning": "1 त्रुटि और {{warningText}}",
+    "types": {
+      "asset conflict": "एसेट विरोध",
+      "duplicate dag id": "डुप्लिकेट Dag ID",
+      "non-existent pool": "अनुपस्थित पूल",
+      "runtime varying value": "रनटाइम पर बदलने वाला मान",
+      "task group cycle": "Task Group चक्र"
+    },
     "warning_one": "1 चेतावनी",
-    "warning_other": "{{count}} चेतावनियां"
+    "warning_other": "{{count, number}} चेतावनियां"
   },
   "dateRangeFilter": {
     "validation": {
@@ -62,16 +78,17 @@
   "durationChart": {
     "duration": "अवधि (सेकंड)",
     "lastDagRun_one": "अंतिम डैग रन",
-    "lastDagRun_other": "अंतिम {{count}} डैग रन्स",
+    "lastDagRun_other": "अंतिम {{count, number}} डैग रन्स",
     "lastTaskInstance_one": "अंतिम टास्क इंस्टेंस",
-    "lastTaskInstance_other": "अंतिम {{count}} टास्क इंस्टेंसेज",
+    "lastTaskInstance_other": "अंतिम {{count, number}} टास्क इंस्टेंसेज",
+    "medianTotalDuration": "कुल: {{duration}}",
     "queuedDuration": "कतार अवधि",
     "runAfter": "के बाद चलाएं",
     "runDuration": "रन अवधि"
   },
   "fileUpload": {
-    "files_one": "{{count}} फ़ाइल",
-    "files_other": "{{count}} फ़ाइलें"
+    "files_one": "{{count, number}} फ़ाइल",
+    "files_other": "{{count, number}} फ़ाइलें"
   },
   "flexibleForm": {
     "durationPlaceholder": "ISO 8601 प्रारूप में अवधि दर्ज करें",
@@ -94,25 +111,49 @@
     "downloadImageError": "ग्राफ़ इमेज डाउनलोड करने में विफल।",
     "downloadImageErrorTitle": "डाउनलोड विफल",
     "otherDagRuns": "+अन्य डैग रन्स",
-    "taskCount_one": "{{count}} टास्क",
-    "taskCount_other": "{{count}} टास्क्स",
+    "taskCount_one": "{{count, number}} टास्क",
+    "taskCount_other": "{{count, number}} टास्क्स",
     "taskGroup": "टास्क ग्रुप",
     "zoomToTask": "चयनित टास्क पर ज़ूम करें"
   },
-  "limitedList": "+{{count}} और",
-  "limitedList.allItems": "सभी {{count}} आइटम:",
+  "jsonPreview": {
+    "items_one": "1 आइटम",
+    "items_other": "{{count, number}} आइटम"
+  },
+  "limitedList": "+{{count, number}} और",
+  "limitedList.allItems": "सभी {{count, number}} आइटम:",
   "limitedList.allTags_one": "सभी टैग्स (1)",
-  "limitedList.allTags_other": "सभी टैग्स ({{count}})",
+  "limitedList.allTags_other": "सभी टैग्स ({{count, number}})",
   "limitedList.clickToInteract": "टैग पर क्लिक करके Dags फ़िल्टर करें",
-  "limitedList.clickToOpenFull": "\"+{{count}} और\" पर क्लिक करके पूरी सूची खोलें",
+  "limitedList.clickToOpenFull": "\"+{{count, number}} और\" पर क्लिक करके पूरी सूची खोलें",
   "limitedList.copyPasteText": "आप ऊपर दिए गए पाठ को कॉपी और पेस्ट कर सकते हैं",
   "limitedList.showingItems_one": "1 आइटम दिखा रहा है",
-  "limitedList.showingItems_other": "{{count}} आइटम दिखा रहा है",
+  "limitedList.showingItems_other": "{{count, number}} आइटम दिखा रहा है",
   "logs": {
     "file": "फ़ाइल",
     "location": "{{name}} में लाइन {{line}}"
   },
+  "passwordToggle": {
+    "hide": "मान छिपाएं",
+    "show": "मान दिखाएं"
+  },
+  "pausedDag": {
+    "drain": "ड्रेन",
+    "drainDescription": "अधूरे रन्स जारी रहते हैं, लेकिन कोई निर्धारित रन नहीं बनाया जाता। रोके गए बैकफ़िल रुके रहते हैं। सभी अधूरे रन्स पूरे होने पर डैग फिर से रुक जाता है।",
+    "keepPaused": "रुका हुआ रखें",
+    "keepPausedDescription": "नए और अधूरे रन्स तब तक प्रतीक्षा करते हैं जब तक डैग को अनपॉज़ न किया जाए।",
+    "title": "डैग रुका हुआ है",
+    "unfinishedRunsWillRun_one": "1 अधूरा डैग रन प्रारंभ होगा या फिर से शुरू होगा।",
+    "unfinishedRunsWillRun_other": "{{count, number}} अधूरे डैग रन्स प्रारंभ होंगे या फिर से शुरू होंगे।",
+    "unpause": "अनपॉज़ करें",
+    "unpauseDescription": "डैग सक्रिय हो जाता है: अधूरे रन्स जारी रहते हैं और शेड्यूल फिर से शुरू होता है। रोके गए बैकफ़िल रुके रहते हैं।"
+  },
   "reparseDag": "डैग को दोबारा पार्स करें",
+  "slowestTaskInstances": {
+    "empty": "इस रेंज में कोई पूर्ण टास्क इंस्टेंस नहीं",
+    "title": "सबसे धीमे टास्क इंस्टेंस"
+  },
+  "sortMultiColumnHint": "कई कॉलम के आधार पर क्रमबद्ध करने के लिए Shift-क्लिक करें",
   "sortedAscending": "आरोही क्रम में सॉर्ट किया गया",
   "sortedDescending": "अवरोही क्रम में सॉर्ट किया गया",
   "sortedUnsorted": "अनसॉर्टेड",
@@ -132,12 +173,15 @@
     "dataInterval": "डेटा अंतराल",
     "dataIntervalAuto": "तार्किक तिथि और टाइमटेबल से अनुमानित",
     "dataIntervalManual": "मैन्युअल रूप से निर्दिष्ट करें",
+    "editConfigAndTrigger": "विन्यास संपादित करें और ट्रिगर करें",
     "intervalEnd": "अंत",
     "intervalStart": "प्रारंभ",
     "loading": "डैग जानकारी लोड हो रही है...",
     "loadingFailed": "डैग जानकारी लोड करने में विफल। कृपया पुनः प्रयास करें।",
     "manualRunDenied": "इस Dag के लिए मैनुअल रन की अनुमति नहीं है",
     "partitionKeyHelp": "वैकल्पिक - केवल विभाजित Dags पर लागू होता है",
+    "recentConfig": "हाल के विन्यास",
+    "recentConfigPlaceholder": "एक हाल का विन्यास चुनें",
     "runIdHelp": "वैकल्पिक - प्रदान न किए जाने पर जेनरेट किया जाएगा",
     "selectDescription": "इस डैग का एक रन ट्रिगर करें",
     "selectLabel": "सिंगल रन",
@@ -152,7 +196,7 @@
       }
     },
     "triggerAgainWithConfig": "इस कॉन्फ़िग के साथ फिर से ट्रिगर करें",
-    "unpause": "ट्रिगर पर {{dagDisplayName}} को अनपॉज़ करें"
+    "triggerOptions": "ट्रिगर विकल्प"
   },
   "trimText": {
     "details": "विवरण",
@@ -169,6 +213,7 @@
   "versionSelect": {
     "allVersions": "सभी संस्करण",
     "dagVersion": "डैग संस्करण",
+    "placeholder": "वर्शन चुनें",
     "versionCode": "v{{versionCode}}"
   }
 }
