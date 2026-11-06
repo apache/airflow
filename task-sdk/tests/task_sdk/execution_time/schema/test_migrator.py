@@ -72,6 +72,7 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     StartupDetails,
     TaskState,
+    VariableResult,
 )
 from airflow.sdk.execution_time.schema import (
     SchemaVersionMigrator,
@@ -159,14 +160,21 @@ def test_put_variable_value_from_older_runtime_is_kept():
     assert upgraded["value"] == "x"
 
 
-def test_put_variable_value_is_nullable_only_before_2027_02_28():
+@pytest.mark.parametrize(
+    ("model", "extra"),
+    [
+        pytest.param(PutVariable, {"description": None}, id="PutVariable"),
+        pytest.param(VariableResult, {}, id="VariableResult"),
+    ],
+)
+def test_variable_value_is_nullable_only_before_2027_02_28(model, extra):
     from airflow.sdk.execution_time.schema.versions import bundle
 
     versioned = generate_versioned_models(bundle)
 
-    assert versioned["2026-10-30"][PutVariable](key="key", value=None, description=None).value is None
+    assert versioned["2026-10-30"][model](key="key", value=None, **extra).value is None
     with pytest.raises(ValidationError):
-        versioned["2027-02-28"][PutVariable](key="key", value=None, description=None)
+        versioned["2027-02-28"][model](key="key", value=None, **extra)
 
 
 class _IntroduceQueueCapacity(VersionChange):
