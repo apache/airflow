@@ -20,8 +20,6 @@
 Non-Python Task SDKs
 ====================
 
-|experimental|
-
 Airflow Dags and tasks can be written in languages other than Python. A language SDK is used in one of two
 ways:
 
