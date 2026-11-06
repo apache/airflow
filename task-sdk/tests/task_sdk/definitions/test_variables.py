@@ -103,8 +103,10 @@ class TestVariables:
     def test_var_set_none_warns_and_stores_none_string(self, mock_supervisor_comms):
         with pytest.warns(
             DeprecatedVariableNoneValueWarning, match="Setting a Variable to None is deprecated"
-        ):
+        ) as record:
             Variable.set(key="key", value=None)
+
+        assert record[0].filename == __file__
 
         mock_supervisor_comms.send.assert_called_once_with(
             msg=PutVariable(key="key", value="None", description=None),
@@ -302,8 +304,10 @@ class TestAsyncVariables:
 
         with pytest.warns(
             DeprecatedVariableNoneValueWarning, match="Setting a Variable to None is deprecated"
-        ):
+        ) as record:
             await Variable.aset(key="key", value=None)
+
+        assert record[0].filename == __file__
 
         mock_supervisor_comms.asend.assert_called_once_with(
             PutVariable(key="key", value="None", description=None)
