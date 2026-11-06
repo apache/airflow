@@ -20,10 +20,12 @@ import contextlib
 import inspect
 import json
 import typing
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.params import Depends as DependsClass
 from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -31,9 +33,11 @@ from starlette.routing import Mount
 from starlette.testclient import TestClient
 
 from airflow.api_fastapi.app import create_app
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.core_api.app import (
     base_react_app_bundle_urls,
     init_config,
+    init_middlewares,
     init_ui_translation_views,
 )
 from airflow.api_fastapi.core_api.routes.public import authenticated_router
@@ -384,3 +388,28 @@ class TestBaseReactAppPreload:
         html = self._render("index.html", ['/x.js" onload="alert(1)'])
 
         assert 'onload="alert(1)"' not in html
+
+
+class TestMiddlewareInitialisation:
+    @patch("airflow.api_fastapi.app.get_auth_manager")
+    def test_jwt_refresh_middleware_init(self, mock_get_auth_manager):
+        app = FastAPI()
+        auth_manager = MagicMock(spec=BaseAuthManager)
+        mock_jwt_middleware = Mock()
+        auth_manager.get_jwt_refresh_middleware.return_value = [(mock_jwt_middleware, {})]
+        auth_manager.get_fastapi_middlewares.return_value = []
+        mock_get_auth_manager.return_value = auth_manager
+        init_middlewares(app)
+        auth_manager.get_jwt_refresh_middleware.assert_called_once()
+        assert [m.cls for m in app.user_middleware] == [GZipMiddleware, mock_jwt_middleware]
+
+    @patch("airflow.api_fastapi.app.get_auth_manager")
+    def test_no_jwt_refresh_middleware_init(self, mock_get_auth_manager):
+        app = FastAPI()
+        auth_manager = MagicMock(spec=BaseAuthManager)
+        auth_manager.get_jwt_refresh_middleware.return_value = []
+        auth_manager.get_fastapi_middlewares.return_value = []
+        mock_get_auth_manager.return_value = auth_manager
+        init_middlewares(app)
+        auth_manager.get_jwt_refresh_middleware.assert_called_once()
+        assert [m.cls for m in app.user_middleware] == [GZipMiddleware]
