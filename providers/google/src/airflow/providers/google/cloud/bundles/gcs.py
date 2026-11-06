@@ -63,19 +63,21 @@ class _GCSDagBundleBase(BaseDagBundle):
         self.bucket_name = bucket_name
         # Local path where GCS Dags are downloaded
         self.gcs_dags_dir: Path = self.base_dir
-
-        log = structlog.get_logger(__name__)
-        self._log = log.bind(
-            bundle_name=self.name,
-            version=self.version,
-            bucket_name=self.bucket_name,
-            gcp_conn_id=self.gcp_conn_id,
-            **self._log_fields(),
-        )
+        self._log = self._get_logger()
         self._gcs_hook: GCSHook | None = None
 
-    def _log_fields(self) -> dict[str, str]:
-        return {}
+    def _log_bindings(self) -> dict[str, str | None]:
+        """Return log context shared by every GCS Dag bundle."""
+        return {
+            "bundle_name": self.name,
+            "version": self.version,
+            "bucket_name": self.bucket_name,
+            "gcp_conn_id": self.gcp_conn_id,
+        }
+
+    def _get_logger(self):
+        """Return a logger bound with the context common to every GCS Dag bundle."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings())
 
     def _console_url(self, domain: str) -> str:
         raise NotImplementedError
@@ -172,8 +174,9 @@ class GCSDagBundle(_GCSDagBundleBase):
         self.prefix = prefix
         super().__init__(gcp_conn_id=gcp_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _log_fields(self) -> dict[str, str]:
-        return {"prefix": self.prefix}
+    def _get_logger(self):
+        """Return a logger bound with this prefix bundle's context."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings(), prefix=self.prefix)
 
     def _console_url(self, domain: str) -> str:
         # https://console.cloud.google.com/storage/browser/<bucket-name>/<prefix>
@@ -241,8 +244,9 @@ class GCSArchiveDagBundle(_GCSDagBundleBase):
         self.archive_object = archive_object
         super().__init__(gcp_conn_id=gcp_conn_id, bucket_name=bucket_name, **kwargs)
 
-    def _log_fields(self) -> dict[str, str]:
-        return {"archive_object": self.archive_object}
+    def _get_logger(self):
+        """Return a logger bound with this archive bundle's context."""
+        return structlog.get_logger(__name__).bind(**self._log_bindings(), archive_object=self.archive_object)
 
     def _console_url(self, domain: str) -> str:
         # https://console.cloud.google.com/storage/browser/_details/<bucket>/<object>
