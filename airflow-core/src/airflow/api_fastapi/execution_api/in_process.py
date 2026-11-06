@@ -61,6 +61,7 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
     from airflow.api_fastapi.execution_api.security import (
         _IN_PROCESS_NON_TI_CALLER,
         _IN_PROCESS_TRIGGERER_ID,
+        ASSET_WATCHER_ID,
         _jwt_bearer,
     )
 
@@ -70,7 +71,7 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
         ti_id = UUID(
             request.path_params.get("task_instance_id")
             or request.headers.get("X-Airflow-In-Process-Attempt-Id")
-            or "00000000-0000-0000-0000-000000000000"
+            or str(ASSET_WATCHER_ID)
         )
         # Watchers and other trusted in-process callers may have no task identity.
         request.scope[_IN_PROCESS_NON_TI_CALLER] = (

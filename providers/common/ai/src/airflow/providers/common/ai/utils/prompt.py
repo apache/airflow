@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Sequence
+import inspect
+from collections.abc import Callable, Collection, Mapping, Sequence
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic_ai.messages import (
@@ -30,6 +32,22 @@ from pydantic_ai.messages import (
     UserContent,
     VideoUrl,
 )
+
+
+def call_arguments(
+    python_callable: Callable, op_args: Collection[Any], op_kwargs: Mapping[str, Any]
+) -> dict[str, Any]:
+    """
+    Return the arguments a decorated function was called with, by parameter name.
+
+    Positional arguments are included, so a returned prompt can reference ``{{ text }}`` for
+    ``summarize("...")`` as well as for ``summarize(text="...")``. Parameters left at their default
+    are not: a default such as ``ti=None`` must not shadow the ``ti`` of the task context.
+    """
+    try:
+        return dict(inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs).arguments)
+    except (TypeError, ValueError):
+        return dict(op_kwargs)
 
 
 def describe_prompt(prompt: str | Sequence[UserContent]) -> str:

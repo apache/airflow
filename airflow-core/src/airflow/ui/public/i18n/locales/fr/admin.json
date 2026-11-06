@@ -34,13 +34,16 @@
       "firstConfirmMessage_other": "Vous êtes sur le point de supprimer les connexions suivantes :",
       "title": "Supprimer la Connexion"
     },
+    "duplicate": "Dupliquer la $t(connections.connection_one)",
     "edit": "Modifier la connexion",
     "form": {
       "connectionIdRequired": "L'ID de la connexion est requis",
       "connectionIdRequirement": "L'ID de la connexion ne peut pas contenir uniquement des espaces",
+      "connectionTypeFields": "Champs {{connectionType}}",
       "connectionTypeRequired": "Le type de la connexion est requis",
       "extraFieldsJson": "Champs Supplémentaires JSON",
       "helperText": "Le type de la connexion est manquant ? Assurez-vous d'avoir installé le package Airflow Providers correspondant.",
+      "helperTextForDuplicatedRedactedFields": "Les champs masqués ('***') ne sont pas copiés. Renseignez-les pour la nouvelle connexion.",
       "helperTextForRedactedFields": "Les champs masqués ('***') resteront inchangés s'ils ne sont pas modifiés.",
       "selectConnectionType": "Sélectionner le type de connexion",
       "standardFields": "Champs standards"

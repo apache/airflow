@@ -1,0 +1,12 @@
+Dag processor pauses a Dag bundle's parsing while its refresh fails
+
+A failed Dag bundle refresh used to be logged while parsing carried on with whatever files the refresh
+left behind. The Dag processor now stops parsing that bundle's files until a refresh succeeds, so its
+Dags keep their last parsed state in the meantime. ``GitDagBundle`` keeps parsing the previous checkout
+after a credential or fetch failure, in git provider releases that report the source as unchanged; older
+git provider releases, and the S3, GCS and Azure Blob Storage bundles, pause on any refresh failure.
+Bundles whose refresh never changes files, such as ``LocalDagBundle``, are not affected.
+
+A Dag processor started with ``--num-runs`` does not exit while files wait for a paused bundle, so it
+finishes only after that bundle refreshes successfully. The Dag processor logs name each paused bundle,
+and the ``dag_processing.files_awaiting_source`` metric counts the files waiting for one.

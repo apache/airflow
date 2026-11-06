@@ -2172,9 +2172,10 @@ class DagSerialization(BaseSerialization):
         """
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
-        It must match the JSON schema, have unique task ids and deserialize. Like a Dag built with the SDK,
-        it must not set a ``max_active_runs`` its timetable forbids, nor ``catchup`` without a
-        ``start_date``, and its task graph must have no cycle. *serialized_obj* is not changed.
+        It must match the JSON schema, have unique task ids and deserialize with a timetable and complete
+        deadline alert definitions. Like a Dag built with the SDK, it must not set a ``max_active_runs``
+        its timetable forbids, nor ``catchup`` without a ``start_date``, and its task graph must have no
+        cycle. *serialized_obj* is not changed.
 
         :return: The deserialized Dag.
         :raises DeserializationError: if it does not.
@@ -2194,14 +2195,25 @@ class DagSerialization(BaseSerialization):
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} has more than one task with id {', '.join(map(repr, duplicates))}"
             )
+        # The schema also accepts a single alert and the UUIDs a stored Dag keeps, but storing a Dag
+        # needs each alert's definition.
+        deadline = serialized_obj["dag"].get("deadline")
+        if deadline is not None and not (
+            isinstance(deadline, list) and all(isinstance(alert, dict) for alert in deadline)
+        ):
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} must list its deadline alert definitions")
         try:
             deserialized = cls.from_dict(copy.deepcopy(serialized_obj))
             timetable = deserialized.timetable
+            for alert in deadline or ():
+                decode_deadline_alert(alert)
         except Exception as e:
             cause = e.__cause__ if isinstance(e, DeserializationError) and e.__cause__ else e
             raise DeserializationError(
                 dag_id, f"Dag {dag_id!r} cannot be deserialized: {type(cause).__name__}: {cause}"
             ) from e
+        if timetable is None:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has no timetable")
         if (limit := timetable.active_runs_limit) is not None and deserialized.max_active_runs > limit:
             raise DeserializationError(
                 dag_id,

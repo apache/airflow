@@ -1013,6 +1013,8 @@ class TestKeycloakAuthManager:
             ("AUDIT_LOGS_ALL", "False", "View#GET"),
             ("IMPORT_ERRORS", "True", "View#GET"),
             ("PLUGINS", "True", "View#GET"),
+            ("DAG_BUNDLES", "True", "AdminView#GET"),
+            ("DAG_BUNDLES", "False", "View#GET"),
         ],
     )
     def test_is_authorized_view_resource(
