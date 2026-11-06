@@ -827,6 +827,35 @@ class TestKiotaRequestAdapterHook:
 
             assert hook.conn_id not in hook.cached_request_adapters
 
+    def test_run_sync_returns_result_and_closes_cached_adapter(self):
+        """run_sync closes the adapter before asyncio.run tears down the loop it is bound to."""
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+
+            adapter = Mock(spec=HttpxRequestAdapter)
+            adapter._http_client = Mock(spec=AsyncClient, is_closed=False)
+            adapter._authentication_provider = mock_authentication_provider(closed=False)
+            hook.cached_request_adapters[hook.conn_id] = (hook.api_version, adapter)
+
+            async def request():
+                return "response"
+
+            assert hook.run_sync(request()) == "response"
+            adapter._http_client.aclose.assert_awaited_once()
+            assert hook.conn_id not in hook.cached_request_adapters
+
+    @pytest.mark.asyncio
+    async def test_run_sync_refuses_a_running_event_loop(self):
+        with patch_hook():
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            request = AsyncMock(return_value="response")
+            coroutine = request()
+
+            with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
+                hook.run_sync(coroutine)
+
+            assert coroutine.cr_frame is None
+
     def test_allowed_hosts_is_empty_list_when_not_configured(self):
         """An unset allowed_hosts/authority must yield []."""
         actual = KiotaRequestAdapterHook.get_allowed_hosts(None, {})

@@ -326,7 +326,7 @@ Escalating to an LLM
 A classifier is cheap and fast, and a text model can reason about a failure it
 has never seen a category for. ``fallback_policy`` puts one behind the other.
 ``snowflake_policy`` is the classifier policy from the previous section; the
-chain reuses its category table:
+chain reuses its category table with a stricter bar on ``permanent``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_llm_retry_policy.py
     :language: python
@@ -398,7 +398,7 @@ Beyond your ``instructions``, it sees only the exception's class name and
 message (or, with ``include_traceback=True``, the formatted traceback; either
 after redaction and truncation), how many attempts are left,
 and, under ``ClassifierRetryPolicy``, the category names and descriptions. The prompt says
-``attempt {try_number} of {max_tries}``, so the model knows the limit and not
+``attempt 2 of 4`` on the second try of a task with ``retries=3``, so the model knows the limit and not
 just where it is right now; an instruction like "after two attempts treat an
 expired token as ``auth`` rather than ``transient``" works because the model
 can see which attempt this is.

@@ -148,7 +148,7 @@ const getColumns = ({
   {
     accessorKey: "timestamp",
     cell: ({ row: { original } }) => <Time datetime={original.timestamp} />,
-    header: translate("dashboard:timestamp"),
+    header: translate("xcom.columns.timestamp"),
   },
   {
     cell: ({ row: { original } }) => (
@@ -174,6 +174,7 @@ const getColumns = ({
         <DeleteXComButton xcom={original} />
       </Flex>
     ),
+    enableHiding: false,
     enableSorting: false,
     header: "",
   },
@@ -239,6 +240,7 @@ export const XCom = () => {
     ...dagDisplayNameArg,
     dagId,
     dagRunId: runId,
+    excludeInternalKeys: true,
     limit: pagination.pageSize,
     logicalDateGte: logicalDateGte ?? undefined,
     logicalDateLte: logicalDateLte ?? undefined,

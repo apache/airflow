@@ -293,14 +293,17 @@ above.
 Model identifier format
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format the
-hook always expects, but which ``provider`` prefix to use depends on the
-endpoint:
+The ``extra`` JSON's ``model`` value keeps the ``provider:model`` format (or
+set the prefix once as Default Model Provider, see
+:ref:`conn-example-openai-compatible-gateway`), but which ``provider`` prefix to
+use depends on the endpoint:
 
-- **vLLM** has no dedicated provider class in pydantic-ai -- ``openai:<model>``
-  is the only option. pydantic-ai's ``openai`` provider class talks to
-  whatever ``host`` points at, so it works against vLLM's OpenAI-compatible
-  API even though the weights being served aren't OpenAI's.
+- **vLLM** has no dedicated provider class in pydantic-ai, so use one of the
+  OpenAI prefixes: ``openai:<model>`` for the Responses API or
+  ``openai-chat:<model>`` for Chat Completions. pydantic-ai's ``openai``
+  provider class talks to whatever ``host`` points at, so either works against
+  vLLM's OpenAI-compatible API even though the weights being served aren't
+  OpenAI's.
 - **Ollama** has two valid options: the dedicated ``ollama:<model>`` prefix
   (recommended) applies Ollama-specific model-profile tuning based on the
   model name (``llama``, ``gemma``, ``qwen``, ``deepseek``, ``mistral``,
@@ -317,11 +320,11 @@ its OpenAI provider, and there's no separate ``ollama`` extra.
 
    ``LiteLLMProvider`` is an exception: its constructor takes ``api_base``
    instead of ``base_url``, so passing ``host`` raises a ``TypeError`` that
-   the hook catches, logs a warning, and falls back to environment-variable
-   auth, ignoring ``host`` entirely. Point a LiteLLM proxy's OpenAI-compatible
-   endpoint via ``openai:<model>`` instead -- this is the same proxy role
-   used in the gateway section above, just addressed through the working
-   prefix rather than the rejected ``litellm:`` one.
+   the hook re-raises as a ``ValueError``: the connection is rejected rather
+   than falling back to environment-variable auth. Point a LiteLLM proxy's
+   OpenAI-compatible endpoint via ``openai:<model>`` instead -- this is the
+   same proxy role used in the gateway section above, just addressed through
+   the working prefix rather than the rejected ``litellm:`` one.
 
 .. _self_hosted_models_other_servers:
 

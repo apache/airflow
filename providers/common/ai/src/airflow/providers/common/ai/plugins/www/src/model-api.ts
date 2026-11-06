@@ -17,7 +17,8 @@
  * under the License.
  */
 
-import type { UsageInfo } from "src/types/model";
+import { regionQuery, type TaskRegion } from "./region.ts";
+import type { SkillInfo, UsageInfo } from "src/types/model";
 
 function getApiBase(): string {
   if (typeof document === "undefined") return "/api/v2";
@@ -32,6 +33,8 @@ const API_BASE = getApiBase();
 // Namespaced to match airflow.providers.common.ai.utils.logging.MODEL_NAME_XCOM_KEY --
 // avoids colliding with a user's own "model_name" XCom.
 const MODEL_NAME_XCOM_KEY = "__AIRFLOW__COMMON_AI_MODEL_NAME__";
+// Matches airflow.providers.common.ai.utils.logging.SKILLS_XCOM_KEY.
+const SKILLS_XCOM_KEY = "__AIRFLOW__COMMON_AI_SKILLS__";
 
 /** Read one XCom entry; returns `null` when the task hasn't pushed that key (404). */
 async function fetchXComValue<T>(
@@ -40,13 +43,15 @@ async function fetchXComValue<T>(
   taskId: string,
   mapIndex: number,
   key: string,
+  region?: TaskRegion,
 ): Promise<T | null> {
   const path =
     `${API_BASE}/dags/${encodeURIComponent(dagId)}` +
     `/dagRuns/${encodeURIComponent(runId)}` +
     `/taskInstances/${encodeURIComponent(taskId)}` +
     `/xcomEntries/${encodeURIComponent(key)}`;
-  const res = await fetch(`${path}?map_index=${mapIndex}&deserialize=true`, {
+  // A task inside a task loop needs its pass's region, or the route rejects the read as ambiguous.
+  const res = await fetch(`${path}?map_index=${mapIndex}&deserialize=true${regionQuery(region)}`, {
     credentials: "same-origin",
   });
   if (res.status === 404) return null;
@@ -66,18 +71,29 @@ function isUsageInfo(value: unknown): value is UsageInfo {
   return typeof value === "object" && value !== null;
 }
 
-export function createModelApi(dagId: string, runId: string, taskId: string, mapIndex: number) {
+export function createModelApi(
+  dagId: string,
+  runId: string,
+  taskId: string,
+  mapIndex: number,
+  region?: TaskRegion,
+) {
   return {
     fetchModelName: () =>
-      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY),
+      fetchXComValue<string>(dagId, runId, taskId, mapIndex, MODEL_NAME_XCOM_KEY, region),
     fetchUsage: async () => {
-      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, "usage");
+      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, "usage", region);
       // A reference-storing XCom backend (e.g. common.io with a low
       // xcom_objectstorage_threshold) returns the stored reference string here instead of
       // the real value, since this public endpoint never runs the backend's
       // deserialize_value. Treat anything that isn't a plain object as absent rather than
       // let every stat box below render "undefined".
       return isUsageInfo(value) ? value : null;
+    },
+    fetchSkills: async () => {
+      const value = await fetchXComValue<unknown>(dagId, runId, taskId, mapIndex, SKILLS_XCOM_KEY, region);
+      // Same reference-storing backend caveat as `usage` above.
+      return Array.isArray(value) ? (value as SkillInfo[]) : null;
     },
   };
 }

@@ -68,6 +68,9 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
 
+    # TODO: use Select[XComModel] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[XComModel]].
+    XComModelSelect = Select
+
 
 XCOM_RETURN_KEY = "return_value"
 
@@ -328,7 +331,7 @@ class _XComOperations:
         include_prior_dates: bool = False,
         limit: int | None = None,
         try_number: int | None = None,
-    ) -> Select[tuple[XComModel]]:
+    ) -> XComModelSelect:
         """
         Composes a query to get one or more XCom entries.
 
@@ -449,6 +452,34 @@ class _XComOperations:
 
         try:
             return json.loads(result.value, cls=XComDecoder)
+        except (ValueError, TypeError):
+            # Already deserialized (e.g., set via Task Execution API)
+            return result.value
+
+    @staticmethod
+    def deserialize_value_primitives(result: Any) -> Any:
+        """
+        Deserialize an XCom value to plain JSON types only.
+
+        Unlike :meth:`deserialize_value` this never runs the Airflow serialization
+        module, so a ``__classname__`` envelope in the stored value is returned as an
+        ordinary ``dict`` instead of being imported and instantiated.
+
+        This is what dependency evaluation uses, in the scheduler and in the API
+        server's task instance dependencies endpoint. The values it consumes are
+        primitives, so XCom is read without reconstructing objects in that process. Callers that genuinely need the
+        original Python object (task code pulling another task's return value) keep
+        using :meth:`deserialize_value`.
+
+        :param result: The XCom database row or object containing a ``value`` attribute.
+        :return: The value as plain JSON types (``dict``, ``list``, ``str``, ``int``,
+            ``float``, ``bool`` or ``None``).
+        """
+        if result.value is None:
+            return None
+
+        try:
+            return json.loads(result.value)
         except (ValueError, TypeError):
             # Already deserialized (e.g., set via Task Execution API)
             return result.value
@@ -596,7 +627,7 @@ def _reject_projection_write(mapper, connection, target):
     raise TypeError("XCom read projection is read-only")
 
 
-def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> Select[tuple[XComModel]]:
+def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> XComModelSelect:
     model = get_xcom_model()
     entity = aliased(model, _filter_rows(model.__table__, producer_ids=producer_ids, key=key))
     return select(entity).execution_options(populate_existing=True)
@@ -682,6 +713,21 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
     @staticmethod
     def _process_row(row: Row) -> Any:
         return get_xcom_model().deserialize_value(row)
+
+
+class LazyXComPrimitivesSelectSequence(LazyXComSelectSequence):
+    """
+    Like :class:`LazyXComSelectSequence`, but never reconstructs Python objects.
+
+    Used by XCom reads during dependency evaluation. See
+    :meth:`XComModel.deserialize_value_primitives`.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _process_row(row: Row) -> Any:
+        return get_xcom_model().deserialize_value_primitives(row)
 
 
 __compat_imports = {

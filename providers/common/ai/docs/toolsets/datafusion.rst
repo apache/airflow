@@ -73,7 +73,9 @@ configs can be registered so that SQL queries can join across tables.
 
 The ``DataFusionEngine`` is created lazily on the first tool call. This
 toolset requires the ``datafusion`` extra of
-``apache-airflow-providers-common-sql``.
+``apache-airflow-providers-common-sql`` and the ``sql`` extra of this provider,
+which installs the ``sqlglot`` it validates queries with. If either is missing, importing
+``DataFusionToolset`` raises ``AirflowOptionalProviderFeatureException``.
 
 .. _datafusion-toolset-restricted:
 
@@ -130,7 +132,8 @@ Parameters
 
 - ``datasource_configs``: One or more
   :class:`~airflow.providers.common.sql.config.DataSourceConfig` entries.
-  Requires ``apache-airflow-providers-common-sql[datafusion]``.
+  Requires ``apache-airflow-providers-common-sql[datafusion]`` and
+  ``apache-airflow-providers-common-ai[sql]``.
 - ``allow_writes``: Allow data-modifying SQL (CREATE TABLE, CREATE VIEW,
   INSERT INTO, etc.). Default ``False``: only SELECT-family statements are
   permitted. DataFusion on object stores is mostly read-only, but it does

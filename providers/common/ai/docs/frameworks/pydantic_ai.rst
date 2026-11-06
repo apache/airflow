@@ -60,6 +60,12 @@ supplied the tool. To get that masking on an agent you build with ``Agent(...)``
 
     agent = Agent(model, toolsets=[my_toolset], capabilities=[MaskingCapability()])
 
+Pydantic AI 2.43 and later print a first-run banner to stderr when Airflow was started from
+a coding agent such as Claude Code, Cursor or Codex, and a task's stderr lands in its log
+as ``ERROR`` lines. Importing ``PydanticAIHook``, as the example above does, turns the
+banner off for the task process; for an agent run without the hook, set
+``PYDANTIC_AI_NO_BANNER=1`` in the worker environment.
+
 What you get, and what you do not
 ---------------------------------
 

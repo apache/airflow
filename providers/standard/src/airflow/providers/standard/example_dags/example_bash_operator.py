@@ -95,13 +95,16 @@ with DAG(
         output_processor=json.loads,
     )
 
-    # Each key of the pushed dict is available as its own XCom.
+    # Each key of the pushed dict is available as its own XCom. Values produced by another task
+    # reach the command through the environment, so the shell never parses them as command text.
     show_dag_folder_stats = BashOperator(
         task_id="show_dag_folder_stats",
-        bash_command=(
-            "echo \"found {{ ti.xcom_pull(task_ids='describe_dag_folder', key='file_count') }}"
-            " Dag file(s) under {{ ti.xcom_pull(task_ids='describe_dag_folder', key='dag_folder') }}\""
-        ),
+        bash_command='echo "found $FILE_COUNT Dag file(s) under $DAG_FOLDER"',
+        env={
+            "DAG_FOLDER": "{{ ti.xcom_pull(task_ids='describe_dag_folder', key='dag_folder') }}",
+            "FILE_COUNT": "{{ ti.xcom_pull(task_ids='describe_dag_folder', key='file_count') }}",
+        },
+        append_env=True,
     )
     # [END howto_operator_bash_multiple_outputs]
     describe_dag_folder >> show_dag_folder_stats >> run_this_last

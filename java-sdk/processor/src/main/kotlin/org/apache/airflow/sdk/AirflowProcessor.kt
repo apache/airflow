@@ -38,6 +38,7 @@ import org.apache.airflow.sdk.internal.Refs
 import org.apache.airflow.sdk.internal.SchemaFields
 import org.apache.airflow.sdk.internal.TaskArgs
 import org.apache.airflow.sdk.internal.TypeRef
+import org.apache.airflow.sdk.internal.deriveJoinNodeIds
 import org.apache.airflow.sdk.internal.foldArgName
 import org.apache.airflow.sdk.internal.registrarName
 import java.time.Duration
@@ -584,6 +585,8 @@ class AirflowProcessor : AbstractProcessor() {
   /**
    * Rejects two tasks of the Dag sharing an ID, a task and a task group
    * sharing one, and two task methods whose generated classes would collide.
+   * Also rejects a task or task group that takes the ID of a group's join
+   * node.
    */
   private fun checkIds(scope: Scope) {
     val declarations = scope.allTasks()
@@ -591,9 +594,19 @@ class AirflowProcessor : AbstractProcessor() {
     declarations.forEach { decl ->
       require(taskIds.add(decl.id)) { "Tasks in Dag have duplicate ID: ${decl.id}" }
     }
-    scope.allGroups().forEach { group ->
+    val groups = scope.allGroups()
+    val groupIds = groups.mapTo(mutableSetOf()) { it.fullId }
+    groups.forEach { group ->
       require(group.fullId !in taskIds) {
         "Dag has both a task and a task group with ID '${group.fullId}'; rename one"
+      }
+      deriveJoinNodeIds(group.fullId).forEach { joinId ->
+        require(joinId !in taskIds) {
+          "Task '$joinId' has the ID of a join node of task group '${group.fullId}'; rename the task"
+        }
+        require(joinId !in groupIds) {
+          "Task group '$joinId' has the ID of a join node of task group '${group.fullId}'; rename the nested group"
+        }
       }
     }
     val byClassName = mutableMapOf<String, TaskDeclaration>()
@@ -699,7 +712,11 @@ class AirflowProcessor : AbstractProcessor() {
     value: AnnotationValue,
   ): CodeBlock =
     when (field.type) {
-      FieldType.STRING -> CodeBlock.of($$"$S", value.value)
+      FieldType.STRING -> {
+        val text = value.value as String
+        field.checkString(text) { "Annotation attribute '${field.attribute}'" }
+        CodeBlock.of($$"$S", text)
+      }
       FieldType.BOOLEAN, FieldType.INTEGER, FieldType.NUMBER -> CodeBlock.of($$"$L", value.value)
       FieldType.STRING_ARRAY -> {
         @Suppress("UNCHECKED_CAST")

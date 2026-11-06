@@ -35,6 +35,7 @@ from jwt.exceptions import (
 
 from airflow._shared.module_loading import import_string
 from airflow.api_fastapi.auth.tokens import JWTValidator, get_signing_key
+from airflow.api_fastapi.common.telemetry import NATIVE_TELEMETRY_DISABLED
 from airflow.configuration import conf
 from airflow.utils.docs import get_docs_url
 
@@ -140,7 +141,7 @@ def create_app():
         except Exception as e:
             raise ImportError(f"Unable to load {log_config_class} due to error: {e}")
 
-    fastapi_app = FastAPI()
+    fastapi_app = FastAPI(telemetry=NATIVE_TELEMETRY_DISABLED)
     fastapi_app.state.signer = JWTValidator(
         issuer=None,
         secret_key=get_signing_key("api", "secret_key"),

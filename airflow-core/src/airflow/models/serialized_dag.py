@@ -318,13 +318,13 @@ class SerializedDagModel(Base):
 
     dag_runs = relationship(
         DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore[has-type]
+        primaryjoin=dag_id == foreign(DagRun.dag_id),
         backref=backref("serialized_dag", uselist=False, innerjoin=True),
     )
 
     dag_model = relationship(
         DagModel,
-        primaryjoin=dag_id == DagModel.dag_id,  # type: ignore[has-type]
+        primaryjoin=dag_id == DagModel.dag_id,
         foreign_keys=dag_id,
         uselist=False,
         innerjoin=True,
@@ -705,10 +705,8 @@ class SerializedDagModel(Base):
         new_dag_hash = cls.hash(dag.data)
 
         if serialized_dag_hash == new_dag_hash and dag_version and dag_version.bundle_name == bundle_name:
-            # Serialized content is unchanged, so we don't create a new DagVersion.
-            # But if the bundle advanced, refresh the latest version's pointer in place — tasks resolve
-            # their code from ``ti.dag_version.bundle_version`` at run time, so a stale
-            # pointer makes runs execute an outdated commit.
+            # Reuse the structural version with the latest bundle metadata. Existing runs
+            # keep their execution bundle pinned separately in DagRun.bundle_version.
             bundle_metadata_changed = (
                 dag_version.bundle_version != bundle_version or dag_version.version_data != version_data
             )

@@ -134,6 +134,7 @@ const getColumns = ({
           <DeleteVariableButton deleteKey={original.key} disabled={hasSelection} />
         </Flex>
       ),
+      enableHiding: false,
       enableSorting: false,
       header: "",
       meta: {

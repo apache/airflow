@@ -23,7 +23,14 @@
 # both runtimes to parse native Java and TypeScript Dags, and using one image
 # everywhere keeps the pod templates and the Helm image override identical
 # across components.
+#
+# Node comes as the official binary rather than a deb: the NodeSource nodejs
+# package depends on python3, which apt would satisfy on the hardened images by
+# replacing the image's own Python with Debian's.
 ARG BASE_IMAGE
+ARG NODE_IMAGE="node:22-bookworm-slim"
+FROM ${NODE_IMAGE} AS node
+
 FROM ${BASE_IMAGE}
 
 USER root
@@ -31,19 +38,5 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y default-jre-headless \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-# The keyring step pipes curl into gpg, so a failure mid-pipe has to fail the build.
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y ca-certificates curl gnupg \
-    && mkdir -p /etc/apt/keyrings \
-    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
-        > /etc/apt/sources.list.d/nodesource.list \
-    && apt-get update \
-    && apt-get install --no-install-recommends -y nodejs \
-    && apt-get purge -y --auto-remove gnupg \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-SHELL ["/bin/sh", "-c"]
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
 USER airflow

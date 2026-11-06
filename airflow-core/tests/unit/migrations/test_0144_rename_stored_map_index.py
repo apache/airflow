@@ -93,6 +93,8 @@ dynamic_region = sa.Table(
     sa.Column("node_id", sa.String(250)),
     sa.Column("parent_region_id", CompactUUID),
     sa.Column("parent_region_index", sa.Integer),
+    sa.Column("family_root_id", CompactUUID),
+    sa.Column("path", sa.LargeBinary),
     sa.Column("created_at", UtcDateTime),
 )
 task_reschedule = sa.Table(
@@ -183,7 +185,13 @@ def stored_rows(database_at_revision):
         ).inserted_primary_key[0]
         connection.execute(
             dynamic_region.insert().values(
-                id=REGION_ID, dag_id=DAG_ID, run_id=RUN_ID, node_id="task", created_at=now
+                id=REGION_ID,
+                dag_id=DAG_ID,
+                run_id=RUN_ID,
+                node_id="task",
+                family_root_id=REGION_ID,
+                path=b"",
+                created_at=now,
             )
         )
         connection.execute(
@@ -194,6 +202,8 @@ def stored_rows(database_at_revision):
                 node_id="task",
                 parent_region_id=REGION_ID,
                 parent_region_index=0,
+                family_root_id=CHILD_REGION_ID,
+                path=REGION_ID.bytes + b"\x00\x00\x00\x00",
                 created_at=now,
             )
         )

@@ -25,6 +25,9 @@ from tests_common.test_utils.config import conf_vars
 
 
 class TestLocalDagBundle:
+    def test_refresh_does_not_change_source(self):
+        assert LocalDagBundle.refresh_changes_source is False
+
     def test_path(self):
         bundle = LocalDagBundle(name="test", path="/hello")
         assert bundle.path == Path("/hello")
