@@ -4011,6 +4011,51 @@ class TestDagFileProcessorManager:
             purge_mock.assert_called()
             direct_mock.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("callbacks_per_fetch", "expected_polls"),
+        [
+            pytest.param(0, 1, id="no-backlog-polls-once-per-interval"),
+            pytest.param(2, 3, id="full-batch-polls-every-loop"),
+        ],
+    )
+    def test_run_parsing_loop_rate_limits_request_polls(
+        self, tmp_path, configure_testing_dag_bundle, callbacks_per_fetch, expected_polls
+    ):
+        """Callbacks and priority requests are polled once per interval unless a callback batch was full."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=3, max_callbacks_per_loop=2)
+            manager.request_poll_interval = 3600
+            callbacks = [mock.create_autospec(DagCallbackRequest, instance=True)] * callbacks_per_fetch
+            with (
+                mock.patch.object(manager, "_service_processor_sockets", autospec=True),
+                mock.patch.object(manager, "_add_callback_to_queue", autospec=True),
+                mock.patch.object(manager, "fetch_callbacks", autospec=True, return_value=callbacks) as fetch,
+                mock.patch.object(manager, "claim_priority_files", autospec=True, return_value=[]) as claim,
+            ):
+                manager.run()
+
+        assert manager._num_run == 3
+        assert fetch.call_count == expected_polls
+        assert claim.call_count == expected_polls
+
+    def test_run_parsing_loop_purges_dag_warnings_on_cleanup_interval(
+        self, tmp_path, configure_testing_dag_bundle
+    ):
+        """Dag warnings are purged with the stale Dag scan, not on every loop."""
+        with configure_testing_dag_bundle(tmp_path):
+            manager = DagFileProcessorManager(max_runs=3)
+            manager.parsing_cleanup_interval = 3600
+            with (
+                mock.patch.object(manager, "_service_processor_sockets", autospec=True),
+                mock.patch.object(manager, "deactivate_stale_dags", autospec=True) as deactivate,
+                mock.patch.object(manager, "purge_inactive_dag_warnings", autospec=True) as purge,
+            ):
+                manager.run()
+
+        assert manager._num_run == 3
+        deactivate.assert_called_once()
+        purge.assert_called_once_with()
+
     @mock.patch("airflow.dag_processing.manager.stats.gauge")
     def test_stats_total_parse_time(self, statsd_gauge_mock, tmp_path, configure_testing_dag_bundle):
         key = "dag_processing.total_parse_time"
