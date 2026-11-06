@@ -65,21 +65,19 @@ def _logfile_path(task: TaskInstanceKey, task_instance_id: UUID | None = None, *
         task_instance_id = UUID(stored_id) if stored_id else None
     if task_instance_id:
         ti = session.get(TaskInstance, task_instance_id, execution_options={"include_all_attempts": True})
-        if TYPE_CHECKING:
-            assert ti
-        return FileTaskHandler(".")._render_filename(ti, task.try_number)
-    ti = TaskInstance.get_task_instance(
-        dag_id=task.dag_id,
-        run_id=task.run_id,
-        task_id=task.task_id,
-        map_index=task.map_index,
-        session=session,
-    )
-    if not ti:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND,
-            f"TaskInstance not found for dag_id={task.dag_id}, task_id={task.task_id}, run_id={task.run_id}, map_index={task.map_index}",
+    else:
+        ti = TaskInstance.get_task_instance(
+            dag_id=task.dag_id,
+            run_id=task.run_id,
+            task_id=task.task_id,
+            map_index=task.map_index,
+            session=session,
         )
+    if not ti:
+        detail = f"TaskInstance not found for dag_id={task.dag_id}, task_id={task.task_id}, run_id={task.run_id}, map_index={task.map_index}"
+        if task_instance_id:
+            detail += f", task_instance_id={task_instance_id}"
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail)
     return FileTaskHandler(".")._render_filename(ti, task.try_number)
 
 
