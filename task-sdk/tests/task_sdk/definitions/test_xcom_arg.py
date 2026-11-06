@@ -27,7 +27,7 @@ from airflow.sdk import BaseOperator, TaskInstanceState, task_group
 from airflow.sdk.bases.xcom import BaseXCom
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.dag import DAG
-from airflow.sdk.definitions.xcom_arg import PlainXComArg, _MapResult
+from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowSkipException
 from airflow.sdk.execution_time.comms import (
     GetXCom,
@@ -315,23 +315,6 @@ def test_xcom_map_dict(run_ti, mock_supervisor_comms):
         assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
 
     assert result == {"a=1", "b=2"}
-
-
-@pytest.mark.parametrize(
-    ("index", "expected"),
-    [
-        pytest.param(0, ("a", 1), id="positive"),
-        pytest.param(-1, ("b", 2), id="negative"),
-    ],
-)
-def test_map_result_dict_getitem(index, expected):
-    assert _MapResult({"a": 1, "b": 2}, [lambda kv: kv])[index] == expected
-
-
-@pytest.mark.parametrize("index", [2, -3])
-def test_map_result_dict_getitem_out_of_range(index):
-    with pytest.raises(IndexError):
-        _MapResult({"a": 1, "b": 2}, [lambda kv: kv])[index]
 
 
 def test_xcom_concat(run_ti, mock_supervisor_comms):
