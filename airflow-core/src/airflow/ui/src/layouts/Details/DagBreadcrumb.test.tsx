@@ -20,11 +20,12 @@ import type { PropsWithChildren } from "react";
 
 import "@testing-library/jest-dom/vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter, Route, Routes, useLocation, useMatches } from "react-router-dom";
+import { MemoryRouter, Route, Routes, matchRoutes, useLocation, useMatches } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DagRunService, DagService, TaskInstanceService } from "openapi/requests/services.gen";
 
+import { routerConfig } from "src/router";
 import { BaseWrapper } from "src/utils/Wrapper";
 
 import { DagBreadcrumb } from "./DagBreadcrumb";
@@ -56,6 +57,8 @@ vi.mock("src/queries/useLoopFilterOptions", async (importOriginal) => {
 
 // The msw dag-details handler is pinned to this dag id.
 const DAG_ID = "tutorial_taskflow_api";
+
+const leadsToErrorPage = (href: string) => matchRoutes(routerConfig, href)?.at(-1)?.route.path === "*";
 
 const LocationProbe = () => <div data-testid="location-pathname">{useLocation().pathname}</div>;
 
@@ -106,6 +109,10 @@ describe("DagBreadcrumb", () => {
   });
 
   it("keeps the state badge's room while the state is still loading", async () => {
+    vi.spyOn(DagRunService, "getDagRun").mockReturnValue(
+      new Promise(() => undefined) as ReturnType<typeof DagRunService.getDagRun>,
+    );
+
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(`/dags/${DAG_ID}/runs/run_1`, "/dags/:dagId/runs/:runId"),
     });
@@ -208,6 +215,30 @@ describe("DagBreadcrumb", () => {
     );
   });
 
+  it("offers the instance search at the map index level", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped/0`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId/mapped/:mapIndex",
+      ),
+    });
+
+    expect(await screen.findByTestId("switch-map-index")).toBeInTheDocument();
+  });
+
+  it("keeps the map index level on the expanded task's summary, so an instance is one click away", async () => {
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
+        "/dags/:dagId/runs/:runId/tasks/:taskId/mapped",
+      ),
+    });
+
+    // No instance is picked here, so the level stands on "all" rather than dropping off the bar.
+    expect(await screen.findByText("allMapIndexes")).toBeInTheDocument();
+    expect(screen.getByTestId("switch-map-index")).toBeInTheDocument();
+  });
+
   it("renders one level per URL segment, with only the current one unlinked", async () => {
     render(<DagBreadcrumb />, {
       wrapper: createWrapper(
@@ -234,9 +265,26 @@ describe("DagBreadcrumb", () => {
       "href",
       `/dags/${DAG_ID}/runs/run_1/tasks/task_1/mapped`,
     );
-    // The map index is the page's own level, so it is text rather than a link.
-    expect(screen.queryByRole("link", { name: "0" })).not.toBeInTheDocument();
+    // The map index names itself but is not a link: every destination it could have is this page,
+    // and the trip would drop the region the url carries.
+    expect(screen.queryByRole("link", { name: /mapIndex/u })).not.toBeInTheDocument();
     expect(screen.getByText("0")).toBeInTheDocument();
+  });
+
+  it("never links a looped group page's levels to a missing page", async () => {
+    mockLoopOptions = LOOP_PASSES;
+    render(<DagBreadcrumb />, {
+      wrapper: createWrapper(
+        `/dags/${DAG_ID}/runs/run_1/tasks/group/batch`,
+        "/dags/:dagId/runs/:runId/tasks/group/:groupId",
+      ),
+    });
+
+    await screen.findByTestId("switch-iteration");
+
+    for (const link of screen.getAllByRole("link")) {
+      expect(leadsToErrorPage(link.getAttribute("href") ?? "")).toBe(false);
+    }
   });
 
   it("resolves the task instance by the region coordinates in the URL", async () => {

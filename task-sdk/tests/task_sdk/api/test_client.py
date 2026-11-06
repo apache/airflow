@@ -44,6 +44,7 @@ from airflow.sdk.api.datamodels._generated import (
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
+    LoopDecisionPayload,
     TaskStateStoreResponse,
     TerminalTIState,
     VariableResponse,
@@ -198,6 +199,35 @@ class TestClient:
             client.get("http://error")
         assert err.value.args == ("Not found",)
         assert err.value.detail is None
+
+    @pytest.mark.parametrize(
+        "content_type",
+        [
+            pytest.param("application/json; charset=utf-8", id="charset"),
+            pytest.param("application/json;charset=UTF-8", id="charset-no-space"),
+            pytest.param("Application/JSON", id="mixed-case"),
+            pytest.param("application/problem+json", id="problem-json"),
+        ],
+    )
+    def test_error_parsing_json_media_type_variants(self, content_type):
+        responses = [
+            httpx2.Response(404, json={"detail": "Not found"}, headers={"content-type": content_type})
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(ServerResponseError) as err:
+            client.get("http://error")
+        assert err.value.args == ("Not found",)
+
+    def test_error_parsing_media_type_merely_prefixed_with_json(self):
+        responses = [
+            httpx2.Response(404, json={"detail": "Not found"}, headers={"content-type": "application/jsonp"})
+        ]
+        client = make_client_w_responses(responses)
+
+        with pytest.raises(httpx2.HTTPStatusError) as err:
+            client.get("http://error")
+        assert not isinstance(err.value, ServerResponseError)
 
     def test_server_response_error_pickling(self):
         responses = [httpx2.Response(404, json={"detail": {"message": "Invalid input"}})]
@@ -474,6 +504,32 @@ class TestTaskInstanceOperations:
             rendered_map_index="test",
             retry_reason=retry_reason,
         )
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [
+            ("finish", {"state": TerminalTIState.FAILED}),
+            ("succeed", {"task_outlets": [], "outlet_events": []}),
+        ],
+    )
+    def test_task_instance_terminal_state_sends_loop_decision(self, method, kwargs):
+        ti_id = uuid6.uuid7()
+        bodies = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            bodies.append(json.loads(request.read()))
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        getattr(client.task_instances, method)(
+            ti_id,
+            when="2024-10-31T12:00:00Z",
+            rendered_map_index=None,
+            loop_decision=LoopDecisionPayload(stop=False, reason="error 0.2"),
+            **kwargs,
+        )
+
+        assert bodies[0]["loop_decision"] == {"stop": False, "reason": "error 0.2"}
 
     def test_task_instance_heartbeat(self):
         # Simulate a successful response from the server that sends a heartbeat for a ti
@@ -1106,6 +1162,56 @@ class TestXCOMOperations:
                     task_id="task_id",
                     key="key",
                 )
+
+    def test_xcom_get_404_returns_none_value(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+        )
+
+        assert result == XComResponse(key="key", value=None)
+
+    def test_xcom_get_sequence_item_404_returns_not_found_error(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key/item/2":
+                return httpx2.Response(
+                    status_code=404,
+                    json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+                )
+            return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+
+        result = client.xcoms.get_sequence_item(
+            dag_id="dag_id",
+            run_id="run_id",
+            task_id="task_id",
+            key="key",
+            offset=2,
+        )
+
+        assert result == ErrorResponse(
+            error=ErrorType.XCOM_NOT_FOUND,
+            detail={
+                "dag_id": "dag_id",
+                "run_id": "run_id",
+                "task_id": "task_id",
+                "key": "key",
+                "offset": 2,
+            },
+        )
 
     @pytest.mark.parametrize(
         "values",
@@ -1904,6 +2010,27 @@ class TestHITLOperations:
         assert result.params is None
         assert result.multiple is False
         assert result.assigned_users is None
+
+    def test_add_response_retries_with_the_same_idempotency_key(self) -> None:
+        ti_id = uuid7()
+        keys: list[str] = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            keys.append(request.headers["Idempotency-Key"])
+            if len(keys) == 1:
+                return httpx2.Response(status_code=500, json={"detail": "Internal Server Error"})
+            return httpx2.Response(
+                status_code=201, json={"ti_id": str(ti_id), "options": ["Approve"], "subject": "Ship it?"}
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+            client.hitl.add_response(ti_id=ti_id, options=["Approve"], subject="Ship it?")
+
+        first_attempt, retry, next_request = keys
+        assert retry == first_attempt
+        assert next_request != first_attempt
 
     def test_update_response(self, time_machine: TimeMachineFixture) -> None:
         time_machine.move_to(datetime(2025, 7, 3, 0, 0, 0))

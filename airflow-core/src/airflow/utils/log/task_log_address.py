@@ -31,7 +31,7 @@ from sqlalchemy.orm.attributes import NO_VALUE
 
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion, get_trajectory
 from airflow.models.tasklog import LogTemplate
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.utils.helpers import render_template
@@ -76,12 +76,8 @@ def region_log_position(
         kind = node_kinds.get(region.node_id) or ("map" if region.node_id == task_id else "loop")
         if kind not in {"loop", "map"}:
             raise ValueError(f"Unsupported log-address region kind: {kind}")
-        position = 1
-        predecessor = region
-        while predecessor.forked_from_region_id is not None:
-            predecessor = regions[predecessor.forked_from_region_id]
-            position += 1
-        suffix = f".{position}" if position > 1 else ""
+        trajectory = get_trajectory(region, regions)
+        suffix = f".{trajectory}" if trajectory > 1 else ""
         label = "pass" if kind == "loop" else "map"
         inside_loop = inside_loop or kind == "loop"
         frames.append(f"{label}={region_index}{suffix}")

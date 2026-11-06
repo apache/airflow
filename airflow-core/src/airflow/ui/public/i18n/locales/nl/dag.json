@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Alle gemapte indexen",
   "allRuns": "Alle Runs",
   "blockingDeps": {
     "dependency": "Afhankelijkheid",
@@ -6,6 +7,7 @@
     "title": "Afhankelijkheden die de Task blokkeren om ingepland te worden"
   },
   "calendar": {
+    "backfill": "Achteraf vullen",
     "daily": "Dagelijks",
     "hourly": "Uurlijks",
     "legend": {
@@ -34,14 +36,30 @@
       "wednesday": "Wo"
     }
   },
+  "callbacks": {
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Deadlinewaarschuwing",
+      "callback": "Callback",
+      "deadlineTime": "Deadline tijd",
+      "missedBy": "Gemist door",
+      "type": "Type"
+    },
+    "types": {
+      "executor": "Synchroon",
+      "triggerer": "Asynchroon"
+    }
+  },
   "code": {
     "bundleUrl": "Bundle URL",
     "noCode": "Geen code gevonden",
-    "parseDuration": "Vewrwerkingsduur:",
+    "parseDuration": "Verwerkingsduur:",
     "parsedAt": "Geparsed op:"
   },
   "deadlineAlerts": {
     "completionRule": "Moet worden voltooid binnen {{interval}} van {{reference}}",
+    "completionRuleDynamic": "Moet worden voltooid binnen een variabel interval gemeten vanaf {{reference}}",
     "count_one": "{{count, number}} deadline",
     "count_other": "{{count, number}} deadlines",
     "referenceType": {
@@ -95,17 +113,49 @@
     "noTryNumber": "Geen poging nummer",
     "search": {
       "matchCount": "{{current, number}} van {{total, number}}",
+      "nextMatch": "Volgende overeenkomst",
       "noMatches": "Geen overeenkomsten",
-      "placeholder": "Zoek in logs..."
+      "placeholder": "Zoek in logs...",
+      "previousMatch": "Vorige overeenkomst"
     },
     "settings": "Loginstellingen",
+    "tryNotStarted": "Deze poging is nog niet gestart.",
+    "viewFailedTry": "Bekijk logs voor mislukte poging {{tryNumber}}",
     "viewInExternal": "Bekijk logs in {{name}} (poging {{attempt}})",
+    "viewPreviousTry": "Bekijk logs voor vorige poging {{tryNumber}}",
+    "waitingToRetry": "Poging {{tryNumber}} wacht om opnieuw te proberen.",
     "warning": "WARNING"
   },
-  "navigation": {
-    "navigation": "Navigatie: {{arrow}}",
-    "openGraphFilters": "Taakfilters: Ctrl+Shift+F",
-    "toggleGroup": "Groep in-/uitklappen: Spatie"
+  "loop": {
+    "history": {
+      "capLabel": "Limiet: {{max}}",
+      "iterationsAxis": "Iteraties",
+      "stats": {
+        "capHits": "Limiet bereikt",
+        "medianIterations": "Mediaan iteraties"
+      },
+      "title": "Iteraties per run"
+    },
+    "iterationLabel": "Iteratie {{index}}",
+    "iterations": "Iteraties",
+    "outcome": "Resultaat",
+    "reason": {
+      "cap_reached": "Iteratielimiet bereikt ({{max}})",
+      "failed": "Mislukt bij iteratie {{index}}",
+      "iteration_failed": "Iteratie {{index}} mislukt in {{taskId}}",
+      "ran_to_cap": "Alle {{max}} toegestane iteraties uitgevoerd",
+      "removed": "Verwijderd",
+      "running": "Bezig",
+      "skipped": "Overgeslagen",
+      "stopped_early": "Vroegtijdig gestopt bij iteratie {{index}}"
+    },
+    "rules": {
+      "behaviour": "Gedrag",
+      "boundedFor": "Voert een vast aantal iteraties uit",
+      "exitCriteria": "Exit criteria",
+      "maxIterations": "Maximale iteraties",
+      "whileUntil": "Herhaalt totdat {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Ga terug",
@@ -148,13 +198,7 @@
       "label": "Aantal Dag Runs"
     },
     "dependencies": {
-      "label": "Afhankelijkheden",
-      "options": {
-        "allDagDependencies": "Alle Dag afhankelijkheden",
-        "externalConditions": "Externe omstandigheden",
-        "onlyTasks": "Alleen taken"
-      },
-      "placeholder": "Afhankelijkheden"
+      "allDagDependencies": "Alle Dag afhankelijkheden"
     },
     "graphDirection": {
       "label": "Richting van de grafiek"
@@ -217,6 +261,7 @@
     "auditLog": "Audit Log",
     "backfills": "Backfills",
     "calendar": "Kalender",
+    "callbacks": "Callbacks",
     "code": "Code",
     "details": "Details",
     "logs": "Logs",
@@ -229,6 +274,7 @@
     "taskInstances": "Taakinstanties",
     "taskStateStore": "Task State Store",
     "tasks": "Taken",
+    "versions": "Versies",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -246,6 +292,8 @@
     "deleteWarning": "De taak zal dit persistente geheugen verliezen. Als de taak deze sleutel gebruikt om extern werk bij te houden (bijv. een extern job-ID), kan het niet worden hervat.",
     "edit": "Wijzig Task State Store",
     "emptyStore": "Task state store slaat waarden op die persistent blijven over retries. Workers kunnen task state store schrijven via de Task SDK.",
+    "entry_one": "Invoer",
+    "entry_other": "Invoeren",
     "expiresAt": {
       "column": "Verloopt op",
       "custom": "Aangepast",
@@ -254,5 +302,70 @@
       "never": "Nooit"
     },
     "title": "Task State Store"
+  },
+  "versions": {
+    "base": "Vergelijk vanaf",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorisatie",
+      "callback": "Callback",
+      "deadline": "Deadline",
+      "dependency": "Afhankelijkheid",
+      "metadata": "Metadata",
+      "param": "Parameter",
+      "provenance": "Herkomst",
+      "schedule": "Schema",
+      "task": "Taak",
+      "unknown": "Onbekend"
+    },
+    "codeAccess": "Waarden vereisen toegang tot Dag-code",
+    "columns": {
+      "after": "Na",
+      "before": "Voor",
+      "category": "Categorie",
+      "impact": "Impact",
+      "operation": "Operatie",
+      "path": "Pad"
+    },
+    "heading": "Versie {{base}} → Versie {{target}}",
+    "impacts": {
+      "authorization": "Autorisatie",
+      "execution": "Uitvoering",
+      "metadata": "Metadata",
+      "provenance": "Herkomst",
+      "unknown": "Onbekend"
+    },
+    "limitReached": {
+      "description": "Er zijn meer wijzigingen dan het maximaal toegestane aantal wijzigingen. Verhoog de limiet om de rest te zien.",
+      "descriptionDefault": "Er zijn meer wijzigingen dan het standaardlimiet toestaat. Stel een hoger maximaal aantal wijzigingen in om de rest te zien.",
+      "title": "Toont alleen de eerste {{limit, number}} wijzigingen"
+    },
+    "maxChanges": "Maximale wijzigingen",
+    "maxChangesDefault": "Standaard",
+    "noChanges": "Deze versies hebben dezelfde status.",
+    "operations": {
+      "added": "Toegevoegd",
+      "changed": "Veranderd",
+      "removed": "Verwijderd"
+    },
+    "pathOccurrences_one": "{{count, number}} wijziging deelt dit pad",
+    "pathOccurrences_other": "{{count, number}} wijzigingen delen dit pad",
+    "pathOccurrencesAtLeast_one": "Ten minste {{count, number}} wijziging deelt dit pad",
+    "pathOccurrencesAtLeast_other": "Ten minste {{count, number}} wijzigingen delen dit pad",
+    "record_one": "Record",
+    "record_other": "Records",
+    "schemaChange": "Gesserialiseerd schema {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Selecteer twee versies om te zien wat er tussen veranderd is.",
+    "summary_one": "{{count, number}} wijziging",
+    "summary_other": "{{count, number}} wijzigingen",
+    "summaryAtLeast_one": "Minimaal {{count, number}} wijziging",
+    "summaryAtLeast_other": "Minimaal {{count, number}} wijzigingen",
+    "target": "Vergelijk met",
+    "unavailable": {
+      "description": "Deze versies kunnnen niet worden vergeleken. Reden:",
+      "title": "Vergelijking niet beschikbaar",
+      "withoutReason": "Deze versies kunnen niet worden vergeleken."
+    },
+    "valuesHidden": "Waarden verborgen"
   }
 }

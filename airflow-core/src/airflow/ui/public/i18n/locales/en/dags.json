@@ -22,6 +22,7 @@
     },
     "favoriteState": "Favorite state",
     "favoriteStatePlaceholder": "Select favorite state…",
+    "hasImportErrors": "Has import errors",
     "noTimetableTypesFound": "No timetable types found",
     "paused": {
       "active": "Not paused",
@@ -129,6 +130,7 @@
     "dagRuns": "Search $t(common:dagRun_other)",
     "dags": "Search $t(common:dag_other)",
     "hotkey": "+K",
+    "mapIndexes": "Search $t(common:mapIndex)",
     "tasks": "Search $t(common:task_other)"
   },
   "sort": {

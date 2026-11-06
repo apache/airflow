@@ -25,3 +25,9 @@ from datetime import timedelta
 # Overridable via env var — the e2e harness runs every DAG in the same deployment and wants a
 # tighter value than a single real system-test run needs.
 DEFAULT_DAGRUN_TIMEOUT = timedelta(minutes=int(os.getenv("SYSTEM_TESTS_OL_DAGRUN_TIMEOUT_MINUTES", "10")))
+
+# The e2e harness runs every Dag at once, so their tasks compete for the worker slots, which go to the highest
+# priority first. By default that is the task with the most tasks downstream, e.g. the first of a long chain, while
+# the Dags that wait for other Dag runs, loop or retry (their tasks have few downstream) take the longest to finish.
+# Those Dags and the Dags they trigger use this weight, so their tasks are never queued behind the others.
+CRITICAL_PATH_PRIORITY_WEIGHT = 100

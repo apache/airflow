@@ -80,6 +80,7 @@ from airflow.sdk.bases.decorator import DecoratedOperator
 from airflow.sdk.bases.operator import OPERATOR_DEFAULTS, BaseOperator
 from airflow.sdk.definitions._internal.expandinput import EXPAND_INPUT_EMPTY
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions.deadline import AsyncCallback, DeadlineAlert, DeadlineReference
 from airflow.sdk.definitions.operator_resources import Resources
 from airflow.sdk.definitions.param import Param, ParamsDict
 from airflow.security import permissions
@@ -93,6 +94,7 @@ from airflow.serialization.definitions.param import SerializedParam
 from airflow.serialization.definitions.xcom_arg import SchedulerPlainXComArg
 from airflow.serialization.encoders import ensure_serialized_asset
 from airflow.serialization.enums import DagAttributeTypes, Encoding
+from airflow.serialization.helpers import TimetableNotRegistered
 from airflow.serialization.json_schema import load_dag_schema_dict
 from airflow.serialization.serialized_objects import (
     BaseSerialization,
@@ -1215,8 +1217,11 @@ class TestStringifiedDAGs:
             "you have a top level database access that disrupted the session. "
             "Please check the airflow best practices documentation."
         )
-        with pytest.raises(ValueError, match=message):
-            DagSerialization.from_dict(serialized)
+        dag = DagSerialization.from_dict(serialized)
+
+        assert dag.dag_id == "simple_dag"
+        with pytest.raises(TimetableNotRegistered, match=message):
+            dag.timetable
 
     @pytest.mark.parametrize(
         ("val", "expected"),
@@ -5236,13 +5241,28 @@ class TestWeightRule:
             return_value=RegisteredPriorityWeightStrategy,
         ) as mock_get_registered_priority_weight_strategy:
             serop = OperatorSerialization.deserialize(OperatorSerialization.serialize(sdkop))
+            weight_rule = serop.weight_rule
 
-        assert serop.weight_rule == RegisteredPriorityWeightStrategy()
+        assert weight_rule == RegisteredPriorityWeightStrategy()
         assert mock_get_registered_priority_weight_strategy.mock_calls == [
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
             mock.call("unit.serialization.test_dag_serialization.RegisteredPriorityWeightStrategy"),
         ]
+
+    def test_unregistered_custom_deserializes_until_read(self):
+        sdkop = BaseOperator(task_id="custom", weight_rule=RegisteredPriorityWeightStrategy())
+        with mock.patch(
+            "airflow.serialization.serialized_objects._get_registered_priority_weight_strategy",
+            return_value=RegisteredPriorityWeightStrategy,
+        ):
+            serialized = OperatorSerialization.serialize(sdkop)
+
+        serop = OperatorSerialization.deserialize(serialized)
+
+        assert serop.task_id == "custom"
+        with pytest.raises(ValueError, match="Unknown priority strategy"):
+            serop.weight_rule
 
     def test_invalid(self):
         op = BaseOperator(task_id="should_fail", weight_rule="no rule")
@@ -5297,6 +5317,44 @@ class TestValidateSerializedDag:
 
         with pytest.raises(DeserializationError, match=f"^{re.escape(error)}"):
             DagSerialization.validate_serialized_dag(data)
+
+    def test_rejects_a_dag_without_a_timetable(self):
+        data = self._serialize()
+        del data["dag"]["timetable"]
+
+        with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has no timetable$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    @pytest.mark.parametrize(
+        ("deadline", "error"),
+        [
+            pytest.param({}, "Dag 'checked_dag' must list its deadline alert definitions", id="single"),
+            pytest.param(
+                ["0192ad1e-5c4b-7c6a-9e1f-2a3b4c5d6e7f"],
+                "Dag 'checked_dag' must list its deadline alert definitions",
+                id="stored-reference",
+            ),
+            pytest.param(
+                [{}], "Dag 'checked_dag' cannot be deserialized: KeyError: 'reference'", id="incomplete"
+            ),
+        ],
+    )
+    def test_rejects_a_deadline_that_cannot_be_stored(self, deadline, error):
+        data = self._serialize()
+        data["dag"]["deadline"] = deadline
+
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
+    def test_accepts_deadline_alerts(self):
+        alert = DeadlineAlert(
+            reference=DeadlineReference.DAGRUN_QUEUED_AT,
+            interval=timedelta(hours=1),
+            callback=AsyncCallback("valid.callback.path"),
+        )
+        dag = DAG(dag_id="checked_dag", schedule=None, deadline=[alert, alert])
+
+        assert len(DagSerialization.validate_serialized_dag(DagSerialization.to_dict(dag)).deadline) == 2
 
     def test_returns_the_deserialized_dag(self):
         dag = DagSerialization.validate_serialized_dag(self._serialize())
@@ -5465,6 +5523,24 @@ class TestFillConfigDefaults:
         DagSerialization.fill_config_defaults(data)
 
         assert data == before
+
+    @conf_vars({("core", "default_task_execution_timeout"): "300"})
+    def test_fills_the_default_execution_timeout_of_tasks_from_the_config(self):
+        with DAG(dag_id="native_dag", schedule=None) as dag:
+            BaseOperator(task_id="unset")
+            BaseOperator(task_id="set", execution_timeout=timedelta(seconds=60))
+            MockOperator.partial(task_id="mapped").expand(arg1=[1, 2])
+        data = DagSerialization.to_dict(dag)
+        data.pop("client_defaults", None)
+
+        DagSerialization.fill_config_defaults(data)
+
+        tasks = DagSerialization.from_dict(data).task_dict
+        assert {task_id: task.execution_timeout for task_id, task in tasks.items()} == {
+            "unset": timedelta(seconds=300),
+            "set": timedelta(seconds=60),
+            "mapped": timedelta(seconds=300),
+        }
 
     def test_leaves_a_payload_without_a_dag_to_validation(self):
         data = {"__version": 3}

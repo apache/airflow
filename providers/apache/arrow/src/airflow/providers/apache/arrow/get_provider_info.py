@@ -47,8 +47,14 @@ def get_provider_info():
                 "hook-name": "ADBC Connection",
                 "connection-type": "adbc",
                 "ui-field-behaviour": {
-                    "hidden-fields": ["port", "schema"],
-                    "relabeling": {"host": "Connection URL"},
+                    "hidden-fields": [],
+                    "relabeling": {"host": "Host or URI", "schema": "Database"},
+                    "placeholders": {
+                        "host": "db.example.com, or postgresql://user:pass@db.example.com:5432/db",
+                        "port": "5432",
+                        "schema": "db",
+                        "extra": '{"dialect": "postgresql"}',
+                    },
                 },
             }
         ],

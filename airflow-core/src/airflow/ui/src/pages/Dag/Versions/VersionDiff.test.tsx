@@ -108,6 +108,25 @@ describe("VersionDiff summary", () => {
 });
 
 describe("VersionDiff", () => {
+  it("shows a merged record's count beside its path rather than in a column", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("×3")).toBeInTheDocument();
+    expect(screen.queryByText("versions.columns.occurrences")).not.toBeInTheDocument();
+  });
+
+  it("marks a truncated count as a lower bound", () => {
+    renderDiff({ ...redacted, truncated: true });
+
+    expect(screen.getByText("×3+")).toBeInTheDocument();
+  });
+
+  it("adds no count to a record that stands for one change", () => {
+    renderDiff(authorized);
+
+    expect(screen.queryByText(/^×/u)).not.toBeInTheDocument();
+  });
+
   it("withholds value columns when the caller may not see values", () => {
     renderDiff(redacted);
 
@@ -134,14 +153,6 @@ describe("VersionDiff", () => {
     }
   });
 
-  it("keeps the comparison's boundary reachable from above the table", () => {
-    renderDiff(redacted);
-
-    // Below the table it would be pushed off-screen by exactly the long diffs that need it.
-    expect(screen.queryByText("versions.observedStateBoundary")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "versions.aboutThisComparison" })).toBeInTheDocument();
-  });
-
   it("shows values and the identifying path once the caller may see them", () => {
     renderDiff(authorized);
 
@@ -152,13 +163,29 @@ describe("VersionDiff", () => {
     expect(screen.getByText("bob")).toBeInTheDocument();
   });
 
-  it("warns that a truncated count is a lower bound", () => {
+  it("says a truncated count is a lower bound", () => {
     renderDiff({ ...redacted, truncated: true });
 
-    expect(screen.getByText("versions.truncated.description")).toBeInTheDocument();
+    expect(screen.getByText("versions.summaryAtLeast")).toBeInTheDocument();
+    // What the bound was, and how to lift it, belongs on the field that sets it.
+    expect(screen.queryByText("versions.limitReached.title")).not.toBeInTheDocument();
   });
 
-  it("marks the side an added change does not have", () => {
+  it("counts changes once, in the summary, not again above the table", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText(/dag:versions\.record|versions\.record/u)).not.toBeInTheDocument();
+  });
+
+  it("gives an exact count when nothing was dropped", () => {
+    renderDiff(redacted);
+
+    expect(screen.getByText("versions.summary")).toBeInTheDocument();
+    expect(screen.queryByText("versions.limitReached.title")).not.toBeInTheDocument();
+  });
+
+  it("leaves the side an added change does not have blank", () => {
     renderDiff({
       ...authorized,
       changes: [
@@ -175,10 +202,14 @@ describe("VersionDiff", () => {
       ],
     });
 
-    expect(screen.getByText("—")).toBeInTheDocument();
+    const cells = within(screen.getAllByRole("row")[1] as HTMLElement).getAllByRole("cell");
+
+    // A dash would read as a value the base version holds, rather than as a side that is absent.
+    expect(cells[4]).toBeEmptyDOMElement();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
-  it("truncates a value too large to read in a table cell", () => {
+  it("previews a structured value as JSON rather than flattening it into the cell", () => {
     const wholeTask = { __type: "operator", __var: { task_id: "extract", template_fields: "x".repeat(400) } };
 
     renderDiff({
@@ -195,7 +226,48 @@ describe("VersionDiff", () => {
       ],
     });
 
-    const text = screen.getByText(/^\{"__type"/u).textContent;
+    expect(screen.getByTestId("json-preview-badges")).toBeInTheDocument();
+    expect(screen.getByText("__type:")).toBeInTheDocument();
+    // The serialized payload itself stays in the editor the preview opens.
+    expect(screen.queryByText(/^\{"__type"/u)).not.toBeInTheDocument();
+  });
+
+  it("shows an empty structure as a value, since it has no entries to preview", () => {
+    renderDiff({
+      ...authorized,
+      changes: [
+        {
+          after_value: [],
+          before_value: {},
+          category: "task",
+          impact: "execution",
+          occurrence_count: 1,
+          operation: "changed",
+          path: "/dag/tasks/extract/outlets",
+        },
+      ],
+    });
+
+    expect(screen.getByText("{}")).toBeInTheDocument();
+    expect(screen.getByText("[]")).toBeInTheDocument();
+  });
+
+  it("truncates a scalar too long to read in a table cell", () => {
+    renderDiff({
+      ...authorized,
+      changes: [
+        {
+          after_value: `s3://bucket/${"x".repeat(400)}`,
+          category: "task",
+          impact: "execution",
+          occurrence_count: 1,
+          operation: "changed",
+          path: "/dag/tasks/extract/bash_command",
+        },
+      ],
+    });
+
+    const text = screen.getByText(/^s3:\/\/bucket\//u).textContent;
 
     expect(text.endsWith("…")).toBe(true);
     expect(text.length).toBeLessThan(200);
@@ -228,9 +300,9 @@ describe("VersionDiff", () => {
 
     const cells = within(screen.getAllByRole("row")[1] as HTMLElement).getAllByRole("cell");
 
-    expect(cells[4]).toHaveTextContent("1");
-    expect(cells[5]).toHaveTextContent("alice");
-    expect(cells[6]).toHaveTextContent("bob");
+    expect(cells).toHaveLength(6);
+    expect(cells[4]).toHaveTextContent("alice");
+    expect(cells[5]).toHaveTextContent("bob");
   });
 
   it("shows no disclosure chrome when the caller may see values", () => {

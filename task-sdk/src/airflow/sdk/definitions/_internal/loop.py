@@ -28,9 +28,9 @@ from airflow.sdk.definitions.taskgroup import MappedTaskGroup, TaskGroup
 if TYPE_CHECKING:
     from airflow.sdk.definitions.context import Context
     from airflow.sdk.definitions.decorators.task_group import _TaskGroupFactory
+    from airflow.sdk.definitions.loop import LoopDecision
 
-LOOP_XCOM_PREFIX = "_airflow_loop_"
-LOOP_DECISION_KEY = f"{LOOP_XCOM_PREFIX}decision"
+LOOP_DECISION_REASON_MAX_BYTES = 512
 
 
 def _get_until_doc(until: Callable[..., Any] | None) -> str | None:
@@ -162,12 +162,12 @@ def check_expansions_over_loop_tasks(dag: Any) -> None:
 class LoopGateOperator(BaseOperator):
     """Definition of a loop gate task."""
 
-    def __init__(self, *, until: Callable[..., bool] | None = None, **kwargs: Any):
+    def __init__(self, *, until: Callable[..., bool | LoopDecision] | None = None, **kwargs: Any):
         super().__init__(**kwargs)
         self.until = until
 
     def execute(self, context: Context) -> None:
-        # execution_time.loop imports LOOP_DECISION_KEY from this module.
+        # execution_time.loop imports LOOP_DECISION_REASON_MAX_BYTES from this module.
         from airflow.sdk.execution_time.loop import execute_loop_gate
 
         execute_loop_gate(self, context)
@@ -178,7 +178,7 @@ def create_loop(
     /,
     *,
     max_iterations: int,
-    until: Callable[..., bool] | None = None,
+    until: Callable[..., bool | LoopDecision] | None = None,
 ) -> LoopTaskGroup:
     """Construct a loop group and its gate."""
     from airflow.sdk.bases.decorator import get_unique_task_id

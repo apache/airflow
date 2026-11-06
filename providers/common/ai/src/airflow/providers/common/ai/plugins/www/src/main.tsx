@@ -22,6 +22,7 @@ import type { FC } from "react";
 
 import { ChatPage } from "src/components/ChatPage";
 import { NoSession } from "src/components/NoSession";
+import { type HostTaskInstance, isSelectionPending, regionOf } from "src/region";
 import { Toaster } from "src/toaster";
 
 import { localSystem } from "./theme";
@@ -31,7 +32,7 @@ export interface PluginComponentProps {
   mapIndex?: string;
   runId?: string;
   taskId?: string;
-  taskInstance?: { id?: string; region_id?: string; region_index?: number };
+  taskInstance?: HostTaskInstance;
 }
 
 /**
@@ -51,13 +52,11 @@ const PluginComponent: FC<PluginComponentProps> = (props) => {
   } = props;
   const mapIndex = /^-?\d+$/.test(String(mapIndexProp)) ? parseInt(String(mapIndexProp), 10) : -1;
 
-  if (!dagId || !runId || !taskId || ("taskInstance" in props && taskInstance == null)) {
+  if (!dagId || !runId || !taskId || isSelectionPending(props)) {
     return <NoSession />;
   }
 
-  const region = taskInstance?.region_id !== undefined && taskInstance.region_index !== undefined
-    ? { region_id: taskInstance.region_id, region_index: taskInstance.region_index }
-    : undefined;
+  const region = regionOf(taskInstance);
 
   // Remounts ChatPage on any selection change: useSession keeps its first createApi(...) in a ref,
   // so without a new key it would keep sending the previous pass's region.

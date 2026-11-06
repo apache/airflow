@@ -29,6 +29,7 @@ from uuid import UUID
 from sqlalchemy import TIMESTAMP, PickleType, String, Uuid, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
@@ -39,8 +40,6 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
@@ -51,6 +50,9 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
+
+    # TODO: use Select[UUID] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[UUID]].
+    UUIDSelect = Select
 
 
 log = logging.getLogger(__name__)
@@ -693,7 +695,14 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
+        # before_commit fires for a SAVEPOINT release too, not just session.commit(). A
+        # savepoint release ends neither the outer transaction nor its row locks, so it can't
+        # break the HA locks this guard protects -- skip the check while one is open. This
+        # covers session.commit() and savepoint exits; nothing under this guard commits a
+        # transaction handle directly today, which would bypass this check.
+        if session.in_nested_transaction():
+            return
         if self.expected_commit:
             self.expected_commit = False
             return
@@ -762,6 +771,17 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
-def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
-    """Create an SQLAlchemy-version-aware dialect keyword argument."""
-    return {"dialect_names": (dialect,)}
+def is_deadlock_error(error: Exception) -> bool:
+    """Check if the Error is a database deadlock."""
+    if not isinstance(error, DBAPIError) or error.orig is None:
+        return False
+    # DB specific error codes:
+    # Postgres: 40P01 (deadlock_detected)
+    # MySQL: 1213, 'Deadlock found when trying to get lock; try restarting transaction'
+    # psycopg2 exposes `pgcode`, psycopg3 exposes `sqlstate`
+    db_err_code = (
+        getattr(error.orig, "pgcode", None)
+        or getattr(error.orig, "sqlstate", None)
+        or (error.orig.args[0] if error.orig.args else None)
+    )
+    return db_err_code in ("40P01", 1213)
