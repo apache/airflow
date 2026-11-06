@@ -18,7 +18,7 @@
 ---
 name: Mirror hardened base images
 # Copies the Docker Hardened Image (https://dhi.io) tags that Airflow images are built on into a
-# public ghcr.io repository owned by the project.
+# public ghcr.io repository owned by the project, and builds the OS-dependencies images on them.
 #
 # Pulling from dhi.io requires a Docker Hub login. Requiring one to build an Airflow image would
 # mean every contributor and every CI job needs Docker Hub credentials, so the tags are mirrored
@@ -27,33 +27,116 @@ name: Mirror hardened base images
 #
 # `docker buildx imagetools create` copies the multi-platform manifest between registries without
 # pulling the layers into the runner, so a refresh of all Python versions is cheap.
+#
+# The builds do not use these moving tags: they are pinned to digests that only "breeze ci upgrade"
+# moves, in a PR that has to pass the full CI. A pinned image cannot pin the dhi.io apt repository
+# the OS dependencies are installed from, though: it moves on - and drops the versions it replaced -
+# whenever Docker rebuilds its images. So the daily run also installs the OS dependencies once, in
+# images built on the mirrored base images, and the CI and release builds start from those, pinned
+# the same way. The six-hourly runs only mirror. An OS-dependencies image is built only when one of
+# its inputs changed - the base image, install_os_dependencies.sh or its Dockerfile stage - as every
+# input is part of its tag.
+#
+# A run that moves a mirrored tag past its pin, or publishes a new OS-dependencies image, triggers
+# the upgrade check. It pins the latest published OS-dependencies image of each Python patch release,
+# whatever base image digest it was built on: the image carries its own Python, so it does not have
+# to share the base image pin's digest.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
+    inputs:
+      trigger-upgrade-check:
+        description: >-
+          Run the main upgrade check when a tag moves past its pin or a new OS-dependencies image is
+          published. "breeze ci upgrade" for main turns it off, as it is the upgrade that pins the images.
+        type: boolean
+        default: true
+      build-os-deps-images:
+        description: >-
+          Also build and publish the OS-dependencies images. The upgrade check turns it off: it pins the
+          images the daily build published.
+        type: boolean
+        default: true
   schedule:
-    # Docker rebuilds the hardened images as CVEs are fixed, keeping the same tags. Re-running
-    # weekly is what picks those rebuilds up.
-    - cron: '27 4 * * 1'
+    - cron: '27 */6 * * *'
+    # The daily run also builds the OS-dependencies images - the jobs below match this exact string.
+    - cron: '47 2 * * *'
 permissions:
   contents: read
-concurrency:
-  group: mirror-hardened-base-images
-  cancel-in-progress: false
+# Concurrency is per job, not per run: the mirror jobs of all runs are serialized, the OS-dependencies
+# builds have groups of their own, so a mirror-only run - such as the one the upgrade check dispatches
+# and waits for - never queues behind a daily build. The builds use the digests their own run's mirror
+# job mirrored, so a later mirror moving the tags does not change what they build or publish.
 jobs:
+  # Picks the runners the way CI does: RunsOn in apache/airflow, public runners when the repository
+  # variable USE_PUBLIC_RUNNERS is "true".
+  build-info:
+    name: "Build info"
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+    outputs:
+      runner-type: ${{ steps.selective-checks.outputs.runner-type }}
+      arm-runner-type: ${{ steps.selective-checks-arm.outputs.runner-type }}
+      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+    steps:
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+        with:
+          free-space: "false"
+      - name: "Save github context to file"
+        # Same as in ci-amd.yml: a scheduled or dispatched run has no attacker-controlled context, and
+        # the single-quoted heredoc disables every shell expansion of the JSON anyway.
+        shell: bash
+        run: |  # zizmor: ignore[template-injection]
+          cat > "${RUNNER_TEMP}/github_context.json" << '__GITHUB_CONTEXT_END__'
+          ${{ toJson(github) }}
+          __GITHUB_CONTEXT_END__
+      # A scheduled or dispatched run selects every Python version.
+      - name: "Selective checks"
+        id: selective-checks
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/amd64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+      - name: "Selective checks (ARM runners)"
+        id: selective-checks-arm
+        env:
+          COMMIT_REF: "${{ github.sha }}"
+          VERBOSE: "false"
+          GITHUB_CONTEXT_INPUT: "${{ runner.temp }}/github_context.json"
+          PLATFORM: "linux/arm64"
+          USE_PUBLIC_RUNNERS: "${{ vars.USE_PUBLIC_RUNNERS }}"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   mirror:
     name: "Mirror hardened base images"
-    runs-on: ["ubuntu-22.04"]
+    needs: [build-info]
+    # Copies manifests registry-to-registry without pulling layers, so the smallest class is enough.
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
+    timeout-minutes: 30
     # Never runs on forks - they have neither the credentials nor the package to push to. Only main
-    # and the v3-*-test release branches may push: the mirror is the default BASE_IMAGE of every
-    # build, so a manual dispatch from any other branch must not be able to replace it.
-    if: >-
-      github.repository == 'apache/airflow' && (
-        github.ref == 'refs/heads/main' || (
-          startsWith(github.ref, 'refs/heads/v3-') && endsWith(github.ref, '-test')
-        )
-      )
+    # pushes: the mirror is the default BASE_IMAGE of every build, so a manual dispatch from any other
+    # branch must not be able to replace it. Main mirrors every Python version an active release
+    # branch still builds on, so the release branches need no runs of their own.
+    if: github.repository == 'apache/airflow' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: mirror-hardened-base-images
+      cancel-in-progress: false
     permissions:
       contents: read
       packages: write
+    outputs:
+      moved-past-pins: ${{ steps.mirror.outputs.moved-past-pins }}
+      os-deps-base-image-digests: ${{ steps.mirror.outputs.os-deps-base-image-digests }}
     steps:
       - name: "Cleanup repo"
         shell: bash
@@ -77,4 +160,116 @@ jobs:
           ACTOR: ${{ github.actor }}
         run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
       - name: "Mirror base images"
+        id: mirror
         run: breeze release-management mirror-base-images
+  # Daily, or when dispatched with build-os-deps-images. Each platform builds natively, on a runner of
+  # its own, and each Python version in a job of its own. The OS-dependencies images are built on the
+  # tags the mirror serves now, and only for the Python versions and the Debian version main builds on.
+  build-os-deps-images:
+    name: "Build OS-dependencies images ${{ matrix.platform }}:${{ matrix.python }}"
+    needs: [build-info, mirror]
+    # Also after a failed mirror: the tags it did mirror are served, and the builds look them up.
+    if: >-
+      !cancelled() && needs.build-info.result == 'success' &&
+      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && github.event.schedule == '47 2 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build-os-deps-images))
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ["linux/amd64", "linux/arm64"]
+        python: ${{ fromJSON(needs.build-info.outputs.python-versions) }}
+    runs-on: >-
+      ${{ format(fromJSON(matrix.platform == 'linux/arm64' && needs.build-info.outputs.arm-runner-type ||
+      needs.build-info.outputs.runner-type)[0], '8+16', '32+64') }}
+    timeout-minutes: 120
+    concurrency:
+      group: mirror-hardened-base-images-os-deps-${{ matrix.platform }}-${{ matrix.python }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+      - name: "Build OS-dependencies images"
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python }}
+          OS_DEPS_BASE_IMAGE_DIGESTS: ${{ needs.mirror.outputs.os-deps-base-image-digests }}
+        run: >
+          breeze release-management build-os-deps-images
+          --platform "${PLATFORM}" --python "${PYTHON_MAJOR_MINOR_VERSION}"
+  publish-os-deps-images:
+    name: "Publish OS-dependencies images"
+    needs: [build-info, mirror, build-os-deps-images]
+    # Also after a failed build: the images that were built are published, and the job fails for the
+    # rest.
+    if: >-
+      !cancelled() && needs.build-info.result == 'success' &&
+      github.repository == 'apache/airflow' && github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'schedule' && github.event.schedule == '47 2 * * *') ||
+      (github.event_name == 'workflow_dispatch' && inputs.build-os-deps-images))
+    runs-on: ${{ format(fromJSON(needs.build-info.outputs.runner-type)[0], '2+4', '8+16') }}
+    timeout-minutes: 30
+    concurrency:
+      group: mirror-hardened-base-images-os-deps-publish
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      moved-os-deps-images: ${{ steps.publish.outputs.moved-os-deps-images }}
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
+      - name: "Login to ghcr.io"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "${GITHUB_TOKEN}" | docker login ghcr.io -u "${ACTOR}" --password-stdin
+      - name: "Publish OS-dependencies images"
+        id: publish
+        env:
+          OS_DEPS_BASE_IMAGE_DIGESTS: ${{ needs.mirror.outputs.os-deps-base-image-digests }}
+        run: breeze release-management publish-os-deps-images
+  # Only main's pins: release branches move theirs on their own upgrade schedule. Also after a failed
+  # mirror or publication: a tag moved before the failure stays moved, so a re-run would not see it
+  # move again.
+  trigger-upgrade-check:
+    name: "Trigger the upgrade check to move the pinned images"
+    needs: [build-info, mirror, publish-os-deps-images]
+    if: >-
+      !cancelled() && needs.build-info.result == 'success' &&
+      (needs.mirror.outputs.moved-past-pins == 'true' ||
+      needs.publish-os-deps-images.outputs.moved-os-deps-images == 'true') &&
+      (github.event_name == 'schedule' || inputs.trigger-upgrade-check)
+    runs-on: ["ubuntu-slim"]
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: "Trigger the upgrade check"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run scheduled-upgrade-check-main.yml --repo "${GITHUB_REPOSITORY}" --ref main

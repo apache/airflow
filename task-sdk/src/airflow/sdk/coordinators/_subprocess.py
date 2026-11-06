@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 import ipaddress
 import itertools
-import json
 import logging
 import os
 import selectors
@@ -47,13 +46,14 @@ import attrs
 import psutil
 import structlog
 
-from airflow.dag_processing.bundles.base import BundleVersionLock, unpack_bundle_version  # noqa: SDK002
+from airflow.dag_processing.bundles.base import BundleVersionLock  # noqa: SDK002
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.api.datamodels._generated import BundleInfo, TaskInstanceState
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
-from airflow.sdk.execution_time.bundles import initialize_ti_bundle
+from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import RetryTask, TaskState
+from airflow.sdk.execution_time.context import _json_size_exceeds
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.schema import get_schema_version_migrator
 from airflow.sdk.execution_time.supervisor import (
@@ -546,7 +546,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             bundle_info=bundle_info,
             sentry_integration=sentry_integration,
         )
-        # Language runtimes do not send StartExecutionTimeout, so the clock starts once they have the task.
+        # A language runtime may not send SetExecutionTimeout, so the clock starts once it has the task.
+        # If the runtime sends it, the clock restarts from that message.
         self._arm_execution_timeout()
 
     def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
@@ -562,6 +563,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
 
         If an XCom cannot be deleted, this try fails and the task does not run.
         """
+        self._execution_timeout_seconds = ti_context.execution_timeout
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -595,37 +597,13 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # A Python task warns in its own setter; a language SDK runtime cannot compute the size
         # json.dumps gives, so the supervisor warns for it in the task log.
         if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            if (size := len(json.dumps(msg.value))) > limit:
+            if _json_size_exceeds(msg.value, limit):
                 self.process_log.warning(
                     "Task store value exceeds configured max_value_storage_bytes",
                     key=msg.key,
-                    size=size,
                     max_value_storage_bytes=limit,
                 )
         return super()._handle_set_task_state_store(msg, log, req_id)
-
-
-def _initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
-    """
-    Materialize *target* at a concrete version, so the tree handed to the subprocess is lockable.
-
-    A bundle resolved without a version points at the bundle's shared, mutable
-    checkout: another task refreshing the same bundle resets it underneath a running
-    subprocess, and ``BundleVersionLock`` cannot protect it because a version-less
-    lock is a no-op. Re-resolving at the version current now yields a private
-    ``versions/<version>`` tree that the lock does cover.
-
-    Bundles that do not track versions have nothing to pin and keep their single path.
-    """
-    bundle = initialize_ti_bundle(target)
-    if bundle.version is not None:
-        return bundle
-
-    version, version_data = unpack_bundle_version(bundle.get_current_version(), bundle)
-    if version is None:
-        return bundle
-    logger.debug("Pinning Dag bundle to its current version", bundle=target.name, version=version)
-    return initialize_ti_bundle(BundleInfo(name=target.name, version=version, version_data=version_data))
 
 
 def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:
@@ -638,7 +616,7 @@ def _resolve_bundle(bundle_info: BundleInfo, logger: FilteringBoundLogger) -> Ba
     """
     cannot_read = f"Dag bundle {bundle_info.name!r} cannot be read"
     try:
-        bundle = _initialize_pinned_bundle(bundle_info, logger)
+        bundle = initialize_pinned_bundle(bundle_info, logger)
     except Exception as e:
         raise TaskLaunchError(f"{cannot_read}: {e}") from e
     try:

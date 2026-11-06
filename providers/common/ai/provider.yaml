@@ -23,7 +23,7 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1793262026
+source-date-epoch: 1793473140
 build-system: hatchling
 # note that those versions are maintained by release manager - do not update them manually
 versions:
@@ -116,15 +116,14 @@ config:
     options:
       durable_cache_path:
         description: |
-          ObjectStorage URI used to persist per-step caches when running
-          ``AgentOperator`` / ``@task.agent`` with ``durable=True`` on Airflow
-          **< 3.3**. Each task execution writes a single JSON file under this
+          ObjectStorage URI used to persist per-step caches for durable execution
+          on Airflow **< 3.3**. Each task execution writes a single JSON file under this
           path containing its cached model responses and tool results, so that
           on retry the agent can replay completed steps instead of re-issuing
           LLM calls and tool invocations. The file is deleted on successful task
           completion.
 
-          Required for ``durable=True`` only on Airflow < 3.3. On Airflow >= 3.3
+          Required for durable execution only on Airflow < 3.3. On Airflow >= 3.3
           the cache is stored in the AIP-103 task state store and this option is
           ignored. Any scheme supported by ``airflow.sdk.ObjectStoragePath`` is
           accepted (``file://``, ``s3://``, ``gs://``, ``azure://``, ...).
@@ -232,11 +231,27 @@ connection-types:
             - 'null'
       model_provider:
         label: Default Model Provider
-        description: "Provider for model names without a provider: prefix (e.g. openai-chat)"
+        description: >
+          Provider for model names without a provider: prefix (e.g. openai-chat).
+          Any provider the installed pydantic-ai recognizes works.
         schema:
           type:
             - string
             - 'null'
+          # Suggestions on a free-text input, not an enum: an enum would reject providers a newer
+          # pydantic-ai adds until the next release of this provider.
+          examples:
+            - openai-chat
+            - openai
+            - anthropic
+            - ollama
+            - litellm
+            - openrouter
+            - groq
+            - mistral
+            - deepseek
+            - together
+            - fireworks
       fallback_conn_ids:
         label: Fallback Connections
         description: "Connection IDs to fail over to, in order, while this provider is unavailable."

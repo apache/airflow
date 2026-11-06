@@ -19,10 +19,10 @@
 # Approves the waiting workflow runs of external contributors' PRs to main when the change is safe to
 # run without a maintainer's look, and labels the others "need workflow approval" with a pending
 # "Workflow approval" commit status saying why. A PR whose CI runs in the contributor's fork (AIP-120)
-# is approved unless it changes CI definition files, and then also gets a comment saying why its runs
-# wait. When the runs start, mark-workflow-runs-approved.yml removes the label and turns the status
-# green. PRs from the repositories of trusted stakeholders (Amazon, Google, Astronomer) are always
-# approved. The rules are in
+# is approved unless it changes CI definition files, and then gets a comment saying why its runs wait
+# instead of the label. When the runs start, mark-workflow-runs-approved.yml removes the label and
+# turns the status green. PRs from the repositories of trusted stakeholders (Amazon, Google,
+# Astronomer) are always approved. The rules are in
 # dev/breeze/src/airflow_breeze/utils/workflow_run_approval.py and documented in
 # contributing-docs/05_pull_requests.rst.
 #

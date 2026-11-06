@@ -167,6 +167,12 @@ Use Grid View to:
 - **Understand the status of recent Dag runs** at a glance
 - **Identify failed or retried tasks** by color and tooltip
 - **Take action** by clicking a task cell to view logs or mark task instances as successful, failed, or cleared
+- **Act on several task instances at once**: Ctrl + click (Cmd + click on macOS) adds or removes a cell, and
+  Shift + click selects every cell between the last one picked and the clicked one. The selected task instances can
+  then be cleared, marked, or deleted together, and the actions of the details panel are hidden meanwhile. A mapped
+  task's cell stands for all of its mapped task instances, and a task group's cell for every task instance inside the
+  group in that run. The cell of a task inside a loop stands for every pass of that task in the run, and a loop's
+  cell for every pass of the loop.
 - **Filter tasks** by name or partial ID
 - **Select a run range**, like "last 25 runs" using the dropdown above the grid
 
@@ -327,6 +333,38 @@ The **Details** tab provides configuration details and metadata for the Dag, inc
 
         .. image:: img/ui-light/dag_overview_details.png
            :alt: Dag Details Tab (Light Mode)
+
+Versions Tab
+''''''''''''
+
+.. versionadded:: 3.4.0
+
+The **Versions** tab compares two versions of the Dag. Pick a version in **Compare from** and another in
+**Compare to**, and the tab lists every change between them: the path of what changed, whether it was added,
+changed or removed, its category (for example task, schedule, param or asset) and its impact. Changes that
+affect execution, such as a task's operator or retries, are marked separately from metadata-only changes like
+a description or tag.
+
+The **Before** and **After** columns, and the names in each path, are shown only to users who can read the
+Dag's code. Other users still see what kind of change was made, with identifying names in the path masked and
+the values marked as hidden. A large comparison is cut at 500 changes by
+default; set **Max changes** (up to 5000) to see more. The selected versions are kept in the URL, so a
+comparison can be shared as a link.
+
+.. tab-set::
+    :sync-group: ui-theme
+
+    .. tab-item:: Dark
+        :sync: dark
+
+        .. image:: img/ui-dark/dag_overview_versions.png
+           :alt: Dag Versions Tab (Dark Mode)
+
+    .. tab-item:: Light
+        :sync: light
+
+        .. image:: img/ui-light/dag_overview_versions.png
+           :alt: Dag Versions Tab (Light Mode)
 
 .. _ui-dag-runs:
 

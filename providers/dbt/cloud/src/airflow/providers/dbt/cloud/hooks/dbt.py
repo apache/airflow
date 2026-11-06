@@ -404,12 +404,18 @@ class DbtCloudHook(HttpHook):
             self.__dict__["connection"] = self._require_password(conn)
         return self.__dict__["connection"]
 
-    def get_conn(self, *args, **kwargs) -> Session:
+    def get_conn(
+        self, headers: dict[Any, Any] | None = None, extra_options: dict[str, Any] | None = None
+    ) -> Session:
         tenant = self._get_tenant_domain(self.connection)
         self.base_url = f"https://{tenant}/"
 
         session = Session()
         session.auth = self.auth_type(self.connection.password)
+
+        # HttpHook.run() reads the timeout from self.merged_extra and proxies from the session.
+        self.merged_extra = dict(extra_options or {})
+        session.proxies = self.merged_extra.get("proxies", {})
 
         return session
 

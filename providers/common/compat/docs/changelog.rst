@@ -25,6 +25,23 @@
 Changelog
 ---------
 
+1.23.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Log errors from OpenLineage database info lookups in the fallback SQL facets helper (#74805)``
+
+Misc
+~~~~
+
+* ``Type the durable default of the common.compat ResumableJobMixin stand-in as bool | None (#75271)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 1.23.0
 ......
 

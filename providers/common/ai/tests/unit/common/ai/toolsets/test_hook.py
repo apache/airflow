@@ -30,7 +30,7 @@ import pytest
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
@@ -47,6 +47,8 @@ from airflow.providers.common.ai.utils.tool_definition import (
     _SUPPORTS_RETURN_SCHEMA,
     serialize_for_llm,
 )
+
+from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -559,8 +561,8 @@ class TestHookToolsetEncodedArgs:
         attempts = iter([bad, good])
 
         def model(messages, info):
-            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
-            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            retried = [p for m in messages for p in m.parts if is_tool_retry(p)]
+            returned = [p for m in messages for p in m.parts if is_tool_result(p)]
             if returned:
                 return ModelResponse(parts=[TextPart(f"{retried[0].content} | {returned[0].content}")])
             return ModelResponse(parts=[ToolCallPart(method_name, next(attempts), tool_call_id="c")])
@@ -931,8 +933,8 @@ class TestHookToolsetPinnedArguments:
         attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
 
         def model(messages, info):
-            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
-            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            retried = [p for m in messages for p in m.parts if is_tool_retry(p)]
+            returned = [p for m in messages for p in m.parts if is_tool_result(p)]
             if returned:
                 return ModelResponse(parts=[TextPart(str(retried[0].content))])
             return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])

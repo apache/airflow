@@ -80,7 +80,7 @@ permissions:
   contents: read
 jobs:
   update-constraints:
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     timeout-minutes: 80
     name: "Update constraints"
     permissions:
@@ -124,45 +124,6 @@ jobs:
           path: ./files
       - name: "Diff in constraints for Python: ${{ inputs.python-versions-list-as-string }}"
         run: ./scripts/ci/constraints/ci_diff_constraints.sh
-
-  # Constraint commits are now handled by the dedicated update-constraints-on-push workflow
-  # triggered when uv.lock changes are pushed to main/test branches.
-  dependency-upgrade-summary:
-    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
-    needs: [update-constraints]
-    if: inputs.upgrade-to-newer-dependencies == 'true' && inputs.platform == 'linux/amd64'
-    name: "Deps ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(inputs.python-versions) }}
-        constraints-mode: ["constraints", "constraints-source-providers", "constraints-no-providers"]
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: sudo rm -rf ${GITHUB_WORKSPACE}/*
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          persist-credentials: false
-      - name: "Prepare breeze & CI image: ${{ matrix.python-version }}"
-        uses: ./.github/actions/prepare_breeze_and_image
-        with:
-          platform: ${{ inputs.platform }}
-          python: ${{ matrix.python-version }}
-          use-uv: ${{ inputs.use-uv }}
-          make-mnt-writeable-and-cleanup: true
-      - name: "Deps: ${{ matrix.python-version }}:${{ matrix.constraints-mode }}"
-        shell: bash
-        run: >
-          breeze release-management constraints-version-check
-          --python "${MATRIX_PYTHON_VERSION}"
-          --airflow-constraints-mode "${MATRIX_CONSTRAINTS_MODE}" --explain-why
-        env:
-          MATRIX_PYTHON_VERSION: "${{ matrix.python-version }}"
-          MATRIX_CONSTRAINTS_MODE: "${{ matrix.constraints-mode }}"
-          VERBOSE: "false"
 
   push-buildx-cache-to-github-registry:
     name: Push Regular Image Cache ${{ inputs.platform }}
