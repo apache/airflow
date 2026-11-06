@@ -18,7 +18,8 @@ Russian has **four plural forms**. Use the correct form for each suffix:
 - `_one`: 1, 21, 31, … (nominative singular)
 - `_few`: 2-4, 22-24, … (genitive singular)
 - `_many`: 0, 5-20, 25-30, … (genitive plural)
-- `_other`: fractional counts such as 1.5 (see the note below)
+- `_other`: the plural label shown without a number (nominative plural, see
+  the note below)
 
 **English source:**
 
@@ -33,7 +34,7 @@ Russian has **four plural forms**. Use the correct form for each suffix:
 "connection_one": "Соединение",
 "connection_few": "Соединения",
 "connection_many": "Соединений",
-"connection_other": "Соединений"
+"connection_other": "Соединения"
 ```
 
 **Incorrect:**
@@ -62,18 +63,18 @@ the suffixes may legitimately be identical:
 So judge a set by whether a number is rendered next to the noun, not by
 whether the suffixes differ.
 
-**`_other` is unsettled in this locale.** Russian takes the genitive singular
-after a fraction (`1,5 пула`), which is the same form as `_few`. Most entries
-currently repeat the `_many` form instead, while a few use the genitive
-singular:
+**`_other` is the plural label shown without a number.** The UI renders keys
+such as `dagRun_other` or `dag_other` on their own (tab names, titles, table
+headers), while i18next never selects `_other` for whole-number counts in
+Russian. Use the nominative plural:
 
 ```json
-"asset_many": "Активов",
-"asset_other": "Актива"     // genitive singular, used for fractions
+"dagRun_other": "Запуски Dag-а",
+"requiredAction_other": "Необходимые действия"
 ```
 
-Follow whichever convention the surrounding namespace already uses, and raise
-the question with the translation owners rather than changing entries in bulk.
+Many existing entries still repeat the `_many` form (e.g. `dag_other: "Dag-ов"`);
+those are worth correcting in a separate change.
 
 ## Case Declension
 
@@ -221,7 +222,7 @@ Notes:
 
 - `Upstream` also appears contextually as `выше по цепочке` (e.g. "Запустить
   Dag выше по цепочке этого актива"). Use `Вверх по потоку` for the standalone
-  label and the contextual phrasing inside sentences.
+  direction label and `выше по цепочке` inside sentences.
 - State names such as `Приостановленные` are used as plural filter labels;
   match the grammatical number of the surrounding UI element.
 
