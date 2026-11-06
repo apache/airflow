@@ -81,6 +81,9 @@ class TestWorkerApiRoutes:
         assert _version("1.2.3") == (1, 2, 3)
         assert _version("1.2.3rc1") == (1, 2, 3)
         assert _version("1.2.3.dev0") == (1, 2, 3)
+        with pytest.raises(HTTPException, match="expected a string, got datetime") as exc_info:
+            _version(datetime(2026, 9, 15))
+        assert exc_info.value.status_code == 400
 
     @conf_vars({("api_auth", "jwt_secret"): "edge-version-test-secret"})
     @pytest.mark.parametrize(
@@ -91,8 +94,27 @@ class TestWorkerApiRoutes:
         ],
     )
     @pytest.mark.parametrize("method", ["POST", "PATCH"])
-    @pytest.mark.parametrize("invalid_source", ["worker", "server"])
-    def test_invalid_version_http_status(self, session: Session, field, minimum_key, method, invalid_source):
+    @pytest.mark.parametrize(
+        ("worker_version", "minimum", "expected_status"),
+        [
+            pytest.param("invalid-version", "0.0.0", 400, id="worker-invalid-string"),
+            pytest.param("2026-09-15T19:53:06", "0.0.0", 400, id="worker-datetime-string"),
+            pytest.param(3, "0.0.0", 400, id="worker-int"),
+            pytest.param(3.5, "0.0.0", 400, id="worker-float"),
+            pytest.param(True, "0.0.0", 400, id="worker-bool"),
+            pytest.param("0.0.0", "invalid-version", 500, id="server-invalid-minimum"),
+        ],
+    )
+    def test_invalid_version_http_status(
+        self,
+        session: Session,
+        field: str,
+        minimum_key: str,
+        method: str,
+        worker_version: str | int | float,
+        minimum: str,
+        expected_status: int,
+    ):
         session.commit()
         app = FastAPI()
         app.include_router(worker_router, prefix="/edge_worker/v1")
@@ -112,14 +134,13 @@ class TestWorkerApiRoutes:
             with TestClient(app, raise_server_exceptions=False, headers={"Authorization": token}) as client:
                 if method == "PATCH":
                     assert client.post(path, json=body).status_code == 200
-                sysinfo[field] = "invalid-version" if invalid_source == "worker" else "0.0.0"
-                minimum = "0.0.0" if invalid_source == "worker" else "invalid-version"
+                sysinfo[field] = worker_version
                 with conf_vars({("edge", minimum_key): minimum}):
                     response = client.request(method=method, url=path, json=body)
         finally:
             jwt_validator.cache_clear()
 
-        assert response.status_code == (400 if invalid_source == "worker" else 500)
+        assert response.status_code == expected_status
 
     def test_assert_version(self):
         from airflow import __version__ as airflow_version
