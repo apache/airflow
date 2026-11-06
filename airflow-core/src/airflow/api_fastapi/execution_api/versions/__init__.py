@@ -65,6 +65,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     AddTaskInstanceRegionCoordinates,
     AddTerminalStateRetryReasonField,
     IdentifyArchivedTaskStateUpdates,
+    ReturnNotFoundForMissingDagRun,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30_xcom_params import (
     AddPreviousIterationToXComFilterParams,
@@ -87,6 +88,7 @@ bundle = VersionBundle(
         AddTaskInstanceRegionCoordinates,
         IdentifyArchivedTaskStateUpdates,
         AddFirstTaskRescheduleStartDateField,
+        ReturnNotFoundForMissingDagRun,
     ),
     Version(
         "2026-06-30",
