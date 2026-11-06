@@ -148,6 +148,10 @@ dependencies = [
 # Islo-hosted microVM sandboxes for SandboxToolset: like modal, needs no host-level
 # installation, only ISLO_API_KEY in the worker environment.
 "islo" = ["islo>=0.3.19"]
+# boxd-hosted microVM sandboxes for SandboxToolset: like islo, needs no host-level
+# installation, only a boxd API key. 0.2.22 is the first release with machines.fs, which
+# the backend writes files through, and with egress allowlists in a machine spec.
+"boxd" = ["boxd>=0.2.22"]
 "avro" = [
     'fastavro>=1.10.0; python_version < "3.14"',
     'fastavro>=1.12.1; python_version >= "3.14"',
@@ -207,6 +211,7 @@ dev = [
     "pydantic-ai-harness[codemode]>=0.35.0",
     "boat-sdk>=1.9.3",
     "islo>=0.3.19",
+    "boxd>=0.2.22",
     "opensandbox>=1.1.0",
     "openshell>=0.1.2,<0.2",
     "grpcio>=1.78.0",

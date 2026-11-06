@@ -129,7 +129,7 @@ checklist.
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.
-     - ``modal``, ``islo``, ``opensandbox``, ``openshell`` or ``boat``, by backend;
+     - ``modal``, ``islo``, ``boxd``, ``opensandbox``, ``openshell`` or ``boat``, by backend;
        none for ``sbx``
    * - :doc:`ManagedAgentToolset <toolsets/managed_agent>`
      - Sends a prompt to an agent on Bedrock AgentCore or Vertex AI Agent Engine.
