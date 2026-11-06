@@ -119,6 +119,22 @@ describe("FieldDropdown with depends_on", () => {
     expect(store.current.paramsDict.district?.value).toBeNull();
   });
 
+  it("keeps the value when the JSON config omits the parent", () => {
+    const store = setUp("omitted", {
+      city: param("berlin", { depends_on: "country", options_map: cityMap, type: ["null", "string"] }),
+      country: param("de", { enum: ["de", "fr"], type: "string" }),
+    });
+    const onUpdate = vi.fn();
+
+    render(<FieldDropdown name="city" namespace="omitted" onUpdate={onUpdate} />, { wrapper: Wrapper });
+
+    act(() => store.current.setConf('{"city": "berlin"}'));
+
+    expect(store.current.paramsDict.country).toBeUndefined();
+    expect(store.current.paramsDict.city?.value).toBe("berlin");
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+
   it("matches non-string parent values as Python str() keys", () => {
     setUp("keys", {
       flag: param(true, { type: "boolean" }),

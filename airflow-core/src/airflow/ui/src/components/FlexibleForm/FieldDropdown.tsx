@@ -57,14 +57,15 @@ const getOptionKey = (value: unknown): string => {
 
 export const FieldDropdown = ({ name, namespace = "default", onUpdate }: FlexibleFormElementProps) => {
   const { t: translate } = useTranslation("components");
-  const { disabled, paramsDict, setParamsDict } = useParamStore(namespace);
+  const { disabled, initialParamDict, paramsDict, setParamsDict } = useParamStore(namespace);
   const param = paramsDict[name] ?? paramPlaceholder;
 
   const { depends_on: dependsOn, options_map: optionsMap } = param.schema;
+  // A JSON config can omit the parent, and the backend then validates against its default
+  const parentValue =
+    dependsOn === undefined ? undefined : (paramsDict[dependsOn] ?? initialParamDict[dependsOn])?.value;
   const enumValues =
-    dependsOn === undefined
-      ? param.schema.enum
-      : (optionsMap?.[getOptionKey(paramsDict[dependsOn]?.value)] ?? []);
+    dependsOn === undefined ? param.schema.enum : (optionsMap?.[getOptionKey(parentValue)] ?? []);
 
   const options =
     enumValues?.map((value) => ({
