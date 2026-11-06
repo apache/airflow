@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import collections
-from collections.abc import Iterator, Sequence
-from datetime import datetime
+from collections.abc import Iterator
+from datetime import datetime, timedelta
 from typing import Literal, cast
 
 import sqlalchemy as sa
@@ -28,7 +28,7 @@ from sqlalchemy.engine import Row
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
 from airflow._shared.timezones import timezone
-from airflow.api_fastapi.common.parameters import RangeFilter
+from airflow.api_fastapi.common.parameters import Range, RangeFilter
 from airflow.api_fastapi.core_api.datamodels.ui.calendar import (
     CalendarTimeRangeCollectionResponse,
     CalendarTimeRangeResponse,
@@ -71,19 +71,17 @@ class CalendarService:
             List of calendar time range results
         """
         date_filter = partition_date if partition_date.is_active() else logical_date
-        historical_data, raw_dag_states = self._get_historical_dag_runs(
-            dag_id,
-            session,
-            date_filter,
-            granularity,
-        )
+        historical_dag_runs = self._get_historical_dag_runs(dag_id, session, date_filter, granularity)
 
-        planned_data = self._get_planned_dag_runs(dag, raw_dag_states, date_filter, granularity)
+        # Planned runs extend from the latest run of the Dag, regardless of the displayed date range,
+        # so that ranges without any historical runs (e.g. a future year) still show planned runs.
+        latest_run = self._get_latest_dag_run(dag_id, session)
+        planned_dag_runs = self._get_planned_dag_runs(dag, latest_run, date_filter, granularity)
 
-        all_data = historical_data + planned_data
+        all_dag_runs = historical_dag_runs + planned_dag_runs
         return CalendarTimeRangeCollectionResponse(
-            total_entries=len(all_data),
-            dag_runs=all_data,
+            total_entries=len(all_dag_runs),
+            dag_runs=all_dag_runs,
         )
 
     def _get_historical_dag_runs(
@@ -92,8 +90,26 @@ class CalendarService:
         session: Session,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
-    ) -> tuple[list[CalendarTimeRangeResponse], Sequence[Row]]:
-        """Get historical Dag runs from the database."""
+    ) -> list[CalendarTimeRangeResponse]:
+        """
+        Fetch historical Dag runs.
+
+        :param dag_id: The Dag ID
+        :param session: Database session
+        :param date_filter: Filter for specific dates
+        :param granularity: hourly or daily
+        :return:
+        """
+        if date_filter.value:
+            lower_bounds = [
+                bound
+                for bound in (date_filter.value.lower_bound_gte, date_filter.value.lower_bound_gt)
+                if bound is not None
+            ]
+            if lower_bounds and max(lower_bounds) > timezone.utcnow():
+                # The lower boundary is in the future, therefore skip requesting historical dag runs.
+                return []
+
         dialect = get_dialect_name(session)
 
         effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
@@ -127,27 +143,51 @@ class CalendarService:
             for ds in dag_states
         ]
 
-        return calendar_results, dag_states
+        return calendar_results
+
+    def _get_latest_dag_run(self, dag_id: str, session: Session) -> Row | None:
+        """
+        Get the latest Dag run of the Dag (by partition date or logical date), ignoring any date filter.
+
+        :param dag_id: The Dag ID
+        :param session: Database session
+        :return: The latest run, or None if the Dag has no runs
+        """
+        return session.execute(
+            sa.select(
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+                DagRun.run_after,
+                DagRun.partition_date,
+            )
+            .where(DagRun.dag_id == dag_id)
+            .order_by(sa.func.coalesce(DagRun.partition_date, DagRun.logical_date).desc())
+            .limit(1)
+        ).first()
 
     def _get_planned_dag_runs(
         self,
         dag: SerializedDAG,
-        raw_dag_states: Sequence[Row],
+        last_state: Row | None,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
         """Get planned Dag runs based on the Dag's timetable."""
-        if not self._should_calculate_planned_runs(dag, raw_dag_states):
+        if last_state is None or not dag.timetable.periodic:
             return []
 
-        last_state = raw_dag_states[-1]
+        if (
+            not (last_state.data_interval_start and last_state.data_interval_end)
+            and not last_state.partition_date
+        ):
+            return []
 
         if dag.timetable.partitioned:
             last_run_after = timezone.coerce_datetime(last_state.run_after)
             last_partition_date = timezone.coerce_datetime(last_state.partition_date)
             if not last_run_after or not last_partition_date:
                 return []
-            year = last_partition_date.year
+            date_filter = self._get_filter_with_default_upper_bound(date_filter, last_partition_date.year)
             last_info = DagRunInfo(
                 run_after=last_run_after,
                 partition_date=last_partition_date,
@@ -155,14 +195,12 @@ class CalendarService:
                 data_interval=None,
             )
         else:
-            last_data_interval = self._get_last_data_interval(raw_dag_states)
+            last_data_interval = self._get_last_data_interval(last_state)
             if not last_data_interval:
                 return []
-            year = last_data_interval.end.year
+            date_filter = self._get_filter_with_default_upper_bound(date_filter, last_data_interval.end.year)
             if isinstance(dag.timetable, CronMixin):
-                return self._calculate_cron_planned_runs(
-                    dag, last_data_interval, year, date_filter, granularity
-                )
+                return self._calculate_cron_planned_runs(dag, last_data_interval, date_filter, granularity)
             last_info = DagRunInfo(
                 run_after=last_data_interval.end,
                 data_interval=last_data_interval,
@@ -176,23 +214,34 @@ class CalendarService:
             False,
         )
 
-        return self._calculate_timetable_planned_runs(
-            dag, last_info, year, restriction, date_filter, granularity
+        return self._calculate_timetable_planned_runs(dag, last_info, restriction, date_filter, granularity)
+
+    def _get_filter_with_default_upper_bound(
+        self, date_filter: RangeFilter, default_upper_bound_year: int
+    ) -> RangeFilter:
+        """
+        Get the range filter with an upper bound, so planned runs do not extend indefinitely.
+
+        Necessary when no upper bound is provided.
+
+        :param date_filter: Date range filter of the displayed range
+        :param default_upper_bound_year: Year of the last run
+        :return: The given filter if it has an upper bound, otherwise a copy with one
+        """
+        value = date_filter.value or Range(
+            lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None
+        )
+        if value.upper_bound_lte is not None or value.upper_bound_lt is not None:
+            return date_filter
+        return RangeFilter(
+            value.model_copy(
+                update={"upper_bound_lt": datetime(default_upper_bound_year + 1, 1, 1, tzinfo=timezone.utc)}
+            ),
+            date_filter.attribute,
         )
 
-    def _should_calculate_planned_runs(self, dag: SerializedDAG, raw_dag_states: Sequence[Row]) -> bool:
-        """Check if we should calculate planned runs."""
-        if not raw_dag_states or not dag.timetable.periodic:
-            return False
-        last = raw_dag_states[-1]
-        return bool(last.data_interval_start and last.data_interval_end) or bool(last.partition_date)
-
-    def _get_last_data_interval(self, raw_dag_states: Sequence[Row]) -> DataInterval | None:
-        """Extract the last data interval from raw database results."""
-        if not raw_dag_states:
-            return None
-
-        last_state = raw_dag_states[-1]
+    def _get_last_data_interval(self, last_state: Row) -> DataInterval | None:
+        """Extract the last data interval from the latest run."""
         if not (last_state.data_interval_start and last_state.data_interval_end):
             return None
 
@@ -205,21 +254,30 @@ class CalendarService:
         self,
         dag: SerializedDAG,
         last_data_interval: DataInterval,
-        year: int,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
     ) -> list[CalendarTimeRangeResponse]:
         """Calculate planned runs for cron-based timetables."""
         dates: dict[datetime, int] = collections.Counter()
 
+        # Skip straight to the displayed range instead of iterating over every tick in between.
+        # croniter yields ticks strictly after start_time, so step back for an inclusive lower bound.
+        start_times = [last_data_interval.end]
+        if date_filter.value:
+            if date_filter.value.lower_bound_gte:
+                start_times.append(date_filter.value.lower_bound_gte - timedelta(seconds=1))
+            if date_filter.value.lower_bound_gt:
+                start_times.append(date_filter.value.lower_bound_gt)
+        start_time = max(start_times)
+
         dates_iter: Iterator[datetime | None] = croniter(
             cast("CronMixin", dag.timetable)._expression,
-            start_time=last_data_interval.end,
+            start_time=start_time,
             ret_type=datetime,
         )
 
         for dt in dates_iter:
-            if dt is None or dt.year != year:
+            if dt is None or self._is_after_range(dt, date_filter):
                 break
             if dag.end_date and dt > dag.end_date:
                 break
@@ -236,7 +294,6 @@ class CalendarService:
         self,
         dag: SerializedDAG,
         last_info: DagRunInfo,
-        year: int,
         restriction: TimeRestriction,
         date_filter: RangeFilter,
         granularity: Literal["hourly", "daily"],
@@ -260,7 +317,7 @@ class CalendarService:
             effective_date = curr_info.partition_date or curr_info.logical_date
             if not effective_date:
                 break
-            if effective_date.year != year:
+            if self._is_after_range(effective_date, date_filter):
                 break
 
             if not self._is_date_in_range(effective_date, date_filter):
@@ -341,6 +398,15 @@ class CalendarService:
         if granularity == "hourly":
             return dt.replace(minute=0, second=0, microsecond=0)
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def _is_after_range(self, dt: datetime, date_filter: RangeFilter) -> bool:
+        """Check if a date is past the upper bound of the range filter."""
+        if not date_filter.value:
+            return False
+
+        if date_filter.value.upper_bound_lte and dt > date_filter.value.upper_bound_lte:
+            return True
+        return bool(date_filter.value.upper_bound_lt and dt >= date_filter.value.upper_bound_lt)
 
     def _is_date_in_range(self, dt: datetime, date_filter: RangeFilter) -> bool:
         """Check if a date is within the specified range filter."""

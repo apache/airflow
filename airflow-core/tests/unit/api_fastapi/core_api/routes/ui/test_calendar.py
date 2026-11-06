@@ -21,6 +21,7 @@ from datetime import datetime
 
 import pendulum
 import pytest
+import time_machine
 from sqlalchemy.orm import Session
 
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -107,7 +108,7 @@ class TestCalendar:
         ],
     )
     def test_daily_calendar(self, test_client, query_params, result):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
         assert response.status_code == 200
         body = response.json()
@@ -155,8 +156,10 @@ class TestCalendar:
                     "logical_date_lt": "2025-01-02T23:23:59Z",
                 },
                 {
-                    "total_entries": 0,
-                    "dag_runs": [],
+                    "total_entries": 1,
+                    "dag_runs": [
+                        {"date": "2025-01-02T01:00:00Z", "state": "planned", "count": 1},
+                    ],
                 },
             ),
             (
@@ -178,12 +181,95 @@ class TestCalendar:
         ],
     )
     def test_hourly_calendar(self, setup_dag_runs, test_client, query_params, result):
-        with assert_queries_count(4):
+        with assert_queries_count(5):
             response = test_client.get(f"/calendar/{self.DAG_NAME}", params=query_params)
         assert response.status_code == 200
         body = response.json()
 
         assert body == result
+
+
+class TestCalendarFutureRange:
+    DAG_NAME = "test_dag_future"
+
+    @pytest.fixture(autouse=True)
+    def setup_dag_runs(self, dag_maker, session) -> None:
+        clear_db_runs()
+        clear_db_dags()
+        with dag_maker(
+            self.DAG_NAME,
+            schedule="0 0 * * *",
+            start_date=datetime(2025, 1, 1),
+            catchup=True,
+            serialized=True,
+            session=session,
+        ):
+            EmptyOperator(task_id="test_task1")
+        dag_maker.create_dagrun(run_id="run_1", state=DagRunState.SUCCESS, logical_date=datetime(2025, 1, 1))
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+    def teardown_method(self) -> None:
+        clear_db_runs()
+        clear_db_dags()
+
+    @pytest.mark.parametrize(
+        "year",
+        [
+            pytest.param(2026, id="range_in_past"),
+            pytest.param(2027, id="range_in_future"),
+        ],
+    )
+    @time_machine.travel(datetime(2026, 11, 2), tick=False)
+    def test_planned_runs_shown_for_range_without_historical_runs(self, test_client, year):
+        """
+        Validate that planned runs do not depend on the last dag run datetime (as it was in the past).
+
+        This test's only Dag run is in 2025. For a period with no runs, past or future, the calendar must
+        still return the planned runs.
+        """
+        response = test_client.get(
+            f"/calendar/{self.DAG_NAME}",
+            params={
+                "logical_date_gte": f"{year}-01-01T00:00:00Z",
+                "logical_date_lte": f"{year}-01-03T23:59:59Z",
+            },
+        )
+        assert response.status_code == 200
+        assert response.json() == {
+            "total_entries": 3,
+            "dag_runs": [
+                {"date": f"{year}-01-01T00:00:00Z", "state": "planned", "count": 1},
+                {"date": f"{year}-01-02T00:00:00Z", "state": "planned", "count": 1},
+                {"date": f"{year}-01-03T00:00:00Z", "state": "planned", "count": 1},
+            ],
+        }
+
+    @pytest.mark.parametrize(
+        ("year", "expected_queries"),
+        [
+            pytest.param(2026, 5, id="range_in_past"),
+            pytest.param(2027, 4, id="range_in_future_skips_historical_query"),
+        ],
+    )
+    @time_machine.travel(datetime(2026, 11, 2), tick=False)
+    def test_historical_query_only_for_ranges_not_in_future(self, test_client, year, expected_queries):
+        """
+        Validate that the database is only queried for past Dag runs when the viewed period has already
+        started (i.e. is not in the future).
+
+        A period beginning in the future cannot contain runs, so that lookup is skipped, which shows up as one
+        database query less than for a period in the past.
+        """
+        with assert_queries_count(expected_queries):
+            response = test_client.get(
+                f"/calendar/{self.DAG_NAME}",
+                params={
+                    "logical_date_gte": f"{year}-01-01T00:00:00Z",
+                    "logical_date_lte": f"{year}-01-03T23:59:59Z",
+                },
+            )
+        assert response.status_code == 200
 
 
 class TestPartitionedCalendar:
