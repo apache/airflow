@@ -154,6 +154,16 @@ class _S3DagBundleBase(BaseDagBundle):
         if self.version:
             raise AirflowException("Refreshing a specific version is not supported")
 
+    def refresh(self) -> None:
+        """Refresh the Dag bundle by updating the local Dag files from S3."""
+        self._reject_version_refresh()
+        with self.lock():
+            self._refresh_locked()
+
+    def _refresh_locked(self) -> None:
+        """Stage the bundle while the bundle lock is held."""
+        raise NotImplementedError
+
 
 class S3DagBundle(_S3DagBundleBase):
     """
@@ -206,23 +216,19 @@ class S3DagBundle(_S3DagBundleBase):
             f")>"
         )
 
-    def refresh(self) -> None:
-        """Refresh the Dag bundle by re-downloading the Dags from S3."""
-        self._reject_version_refresh()
-
-        with self.lock():
-            self._log.debug(
-                "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
-            )
-            sync_prefix = self.prefix
-            if sync_prefix and not sync_prefix.endswith("/"):
-                sync_prefix += "/"
-            self.s3_hook.sync_to_local_dir(
-                bucket_name=self.bucket_name,
-                s3_prefix=sync_prefix,
-                local_dir=self.s3_dags_dir,
-                delete_stale=True,
-            )
+    def _refresh_locked(self) -> None:
+        self._log.debug(
+            "Downloading Dags from s3://%s/%s to %s", self.bucket_name, self.prefix, self.s3_dags_dir
+        )
+        sync_prefix = self.prefix
+        if sync_prefix and not sync_prefix.endswith("/"):
+            sync_prefix += "/"
+        self.s3_hook.sync_to_local_dir(
+            bucket_name=self.bucket_name,
+            s3_prefix=sync_prefix,
+            local_dir=self.s3_dags_dir,
+            delete_stale=True,
+        )
 
 
 class S3ArchiveDagBundle(_S3DagBundleBase):
@@ -305,58 +311,54 @@ class S3ArchiveDagBundle(_S3DagBundleBase):
             body.close()
         return response.get("ETag", "")
 
-    def refresh(self) -> None:
-        """Refresh the Dag bundle by downloading and unpacking the archive object."""
-        self._reject_version_refresh()
+    def _refresh_locked(self) -> None:
+        self._remove_stale_archive_staging_dirs()
+        client = self.s3_hook.get_conn()
+        head = client.head_object(Bucket=self.bucket_name, Key=self.archive_key)
+        etag: str = head.get("ETag", "")
 
-        with self.lock():
-            self._remove_stale_archive_staging_dirs()
-            client = self.s3_hook.get_conn()
-            head = client.head_object(Bucket=self.bucket_name, Key=self.archive_key)
-            etag: str = head.get("ETag", "")
+        marker = self._get_archive_etag_path()
+        if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
+            self._log.debug(
+                "Dag bundle archive 's3://%s/%s' is unchanged (ETag %s), skipping staging",
+                self.bucket_name,
+                self.archive_key,
+                etag,
+            )
+            return
 
-            marker = self._get_archive_etag_path()
-            if etag and marker.is_file() and marker.read_text() == etag and self._bundle_dir_has_files():
-                self._log.debug(
-                    "Dag bundle archive 's3://%s/%s' is unchanged (ETag %s), skipping staging",
-                    self.bucket_name,
-                    self.archive_key,
-                    etag,
-                )
-                return
+        state_dir = self._get_archive_state_dir()
+        state_dir.mkdir(parents=True, exist_ok=True)
+        staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+        try:
+            archive_path = staging_dir / "_bundle_archive"
+            downloaded_etag = self._download_archive(client, archive_path, etag)
 
-            state_dir = self._get_archive_state_dir()
-            state_dir.mkdir(parents=True, exist_ok=True)
-            staging_dir = Path(tempfile.mkdtemp(dir=state_dir, prefix="archive-staging-"))
+            unpack_dir = staging_dir / "unpacked"
+            unpack_dir.mkdir()
+            _extract_archive(archive_path, unpack_dir)
+            archive_path.unlink()
+
+            backup_dir = staging_dir / "previous"
+            if self.s3_dags_dir.exists():
+                self.s3_dags_dir.rename(backup_dir)
             try:
-                archive_path = staging_dir / "_bundle_archive"
-                downloaded_etag = self._download_archive(client, archive_path, etag)
+                unpack_dir.rename(self.s3_dags_dir)
+            except Exception:
+                if backup_dir.exists():
+                    backup_dir.rename(self.s3_dags_dir)
+                raise
 
-                unpack_dir = staging_dir / "unpacked"
-                unpack_dir.mkdir()
-                _extract_archive(archive_path, unpack_dir)
-                archive_path.unlink()
+            marker_etag = downloaded_etag or etag
+            if marker_etag:
+                self._get_archive_etag_path().write_text(marker_etag)
 
-                backup_dir = staging_dir / "previous"
-                if self.s3_dags_dir.exists():
-                    self.s3_dags_dir.rename(backup_dir)
-                try:
-                    unpack_dir.rename(self.s3_dags_dir)
-                except Exception:
-                    if backup_dir.exists():
-                        backup_dir.rename(self.s3_dags_dir)
-                    raise
-
-                marker_etag = downloaded_etag or etag
-                if marker_etag:
-                    self._get_archive_etag_path().write_text(marker_etag)
-
-                self._log.debug(
-                    "Staged Dag bundle from archive 's3://%s/%s' (%s bytes) to %s",
-                    self.bucket_name,
-                    self.archive_key,
-                    head.get("ContentLength"),
-                    self.s3_dags_dir,
-                )
-            finally:
-                shutil.rmtree(staging_dir, ignore_errors=True)
+            self._log.debug(
+                "Staged Dag bundle from archive 's3://%s/%s' (%s bytes) to %s",
+                self.bucket_name,
+                self.archive_key,
+                head.get("ContentLength"),
+                self.s3_dags_dir,
+            )
+        finally:
+            shutil.rmtree(staging_dir, ignore_errors=True)
